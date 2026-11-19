@@ -653,7 +653,7 @@ return function(deps)
 				TweenService:Create(fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
 			end
 			if playSfx and SOUND_IDS then
-				require(script.Parent.Cue).play(isWin and "win" or "lose", 1.2)
+				require(script.Parent.Cue).play(isWin and "win" or "defeat", 1.2)
 			end
 			pcall(function() -- win: suit confetti and a springy title; loss: a gentle grey wash, no shake (all none in Calm mode)
 				local fx = require(script.Parent.CelebrationFX)

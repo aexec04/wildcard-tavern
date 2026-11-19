@@ -9,7 +9,7 @@
 	                                       over the last mult tick
 	SoundFX.jitter(base, pct, roll, last)  base varied by up to plus or minus pct, never equal to `last` (roll is a number 0 to 1)
 	SoundFX.JITTERED                       cues that get pitch (6 percent) and volume (8 percent) jitter
-	SoundFX.minInterval(cue)               seconds between two plays of a cue (hover 0.08, the rest 0.03)
+	SoundFX.minInterval(cue)               seconds between two plays of a cue (hover 0.08, the rest 0.05)
 	SoundFX.newGate()                      gate:allow(cue, now) -> bool, one per-cue minimum interval
 	SoundFX.duck(t, deep, hold, release)   music gain at t seconds after a big beat starts: 4 dB down at once, held 1.2 s, back up over 0.6 s
 	SoundFX.dbToGain(db)
@@ -57,9 +57,15 @@ SoundFX.PITCH_JITTER, SoundFX.VOLUME_JITTER = 0.06, 0.08
 SoundFX.JITTERED = { card_select = true, card_play = true, card_deal = true, button_click = true, hover = true, chip = true, coin = true }
 
 SoundFX.INTERVALS = { hover = 0.08 }
-SoundFX.DEFAULT_INTERVAL = 0.03
+SoundFX.DEFAULT_INTERVAL = 0.05
 function SoundFX.minInterval(cue)
 	return SoundFX.INTERVALS[cue] or SoundFX.DEFAULT_INTERVAL
+end
+
+-- PlaybackSpeed of the n-th score_tick in a run of ticks: 1.0 rising 0.03 per tick, capped at 1.3 (the 11th tick and later)
+SoundFX.TICK_STEP, SoundFX.TICK_CAP = 0.03, 1.3
+function SoundFX.tickSpeed(n)
+	return math.min(SoundFX.TICK_CAP, 1 + SoundFX.TICK_STEP * math.max(0, (tonumber(n) or 1) - 1))
 end
 
 function SoundFX.newGate()

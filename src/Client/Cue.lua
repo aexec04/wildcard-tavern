@@ -38,10 +38,10 @@ function Cue.audition(name)
 	return false
 end
 
--- Cue.play("map_open") or Cue.play("hover", 0.8) (second argument scales the cue's own volume).
-function Cue.play(name, scale)
+-- Cue.play("map_open") or Cue.play("hover", 0.8) (second argument scales the cue's own volume, the third is a PlaybackSpeed).
+function Cue.play(name, scale, speed)
 	if impl then
-		pcall(impl, name, scale)
+		pcall(impl, name, scale, speed)
 	end
 end
 

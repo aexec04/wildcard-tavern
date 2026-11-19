@@ -22280,7 +22280,12 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 	local gate = FX.newGate()
 	expectTrue(gate:allow("card_select", 1.000), "the first play is allowed")
 	expectFalse(gate:allow("card_select", 1.010), "10 ms later is blocked")
-	expectTrue(gate:allow("card_select", 1.031), "31 ms later is allowed")
+	expectFalse(gate:allow("card_select", 1.040), "40 ms later is still blocked (0.05 s cooldown)")
+	expectTrue(gate:allow("card_select", 1.051), "51 ms later is allowed")
+	expectEqual(FX.tickSpeed(1), 1, "the first score tick is at normal pitch")
+	expectTrue(FX.tickSpeed(5) > FX.tickSpeed(2), "score ticks rise")
+	expectEqual(FX.tickSpeed(11), 1.3, "the 11th tick reaches the cap")
+	expectEqual(FX.tickSpeed(40), 1.3, "and never goes past 1.3")
 	expectTrue(gate:allow("hover", 2.0) and not gate:allow("hover", 2.05) and gate:allow("hover", 2.081), "hover waits 80 ms")
 	expectTrue(gate:allow("coin", 1.011), "another cue is independent")
 	-- ducking: 4 dB down at once, held 1.2 s, back up over 0.6 s

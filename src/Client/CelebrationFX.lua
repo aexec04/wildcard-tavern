@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local C = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Celebration"))
+local SoundFX = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundFX"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local M = {}
@@ -28,7 +29,7 @@ function M.countUp(label, total, textFor)
 			task.wait(plan.step)
 			if not label.Parent then return end
 			label.Text = textFor(v)
-			pcall(function() require(script.Parent.Cue).play("score_tick", 1 + 0.04 * i) end) -- rising, silent until an id exists
+			pcall(function() require(script.Parent.Cue).play("score_tick", 1, SoundFX.tickSpeed(i)) end) -- pitch rises 1.0 to 1.3
 		end
 	end)
 end

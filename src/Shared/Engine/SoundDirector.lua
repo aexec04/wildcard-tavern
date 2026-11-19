@@ -35,6 +35,7 @@ local TABLE = {
 	-- fanfares and stingers
 	legendary_moment = { "fanfare", 5, 2.0 }, wildcard_lock = { "fanfare", 5, 2.0 },
 	boss_defeat = { "fanfare", 4, 2.0 }, round_win = { "fanfare", 3, 1.8 }, win = { "fanfare", 3, 1.8 }, lose = { "fanfare", 3, 1.5 },
+	defeat = { "fanfare", 3, 1.5 }, round_clear = { "fanfare", 3, 1.8 },
 	boss_intro = { "fanfare", 2, 1.5 },
 	-- coin
 	coin = { "coin", 1, 0.5 }, chip = { "coin", 1, 0.3 }, chip_big = { "coin", 1, 0.5 }, buy = { "coin", 1, 0.6 }, shop_buy = { "coin", 1, 0.6 },

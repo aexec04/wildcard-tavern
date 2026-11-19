@@ -744,7 +744,7 @@ return function(deps)
 		local id = SoundIds.cueId(name)
 		local cue = SoundIds.Cues[name]
 		local volume = (cue.volume or 0.5) * (scale or 1)
-		if verdict.speed ~= 1 then
+		if verdict.speed ~= 1 or layerSpeed ~= 1 then
 			-- a rising coin tick needs its own pitch: play it as a one shot
 			playOneShot(id, volume, layerSpeed, cue.maxLength or 0.6, cue.startAt, cue.fade)
 			return
