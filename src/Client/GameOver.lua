@@ -31,6 +31,7 @@ local SeedDisplay = require(Engine:WaitForChild("SeedDisplay"))
 local ShareResult = require(Engine:WaitForChild("ShareResult"))
 local EndlessRules = require(Engine:WaitForChild("EndlessRules"))
 local WinCardRules = require(Engine:WaitForChild("WinCard"))
+local Moments = require(Engine:WaitForChild("Gameplay2Moments"))
 local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -540,7 +541,7 @@ return function(deps)
 			scrollPicture.Position = UDim2.fromOffset(0, 0)
 			scrollPicture.Size = UDim2.fromOffset(sc.card.w, sc.card.h)
 				if sc.flavor then
-					flavorLabel.Text = current.isWin and "The house will remember tonight." or "The house thanks you for the night."
+					flavorLabel.Text = current.isWin and "The house will remember tonight." or ((current.state and current.state.targetScore) and Moments.defeatLine(current.state) or "The house thanks you for the night.")
 					flavorLabel.Position = UDim2.fromOffset(math.floor(sc.flavor.x + 0.5), math.floor(sc.flavor.y + 0.5))
 					flavorLabel.Size = UDim2.fromOffset(math.floor(sc.flavor.w + 0.5), math.floor(sc.flavor.h + 0.5))
 					flavorLabel.Visible = true

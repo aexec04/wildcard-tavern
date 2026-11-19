@@ -21826,7 +21826,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard", "ImageSpace", "ContentArt" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
@@ -28760,6 +28760,46 @@ table.insert(tests, { name = "Gameplay v2 feel: hover 10, select 18, neighbours 
 	local fx = read("src/Client/Gameplay2FeelFX.lua")
 	assert(fx:find("reduceShake", 1, true) and fx:find("Rules.press(calm())", 1, true) and fx:find("FxLoop.add", 1, true), "Calm mode checked, the glow loop goes through FxLoop")
 	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2FeelFX", 1, true) and read("src/Client/CardFlights.lua"):find("point", 1, true), "wired")
+end })
+
+table.insert(tests, { name = "Gameplay v2 moments: Target cleared plate lines and rect, boss banner clear of the Patron row or left out, red tint, Out of hands line, Calm mode shows without motion", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local won = M.clearLines({ phase = "playing", targetScore = 300, roundScore = 280, tips = 5 }, { phase = "shop", targetScore = 300, roundScore = 340, tips = 12 })
+	assert(won and won.title == "Target cleared" and won.score == "Score 340 of 300" and won.tips == "Tips +7" and won.tipsEarned == 7)
+	assert(M.clearLines({ phase = "playing", targetScore = 300, roundScore = 100, tips = 5 }, { phase = "shop", targetScore = 300, roundScore = 100, tips = 5 }) == nil, "a round that was not cleared gets no plate")
+	assert(M.clearLines({ phase = "playing", targetScore = 300, roundScore = 400, tips = 5 }, { phase = "gameover", targetScore = 300, roundScore = 400, tips = 5 }) == nil, "no plate over Run Over")
+	assert(M.clearLines(nil, {}) == nil and M.clearLines({ phase = "shop" }, { phase = "shop" }) == nil)
+	local t, tc, tf = M.clearTiming(false, false), M.clearTiming(true, false), M.clearTiming(false, true)
+	assert(t.slide == 0.4 and t.count and tc.slide == 0 and tc.fade == 0 and not tc.count and math.abs(tf.slide - 0.2) < 1e-9, "0.4 s slide, Calm none, Fast half")
+	local boss = M.bossText({ round = 3, bossModifier = { name = "The Tax Man", description = "Hearts score nothing." } })
+	assert(boss == "The Tax Man" and select(2, M.bossText({ round = 3, bossModifier = { name = "The Tax Man", description = "Hearts score nothing." } })) == "Hearts score nothing.")
+	assert(M.bossText({ round = 1, bossModifier = { name = "x" } }) == nil and M.bossText({ round = 3 }) == nil)
+	assert(M.bossGlow(false).color[1] > M.bossGlow(false).color[3], "a redder glow")
+	assert(M.defeatLine({ roundScore = 120, targetScore = 300 }) == "Out of hands. Score 120 of 300.")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local w, h = sz[1], sz[2]
+		local p = M.clearPlate(w, h)
+		assert(p.x >= 0 and p.y >= 0 and p.x + p.w <= w and p.y + p.h <= h and math.abs(p.x + p.w / 2 - w / 2) <= 1, "plate centred and on screen at " .. w)
+		local r = L.rects(w, h)
+		local b = M.bossBanner(r, w, h)
+		if b then
+			assert(b.h >= 18 and b.y >= r.bar.y + r.bar.h, "banner under the top bar at " .. w)
+			for i = 1, 5 do
+				local c = r.slots[i].card
+				assert(b.y + b.h <= c.y, "banner clear of Patron seat " .. i .. " at " .. w)
+			end
+			assert(b.x + b.w <= w and b.x >= 0)
+		elseif w >= 1280 then
+			error("a banner fits at " .. w)
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	assert(fx:find("reduceShake", 1, true) and fx:find("timing.slide == 0", 1, true), "Calm mode checked before any tween")
+	assert(not fx:find("Backdrop", 1, true), "the plate is not a Backdrop and takes no input")
+	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2MomentsFX", 1, true) and read("src/Client/GameOver.lua"):find("defeatLine", 1, true), "wired")
 end })
 
 return tests

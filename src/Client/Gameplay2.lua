@@ -16,6 +16,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("Gameplay2Layout"))
+local Moments = require(Engine:WaitForChild("Gameplay2Moments"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local Flags = require(Engine:WaitForChild("FeatureFlags"))
 local TableArt = require(Engine:WaitForChild("TableSceneArt"))
@@ -396,6 +397,11 @@ function M.install(deps)
 		active = on
 		shell(on)
 		if not on then
+			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
+				local lines = Moments.clearLines(self.prev, lastState)
+				self.prev = nil
+				if lines then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) end
+			end
 			fanHand(false, size.Y); restoreOld()
 			-- the "TARGET CLEARED!" shout of the last hand must not hang over the Counter
 			local jb = root:FindFirstChild("ScoreJuiceBanner")
@@ -438,6 +444,8 @@ function M.install(deps)
 		end
 		setText(deckPill, DeckCountText.spaced(remaining, lastState.deckView))
 		apply()
+		self.prev = { phase = "playing", targetScore = lastState.targetScore, roundScore = lastState.roundScore, tips = lastState.tips }
+		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)
 		if not self.checked and game:GetService("RunService"):IsStudio() then
 			self.checked = true
 			task.delay(1.5, function() pcall(self.selfCheck) end)
