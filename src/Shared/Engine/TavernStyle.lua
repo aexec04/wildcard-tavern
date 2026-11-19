@@ -82,8 +82,8 @@ end
 M.PAINTED = {
 	wood_plate = { art = "pk_wood_plate", src = { 1412, 549 }, inset = { l = 140, t = 100, r = 140, b = 100 } },
 	parchment = { art = "pk_parchment", src = { 1350, 637 }, inset = { l = 100, t = 150, r = 100, b = 80 } },
-	btn_green = { art = "pk_btn_green", src = { 1503, 443 }, inset = { l = 150, t = 120, r = 150, b = 120 } },
-	btn_dark = { art = "pk_btn_dark", src = { 1474, 430 }, inset = { l = 150, t = 120, r = 150, b = 120 } },
+	btn_green = { art = "pk_btn_green_p", src = { 1244, 443 }, inset = { l = 120, t = 110, r = 120, b = 110 } }, -- _p: side flourishes cut off, so both caps are alike (tools/painted_kit_plain.py)
+	btn_dark = { art = "pk_btn_dark_p", src = { 1218, 430 }, inset = { l = 120, t = 110, r = 120, b = 110 } },
 	icon_round = { art = "pk_icon_round", src = { 800, 800 } },
 	count_tab = { art = "pk_count_tab", src = { 860, 244 }, inset = { l = 110, t = 80, r = 110, b = 80 } },
 	patron_slot = { art = "pk_patron_slot", src = { 657, 953 }, inset = { l = 90, t = 90, r = 90, b = 90 } },

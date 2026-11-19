@@ -7,7 +7,9 @@
 
 return {
 	["pk_btn_dark"] = "rbxassetid://85570855187526",
+	["pk_btn_dark_p"] = "rbxassetid://123393831693368",
 	["pk_btn_green"] = "rbxassetid://93790886879372",
+	["pk_btn_green_p"] = "rbxassetid://128365490202493",
 	["pk_count_tab"] = "rbxassetid://70556620863274",
 	["pk_icon_round"] = "rbxassetid://126841442619642",
 	["pk_parchment"] = "rbxassetid://111730597588131",

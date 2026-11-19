@@ -31483,4 +31483,35 @@ table.insert(tests, { name = "Gameplay v2 phone and tablet pass: table, gear and
 end })
 
 
+table.insert(tests, { name = "Painted button frames: Play Hand and Discard use the symmetric flourish-free art, equal left and right caps, source sizes match the files, new ids recorded", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	for _, piece in ipairs({ "btn_green", "btn_dark" }) do
+		local p = Style.PAINTED[piece]
+		assert(p.art:sub(-2) == "_p" and Art[p.art], piece .. " uses the plain frame with an Image id")
+		assert(p.inset.l == p.inset.r and p.inset.t == p.inset.b, piece .. " has equal left and right caps")
+		for _, sz in ipairs({ { 256, 68 }, { 105, 44 }, { 120, 34 } }) do
+			local sl = Style.paintedSlice(piece, sz[1], sz[2])
+			assert(sl.left == p.src[1] - sl.right, piece .. " slice is symmetric at " .. sz[1] .. "x" .. sz[2])
+			local edge = sl.left * sl.scale
+			assert(edge >= 8 and edge <= 15, piece .. " border " .. edge .. " px stays 10 to 14 px")
+		end
+	end
+	if not io then return end
+	local function dims(path)
+		local f = io.open(path, "rb")
+		if not f then return nil end
+		local head = f:read(24); f:close()
+		local w = (head:byte(17) << 24) | (head:byte(18) << 16) | (head:byte(19) << 8) | head:byte(20)
+		local h = (head:byte(21) << 24) | (head:byte(22) << 16) | (head:byte(23) << 8) | head:byte(24)
+		return w, h
+	end
+	for _, piece in ipairs({ "btn_green", "btn_dark" }) do
+		local p = Style.PAINTED[piece]
+		local w, h = dims("art-wip/painted_kit/" .. p.art .. ".png")
+		if w then assert(w == p.src[1] and h == p.src[2], piece .. " src size matches the file " .. w .. "x" .. h) end
+	end
+end })
+
+
 return tests
