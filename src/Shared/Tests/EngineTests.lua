@@ -27869,6 +27869,25 @@ table.insert(tests, { name = "Accessibility: every rarity has its word and its o
 	end
 	assert(C.shape("nonsense").name == C.shape("common").name, "an unknown tier falls back to common")
 end })
+table.insert(tests, { name = "Accessibility: rarity marker slot never touches the rarity word at three sizes", fn = function()
+	local C = require(script.Parent.Parent.Engine.RarityCues)
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 } }) do
+		local row = Layout.patronRow(sz[1], sz[2], 5)
+		local cw = row.cards[1].w
+		local r = Layout.labelRow(cw)
+		for _, tier in ipairs(C.order) do
+			local m = C.shape(tier)
+			assert(m and r.marker.w <= Layout.LABEL_MARKER_SLOT, tier .. " marker fits its 18 px slot")
+			-- marker rect and the label art (which carries the word) must not intersect, with a 6 px gap
+			local markerRight = r.marker.x + r.marker.w
+			assert(markerRight + Layout.LABEL_MARKER_GAP <= r.art.x, tier .. " marker clear of the word at " .. sz[1])
+			assert(r.marker.x >= 0, "marker inside the row")
+		end
+		assert(r.art.w >= Layout.LABEL_ART_MIN, "art wide enough for Uncommon at " .. sz[1])
+		assert(r.rowW == r.art.x + r.art.w, "row is marker slot + gap + art")
+	end
+end })
 table.insert(tests, { name = "Accessibility: Concept T text colours keep 4.5:1 (body) and 3:1 (large) on their plates", fn = function()
 	local C = require(script.Parent.Parent.Engine.RarityCues)
 	local S = require(script.Parent.Parent.Engine.ConceptTSkin)

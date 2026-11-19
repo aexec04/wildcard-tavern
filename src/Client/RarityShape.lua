@@ -11,10 +11,11 @@ local Cues = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engi
 
 local M = {}
 
-function M.set(label, tier, px)
+function M.set(label, tier, px, x)
 	px = px or 12
+	x = x or 6 -- px from the label's left edge (negative puts the marker outside the art)
 	local holder = label:FindFirstChild("RarityShape")
-	if holder and label:GetAttribute("ShapeTier") == tier then return end -- set() runs on every refresh; rebuild only on a change
+	if holder and label:GetAttribute("ShapeTier") == tier then holder.Position = UDim2.new(0, x, 0.5, 0) return end -- set() runs on every refresh; rebuild only on a change
 	if holder then holder:Destroy() end
 	label:SetAttribute("ShapeTier", tier)
 	holder = Instance.new("Frame")
@@ -23,7 +24,7 @@ function M.set(label, tier, px)
 	holder.BorderSizePixel = 0
 	holder.Active = false
 	holder.AnchorPoint = Vector2.new(0, 0.5)
-	holder.Position = UDim2.new(0, 6, 0.5, 0)
+	holder.Position = UDim2.new(0, x, 0.5, 0)
 	holder.Size = UDim2.fromOffset(px, px)
 	holder.ZIndex = label.ZIndex + 1
 	holder.Parent = label

@@ -265,6 +265,21 @@ function M.labelKey(rarity)
 	return "ct_label_" .. (M.TIERS[norm(rarity)] and norm(rarity):lower() or "common")
 end
 
+-- The rarity label row under a Patron card: an 18 px marker slot, a 6 px gap, then the label art (it carries the word, so the
+-- marker never sits on a letter). All x values are px from the row's left edge; the row is centred on the card.
+M.LABEL_MARKER_SLOT, M.LABEL_MARKER_GAP, M.LABEL_MARKER_PX, M.LABEL_ART_MIN = 18, 6, 12, 96
+function M.labelRow(slotW)
+	local slot, gap = M.LABEL_MARKER_SLOT, M.LABEL_MARKER_GAP
+	local artW = math.max(math.floor((tonumber(slotW) or 0) * 0.92) - slot - gap, M.LABEL_ART_MIN)
+	local px = M.LABEL_MARKER_PX
+	return {
+		rowW = slot + gap + artW,
+		marker = { x = (slot - px) // 2, w = px },
+		art = { x = slot + gap, w = artW },
+		centerShift = (slot + gap) // 2, -- art centre minus row centre, so the row (not the art) is centred on the card
+	}
+end
+
 -- the pill with its number painted out (the game draws the live value on it)
 function M.blankPillKey(rarity)
 	return M.pillKey(rarity) .. "_blank"
