@@ -29785,6 +29785,42 @@ table.insert(tests, { name = "Patron seats: an empty seat wears the painted patr
 	expectTrue(pr:find("PatronSeatFrame", 1, true) ~= nil, "PatronRow calls the seat frame")
 end })
 
+table.insert(tests, { name = "Score plate: hand name, counters, total and flourish sit inside the stage at every size, nothing lingers past 3 s, calm makes no tween", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local T = require(script.Parent.Parent.Engine.Gameplay2Tier)
+	local function inside(a, b) return a.x >= b.x and a.y >= b.y and a.x + a.w <= b.x + b.w and a.y + a.h <= b.y + b.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local st, p, rows = L.rects(w, h).stage, P.plate(w, h), P.rows(w, h)
+		expectTrue(inside(p, st), "plate inside the stage at " .. w .. "x" .. h)
+		local names = { "name", "counters", "total", "flourish" }
+		for i, a in ipairs(names) do
+			expectTrue(inside(rows[a], p), a .. " inside the plate at " .. w .. "x" .. h)
+			for j = i + 1, #names do
+				local b = rows[names[j]]
+				expectTrue(rows[a].y + rows[a].h <= b.y, a .. " and " .. names[j] .. " do not overlap at " .. w .. "x" .. h)
+			end
+		end
+		expectTrue(math.abs((p.x + p.w / 2) - w / 2) <= 1, "plate centred at " .. w .. "x" .. h)
+	end
+	for tier = 0, 3 do
+		for _, calm in ipairs({ false, true }) do
+			for _, fast in ipairs({ false, true }) do
+				local sp = T.spec(tier, 4, calm, fast)
+				expectTrue(P.lingers(sp.hold, calm), "tier " .. tier .. " hold " .. sp.hold .. " ends within 3 s")
+				if calm then expectTrue(sp.static and sp.pulse == 0 and sp.burst == 0 and sp.shake == 0 and sp.coins == 0, "calm tier " .. tier .. " is static") end
+			end
+		end
+	end
+	expectTrue(P.lingers(4, false) == false, "a 4 s hold is flagged")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2ScoreFX.lua", "r")); local src = f:read("a"); f:close()
+	local calmAt = src:find("if not plan.slam then", 1, true)
+	local tweenAt = src:find("TweenService:Create(sc", 1, true)
+	expectTrue(calmAt and tweenAt and calmAt < tweenAt, "the calm branch returns before the first count-up tween")
+end })
+
 table.insert(tests, { name = "Painted frames: border about 10 to 14 px on every button size, slices inside the picture, boss line and chip", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
