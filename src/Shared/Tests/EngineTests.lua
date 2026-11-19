@@ -30004,6 +30004,34 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	expectTrue(read("src/Client/Gameplay2.lua"):find("GearMenu", 1, true), "installed by the table, shared by the Counter and Night map through the root")
 end })
 
+table.insert(tests, { name = "Gameplay v2 polish run: every whole-picture plate keeps its art's shape (within 45 percent), nothing overlaps its neighbours, text size fits the inner height at six sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L, S = require(E.Gameplay2Layout), require(E.TavernStyle)
+	local plates = { { "target", "wh_target" }, { "tips", "wh_target" }, { "round", "wh_scroll" }, { "playCount", "wh_small" }, { "discardCount", "wh_small" }, { "deckCount", "wh_count" }, { "sortRank", "wh_btn_sq" }, { "sortSuit", "wh_btn_sq" } }
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local seen = {}
+		for _, pr in ipairs(plates) do
+			local rc, def = r[pr[1]], S.PAINTED[pr[2]]
+			if rc and def then
+				local want, got = def.src[1] / def.src[2], rc.w / rc.h
+				-- Rank and Suit are square buttons drawn from a wide picture; they only have to be a sane button, the rest keep the art's shape
+				if pr[1] ~= "sortRank" and pr[1] ~= "sortSuit" then
+					expectTrue(got / want > 0.55 and got / want < 1.45, pr[1] .. " stays near its art shape at " .. w .. "x" .. h .. " (" .. string.format("%.2f vs %.2f", got, want) .. ")")
+				end
+				-- (the slim bar is at most 8 percent of the height, so on a 390 px phone a plate is 18 px: 14 px text with 2 px above and below)
+				expectTrue(rc.h >= 14 + 2 * 2, pr[1] .. " is tall enough for 14 px text with 2 px padding at " .. w)
+				seen[#seen + 1] = { pr[1], rc }
+			end
+		end
+		for i = 1, #seen do for j = i + 1, #seen do
+			expectTrue(not hit(seen[i][2], seen[j][2]), seen[i][1] .. " and " .. seen[j][1] .. " overlap at " .. w .. "x" .. h)
+		end end
+	end
+end })
+
 table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit left of the gear, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)

@@ -87,8 +87,17 @@ function M.rects(w, h)
 	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right
 	r.target = box(barX + inner, barY + inner, round(barW * 0.31), ih)
 	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * 0.34), ih)
+	do -- the parchment scroll is a 3.97 : 1 picture: on a wide bar it keeps at most 1.4 times that shape, centred in its slot (never stretched into a slab)
+		local maxW = round(ih * 3.97 * 1.4)
+		if r.round.w > maxW then r.round = box(r.round.x + round((r.round.w - maxW) / 2), r.round.y, maxW, ih) end
+	end
 	local tx = r.round.x + r.round.w + inner
 	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
+	do -- Target and Tips are 4.2 : 1 pictures: at most 1.4 times that shape, Target hugs the left end of the bar and Tips the right
+		local maxW = round(ih * 4.22 * 1.4)
+		if r.target.w > maxW then r.target = box(r.target.x, r.target.y, maxW, ih) end
+		if r.tips.w > maxW then r.tips = box(r.tips.x + r.tips.w - maxW, r.tips.y, maxW, ih) end
+	end
 	-- the one Settings gear sits in the top right corner (Engine/GearMenu); the consumables tray starts at the top left, under Roblox's top bar
 	local qy = Responsive.clearOfTopBar(pad, 0)
 	r.gear = box(w - round(math.max(8, 0.012 * w)) - 44, math.max(Responsive.TOPBAR_H, round(math.max(8, 0.012 * w))), 44, M.MIN_TOUCH)
@@ -157,7 +166,11 @@ function M.rects(w, h)
 	local dx = w - pad - dw
 	local dy = handTop
 	r.deck = box(dx, dy, dw, dh)
-	r.deckCount = box(dx, dy + dh + 4, dw, math.max(22, round(0.04 * h)))
+	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
+		local ch = math.max(22, round(0.04 * h))
+		local cwid = math.min(dw, round(ch * 3.4 * 1.4))
+		r.deckCount = box(dx + round((dw - cwid) / 2), dy + dh + 4, cwid, ch)
+	end
 	return r
 end
 
