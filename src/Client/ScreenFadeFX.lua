@@ -17,6 +17,7 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local M = {}
 local gui, cover, sink, plate, plateText
 local token = 0
+local holding = false -- a load cover is up on purpose (it ends itself after 8 s), so the watchdog leaves it alone
 
 local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 local function calm() return ClientSettings.get("reduceShake") == true end
@@ -114,6 +115,7 @@ function M.hold(readyFn)
 	plate.Visible = false
 	gui.Enabled = true
 	local start = os.clock()
+	holding = true
 	task.spawn(function()
 		while my == token do
 			local elapsed = os.clock() - start
@@ -123,8 +125,23 @@ function M.hold(readyFn)
 			plate.Visible = SF.dealingVisible(elapsed, ready)
 			task.wait(0.05)
 		end
-		if my == token then fadeOut(my, still() and 0 or SF.DURATION) end
+		if my == token then holding = false fadeOut(my, still() and 0 or SF.DURATION) end
 	end)
+end
+
+-- the watchdog (Client/InputWatchdogFX): a fade cover that stays up is stuck; a load cover ends itself
+function M.busy()
+	return gui ~= nil and gui.Parent ~= nil and gui.Enabled and not holding
+end
+
+function M.forceRelease()
+	token += 1
+	holding = false
+	if gui and gui.Parent then
+		gui.Enabled = false
+		plate.Visible = false
+		cover.BackgroundTransparency = 0
+	end
 end
 
 function M.watch(root)

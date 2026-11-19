@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local InputLock = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("InputLock"))
 
 local InputGuard = {}
+local current = nil -- { lock, menuLock, watched, effective } of the installed guard (the watchdog reads it)
 
 local SKIP = { DeckTrackerBackdrop = true }
 
@@ -39,9 +40,12 @@ function InputGuard.install(opts)
 		return InputLock.effectivelyVisible(frame.Visible, ancestors)
 	end
 
+	current = { lock = lock, menuLock = menuLock, watched = watched, effective = effective, backdrops = {} }
+
 	local function watch(frame, isBackdrop)
 		if watched[frame] or not frame:IsA("GuiObject") or SKIP[frame.Name] then return end
 		watched[frame] = true
+		if isBackdrop then current.backdrops[frame] = true end
 		local function sync()
 			local open = effective(frame)
 			lock:setOpen(frame, open)
@@ -137,6 +141,31 @@ function InputGuard.install(opts)
 	end)
 
 	return lock
+end
+
+-- true while a lock is held by an overlay that is gone or hidden (a destroyed popup never reports closed)
+function InputGuard.stale()
+	if not current then return false end
+	for frame in pairs(current.watched) do
+		if (frame.Parent == nil or not current.effective(frame)) and (current.lock.open[frame] or current.menuLock.open[frame]) then
+			return true
+		end
+	end
+	return false
+end
+
+-- the watchdog's release: every overlay that is hidden or destroyed stops holding the locks. Visible overlays keep theirs.
+function InputGuard.resync()
+	if not current then return 0 end
+	local n = 0
+	for frame in pairs(current.watched) do
+		if frame.Parent == nil or not current.effective(frame) then
+			if current.lock.open[frame] or current.menuLock.open[frame] then n = n + 1 end
+			current.lock:setOpen(frame, false)
+			current.menuLock:setOpen(frame, false)
+		end
+	end
+	return n
 end
 
 return InputGuard

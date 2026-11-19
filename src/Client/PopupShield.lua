@@ -44,7 +44,9 @@ local function sinks(obj)
 	return obj:IsA("Frame") or obj:IsA("ImageLabel") or obj:IsA("ScrollingFrame")
 end
 
+local shielded = {} -- every popup root that was shielded (the watchdog releases hidden ones)
 local function shield(popup)
+	shielded[popup] = true
 	watchSound(popup)
 	if sinks(popup) then popup.Active = true end
 	for _, child in ipairs(popup:GetChildren()) do
@@ -57,6 +59,18 @@ end
 
 -- Menu scroll layers live inside the Menu, not at the root, so MenuHotspots registers them here.
 PopupShield.watchSound = watchSound
+
+-- the watchdog's release: a popup that is hidden or destroyed stops sinking input
+function PopupShield.releaseHidden()
+	local n = 0
+	for popup in pairs(shielded) do
+		if popup.Parent == nil or not popup.Visible then
+			if popup.Parent ~= nil and popup.Active then popup.Active = false n = n + 1 end
+			if popup.Parent == nil then shielded[popup] = nil end
+		end
+	end
+	return n
+end
 
 function PopupShield.install(screenGui, root)
 	local seen = {}

@@ -28127,4 +28127,63 @@ table.insert(tests, { name = "TouchGestures: tap, drag and long press thresholds
 	end
 end })
 
+table.insert(tests, { name = "FriendlyErrors and InputWatchdog: plain lines under 80 characters, raw errors never shown, toast clear of the HUD and buttons at five sizes, 6 s watchdog releases once", fn = function()
+	local FE = require(script.Parent.Parent.Engine.FriendlyErrors)
+	local WD = require(script.Parent.Parent.Engine.InputWatchdog)
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local n = 0
+	for kind, text in pairs(FE.MESSAGES) do
+		n = n + 1
+		expectTrue(#text < 80, kind .. " is under 80 characters (" .. #text .. ")")
+		expectTrue(not text:find("[\128-\255]") and not text:find("--", 1, true), kind .. " is plain ASCII with no dashes")
+		expectTrue(not text:lower():find("error") and not text:lower():find("stack") and not text:lower():find("nil"), kind .. " has no technical words")
+	end
+	expectTrue(n >= 6 and FE.message("nope") == FE.MESSAGES.generic and FE.message(nil) == FE.MESSAGES.generic, "unknown kinds read as generic")
+	expectTrue(FE.kindOf("DataStore request was added to queue") == "save" and FE.kindOf("HttpService timed out") == "offline", "raw text maps to a kind")
+	expectTrue(FE.kindOf("Server rejected the call") == "rejected" and FE.kindOf("attempt to index nil with 'x' at line 12") == "generic", "a stack trace maps to generic")
+	expectTrue(FE.retryable("rejected") and FE.retryable("offline") and not FE.retryable("save") and not FE.retryable("stuck"), "Try again only where it helps")
+	expectTrue(FE.HOLD == 3 and FE.shouldShow("save", nil, 10) and not FE.shouldShow("save", 10, 12) and FE.shouldShow("save", 10, 13), "3 s hold, no repeat while up")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local t = FE.rect(w, h)
+		local r, f = Layout.rectsIn(w, h)
+		expectTrue(t.x >= f.x and t.x + t.w <= f.x + f.w and t.y + t.h <= f.y + f.h, "toast inside the frame at " .. w)
+		expectTrue(t.h >= FE.BUTTON.h, "toast tall enough for a 44 px button at " .. w)
+		for _, name in ipairs({ "coins", "hands", "round", "gear", "hand", "play", "discard", "deck", "deckCount" }) do
+			local o = r[name]
+			local hit = t.x < o.x + o.w and o.x < t.x + t.w and t.y < o.y + o.h and o.y < t.y + t.h
+			expectTrue(not hit, "toast clear of " .. name .. " at " .. w .. "x" .. h)
+		end
+	end
+	local wd = WD.new()
+	wd:arm("fade", 10)
+	wd:arm("fade", 14) -- the first start time stays
+	wd:arm("guard", 12)
+	expectTrue(#wd:expired(15.9) == 0, "not before 6 s")
+	local out = wd:expired(16)
+	expectTrue(#out == 1 and out[1] == "fade", "fade released at 6 s")
+	expectTrue(#wd:expired(17) == 0, "reported once")
+	wd:clear("guard")
+	expectTrue(#wd:expired(99) == 0 and WD.LIMIT == 6, "a finished thing is never reported")
+	if io and io.open then
+		local function read(path)
+			local f = io.open(path, "r")
+			if not f then return nil end
+			local src = f:read("*a"); f:close()
+			return src
+		end
+		local fx, wfx = read("src/Client/FriendlyErrorFX.lua"), read("src/Client/InputWatchdogFX.lua")
+		if fx then
+			expectTrue(not fx:find("TweenService", 1, true) and not wfx:find("TweenService", 1, true), "no tween anywhere")
+			expectTrue(fx:find("label.Text = FE.message(kind)", 1, true) and not fx:find("label.Text = raw", 1, true), "the toast shows only the friendly line")
+			expectTrue(not fx:find("[\128-\255]") and not wfx:find("[\128-\255]"), "ASCII only")
+			expectTrue(wfx:find("Guard.resync()", 1, true) and wfx:find("Fade.forceRelease()", 1, true) and wfx:find("Shield.releaseHidden()", 1, true), "the watchdog releases the fade, InputGuard and PopupShield")
+		end
+		local hub = read("src/Client/init.client.lua")
+		if hub then
+			expectTrue(hub:find("InputWatchdogFX).start()", 1, true) and hub:find("fe.watchState(state)", 1, true) and hub:find('expect("play"', 1, true), "the hub starts the watchdog and the save and reply checks")
+		end
+	end
+end })
+
 return tests

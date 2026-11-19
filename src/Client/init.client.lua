@@ -913,6 +913,7 @@ do -- the menu eases in when it shows (nothing in Calm mode, Client/AnimPassFX)
 		if MenuScreen.menuFrame.Visible then pcall(require(script.AnimPassFX).menuFade, MenuScreen.menuFrame) end
 	end)
 	pcall(function() require(script.ScreenFadeFX).watch(root) end) -- 0.25 s warm dark fade between screens (none in Calm mode)
+	pcall(function() require(script.InputWatchdogFX).start() end) -- 6 s safety net: a stuck fade cover or lock is released
 end
 
 -- Warm the image cache for all content art (non-blocking) so Collection tiles
@@ -2641,6 +2642,9 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 	pendingNewCardCount = #indices
 
 	PlayHandRemote:FireServer(indices)
+	pcall(function() -- no reply in 6 s: a calm "did not go through" toast with Try again
+		require(script.FriendlyErrorFX).expect("play", function() PlayHandRemote:FireServer(indices) end)
+	end)
 	Shop.tutorial.notifyHandPlayed()
 end
 playButton.MouseButton1Click:Connect(onPlayClick)
@@ -2761,6 +2765,11 @@ do
 end
 
 StateUpdatedRemote.OnClientEvent:Connect(function(state)
+	pcall(function() -- a reply arrived: nothing is pending, and a save that cannot happen is told once in plain words
+		local fe = require(script.FriendlyErrorFX)
+		fe.arrived()
+		fe.watchState(state)
+	end)
 	require(script.ClientSettings).loadFromServer(state.settings)
 	if state.onboardingHint then
 		-- After the score reveal, which would otherwise cover the banner.
