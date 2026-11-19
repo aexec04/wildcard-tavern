@@ -32,6 +32,7 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
+ShopSceneLayout.TAB_GAP = 8 -- clear space between the tab row and the Next boss line
 ShopSceneLayout.MIN_TOUCH = 44 -- smallest height of a tappable control (tabs, Next Round)
 
 -- The round card table: a wide oval (a rounded rectangle with half-circle ends, the same shape as the Menu room's felt table) with a
@@ -383,7 +384,7 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	out.counterBand = ShopSceneLayout.picRect(W, H, R.counterX[1], R.counterBack, R.counterX[2], R.counterFront)
 
 	-- Next Round: the plate sits on the stone doorway itself, bottom centre of the arch opening, clamped on screen
-	local leaveW, leaveH = clamp(W * 0.11, 104, 160), 44
+	local leaveW, leaveH = clamp(W * 0.11, 104, 220), 64
 	local archMid = out.arch.x + out.arch.w / 2
 	local leaveY = out.arch.y + out.arch.h - leaveH - 10
 	out.leave = rect(clamp(archMid - leaveW / 2, 8, W - leaveW - 8), clamp(leaveY, 8, H - leaveH - 12), leaveW, leaveH)
@@ -436,12 +437,12 @@ function ShopSceneLayout.rects(W, H, counts)
 
 	-- controls along the top
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
-	out.tabs = rect((W - tabsW) / 2, 6, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
+	out.tabs = rect((W - tabsW) / 2, 2, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
 	local bossW = clamp(tabsW * 0.8, 240, 460)
-	out.nextBoss = rect((W - bossW) / 2, 6 + ShopSceneLayout.MIN_TOUCH + 2, bossW, 18)
+	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, 18)
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
 
-	local leaveW, leaveH = clamp(W * 0.14, 110, 180), 44
+	local leaveW, leaveH = clamp(W * 0.14, 110, 220), 64
 	out.leave = rect(W - leaveW - 12, H - leaveH - 12, leaveW, leaveH)
 
 	local counterH = H * (phone and 0.50 or 0.34)
@@ -621,7 +622,7 @@ end
 
 -- Free zone for the My Patrons / My Recipes tabs: right of Marlo, below the tab bar, above Next Round.
 -- Coordinates are in shopFrame space; the lists live in a content area at (10, 84).
-ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 84, 64
+ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 84, 80
 function ShopSceneLayout.tabZone(W, H, noMarlo, room)
 	local r = ShopSceneLayout.rects(W, H, { offers = 1, packs = 0, noMarlo = noMarlo, room = room })
 	local x0 = 10

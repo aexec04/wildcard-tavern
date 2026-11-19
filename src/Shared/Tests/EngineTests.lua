@@ -21260,7 +21260,13 @@ table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll 
 	if not shop then return end
 	expectTrue(shop:find('nextRoundButton:SetAttribute("FlatFace", true)', 1, true) ~= nil, "Next Round has a flat face")
 	expectTrue(shop:find('rerollButton:SetAttribute("FlatFace", true)', 1, true) ~= nil, "Reroll has a flat face")
-	expectTrue(shop:find("active and Color3.fromRGB(255, 214, 120)", 1, true) ~= nil and shop:find("TextTransparency = active and 0 or 0.3", 1, true) ~= nil, "active tab gold, inactive cream at 70 percent")
+	expectTrue(shop:find("active and Color3.fromRGB(255, 214, 120)", 1, true) ~= nil and shop:find("Color3.fromRGB(235, 222, 190)", 1, true) ~= nil and shop:find("TextTransparency = active and 0 or 0.3", 1, true) == nil, "active tab gold, inactive solid cream (235,222,190)")
+	local SSL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = SSL.rects(sz[1], sz[2], { offers = 3, packs = 2 })
+		expectTrue(r.nextBoss.y - (r.tabs.y + r.tabs.h) >= 8, "8 px gap between the tabs and the Next boss line at " .. sz[1])
+		expectTrue(r.leave.h >= 56 and r.leave.w >= 110, "Next Round plate is big enough at " .. sz[1])
+	end
 	local hub = read("src/Client/init.client.lua")
 	expectTrue(hub:find('<b><font size="16">%s%s</font></b>', 1, true) ~= nil and hub:find('size="14" color="#E6D2AA"', 1, true) ~= nil, "boss plate: bold name 16, rule 14")
 	expectTrue(read("src/Client/BossFight.lua"):find("[BossStage] visible=", 1, true) ~= nil, "BossStage log")

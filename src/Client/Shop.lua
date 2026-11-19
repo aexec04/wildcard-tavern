@@ -495,10 +495,11 @@ return function(deps)
 			if shopStage then shopStage.setTab(key) end
 			for _, entry in ipairs(shopTabButtons) do
 				local active = entry.key == key
-				entry.button.BackgroundColor3 = active and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
-				-- inactive: cream at 70 percent; active: gold
-				entry.button.TextColor3 = active and Color3.fromRGB(255, 214, 120) or Color3.fromRGB(250, 240, 220)
-				entry.button.TextTransparency = active and 0 or 0.3
+				entry.button.BackgroundColor3 = active and Color3.fromRGB(128, 100, 58) or Color3.fromRGB(60, 45, 32)
+				-- inactive: solid cream (about 235,222,190, well over 4.5:1 on the dark wood); active: gold on a lighter plate
+				entry.button.TextColor3 = active and Color3.fromRGB(255, 214, 120) or Color3.fromRGB(235, 222, 190)
+				entry.button.TextTransparency = 0
+				entry.button.TextStrokeTransparency = 0.7
 			end
 		end
 
@@ -531,8 +532,8 @@ return function(deps)
 		setShopTab("buy")
 
 		nextRoundButton = Instance.new("TextButton")
-		nextRoundButton.Size = UDim2.new(0, 220, 0, 44)
-		nextRoundButton.Position = UDim2.new(0.5, -110, 1, -54)
+		nextRoundButton.Size = UDim2.new(0, 220, 0, 64)
+		nextRoundButton.Position = UDim2.new(0.5, -110, 1, -76)
 		nextRoundButton.Font = Enum.Font.GothamBold
 		nextRoundButton.TextSize = 18
 		nextRoundButton.Text = "Next Round"
