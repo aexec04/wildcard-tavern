@@ -170,7 +170,7 @@ function M.rectsIn(w, h)
 end
 
 -- the fanned hand: cards overlap in a tight arc, left leans -12, right +12, the middle stands highest
-M.FAN = { deg = 11, dipFrac = 0.028, tuckFrac = 0.006 }
+M.FAN = { deg = 8, dipFrac = 0.034, tuckFrac = 0.006 }
 
 function M.fan(i, n)
 	if n <= 1 then return 0, 0 end

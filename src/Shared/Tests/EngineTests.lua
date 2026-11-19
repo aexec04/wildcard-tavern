@@ -27447,13 +27447,13 @@ table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pil
 	local rot1, dip1 = L.fan(1, 7)
 	local rot7, dip7 = L.fan(7, 7)
 	local rot4, dip4 = L.fan(4, 7)
-	expectTrue(rot1 == -11 and rot7 == 11 and rot4 == 0, "rotation runs -11 to +11")
+	expectTrue(rot1 == -8 and rot7 == 8 and rot4 == 0, "rotation runs -8 to +8 (reference tilt)")
 	expectTrue(dip4 == 0 and dip1 == 1 and dip7 == 1, "the middle is lifted, the ends are lowest")
 	local prev = -99
 	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
 	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
 	local prof = L.fanProfile(1000)
-	expectTrue(prof.deg == 11 and prof.dip == 28 and prof.endScale == 1, "fan profile for the real hand")
+	expectTrue(prof.deg == 8 and prof.dip == 34 and prof.endScale == 1, "fan profile for the real hand")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
 		local r = L.rects(size[1], size[2])
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
@@ -29048,6 +29048,23 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 	if h then
 		local hub = h:read("*a"); h:close()
 		assert(hub:find("script.Gameplay2", 1, true), "the hub installs Gameplay v2")
+	end
+end })
+
+table.insert(tests, { name = "Gameplay v2 hand fan: reference span and tilt, clear of the pills, buttons and deck", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	assert(CT.FAN.deg == 8, "outer cards tilt about 8 degrees")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local hd = r.hand
+		if w >= 1000 then
+			assert(math.abs(hd.w / w - 0.664) < 0.01, "fan spans about 0.664 of the width at " .. w)
+			assert(math.abs((hd.x + hd.w / 2) / w - 0.511) < 0.01, "fan centre sits at about 0.511 at " .. w)
+		end
+		assert(hd.y + hd.h <= math.min(r.playCount.y, r.discardCount.y), "hand ends above the Hands and Discards pills at " .. w)
+		assert(hd.x + hd.w <= r.deck.x, "hand ends before the deck at " .. w)
 	end
 end })
 
