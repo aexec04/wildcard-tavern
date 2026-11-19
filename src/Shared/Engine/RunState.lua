@@ -1666,6 +1666,27 @@ function RunState.sellPatron(state, patronId)
 	return false, 0
 end
 
+-- Recipes are used from the shop or at the table while a round is being played (the consumables tray); selling one is free of
+-- phase like selling a Patron. Returns true, refund or false, 0.
+function RunState.phaseAllowsRecipeUse(phase)
+	return phase == "shop" or phase == "playing"
+end
+
+function RunState.sellRecipe(state, category, id)
+	local inv = category == "house" and state.houseRecipeInventory or category == "menu" and state.menuRecipeInventory
+		or category == "secret" and state.secretRecipeInventory
+	if not inv or type(id) ~= "string" then return false, 0 end
+	for i, owned in ipairs(inv) do
+		if owned == id then
+			table.remove(inv, i)
+			local refund = PackRoom.sellValue("recipe", id)
+			state.tips = state.tips + refund
+			return true, refund
+		end
+	end
+	return false, 0
+end
+
 -- Move an owned Patron one seat left (dir -1) or right (dir 1). Seat order matters for neighbour Patrons. Free, any time,
 -- like selling. Returns true, newIndex or false.
 function RunState.movePatron(state, patronId, dir)

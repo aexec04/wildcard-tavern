@@ -29650,6 +29650,73 @@ table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit butt
 	assert(g:find("MuteButton", 1, true) and g:find("CalmButton", 1, true) and g:find("ClientSettings.set(k, val)", 1, true), "the client sets the real settings")
 end })
 
+table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots under Mute and Calm, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
+	local E = script.Parent.Parent.Engine
+	local T, L, Recipes, RS = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.RunState)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 }, { 800, 400 }, { 720, 360 } }) do
+		local r = L.rects(sz[1], sz[2])
+		if sz[2] > 360 then for _, k in ipairs(L.TRAY_CONTROLS) do assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2]) end end
+		if not r.traySlot1 then assert(sz[2] <= 360, "only the shortest screen goes without the tray"); goto continue end
+		for _, k in ipairs(L.TRAY_CONTROLS) do
+			assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2])
+			assert(r[k].h >= 44 and r[k].w >= 44, k .. " is a 44 px target at " .. sz[1])
+		end
+		assert(r.traySlot1.y >= r.calm.y + r.calm.h + 8, "tray sits under Mute and Calm at " .. sz[1])
+		assert(r.traySlot2.x + r.traySlot2.w < r.slots[1].card.x, "tray is clear of the first Patron at " .. sz[1])
+		assert(r.trayUse.y + r.trayUse.h < r.sortRank.y, "tray is above Rank and Suit at " .. sz[1])
+		assert(#L.overlaps(r) == 0, "no overlaps at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
+		assert(L.onScreen(r, sz[1], sz[2]), "on screen at " .. sz[1])
+		if r.trayPrompt then assert(r.trayPrompt.h >= 44 and r.trayPrompt.y > r.trayUse.y, "prompt plate is the third row") end
+		local inner = r.traySlot1.w - 8
+		local all = {}
+		for _, list in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
+			for _, def in ipairs(list) do
+				assert(T.lines(T.label(def.name), inner) <= 2, def.name .. " fits two lines in a " .. r.traySlot1.w .. " px slot at " .. sz[1])
+			end
+		end
+		::continue::
+	end
+	-- held view: first two of the three boxes, a faint empty slot, the extra count
+	local st = { houseRecipeInventory = { "suit_swap" }, menuRecipeInventory = {}, secretRecipeInventory = {} }
+	local h = T.held(st)
+	assert(h.slots[1].id == "suit_swap" and h.slots[1].needsSuit and h.slots[1].need.max == 3 and h.slots[1].tier == "Common" and h.slots[2].empty and h.more == 0)
+	assert(h.slots[1].sell == math.floor(Recipes.getHouseRecipeById("suit_swap").price / 2), "sell value is half the price")
+	assert(T.held({ houseRecipeInventory = { "suit_swap", "suit_swap", "suit_swap" } }).more == 1, "a third is counted, not drawn")
+	-- the use flow
+	local slot = h.slots[1]
+	assert(T.flow({ empty = true }, 0, nil, false).phase == "empty" and T.flow(slot, 0, nil, false).phase == "idle")
+	local f0 = T.flow(slot, 0, "Hearts", true)
+	assert(f0.phase == "pick" and not f0.canUse and f0.prompt == "Pick 1 to 3 cards", "asks for cards first: " .. f0.prompt)
+	local f2 = T.flow(slot, 2, "Clubs", true)
+	assert(f2.phase == "ready" and f2.canUse and f2.useText == "Use Clubs" and f2.prompt:find("Suit: Clubs", 1, true), "a suit recipe shows its suit")
+	assert(not T.flow(slot, 4, "Clubs", true).canUse, "too many cards")
+	assert(T.label("Double Trouble Recipe") == "Double Trouble" and T.label("Recipe") == "Recipe")
+	assert(T.nextSuit("Spades") == "Hearts" and T.nextSuit("Diamonds") == "Spades" and T.nextSuit(nil) == "Spades")
+	local cat, id, idx, suit = T.useArgs(slot, { 2, 5 }, "Clubs")
+	assert(cat == "house" and id == "suit_swap" and idx[2] == 5 and suit == "Clubs")
+	local menuSlot = T.held({ menuRecipeInventory = { Recipes.MenuRecipes[1].id } }).slots[1]
+	assert(T.flow(menuSlot, 0, nil, true).canUse and not menuSlot.need, "a Menu Recipe needs no cards")
+	local _, _, i2, s2 = T.useArgs(menuSlot, { 1 }, "Clubs")
+	assert(i2 == nil and s2 == nil, "no cards or suit are sent when the recipe wants none")
+	-- engine rules: use at the table while playing, sell any time a recipe may be used
+	assert(RS.phaseAllowsRecipeUse("playing") and RS.phaseAllowsRecipeUse("shop") and not RS.phaseAllowsRecipeUse("roundSelect") and not RS.phaseAllowsRecipeUse("gameover"))
+	local run = { tips = 3, houseRecipeInventory = { "suit_swap" }, menuRecipeInventory = {}, secretRecipeInventory = {} }
+	assert(not RS.sellRecipe(run, "house", "nope") and not RS.sellRecipe(run, "bad", "suit_swap") and run.tips == 3)
+	local ok, refund = RS.sellRecipe(run, "house", "suit_swap")
+	assert(ok and refund == slot.sell and run.tips == 3 + refund and #run.houseRecipeInventory == 0, "sold once")
+	assert(not RS.sellRecipe(run, "house", "suit_swap"), "never twice")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local server = read("src/Server/init.server.lua")
+	assert(server:find("Rem.SellRecipe.OnServerEvent", 1, true) and server:find("phaseAllowsRecipeUse", 1, true), "the server sells and uses by the table rule")
+	assert(read("src/Server/Remotes.lua"):find('"SellRecipe"', 1, true) and read("src/Shared/Engine/PreviewGuard.lua"):find("Rem.SellRecipe", 1, true))
+	local c = read("src/Client/Gameplay2Tray.lua")
+	assert(not c:find("TweenService", 1, true) and not c:find(":Tween", 1, true), "the tray never tweens")
+	assert(c:find("TextTruncate.None", 1, true), "names are never cut")
+	local bad = (c .. read("src/Shared/Engine/Gameplay2Tray.lua")):lower()
+	assert(not bad:find("\u{2014}", 1, true) and not bad:find("balatro", 1, true))
+end })
+
 table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note with the native green TavernKit Play Daily plate, same start function as the Daily action row, dropped first when the board is crowded", fn = function()
 	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
 	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 78 and D.ORDER > 0, "words and order: after the ticker (0)")

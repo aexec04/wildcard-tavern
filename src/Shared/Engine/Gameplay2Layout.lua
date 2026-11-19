@@ -11,6 +11,7 @@
 	  sortRank, sortSuit                  the two halves of the Rank | Suit control, side by side left of the hand
 	  play, discard, playCount, discardCount   the two action buttons and their remaining-count pills
 	  deck, deckCount                     the draw pile at the right and its count plate
+	  traySlot1, traySlot2, trayUse, traySell, trayPrompt   the consumables tray (trayPrompt only when a third row fits)
 	}
 	patronRow(w, h, n) -> { cards, labels, pills }   same shape as ConceptTLayout.patronRow, for Client/PatronRow
 	fits(w, h), overlaps(rects) -> list of colliding name pairs (empty when clean), ALLOWED lists intended overlaps
@@ -118,6 +119,17 @@ function M.rects(w, h)
 	local stH = math.max(24, handTop - 6 - stTop) -- the score is one quiet line, so a short stage is fine
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
+	-- consumables tray (Engine/Gameplay2Tray): two slots side by side under Mute and Calm, a Use and a Sell plate under them, all 44 px
+	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
+	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
+	local ty = r.calm.y + r.calm.h + 8
+	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
+		local sw2 = math.floor((trayW - 8) / 2)
+		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)
+		r.traySlot2 = box(pad + sw2 + 8, ty, sw2, M.MIN_TOUCH)
+		r.trayUse = box(pad, ty + M.MIN_TOUCH + 6, sw2, M.MIN_TOUCH)
+		r.traySell = box(pad + sw2 + 8, ty + M.MIN_TOUCH + 6, sw2, M.MIN_TOUCH)
+	end
 	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
 	local shift = round(0.015 * w) -- a hand of eight shifts this far left (ConceptTLayout.handFor)
 	local sw = math.max(M.MIN_TOUCH, math.min(round(0.07 * w), math.floor((r.hand.x - shift - 2 * pad - M.SORT_GAP) / 2)))
@@ -125,6 +137,10 @@ function M.rects(w, h)
 	local sy = handTop + round((handH - sh) / 2)
 	r.sortRank = box(pad, sy, sw, sh)
 	r.sortSuit = box(pad + sw + M.SORT_GAP, sy, sw, sh) -- two separate plates with a gap between
+	if r.trayUse then -- the prompt plate (Pick 2 cards / Suit: Hearts) when a third row fits above Rank and Suit, else the Use plate says it
+		local py = r.trayUse.y + M.MIN_TOUCH + 6
+		if py + M.MIN_TOUCH + 6 <= sy then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
+	end
 	-- deck: right of the hand, count plate under it
 	local dw = math.min(round(0.115 * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)
@@ -237,6 +253,7 @@ end
 
 -- the controls that must each exist exactly once (a test checks the client builds these and nothing else clickable)
 M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck", "mute", "calm" }
+M.TRAY_CONTROLS = { "traySlot1", "traySlot2", "trayUse", "traySell" } -- present whenever the screen is wide enough for the tray
 
 -- the old deck widget (with its corner brackets) sits bottom right under the Run Over scrim: it is hidden on that screen
 function M.deckWidgetShown(phase)

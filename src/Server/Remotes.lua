@@ -53,6 +53,7 @@ Rem.SetSetting = newRemote("SetSetting") -- (player, key string, value) -- see P
 Rem.MarkTutorialSeen = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 Rem.BuyRecipe = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 Rem.UseRecipe = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
+Rem.SellRecipe = newRemote("SellRecipe") -- (player, category, id): sells a held Recipe from the table tray
 Rem.RerollShop = newRemote("RerollShop") -- (player) -- pay tips to reroll Patron/Pack/Voucher offers
 Rem.Haggle = newRemote("Haggle") -- (player, action "start"|"stop", kind "patron"|"pack", id): Engine/Haggle.lua, timed on the server clock
 Rem.Stranger = newRemote("Stranger") -- (player, action "accept"|"decline"): the Wandering Stranger's Dealer's Bargain (Engine/Strangers.lua)

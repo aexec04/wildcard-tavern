@@ -173,6 +173,8 @@ function M.install(deps)
 	ClientSettings.onChanged(function(key)
 		if key == "muted" or key == "reduceMotion" or key == "reduceFlashing" or key == "reduceShake" then pcall(paintQuick) end
 	end)
+	local tray = nil
+	pcall(function() tray = require(script.Parent.Gameplay2Tray).install(layer, { selectedIndices = deps.selectedIndices }, Z_BTN) end)
 	local previewPill = Kit.pill(layer, "", "wood"); previewPill.Name = "PreviewPill"; previewPill.ZIndex = Z_UI + 1; previewPill.Visible = false
 	for _, p in ipairs({ tips, handsPill, discardsPill, deckPill, previewPill }) do -- a pill's word fills the whole pill and may be longer than 4 chars
 		local w = p:FindFirstChild("Word")
@@ -383,6 +385,7 @@ function M.install(deps)
 				end
 			end
 		end
+		if tray then pcall(tray.update, r, lastState) end -- the consumables tray (Client/Gameplay2Tray)
 	end
 
 	local function shell(on)

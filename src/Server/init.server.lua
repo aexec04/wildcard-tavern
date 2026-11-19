@@ -2272,7 +2272,7 @@ end)
 Rem.UseRecipe.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)
 	if not RateLimit.allow(player.UserId, "Rem.UseRecipe", os.clock()) then return end
 	local session = sessions[player]
-	if not session or not RunState.phaseAllowsShopActions(session.phase) then
+	if not session or not RunState.phaseAllowsRecipeUse(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -2311,6 +2311,15 @@ Rem.UseRecipe.OnServerEvent:Connect(function(player, category, id, cardIndices, 
 	end
 
 	pushState(player)
+end)
+
+-- The consumables tray on the table sells a held Recipe (half its price, like a Patron) in the shop or while playing.
+Rem.SellRecipe.OnServerEvent:Connect(function(player, category, id)
+	if not RateLimit.allow(player.UserId, "Rem.SellRecipe", os.clock()) then return end
+	local session = sessions[player]
+	if not session or not RunState.phaseAllowsRecipeUse(session.phase) or session.state.pendingPack then return end
+	if type(category) ~= "string" or type(id) ~= "string" then return end
+	if RunState.sellRecipe(session.state, category, id) then pushState(player) end
 end)
 
 -- ===== Reroll / Packs / House Passes (Vouchers) =====
