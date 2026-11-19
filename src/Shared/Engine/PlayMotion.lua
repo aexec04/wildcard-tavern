@@ -35,18 +35,18 @@ function PlayMotion.arc(ax, ay, bx, by, t, arc)
 	return u * u * ax + 2 * u * t * cx + t * t * bx, u * u * ay + 2 * u * t * cy + t * t * by
 end
 
--- deal timing: 0.25 to 0.35 s per card, 0.04 s stagger, slightly longer for the later cards
+-- deal timing: 0.25 to 0.35 s per card, 0.05 s stagger, slightly longer for the later cards
 function PlayMotion.dealTiming(order, count)
 	count = math.max(1, count or 1)
 	local k = count > 1 and (order - 1) / (count - 1) or 0
-	return (order - 1) * 0.04, 0.25 + 0.10 * PlayMotion.clamp(k, 0, 1)
+	return (order - 1) * 0.05, 0.25 + 0.10 * PlayMotion.clamp(k, 0, 1)
 end
 
 -- discard flight: each discarded card arcs to the deck pile, 0.05 s apart, shrinking to endScale; calm and Fast speed skip it
 function PlayMotion.flight(order, count, calm, fast)
 	if calm or fast then return nil end
 	order, count = math.max(1, order or 1), math.max(1, count or 1)
-	return { delay = (order - 1) * 0.05, dur = 0.32, arc = 70, endScale = 0.45 }
+	return { delay = (order - 1) * 0.05, dur = 0.3, arc = 70, endScale = 0.45 } -- same numbers as HandFlow.TABLE
 end
 
 -- a played card slides toward the table centre, a discarded one toward the deck pile (offsets from the card's slot)

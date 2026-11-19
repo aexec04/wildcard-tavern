@@ -235,6 +235,7 @@ return function(deps)
 	-- per-entry) so a hand already mid-reveal can't change speed partway
 	-- through if ownership happens to resolve mid-sequence.
 	local ClientSettings = require(script.Parent.ClientSettings)
+	local HandFlow = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandFlow"))
 	local PlayerProfileEngine = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile"))
 	local currentPaceDivisor = 1
 	local function pace(duration)
@@ -670,9 +671,21 @@ return function(deps)
 					sh.Parent = entry.ghost
 				end
 			end
-			tweenTo(entry.ghost, { Size = UDim2.fromOffset(lane.cardW, lane.cardH) }, pace(GHOST_LIFT_DURATION))
-			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY + dy) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-			if rot then tweenTo(entry.ghost, { Rotation = rot }, pace(GHOST_LIFT_DURATION)) end
+			-- Engine/HandFlow: 0.25 s slide, 0.04 s stagger; calm mode snaps into the row with no tween
+			local slide = HandFlow.playSlide(i, #playedGhosts, ClientSettings.get("reduceShake") == true)
+			entry.baseX, entry.baseY = x, rowY + dy
+			local g, tx, ty, tw, th = entry.ghost, x, rowY + dy, lane.cardW, lane.cardH
+			if slide.dur <= 0 then
+				g.Size, g.Position = UDim2.fromOffset(tw, th), UDim2.fromOffset(tx, ty)
+				if rot then g.Rotation = rot end
+			else
+				task.delay(pace(slide.delay), function()
+					if not g.Parent then return end
+					tweenTo(g, { Size = UDim2.fromOffset(tw, th) }, pace(slide.dur))
+					tweenTo(g, { Position = UDim2.fromOffset(tx, ty) }, pace(slide.dur), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					if rot then tweenTo(g, { Rotation = rot }, pace(slide.dur)) end
+				end)
+			end
 			x = x + lane.cardW + gap
 		end
 	end
@@ -702,6 +715,14 @@ return function(deps)
 			if entry.ghost.Parent then
 				local overlay = ensureDimOverlay(entry)
 				tweenTo(overlay, { BackgroundTransparency = entry == activeEntry and 1 or 0.55 }, 0.12)
+				-- the scoring card rises 14 px while it ticks (Engine/HandFlow.tickLift), none in calm mode
+				if entry.baseX and entry.baseY then
+					local lift = HandFlow.tickLift(entry == activeEntry, ClientSettings.get("reduceShake") == true)
+					if lift ~= (entry.liftedBy or 0) then
+						entry.liftedBy = lift
+						tweenTo(entry.ghost, { Position = UDim2.fromOffset(entry.baseX, entry.baseY - lift) }, 0.08)
+					end
+				end
 			end
 		end
 	end
@@ -710,6 +731,10 @@ return function(deps)
 		for _, entry in ipairs(playedGhosts) do
 			if entry.dimOverlay then
 				tweenTo(entry.dimOverlay, { BackgroundTransparency = 1 }, 0.2)
+			end
+			if entry.baseX and (entry.liftedBy or 0) ~= 0 and entry.ghost.Parent then
+				entry.liftedBy = 0
+				tweenTo(entry.ghost, { Position = UDim2.fromOffset(entry.baseX, entry.baseY) }, 0.1)
 			end
 		end
 	end
@@ -854,7 +879,9 @@ return function(deps)
 			if targetBox.Parent then
 				local boxScale = targetBox:FindFirstChildOfClass("UIScale")
 				if boxScale then
-					tweenTo(boxScale, { Scale = 1.15 }, 0.06)
+					local pop = HandFlow.totalPop(ClientSettings.get("reduceShake") == true)
+					if not pop then return end
+					tweenTo(boxScale, { Scale = pop.peak }, pop.up)
 					task.delay(0.06, function()
 						if boxScale.Parent then
 							tweenTo(boxScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
