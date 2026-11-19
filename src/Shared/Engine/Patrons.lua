@@ -238,7 +238,7 @@ Patrons.Definitions = {
 
 	-- ===== XMULT =====
 	{
-		id = "house_favorite", name = "House Favorite", icon = "👑", price = 8,
+		id = "house_favorite", name = "House Favorite", icon = "👑", price = 8, minNight = 4, -- minNight: the Counter offers it from Night 4
 		description = "x1.5 Mult for each King held in your hand (not played).",
 		flavorText = "The kings at the card table bow when they walk in.",
 		effect = function(_handResult, context)
@@ -771,7 +771,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "veterans_table", name = "Veteran's Table", icon = "🎖️", price = 8,
+		id = "veterans_table", name = "Veteran's Table", icon = "🎖️", price = 8, minNight = 4,
 		description = "+8 Chips for each Night you've reached after Night 1.",
 		flavorText = "Has a story from every night the tavern stayed open.",
 		effect = function(_handResult, context)

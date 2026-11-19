@@ -81,7 +81,7 @@ function Showdown.play(state, root)
 		l.Parent = banner
 		return l
 	end
-	label("FINAL BLOW", 6, 22, 16, GOLD)
+	label((state.night or 1) >= (state.nightCap or 8) and "FINAL BOSS DEFEATED" or "FINAL BLOW", 6, 22, 16, GOLD) -- the last Night names its boss as the final one
 	label(string.upper(tostring(hand.name)), 28, 36, 30, CREAM)
 	label(string.format("%d", math.floor(tonumber(hand.score) or 0)), 62, 30, 24, GOLD)
 

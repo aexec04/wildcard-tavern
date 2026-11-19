@@ -3852,6 +3852,7 @@ table.insert(tests, { name = "Shop.rollOffers keeps the shop's numbers and draw 
 
 	-- Patrons, then Packs, then the voucher roll, then the voucher pick.
 	local state = RunState.new(nil, function(n) return n end)
+	state.night = 4 -- the full Patron pool (two Patrons wait for Night 4)
 	local seen = {}
 	state.rng = function(n)
 		table.insert(seen, n)
@@ -3867,6 +3868,42 @@ table.insert(tests, { name = "Shop.rollOffers keeps the shop's numbers and draw 
 	expectEqual(offers.patrons[2].id, Patrons.Definitions[2].id)
 	expectEqual(offers.packs[1].id, Packs.Definitions[1].id)
 	expectEqual(offers.voucher.id, HousePasses.Definitions[1].id)
+end })
+
+table.insert(tests, { name = "Mid and late run: two Patrons are offered only from Night 4, every Night meets a different boss, the last Night's boss is from the hardest tier and the win summary names it", fn = function()
+	local late = {}
+	for _, p in ipairs(Patrons.Definitions) do if (p.minNight or 1) >= 4 then late[p.id] = true end end
+	local n = 0
+	for _ in pairs(late) do n = n + 1 end
+	expectEqual(n, 2, "two late Patrons")
+	for night = 1, 3 do
+		local st = RunState.new(nil, SeededRng.new(night))
+		st.night = night
+		for _ = 1, 200 do
+			for _, p in ipairs(Shop.rollOffers(st).patrons) do expectFalse(late[p.id], p.id .. " offered on Night " .. night) end
+		end
+	end
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	for seed = 1, 40 do
+		local rng = SeededRng.new(seed)
+		local used, ids = {}, {}
+		for night = 1, 8 do
+			local def = BossRounds.pick(rng, night, used, 8)
+			expectFalse(ids[def.id], "seed " .. seed .. " repeats " .. def.id .. " on Night " .. night)
+			ids[def.id] = true
+			table.insert(used, def.id)
+			expectTrue((def.minNight or 1) <= night, "boss gate holds on Night " .. night)
+			if night == 8 then expectTrue((def.minNight or 1) >= BossRounds.FINAL_MIN_NIGHT, "final boss is tier 3") end
+		end
+	end
+	local st = RunState.new(nil, SeededRng.new(5))
+	expectTrue(st.nightBossModifier ~= nil and st.bossesFaced and #st.bossesFaced == 1, "a run records the boss it faces")
+	local RunSummary = require(script.Parent.Parent.Engine.RunSummary)
+	st.finalBoss = BossRounds.Definitions[1]
+	st.wonRun = true
+	expectEqual(RunSummary.build(st).finalBoss.id, BossRounds.Definitions[1].id, "the win lists the final boss")
+	st.wonRun = false
+	expectEqual(RunSummary.build(st).finalBoss, nil, "a loss lists none")
 end })
 
 table.insert(tests, { name = "Shop.rollOffers never offers an owned House Pass", fn = function()
@@ -4272,6 +4309,7 @@ table.insert(tests, { name = "Patron ids and icons are unique, and scaling Patro
 
 	local seen = {}
 	local state = RunState.new(nil, SeededRng.new(3))
+	state.night = 4 -- House Favorite and Veteran's Table wait for Night 4
 	for _ = 1, 500 do
 		for _, patron in ipairs(Shop.rollOffers(state).patrons) do
 			seen[patron.id] = true

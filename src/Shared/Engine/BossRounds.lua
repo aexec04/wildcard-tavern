@@ -563,16 +563,27 @@ end
 -- the most restrictive tier, if the caller doesn't have a Night number
 -- handy for some reason. Still genuinely random WITHIN whatever tier(s)
 -- are unlocked, not a fixed/deterministic-by-Night pick.
-function BossRounds.pick(rng, night)
+function BossRounds.pick(rng, night, used, finalNight)
 	rng = rng or math.random
 	night = night or 1
+	local isFinal = finalNight ~= nil and night >= finalNight
 
-	local eligible = {}
-	for _, def in ipairs(BossRounds.Definitions) do
-		if (def.minNight or 1) <= night then
-			table.insert(eligible, def)
+	-- `used` = ids already faced this run (a list): every Night gets a different boss while there are fresh ones to pick.
+	-- The final Night takes only the hardest tier (minNight 6+), so the run ends on a real boss.
+	local usedSet = {}
+	for _, id in ipairs(used or {}) do usedSet[id] = true end
+	local function gather(skipUsed)
+		local out = {}
+		for _, def in ipairs(BossRounds.Definitions) do
+			if (def.minNight or 1) <= night and not (skipUsed and usedSet[def.id])
+				and not (isFinal and (def.minNight or 1) < BossRounds.FINAL_MIN_NIGHT) then
+				table.insert(out, def)
+			end
 		end
+		return out
 	end
+	local eligible = gather(true)
+	if #eligible == 0 then eligible = gather(false) end
 	if #eligible == 0 then
 		-- Defensive only -- every tier-1 modifier has minNight = 1, so this
 		-- can't actually happen for any night >= 1. Falls back to the full
@@ -583,5 +594,7 @@ function BossRounds.pick(rng, night)
 	local index = rng(#eligible)
 	return eligible[index]
 end
+
+BossRounds.FINAL_MIN_NIGHT = 6 -- the final Night's boss comes from the hardest tier only
 
 return BossRounds

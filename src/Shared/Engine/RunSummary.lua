@@ -89,6 +89,7 @@ function RunSummary.build(state, titleText)
 		rarity = RunSummary.badgeRarity(night, won),
 		titleText = titleText,
 		blessing = require(script.Parent.RunModifiers).view(state.runModifierId), -- the start-of-run blessing and curse
+		finalBoss = won and state.finalBoss and { id = state.finalBoss.id, name = state.finalBoss.name } or nil, -- the last Night's boss this win beat
 	}
 end
 

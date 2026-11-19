@@ -40,6 +40,7 @@ local function rollPatronOffers(state)
 				break
 			end
 		end
+		if (patron.minNight or 1) > (state.night or 1) then alreadyOwned = true end -- late Patrons wait for their Night
 		if not alreadyOwned then
 			table.insert(available, patron)
 		end

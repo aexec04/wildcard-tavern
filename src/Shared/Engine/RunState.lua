@@ -425,7 +425,11 @@ function RunState.startRound(state)
 			-- modifiers regardless of Night, so a run-ending "1 hand only"
 			-- boss was exactly as likely on Night 1 as Night 10.
 			-- (a Quick Run picks by the full-run Night its Night is scored like, see Engine/RunModes.lua)
-			state.nightBossModifier = BossRounds.pick(state.rng, state.quickRun and math.floor(RunModes.equivalentNight("quick", state.night)) or state.night)
+			local bossNight = state.quickRun and math.floor(RunModes.equivalentNight("quick", state.night)) or state.night
+			state.bossesFaced = state.bossesFaced or {} -- ids met this run: a Night never repeats an earlier boss while fresh ones remain
+			state.nightBossModifier = BossRounds.pick(state.rng, bossNight, state.bossesFaced, state.config.nightCap)
+			if state.nightBossModifier then table.insert(state.bossesFaced, state.nightBossModifier.id) end
+			if state.nightBossModifier and state.night >= state.config.nightCap then state.finalBoss = state.nightBossModifier end -- the last Night's boss, named on the win screen
 		end
 	else
 		state.nightBossModifier = nil

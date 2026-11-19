@@ -322,6 +322,7 @@ return function(deps)
 			for _, stop in ipairs(summary.route or {}) do names[#names + 1] = stop.name or stop.id end
 			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" })
 			if summary.blessing then add("Blessing: " .. summary.blessing.name) end
+			if summary.finalBoss then add("Final boss defeated: " .. summary.finalBoss.name, { tone = "gold" }) end
 		end
 		do -- what this run opened (Patrons, Recipes, House Passes), listed by name
 			local okU, line = pcall(function()
