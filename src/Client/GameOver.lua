@@ -172,6 +172,8 @@ return function(deps)
 		b.ZIndex = 24
 		b.Parent = parent
 		polishButton(b, 10)
+		if color == GREEN then pcall(function() require(script.Parent.TavernKit).painted(b, "btn_green") end)
+		elseif color == WOOD then pcall(function() require(script.Parent.TavernKit).painted(b, "btn_dark") end) end
 		return b
 	end
 

@@ -42,6 +42,7 @@ function M.attach(shopFrame)
 	plate.Name = "RoundSummary"
 	plate.Active = false
 	plate.ZIndex = 12
+	pcall(function() Kit.painted(plate, "wood_plate") end)
 	labels = {}
 	local rows = { { "Title", 26, 4 }, { "Score", 20, 34 }, { "Tips", 20, 60 } }
 	for i, spec in ipairs(rows) do

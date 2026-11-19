@@ -31239,4 +31239,24 @@ table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245
 end })
 
 
+table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll and Haggle, the Run Over buttons and the daily strip, each behind pcall so a missing picture keeps the flat look", fn = function()
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local want = {
+		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "wood_plate")' },
+		{ "src/Client/ShopHaggle.lua", 'painted(haggleButton, "btn_dark")' },
+		{ "src/Client/Shop.lua", 'painted(rerollButton, "btn_dark")' },
+		{ "src/Client/GameOver.lua", 'painted(b, "btn_green")' },
+		{ "src/Client/GameOver.lua", 'painted(b, "btn_dark")' },
+		{ "src/Client/DailyStrip.lua", 'painted(f, "wood_plate")' },
+	}
+	for _, w in ipairs(want) do
+		local src = read(w[1])
+		local at = src:find(w[2], 1, true)
+		assert(at, w[1] .. " wears " .. w[2])
+		assert(src:sub(math.max(1, at - 120), at):find("pcall", 1, true), w[1] .. " guards the painted call with pcall")
+	end
+end })
+
+
 return tests

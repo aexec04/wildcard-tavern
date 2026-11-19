@@ -69,6 +69,7 @@ local function build(root)
 	f.Active = false
 	f.ZIndex = 40
 	f.Visible = false
+	pcall(function() Kit.painted(f, "wood_plate") end) -- painted frame behind the plate, flat look if it does not load
 	label(f, "Streak", 15, 12, 0, 150, Rules.HEIGHT, "")
 	label(f, "Goal", 15, 168, 2, 200, 24, "")
 	local track = Instance.new("Frame")

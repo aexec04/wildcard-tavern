@@ -1448,6 +1448,7 @@ return function(deps)
 		polishButton(rerollButton, 8)
 		addButtonHoverScale(rerollButton)
 		pcall(function() require(script.Parent.TavernScreens).skin(rerollRow, "counter") end) -- brown secondary
+		pcall(function() require(script.Parent.TavernKit).painted(rerollButton, "btn_dark") end) -- painted dark button, flat brown if it does not load
 
 		local tableLabel = Instance.new("TextLabel")
 		tableLabel.Size = UDim2.new(1, -230, 0, 38)
