@@ -273,8 +273,8 @@ local function buildCard(choice, option, order)
 
 	local button = Instance.new("TextButton")
 	button.Name = "Pick"
-	button.Size = UDim2.new(1, -40, 0, 40)
-	button.Position = UDim2.new(0, 20, 1, -52)
+	button.Size = UDim2.new(1, -40, 0, 44)
+	button.Position = UDim2.new(0, 20, 1, -54)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 17
 	button.Text = isDecline and "No, thanks" or "Choose"

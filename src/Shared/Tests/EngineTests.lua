@@ -10631,6 +10631,42 @@ table.insert(tests, { name = "RunEvents: every event has a safe Decline, every o
 	end
 end })
 
+table.insert(tests, { name = "Tavern Events: the new trade events offer three choices with a cost, and the Choice plates are 44 px tall", fn = function()
+	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
+	for _, id in ipairs({ "gamblers_table", "wandering_tailor", "cellar_cat" }) do
+		local e = RunEvents.getById(id)
+		expectTrue(e ~= nil, id .. " exists")
+		expectEqual(#e.options, 3)
+		expectEqual(e.options[3].id, "decline")
+		for i = 1, 2 do
+			local d = e.options[i].detail
+			expectTrue(d:find("Gain", 1, true) ~= nil and d:find("Lose", 1, true) ~= nil, id .. " option " .. i .. " names a gain and a cost")
+			expectTrue(#e.options[i].label > 0 and #e.options[i].label <= 24)
+		end
+		-- a card offered on Night 1 is possible
+		local state = RunState.new(nil, function(n) return 1 end)
+		state.tips = 10
+		local found = false
+		for _, a in ipairs(RunEvents.availableFor(state)) do if a.id == id then found = true end end
+		expectTrue(found, id .. " can show on Night 1")
+	end
+	-- gambler: a hand costs 5 Tips, a refused trade changes nothing
+	local s = RunState.new(nil, function(n) return 1 end)
+	s.tips = 5
+	local hands = s.handsRemaining
+	expectTrue((RunEvents.resolve(s, "gamblers_table", "buy_hand", math.random)))
+	expectEqual(s.tips, 0); expectEqual(s.handsRemaining, hands + 1)
+	local ok = RunEvents.resolve(s, "gamblers_table", "buy_hand", math.random)
+	expectEqual(ok, false); expectEqual(s.tips, 0)
+	if io and io.open then
+		local f = io.open("src/Client/ChoicePanel.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find('button.Size = UDim2.new(1, -40, 0, 44)', 1, true) ~= nil, "Pick plate is 44 px tall")
+		end
+	end
+end })
+
 table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local state = RunState.new(nil, function(n) return 1 end)

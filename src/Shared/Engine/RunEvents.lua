@@ -133,6 +133,68 @@ RunEvents.Definitions = {
 			decline("You nod to the seller and walk on."),
 		},
 	},
+	{
+		id = "gamblers_table", name = "The Gambler's Table", icon = "🪙", minNight = 1,
+		text = "A friendly dealer offers a trade across the table: coins for cards, or cards for coins.",
+		available = function(state) return state.tips >= 5 end,
+		options = {
+			{ id = "buy_hand", label = "Pay 5 Tips", detail = "Gain +1 Hand this round. Lose 5 Tips.", resolve = function(state)
+				if state.tips < 5 then return false, "Not enough Tips." end
+				state.tips = state.tips - 5
+				state.handsRemaining = state.handsRemaining + 1
+				state.roundStartHands = (state.roundStartHands or state.handsRemaining - 1) + 1
+				return true, "One more hand to play. +1 Hand, -5 Tips."
+			end },
+			{ id = "sell_discard", label = "Trade a Discard", detail = "Gain 4 Tips. Lose 1 Discard this round.", resolve = function(state)
+				if state.discardsRemaining < 1 then return false, "No Discards to trade." end
+				state.discardsRemaining = state.discardsRemaining - 1
+				state.tips = state.tips + 4
+				return true, "A fair trade. +4 Tips, -1 Discard."
+			end },
+			decline("The dealer smiles and shuffles on."),
+		},
+	},
+	{
+		id = "wandering_tailor", name = "The Wandering Tailor", icon = "🧵", minNight = 1,
+		text = "A tailor offers to mend your luck, but each stitch has a price.",
+		available = function(state) return state.tips >= 3 end,
+		options = {
+			{ id = "mend", label = "Pay 3 Tips", detail = "Gain +1 Discard this round. Lose 3 Tips.", resolve = function(state)
+				if state.tips < 3 then return false, "Not enough Tips." end
+				state.tips = state.tips - 3
+				state.discardsRemaining = state.discardsRemaining + 1
+				return true, "Neat stitching. +1 Discard, -3 Tips."
+			end },
+			{ id = "trade_hand", label = "Give up a Hand", detail = "Gain 7 Tips. Lose 1 Hand this round.", resolve = function(state)
+				if state.handsRemaining < 2 then return false, "You need a spare Hand." end
+				state.handsRemaining = state.handsRemaining - 1
+				state.roundStartHands = math.max(1, (state.roundStartHands or state.handsRemaining + 1) - 1)
+				state.tips = state.tips + 7
+				return true, "The tailor pays up. +7 Tips, -1 Hand."
+			end },
+			decline("The tailor bows and wanders off."),
+		},
+	},
+	{
+		id = "cellar_cat", name = "The Cellar Cat", icon = "🐈", minNight = 1,
+		text = "The tavern cat has found a pouch and is not sure whether to share it.",
+		available = function(state) return state.tips >= 2 end,
+		options = {
+			{ id = "share", label = "Share supper", detail = "Gain +1 Discard this round. Lose 2 Tips.", resolve = function(state)
+				if state.tips < 2 then return false, "Not enough Tips." end
+				state.tips = state.tips - 2
+				state.discardsRemaining = state.discardsRemaining + 1
+				return true, "The cat purrs and shows you a trick. +1 Discard, -2 Tips."
+			end },
+			{ id = "shoo", label = "Shoo it away", detail = "Gain 3 Tips. Lose 1 Discard this round.", resolve = function(state)
+				if state.discardsRemaining < 1 then return false, "No Discards to give up." end
+				state.discardsRemaining = state.discardsRemaining - 1
+				state.tips = state.tips + 3
+				return true, "The cat leaves a pouch behind. +3 Tips, -1 Discard."
+			end },
+			decline("The cat blinks slowly and naps."),
+		},
+	},
 }
 
 function RunEvents.getById(id)
