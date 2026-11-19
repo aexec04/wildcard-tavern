@@ -31,6 +31,17 @@ M.TIPS = {
 	"Tip: Save a few Tips. Spare coins earn a little interest.",
 }
 
+-- The tip stands on a small plate in the bottom left corner, level with All actions (bottom right) and clear of the Deal Me In
+-- sign and New Run plaque that hang in the centre column (210 px wide). Returns nil when there is no room for one line.
+M.TIP_MARGIN, M.TIP_PLATE_H, M.TIP_MAX_W, M.TIP_MIN_W, M.TIP_SIGN_HALF, M.TIP_GAP = 16, 42, 520, 240, 105, 16
+function M.tipRect(width, height)
+	width, height = tonumber(width) or 0, tonumber(height) or 0
+	if height ~= 0 and height < M.TIP_MIN_HEIGHT then return nil end
+	local w = math.min(M.TIP_MAX_W, width / 2 - M.TIP_SIGN_HALF - M.TIP_GAP - M.TIP_MARGIN)
+	if w < M.TIP_MIN_W then return nil end
+	return { x = M.TIP_MARGIN, y = height - M.TIP_MARGIN - M.TIP_PLATE_H, w = w, h = M.TIP_PLATE_H }
+end
+
 function M.logo(elapsed, calm)
 	if calm then return { rise = 0, alpha = 1 } end
 	local p = math.min(1, math.max(0, (tonumber(elapsed) or 0) / M.LOGO_SECONDS))

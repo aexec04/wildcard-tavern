@@ -27408,4 +27408,26 @@ table.insert(tests, { name = "MenuLife: logo rises 16 px in 0.5 s, pulse 1.03 ev
 	end
 end })
 
+table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column, All actions and the screen edge at every menu size", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuLife)
+	local sizes = { { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 }, { 800, 450 }, { 844, 390 } }
+	local shown = 0
+	for _, s in ipairs(sizes) do
+		local w, h = s[1], s[2]
+		local r = M.tipRect(w, h)
+		if r then
+			shown = shown + 1
+			assert(r.x >= 16 and r.x + r.w <= w / 2 - 105 - 16 + 0.001, "tip clear of the sign column at " .. w)
+			assert(r.y + r.h <= h - 16 + 0.001 and r.y >= 0, "tip inside the screen at " .. w)
+			assert(r.w >= 240 and r.h >= 42, "tip plate size at " .. w)
+			-- All actions is 168 x 42 at 16 px from the bottom right corner
+			assert(r.x + r.w <= w - 16 - 168, "tip clear of All actions at " .. w)
+		else
+			assert(h < M.TIP_MIN_HEIGHT or w / 2 - 105 - 16 - 16 < 240, "tip left out only when there is no room at " .. w)
+		end
+	end
+	assert(shown >= 4 and M.tipRect(1920, 1080) and M.tipRect(1920, 1080).w == 520)
+	assert(M.tipRect(600, 800) == nil and M.tipRect(1920, 400) == nil)
+end })
+
 return tests

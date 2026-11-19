@@ -21,24 +21,40 @@ function M.new(menuFrame, calm)
 
 	local tip = Instance.new("TextLabel")
 	tip.Name = "MenuTip"
-	tip.AnchorPoint = Vector2.new(0.5, 1)
-	tip.Position = UDim2.new(0.5, 0, 1, -8)
-	tip.Size = UDim2.fromOffset(520, 22)
-	tip.BackgroundTransparency = 1
-	tip.Font = Enum.Font.Gotham
-	tip.TextSize = 15
+	tip.AnchorPoint = Vector2.new(0, 0)
+	tip.BackgroundColor3 = Color3.fromRGB(58, 38, 22) -- dark wood plate (cream text is over 10:1), like All actions
+	tip.BackgroundTransparency = 0
+	tip.Font = Enum.Font.Garamond
+	tip.TextSize = 18
 	tip.TextColor3 = Color3.fromRGB(255, 244, 214)
 	tip.TextTransparency = 0
 	tip.TextStrokeColor3 = Color3.fromRGB(30, 20, 12)
-	tip.TextStrokeTransparency = 0.3
+	tip.TextStrokeTransparency = 0.4
+	tip.TextWrapped = false
+	tip.TextTruncate = Enum.TextTruncate.AtEnd
 	tip.Text = Life.tipAt(0)
 	tip.Active = false
 	tip.ZIndex = 12
 	tip.Parent = menuFrame
+	do
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 7)
+		c.Parent = tip
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(201, 162, 77)
+		st.Thickness = 2
+		st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		st.Parent = tip
+	end
 
 	local function fit()
-		local h = menuFrame.AbsoluteSize.Y
-		tip.Visible = h == 0 or h >= Life.TIP_MIN_HEIGHT
+		local size = menuFrame.AbsoluteSize
+		local r = Life.tipRect(size.X, size.Y)
+		tip.Visible = r ~= nil
+		if r then
+			tip.Position = UDim2.fromOffset(r.x, r.y)
+			tip.Size = UDim2.fromOffset(r.w, r.h)
+		end
 	end
 	menuFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	fit()
