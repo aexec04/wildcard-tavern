@@ -30004,6 +30004,28 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	expectTrue(read("src/Client/Gameplay2.lua"):find("GearMenu", 1, true), "installed by the table, shared by the Counter and Night map through the root")
 end })
 
+table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit left of the gear, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
+		local w, h = sz[1], sz[2]
+		local q, g, m = G.quickRects(w, h), G.gearRect(w, h), G.menuRect(w, h)
+		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w + G.QUICK_GAP <= g.x and q.speaker.x + q.speaker.w + G.QUICK_GAP <= q.pause.x, "row order and gap " .. w)
+		expectTrue(q.speaker.w >= 44 and q.speaker.h >= 44 and q.pause.h >= 44, "44 px targets " .. w)
+		expectTrue(not hit(q.speaker, g) and not hit(q.pause, g) and not hit(q.speaker, m) and not hit(q.pause, m), "clear of gear and menu " .. w)
+		local r = L.rects(w, h)
+		for _, k in ipairs({ "target", "round", "tips", "traySlot1", "traySlot2", "trayUse", "traySell" }) do
+			if r[k] then
+				expectTrue(not hit(q.speaker, r[k]) and not hit(q.pause, r[k]), "quick buttons clear of " .. k .. " at " .. w)
+			end
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/GearMenu.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("pk_w_icon_pause", 1, true) and c:find('G.writes("sound"', 1, true), "speaker toggles Sound, both use the painted icons")
+end })
+
 table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, L, Recipes, RS = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.RunState)

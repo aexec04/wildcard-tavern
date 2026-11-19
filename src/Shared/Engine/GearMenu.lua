@@ -47,6 +47,15 @@ function M.gearRect(w, h)
 	return { x = w - m - M.SIZE, y = y, w = M.SIZE, h = M.SIZE }
 end
 
+-- the speaker (Sound toggle) and Pause round buttons sit in a row just left of the gear, same size, 8 px apart; they do what the menu rows do
+M.QUICK_GAP = 8
+function M.quickRects(w, h)
+	local g = M.gearRect(w, h)
+	local pause = { x = g.x - M.QUICK_GAP - M.SIZE, y = g.y, w = M.SIZE, h = M.SIZE }
+	local speaker = { x = pause.x - M.QUICK_GAP - M.SIZE, y = g.y, w = M.SIZE, h = M.SIZE }
+	return { speaker = speaker, pause = pause }
+end
+
 function M.contentHeight()
 	local n = #M.ROWS
 	return n * M.ROW_H + (n - 1) * M.ROW_GAP + 2 * M.PAD

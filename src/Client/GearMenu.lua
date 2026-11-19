@@ -83,6 +83,37 @@ function M.install(deps)
 		word.Size = UDim2.fromScale(1, 1)
 	end
 
+	-- speaker (Sound toggle) and Pause round buttons left of the gear: the same actions as the menu rows
+	local PaintedArt = require(Engine:WaitForChild("PaintedKitArt"))
+	local quick = {}
+	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "pk_w_icon_pause", "Pause" } }) do
+		local b = Instance.new("TextButton")
+		b.Name = "Quick_" .. q[1]
+		b.AutoButtonColor = false
+		b.Text = ""
+		b.BackgroundColor3 = rgb("brown")
+		b.BorderSizePixel = 0
+		b.ZIndex = Z + 1
+		b.Parent = host
+		local qc = Instance.new("UICorner"); qc.CornerRadius = UDim.new(0.5, 0); qc.Parent = b
+		local qs = Instance.new("UIStroke"); qs.Color = rgb("goldTrim"); qs.Thickness = 2; qs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; qs.Parent = b
+		pcall(function() Kit.painted(b, "icon_round") end)
+		local qi = Instance.new("ImageLabel")
+		qi.Name = "Icon"
+		qi.BackgroundTransparency = 1
+		qi.Size = UDim2.fromScale(0.62, 0.62)
+		qi.Position = UDim2.fromScale(0.19, 0.19)
+		qi.ScaleType = Enum.ScaleType.Fit
+		qi.Image = PaintedArt[q[2]] or ""
+		qi.ZIndex = Z + 2
+		qi.Parent = b
+		if qi.Image == "" then -- no art id: the word stands in (ASCII only)
+			local word = ButtonLabelTop.own(b, q[3], 12, Z + 2, rgb("cream"))
+			word.Size = UDim2.fromScale(1, 1)
+		end
+		quick[q[1]] = b
+	end
+
 	local menu = Instance.new("Frame")
 	menu.Name = "Menu"
 	menu.BackgroundColor3 = rgb("plateDark")
@@ -159,6 +190,11 @@ function M.install(deps)
 		local gr = G.gearRect(size.X, size.Y)
 		gear.Position = UDim2.fromOffset(gr.x, gr.y)
 		gear.Size = UDim2.fromOffset(gr.w, gr.h)
+		local qr = G.quickRects(size.X, size.Y)
+		for k, b in pairs(quick) do
+			b.Position = UDim2.fromOffset(qr[k].x, qr[k].y)
+			b.Size = UDim2.fromOffset(qr[k].w, qr[k].h)
+		end
 		local mr = G.menuRect(size.X, size.Y)
 		menu.Position = UDim2.fromOffset(mr.x, mr.y)
 		menu.Size = UDim2.fromOffset(mr.w, mr.h)
@@ -204,6 +240,17 @@ function M.install(deps)
 	-- Escape and the click outside both go through PopupDismiss (the one place that handles Escape); the catcher is the dark area
 	pcall(function() require(script.Parent.PopupDismiss).attach(catcher, { id = "gear-menu", panel = menu, close = function() setOpen(false) end, button = false }) end)
 
+	quick.speaker.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.Cue).play("button_click") end)
+		for k, val in pairs(G.writes("sound", settingsNow())) do ClientSettings.set(k, val) end
+		if isOpen then paint() end
+	end)
+	quick.pause.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.Cue).play("button_click") end)
+		setOpen(false)
+		OverlayManager.open("settings") -- the same call as the menu's Pause row
+	end)
+
 	local function act(id)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		if rows[id].def.kind == "toggle" then
@@ -234,7 +281,7 @@ function M.install(deps)
 	task.spawn(function()
 		while host.Parent do
 			local want = visibleNow()
-			if gear.Visible ~= want then gear.Visible = want end
+			if gear.Visible ~= want then gear.Visible = want; for _, b in pairs(quick) do b.Visible = want end end
 			if not want and isOpen then setOpen(false) end
 			if want then
 				local abs = host.AbsoluteSize
@@ -244,6 +291,7 @@ function M.install(deps)
 		end
 	end)
 	gear.Visible = false
+	for _, b in pairs(quick) do b.Visible = false end
 	return host
 end
 
