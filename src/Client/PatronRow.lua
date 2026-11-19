@@ -62,7 +62,7 @@ end
 local startFloat -- defined below (hover and entrance hand control back to it)
 
 local function newCard(i)
-	local c = { id = nil }
+	local c = { id = nil, seat = i }
 	local slot = Instance.new("Frame")
 	slot.Name = "PatronCard" .. i
 	slot.BackgroundTransparency = 1
@@ -305,6 +305,7 @@ local function fillCard(c, i, owned)
 			pcall(function() RarityFrame.apply(c.body, tier, { thickness = 3, radius = 8, zIndex = Z + 4 }) end)
 		end
 		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, tier, c.valueText, cut) end)
+		pcall(function() require(script.Parent.PatronShineFX).sync(c, tier, calm(), c.seat or 1) end)
 		if c.enterPending then
 			c.enterPending = false
 			pcall(function() require(script.Parent.PatronMotionFX).enter(c, tier, calm()) end)
@@ -319,6 +320,7 @@ local function fillCard(c, i, owned)
 		end
 	else
 		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, "common", nil, false) end)
+		pcall(function() require(script.Parent.PatronShineFX).clear(c) end)
 		c.id = nil
 		local old = c.body:FindFirstChild("PatronArt")
 		if old then old:Destroy() end

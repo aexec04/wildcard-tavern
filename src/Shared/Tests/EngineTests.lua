@@ -27056,6 +27056,64 @@ table.insert(tests, { name = "TavernLife: fire 0.9 to 1.0 over 3 s, cat 1.5 perc
 	expectTrue(L.CAT.x + L.CAT.w <= 1536 and L.CAT.y + L.CAT.h <= 1024, "cat crop inside the picture")
 end })
 
+-- ===== Patron rarity glow and shine =====
+table.insert(tests, { name = "PatronShine: Rare, Epic and Legendary glow in their rarity colour between 0.15 and 0.35 alpha over 3 s, Common and Uncommon do not", fn = function()
+	local S = require(script.Parent.Parent.Engine.PatronShine)
+	local M = require(script.Parent.Parent.Engine.PatronMotion)
+	for _, tier in ipairs({ "common", "uncommon" }) do
+		expectEqual(S.glow(tier, false), nil, tier .. " has no glow")
+	end
+	for _, tier in ipairs({ "rare", "epic", "legendary" }) do
+		local g = S.glow(tier, false)
+		expectTrue(g ~= nil, tier .. " glows")
+		expectEqual(g.period, 3)
+		expectEqual(g.alphaMin, 0.15)
+		expectEqual(g.alphaMax, 0.35)
+		expectTrue(math.abs(g.transMin - 0.65) < 1e-9 and math.abs(g.transMax - 0.85) < 1e-9, "transparency is 1 minus alpha")
+		expectEqual(g.rgb[1], M.glowOf(tier)[1], tier .. " uses the entrance glow colour")
+	end
+	expectTrue(S.glow("RARE", false) ~= nil, "tier names are case blind")
+	expectEqual(S.glow(nil, false), nil)
+	local blue, purple, gold = S.glow("rare", false).rgb, S.glow("epic", false).rgb, S.glow("legendary", false).rgb
+	expectTrue(blue[3] > blue[1], "Rare is blue")
+	expectTrue(purple[1] > purple[2] and purple[3] > purple[2], "Epic is purple")
+	expectTrue(gold[1] > gold[3] and gold[2] > gold[3], "Legendary is gold")
+end })
+
+table.insert(tests, { name = "PatronShine: the diagonal shine is Legendary only, every 6 s, and offsets differ by seat", fn = function()
+	local S = require(script.Parent.Parent.Engine.PatronShine)
+	for _, tier in ipairs({ "common", "uncommon", "rare", "epic" }) do
+		expectEqual(S.shine(tier, false), nil, tier .. " has no shine")
+	end
+	local s = S.shine("legendary", false)
+	expectEqual(s.period, 6)
+	expectTrue(s.dur < s.period and s.dur > 0, "sweep is shorter than the gap")
+	expectTrue(s.fromX < 0 and s.toX > 1, "the band starts and ends outside the card")
+	expectTrue(s.angle ~= 0, "diagonal")
+	expectTrue(S.shineOffset(1) ~= S.shineOffset(2), "seats start at different times")
+end })
+
+table.insert(tests, { name = "PatronShine: Calm mode and Reduce motion give no glow and no shine, and the client module makes no gradient", fn = function()
+	local S = require(script.Parent.Parent.Engine.PatronShine)
+	for _, tier in ipairs({ "common", "rare", "epic", "legendary" }) do
+		expectEqual(S.glow(tier, true), nil, tier .. " glow in calm")
+		expectEqual(S.shine(tier, true), nil, tier .. " shine in calm")
+	end
+	if not io then return end
+	local f = io.open("src/Client/PatronShineFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectFalse(src:find("UIGradient", 1, true) ~= nil, "no UIGradient in the shine module")
+	expectTrue(src:find("Shine.glow(tier, calm)", 1, true) ~= nil, "the module asks the pure rules first, so calm makes no tween")
+	local g = io.open("src/Client/PatronRow.lua", "r")
+	if g then
+		local row = g:read("*a")
+		g:close()
+		expectTrue(row:find("PatronShineFX", 1, true) ~= nil, "the Patron Row calls the shine module")
+	end
+end })
+
 -- ===== Full run smoke test =====
 -- Plays whole runs through the same engine calls the server makes (new, play, Counter, advance, continue) with a
 -- scripted bot, and mirrors the server's profile sync, then checks the run state and the save stay valid.
