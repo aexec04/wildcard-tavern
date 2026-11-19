@@ -6,7 +6,6 @@
 	burst(screenGui, big) -> number of pieces drawn
 ]]
 
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Confetti = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Confetti"))
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -40,13 +39,11 @@ function M.burst(screenGui, big)
 		parts[i] = f
 	end
 	local t0 = os.clock()
-	local conn
-	conn = RunService.Heartbeat:Connect(function()
+	require(script.Parent.FxLoop).add(function()
 		local t = os.clock() - t0
 		if t > LIFE + 0.3 or not holder.Parent then
-			conn:Disconnect()
 			holder:Destroy()
-			return
+			return true
 		end
 		local h = holder.AbsoluteSize.Y
 		for i, p in ipairs(spec) do

@@ -9,7 +9,6 @@
 	defeatWash(dim) -> fn            a gentle grey wash fades in over 0.8 s behind the panel; call the returned fn to remove it
 ]]
 
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local C = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Celebration"))
@@ -64,13 +63,11 @@ function M.winConfetti(screenGui)
 		parts[i] = l
 	end
 	local t0 = os.clock()
-	local conn
-	conn = RunService.Heartbeat:Connect(function()
+	require(script.Parent.FxLoop).add(function()
 		local t = os.clock() - t0
 		if t > plan.dur + 0.1 or not holder.Parent then
-			conn:Disconnect()
 			holder:Destroy()
-			return
+			return true
 		end
 		local h = holder.AbsoluteSize.Y
 		for i, p in ipairs(plan.pieces) do

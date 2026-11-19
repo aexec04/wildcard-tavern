@@ -10,7 +10,6 @@
 	picture is not placed. Calm mode (reduceShake) leaves every light as a static glow and creates no motes.
 ]]
 
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Lights = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoomLights"))
@@ -95,11 +94,7 @@ function RoomLights.attach(parent, opts)
 		if r then frame(0, true) end
 	end
 
-	local acc = 0
-	local conn = RunService.Heartbeat:Connect(function(dt)
-		acc += dt
-		if acc < STEP then return end
-		acc = 0
+	local conn = require(script.Parent.FxLoop).add(function()
 		if not rect or not (opts.visible and opts.visible()) then return end
 		local calm = isCalm()
 		if calm then
@@ -108,10 +103,10 @@ function RoomLights.attach(parent, opts)
 		end
 		for _, m in ipairs(motes) do m.Visible = true end
 		frame(os.clock(), false)
-	end)
+	end, STEP)
 
 	function self.destroy()
-		conn:Disconnect()
+		conn.cancel()
 		for _, e in ipairs(glows) do e.glow.root:Destroy() end
 		for _, m in ipairs(motes) do m:Destroy() end
 	end

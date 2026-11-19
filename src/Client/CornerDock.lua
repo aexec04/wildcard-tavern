@@ -59,6 +59,7 @@ function CornerDock.refresh(any)
 	end
 	shown = Rules.visible({ panelOpen = anyPanelOpen(), roundSelect = roundSelect, counter = counter ~= nil and counter.Visible == true })
 	if row.Visible ~= shown then row.Visible = shown end
+	pcall(function() require(script.Parent.FxLoop).setOverlay(not shown) end) -- looping effects rest under a full screen page
 	pcall(function() require(script.Parent.PatronRow).refresh() end) -- the Patron Row hides under the same pages
 end
 

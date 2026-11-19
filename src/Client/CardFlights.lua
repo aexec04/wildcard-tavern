@@ -7,7 +7,6 @@
 	discard(root, buttons, deckFrame) -> number of flights started
 ]]
 
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PM = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayMotion"))
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -45,13 +44,11 @@ function M.discard(root, buttons, deckFrame)
 			started += 1
 			task.delay(p.delay, function()
 				local t0 = os.clock()
-				local conn
-				conn = RunService.RenderStepped:Connect(function()
+				require(script.Parent.FxLoop).add(function()
 					local t = (os.clock() - t0) / p.dur
 					if t >= 1 or not ghost.Parent then
-						conn:Disconnect()
 						ghost:Destroy()
-						return
+						return true
 					end
 					local e = t * t -- accelerate toward the pile
 					local x, y = PM.arc(sx, sy, ex, ey, e, p.arc)

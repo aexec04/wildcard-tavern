@@ -8,7 +8,6 @@
 	show(root, boss)   hide()   fanfare(root)
 ]]
 
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
@@ -23,7 +22,7 @@ local function calm() return ClientSettings.get("reduceShake") == true end
 local function fast() return ClientSettings.get("animSpeed") == "fast" end
 
 function M.hide()
-	if conn then conn:Disconnect(); conn = nil end
+	if conn then conn.cancel(); conn = nil end
 	if plate then plate:Destroy(); plate = nil end
 	if edges then edges:Destroy(); edges = nil end
 end
@@ -77,11 +76,11 @@ function M.show(root, boss)
 		})
 		edges = v.holder
 		local t0 = os.clock()
-		conn = RunService.Heartbeat:Connect(function()
+		conn = require(script.Parent.FxLoop).add(function()
 			local a = BossPresence.pulse(os.clock() - t0, calm())
 			if not a or not edges or not edges.Parent then return end
 			for edge in pairs(v.frames) do v.setStrength(edge, a) end
-		end)
+		end, 1 / 30)
 	end
 end
 

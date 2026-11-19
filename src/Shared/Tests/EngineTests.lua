@@ -27657,4 +27657,68 @@ table.insert(tests, { name = "ProgressionFeel: rank toast rises 16 px and holds 
 	assert(st.visible[1].expiresAt == 100 + Rules.AUTO_SECONDS)
 end })
 
+table.insert(tests, { name = "FxLoop: one hub steps every effect, finished and failing ones are dropped, pause stops time, cancel is safe", fn = function()
+	local H = require(script.Parent.Parent.Engine.FxLoop)
+	local hub = H.new()
+	local a, b, bad = 0, 0, 0
+	local ha = hub.add(function() a = a + 1 end, 0.5)
+	hub.add(function() b = b + 1; return b >= 2 end, 0)
+	hub.add(function() bad = bad + 1; error("boom") end, 0)
+	assert(hub.count() == 3)
+	hub.step(0.2, 1)
+	assert(a == 0 and b == 1 and bad == 1 and hub.count() == 2, "interval waits, a failing task is dropped, the rest keep going")
+	hub.step(0.4, 2)
+	assert(a == 1 and b == 2 and hub.count() == 1, "interval fires once enough time passed, a task returning true finishes")
+	hub.setPaused("hidden", true)
+	hub.setPaused("overlay", true)
+	hub.step(5, 3)
+	assert(a == 1 and hub.paused(), "paused hub runs nothing")
+	hub.setPaused("hidden", false)
+	assert(hub.paused(), "still paused by the overlay")
+	hub.setPaused("overlay", false)
+	assert(not hub.paused())
+	hub.step(0.1, 4)
+	assert(a == 1, "paused time is not banked into a burst")
+	ha.cancel(); ha.cancel()
+	hub.step(1, 5)
+	assert(hub.count() == 0 and a == 1, "cancelled effects never run again")
+	for i = 1, 500 do hub.add(function() return true end) end
+	hub.step(0.1, 6)
+	assert(hub.count() == 0, "a thousand one-shots leave nothing behind")
+end })
+table.insert(tests, { name = "FxLoop: no Client effect opens its own Heartbeat or RenderStepped loop (only Client/FxLoop does)", fn = function()
+	if not (io and io.open) then return end
+	for _, name in ipairs({ "TavernLifeFX", "RoomLights", "ConfettiFX", "CelebrationFX", "BossPresenceFX", "CardFlights" }) do
+		local f = assert(io.open("src/Client/" .. name .. ".lua", "r"))
+		local src = f:read("*a")
+		f:close()
+		assert(not src:find("RenderStepped", 1, true) and not src:find("Heartbeat:Connect", 1, true), name .. " must register with Client/FxLoop")
+		assert(src:find("FxLoop", 1, true), name .. " uses the shared loop")
+	end
+end })
+table.insert(tests, { name = "FxLoop: a confetti burst leaves no instance behind once its time is up", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local hub = require(E.FxLoop).new()
+	local map = { Confetti = require(E.Confetti) }
+	local stubs = {
+		ClientSettings = { get = function() return false end },
+		FxLoop = { add = function(fn, i) return hub.add(fn, i) end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local clock = 0
+	env.os = setmetatable({ clock = function() return clock end }, { __index = os })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	local Confetti = FakeGui.load("src/Client/ConfettiFX.lua", env)
+	local root = FakeGui.new("ScreenGui")
+	local before = #root:GetDescendants()
+	local n = Confetti.burst(root, true)
+	assert(n > 0 and #root:GetDescendants() > before, "burst draws pieces")
+	hub.step(0.016, clock)
+	clock = 5
+	hub.step(0.016, clock)
+	assert(#root:GetDescendants() == before and hub.count() == 0, "pieces destroyed and the loop task is gone")
+end })
+
 return tests

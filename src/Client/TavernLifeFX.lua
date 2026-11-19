@@ -8,7 +8,6 @@
 	warmFlash(root, score, target)
 ]]
 
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Life = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TavernLife"))
@@ -45,16 +44,12 @@ function M.cat(layer, roomImage)
 		holder.Position = UDim2.fromOffset(r.x + (c.x + c.w / 2) / 1536 * r.w, r.y + (c.y + c.h) / 1024 * r.h)
 		holder.Size = UDim2.fromOffset(c.w / 1536 * r.w, c.h / 1024 * r.h)
 	end
-	local acc = 0
-	local conn = RunService.Heartbeat:Connect(function(dt)
-		acc += dt
-		if acc < 1 / 30 then return end
-		acc = 0
+	local conn = require(script.Parent.FxLoop).add(function()
 		if not Life.CAT_OVERLAY or not rect or not shown then return end
 		sc.Scale = Life.catScale(os.clock(), calm())
-	end)
+	end, 1 / 30)
 	function self.destroy()
-		conn:Disconnect()
+		conn.cancel()
 		holder:Destroy()
 	end
 	return self
