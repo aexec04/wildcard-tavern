@@ -9,8 +9,9 @@ local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitF
 local Art = require(Engine:WaitForChild("ConceptTArt"))
 
 local MenuPlayButton = {}
-MenuPlayButton.PULSE_SCALE = 1.05
-MenuPlayButton.PULSE_SECONDS = 1.1
+local Life = require(Engine:WaitForChild("MenuLife"))
+MenuPlayButton.PULSE_SCALE = Life.PULSE_SCALE -- 1.0 to 1.03 and back every 2.5 s
+MenuPlayButton.PULSE_SECONDS = Life.PULSE_PERIOD / 2
 
 function MenuPlayButton.style(plaque, loops, TweenService)
 	if plaque:FindFirstChild("ConceptTArt") then return end

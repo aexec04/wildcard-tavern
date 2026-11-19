@@ -27364,4 +27364,20 @@ do
 	end })
 end
 
+table.insert(tests, { name = "MenuLife: logo rises 16 px in 0.5 s, pulse 1.03 every 2.5 s, 4 px hover lift, six tips rotating every 6 s, still in calm mode", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuLife)
+	local a, b = M.logo(0, false), M.logo(0.5, false)
+	assert(a.rise == 16 and a.alpha == 0 and b.rise == 0 and b.alpha == 1 and M.logo(9, false).rise == 0)
+	assert(M.logo(0.25, false).rise < 16 and M.logo(0.25, false).rise > 0)
+	local c = M.logo(0, true)
+	assert(c.rise == 0 and c.alpha == 1)
+	assert(M.PULSE_SCALE == 1.03 and M.PULSE_PERIOD == 2.5)
+	assert(M.hoverLift(false) == 4 and M.hoverLift(true) == nil)
+	assert(#M.TIPS == 6 and M.TIP_SECONDS == 6)
+	assert(M.tipAt(0) == M.TIPS[1] and M.tipAt(5.9) == M.TIPS[1] and M.tipAt(6) == M.TIPS[2] and M.tipAt(36) == M.TIPS[1] and M.tipAt(-3) == M.TIPS[1])
+	for _, tip in ipairs(M.TIPS) do
+		assert(#tip < 70 and not tip:find("%-%-") and not tip:lower():find("balatro"))
+	end
+end })
+
 return tests

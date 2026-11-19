@@ -104,6 +104,7 @@ return function(deps)
 
 	-- ===== Notice Board: pinned notes on the left wall (rank, next goal, news, today's board) =====
 	local hotspots -- built below; the note handlers need it
+	local life = require(script.Parent.MenuLifeFX).new(menuFrame, calm) -- logo rise, hover lift, rotating tip (none in Calm mode)
 	local board = require(script.Parent.MenuBoard).build(menuFrame)
 	local newsNote = require(script.Parent.NewsPanel).attach(board.list, -3) -- News banner for the running live event (state.news)
 	local rankNote = require(script.Parent.MenuRank).attach(board.list, -2) -- Tavern Rank bar (state.rank)
@@ -243,6 +244,7 @@ return function(deps)
 		calm = calm,
 		tutorialRibbon = ribbon,
 		onNoticeHover = function(on) board.setHover(on) end,
+		onLift = function(object, on) life.hover(object, on) end,
 		onHover = function(on)
 			TweenService:Create(sceneDim, TweenInfo.new(0.12), { BackgroundTransparency = on and 0.8 or 1 }):Play()
 		end,
@@ -271,6 +273,7 @@ return function(deps)
 	scene.setBayou(mapWorld.active) -- hides the wall-bound life (fire, shaft, candle, steam, embers); the map has its own
 	scene.setRoom(true)
 	local P = Layout.Parallax
+	local logoLayer
 	local parallaxLayers = {
 		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = 0 },
 		{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
@@ -279,19 +282,21 @@ return function(deps)
 		{ inst = titleGroup, base = UDim2.new(), px = P.near },
 		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
 	}
+	logoLayer = parallaxLayers[#parallaxLayers]
 	for _, layer in ipairs(mapWorld.layers) do table.insert(parallaxLayers, layer) end
 	local parallax = require(script.Parent.MenuParallax).new({
 		screenGui = screenGui,
 		calm = calm,
 		layers = parallaxLayers,
 		onStep = function(nx, ny, t, isCalm)
+			logoLayer.base = UDim2.new(0, 0, 0, 20 + life.logoOffset(os.clock())) -- the title climbs 16 px as the menu opens
 			scene.update(nx, ny, t, isCalm)
 			if mapWorld.active then mapWorld.update(nx, ny, t, isCalm) end
 		end,
 	})
 
 	-- One-shot load-in: the title fades up, the hotspots drop in with a 0.06s stagger.
-	revealStagger({ menuTitleShadow, menuTitle }, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
+	revealStagger({ menuTitleShadow, menuTitle }, { stagger = 0.08, duration = require(Engine:WaitForChild("MenuLife")).LOGO_SECONDS, fromScale = 0.7 })
 
 	-- ===== Loops (only while the menu is open; skipped under Reduce Shake) =====
 	local loopToken = 0
@@ -300,9 +305,11 @@ return function(deps)
 		hotspots.stopLoops()
 		hotspots.closeAll()
 		parallax.stop()
+		life.stop()
 	end
 	local function startLoops()
 		stopLoops()
+		life.begin(os.clock())
 		hotspots.entry()
 		parallax.start() -- holds still in calm mode
 		if calm() then

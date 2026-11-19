@@ -534,6 +534,7 @@ function Hotspots.build(opts)
 			end
 			local plate = ui.frame:FindFirstChild("NamePlate")
 			if plate then plate.Visible = on end
+			if object and opts.onLift then opts.onLift(object, on) end -- 4 px lift and the hover sound (none in Calm mode)
 			if opts.onHover then opts.onHover(on) end
 			return
 		end
