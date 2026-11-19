@@ -29756,7 +29756,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local kit = read("src/Client/TavernKit.lua")
-	expectTrue(kit:find("function TavernKit.painted", 1, true) and kit:find("host.Parent:FindFirstChild(host.Name .. \"Paint\")", 1, true), "the frame is a sibling named after the plate")
+	expectTrue(kit:find("function TavernKit.painted", 1, true) and kit:find("img.Name = host.Name .. \"Paint\"", 1, true) and kit:find("img.Parent = host.Parent", 1, true), "the frame is a sibling named after the plate")
 	expectTrue(kit:find("img.IsLoaded", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
@@ -31342,6 +31342,15 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 		assert(at, w[1] .. " wears " .. w[2])
 		assert(src:sub(math.max(1, at - 120), at):find("pcall", 1, true), w[1] .. " guards the painted call with pcall")
 	end
+end })
+
+
+table.insert(tests, { name = "Painted frames: two sibling buttons with the same Name each keep their own picture (Play Hand and Discard are both 'TextButton')", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/TavernKit.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("paintOf[host]", 1, true), "the picture is found through the host, not by a shared Name")
+	assert(not src:find('FindFirstChild(host.Name .. "Paint")', 1, true), "no lookup by Name: a sibling with the same Name would be destroyed")
+	assert(src:find("paintOf[host] = img", 1, true), "the picture is recorded for its host")
 end })
 
 

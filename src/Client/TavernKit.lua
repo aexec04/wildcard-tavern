@@ -199,6 +199,7 @@ end
 -- transparent while the picture is up; if the picture has not loaded after PAINTED_LOAD_WAIT seconds, or there is no id, the flat look
 -- stays or comes back. Words stay on the plate (a button keeps its KitLabel, its own text stays transparent). Returns the ImageLabel or nil.
 local paintedArt
+local paintOf = setmetatable({}, { __mode = "k" }) -- host -> its picture: two sibling buttons both named "TextButton" must not share one "TextButtonPaint"
 function TavernKit.painted(host, piece)
 	local def = Style.PAINTED[piece]
 	if not def or not host or not host.Parent then return nil end
@@ -208,8 +209,8 @@ function TavernKit.painted(host, piece)
 	end
 	local id = paintedArt and paintedArt[def.art]
 	if not id or id == "" then return nil end
-	local old = host.Parent:FindFirstChild(host.Name .. "Paint")
-	if old and old:GetAttribute("PaintPiece") == piece then return old end
+	local old = paintOf[host]
+	if old and old.Parent and old:GetAttribute("PaintPiece") == piece then return old end
 	if old then old:Destroy() end
 	local img = Instance.new("ImageLabel")
 	img.Name = host.Name .. "Paint"
@@ -245,6 +246,7 @@ function TavernKit.painted(host, piece)
 		end
 	end
 	img.Parent = host.Parent
+	paintOf[host] = img
 	fit()
 	flatOff(true)
 	host.BackgroundTransparency = 1
