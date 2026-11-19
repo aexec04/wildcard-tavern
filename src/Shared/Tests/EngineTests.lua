@@ -29274,4 +29274,32 @@ table.insert(tests, { name = "Gameplay2Flair: better hands get more flair, under
 	assert(read("src/Shared/Engine/Gameplay2Perf.lua"):find("Gameplay2FlairFX.lua", 1, true), "listed in the FxLoop lint")
 end })
 
+table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edge (no cyan or white), the corner rank is at least 18 px at 1280x720 and never under the 15 px floor", fn = function()
+	local C = require(script.Parent.Parent.Engine.CardLook)
+	local A = require(script.Parent.Parent.Engine.Gameplay2Audit)
+	assert(not C.isCoolGlow(C.EDGE_RGB), "the edge is warm gold")
+	assert(C.isCoolGlow({ 120, 220, 255 }) and C.isCoolGlow({ 250, 250, 250 }) and not C.isCoolGlow({ 255, 214, 130 }), "cool and white glows are detected")
+	local sel, both, hov, rest = C.edge(true, false), C.edge(true, true), C.edge(false, true), C.edge(false, false)
+	assert(sel.thickness == 2 and sel.transparency == 0, "selected: a 2 px solid edge")
+	assert(both.thickness == 3 and both.thickness <= 3, "selected and hovered: at most 3 px")
+	assert(hov.thickness < sel.thickness and hov.transparency >= 0.5, "hover is fainter than selected")
+	assert(rest.transparency == 1, "a resting card has no edge")
+	for _, e in ipairs({ sel, both, hov, rest }) do assert(e.rgb == C.EDGE_RGB and e.thickness <= 3, "gold and thin") end
+	for _, sz in ipairs(A.SIZES) do
+		local a = A.audit(sz[1], sz[2])
+		if a.fits then
+			local px = C.rankPx(a.handCard.w, a.handCard.h)
+			assert(px >= C.RANK_FLOOR, "rank floor at " .. sz[1])
+			if sz[1] >= 1280 then assert(px >= C.MIN_RANK_1280, string.format("rank %d px at %dx%d, under 18", px, sz[1], sz[2])) end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
+	local face = read("src/Client/CardFace.lua")
+	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 15", 1, true), "CardLook mirrors the CardFace index box and floor")
+	assert(read("src/Client/init.client.lua"):find('WaitForChild("CardLook")', 1, true), "the hub draws the selection edge from CardLook")
+	local pal = read("src/Client/Palette.lua")
+	assert(pal:find("cardSelected", 1, true), "palette unchanged")
+end })
+
 return tests

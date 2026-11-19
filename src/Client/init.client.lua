@@ -1560,20 +1560,11 @@ local function refreshCardVisual(index, usePop)
 	-- VisualHelpers.lua's own functions use for UIScale (:FindFirstChildOfClass).
 	local stroke = button:FindFirstChild("SelectionStroke")
 	if stroke then
-		local strokeThickness, strokeTransparency
-		if isSelected and isHovering then
-			strokeThickness, strokeTransparency = 4, 0
-		elseif isSelected then
-			strokeThickness, strokeTransparency = 3, 0.05
-		elseif isHovering then
-			strokeThickness, strokeTransparency = 2, 0.5
-		else
-			strokeThickness, strokeTransparency = 1, 1
-		end
+		local look = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CardLook")).edge(isSelected, isHovering) -- thin warm gold
 		VisualHelpersModule.tweenTo(stroke, {
-			Color = currentTheme.colors.cardSelected,
-			Thickness = strokeThickness,
-			Transparency = strokeTransparency,
+			Color = Color3.fromRGB(look.rgb[1], look.rgb[2], look.rgb[3]),
+			Thickness = look.thickness,
+			Transparency = look.transparency,
 		}, 0.15)
 	end
 
