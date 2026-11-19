@@ -7,7 +7,7 @@
 	that LaunchData or Roblox's own ReferredByPlayerId).
 
 	Rewards, each granted ONCE:
-	  * inviter  +INVITER_TIPS Tips on the next run (profile.pendingStartTips, capped like quests) and progress to
+	  * inviter  +INVITER_TIPS Tips on the next run (profile.pendingStartTips, capped like quests, paid once per UTC day) and progress to
 	    the titles Welcoming Host (3 invites) and Tavern Ambassador (10), see Engine/Achievements.
 	  * invitee  one starter card back (INVITEE_CARD_BACK) the first time they arrive through an invite.
 
@@ -69,26 +69,34 @@ end
 
 -- Credits the inviter's profile for one invitee. Idempotent per invitee; refuses self invites and junk ids.
 -- Returns true when something was granted, plus the list of title ids newly reached.
-function Invites.creditInviter(profile, inviterUserId, inviteeUserId)
+-- `day` (UTC day number, optional): the Tips bonus is paid once per UTC day (profile.inviteTipsDay); the invite itself, the
+-- ledger and the titles still count. Without `day` there is no daily cap. Third return value: Tips actually granted.
+function Invites.creditInviter(profile, inviterUserId, inviteeUserId, day)
 	if not validId(inviteeUserId) or not validId(inviterUserId) or inviteeUserId == inviterUserId then
-		return false, {}
+		return false, {}, 0
 	end
 	profile.inviteLedger = profile.inviteLedger or {}
 	local key = string.format("%d", inviteeUserId)
 	if profile.inviteLedger[key] or ledgerCount(profile.inviteLedger) >= Invites.LEDGER_CAP then
-		return false, {}
+		return false, {}, 0
 	end
 	local before = profile.invitesAccepted or 0
 	profile.inviteLedger[key] = true
 	profile.invitesAccepted = before + 1
-	profile.pendingStartTips = math.min(TavernRank.MAX_PENDING_TIPS, (profile.pendingStartTips or 0) + Invites.INVITER_TIPS)
+	local tips = 0
+	local hasDay = type(day) == "number" and day == day
+	if not hasDay or profile.inviteTipsDay ~= day then
+		tips = Invites.INVITER_TIPS
+		profile.pendingStartTips = math.min(TavernRank.MAX_PENDING_TIPS, (profile.pendingStartTips or 0) + tips)
+		if hasDay then profile.inviteTipsDay = day end
+	end
 	local reached = {}
 	for _, t in ipairs(Invites.Titles) do
 		if before < t.need and profile.invitesAccepted >= t.need then
 			reached[#reached + 1] = t.id
 		end
 	end
-	return true, reached
+	return true, reached, tips
 end
 
 -- A player arrived through an invite. Only a brand new player (no run started yet) with no earlier inviter counts.
@@ -128,6 +136,8 @@ function Invites.cleanSaved(profile, raw)
 		profile.invitedByUserId = raw.invitedByUserId
 	end
 	profile.inviteeRewardClaimed = raw.inviteeRewardClaimed == true
+	local d = raw.inviteTipsDay
+	profile.inviteTipsDay = (type(d) == "number" and d == d and d >= 0 and d < 1e7 and d == math.floor(d)) and d or nil
 end
 
 -- The inbox of an offline inviter: a list of invitee ids waiting to be credited (deduplicated, capped).
@@ -148,16 +158,17 @@ function Invites.inboxAdd(list, inviteeUserId)
 end
 
 -- Applies an inbox to a profile; returns how many were newly credited and the title ids reached.
-function Invites.drainInbox(profile, inviterUserId, list)
-	local credited, titles = 0, {}
+function Invites.drainInbox(profile, inviterUserId, list, day)
+	local credited, titles, tipsTotal = 0, {}, 0
 	for _, inviteeId in ipairs(type(list) == "table" and list or {}) do
-		local ok, reached = Invites.creditInviter(profile, inviterUserId, inviteeId)
+		local ok, reached, tips = Invites.creditInviter(profile, inviterUserId, inviteeId, day)
 		if ok then
 			credited = credited + 1
+			tipsTotal = tipsTotal + (tips or 0)
 			for _, t in ipairs(reached) do titles[#titles + 1] = t end
 		end
 	end
-	return credited, titles
+	return credited, titles, tipsTotal
 end
 
 return Invites

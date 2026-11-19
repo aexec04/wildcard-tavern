@@ -1875,10 +1875,10 @@ local function processInvites(player)
 	local inboxKey = "u" .. tostring(player.UserId)
 	local okRead, inbox = pcall(function() return store:GetAsync(inboxKey) end)
 	if okRead and type(inbox) == "table" and #inbox > 0 then
-		local credited, titles = Invites.drainInbox(profile, player.UserId, inbox)
+		local credited, titles, tipsPaid = Invites.drainInbox(profile, player.UserId, inbox, LoginStreak.dayNumber(os.time()))
 		if credited > 0 then
 			profileDirty[player] = true
-			pushRewardNotice(player, { text = string.format("%d friend%s joined through your invite. +%d Tips next run.", credited, credited == 1 and "" or "s", credited * Invites.INVITER_TIPS) })
+			pushRewardNotice(player, { text = string.format("%d friend%s joined through your invite.%s", credited, credited == 1 and "" or "s", tipsPaid > 0 and (" +" .. tipsPaid .. " Tips next run.") or " Today's Tips bonus is already paid.") })
 		end
 		pcall(function() store:RemoveAsync(inboxKey) end) -- credited ones are in the ledger, so a failed remove is harmless
 	end
@@ -1892,9 +1892,10 @@ local function processInvites(player)
 	local inviter = Players:GetPlayerByUserId(inviterId)
 	local inviterProfile = inviter and profiles[inviter]
 	if inviterProfile then
-		if Invites.creditInviter(inviterProfile, inviterId, player.UserId) then
+		local credited, _, tipsPaid = Invites.creditInviter(inviterProfile, inviterId, player.UserId, LoginStreak.dayNumber(os.time()))
+		if credited then
 			profileDirty[inviter] = true
-			pushRewardNotice(inviter, { text = player.DisplayName .. " joined through your invite. +" .. Invites.INVITER_TIPS .. " Tips next run." })
+			pushRewardNotice(inviter, { text = player.DisplayName .. " joined through your invite." .. (tipsPaid > 0 and (" +" .. tipsPaid .. " Tips next run.") or " Today's Tips bonus is already paid.") })
 		end
 	else
 		pcall(function()

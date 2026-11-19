@@ -30796,4 +30796,37 @@ table.insert(tests, { name = "Daily strip layout: inside the screen, 44 px touch
 	end
 end })
 
+table.insert(tests, { name = "Invite Tips bonus: paid once per UTC day, the invite and titles still count, junk day and old saves safe, the saved day survives a load", fn = function()
+	local Invites = require(script.Parent.Parent.Engine.Invites)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local host = PlayerProfile.new()
+	local ok, _, tips = Invites.creditInviter(host, 1, 2, 20000)
+	expectTrue(ok); expectEqual(tips, Invites.INVITER_TIPS, "first invite of the day pays")
+	local before = host.pendingStartTips
+	local ok2, _, tips2 = Invites.creditInviter(host, 1, 3, 20000)
+	expectTrue(ok2, "the second friend still counts"); expectEqual(tips2, 0, "no second Tips bonus the same day")
+	expectEqual(host.pendingStartTips, before, "Tips unchanged")
+	expectEqual(host.invitesAccepted, 2, "both counted toward the titles")
+	local _, _, tips3 = Invites.creditInviter(host, 1, 4, 20001)
+	expectEqual(tips3, Invites.INVITER_TIPS, "next UTC day pays again")
+	expectFalse((Invites.creditInviter(host, 1, 4, 20001)), "the same friend never pays twice")
+	-- an inbox drained after a long offline spell pays one bonus per day, not one per friend
+	local later = PlayerProfile.new()
+	local credited, _, paid = Invites.drainInbox(later, 1, { 11, 12, 13 }, 20005)
+	expectEqual(credited, 3); expectEqual(paid, Invites.INVITER_TIPS, "one bonus for the whole inbox")
+	-- no day given: the old behaviour, no cap
+	local plain = PlayerProfile.new()
+	Invites.creditInviter(plain, 1, 2); Invites.creditInviter(plain, 1, 3)
+	expectEqual(plain.pendingStartTips, 2 * Invites.INVITER_TIPS, "no day, no cap")
+	-- junk and old saves
+	local fresh = PlayerProfile.new()
+	Invites.cleanSaved(fresh, { inviteTipsDay = "x" }); expectEqual(fresh.inviteTipsDay, nil, "junk day dropped")
+	Invites.cleanSaved(fresh, { inviteTipsDay = 1.5 }); expectEqual(fresh.inviteTipsDay, nil, "fraction dropped")
+	Invites.cleanSaved(fresh, {}); expectEqual(fresh.inviteTipsDay, nil, "old save")
+	Invites.cleanSaved(fresh, { inviteTipsDay = 20000 }); expectEqual(fresh.inviteTipsDay, 20000, "saved day kept")
+	local _, _, tips4 = Invites.creditInviter(fresh, 1, 9, 20000)
+	expectEqual(tips4, 0, "a reload on the same day does not reopen the bonus")
+end })
+
+
 return tests
