@@ -233,6 +233,8 @@ function TavernKit.painted(host, piece)
 			img.ScaleType = Enum.ScaleType.Slice
 			img.SliceCenter = Rect.new(sl.left, sl.top, sl.right, sl.bottom)
 			img.SliceScale = sl.scale
+		elseif def.whole then
+			img.ScaleType = Enum.ScaleType.Stretch -- a finished picture at the plate's aspect: no slicing
 		else
 			img.ScaleType = Enum.ScaleType.Fit
 		end
@@ -265,6 +267,37 @@ function TavernKit.painted(host, piece)
 		end
 	end)
 	host.Destroying:Connect(function() img:Destroy() end)
+	return img
+end
+
+-- A small painted icon (speaker, pause, bulb, bars, spade, crown: Engine/PaintedKitArt pk_w_icon_<name>) drawn as a CHILD of the plate at its
+-- left side, so it survives a Clone and follows the plate. `pad` pushes the plate's own text right by that fraction of the width (a UIPadding),
+-- so the word never sits on the icon. Returns the ImageLabel, or nil (no id: the word stays centred and nothing changes).
+function TavernKit.icon(host, name, pad)
+	if not host or not host.Parent then return nil end
+	local ok, art = pcall(function() return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PaintedKitArt")) end)
+	local id = ok and art and art["pk_w_icon_" .. name]
+	if not id or id == "" then return nil end
+	local img = host:FindFirstChild("KitIcon")
+	if not img then
+		img = Instance.new("ImageLabel")
+		img.Name = "KitIcon"
+		img.BackgroundTransparency = 1
+		img.BorderSizePixel = 0
+		img.Active = false
+		img.ScaleType = Enum.ScaleType.Fit
+		img.AnchorPoint = Vector2.new(0, 0.5)
+		img.Position = UDim2.new(0.06, 0, 0.5, 0)
+		local ar = Instance.new("UIAspectRatioConstraint"); ar.AspectRatio = 1; ar.DominantAxis = Enum.DominantAxis.Height; ar.Parent = img
+		img.Parent = host
+	end
+	img.Image = id
+	img.ImageTransparency = 0
+	img.Size = UDim2.new(0, 0, 0.62, 0)
+	img.ZIndex = host.ZIndex + 2
+	if pad and pad > 0 and (host:IsA("TextLabel") or host:IsA("TextButton")) and not host:FindFirstChild("KitIconPad") then
+		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(pad, 0); up.Parent = host
+	end
 	return img
 end
 

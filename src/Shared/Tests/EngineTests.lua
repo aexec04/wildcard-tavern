@@ -28966,7 +28966,7 @@ table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style s
 		local fh = io.open("src/Client/TavernKit.lua", "r")
 		if fh then
 			local src = fh:read("*a"); fh:close()
-			assert(select(2, src:gsub("Instance.new%(\"ImageLabel\"%)", "")) == 1 and not src:find("rbxassetid", 1, true), "the kit draws images only through the one painted() frame, never an id of its own")
+			assert(select(2, src:gsub("Instance.new%(\"ImageLabel\"%)", "")) == 2 and not src:find("rbxassetid", 1, true), "the kit draws images only through painted() and icon(), never an id of its own")
 			assert(not src:find("%.Transparency%s*=%s*NumberSequence") and not src:find("g%.Transparency"), "gradients are Color only")
 			for _, fn in ipairs({ "plate", "primaryButton", "secondaryButton", "pill", "goldBox", "title", "feel" }) do
 				assert(src:find("function TavernKit." .. fn, 1, true), "TavernKit." .. fn .. " exists")
@@ -29752,7 +29752,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 14, "fourteen painted pieces: the eight plain ones plus the six ornate (wide, small, square, score, dark and green button)")
+	expectTrue(n == 23, "twenty three painted pieces: the eight plain, the six ornate and the nine whole-picture plates")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -29761,7 +29761,8 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(kit:find("img.IsLoaded", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "orn_wide", "orn_small", "orn_score", "orn_btn_green", "orn_btn_dark", "parchment" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_btn_sq", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear and Next Round are painted")
 end })
 
@@ -30979,9 +30980,9 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x" }, patronLimit = 1 }), "no free seat: off")
 	if io and io.open then
 		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "orn_wide")', 1, true) ~= nil, "Round hint plate is painted")
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "orn_btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
-		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "orn_wide")', 1, true) ~= nil, "guided hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "Round hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "wh_btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
+		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "guided hint plate is painted")
 		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")
 	end
 end })
@@ -31694,7 +31695,25 @@ table.insert(tests, { name = "Ornate frames: full scale slices keep the whole pi
 	local g2 = read("src/Client/Gameplay2.lua")
 	expectTrue(g2:find("0.19 * sw", 1, true) and g2:find('"ArrowL"', 1, true) or g2:find('"ArrowL"', 1, true) ~= nil or g2:find("ArrowL", 1, true) ~= nil, "score plate is 0.19 wide with arrow flourishes")
 	expectTrue(g2:find("0.19 * sw", 1, true) ~= nil, "score plate width is 0.19 of the screen")
-	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"orn_btn_green"', 1, true) ~= nil, "Got it wears the ornate green frame")
+	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"wh_btn_green"', 1, true) ~= nil, "Got it wears the whole-picture green frame")
+end })
+
+table.insert(tests, { name = "Whole-picture plates: no nine-slice, a recorded Image id each, picture aspect within 30 percent of the size it is shown at, icons recorded", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	-- piece -> the size it is shown at on the 1672 x 941 reference (Target 290x80, scroll 410x85, score 315x90, count pills 165x44, buttons 310x80, Rank 160x80, count 215x65, hint 320x140)
+	local shown = { wh_target = { 290, 80 }, wh_scroll = { 410, 85 }, wh_score = { 315, 90 }, wh_small = { 165, 44 }, wh_btn_dark = { 310, 80 },
+		wh_btn_green = { 310, 80 }, wh_btn_sq = { 160, 80 }, wh_count = { 215, 65 }, wh_hint = { 320, 140 } }
+	for piece, sz in pairs(shown) do
+		local def = Style.PAINTED[piece]
+		expectTrue(def and def.whole == true and def.inset == nil, piece .. " is a whole picture")
+		expectTrue(Style.paintedSlice(piece, sz[1], sz[2]) == nil, piece .. " is never nine-sliced")
+		expectTrue(type(Art[def.art]) == "string" and #Art[def.art] > 10, piece .. " has a recorded id")
+		local ratio = (def.src[1] / def.src[2]) / (sz[1] / sz[2])
+		-- the whole-picture aspects sit about 15 to 25 percent wider than the reference plates (the art carries its own flourish margin); Stretch absorbs it
+		expectTrue(ratio > 0.7 and ratio < 1.8, piece .. " picture aspect is close to its shown aspect (" .. string.format("%.2f", ratio) .. ")")
+	end
+	for _, n in ipairs({ "speaker", "pause", "bulb", "bars", "spade", "crown" }) do expectTrue(type(Art["pk_w_icon_" .. n]) == "string" and #Art["pk_w_icon_" .. n] > 10, n .. " icon has a recorded id") end
 end })
 
 return tests

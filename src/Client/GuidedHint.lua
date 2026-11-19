@@ -34,7 +34,7 @@ local function build(layer)
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
 	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate
-	pcall(function() require(script.Parent.TavernKit).painted(plate, "orn_wide") end) -- painted frame, flat plate if it does not load
+	pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_target") end) -- painted frame, flat plate if it does not load
 	local function line(name, y, size, color)
 		local t = Instance.new("TextLabel")
 		t.Name = name
@@ -44,8 +44,8 @@ local function build(layer)
 		t.TextColor3 = color
 		t.TextTransparency = 0
 		t.TextStrokeTransparency = 1
-		t.Size = UDim2.new(1, -16, 0.5, 0)
-		t.Position = UDim2.new(0, 8, y, 0)
+		t.Size = UDim2.new(0.9, 0, 0.5, 0)
+		t.Position = UDim2.new(0.05, 0, y, 0)
 		t.ZIndex = 31
 		t.Parent = plate
 		return t
@@ -64,7 +64,7 @@ local function build(layer)
 	skipBtn.ZIndex = 32
 	pcall(function() require(script.Parent.TavernKit).skin(skipBtn, "Skip", "secondary") end)
 	skipBtn.Parent = layer
-	pcall(function() require(script.Parent.TavernKit).painted(skipBtn, "orn_btn_dark") end)
+	pcall(function() require(script.Parent.TavernKit).painted(skipBtn, "wh_btn_dark") end)
 	skipBtn.MouseButton1Click:Connect(function() skipped = true; M.hide() end)
 end
 

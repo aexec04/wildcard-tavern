@@ -165,9 +165,15 @@ function M.install(deps)
 	pcall(function()
 		bar.BackgroundTransparency = 1
 		for _, c in ipairs(bar:GetChildren()) do if c:IsA("UIStroke") then c.Enabled = false end end
-		Kit.painted(target, "orn_wide"); Kit.painted(tips, "orn_wide")
-		Kit.painted(handsPill, "orn_small"); Kit.painted(discardsPill, "orn_small"); Kit.painted(deckPill, "orn_small")
-		local scroll = Kit.painted(roundLabel, "parchment")
+		Kit.painted(target, "wh_target"); Kit.painted(tips, "wh_target")
+		Kit.painted(handsPill, "wh_small"); Kit.painted(discardsPill, "wh_small"); Kit.painted(deckPill, "wh_count")
+		do -- the lightbulb icon on Tips, its word moved right of it
+			local bulb = Kit.icon(tips, "bulb")
+			local tw = tips:FindFirstChild("Word")
+			if bulb and tw and not tw:FindFirstChild("KitIconPad") then local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(0.18, 0); up.Parent = tw end
+		end
+		local scroll = Kit.painted(roundLabel, "wh_scroll")
+		if scroll and not roundLabel:FindFirstChild("KitIconPad") then local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(0.15, 0); up.PaddingRight = UDim.new(0.04, 0); up.Parent = roundLabel end -- the wax seal sits at the left
 		if scroll then -- dark ink on the cream scroll; cream again if the picture never loads
 			roundLabel.TextColor3 = Color3.fromRGB(58, 36, 20); roundLabel.TextStrokeTransparency = 1
 			task.delay(Style.PAINTED_LOAD_WAIT + 0.5, function()
@@ -190,7 +196,7 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
-				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "orn_btn_dark") end) end
+				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "wh_btn_sq"); Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2) end) end
 			end
 		end
 	end
@@ -294,7 +300,7 @@ function M.install(deps)
 		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
 		if not painted.buttons then -- the painted frames (Engine/TavernStyle.PAINTED); the flat plate stays if a picture is missing
 			painted.buttons = true
-			pcall(function() Kit.painted(deps.playButton, "orn_btn_green"); Kit.painted(deps.discardButton, "orn_btn_dark") end)
+			pcall(function() Kit.painted(deps.playButton, "wh_btn_green"); Kit.painted(deps.discardButton, "wh_btn_dark") end)
 		end
 		local function flatOpaque(b) if not (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) then b.BackgroundTransparency = 0 end end
 		flatOpaque(deps.playButton); flatOpaque(deps.discardButton)
@@ -335,7 +341,7 @@ function M.install(deps)
 			local ph = math.max(40, N.lineY + 4)
 			scorePlate.Position = UDim2.fromOffset(r.stage.x + math.floor((r.stage.w - pw) / 2), r.stage.y - 2)
 			scorePlate.Size = UDim2.fromOffset(pw, ph)
-			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "orn_score") end) end
+			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
 		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond

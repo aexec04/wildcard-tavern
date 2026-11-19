@@ -24,7 +24,7 @@ M.ORDER = {
 
 M.MAX_NIGHT = 1
 M.MAX_ROUND = 3
-M.PLATE_W, M.PLATE_H = 300, 56
+M.PLATE_W, M.PLATE_H = 300, 72
 M.PLATE_MIN_W = 200
 M.BUTTON_W, M.BUTTON_H = 72, 44
 -- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate

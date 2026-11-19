@@ -95,6 +95,17 @@ M.PAINTED = {
 	orn_score = { art = "pk_orn_score", full = true, src = { 1502, 563 }, inset = { l = 200, t = 170, r = 200, b = 150 } },
 	orn_btn_dark = { art = "pk_orn_btn_dark", full = true, src = { 1398, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
 	orn_btn_green = { art = "pk_orn_btn_green", full = true, src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
+	-- whole-picture set (Nov 19): each plate is ONE finished picture generated at the aspect it is shown at, drawn Stretch with no nine-slice
+	-- (`whole = true`, no inset), so the carved trim, corner scrolls, wax seal and crown medallion are never stretched into mush
+	wh_target = { art = "pk_w_target", whole = true, src = { 1470, 348 } },
+	wh_scroll = { art = "pk_w_scroll", whole = true, src = { 1423, 358 } },
+	wh_score = { art = "pk_w_score", whole = true, src = { 1482, 362 } },
+	wh_small = { art = "pk_w_pill_small", whole = true, src = { 1336, 386 } },
+	wh_btn_dark = { art = "pk_w_btn_dark", whole = true, src = { 1382, 402 } },
+	wh_btn_green = { art = "pk_w_btn_green", whole = true, src = { 1498, 410 } },
+	wh_btn_sq = { art = "pk_w_btn_sq", whole = true, src = { 1329, 652 } },
+	wh_count = { art = "pk_w_count", whole = true, src = { 1443, 425 } },
+	wh_hint = { art = "pk_w_hint", whole = true, src = { 1408, 543 } },
 }
 M.PAINTED_LOAD_WAIT = 4 -- seconds an image may take to load before the flat look comes back
 
