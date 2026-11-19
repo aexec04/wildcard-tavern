@@ -1462,6 +1462,7 @@ return function(deps)
 			-- different sound family that doesn't need disguising -- just a
 			-- gentle 0.85x to land it with a touch of weight.
 			playPitched(payoutThudSound, 0.85, 0.6)
+			pcall(function() require(script.Parent.Cue).play("score_total") end) -- the total lands (silent if the id is empty)
 			pcall(function() require(script.Parent.ScoreLand).land() end) -- the board's round score counts up now, with the payout
 			CueBridge.coinCascade(0.35) -- the payout landing: 3 coins 60 ms apart at slightly different pitch
 			CueBridge.sting(preview.name) -- a hand-type sting by tier (the biggest tier also ducks the music)

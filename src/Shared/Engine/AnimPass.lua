@@ -23,7 +23,7 @@ end
 
 function M.nameSlam(calm, big)
 	if calm then return nil end
-	return { from = big and 1.6 or 1.4, squash = 1.12, down = 0.12, settle = 0.16 }
+	return { from = big and 1.6 or 1.4, squash = 1.12, down = 0.13, settle = 0.17 } -- 0.3 s in all
 end
 
 function M.cardFlip(index, calm)

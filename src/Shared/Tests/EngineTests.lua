@@ -26930,6 +26930,21 @@ table.insert(tests, { name = "ConceptTSkin dialogs: ink on paper and cream on th
 	end
 	expectTrue(read("src/Client/FirstTimeHints.lua"):find("238, 222, 186", 1, true) ~= nil, "hint bubble is parchment")
 end })
+table.insert(tests, { name = "FeelTuning: hover 12, select 24, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
+	local F = require(script.Parent.Parent.Engine.FeelTuning)
+	expectEqual(F.HOVER_LIFT, 12, "hover lift")
+	expectEqual(F.SELECTED_LIFT, 24, "selected lift")
+	local A = require(script.Parent.Parent.Engine.AnimPass)
+	local s = A.nameSlam(false, false)
+	expectTrue(math.abs(s.down + s.settle - F.SLAM_TOTAL) < 1e-9, "slam lasts 0.3 s")
+	expectEqual(A.nameSlam(true, false), nil, "calm mode: no slam")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	local hub = read("src/Client/init.client.lua")
+	expectTrue(hub:find("local HOVER_LIFT = 12", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 24", 1, true) ~= nil, "hub lifts follow FeelTuning")
+	expectTrue(hub:find("}, 0.08) -- Engine/FeelTuning", 1, true) ~= nil, "hub ease follows FeelTuning")
+	expectTrue(read("src/Client/ScorePopup.lua"):find('play("score_total")', 1, true) ~= nil, "score_total is wired")
+end })
 table.insert(tests, { name = "Menu play button: Concept T green art, pulse only through the loop list (calm mode plays none)", fn = function()
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
