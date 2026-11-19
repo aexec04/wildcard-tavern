@@ -151,10 +151,27 @@ function DebugGoto.init(deps)
 		print(target.off and "[DebugGoto] scale off" or ("[DebugGoto] scale " .. target.w .. "x" .. target.h))
 	end
 
+	local sweepToken = 0
 	local function go(value)
 		local target, why = Rules.parse(value)
 		if not target then
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
+			return
+		end
+		if target.kind == "sweep" then
+			-- Studio only: visit every capture screen in turn (Rules.SWEEP), logging "[DebugGoto] sweep <screen>"; sweep:stop ends it
+			sweepToken = sweepToken + 1
+			if target.stop then print("[DebugGoto] sweep stopped") return end
+			local mineS = sweepToken
+			task.spawn(function()
+				for _, step in ipairs(Rules.SWEEP) do
+					if sweepToken ~= mineS then return end
+					print("[DebugGoto] sweep " .. step.label)
+					go(step.value)
+					task.wait(target.seconds)
+				end
+				if sweepToken == mineS then print("[DebugGoto] sweep done") end
+			end)
 			return
 		end
 		if target.kind == "perf" then

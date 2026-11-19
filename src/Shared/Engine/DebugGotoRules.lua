@@ -1,7 +1,7 @@
 --[[
 	Shared/Engine/DebugGotoRules.lua
 	Pure parser for the Studio-only DebugGoto jump hook (Client/DebugGoto.lua). parse(value) returns
-	{ kind = "menu" | "tome" | "news" | "round1" | "shop" | "spectate", page?, sub? } or nil, reason.
+	{ kind = "menu" | "tome" | "news" | "round1" | "shop" | "spectate" | "sweep", page?, sub? } or nil, reason.
 	Unknown values return nil so the client warns and does nothing.
 ]]
 
@@ -135,6 +135,20 @@ end
 DebugGotoRules.BASE_W, DebugGotoRules.BASE_H = 1920, 957
 
 -- UIScale that makes the 1920x957 design fit a w x h viewport (never above 1)
+-- sweep: visits these jumps in order, SWEEP_SECONDS each, printing "[DebugGoto] sweep <screen>" so a chat session can capture each one.
+-- Each step is a normal DebugGoto value; "label" is what the log line names. patrons:5 and the table screens need round1 reached first.
+DebugGotoRules.SWEEP_SECONDS = 6
+DebugGotoRules.SWEEP = {
+	{ label = "menu", value = "menu" },
+	{ label = "round1", value = "round1" },
+	{ label = "round1 patrons:5", value = "patrons:5" },
+	{ label = "boss1", value = "boss1" },
+	{ label = "runover", value = "runover" },
+	{ label = "runover:win", value = "runover:win" },
+	{ label = "tome:collection", value = "tome:collection" },
+	{ label = "counter", value = "shop" },
+}
+
 function DebugGotoRules.scaleFor(w, h)
 	return math.min(1, w / DebugGotoRules.BASE_W, h / DebugGotoRules.BASE_H)
 end
@@ -166,6 +180,9 @@ function DebugGotoRules.parse(value)
 	end
 	if text == "perf" then
 		return { kind = "perf" }
+	end
+	if text == "sweep" or text == "sweep:stop" then
+		return { kind = "sweep", stop = text == "sweep:stop", seconds = DebugGotoRules.SWEEP_SECONDS }
 	end
 	if text == "loading" then
 		return { kind = "loading", percent = 60 }

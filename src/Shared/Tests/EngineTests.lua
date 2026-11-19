@@ -20565,6 +20565,19 @@ table.insert(tests, { name = "DebugGotoRules: round1:<setId> parses to a round1 
 	assert(R.parse("round1:") == nil and R.parse("round1:a:b") == nil and R.parse("round1:bad id!") == nil, "malformed rejected")
 end })
 
+table.insert(tests, { name = "DebugGotoRules: sweep parses, sweep:stop stops, every sweep step is a valid jump", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("sweep")
+	assert(t and t.kind == "sweep" and not t.stop and t.seconds == 6, "sweep parses with 6 seconds")
+	local stop = R.parse(" Sweep:Stop ")
+	assert(stop and stop.kind == "sweep" and stop.stop, "sweep:stop parses")
+	assert(R.parse("sweep:fast") == nil, "unknown sweep variant is nil")
+	assert(#R.SWEEP >= 8, "sweep covers the eight screens")
+	for _, step in ipairs(R.SWEEP) do
+		assert(step.label and R.parse(step.value), "sweep step parses: " .. tostring(step.value))
+		assert(R.parse(step.value).kind ~= "sweep", "a sweep step never nests a sweep")
+	end
+end })
 table.insert(tests, { name = "DebugGotoRules: patrons:<n> parses and clamps to 8, playhand parses, junk is nil", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local a, b, c = R.parse("patrons:3"), R.parse("patrons:99"), R.parse("playhand")
