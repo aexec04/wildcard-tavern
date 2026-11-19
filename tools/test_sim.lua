@@ -41,6 +41,22 @@ for _, bot in ipairs({ "random", "greedy", "decent", "builder" }) do
 	check(bot .. " bot is deterministic per seed", same)
 end
 
+do
+	local function soldKey(rec)
+		local keys = {}
+		for id, k in pairs(rec.patronsSold) do
+			keys[#keys + 1] = id .. "=" .. k
+		end
+		table.sort(keys)
+		return table.concat(keys, ",")
+	end
+	local same = true
+	for seed = 1, 10 do
+		same = same and soldKey(Sim.runOne(config({ bot = "greedy" }), seed)) == soldKey(Sim.runOne(config({ bot = "greedy" }), seed))
+	end
+	check("greedy bot sells the same Patrons per seed", same)
+end
+
 local a = Report.serialize(Sim.runOne(config(), 1))
 local b = Report.serialize(Sim.runOne(config(), 2))
 check("different seeds play differently", a ~= b)

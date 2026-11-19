@@ -934,6 +934,7 @@ local function buyPatrons(state, offers, cfg, rng, rec)
 				local seat, loss = weakestSeat(state, probe, samples, base)
 				if seat and gain > loss * SWAP_FACTOR + 0.02 then
 					E.RunState.sellPatron(state, seat.id)
+					rec.patronsSold[seat.id] = (rec.patronsSold[seat.id] or 0) + 1
 					base = math.max(1, tableValue(probe, samples, state.ownedPatrons))
 				end
 			end
@@ -1021,6 +1022,7 @@ local function newRecord(seed)
 		handsPlayed = {},
 		draws = {},
 		patronsBought = {},
+		patronsSold = {},
 		vouchers = {},
 		tipsAtShop = {},
 		bosses = {},

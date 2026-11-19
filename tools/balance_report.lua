@@ -41,8 +41,13 @@ for n = 0, opts.runs - 1 do
 		pctSum, pctN = pctSum + r.deathPct, pctN + 1
 	end
 	for id in pairs(r.patronsBought) do
-		local p = perPatron[id] or { n = 0, w = 0 }
+		local p = perPatron[id] or { n = 0, w = 0, sold = 0 }
 		p.n, p.w = p.n + 1, p.w + (r.won and 1 or 0)
+		perPatron[id] = p
+	end
+	for id, k in pairs(r.patronsSold or {}) do
+		local p = perPatron[id] or { n = 0, w = 0, sold = 0 }
+		p.sold = p.sold + k
 		perPatron[id] = p
 	end
 end
@@ -80,3 +85,23 @@ local function show(title, from, to, step)
 end
 show("top 5 Patrons (runs that bought them):", 1, math.min(5, #list), 1)
 show("bottom 5 Patrons:", #list, math.max(1, #list - 4), -1)
+
+-- share of winning runs that bought each Patron (target: none above 25 percent)
+local shares = {}
+for id, p in pairs(perPatron) do
+	if wins > 0 and p.w > 0 then
+		shares[#shares + 1] = { id = id, share = p.w / wins, n = p.n, sold = p.sold }
+	end
+end
+table.sort(shares, function(a, b)
+	if a.share ~= b.share then
+		return a.share > b.share
+	end
+	return a.id < b.id
+end)
+print(string.format("share of the %d winning runs that bought the Patron (limit 25%%), with runs bought and times sold:", wins))
+for k = 1, math.min(8, #shares) do
+	local e = shares[k]
+	print(string.format("  %-22s %5.1f%%  bought in %d runs, sold %d times%s", e.id, e.share * 100, e.n, e.sold,
+		e.share > 0.25 and "  OVER" or ""))
+end
