@@ -29717,6 +29717,38 @@ table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots und
 	assert(not bad:find("\u{2014}", 1, true) and not bad:find("balatro", 1, true))
 end })
 
+table.insert(tests, { name = "Night intro: shown once per Night and Round while playing, 1.2 s, none in Calm mode, a Boss round keeps its own intro, a tap skips, plate fits every size", fn = function()
+	local R = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local J = require(script.Parent.Parent.Engine.JourneyMap)
+	local st = { phase = "playing", night = 3, round = 2, targetScore = 1200, handsRemaining = 4 }
+	assert(R.nightIntroKey(st) == "3:2" and R.nightIntroKey({ phase = "roundSelect", night = 3, round = 2 }) == nil and R.nightIntroKey({ phase = "shop" }) == nil)
+	assert(R.nightIntroKey({ phase = "playing", night = 3, round = 3, bossModifier = { id = "x" } }) == nil, "a Boss round has the boss intro")
+	assert(R.nightIntroKey({ phase = "playing", night = 1, round = 1, tutorialStage = 1 }) == nil, "not over the tutorial")
+	assert(R.nightIntroKey(st) ~= R.nightIntroKey({ phase = "playing", night = 3, round = 1 }), "each round has its own key")
+	assert(R.nightIntro(true, false) == nil and R.nightIntro(true, true) == nil, "none in Calm mode")
+	local t = R.nightIntro(false, false)
+	assert(math.abs(t.fadeIn + t.hold + t.fade - 1.2) < 1e-9 and t.total == 1.2 and t.dim > 0 and t.dim < 1)
+	local f = R.nightIntro(false, true)
+	assert(math.abs(f.fadeIn + f.hold + f.fade - 0.6) < 1e-9, "Fast halves it")
+	local l = R.nightIntroLines(st, J.getNight(3).name)
+	assert(l.title == "Night 3" and l.room == "The Lantern Garden" and l.rule == "Score 1200 in 4 hands.")
+	assert(R.nightIntroLines({ night = 1, targetScore = 300, handsRemaining = 1 }, "x").rule == "Score 300 in 1 hand.")
+	for _, text in ipairs({ l.title, l.room, l.rule }) do
+		assert(not text:find("\u{2014}", 1, true) and not text:find("--", 1, true) and not text:lower():find("balatro", 1, true))
+	end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 720, 360 } }) do
+		local p = R.nightIntroPlate(sz[1], sz[2])
+		assert(p.x >= 0 and p.y >= 0 and p.x + p.w <= sz[1] and p.y + p.h <= sz[2] and p.h >= 96, "plate on screen at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f2 = assert(io.open(path, "r")); local c = f2:read("a"); f2:close(); return c end
+	local fx = read("src/Client/NightIntroFX.lua")
+	assert(fx:find("MouseButton1Click", 1, true) and fx:find("Rules.nightIntro(calm()", 1, true), "a tap skips and Calm asks the rules")
+	assert(fx:find("TextTruncate.None", 1, true) and fx:find("reduceMotion", 1, true))
+	local g = read("src/Client/Gameplay2.lua")
+	assert(g:find("NightIntroFX).update", 1, true) and g:find("NightIntroFX).reset", 1, true), "the table drives the intro")
+end })
+
 table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note with the native green TavernKit Play Daily plate, same start function as the Daily action row, dropped first when the board is crowded", fn = function()
 	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
 	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 78 and D.ORDER > 0, "words and order: after the ticker (0)")

@@ -27,6 +27,10 @@
 	bossIntro(calm, fast)            -> nil | { slide, hold, fade, dim } the boss intro cinematic (dim table, portrait plate), nil in Calm mode
 	bossIntroPlate(w, h)             -> { x, y, w, h } the intro plate, inside the screen
 	bossIntroParts(plate)            -> portrait rect, text rect (relative to the plate)
+	nightIntroKey(state)             -> "night:round" while a non Boss round is being played, else nil (a Boss round has its own intro)
+	nightIntro(calm, fast)           -> nil in Calm mode | { fadeIn, hold, fade, total, dim } seconds, 1.2 in all (0.6 on Fast)
+	nightIntroLines(state, room)     -> { title = "Night 3", room, rule = "Score 1200 in 4 hands." }
+	nightIntroPlate(w, h)            -> { x, y, w, h } centred a little above the middle, inside the screen
 ]]
 
 local M = {}
@@ -206,6 +210,37 @@ end
 function M.defeatLine(state)
 	state = state or {}
 	return string.format("Out of hands. Score %d of %d.", floor(state.roundScore), floor(state.targetScore))
+end
+
+-- NIGHT INTRO: when the table opens for a round, a plate (Night N, the room, the rule in one line) shows 1.2 s over a soft dim, then
+-- fades to the table; a tap skips it. Calm mode and Reduce motion: none (the round label already says the Night and Round).
+M.NIGHT_INTRO_DIM = 0.55
+function M.nightIntroKey(state)
+	if not state or state.phase ~= "playing" or state.tutorialStage ~= nil then return nil end
+	if state.bossModifier and (state.round or 0) >= 3 then return nil end
+	return string.format("%d:%d", floor(state.night), floor(state.round))
+end
+
+function M.nightIntro(calm, fast)
+	if calm then return nil end
+	local k = fast and 0.5 or 1
+	return { fadeIn = 0.2 * k, hold = 0.7 * k, fade = 0.3 * k, total = 1.2 * k, dim = M.NIGHT_INTRO_DIM }
+end
+
+function M.nightIntroLines(state, room)
+	state = state or {}
+	local hands = floor(state.handsRemaining)
+	return {
+		title = string.format("Night %d", math.max(1, floor(state.night))),
+		room = tostring(room or ""),
+		rule = string.format("Score %d in %d %s.", floor(state.targetScore), hands, hands == 1 and "hand" or "hands"),
+	}
+end
+
+function M.nightIntroPlate(w, h)
+	local pw = math.min(440, w - 32)
+	local ph = math.min(132, math.max(96, h - 32))
+	return { x = math.floor((w - pw) / 2), y = math.floor(h * 0.36 - ph / 2), w = pw, h = ph }
 end
 
 return M

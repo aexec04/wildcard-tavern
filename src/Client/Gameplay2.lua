@@ -476,6 +476,7 @@ function M.install(deps)
 					pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end)
 				end
 			end
+			pcall(function() require(script.Parent.NightIntroFX).reset(layer) end) -- the next round shows its intro again
 			fanHand(false, size.Y); restoreOld()
 			-- the "TARGET CLEARED!" shout of the last hand must not hang over the Counter
 			local jb = root:FindFirstChild("ScoreJuiceBanner")
@@ -527,6 +528,7 @@ function M.install(deps)
 			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids)
 		end)
 		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)
+		pcall(function() require(script.Parent.NightIntroFX).update(layer, lastState, size.X, size.Y) end) -- Night N, the room and the rule, 1.2 s, tap to skip, none in Calm
 		if not self.checked and game:GetService("RunService"):IsStudio() then
 			self.checked = true
 			task.delay(1.5, function() pcall(self.selfCheck) end)
