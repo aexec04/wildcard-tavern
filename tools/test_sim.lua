@@ -170,5 +170,18 @@ do
 	check("no soft locks in Quick Runs", softLocks == 0, tostring(softLocks))
 end
 
+-- Balance pass (Nov 19, 200 seeded runs, tools/balance_report.lua): greedy bot wins 20.5 percent, clears Night 3 in 87 and
+-- Night 8 in 20.5; decent bot wins 32.5. This 40 run check only trips on a real shift.
+do
+	local wins, softLocks = 0, 0
+	for seed = 1, 40 do
+		local r = Sim.runOne(config({ bot = "greedy" }), seed)
+		wins = wins + (r.won and 1 or 0)
+		softLocks = softLocks + r.softLocks
+	end
+	check("greedy bot win rate in band", wins >= 3 and wins <= 16, wins .. " of 40")
+	check("no soft locks for the greedy bot", softLocks == 0, tostring(softLocks))
+end
+
 print(failed == 0 and "\nAll simulator checks passed" or ("\n" .. failed .. " simulator check(s) failed"))
 os.exit(failed == 0 and 0 or 1)
