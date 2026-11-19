@@ -94,6 +94,7 @@ CATEGORIES = {
     "menu_room": ("menu_room_subjects", "menu_room", "MenuRoomArt.lua", "Menu Room"),
     "rewards_emblems": ("rewards_emblem_subjects", "rewards_emblems", "RewardsEmblemArt.lua", "Rewards Emblem"),
     "hud_kit": ("hud_kit_subjects", "hud_kit", "HudKitArt.lua", "HUD Kit"),
+    "concept_t": ("concept_t_subjects", "concept_t", "ConceptTArt.lua", "Concept T"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -220,6 +221,14 @@ CATEGORY_OPTS = {
     "rewards_emblems": {"quality": "high", "style_key": "house_style", "transparent": True},
     # Per-Card-Set HUD kit (keys <setid>__<piece>): medium quality, cut out from magenta; panel frames are made with --quality high.
     # Wide plates use the 3:2 canvas and are trimmed to their alpha box by tools/patron_art/_crop_hud_kit.py before upload.
+    # Concept T kit: every piece is an EDIT of a cut from claude/reference/concept_t. Plates are cut from magenta; the room is opaque.
+    "concept_t": {"quality": "medium", "style_key": "concept_t_style", "transparent": True, "opaque": ["ct_table_room"],
+                  "sizes": {"ct_card_back": "1024x1536", "ct_hud_coins": "1536x1024", "ct_hud_hands": "1536x1024", "ct_hud_round": "1536x1024",
+                            "ct_deck_count": "1536x1024", "ct_pill_plain": "1536x1024", "ct_table_room": "1536x1024"},
+                  "references": dict((k, "claude/reference/concept_t/" + f) for k, f in (
+                      ("ct_hud_coins", "hud_coins.png"), ("ct_hud_hands", "hud_hands.png"), ("ct_hud_round", "hud_round.png"),
+                      ("ct_deck_count", "deck_count.png"), ("ct_pill_plain", "pill_green.png"), ("ct_card_back", "deck.png"),
+                      ("ct_table_room", "full_reference.png")))},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
