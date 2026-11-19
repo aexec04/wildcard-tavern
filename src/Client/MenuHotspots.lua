@@ -755,6 +755,7 @@ function Hotspots.build(opts)
 				plaque.Title.Size = UDim2.new(1, -20, 1, 0)
 				plaque.Title.Position = UDim2.fromOffset(10, 0)
 				plaque.Title.TextSize = 22
+				require(script.Parent.MenuPlayButton).style(plaque, lanterns, TweenService) -- Concept T green button look and gentle pulse
 			end
 			homes.newRun = function(button)
 				setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(150, 34))

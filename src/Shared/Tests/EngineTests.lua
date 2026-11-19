@@ -5316,7 +5316,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(S.Named) do expectEqual(S.Cues[name] ~= nil, true, "named cue " .. name) end
 	for _, name in ipairs({ "score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }) do
-		expectEqual(S.cueId(name), nil, name .. " has no id yet, so it plays nothing")
+		expectEqual(S.cueId(name) ~= nil, true, name .. " has a library id now")
 	end
 	for _, name in ipairs(required) do
 		local cue = S.Cues[name]
@@ -5325,7 +5325,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 		expectEqual(cue.id == "" or S.isValidId(cue.id), true, name .. " id is empty or well formed")
 	end
 	expectEqual(S.cueId("nope"), nil)
-	expectEqual(S.cueId("hover"), nil, "empty id is skipped")
+	expectEqual(S.cueId("nope"), nil, "an unknown cue is skipped")
 	expectEqual(S.cueId("win") ~= nil, true)
 	expectEqual(S.isValidId("rbxassetid://0"), false)
 	expectEqual(S.isValidId("rbxassetid://123"), true)
@@ -11306,10 +11306,10 @@ table.insert(tests, { name = "SoundIds: biome tracks crossfade only between game
 	for _, name in ipairs({ "card_flip", "discard", "shuffle", "coin", "card_play" }) do
 		expectTrue(S.Cues[name] ~= nil, name .. " is a named cue")
 	end
-	expectEqual(S.cueId("card_flip"), nil); expectEqual(S.cueId("discard"), nil)
+	expectTrue(S.cueId("card_flip") ~= nil and S.cueId("discard") ~= nil, "card_flip and discard have ids")
 	local missing = {}
 	for _, name in ipairs(S.missingCues()) do missing[name] = true end
-	expectTrue(missing.card_flip and missing.discard and not missing.shuffle, "slots with no id of their own are still listed (shuffle now has one)")
+	expectTrue(not missing.card_flip and not missing.discard and not missing.shuffle, "filled cues are not listed as missing")
 	-- the fallback: a region with no id plays the plain gameplay track
 	expectEqual(S.regionMusicKey("desert"), "gameplay")
 	-- source checks: the hooks exist and no frame is created per scored hand
@@ -22298,7 +22298,7 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 		local ok = S.cueId(name) ~= nil or FX.layersFor(name) ~= nil or FX.EMPTY_OK[name]
 		expectTrue(ok, name .. " has an id, explicit layers, or is on the silent list")
 	end
-	expectEqual(table.concat(S.silentCues(), ","), "boss_intro,score_tick,score_total,patron_trigger,round_clear,defeat", "boss_intro stays silent (the intro popup is gone); the five Backlog 6 cues wait for ids")
+	expectEqual(table.concat(S.silentCues(), ","), "boss_intro", "boss_intro stays silent (the intro popup is gone); the Backlog 6 cues have ids")
 	for name, layers in pairs(FX.Layers) do
 		for _, layer in ipairs(layers) do
 			expectTrue(S.cueId(layer.cue) ~= nil, name .. " layer plays " .. layer.cue .. " which has a working id")
@@ -26888,6 +26888,17 @@ table.insert(tests, { name = "Concept T pass 4: number cards get real pip layout
 	local ace = PL.pips("A")
 	expectTrue(#ace == 1 and ace[1].big, "the Ace is one big pip")
 	expectEqual(PL.pips("K"), nil, "court cards use their figure")
+end })
+
+table.insert(tests, { name = "Menu play button: Concept T green art, pulse only through the loop list (calm mode plays none)", fn = function()
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	local mod, hot = read("src/Client/MenuPlayButton.lua"), read("src/Client/MenuHotspots.lua")
+	expectTrue(mod:find("ct_btn_play_a", 1, true) ~= nil, "uses the Concept T play art")
+	expectTrue(mod:find(":Play()", 1, true) == nil, "the module never plays a tween itself")
+	expectTrue(hot:find("MenuPlayButton", 1, true) ~= nil, "the sign is styled by MenuPlayButton")
+	expectTrue(hot:find("if calm() then return end\n\t\tfor _, t in ipairs(lanterns)", 1, true) ~= nil, "startLoops plays the pulse only outside calm mode")
+	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt).ct_btn_play_a ~= nil, "the art id is recorded")
 end })
 
 return tests
