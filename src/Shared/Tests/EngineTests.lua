@@ -30518,6 +30518,33 @@ table.insert(tests, { name = "Button labels: the word draws above every skin pla
 	expectTrue(has("TavernScreens.lua", "NEXT_ROUND") and has("TavernScreens.lua", 'name == "PlayAgain"'), "Run Over Play Again uses the bright green")
 end })
 
+table.insert(tests, { name = "Button labels: a button and its KitLabel never draw the same word twice, a scaled word keeps 12 px padding and a 26 cap, the self check flags a double draw", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local B = FakeGui.load("src/Client/ButtonLabelTop.lua", FakeGui.env({ stubs = {} }))
+	local b = FakeGui.new("TextButton")
+	b.Text, b.TextScaled = "Next Round", true
+	local label = B.attach(b)
+	expectTrue(label.Text == "Next Round" and label.TextTransparency == 0, "the label draws the word")
+	expectTrue(b.TextTransparency == 1 and b.TextStrokeTransparency == 1 and b.Text == "Next Round", "the button hides its own copy and keeps its Text")
+	b.TextTransparency = 0.4 -- an owner dims the button: the label takes the dim, the button stays hidden
+	expectTrue(label.TextTransparency == 0.4 and b.TextTransparency == 1, "a dim is drawn once, on the label")
+	expectTrue(label:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize == 26 and label:FindFirstChildOfClass("UIPadding").PaddingLeft.Offset == 12, "scaled word: cap 26, 12 px side padding")
+	local S = require(script.Parent.Parent.Engine.SelfCheck)
+	local twice = S.check({
+		{ path = "G.Shop.NextRound", text = "Next Round", textTransparency = 0 },
+		{ path = "G.Shop.NextRound.KitLabel", text = "Next Round", textTransparency = 0 },
+	})
+	local found = false
+	for _, w in ipairs(twice) do if w:find("shows twice", 1, true) then found = true end end
+	expectTrue(found, "self check warns on a doubled word")
+	local once = S.check({
+		{ path = "G.Shop.NextRound", text = "Next Round", textTransparency = 1 },
+		{ path = "G.Shop.NextRound.KitLabel", text = "Next Round", textTransparency = 0 },
+	})
+	for _, w in ipairs(once) do expectFalse(w:find("shows twice", 1, true) ~= nil, "no warning when only the label draws") end
+end })
+
 table.insert(tests, { name = "Button labels: Play Hand and Discard keep a readable word when the hit box is see-through, every KitLabel with text has TextTransparency below 0.5", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)

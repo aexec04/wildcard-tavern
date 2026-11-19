@@ -5,6 +5,7 @@
 -- copies it one way and draws the same word on top, so there is no property fight and the dimmed copy underneath is covered.
 local ButtonLabelTop = {}
 
+ButtonLabelTop.PAD, ButtonLabelTop.MAX_SCALED = 12, 26 -- a TextScaled word: side padding and the largest size
 ButtonLabelTop.LIFT = 3 -- the label's ZIndex above the button
 local MIRROR = { "Text", "TextColor3", "TextSize", "Font", "TextStrokeColor3", "TextWrapped", "TextXAlignment", "TextYAlignment", "TextScaled", "RichText", "LineHeight" }
 
@@ -103,6 +104,7 @@ function ButtonLabelTop.attach(button)
 	label.Size = UDim2.fromScale(1, 1)
 	label.Position = UDim2.fromScale(0, 0)
 	local busy = false
+	local want, wantStroke = button.TextTransparency or 0, button.TextStrokeTransparency or 1 -- what the button's owner asked for; the label draws it
 	local function sync()
 		if busy or label:GetAttribute("OwnLabel") == true then return end -- an owned label (ButtonLabelTop.own) is never overwritten by its button
 		busy = true
@@ -110,9 +112,22 @@ function ButtonLabelTop.attach(button)
 			local ok, v = pcall(function() return button[p] end)
 			if ok and v ~= nil and label[p] ~= v then label[p] = v end
 		end
-		label.TextTransparency = button.TextTransparency
-		label.TextStrokeTransparency = button.TextStrokeTransparency
+		-- the word is drawn once: the label shows it and the button's own copy is hidden (it stays the hit box, and its Text is kept)
+		if (button.TextTransparency or 0) ~= 1 then want = button.TextTransparency or 0 end
+		if (button.TextStrokeTransparency or 1) ~= 1 then wantStroke = button.TextStrokeTransparency end
+		label.TextTransparency = want
+		label.TextStrokeTransparency = wantStroke
+		button.TextTransparency = 1
+		button.TextStrokeTransparency = 1
 		label.ZIndex = topZ(button, label)
+		if button.TextScaled and not label:FindFirstChildOfClass("UITextSizeConstraint") then -- a scaled word keeps 12 px clear of the plate edge and never grows past 26
+			local pad = Instance.new("UIPadding")
+			pad.PaddingLeft, pad.PaddingRight = UDim.new(0, ButtonLabelTop.PAD), UDim.new(0, ButtonLabelTop.PAD)
+			pad.Parent = label
+			local cap = Instance.new("UITextSizeConstraint")
+			cap.MaxTextSize = ButtonLabelTop.MAX_SCALED
+			cap.Parent = label
+		end
 		busy = false
 	end
 	label.Parent = button

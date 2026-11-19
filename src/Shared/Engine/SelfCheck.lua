@@ -94,6 +94,17 @@ function M.check(nodes)
 			warn(n, "label rect reaches outside its parent")
 		end
 	end
+	-- a button and its own KitLabel both drawing the same word is the doubled, smeared look (Nov 19): only the label may draw it
+	for _, a in ipairs(nodes) do
+		if lastName(a.path) == "KitLabel" and (a.textTransparency or 0) < 0.5 then
+			local parentPath = tostring(a.path):match("^(.*)%.KitLabel$")
+			for _, b in ipairs(nodes) do
+				if b.path == parentPath and b.text == a.text and (b.textTransparency or 0) < 0.5 then
+					out[#out + 1] = string.format("%s draws the same word as its KitLabel, so it shows twice", b.path)
+				end
+			end
+		end
+	end
 	for i = 1, #nodes do
 		for j = i + 1, #nodes do
 			local a, b = nodes[i], nodes[j]
