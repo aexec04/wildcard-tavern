@@ -30568,6 +30568,15 @@ table.insert(tests, { name = "Button labels: a button and its KitLabel never dra
 	b.TextTransparency = 0.4 -- an owner dims the button: the label takes the dim, the button stays hidden
 	expectTrue(label.TextTransparency == 0.4 and b.TextTransparency == 1, "a dim is drawn once, on the label")
 	expectTrue(label:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize == 26 and label:FindFirstChildOfClass("UIPadding").PaddingLeft.Offset == 12, "scaled word: cap 26, 12 px side padding")
+	local root = FakeGui.new("Frame")
+	b.Parent = root
+	b.TextTransparency, b.TextStrokeTransparency = 0, 0 -- a writer shows the own copy again
+	expectTrue(#B.doubled(root, false) >= 0, "doubled() lists without fixing")
+	b.TextTransparency, b.TextStrokeTransparency = 0, 0
+	local before = #B.doubled(root, true)
+	expectTrue(b.TextTransparency == 1 and b.TextStrokeTransparency == 1 and #B.doubled(root, false) == 0, "doubled(root, true) hides every own copy (" .. before .. " found first)")
+	local f = io.open("src/Client/TavernScreens.lua", "r"); local ts = f:read("a"); f:close()
+	expectTrue(ts:find('b:FindFirstChild("KitLabel") and 1 or 0', 1, true) ~= nil, "the Next Round settle keeps the own copy hidden while a KitLabel exists")
 	local S = require(script.Parent.Parent.Engine.SelfCheck)
 	local twice = S.check({
 		{ path = "G.Shop.NextRound", text = "Next Round", textTransparency = 0 },

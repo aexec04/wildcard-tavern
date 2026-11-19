@@ -92,6 +92,20 @@ function ButtonLabelTop.audit(root)
 	return bad
 end
 
+-- every TextButton under root that has a KitLabel and still draws its own copy of the word (the doubled, smeared look). Hides the
+-- copy when fix is true. Returns the list of button paths found, so Studio can print them.
+function ButtonLabelTop.doubled(root, fix)
+	local found = {}
+	if not root then return found end
+	for _, b in ipairs(root:GetDescendants()) do
+		if b:IsA("TextButton") and b.Text ~= "" and b:FindFirstChild("KitLabel") and ((b.TextTransparency or 0) < 1 or (b.TextStrokeTransparency or 1) < 1) then
+			found[#found + 1] = b:GetFullName()
+			if fix then b.TextTransparency, b.TextStrokeTransparency = 1, 1 end
+		end
+	end
+	return found
+end
+
 function ButtonLabelTop.attach(button)
 	if not button or not button:IsA("TextButton") then return nil end
 	local existing = button:FindFirstChild("KitLabel")
@@ -135,8 +149,15 @@ function ButtonLabelTop.attach(button)
 	for _, p in ipairs(MIRROR) do
 		button:GetPropertyChangedSignal(p):Connect(sync)
 	end
-	button:GetPropertyChangedSignal("TextTransparency"):Connect(sync)
-	button:GetPropertyChangedSignal("TextStrokeTransparency"):Connect(sync)
+	-- any writer that shows the button's own copy again is overruled after it has run, so no screen can bring the doubled word back
+	local function hold()
+		sync()
+		task.defer(function()
+			if label.Parent == button and label:GetAttribute("OwnLabel") ~= true and ((button.TextTransparency or 0) ~= 1 or (button.TextStrokeTransparency or 1) ~= 1) then sync() end
+		end)
+	end
+	button:GetPropertyChangedSignal("TextTransparency"):Connect(hold)
+	button:GetPropertyChangedSignal("TextStrokeTransparency"):Connect(hold)
 	button:GetPropertyChangedSignal("ZIndex"):Connect(sync)
 	button.ChildAdded:Connect(function(c)
 		if c ~= label and c:IsA("GuiObject") then task.defer(sync) end

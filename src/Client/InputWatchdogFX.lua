@@ -26,7 +26,7 @@ function M.start()
 			if ticks % 5 == 0 then -- every 5 s: a button whose plate or rim draws over its word gets the label on top
 				pcall(function()
 					local gui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-					if gui then require(script.Parent.ButtonLabelTop).sweep(gui) end
+					if gui then local BLT = require(script.Parent.ButtonLabelTop); BLT.sweep(gui); BLT.doubled(gui, true) end
 				end)
 			end
 			local now = os.clock()

@@ -129,8 +129,10 @@ function M.emphasizeNext(b)
 	local function settle() -- the one writer of the plate look: fully opaque, cream label, bright fill (no tween, so Calm mode is the same)
 		local fill = hovered and hot or base
 		if b.BackgroundTransparency ~= 0 then b.BackgroundTransparency = 0 end
-		if b.TextTransparency ~= 0 then b.TextTransparency = 0 end
-		if b.TextStrokeTransparency ~= 0 then b.TextStrokeTransparency = 0 end
+		-- a KitLabel draws the word, so the button's own copy stays hidden (else the word shows twice)
+		local own = b:FindFirstChild("KitLabel") and 1 or 0
+		if b.TextTransparency ~= own then b.TextTransparency = own end
+		if b.TextStrokeTransparency ~= own then b.TextStrokeTransparency = own end
 		if b.TextColor3 ~= cream then b.TextColor3 = cream end
 		if b.BackgroundColor3 ~= fill then b.BackgroundColor3 = fill end
 	end
