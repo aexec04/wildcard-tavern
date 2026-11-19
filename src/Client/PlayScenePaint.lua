@@ -143,6 +143,7 @@ function PlayScenePaint.install(deps)
 	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 	local apply -- assigned below
 	local lastReport = nil
+	local lastFeltLine, lastHandLine = nil, nil
 	-- A set with its own painted table (Mountain Festival, Frosted Garden) swaps the front picture and its measured rects; the art already
 	-- carries the colour, so no tint goes on top. Any other set keeps the default front plus its tint, exactly as before.
 	local function tint(skin)

@@ -951,6 +951,22 @@ function M.frameFor(patronId)
 	return M.frames()[patronId]
 end
 
+-- A hovered card whose MouseLeave never came (a panel opened over it) lets go once the cursor is no longer on it.
+function M.releaseStaleHover()
+	local UIS, GuiService = game:GetService("UserInputService"), game:GetService("GuiService")
+	if UIS.TouchEnabled and not UIS.MouseEnabled then return end -- touch holds end on release
+	local m = UIS:GetMouseLocation() - GuiService:GetGuiInset()
+	for _, c in ipairs(cards) do
+		if c.hovering and c.body and c.body.Parent then
+			local p, s = c.body.AbsolutePosition, c.body.AbsoluteSize
+			if m.X < p.X or m.Y < p.Y or m.X > p.X + s.X or m.Y > p.Y + s.Y then
+				pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end)
+				hideTip()
+			end
+		end
+	end
+end
+
 function M.cardOf(patronId)
 	local owned = lastState and lastState.ownedPatrons or {}
 	for i, p in ipairs(owned) do

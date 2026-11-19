@@ -3930,7 +3930,7 @@ do
 				data.top = { name = first.name, depth = first.depth, tips = first.tips, title = title }
 			end
 		end)
-		pcall(function()
+		local okCounter, errCounter = not menuTicker.storeBlocked and pcall(function()
 			local counter = DataStoreService:GetDataStore("WildcardTavernDailyRuns_v1")
 			local key = "d" .. tostring(dateKey)
 			local total
@@ -3948,6 +3948,11 @@ do
 			end
 			data.runs = tonumber(total) or 0
 		end)
+		if okCounter == false and not menuTicker.storeBlocked then
+			-- Studio without API access (StudioAccessToApisNotAllowed): note it once and stop asking every minute
+			menuTicker.storeBlocked = true
+			warn("[MenuTicker] the run counter is unavailable, not asking again: " .. tostring(errCounter))
+		end
 		if not data.top and not data.runs and menuTicker.data then
 			return menuTicker.data -- the stores failed: keep showing the last good numbers
 		end

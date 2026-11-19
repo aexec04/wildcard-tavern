@@ -121,7 +121,17 @@ function M.install(deps)
 	local active, lastState = false, nil
 	local hiddenDeck = {} -- old deck widget pieces this screen hid, given back when it leaves
 	local sortHost = nil -- the Rank | Suit frame this screen restyled, given back when it leaves
+	local actionHeld = nil -- { scale } while the Actions row's list layout and compact scale are taken off
 	local function restoreOld()
+		if actionHeld then -- the old row: list layout back on, buttons back to their own size, compact scale back
+			local held = actionHeld
+			actionHeld = nil
+			LayoutSwitch.on(deps.actionFrame)
+			deps.playButton.Size = UDim2.new(0, 200, 1, 0)
+			deps.discardButton.Size = UDim2.new(0, 200, 1, 0)
+			local cs = deps.actionFrame:FindFirstChild("CompactScale")
+			if cs and held.scale then cs.Scale = held.scale end
+		end
 		for c in pairs(hiddenDeck) do c.Visible = true end
 		hiddenDeck = {}
 		if sortHost and sortHost.Parent then
@@ -201,7 +211,12 @@ function M.install(deps)
 		fill.Visible = p > 0
 		if self.lastP ~= nil and p > self.lastP then local prev = self.lastP; pcall(function() require(script.Parent.AnimPassFX).barShine(fill, prev, p) end) end
 		self.lastP = p
-		-- the real controls ride on the painted pieces
+		-- the real controls ride on the painted pieces. The Actions row's UIListLayout (and the compact UIScale) would put Play Hand and
+		-- Discard where the old screen had them, not on the painted art, so both are taken off while this screen is up
+		local cs = deps.actionFrame:FindFirstChild("CompactScale")
+		if not actionHeld then actionHeld = { scale = cs and cs.Scale or nil } end
+		LayoutSwitch.off(deps.actionFrame)
+		if cs then cs.Scale = 1 end
 		place(deps.handFrame, Layout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
 		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
 		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)
@@ -257,7 +272,7 @@ function M.install(deps)
 			row.Position = UDim2.fromOffset(r.gear.x - 10, r.gear.y + math.floor(r.gear.h * 0.15))
 			local sc = row:FindFirstChild("CTScale")
 			if not sc then sc = Instance.new("UIScale"); sc.Name = "CTScale"; sc.Parent = row end
-			sc.Scale = math.max(0.5, math.min(1.2, r.gear.h * 0.7 / 54))
+			sc.Scale = Layout.iconScale(r.gear.h)
 		end
 		local sb = deps.settingsButton
 		if sb then
@@ -327,7 +342,10 @@ function M.install(deps)
 	task.spawn(function()
 		while layer.Parent do
 			task.wait(0.25)
-			if active then pcall(shell, true); pcall(apply) end
+			if active then
+				pcall(shell, true); pcall(apply)
+				pcall(function() require(script.Parent.PatronRow).releaseStaleHover() end) -- a panel opened over a hovered card: no stuck lift or big pill
+			end
 		end
 	end)
 	current = self

@@ -18,12 +18,13 @@ local M = {}
 function M.attach(deps)
 	local self = {}
 	local lastInput = os.clock()
-	local lifted = {} -- card -> its original AnchorPoint, given back on input
+	local lifted = {} -- card -> { base = its own AnchorPoint, wrote = the one this breath set }, given back on input
 	local function calm() return ClientSettings.get("reduceShake") == true end
 
 	local function settle()
-		for card, ap in pairs(lifted) do
-			if card.Parent then card.AnchorPoint = ap end
+		for card, e in pairs(lifted) do
+			-- give the base back only while the anchor is still the one this breath wrote (another module may have moved it since)
+			if card.Parent and card.AnchorPoint == e.wrote then card.AnchorPoint = e.base end
 		end
 		lifted = {}
 	end
@@ -92,9 +93,12 @@ function M.attach(deps)
 		for i = 1, #cards do
 			local c = cards[i]
 			if c and c.Parent and c.AbsoluteSize.Y > 0 then
-				if not lifted[c] then lifted[c] = c.AnchorPoint end
+				local e = lifted[c]
+				if not e then e = { base = c.AnchorPoint, wrote = c.AnchorPoint }; lifted[c] = e
+				elseif c.AnchorPoint ~= e.wrote then e.base = c.AnchorPoint end -- someone else moved it: that is the new base
 				local px = Idle.breath(i, idle, false)
-				c.AnchorPoint = Vector2.new(lifted[c].X, lifted[c].Y - px / c.AbsoluteSize.Y)
+				e.wrote = Vector2.new(e.base.X, e.base.Y - px / c.AbsoluteSize.Y)
+				c.AnchorPoint = e.wrote
 			end
 		end
 		local n = deps.selectedCount()

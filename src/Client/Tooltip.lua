@@ -158,8 +158,9 @@ function Tooltip.new(screenGui)
 				if changed then
 					nudge = Vector2.new(nx, ny)
 					frame.Position = UDim2.fromOffset(x - origin.X + nudge.X, y - origin.Y + nudge.Y)
-					if RunService:IsStudio() and not lastFix then
+					if RunService:IsStudio() and not lastFix and not Tooltip.fixLogged then
 						lastFix = true
+						Tooltip.fixLogged = true -- once per session, not once per hover
 						warn(string.format("[Tooltip fix] wanted %d,%d live %d,%d nudge %d,%d screen %dx%d",
 							x, y, live.X, live.Y, nudge.X, nudge.Y, screenGui.AbsoluteSize.X, screenGui.AbsoluteSize.Y))
 					end

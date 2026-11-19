@@ -27981,7 +27981,7 @@ table.insert(tests, { name = "Accessibility: every rarity has its word and its o
 	end
 	assert(C.shape("nonsense").name == C.shape("common").name, "an unknown tier falls back to common")
 end })
-table.insert(tests, { name = "Accessibility: rarity marker sits inside a centred pill and never touches the word at four sizes", fn = function()
+table.insert(tests, { name = "Accessibility: rarity marker has its own slot left of the art, never touches the word, group fits the card at four sizes", fn = function()
 	local C = require(script.Parent.Parent.Engine.RarityCues)
 	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
@@ -27990,12 +27990,65 @@ table.insert(tests, { name = "Accessibility: rarity marker sits inside a centred
 		local r = Layout.labelRow(cw)
 		for _, tier in ipairs(C.order) do
 			assert(C.shape(tier), tier .. " has a shape")
-			assert(r.marker.x >= Layout.LABEL_MARKER_PAD and r.marker.x + r.marker.w <= r.plate.x + r.plate.w, tier .. " marker inside the pill at " .. sz[1])
-			assert(r.marker.x + r.marker.w + Layout.LABEL_MARKER_GAP <= r.word.x, tier .. " marker clear of the word at " .. sz[1])
 		end
-		assert(r.plate.w >= Layout.LABEL_PLATE_MIN, "pill wide enough for Uncommon at " .. sz[1])
-		assert(r.centerShift == 0, "pill centre equals card centre at " .. sz[1])
+		assert(r.marker.x + r.marker.w + Layout.LABEL_MARKER_GAP <= r.art.x, "marker ends before the art starts at " .. sz[1])
+		assert(r.marker.x + r.marker.w <= r.word.x, "marker clear of the word at " .. sz[1])
+		assert(r.rowW <= math.max(cw, Layout.LABEL_ART_MIN + Layout.LABEL_MARKER_PX + Layout.LABEL_MARKER_GAP), "marker and art fit the card width at " .. sz[1] .. " (" .. r.rowW .. " vs " .. cw .. ")")
+		assert(math.abs(r.art.w / r.art.h - Layout.LABEL_ASPECT) < 0.15, "the art keeps its own shape (never stretched) at " .. sz[1])
+		assert(r.art.h <= 24, "label art stays above the effect pill at " .. sz[1])
+		-- the group (marker + gap + art) is centred on the card
+		local groupL = r.centerShift - r.art.w / 2 + r.marker.x -- the art is anchored on its middle at the card centre plus the shift
+		local groupR = r.centerShift + r.art.w / 2
+		assert(math.abs(groupL + groupR) <= 1, "group centred on the card at " .. sz[1])
 	end
+end })
+table.insert(tests, { name = "Play screen: corner icons stay 44 px or more and the icon scale never grows past 1.2", fn = function()
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, gh in ipairs({ 30, 44, 71, 98, 200, 0 }) do
+		local sc = Layout.iconScale(gh)
+		assert(sc * Layout.ICON_BASE >= Layout.ICON_MIN_PX - 0.001, "icons are at least 44 px at gear height " .. gh)
+		assert(sc <= 1.2, "scale capped")
+	end
+end })
+table.insert(tests, { name = "Play screen: Play Hand and Discard are one set, the Actions row layout and compact scale are taken off while painted", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/ConceptTPlay.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("LayoutSwitch.off(deps.actionFrame)", 1, true), "the Actions UIListLayout is taken off")
+	assert(src:find("LayoutSwitch.on(deps.actionFrame)", 1, true), "and put back when the screen leaves")
+	assert(src:find("cs.Scale = 1", 1, true), "the compact scale is 1 while the buttons ride on the art")
+	assert(src:find("deps.discardButton.Size = UDim2.fromOffset(r.discard.w, r.discard.h)", 1, true), "Discard takes the painted rect")
+end })
+table.insert(tests, { name = "Play screen: Studio debug prints run once per change and the tooltip fix logs once per session", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return "" end local t = f:read("*a"); f:close(); return t end
+	local paint = read("src/Client/PlayScenePaint.lua")
+	if paint ~= "" then
+		assert(paint:find("lastFeltLine", 1, true) and paint:find("lastHandLine", 1, true), "felt and hand size lines print only when they change")
+	end
+	local tip = read("src/Client/Tooltip.lua")
+	if tip ~= "" then assert(tip:find("Tooltip.fixLogged", 1, true), "the tooltip fix warns once per session") end
+end })
+table.insert(tests, { name = "Play screen: 200 frames of idle breath and hover scale leave the base rects unchanged", fn = function()
+	local Idle = require(script.Parent.Parent.Engine.IdleLife)
+	local Motion = require(script.Parent.Parent.Engine.PatronMotion)
+	local base = Vector2 and Vector2.new(0.5, 0.5) or { X = 0.5, Y = 0.5 }
+	local worst = 0
+	for frame = 1, 200 do
+		for i = 1, 8 do
+			local px = Idle.breath(i, 8 + frame / 15, false)
+			if math.abs(px) > worst then worst = math.abs(px) end
+		end
+	end
+	assert(worst <= 2.001, "the breath never moves a card more than 2 px (" .. worst .. ")")
+	assert(Idle.breath(1, 0, false) == 0 or math.abs(Idle.breath(1, 0, false)) <= 2, "breath bounded at idle start")
+	local on, off = Motion.hover(false), Motion.hover(true)
+	assert(on.pillScale == 1.25 or on.pillScale > 1, "hover enlarges the pill")
+	assert(off.pillScale == nil or off.pillScale <= on.pillScale, "calm hover does not grow more")
+	local src
+	if io then local f = io.open("src/Client/PatronMotionFX.lua", "r"); if f then src = f:read("*a"); f:close() end end
+	if src then assert(src:find("local target = on and p.pillScale or 1", 1, true), "hover sets an absolute scale, never multiplies the last one") end
 end })
 table.insert(tests, { name = "Accessibility: Concept T text colours keep 4.5:1 (body) and 3:1 (large) on their plates", fn = function()
 	local C = require(script.Parent.Parent.Engine.RarityCues)

@@ -260,24 +260,33 @@ function M.tierFrame(rarity)
 	return t and t.frame or "bronze"
 end
 
+-- the corner icon row's UIScale (icons are 54 px at scale 1): 0.7 of the gear's height, never under 44 px each
+M.ICON_BASE, M.ICON_MIN_PX = 54, 44
+function M.iconScale(gearH)
+	return math.max(M.ICON_MIN_PX / M.ICON_BASE, math.min(1.2, (tonumber(gearH) or 0) * 0.7 / M.ICON_BASE))
+end
+
 -- Image keys in ConceptTArt for the rarity label pill and the effect pill under a Patron card
 function M.labelKey(rarity)
 	return "ct_label_" .. (M.TIERS[norm(rarity)] and norm(rarity):lower() or "common")
 end
 
--- The rarity label pill under a Patron card is ONE rounded plate that holds the shape marker (inside, 8 px from the left edge)
--- and the word (baked into the art, centred, at most WORD_MAX px wide). The plate is centred on the card, like the effect pill.
--- All x values are px from the plate's left edge.
-M.LABEL_MARKER_PAD, M.LABEL_MARKER_PX, M.LABEL_PLATE_MIN, M.LABEL_WORD_MAX, M.LABEL_MARKER_GAP = 8, 12, 160, 100, 4
+-- The rarity label pill under a Patron card keeps the cut's own 126:34 shape (never stretched) with the shape marker in its own slot
+-- to the left of the art. The marker + gap + art group is centred on the card and never wider than the card (but the art is at least
+-- LABEL_ART_MIN px so the word stays readable). The word spans about 0.07 to 0.91 of the art (Uncommon is the widest).
+-- All x values are px from the art's left edge, so the marker x is negative.
+M.LABEL_ASPECT, M.LABEL_MARKER_PX, M.LABEL_MARKER_GAP, M.LABEL_ART_MIN, M.LABEL_ART_MAX = 126 / 34, 12, 6, 72, 88
+M.LABEL_WORD_FROM, M.LABEL_WORD_TO = 0.07, 0.91
 function M.labelRow(slotW)
-	local plateW = math.max(math.floor((tonumber(slotW) or 0) * 0.92), M.LABEL_PLATE_MIN)
+	local lead = M.LABEL_MARKER_PX + M.LABEL_MARKER_GAP
+	local artW = math.max(M.LABEL_ART_MIN, math.min(M.LABEL_ART_MAX, math.floor((tonumber(slotW) or 0) * 0.92) - lead))
+	local artH = math.floor(artW / M.LABEL_ASPECT + 0.5)
 	return {
-		rowW = plateW,
-		plate = { x = 0, w = plateW },
-		marker = { x = M.LABEL_MARKER_PAD, w = M.LABEL_MARKER_PX },
-		art = { x = 0, w = plateW },
-		word = { x = (plateW - M.LABEL_WORD_MAX) // 2, w = M.LABEL_WORD_MAX },
-		centerShift = 0, -- the plate itself is centred on the card
+		rowW = artW + lead,
+		art = { x = 0, w = artW, h = artH },
+		marker = { x = -lead, w = M.LABEL_MARKER_PX },
+		word = { x = math.floor(artW * M.LABEL_WORD_FROM), w = math.floor(artW * (M.LABEL_WORD_TO - M.LABEL_WORD_FROM)) },
+		centerShift = lead // 2, -- shifts the art right so the marker + art group is centred on the card
 	}
 end
 

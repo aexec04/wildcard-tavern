@@ -40,7 +40,7 @@ return function(deps)
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, volumeBackdrop)
 
 	local volumePanel = Instance.new("Frame")
-	volumePanel.Size = UDim2.new(0, 380, 0, 250)
+	volumePanel.Size = UDim2.new(0, 380, 0, 270)
 	volumePanel.AnchorPoint = Vector2.new(0.5, 0.5)
 	volumePanel.Position = UDim2.fromScale(0.5, 0.5)
 	volumePanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
@@ -63,10 +63,15 @@ return function(deps)
 	volumeTitle.Text = "Volume"
 	volumeTitle.ZIndex = 21
 	volumeTitle.Parent = volumePanel
+	do -- Concept T board look, the same serif cream title and plate buttons as Settings
+		local CS = require(script.Parent.ConceptTSkin)
+		CS.title(volumeTitle)
+		volumeTitle.TextSize = 26
+	end
 
 	-- Holds only the layout and its rows (no decorative frames).
 	local rows = Instance.new("Frame")
-	rows.Size = UDim2.new(1, -40, 0, 150)
+	rows.Size = UDim2.new(1, -40, 0, 180)
 	rows.Position = UDim2.new(0, 20, 0, 44)
 	rows.BackgroundTransparency = 1
 	rows.ZIndex = 21
@@ -126,7 +131,7 @@ return function(deps)
 	end, percent, 2)
 
 	local muteButton = Instance.new("TextButton")
-	muteButton.Size = UDim2.new(0, 160, 0, 36)
+	muteButton.Size = UDim2.new(0, 160, 0, 44)
 	muteButton.LayoutOrder = 3
 	muteButton.Font = Enum.Font.GothamBold
 	muteButton.TextSize = 15
@@ -135,10 +140,11 @@ return function(deps)
 	muteButton.ZIndex = 21
 	muteButton.Parent = rows
 	polishButton(muteButton, 8)
+	pcall(function() require(script.Parent.ConceptTSkin).plateButton(muteButton) end)
 	deps.addButtonHoverScale(muteButton)
 
 	local function refreshMute()
-		muteButton.Text = ClientSettings.get("muted") and "🔇 Muted" or "🔊 Mute: Off"
+		muteButton.Text = ClientSettings.get("muted") and "Muted" or "Mute: Off"
 	end
 
 	muteButton.MouseButton1Click:Connect(function()
