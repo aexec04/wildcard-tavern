@@ -30923,6 +30923,31 @@ table.insert(tests, { name = "Music mix: one bed per screen on existing ids, ste
 	end
 end })
 
+table.insert(tests, { name = "Sound and music pass: 1 s bed crossfade, every action has a cue with a call site, Sound and Music groups obey Mute and their sliders", fn = function()
+	local M = require(script.Parent.Parent.Engine.MusicMix)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	expectEqual(M.FADE_TIME, 1, "beds crossfade over 1 s")
+	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 1) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 1) < 1e-9, "Calm and normal both span 1 s")
+	local have = {}
+	for _, m in ipairs(G.MOMENTS) do have[m.cue] = true end
+	for _, cue in ipairs({ "card_deal", "card_select", "card_deselect", "card_play", "score_tick", "score_total", "patron_trigger",
+		"round_clear", "defeat", "shop_buy", "shop_reroll", "shop_sell", "coin" }) do
+		expectTrue(have[cue], "a call site is listed for " .. cue)
+	end
+	for _, step in ipairs(G.SLIDER_STEPS) do
+		expectEqual(G.effective(0.8, 1, step, true), 0, "Mute silences the Sound group at slider " .. step)
+		expectTrue(G.effective(0.8, 1, step, false) <= step + 1e-9, "the SFX slider caps the cue at " .. step)
+		expectEqual(M.volume(step, true, 1, 1), 0, "Mute silences the Music group at slider " .. step)
+		expectTrue(math.abs(M.volume(step, false, 1, 1) - step) < 1e-9, "the Music slider sets the bed at " .. step)
+	end
+	for _, screen in ipairs({ "menu", "map", "table", "boss", "shop", "runover" }) do
+		expectTrue(type(M.bedFor(screen).key) == "string", screen .. " has one bed")
+	end
+	expectEqual(#M.voices({ bed = true, outgoing = true, sting = true, tension = true }), 3, "no more than 3 voices at once")
+	expectTrue(SoundIds.isValidId(SoundIds.Music.shop) and SoundIds.isValidId(SoundIds.Music.boss), "shop and boss beds use existing ids")
+end })
+
 table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards and the Close plate fit at 1920x1080, 1280x720 and 1024x768 with 44 px plates and readable text", fn = function()
 	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local t = Rules.parse("store")

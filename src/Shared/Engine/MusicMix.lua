@@ -5,7 +5,7 @@ local MusicMix = {}
 
 MusicMix.MAX_VOICES = 3
 MusicMix.TENSION_BELOW = 0.5 -- the tension layer starts when the round score is under this share of the Target on the last hand
-MusicMix.FADE_TIME = 0.6 -- seconds for a bed crossfade
+MusicMix.FADE_TIME = 1.0 -- seconds for a bed crossfade
 MusicMix.STEPS, MusicMix.STEPS_CALM = 12, 4 -- volume steps in a crossfade (no tween either way; Calm uses fewer, bigger steps)
 MusicMix.MIN_CLEAR_STEP = 0.01
 
