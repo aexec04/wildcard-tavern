@@ -129,6 +129,9 @@ function M.install(deps)
 	local scoreNum = scoreText("ScoreNumber", Enum.Font[Style.FONTS.title], cream, 0.5)
 	local scoreCaption = scoreText("ScoreCaption", Enum.Font[Style.FONTS.ui], cream, 0.6)
 	scoreCaption.Text = "Score"
+	scoreNum.TextTransparency = 0.05; scoreNum.TextStrokeTransparency = 0.45 -- the numeral reads at a glance, a soft gold edge is its glow
+	scoreNum.TextStrokeColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3])
+	scoreCaption.TextTransparency = 0.1
 	local scoreLine = Instance.new("Frame")
 	scoreLine.Name = "ScoreUnderline"
 	scoreLine.BorderSizePixel = 0
@@ -270,13 +273,16 @@ function M.install(deps)
 		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
 		scoreBox.ZIndex = 2
 		local numH = math.max(20, math.floor(r.stage.h * 0.5))
-		scoreNum.Size = UDim2.new(1, 0, 0, numH); scoreNum.Position = UDim2.fromOffset(0, math.floor(r.stage.h * 0.18))
-		scoreNum.TextSize = math.min(48, numH); scoreNum.ZIndex = 2
+		local capH = 20
+		local roomy = r.stage.h >= capH + 56 + 8 -- a short stage keeps the number only
+		local numTop = roomy and capH or math.floor(r.stage.h * 0.1)
+		numH = math.max(20, math.min(r.stage.h - numTop - 4, 64))
+		scoreNum.Size = UDim2.new(1, 0, 0, numH); scoreNum.Position = UDim2.fromOffset(0, numTop)
+		scoreNum.TextSize = math.min(56, numH); scoreNum.ZIndex = 2
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
-		scoreLine.Position = UDim2.new(0.5, 0, 0, math.floor(r.stage.h * 0.18) + numH + 2); scoreLine.ZIndex = 2
-		scoreCaption.Size = UDim2.new(1, 0, 0, 18); scoreCaption.TextSize = Style.TEXT.min
-		scoreCaption.Position = UDim2.fromOffset(0, math.floor(r.stage.h * 0.18) + numH + 6); scoreCaption.ZIndex = 2
-		local roomy = r.stage.h >= 70 -- a short stage keeps the number only
+		scoreLine.Position = UDim2.new(0.5, 0, 0, numTop + numH); scoreLine.ZIndex = 2
+		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
+		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 2
 		scoreCaption.Visible = roomy; scoreLine.Visible = roomy
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
@@ -374,7 +380,13 @@ function M.install(deps)
 		local on = Flags.gameplay() == 2 and lastState ~= nil and lastState.phase == "playing" and deps.handFrame.Visible and Layout.fits(size.X, size.Y)
 		active = on
 		shell(on)
-		if not on then fanHand(false, size.Y); restoreOld(); return end
+		if not on then
+			fanHand(false, size.Y); restoreOld()
+			-- the "TARGET CLEARED!" shout of the last hand must not hang over the Counter
+			local jb = root:FindFirstChild("ScoreJuiceBanner")
+			if jb and jb:IsA("TextLabel") and lastState and lastState.phase ~= "playing" then jb.TextTransparency = 1; jb.TextStrokeTransparency = 1 end
+			return
+		end
 		local key = sceneKey(lastState)
 		local img = TableArt[key] or ""
 		if scene.Image ~= img then scene.Image = img end

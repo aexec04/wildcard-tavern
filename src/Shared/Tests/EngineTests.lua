@@ -28595,6 +28595,8 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("deps.playButton.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
+	assert(src:find("math.min(56, numH)", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true), "centre score is a 56 px numeral with an 18 px caption above it")
+	assert(src:find("ScoreJuiceBanner", 1, true), "a stale TARGET CLEARED shout is hidden once the screen leaves play")
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
 

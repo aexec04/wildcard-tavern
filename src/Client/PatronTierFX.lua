@@ -189,8 +189,8 @@ local function build(deco, tier, w)
 	num.Name = "Numeral"
 	num.BackgroundTransparency = 1
 	num.Size = UDim2.fromScale(1, 1)
-	num.Font = Enum.Font.GothamBlack
-	num.TextSize = math.max(15, math.floor(D * 0.5))
+	num.Font = Enum.Font.Merriweather -- the numeral is serif, the unit word lives only in the pill below
+	num.TextSize = math.max(22, math.floor(D * 0.5))
 	num.TextColor3 = c3(Style.DISC.text)
 	num.TextTransparency = 0
 	num.TextStrokeColor3 = c3(Style.DISC.outline)
