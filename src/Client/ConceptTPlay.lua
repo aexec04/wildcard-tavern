@@ -1,0 +1,194 @@
+--[[
+	Client/ConceptTPlay.lua
+	The Concept T play screen: the painted tavern room as the full screen background, blank HUD plates with live numbers
+	(coins, hands, round and its gold bar, deck count), the gear, the deck pile and image buttons for Play Hand and Discard.
+	Rects come from Engine/ConceptTLayout (pure, tested). The real buttons (Play Hand, Discard, the deck's click catcher and the
+	Settings corner button) keep every handler: they are only moved onto the painted pieces and made see-through, so keys,
+	hit areas and the InputGuard / PopupShield rules stay as they were. Everything else of the old play screen (left board, corner
+	icons, drawer strip, felt shade) is hidden while the screen is up; run info and options live behind the gear (Settings).
+	Active only in phase "playing" on screens of at least 640 x 360; phones and smaller keep the old play screen.
+
+	install{ root, handFrame, actionFrame, playButton, discardButton, deckWidget, settingsButton, getState } -> { update(state), isActive() }
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local Layout = require(Engine:WaitForChild("ConceptTLayout"))
+local Art = require(Engine:WaitForChild("ConceptTArt"))
+local DeckCountText = require(Engine:WaitForChild("DeckCountText"))
+
+local M = {}
+local current = nil
+
+local INK = Color3.fromRGB(255, 244, 214) -- cream on the dark wood plates, well over 4.5:1
+local OUTLINE = Color3.fromRGB(40, 22, 10)
+local GOLD = Color3.fromRGB(246, 196, 70)
+local HIDE = { "Sidebar", "SidebarBoard", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip", "CornerIconRow", "PlayFeltShade", "PlayTableFront", "PlayTableBg", "PlayFloorShade", "HandRailLip" }
+
+local function image(parent, name, key, z)
+	local img = Instance.new("ImageLabel")
+	img.Name = name
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Active = false
+	img.Image = Art[key] or ""
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.ZIndex = z
+	img.Parent = parent
+	return img
+end
+
+local function text(parent, name, size, z)
+	local t = Instance.new("TextLabel")
+	t.Name = name
+	t.BackgroundTransparency = 1
+	t.Font = Enum.Font.GothamBlack
+	t.TextSize = size
+	t.TextColor3 = INK
+	t.TextTransparency = 0
+	t.TextStrokeColor3 = OUTLINE
+	t.TextStrokeTransparency = 0.2
+	t.TextScaled = false
+	t.ZIndex = z
+	t.Parent = parent
+	return t
+end
+
+local function place(g, r)
+	g.Position = UDim2.fromOffset(r.x, r.y)
+	g.Size = UDim2.fromOffset(r.w, r.h)
+end
+
+local function clearButton(b)
+	b.BackgroundTransparency = 1
+	b.TextTransparency = 1
+	b.TextStrokeTransparency = 1
+	for _, c in ipairs(b:GetChildren()) do
+		if c:IsA("GuiObject") then c.Visible = false
+		elseif c:IsA("UIStroke") then c.Enabled = false end
+	end
+end
+
+function M.install(deps)
+	local root = deps.root
+	local layer = Instance.new("Frame")
+	layer.Name = "ConceptTPlay"
+	layer.BackgroundTransparency = 1
+	layer.BorderSizePixel = 0
+	layer.Size = UDim2.fromScale(1, 1)
+	layer.ZIndex = 1
+	layer.Visible = false
+	layer.Active = false
+	layer.Parent = root
+
+	local room = image(layer, "Room", "ct_table_room", 0)
+	room.Size = UDim2.fromScale(1, 1)
+	room.ScaleType = Enum.ScaleType.Crop
+	local coins = image(layer, "Coins", "ct_hud_coins", 2)
+	local hands = image(layer, "Hands", "ct_hud_hands", 2)
+	local round = image(layer, "Round", "ct_hud_round", 2)
+	local gear = image(layer, "Gear", "ct_hud_gear", 2)
+	local deck = image(layer, "Deck", "ct_deck", 2)
+	local deckCount = image(layer, "DeckCount", "ct_deck_count", 2)
+	local play = image(layer, "PlayArt", "ct_btn_play", 2)
+	local discard = image(layer, "DiscardArt", "ct_btn_discard", 2)
+	local coinsText = text(layer, "CoinsText", 20, 3)
+	local handsText = text(layer, "HandsText", 20, 3)
+	local roundText = text(layer, "RoundText", 18, 3)
+	local deckText = text(layer, "DeckText", 18, 3)
+	local fill = Instance.new("Frame")
+	fill.Name = "BarFill"
+	fill.BackgroundColor3 = GOLD
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 3
+	fill.Parent = layer
+	local fc = Instance.new("UICorner")
+	fc.CornerRadius = UDim.new(1, 0)
+	fc.Parent = fill
+
+	local active, lastState = false, nil
+	local self = {}
+
+	local function apply()
+		local size = root.AbsoluteSize
+		local r = Layout.rects(size.X, size.Y)
+		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
+		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
+		place(coinsText, r.coins); place(handsText, r.hands); place(deckText, r.deckCount)
+		local rt = r.round
+		place(roundText, { x = rt.x, y = rt.y, w = rt.w, h = math.floor(rt.h * 0.58) })
+		local bar = Layout.bar(r)
+		local p = Layout.progress(lastState and lastState.roundScore, lastState and lastState.targetScore)
+		fill.Position = UDim2.fromOffset(bar.x, bar.y)
+		fill.Size = UDim2.fromOffset(math.floor(bar.w * p), bar.h)
+		fill.Visible = p > 0
+		-- the real controls ride on the painted pieces
+		place(deps.handFrame, r.hand)
+		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
+		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)
+		place(deps.playButton, { x = 0, y = 0, w = r.play.w, h = r.play.h })
+		deps.playButton.Position = UDim2.fromOffset(0, 0)
+		deps.discardButton.Position = UDim2.fromOffset(r.discard.x - r.play.x, r.discard.y - r.play.y)
+		deps.discardButton.Size = UDim2.fromOffset(r.discard.w, r.discard.h)
+		local holder = root:FindFirstChild("PatronRow")
+		if holder and holder:IsA("GuiObject") then place(holder, r.patrons) end
+		local dw = deps.deckWidget
+		if dw then
+			place(dw, r.deck)
+			dw.AnchorPoint = Vector2.new(0, 0)
+		end
+		local sb = deps.settingsButton
+		if sb then
+			sb.Parent = layer
+			sb.AnchorPoint = Vector2.new(0, 0)
+			place(sb, r.gear)
+			sb.ZIndex = 6
+		end
+	end
+
+	local function shell(on)
+		for _, name in ipairs(HIDE) do
+			local g = root:FindFirstChild(name)
+			if g and g:IsA("GuiObject") and on then g.Visible = false end
+		end
+		layer.Visible = on
+	end
+
+	function self.isActive() return active end
+
+	function self.update(state)
+		lastState = state or lastState
+		local size = root.AbsoluteSize
+		local on = lastState ~= nil and lastState.phase == "playing" and deps.handFrame.Visible and Layout.fits(size.X, size.Y)
+		active = on
+		shell(on)
+		if not on then return end
+		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))
+		handsText.Text = string.format("%d", math.floor(lastState.handsRemaining or 0))
+		roundText.Text = string.format("Round %d", math.floor(lastState.round or 1))
+		local remaining = 0
+		for _, suit in pairs(lastState.deckCounts or {}) do
+			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
+		end
+		deckText.Text = DeckCountText.format(remaining, lastState.deckView)
+		clearButton(deps.playButton); clearButton(deps.discardButton)
+		apply()
+	end
+
+	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply() end end)
+	-- other modules rewrite their own Position now and then; this keeps the painted layout the last word
+	task.spawn(function()
+		while layer.Parent do
+			task.wait(0.25)
+			if active then pcall(shell, true); pcall(apply) end
+		end
+	end)
+	current = self
+	return self
+end
+
+function M.update(state)
+	if current then current.update(state) end
+end
+
+return M

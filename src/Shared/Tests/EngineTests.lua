@@ -26542,4 +26542,33 @@ table.insert(tests, { name = "Concept T Patron cards: every recorded card belong
 	expectTrue(count >= 26, "26 cards are recorded (" .. count .. ")")
 end })
 
+table.insert(tests, { name = "Concept T play screen: rects match the reference and never overlap at three sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = size[1], size[2]
+		expectTrue(L.fits(w, h), w .. "x" .. h .. " uses the layout")
+		local r = L.rects(w, h)
+		expectTrue(#L.overlaps(r) == 0, w .. "x" .. h .. " overlaps: " .. table.concat(L.overlaps(r), ","))
+		for name, rect in pairs(r) do
+			expectTrue(rect.w > 0 and rect.h > 0 and rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, name .. " inside the screen")
+		end
+		local bar = L.bar(r)
+		expectTrue(bar.x >= r.round.x and bar.x + bar.w <= r.round.x + r.round.w and bar.y >= r.round.y and bar.y + bar.h <= r.round.y + r.round.h, "bar inside the banner")
+	end
+	local r = L.rects(1536, 1024)
+	expectEqual(r.gear.x, 1412, "gear x at the reference size")
+	expectEqual(r.play.y, 896, "Play Hand y at the reference size")
+	expectTrue(not L.fits(360, 640), "phones keep the old screen")
+	expectEqual(L.progress(250, 1000), 0.25, "bar fill")
+	expectEqual(L.progress(5000, 1000), 1, "bar fill is clamped")
+	expectEqual(L.progress(5, 0), 0, "no target, empty bar")
+	expectEqual(L.tierFrame("Legendary"), "gold", "tier to frame")
+	expectEqual(L.tierFrame("Rare"), "blue", "tier to frame")
+	expectEqual(L.tierFrame("Nope"), "bronze", "unknown tier")
+	local Art = require(script.Parent.Parent.Engine.ConceptTArt)
+	for _, key in ipairs({ "ct_table_room", "ct_hud_coins", "ct_hud_hands", "ct_hud_round", "ct_hud_gear", "ct_deck", "ct_deck_count", "ct_btn_play", "ct_btn_discard" }) do
+		expectTrue(Art[key] ~= nil, key .. " has an Image id")
+	end
+end })
+
 return tests

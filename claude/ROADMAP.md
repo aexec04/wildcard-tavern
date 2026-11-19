@@ -20,6 +20,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Concept T Patron portraits batch 1: 14 Common and Uncommon cards (uploaded, not wired; 55 Common and Uncommon Patrons still on old art)
 - [x] Concept T Patron portraits batches 2 and 3: all 7 Rare, 4 Epic and the Legendary card (uploaded, not wired)
 - [x] Concept T card faces: 12 court figures (K, Q, J in four suits) on the ivory face
+- [x] Concept T play screen: painted room, HUD plates, image buttons, deck pile, gear (Studio-unverified)
 
 ## Phase 2: Daily return and long-term goals
 - [x] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map

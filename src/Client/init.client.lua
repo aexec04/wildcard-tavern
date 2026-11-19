@@ -1409,6 +1409,10 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() -- painted table foreground, hand on the rail (Client/PlayScenePaint.lua)
 		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
+	pcall(function() -- Concept T painted play screen: HUD plates, room, image buttons (Client/ConceptTPlay.lua)
+		require(script.ConceptTPlay).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, playButton = playButton, discardButton = discardButton,
+			deckWidget = DeckWidgetModule.deckWidgetButton.Parent, settingsButton = settingsButton })
+	end)
 	pcall(function() -- calm parallax, lamp light pool and deal arc (Client/PlayMotion.lua)
 		require(script.PlayMotion).install({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
@@ -2474,6 +2478,7 @@ local function render(state)
 
 	RoundSelectOverlay.roundSelectFrame.Visible = (state.phase == "roundSelect")
 	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect" or state.phase == "shop") -- stats panel away on Round Select and the Counter
+	pcall(function() require(script.ConceptTPlay).update(state) end) -- Concept T play screen last, so its layout wins
 	pcall(function() local BD = require(script.BoardDrawer) BD.install(root) BD.update(state) end) -- left board drawer: handle, chip, slide
 	Shop.shopFrame.Visible = (state.phase == "shop")
 	GameOverPanel.gameOverFrame.Visible = (state.phase == "gameover")
