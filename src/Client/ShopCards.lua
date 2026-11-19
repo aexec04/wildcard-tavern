@@ -457,6 +457,7 @@ function ShopCards.new(deps)
 			stroke(coin, Color3.fromRGB(150, 100, 30), 2, 0)
 			label(tag, { Position = UDim2.fromOffset(26, 0), Size = UDim2.new(1, -30, 1, 0), Text = tostring(math.floor(spec.price)),
 				TextSize = 18, ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable and PRICE_OK or PRICE_BAD, TextXAlignment = Enum.TextXAlignment.Center })
+			pcall(function() require(script.Parent.ConceptTSkin).pricePill(tag, spec.price, affordable, Z + 1) end) -- painted pill like the play HUD; no art id keeps the gold tag
 		end
 
 		-- ===== Input: one transparent button over the body, then the action drawer =====

@@ -157,6 +157,7 @@ return function(deps)
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
 	})
+	pcall(function() require(script.Parent.ConceptTSkin).title(titleLabel) end) -- serif cream with a dark outline
 	hungSign.bind(titleLabel)
 
 	local expandToggle = require(script.Parent.ExpandToggle)(panel, {

@@ -26890,6 +26890,28 @@ table.insert(tests, { name = "Concept T pass 4: number cards get real pip layout
 	expectEqual(PL.pips("K"), nil, "court cards use their figure")
 end })
 
+table.insert(tests, { name = "ConceptTSkin: serif title, price pill layout stays inside the tag with 15 px text, contrast 4.5:1, art recorded, wired, no tweens", fn = function()
+	local S = require(script.Parent.Parent.Engine.ConceptTSkin)
+	local dark = { 58, 40, 26 }
+	expectTrue(S.contrast(S.PRICE_OK, dark) >= 4.5 and S.contrast(S.PRICE_BAD, dark) >= 4.5, "price colors read on the dark pill")
+	expectTrue(S.contrast(S.TITLE_COLOR, dark) >= 4.5 and S.contrast(S.GOLD_TEXT, dark) >= 4.5, "title colors read on the dark plate")
+	expectEqual(S.priceColor(false), S.PRICE_BAD, "unaffordable is the soft red")
+	expectEqual(S.priceColor(true), S.PRICE_OK, "affordable is cream")
+	for _, sz in ipairs({ { 70, 28 }, { 90, 34 }, { 60, 24 }, { 110, 44 } }) do
+		local L = S.priceLayout(sz[1], sz[2])
+		expectTrue(L.textSize >= 15, "price text 15 px or more")
+		expectTrue(L.coin.x >= 0 and L.coin.y >= 0 and L.coin.x + L.coin.w <= L.text.x, "coin left of the number")
+		expectTrue(L.text.x + L.text.w <= sz[1] and L.text.w >= 0, "number inside the tag")
+	end
+	expectTrue(S.titleSize(22, 400) >= 22 and S.titleSize(10, 720) >= 15, "titles never under 15 px")
+	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt)[S.PILL_ART] ~= nil, "the pill plate id is recorded")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	expectTrue(read("src/Client/ConceptTSkin.lua"):find(":Play()", 1, true) == nil and read("src/Client/ConceptTSkin.lua"):find("TweenService", 1, true) == nil, "the skin never tweens")
+	for _, f in ipairs({ "ShopCards", "Shop", "Collection", "RoundRewardBanner" }) do
+		expectTrue(read("src/Client/" .. f .. ".lua"):find("ConceptTSkin", 1, true) ~= nil, f .. " uses the Concept T skin")
+	end
+end })
 table.insert(tests, { name = "Menu play button: Concept T green art, pulse only through the loop list (calm mode plays none)", fn = function()
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end

@@ -111,6 +111,7 @@ function RoundRewardBanner.show(args)
 	local toast = Payout.toastLines(args.amount, args.interest or 0)
 	local mainRow = label(gui, toast.main, 18, GOLD_TEXT, 1)
 	mainRow.Name = "Main"
+	pcall(function() require(script.Parent.ConceptTSkin).title(mainRow, { 255, 214, 130 }) end) -- serif gold with a dark outline
 	if toast.sub then
 		local subRow = label(gui, toast.sub, 14, SOFT, 2)
 		subRow.Name = "Parts"

@@ -377,6 +377,7 @@ return function(deps)
 		shopTitle.TextStrokeTransparency = 1 -- crisp: one text, no stroke halo
 		shopTitle.Text = "The Counter"
 		shopTitle.ZIndex = SHOP_ZINDEX
+		pcall(function() require(script.Parent.ConceptTSkin).title(shopTitle) end) -- serif cream with a dark outline
 		shopTitle.Parent = shopFrame
 		roundCorner(shopTitle, 8)
 		do
