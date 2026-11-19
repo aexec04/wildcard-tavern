@@ -29,6 +29,8 @@ M.MIN_TOUCH = 44
 M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
 M.SEATS = 5
 M.SORT_GAP = 8
+M.REF_SPAN = 0.506 -- Patron seats span (1255 - 410) / 1672 of the width in the reference mockup
+M.REF_MIN_W, M.REF_MIN_H = 1200, 600 -- smaller windows keep the compact proportions (cards and the tray need the room)
 M.PILL_GAP = 4 -- clear air between a count pill and the top edge of its button
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
@@ -45,7 +47,8 @@ function M.patronRow(w, h, n)
 	local ch = round(0.205 * h)
 	local cw = round(ch * M.CARD_ASPECT)
 	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
-	local gap = math.max(8, round(0.014 * w))
+	-- the reference mockup (1672 x 941) spreads the five seats over x 410 to 1255, half of the width (REF_SPAN)
+	local gap = math.max(8, round(0.014 * w), (w >= M.REF_MIN_W and math.floor((M.REF_SPAN * w - M.SEATS * cw) / (M.SEATS - 1)) or 0))
 	local span = M.SEATS * cw + (M.SEATS - 1) * gap
 	local x0 = round((w - span) / 2)
 	local out = { cards = {}, labels = {}, pills = {} }
@@ -72,9 +75,11 @@ function M.rects(w, h)
 	local r = {}
 	local pad = math.max(8, round(0.012 * w))
 	-- top bar: round name, Target gold box, Tips pill (at most 8 percent of the height, never under 30 px)
+	-- reference mockup: Target x 410 to 700, Tips ends at 1395 of 1672 (0.245 to 0.834 of the width), y 15 to 100 of 941; the height stays 7 percent so the boss banner still fits above the seats
+	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
 	local barH = math.max(30, round(0.07 * h))
-	local barW = math.min(round(0.56 * w), w - 2 * pad)
-	local barX = round((w - barW) / 2)
+	local barW = math.min(round((ref and 0.589 or 0.56) * w), w - 2 * pad)
+	local barX = ref and math.min(round(0.245 * w), w - pad - barW) or round((w - barW) / 2)
 	local barY = math.max(4, round(0.012 * h))
 	r.bar = box(barX, barY, barW, barH)
 	local inner = 6
@@ -93,8 +98,10 @@ function M.rects(w, h)
 	for i = 1, M.SEATS do r.slots[i] = { card = row.cards[i], label = row.labels[i], pill = row.pills[i] } end
 	local rowBottom = row.pills[1].y + row.pills[1].h
 	-- buttons: big enough to tap, side by side, centred under the hand
-	local btnH = math.max(M.MIN_TOUCH, round(0.085 * h))
+	-- reference mockup: buttons y 810 to 900 of 941 (0.861 to 0.956)
+	local btnH = math.max(M.MIN_TOUCH, round((ref and 0.09 or 0.085) * h))
 	local btnY = h - btnH - math.max(4, round(0.012 * h))
+	if ref then btnY = math.min(round(0.861 * h), btnY) end
 	local btnW = round(0.17 * w)
 	local btnGap = math.max(10, round(0.014 * w))
 	local pairW = btnW * 2 + btnGap

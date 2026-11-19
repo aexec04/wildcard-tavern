@@ -31223,4 +31223,20 @@ table.insert(tests, { name = "Table polish: the Pick your cards plate is spent o
 end })
 
 
+table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245 to 0.834, Patron seats span half the width, buttons at 0.861 of the height, at 1920x1080, 1280x720 and 1506x751", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		assert(math.abs(r.bar.x / w - 0.245) < 0.01 and math.abs((r.bar.x + r.bar.w) / w - 0.834) < 0.01, "bar span at " .. w)
+		local a, b = r.slots[1].card, r.slots[5].card
+		assert(math.abs((b.x + b.w - a.x) / w - L.REF_SPAN) < 0.01, "seat span at " .. w)
+		assert(math.abs(r.play.y / h - 0.861) < 0.01, "button row at " .. w)
+		local bad = L.overlaps(r)
+		assert(#bad == 0, "no overlaps at " .. w .. ": " .. table.concat(bad, ","))
+		assert(select(1, L.onScreen(r, w, h)), "on screen at " .. w)
+	end
+end })
+
+
 return tests
