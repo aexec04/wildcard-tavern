@@ -28945,4 +28945,20 @@ table.insert(tests, { name = "Gameplay v2 deck viewer: the Your Deck panel wears
 	assert(T.rgb("plateFill") and T.rgb("goldTrim") and T.FONTS.title, "the style keys it reads exist")
 end })
 
+table.insert(tests, { name = "Gameplay v2 event cards: every event keeps a safe No, thanks option, the Choose and decline buttons are native TavernKit plates on the v2 table", fn = function()
+	local Events = require(script.Parent.Parent.Engine.RunEvents)
+	local n = 0
+	for _, e in ipairs(Events.Definitions) do
+		n = n + 1
+		assert(e.options[#e.options].id == "decline", e.id .. " ends with the safe decline")
+	end
+	assert(n >= 5, "the event list is not empty")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local src = read("src/Client/ChoicePanel.lua")
+	assert(src:find('isDecline and "secondary" or "primary"', 1, true), "Choose is the green plate, No, thanks the brown one")
+	assert(src:find('gameplay() == 2', 1, true), "only on the v2 table")
+	assert(src:find("ui.choiceRemote:FireServer(option.id)", 1, true), "one remote call per choice, unchanged")
+end })
+
 return tests

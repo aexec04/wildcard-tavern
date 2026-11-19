@@ -283,6 +283,11 @@ local function buildCard(choice, option, order)
 	button.ZIndex = 64
 	button.Parent = card
 	ui.polishButton(button, 10)
+	pcall(function() -- Gameplay v2: native TavernKit buttons, the one clear choice is the green plate, No, thanks is brown
+		if require(Engine:WaitForChild("FeatureFlags")).gameplay() == 2 then
+			require(script.Parent.TavernKit).skin(button, nil, isDecline and "secondary" or "primary")
+		end
+	end)
 	button.MouseButton1Click:Connect(function()
 		if clickLocked then
 			return
@@ -324,6 +329,11 @@ local function render()
 		pcall(ModalStage.setKind, ui.backdrop, choice.kind) -- blessing altar, card table or map desk
 		clearCards()
 		ui.title.Text = choice.title or ""
+		pcall(function() -- Gameplay v2: serif title like the other kit screens
+			if require(Engine:WaitForChild("FeatureFlags")).gameplay() == 2 then
+				ui.title.Font = Enum.Font[require(Engine:WaitForChild("TavernStyle")).FONTS.title]
+			end
+		end)
 		ui.text.Text = choice.text or ""
 		ui.text.Visible = ui.text.Text ~= ""
 		for i, option in ipairs(choice.options or {}) do
