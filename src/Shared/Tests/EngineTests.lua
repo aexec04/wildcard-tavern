@@ -27821,13 +27821,35 @@ table.insert(tests, { name = "FxLoop: one hub steps every effect, finished and f
 end })
 table.insert(tests, { name = "FxLoop: no Client effect opens its own Heartbeat or RenderStepped loop (only Client/FxLoop does)", fn = function()
 	if not (io and io.open) then return end
-	for _, name in ipairs({ "TavernLifeFX", "RoomLights", "ConfettiFX", "CelebrationFX", "BossPresenceFX", "CardFlights" }) do
+	for _, name in ipairs({ "TavernLifeFX", "RoomLights", "ConfettiFX", "CelebrationFX", "BossPresenceFX", "CardFlights", "IdleLifeFX" }) do
 		local f = assert(io.open("src/Client/" .. name .. ".lua", "r"))
 		local src = f:read("*a")
 		f:close()
 		assert(not src:find("RenderStepped", 1, true) and not src:find("Heartbeat:Connect", 1, true), name .. " must register with Client/FxLoop")
 		assert(src:find("FxLoop", 1, true), name .. " uses the shared loop")
 	end
+end })
+table.insert(tests, { name = "IdleLife: nothing before 8 s, a 2 px staggered breath, a glow every 4 s only with a legal selection, a hint after 20 s, nothing in Calm mode", fn = function()
+	local I = require(script.Parent.Parent.Engine.IdleLife)
+	assert(I.breath(1, 7.9, false) == 0 and I.breath(1, 8, false) == 0, "still until idle for 8 s")
+	local lo = 0
+	for i = 1, 7 do
+		for t = 8, 20, 0.05 do
+			local v = I.breath(i, t, false)
+			lo = math.min(lo, v)
+			assert(v <= 0.0001, "never dips below the rest line")
+		end
+	end
+	assert(math.abs(lo + I.BREATH_PX) < 0.05, "the breath reaches 2 px")
+	assert(I.breath(1, 9.5, false) ~= I.breath(2, 9.5, false), "neighbours are staggered")
+	assert(math.abs(I.breath(1, 8 + 1.5, false) + 2) < 1e-6 and I.breath(2, 8.2, false) == 0, "0.2 s stagger, half period is the peak")
+	assert(I.playGlow(7, true, false) == 0 and I.playGlow(9, false, false) == 0, "no glow before idle or without a legal selection")
+	assert(I.playGlow(8 + 0.6, true, false) > 0.99 and I.playGlow(8 + 2, true, false) == 0 and I.playGlow(8 + 4.6, true, false) > 0.99, "a soft glow once every 4 s")
+	assert(I.hint(19.9, false) == nil, "hint waits for 20 s")
+	local h = I.hint(20.3, false)
+	assert(h and h.alpha > 0 and h.alpha < 1 and I.hint(25, false).alpha == 1, "hint fades in")
+	assert(#I.HINT_TEXT < 60 and not I.HINT_TEXT:find("[\128-\255]") and not I.HINT_TEXT:find("--", 1, true), "plain ASCII, no dashes")
+	assert(I.breath(1, 30, true) == 0 and I.playGlow(30, true, true) == 0 and I.hint(30, true) == nil, "Calm mode and Reduce motion get nothing")
 end })
 table.insert(tests, { name = "FxLoop: a confetti burst leaves no instance behind once its time is up", fn = function()
 	if not (io and io.open) then return end

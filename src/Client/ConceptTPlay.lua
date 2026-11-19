@@ -149,6 +149,17 @@ function M.install(deps)
 	local cat = require(script.Parent.TavernLifeFX).cat(layer, room) -- the sleeping cat breathes (still in Calm mode)
 	local lights = require(script.Parent.RoomLights).attach(layer, { room = "concept_t", zIndex = 1, visible = function() return active end })
 	local self = {}
+	if deps.cards and deps.selectedCount then -- quiet idle layer: card breath, Play Hand glow, a tip line (nothing in Calm mode)
+		pcall(function()
+			require(script.Parent.IdleLifeFX).attach({ layer = layer, handFrame = deps.handFrame, playButton = deps.playButton, cards = deps.cards,
+				selectedCount = deps.selectedCount, visible = function() return active end,
+				rect = function()
+					local sz = root.AbsoluteSize
+					local pr = require(game:GetService("ReplicatedStorage").Shared.Engine.GuidedHand).plateRect(Layout.rects(sz.X, sz.Y), sz.Y)
+					return { x = pr.x, y = pr.y, w = pr.w, h = 36 }
+				end })
+		end)
+	end
 	local savedFan, savedFanOn = PlayMotion.FAN, PlayMotion.HAND_FAN_ENABLED
 
 	-- the hand lies in the reference's tight arc while this screen is up (a static pose, no tweens, so Calm mode and Fast keep it)
