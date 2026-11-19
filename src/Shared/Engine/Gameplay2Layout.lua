@@ -139,11 +139,14 @@ function M.rects(w, h)
 	end
 	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
 	local shift = round(0.015 * w) -- a hand of eight shifts this far left (ConceptTLayout.handFor)
-	local sw = math.max(M.MIN_TOUCH, math.min(round(0.07 * w), math.floor((r.hand.x - shift - 2 * pad - M.SORT_GAP) / 2)))
-	local sh = M.MIN_TOUCH
-	local sy = handTop + round((handH - sh) / 2)
-	r.sortRank = box(pad, sy, sw, sh)
-	r.sortSuit = box(pad + sw + M.SORT_GAP, sy, sw, sh) -- two separate plates with a gap between
+	-- bottom row: same baseline and height as Play Hand and Discard (reference: Rank x 25 to 185, Suit x 203 to 358 of 1672, y 815 to 895 of 941)
+	local sx = round(0.015 * w)
+	local sgap = math.max(M.SORT_GAP, round(0.0108 * w))
+	local sw = math.max(M.MIN_TOUCH, math.min(round(0.0957 * w), math.floor((r.play.x - 2 * sx - sgap) / 2)))
+	local sh = btnH
+	local sy = btnY
+	r.sortRank = box(sx, sy, sw, sh)
+	r.sortSuit = box(sx + sw + sgap, sy, sw, sh) -- two separate plates with a gap between
 	if r.trayUse then -- the prompt plate (Pick 2 cards / Suit: Hearts) when a third row fits above Rank and Suit, else the Use plate says it
 		local py = r.trayUse.y + M.MIN_TOUCH + 6
 		if py + M.MIN_TOUCH + 6 <= sy then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
