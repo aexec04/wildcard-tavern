@@ -29804,7 +29804,8 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local kit = read("src/Client/TavernKit.lua")
 	expectTrue(kit:find("function TavernKit.painted", 1, true) and kit:find("img.Name = host.Name .. \"Paint\"", 1, true) and kit:find("img.Parent = host.Parent", 1, true), "the frame is a sibling named after the plate")
-	expectTrue(kit:find("img.IsLoaded", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
+	expectTrue(kit:find("ImagePreload.run", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
+	expectTrue(not kit:find("if img.Parent and not img.IsLoaded then", 1, true), "IsLoaded alone never decides: it reads false for a hidden screen and would drop the picture")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
 	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_btn_sq", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end

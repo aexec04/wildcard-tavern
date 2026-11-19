@@ -194,7 +194,7 @@ function M.install(deps)
 		if scroll and not roundLabel:FindFirstChild("KitIconPad") then local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(0.15, 0); up.PaddingRight = UDim.new(0.04, 0); up.Parent = roundLabel end -- the wax seal sits at the left
 		if scroll then -- dark ink on the cream scroll; cream again if the picture never loads
 			roundLabel.TextColor3 = Color3.fromRGB(58, 36, 20); roundLabel.TextStrokeTransparency = 1
-			task.delay(Style.PAINTED_LOAD_WAIT + 0.5, function()
+			task.delay(Style.PAINTED_LOAD_WAIT * 4 + 0.5, function()
 				if not scroll.Parent then
 					roundLabel.TextColor3 = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]); roundLabel.TextStrokeTransparency = 0.2
 				end

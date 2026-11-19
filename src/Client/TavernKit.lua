@@ -16,7 +16,9 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContentProvider = game:GetService("ContentProvider")
 local Style = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TavernStyle"))
+local ImagePreload = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ImagePreload"))
 
 local TavernKit = {}
 
@@ -259,8 +261,19 @@ function TavernKit.painted(host, piece)
 	host:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
 		if img.Parent and host.BackgroundTransparency ~= 1 then host.BackgroundTransparency = 1 end
 	end)
-	task.delay(Style.PAINTED_LOAD_WAIT, function() -- no picture, no change: the flat look returns
-		if img.Parent and not img.IsLoaded then
+	-- No picture, no change: the flat look returns. The verdict is the PreloadAsync status, never ImageLabel.IsLoaded: IsLoaded stays false
+	-- for a label inside a hidden screen (the table HUD is built before the play screen shows), which used to destroy every picture built
+	-- early and leave a flat grey plate. PAINTED_LOAD_WAIT is only the longest we wait for a verdict.
+	task.spawn(function()
+		local decided, loaded = false, false
+		task.delay(Style.PAINTED_LOAD_WAIT * 4, function() decided = true end)
+		task.spawn(function()
+			loaded = ImagePreload.run(ContentProvider, img, Enum.AssetFetchStatus.Success)
+			decided = true
+		end)
+		while not decided do task.wait(0.1) end
+		if img.Parent and not loaded and not img.IsLoaded then
+			warn("[PaintedKit] " .. piece .. " did not load (" .. tostring(def.art) .. "), flat look kept")
 			img:Destroy()
 			flatOff(false)
 			host.BackgroundTransparency = (flatBg >= 1) and 0 or flatBg -- a plate that was see-through when wrapped still gets a flat fill, never bare text
