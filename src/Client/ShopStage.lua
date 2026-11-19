@@ -24,6 +24,7 @@ local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitF
 local Layout = require(Engine:WaitForChild("ShopSceneLayout"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local SoftGlow = require(script.Parent.SoftGlow)
+local ShopPaint = require(script.Parent.ShopPaint)
 
 local ShopStage = {}
 
@@ -68,10 +69,12 @@ local function bindHover(button, tagLabel, glow)
 	button:SetAttribute("TagHover", true)
 	button.MouseEnter:Connect(function()
 		tagLabel.BackgroundColor3 = PLATE_HOVER
+		ShopPaint.hover(tagLabel, true)
 		if glow and not calm() then glow.root.Visible = true end
 	end)
 	button.MouseLeave:Connect(function()
 		tagLabel.BackgroundColor3 = PLATE
+		ShopPaint.hover(tagLabel, false)
 		if glow then glow.root.Visible = false end
 	end)
 end
@@ -105,6 +108,7 @@ local function tag(parent, name, text, width, y)
 	t.Text = text
 	t.Size = UDim2.fromOffset(width or 110, TAG_H)
 	t.Position = UDim2.new(0.5, 0, 1, y or TAG_GAP)
+	ShopPaint.plate(t, "tag") -- painted wood frame under the word; the flat plate stays if the picture does not load
 	return t
 end
 
@@ -231,9 +235,7 @@ function ShopStage.new(deps)
 	local function placeControls(r)
 		if deps.tabBar then
 			place(deps.tabBar, r.tabs)
-			for _, b in ipairs(deps.tabBar:GetChildren()) do
-				if b:IsA("TextButton") then b.Size = UDim2.new(1 / 3, -6, 1, 0) end
-			end
+			ShopPaint.tabs(deps.tabBar) -- painted tabs on their own slots (the bar's list layout would lay out the frames too)
 		end
 		if deps.nextRoundButton then
 			deps.nextRoundButton.AnchorPoint = Vector2.new(0, 0)
@@ -285,6 +287,7 @@ function ShopStage.new(deps)
 			chip.AnchorPoint = Vector2.new(0, 0)
 			chip.Position = UDim2.fromOffset(r.nextBoss.x, r.nextBoss.y)
 			chip.Size = UDim2.fromOffset(r.nextBoss.w, 28)
+			ShopPaint.plate(chip, "chip")
 		end
 		if deps.onLayout then deps.onLayout(r) end
 	end

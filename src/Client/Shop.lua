@@ -497,6 +497,8 @@ return function(deps)
 				local active = entry.key == key
 				entry.button.BackgroundColor3 = active and Color3.fromRGB(128, 100, 58) or Color3.fromRGB(60, 45, 32)
 				-- inactive: solid cream (about 235,222,190, well over 4.5:1 on the dark wood); active: gold on a lighter plate
+				entry.button:SetAttribute("TabActive", active)
+				if shopStage and entry.button.Parent then pcall(function() require(script.Parent.ShopPaint).plate(entry.button, "tab", active) end) end
 				entry.button.TextColor3 = active and Color3.fromRGB(255, 214, 120) or Color3.fromRGB(235, 222, 190)
 				entry.button.TextTransparency = 0
 				entry.button.TextStrokeTransparency = 0.7

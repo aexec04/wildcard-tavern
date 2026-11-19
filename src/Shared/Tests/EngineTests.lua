@@ -17590,6 +17590,7 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		stubs.ClientSettings = { get = function(key) if key == "reduceShake" then return calmOn end return false end }
 		stubs.ShopTrace = FakeGui.load("src/Client/ShopTrace.lua", env)
 		stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env)
+		stubs.ShopPaint = { plate = function() end, hover = function() end, tabs = function() end } -- painted frames are not under test here
 		local ShopStage = FakeGui.load("src/Client/ShopStage.lua", env)
 		local ShopHaggle = FakeGui.load("src/Client/ShopHaggle.lua", env)
 		local UDim2 = env.UDim2
@@ -31587,5 +31588,29 @@ table.insert(tests, { name = "Painted button frames: Play Hand and Discard use t
 	end
 end })
 
+
+table.insert(tests, { name = "ShopPaint: every Counter control maps to a painted piece with art, tabs fill the bar in three equal slots", fn = function()
+	local Rules = require(script.Parent.Parent.Engine.ShopPaintRules)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	for _, kind in ipairs({ "tab", "tag", "chip", "next" }) do
+		for _, active in ipairs({ true, false }) do
+			local piece = Rules.pieceFor(kind, active)
+			expectTrue(Style.PAINTED[piece] ~= nil, kind .. " piece " .. tostring(piece) .. " is defined")
+			expectTrue(type(Art[Style.PAINTED[piece].art]) == "string" and Art[Style.PAINTED[piece].art] ~= "", kind .. " has recorded art")
+		end
+	end
+	expectTrue(Rules.pieceFor("tab", true) ~= Rules.pieceFor("tab", false), "the active tab reads differently")
+	for w = 300, 1900, 200 do
+		local prevEnd = 0
+		for i = 1, 3 do
+			local sl = Rules.tabSlot(i, 3)
+			local x0, x1 = sl.xs * w + sl.xo, sl.xs * w + sl.xo + sl.ws * w + sl.wo
+			expectTrue(x0 >= prevEnd and x1 - x0 >= 44, "tab " .. i .. " at " .. w .. " does not overlap and is 44 px wide")
+			prevEnd = x1
+		end
+		expectTrue(prevEnd <= w, "tabs inside the bar at " .. w)
+	end
+end })
 
 return tests
