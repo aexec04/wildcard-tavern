@@ -26596,4 +26596,16 @@ table.insert(tests, { name = "Concept T Patron cards: tier maps to frame, label 
 	end
 end })
 
+table.insert(tests, { name = "Concept T reference scene: holds the reference numbers, Studio only, never touches the run or the server", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/ConceptTReference.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("IsStudio()", 1, true) ~= nil, "show() is Studio only")
+	expectTrue(src:find("FireServer", 1, true) == nil and src:find("InvokeServer", 1, true) == nil and src:find("DataStore", 1, true) == nil, "no server or save access")
+	expectTrue(src:find("round = 3, progress = 0.83, coins = 126, hands = 2, deck = \"37/52\"", 1, true) ~= nil, "round, bar, coins, hands and deck numbers")
+	expectTrue(src:find("\"+30\", \"+30\", \"+30\", \"+4\", \"+4\"", 1, true) ~= nil, "effect pills")
+	expectTrue(src:find("Full House", 1, true) ~= nil and src:find("310", 1, true) ~= nil, "scoring stage")
+end })
+
 return tests

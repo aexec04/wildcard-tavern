@@ -22,6 +22,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Concept T card faces: 12 court figures (K, Q, J in four suits) on the ivory face
 - [x] Concept T play screen: painted room, HUD plates, image buttons, deck pile, gear (Studio-unverified)
 - [x] Concept T Patron cards: cut card art, rarity label pill and effect pill (Studio-unverified)
+- [x] Concept T reference scene and pixel match tool (Studio only scene, tools/pixel_match.py)
 
 ## Phase 2: Daily return and long-term goals
 - [x] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map
