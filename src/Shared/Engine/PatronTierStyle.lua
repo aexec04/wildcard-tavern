@@ -42,6 +42,11 @@ end
 
 function M.style(tier) return M.TIERS[norm(tier)] end
 
+-- the tiny corner icon on a seat: one capital letter on a tier coloured chip, so rarity is never colour alone
+M.LETTERS = { common = "C", uncommon = "U", rare = "R", epic = "E", legendary = "L" }
+function M.letter(tier) return M.LETTERS[norm(tier)] end
+M.CORNER_ICON = 18 -- chip size in px, the letter is 14 px
+
 local function round(n) return math.floor(n + 0.5) end
 
 function M.frameRect(tier, w, h)

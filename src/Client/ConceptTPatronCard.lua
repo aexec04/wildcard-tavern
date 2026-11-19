@@ -36,6 +36,33 @@ function M.set(slot, tier, valueText, hasCard)
 	local v2 = false
 	pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
 	if not on or not v2 then pcall(function() require(script.Parent.PatronTierFX).clear(slot) end) end
+	local chip = slot:FindFirstChild("TierCorner")
+	if v2 then -- the reference shows nothing under a seat: no rarity pill, no unit pill; rarity is the frame, a tiny letter chip and the tooltip
+		if label then label.Visible = false end
+		pill.Visible = false
+		if chip then chip.Visible = on end
+		if on then
+			local TS = require(Engine:WaitForChild("PatronTierStyle"))
+			if not chip then
+				chip = Instance.new("Frame")
+				chip.Name = "TierCorner"; chip.BorderSizePixel = 0; chip.Active = false; chip.ZIndex = 17
+				chip.Size = UDim2.fromOffset(TS.CORNER_ICON, TS.CORNER_ICON); chip.Position = UDim2.fromOffset(4, 4)
+				local u = Instance.new("UICorner"); u.CornerRadius = UDim.new(0, 5); u.Parent = chip
+				local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(30, 18, 8); s.Thickness = 1.5; s.Parent = chip
+				local t = Instance.new("TextLabel"); t.Name = "Letter"; t.BackgroundTransparency = 1; t.Size = UDim2.fromScale(1, 1)
+				t.Font = Enum.Font.GothamBlack; t.TextSize = 14; t.TextColor3 = Color3.fromRGB(255, 248, 224)
+				t.TextTransparency = 0; t.TextStrokeColor3 = Color3.fromRGB(30, 18, 8); t.TextStrokeTransparency = 0.3; t.ZIndex = 18; t.Parent = chip
+				chip.Parent = slot
+			end
+			local rgb = TS.style(tier).rgb
+			chip.BackgroundColor3 = Color3.fromRGB(math.floor(rgb[1] * 0.75), math.floor(rgb[2] * 0.75), math.floor(rgb[3] * 0.75)) -- darkened so the cream letter stays readable
+			chip.BackgroundTransparency = 0; chip.Visible = true
+			chip.Letter.Text = TS.letter(tier)
+			pcall(function() require(script.Parent.PatronTierFX).set(slot, tier, valueText) end)
+		end
+		return
+	end
+	if chip then chip.Visible = false end
 	if label then label.Visible = on end
 	pill.Visible = on and valueText ~= nil and valueText ~= ""
 	if not on then return end

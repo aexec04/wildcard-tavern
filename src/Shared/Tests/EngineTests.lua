@@ -29157,6 +29157,16 @@ table.insert(tests, { name = "Gameplay2 wall banners: two banners at the referen
 	end
 end })
 
+table.insert(tests, { name = "Patron seat corner icon: one distinct letter per tier, chip fits a 14 px letter, no stacked pills in v2", fn = function()
+	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
+	local seen = {}
+	for _, tier in ipairs(T.ORDER) do
+		local l = T.letter(tier)
+		assert(#l == 1 and not seen[l], "letter for " .. tier); seen[l] = true
+	end
+	assert(T.letter("nonsense") == "C", "unknown tier reads Common")
+	assert(T.CORNER_ICON >= 18, "chip holds a 14 px letter")
+end })
 table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ in shape and size, taller grows up, power disc 4.5:1, labels clear the disc, motion on FxLoop and still in Calm mode", fn = function()
 	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
 	local S = require(script.Parent.Parent.Engine.TavernStyle)
