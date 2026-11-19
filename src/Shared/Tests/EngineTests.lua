@@ -23575,6 +23575,39 @@ table.insert(tests, { name = "ConceptTLayout small screens: five sizes keep ever
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do assert(L.textSize(key, h) >= 15, tag .. " text " .. key) end
 	end
 end })
+table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(b, w, h) return b.x >= 0 and b.y >= 0 and b.x + b.w <= w and b.y + b.h <= h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 }, { 800, 450 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		assert(L.fits(w, h), tag .. " fits")
+		local r = L.rects(w, h)
+		for _, n in ipairs({ 5, 8 }) do
+			local row = L.patronRow(w, h, n)
+			local hand = L.handFor(r.hand, w, 8)
+			for i = 1, n do
+				for _, kind in ipairs({ "cards", "labels", "pills" }) do
+					local b = row[kind][i]
+					assert(inside(b, w, h), tag .. " " .. kind .. i .. " on screen")
+					assert(not hit(b, hand), tag .. " Patron " .. kind .. i .. " clear of the hand (n=" .. n .. ")")
+					for _, hud in ipairs({ "coins", "hands", "round", "gear" }) do
+						assert(not hit(b, r[hud]), tag .. " Patron " .. kind .. i .. " clear of " .. hud)
+					end
+				end
+			end
+		end
+		local sw = L.sortSize(w, h)
+		local sp = L.sortSpot(w, h, sw.w, sw.h, r)
+		assert(inside(sp, w, h) and sp.h >= 34, tag .. " sort pill on screen")
+		if w < 1000 or h < 600 then assert(sp.h >= 44, tag .. " sort pill is a 44 px touch target") end
+		assert(not hit(sp, r.play) and not hit(sp, r.hand), tag .. " sort pill clear of Play Hand and the hand")
+		assert(r.play.h >= 44 and r.discard.h >= 44 and r.gear.h >= 28 and r.gear.w >= 28, tag .. " tap targets")
+		assert(not hit(r.hand, r.play) and not hit(r.hand, r.discard) and not hit(r.hand, r.deck), tag .. " hand clear of buttons and deck")
+	end
+	assert(not L.fits(390, 844) and not L.fits(375, 667), "a portrait phone keeps the phone layout, not the painted screen")
+end })
 table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed starter and no drafts, a two step hint that ends after the first hand, no pulse in calm mode", fn = function()
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
 	assert(G.isGuided(1, false, false, false) and G.isGuided(0, false, false, false), "first run")
