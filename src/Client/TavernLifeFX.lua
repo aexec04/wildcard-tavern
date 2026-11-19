@@ -40,7 +40,7 @@ function M.cat(layer, roomImage)
 	function self.place(r, visible)
 		rect, shown = r, visible ~= false
 		holder.Image = roomImage.Image
-		holder.Visible = r ~= nil and shown and holder.Image ~= ""
+		holder.Visible = Life.CAT_OVERLAY and r ~= nil and shown and holder.Image ~= ""
 		if not r then return end
 		holder.Position = UDim2.fromOffset(r.x + (c.x + c.w / 2) / 1536 * r.w, r.y + (c.y + c.h) / 1024 * r.h)
 		holder.Size = UDim2.fromOffset(c.w / 1536 * r.w, c.h / 1024 * r.h)
@@ -50,7 +50,7 @@ function M.cat(layer, roomImage)
 		acc += dt
 		if acc < 1 / 30 then return end
 		acc = 0
-		if not rect or not shown then return end
+		if not Life.CAT_OVERLAY or not rect or not shown then return end
 		sc.Scale = Life.catScale(os.clock(), calm())
 	end)
 	function self.destroy()

@@ -30,7 +30,7 @@ function M.glow(tier, calm)
 		rgb = PatronMotion.glowOf(t), period = M.PERIOD,
 		alphaMin = M.ALPHA_MIN, alphaMax = M.ALPHA_MAX,
 		transMin = 1 - M.ALPHA_MAX, transMax = 1 - M.ALPHA_MIN,
-		grow = 14, -- px the glow extends past the card on each axis
+		grow = 6, -- px the glow rim extends past the card on each axis
 	}
 end
 

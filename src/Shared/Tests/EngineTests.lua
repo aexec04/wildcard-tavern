@@ -27114,6 +27114,27 @@ table.insert(tests, { name = "PatronShine: Calm mode and Reduce motion give no g
 	end
 end })
 
+table.insert(tests, { name = "Ambient and glow elements draw no filled box: cat overlay off, rarity glow is a stroke, shine clip is rounded", fn = function()
+	local Life = require(script.Parent.Parent.Engine.TavernLife)
+	expectEqual(Life.CAT_OVERLAY, false, "the cat crop overlay stays off")
+	if not io then return end
+	local f = io.open("src/Client/PatronShineFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	local glow = src:match('Name = "RarityGlow".-glow%.Parent = c%.float') or ""
+	expectTrue(glow:find("glow.BackgroundTransparency = 1", 1, true) ~= nil, "the glow frame is transparent")
+	expectTrue(src:find("UIStroke", 1, true) ~= nil, "the glow is a UIStroke")
+	expectTrue(src:find("clipCorner", 1, true) ~= nil, "the shine clip is rounded to the card")
+	local g = io.open("src/Client/TavernLifeFX.lua", "r")
+	if g then
+		local fx = g:read("*a")
+		g:close()
+		expectTrue(fx:find("holder.BackgroundTransparency = 1", 1, true) ~= nil, "the cat holder has no fill")
+		expectTrue(fx:find("Life.CAT_OVERLAY and", 1, true) ~= nil, "the overlay is gated")
+	end
+end })
+
 -- ===== Full run smoke test =====
 -- Plays whole runs through the same engine calls the server makes (new, play, Counter, advance, continue) with a
 -- scripted bot, and mirrors the server's profile sync, then checks the run state and the save stay valid.

@@ -18,6 +18,8 @@ local TAU = math.pi * 2
 
 M.MOTES = 12
 M.MOTE_RISE = 8
+-- the crop overlay drew a dark box over the room in Studio, so it stays off until a crop is checked against the real picture
+M.CAT_OVERLAY = false
 M.CAT = { x = 1295, y = 495, w = 230, h = 115 }
 
 function M.firePulse(t, calm)

@@ -35,13 +35,13 @@ function M.sync(c, tier, calm, seat)
 	M.clear(c)
 	c.shineTier = key
 	local z = c.body.ZIndex
+	-- a soft rounded rim in the rarity colour: no filled block, so no square edge shows behind the card
 	local glow = Instance.new("Frame")
 	glow.Name = "RarityGlow"
 	glow.AnchorPoint = Vector2.new(0.5, 0.5)
 	glow.Position = UDim2.fromScale(0.5, 0.5)
 	glow.Size = UDim2.new(1, g.grow, 1, g.grow)
-	glow.BackgroundColor3 = Color3.fromRGB(g.rgb[1], g.rgb[2], g.rgb[3])
-	glow.BackgroundTransparency = g.transMax
+	glow.BackgroundTransparency = 1
 	glow.BorderSizePixel = 0
 	glow.Active = false
 	glow.ZIndex = z - 1
@@ -49,7 +49,12 @@ function M.sync(c, tier, calm, seat)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = glow
-	c.glowTween = TweenService:Create(glow, TweenInfo.new(g.period / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = g.transMin })
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(g.rgb[1], g.rgb[2], g.rgb[3])
+	stroke.Thickness = 5
+	stroke.Transparency = g.transMax
+	stroke.Parent = glow
+	c.glowTween = TweenService:Create(stroke, TweenInfo.new(g.period / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = g.transMin })
 	c.glowTween:Play()
 	if not s then return end
 	local clip = Instance.new("Frame")
@@ -57,6 +62,9 @@ function M.sync(c, tier, calm, seat)
 	clip.Size = UDim2.fromScale(1, 1)
 	clip.BackgroundTransparency = 1
 	clip.ClipsDescendants = true
+	local clipCorner = Instance.new("UICorner")
+	clipCorner.CornerRadius = UDim.new(0, 12)
+	clipCorner.Parent = clip
 	clip.Active = false
 	clip.ZIndex = z + 3
 	clip.Parent = c.body
