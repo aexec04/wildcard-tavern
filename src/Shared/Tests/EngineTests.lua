@@ -29752,4 +29752,33 @@ table.insert(tests, { name = "Gameplay v2 touch pass: table and Counter controls
 	assert(row:find("TipTap.tapCard", 1, true) and row:find("TipTap.tapAway", 1, true) and row:find("TipTap.longPress", 1, true), "PatronRow uses TipTap")
 end })
 
+table.insert(tests, { name = "Patron library: '23 of 81 found' count line, synergy line on the detail card, 44 px tier filter plates, locked tiles keep their hint, no overlap at 1920x1080 and 1280x720", fn = function()
+	local C = require(script.Parent.Parent.Engine.CollectionCards)
+	local B = require(script.Parent.Parent.Engine.CollectionBook)
+	local R = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	assert(C.foundText(23, 81) == "23 of 81 found" and C.foundText(99, 81) == "81 of 81 found" and C.foundText(-3, 81) == "0 of 81 found", "count line is clamped")
+	assert(C.CHIP_H == 44, "filter plates are 44 px")
+	local withTags, none = 0, 0
+	for _, item in ipairs(B.itemsFor("patrons")) do
+		local line = C.synergyLine(item.id)
+		if line == "" then none = none + 1 else withTags = withTags + 1; assert(line:find("^Works with: "), "line starts with Works with") end
+	end
+	assert(withTags > 0, "some Patrons name their synergies (" .. none .. " have none)")
+	assert(#B.RarityOrder >= 5, "a filter plate for every tier")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local P = R.panel(w, h, C.CHIP_H, nil, "section")
+		assert(P.filter.h >= C.CHIP_H, "the filter plate holds a 44 px chip at " .. w)
+		assert(P.filter.y >= P.tabs.y + P.tabs.h and P.filter.y + P.filter.h <= h - R.FOOTER, "filter plate under the tabs and above Close at " .. w)
+		assert(P.area.y + P.area.h <= P.tabs.y, "the grid ends above the tab strip at " .. w)
+	end
+	local grid = B.displayItems("patrons", { common = true })
+	assert(#grid < #B.itemsFor("patrons") and #grid > 0, "hiding a tier leaves the others")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local src = read("src/Client/Collection.lua")
+	assert(src:find("foundText", 1, true) and src:find("synergyLine", 1, true) and src:find("CHIP_H", 1, true), "Collection draws the count line, the synergy line and 44 px chips")
+	assert(src:find("Locked\\n", 1, true) and src:find("undiscoveredHint", 1, true), "locked tiles keep the hint")
+end })
+
 return tests

@@ -23,6 +23,24 @@ function M.countPill(found, total)
 	return string.format("%d / %d", f, t)
 end
 
+-- "23 of 81 found": the plain count line of a library page
+function M.foundText(found, total)
+	local t = math.max(0, whole(total))
+	local f = math.max(0, math.min(whole(found), t))
+	return string.format("%d of %d found", f, t)
+end
+
+-- "Works with: Pairs, Flush" for a Patron's detail card (at most two tags, words from Engine/Synergy); "" when it has none
+function M.synergyLine(id)
+	local ok, tags = pcall(function() return require(script.Parent:WaitForChild("PatronTips")).tagsOf(id) end)
+	if not ok or not tags or #tags == 0 then return "" end
+	local words = {}
+	for _, t in ipairs(tags) do words[#words + 1] = t.word end
+	return "Works with: " .. table.concat(words, ", ")
+end
+
+M.CHIP_H = 44 -- rarity filter plates are touch targets
+
 function M.tabText(name, found, total)
 	return tostring(name) .. "  " .. M.countPill(found, total)
 end

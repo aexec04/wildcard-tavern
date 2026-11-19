@@ -421,13 +421,13 @@ return function(deps)
 		chip.AutoButtonColor = false
 		chip.LayoutOrder = i
 		chip.AutomaticSize = Enum.AutomaticSize.X
-		chip.Size = UDim2.fromOffset(0, 24)
+		chip.Size = UDim2.fromOffset(0, require(Engine:WaitForChild("CollectionCards")).CHIP_H) -- a 44 px touch target
 		chip.BackgroundTransparency = 1
 		chip.ZIndex = 21
 		chip.Parent = legendRow
 		local swatch = Instance.new("Frame")
 		swatch.Size = UDim2.fromOffset(16, 16)
-		swatch.Position = UDim2.fromOffset(0, 4)
+		swatch.Position = UDim2.new(0, 0, 0.5, -8)
 		swatch.BackgroundColor3 = tierColor
 		swatch.ZIndex = 22
 		swatch.Parent = chip
@@ -438,7 +438,7 @@ return function(deps)
 			TextColor3 = Color3.fromRGB(30, 22, 14), ZIndex = 24, Text = "✓",
 		})
 		local name = label(chip, {
-			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 24), Position = UDim2.fromOffset(22, 0),
+			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Position = UDim2.fromOffset(22, 0),
 			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = SOFT_CREAM,
 			Text = CollectionBook.Rarities[rarityId].name,
 		})
@@ -821,6 +821,10 @@ return function(deps)
 			end
 			cardEffect.Text = effect
 			cardFlavor.Text = def.flavorText and ('"' .. def.flavorText .. '"') or ""
+			if item.tab == "patrons" then -- synergy tags, so a Patron's detail says what it works with
+				local line = require(Engine:WaitForChild("CollectionCards")).synergyLine(item.id)
+				if line ~= "" then cardFlavor.Text = (cardFlavor.Text ~= "" and (cardFlavor.Text .. "\n") or "") .. line end
+			end
 		else
 			cardName.Text = shownName(item)
 			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
@@ -1169,6 +1173,13 @@ return function(deps)
 		overallNext.Text = nextText
 		overallText.Text = string.format("Overall %d%%  (%d / %d)",
 			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total))
+		do -- on a section page the plain count of that page: "Patrons: 23 of 81 found"
+			local counts = mode == "section" and CollectionBook.tabCounts(view.sets)[activeTabId]
+			local tab = counts and CollectionBook.getTab(activeTabId)
+			if tab then
+				overallText.Text = overallText.Text .. "   " .. tab.name .. ": " .. require(Engine:WaitForChild("CollectionCards")).foundText(counts.found, counts.total)
+			end
+		end
 
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.
 		for _, tab in ipairs(CollectionBook.Tabs) do
