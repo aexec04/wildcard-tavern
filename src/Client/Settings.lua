@@ -453,7 +453,8 @@ return function(deps)
 
 	local function makeAccountButton(text, layoutOrder, iconImage)
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1 / 3, -7, 0, 40)
+		button.Size = UDim2.new(1 / 3, -7, 0, SettingsLayout.PAUSE.plateH)
+		button.TextWrapped = true
 		button.LayoutOrder = layoutOrder
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 15
@@ -483,11 +484,12 @@ return function(deps)
 
 	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, ArtAssetsModule.cornerIconHowToPlay)
 	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
-	local settingsMainMenuButton = makeAccountButton("Main Menu", 3, nil)
+	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, nil)
+	settingsMainMenuButton.Name = "MainMenu"
 	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own full-width row under the three buttons.
 	local settingsDailyButton = makeAccountButton("Daily Rewards", 4, nil)
 	settingsDailyButton.Parent = scroll
-	settingsDailyButton.Size = UDim2.new(1, 0, 0, 40)
+	settingsDailyButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
 	settingsDailyButton.LayoutOrder = order()
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
@@ -503,7 +505,8 @@ return function(deps)
 	settingsCloseButton.Position = UDim2.new(0.5, -SettingsLayout.CLOSE.w / 2, 1, -(SettingsLayout.CLOSE.h + 8))
 	settingsCloseButton.Font = Enum.Font.GothamBold
 	settingsCloseButton.TextSize = 16
-	settingsCloseButton.Text = "Close"
+	settingsCloseButton.Name = "Close" -- code and skins find this button by name; the word is Resume
+	settingsCloseButton.Text = SettingsLayout.PAUSE.resumeText
 	settingsCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	settingsCloseButton.TextColor3 = TEXT
 	settingsCloseButton.ZIndex = 21

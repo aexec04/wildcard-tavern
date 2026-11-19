@@ -28543,6 +28543,10 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 	expectTrue(SL.contrast(sw.offText, sw.offFill) >= 4.5, "Off text contrast")
 	expectTrue(sw.onFill[1] ~= sw.offFill[1] or sw.onFill[2] ~= sw.offFill[2], "On and Off fills differ")
 	expectTrue(SL.CLOSE.h >= 44 and SL.SLIDER_THUMB >= 44, "Close and slider thumb are 44 px")
+	local P = SL.PAUSE
+	expectTrue(P.resumeText == "Resume" and P.quitText == "Quit to Tavern" and P.plateH >= 44, "pause words and 44 px plates")
+	expectTrue(SL.contrast(P.text, P.panelFill) >= 4.5 and SL.contrast(P.text, P.plateFill) >= 4.5, "cream text holds 4.5:1 on the panel and the plates")
+	expectTrue(not (P.resumeText .. P.quitText):lower():find("balatro"), "kid safe words")
 	expectTrue(SL.calmValue(SL.calmWrites(true)) and not SL.calmValue(SL.calmWrites(false)), "Calm mode switch writes all three calm keys")
 	expectTrue(not SL.calmValue({ reduceMotion = true, reduceFlashing = true }), "Calm mode shows Off while one key is off")
 	if not io then return end
@@ -28550,6 +28554,7 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 	if not f then return end
 	local src = f:read("*a")
 	f:close()
+	expectTrue(src:find("PAUSE.resumeText", 1, true) and src:find("PAUSE.quitText", 1, true) and src:find('Name = "Close"', 1, true), "Settings uses the pause words and keeps the Close name")
 	local a, b, c = src:find('makeChoiceRow("calmMode"', 1, true), src:find('makeChoiceRow("reduceMotion"', 1, true), src:find('makeChoiceRow("animSpeed"', 1, true)
 	expectTrue(a and b and c and a < b and b < c, "Settings builds Calm mode, then Reduce Motion, before the other sections")
 	local v = io.open("src/Client/VisualHelpers.lua", "r")

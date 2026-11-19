@@ -37,6 +37,12 @@ M.SWITCH = {
 	onText = { 255, 255, 255 }, offText = { 244, 232, 208 },
 }
 M.CLOSE = { w = 160, h = 48 }
+-- Pause look (Settings doubles as the pause screen): Close reads Resume, Main Menu reads Quit to Tavern, every plate is 44 px or more,
+-- the panel is dark wood with a gold edge and cream text; the On/Off state is the word and the fill, never colour alone.
+M.PAUSE = {
+	resumeText = "Resume", quitText = "Quit to Tavern", plateH = 44,
+	panelFill = { 40, 30, 22 }, edge = { 200, 165, 90 }, text = { 250, 240, 220 }, plateFill = { 90, 60, 30 },
+}
 M.SLIDER_THUMB = 44 -- touch target around the slider knob (Client/VisualHelpers KnobHit)
 
 local function lum(c)
