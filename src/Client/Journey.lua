@@ -317,6 +317,7 @@ return function(deps)
 	journeySubtitle.Text = "Your table walks the road one Round at a time."
 	journeySubtitle.ZIndex = 21
 	journeySubtitle.Parent = journeyPanel
+	pcall(function() require(script.Parent.TavernKit).painted(journeySubtitle, "wood_plate") end) -- painted frame, flat look if it does not load
 
 	-- Horizontal, scrollable map strip. Both the stage nodes AND the avatar
 	-- marker live directly in here (as siblings, not nested inside each
@@ -825,6 +826,7 @@ return function(deps)
 	journeyInfoBar.ZIndex = 21
 	journeyInfoBar.Parent = journeyPanel
 	polishPanel(journeyInfoBar, 10)
+	pcall(function() require(script.Parent.TavernKit).painted(journeyInfoBar, "wood_plate") end) -- painted frame, flat look if it does not load
 
 	local journeyBossInfoLabel = Instance.new("TextLabel")
 	journeyBossInfoLabel.Size = UDim2.new(1, -24, 1, -16)

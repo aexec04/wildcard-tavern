@@ -30981,6 +30981,22 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	end
 end })
 
+table.insert(tests, { name = "Night map and menu: info bar, subtitle, Select, Skip, Tips chip and the Notice Board plate wear painted frames", fn = function()
+	if not io then return end
+	local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
+	local rs, jn, mb = src("src/Client/RoundSelect.lua"), src("src/Client/Journey.lua"), src("src/Client/MenuBoard.lua")
+	expectTrue(rs:find('painted(selectButton, "btn_green")', 1, true) ~= nil, "Select is the painted green plate")
+	expectTrue(rs:find('painted(skipButton, "btn_dark")', 1, true) ~= nil, "Skip is the painted dark plate")
+	expectTrue(rs:find('painted(tipsChip, "count_tab")', 1, true) ~= nil, "Tips chip is painted")
+	expectTrue(jn:find('painted(journeyInfoBar, "wood_plate")', 1, true) ~= nil, "Night map info bar is painted")
+	expectTrue(jn:find('painted(journeySubtitle, "wood_plate")', 1, true) ~= nil, "Night map subtitle is painted")
+	expectTrue(mb:find('painted(head, "wood_plate")', 1, true) ~= nil, "Notice Board name plate is painted")
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for _, piece in ipairs({ "btn_green", "btn_dark", "count_tab", "wood_plate" }) do
+		expectTrue(Style.PAINTED[piece] ~= nil, piece .. " is a known painted piece")
+	end
+end })
+
 table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards and the Close plate fit at 1920x1080, 1280x720 and 1024x768 with 44 px plates and readable text", fn = function()
 	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local t = Rules.parse("store")

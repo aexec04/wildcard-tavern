@@ -101,6 +101,7 @@ function MenuBoard.build(parent)
 	head.ZIndex = 60
 	head.Parent = frame
 	do
+		pcall(function() require(script.Parent.TavernKit).painted(head, "wood_plate") end) -- painted name plate, flat look if it does not load
 		local hc = Instance.new("UICorner")
 		hc.CornerRadius = UDim.new(0, 6)
 		hc.Parent = head

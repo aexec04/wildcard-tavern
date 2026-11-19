@@ -251,6 +251,7 @@ return function(deps)
 	tipsChip.Text = "Tips: 0"
 	tipsChip.ZIndex = 7
 	tipsChip.Parent = roundSelectFrame
+	pcall(function() require(script.Parent.TavernKit).painted(tipsChip, "count_tab") end) -- painted frame, flat look if it does not load
 	roundCorner(tipsChip, 8)
 	do -- wood plate edge
 		local e = Instance.new("UIStroke")
@@ -579,6 +580,7 @@ return function(deps)
 		selectButton.Visible = false
 		selectButton.Parent = panel
 		selectButton:SetAttribute("FlatFace", true)
+		pcall(function() require(script.Parent.TavernKit).painted(selectButton, "btn_green") end) -- painted frame, flat look if it does not load
 		polishButton(selectButton, 10)
 
 		local skipButton = Instance.new("TextButton")
@@ -595,6 +597,7 @@ return function(deps)
 		skipButton.Visible = false
 		skipButton.Parent = panel
 		skipButton:SetAttribute("FlatFace", true)
+		pcall(function() require(script.Parent.TavernKit).painted(skipButton, "btn_dark") end) -- painted frame, flat look if it does not load
 		polishButton(skipButton, 10)
 		-- Clean button faces: the deferred inner rim read as a dark arc under the label, and any stray thin bar
 		-- (a bracket, rim or leftover strip) is removed so only the label, stroke and gradient remain.
