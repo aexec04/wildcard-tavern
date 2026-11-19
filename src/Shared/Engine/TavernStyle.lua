@@ -78,10 +78,10 @@ end
 
 -- Painted UI kit: the ONE place that maps a plate kind to its painted frame (art ids come from Engine/PaintedKitArt, generated).
 -- `art` is the key in PaintedKitArt, `src` the trimmed picture size in px, `inset` the nine-slice corner sizes in source px (nil = the
--- picture is drawn whole, Fit). TavernKit.painted draws it as a SIBLING behind the plate and puts the flat look back if it does not load.
+-- picture is drawn whole, Fit; full = true: drawn at the plate's full height scale, not the 10 to 14 px border clamp). TavernKit.painted draws it as a SIBLING behind the plate and puts the flat look back if it does not load.
 M.PAINTED = {
 	wood_plate = { art = "pk_wood_plate", src = { 1412, 549 }, inset = { l = 140, t = 100, r = 140, b = 100 } },
-	parchment = { art = "pk_parchment", src = { 1350, 637 }, inset = { l = 100, t = 150, r = 100, b = 80 } },
+	parchment = { art = "pk_parchment", full = true, src = { 1350, 637 }, inset = { l = 100, t = 150, r = 100, b = 80 } },
 	btn_green = { art = "pk_btn_green_p", src = { 1244, 443 }, inset = { l = 120, t = 110, r = 120, b = 110 } }, -- _p: side flourishes cut off, so both caps are alike (tools/painted_kit_plain.py)
 	btn_dark = { art = "pk_btn_dark_p", src = { 1218, 430 }, inset = { l = 120, t = 110, r = 120, b = 110 } },
 	icon_round = { art = "pk_icon_round", src = { 800, 800 } },
@@ -89,12 +89,12 @@ M.PAINTED = {
 	patron_slot = { art = "pk_patron_slot", src = { 657, 953 }, inset = { l = 90, t = 90, r = 90, b = 90 } },
 	score_frame = { art = "pk_score_frame", src = { 1485, 410 }, inset = { l = 170, t = 100, r = 170, b = 100 } },
 	-- ornate set (dark wood, carved gold trim, scrolled corners and studs, like claude/reference/concept-table-reference.png)
-	orn_wide = { art = "pk_orn_pill_wide", src = { 1418, 514 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
-	orn_small = { art = "pk_orn_pill_small", src = { 1291, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
-	orn_square = { art = "pk_orn_square", src = { 905, 906 }, inset = { l = 230, t = 230, r = 230, b = 230 } },
-	orn_score = { art = "pk_orn_score", src = { 1502, 563 }, inset = { l = 200, t = 170, r = 200, b = 150 } },
-	orn_btn_dark = { art = "pk_orn_btn_dark", src = { 1398, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
-	orn_btn_green = { art = "pk_orn_btn_green", src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
+	orn_wide = { art = "pk_orn_pill_wide", full = true, src = { 1418, 514 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
+	orn_small = { art = "pk_orn_pill_small", full = true, src = { 1291, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
+	orn_square = { art = "pk_orn_square", full = true, src = { 905, 906 }, inset = { l = 230, t = 230, r = 230, b = 230 } },
+	orn_score = { art = "pk_orn_score", full = true, src = { 1502, 563 }, inset = { l = 200, t = 170, r = 200, b = 150 } },
+	orn_btn_dark = { art = "pk_orn_btn_dark", full = true, src = { 1398, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
+	orn_btn_green = { art = "pk_orn_btn_green", full = true, src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
 }
 M.PAINTED_LOAD_WAIT = 4 -- seconds an image may take to load before the flat look comes back
 
@@ -107,6 +107,11 @@ function M.paintedSlice(piece, w, h)
 	local i = p.inset
 	-- the plate's border is drawn about EDGE px thick (10 to 14, by plate height), so a corner ornament never balloons into a thick bar
 	-- on a small button; the picture's own height is never stretched past 1:1 and both corner columns always fit inside the plate
+	if p.full then -- ornate pieces draw at full scale (the whole picture fits the plate height, the middle stretches sideways), so the carved trim,
+		-- corner scrolls, studs and the wax seal stay readable instead of shrinking to a 10 to 14 px hairline
+		local sc = math.min(h / sh, (w * 0.9) / (i.l + i.r), (h * 0.9) / (i.t + i.b))
+		return { left = i.l, top = i.t, right = sw - i.r, bottom = sh - i.b, scale = math.max(0.01, sc) }
+	end
 	local edge = math.max(M.PAINTED_EDGE_MIN, math.min(M.PAINTED_EDGE_MAX, h * 0.22))
 	local scale = edge / math.max(i.l, i.r, i.t, i.b)
 	scale = math.min(scale, h / sh, (w * 0.9) / (i.l + i.r), (h * 0.9) / (i.t + i.b))

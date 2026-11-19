@@ -30979,9 +30979,9 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x" }, patronLimit = 1 }), "no free seat: off")
 	if io and io.open then
 		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wood_plate")', 1, true) ~= nil, "Round hint plate is painted")
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
-		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wood_plate")', 1, true) ~= nil, "guided hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "orn_wide")', 1, true) ~= nil, "Round hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "orn_btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
+		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "orn_wide")', 1, true) ~= nil, "guided hint plate is painted")
 		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")
 	end
 end })

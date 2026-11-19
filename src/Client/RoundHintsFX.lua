@@ -32,7 +32,7 @@ local function build(layer)
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
 	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate
-	pcall(function() require(script.Parent.TavernKit).painted(plate, "wood_plate") end) -- painted frame, flat plate if it does not load
+	pcall(function() require(script.Parent.TavernKit).painted(plate, "orn_wide") end) -- painted frame, flat plate if it does not load
 	local function label(name, y, h, size, color, font)
 		local t = Instance.new("TextLabel")
 		t.Name = name
@@ -80,7 +80,7 @@ local function build(layer)
 		button.MouseLeave:Connect(function() button.BackgroundColor3 = base end)
 	end
 	button.Parent = layer
-	pcall(function() require(script.Parent.TavernKit).painted(button, "btn_green") end) -- painted green plate, flat green if it does not load
+	pcall(function() require(script.Parent.TavernKit).painted(button, "orn_btn_green") end) -- painted green plate, flat green if it does not load
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
 		M.hide()
