@@ -81,7 +81,7 @@ end
 
 local function pushProgress(notice)
 	for _, q in ipairs(notice.quests or {}) do
-		push({ icon = q.icon or "✔", text = string.format("Quest done: %s   +%d XP", q.name, q.xp or 0) })
+		push({ text = string.format("Quest done: %s   +%d XP", q.name, q.xp or 0) })
 	end
 	local ups = notice.rankUps or {}
 	if #ups > 0 then
@@ -91,7 +91,7 @@ local function pushProgress(notice)
 			line = line .. "  " .. rewards[#rewards]:gsub("^Rank %d+: ", "")
 		end
 		local feel = require(Engine:WaitForChild("ProgressionFeel")).toast("rank", ClientSettings.get("reduceShake") == true)
-		push({ id = "rank:" .. tostring(ups[#ups]), priority = PRI.rank, icon = "🏅", text = line, hold = feel.hold, rise = feel.rise })
+		push({ id = "rank:" .. tostring(ups[#ups]), priority = PRI.rank, text = line, hold = feel.hold, rise = feel.rise })
 		pcall(function() require(script.Parent.Cue).play(feel.cue) end) -- a short reward cue
 	end
 end

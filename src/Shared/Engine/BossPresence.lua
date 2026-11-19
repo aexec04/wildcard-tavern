@@ -17,14 +17,16 @@ M.SLIDE_SECONDS = 0.4
 M.PULSE_SECONDS = 3
 M.PULSE_MIN = 0.12
 M.PULSE_MAX = 0.20
-M.CROWN = "\u{265B}" -- a plain chess queen glyph, in the text so it reads without colour
+M.CROWN = "" -- no symbol glyph: the fonts lack it and it drew a box; the plate and title use plain words
+M.GAP = 8 -- clear space under the Round banner (2 on screens too short for it)
 M.MIN_TEXT = 15
 M.MAX_LINE = 80
 
 function M.plate(w, h, rects, patrons)
 	local round = rects.round
-	local top = round.y + round.h + 2
+	local top = round.y + round.h + M.GAP
 	local bottom = patrons.y - 2
+	if bottom - top < 24 then top = round.y + round.h + 2 end -- tiny screens: keep a readable plate
 	local ph = math.max(0, bottom - top)
 	local pw = math.min(math.floor(w * 0.42), 620)
 	local x = math.floor((w - pw) / 2)
@@ -56,7 +58,7 @@ function M.pulse(t, calm)
 end
 
 function M.crownText(text, isBoss)
-	if isBoss then return M.CROWN .. " " .. tostring(text) end
+	if isBoss then return "Boss " .. tostring(text) end
 	return tostring(text)
 end
 

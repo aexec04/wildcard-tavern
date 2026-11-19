@@ -27548,7 +27548,24 @@ table.insert(tests, { name = "BossPresence: plate clear of Round banner and Patr
 		assert(a >= 0.12 - 1e-9 and a <= 0.2 + 1e-9)
 	end
 	assert(B.pulse(0, true) == nil)
-	assert(B.crownText("Round 3", true):find("Round 3") and B.crownText("Round 3", false) == "Round 3")
+	assert(B.crownText("Round 3", true) == "Boss Round 3" and B.crownText("Round 3", false) == "Round 3")
+	assert(B.CROWN == "", "no symbol glyph the font may lack")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local p = B.plate(sz[1], sz[2], r, r.patrons)
+		assert(p.y - (r.round.y + r.round.h) >= 8, "8 px gap under the Round banner at " .. sz[1])
+	end
+	-- the plates, toasts and popups added for boss rounds, progression and tips draw plain ASCII only (no glyph the font lacks)
+	if io and io.open then
+		for _, path in ipairs({ "src/Shared/Engine/BossPresence.lua", "src/Client/BossPresenceFX.lua", "src/Shared/Engine/ProgressionFeel.lua",
+			"src/Client/UnlockToast.lua", "src/Shared/Engine/PatronTips.lua", "src/Client/PatronTipFX.lua", "src/Shared/Engine/CollectionCards.lua" }) do
+			local f = io.open(path, "r")
+			if f then
+				local src = f:read("*a"); f:close()
+				assert(not src:find("[\128-\255]") and not src:find("\\u{", 1, true), path .. " has a non ASCII symbol")
+			end
+		end
+	end
 	assert(B.fanfare(true, false) == nil and B.fanfare(false, false).pieces == 56 and B.fanfare(false, true).pieces == 28)
 end })
 

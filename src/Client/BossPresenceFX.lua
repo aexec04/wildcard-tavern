@@ -53,7 +53,7 @@ function M.show(root, boss)
 	plate.TextStrokeTransparency = 0.4
 	plate.TextTransparency = 0
 	plate.TextTruncate = Enum.TextTruncate.AtEnd
-	plate.Text = BossPresence.CROWN .. " " .. BossPresence.line(boss)
+	plate.Text = BossPresence.line(boss)
 	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 8); corner.Parent = plate
 	local stroke = Instance.new("UIStroke"); stroke.Color = Color3.fromRGB(214, 168, 70); stroke.Thickness = 2; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Parent = plate
 	plate.Parent = root

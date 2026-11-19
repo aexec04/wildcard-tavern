@@ -187,6 +187,15 @@ local function build(deps)
 			end
 			if med then med.Visible = false end
 		end
+		-- the Concept T screen shows the boss name and rule once, on the red plate (BossPresenceFX), so the old top
+		-- plate and medallion stay hidden there (they covered the Round banner)
+		local okCT, ctActive = pcall(function() return require(script.Parent.ConceptTPlay).isActive() end)
+		if okCT and ctActive == true then
+			if pl then pl.Visible = false end
+			if med then med.Visible = false end
+		elseif pl then
+			pl.Visible = true
+		end
 		host:SetAttribute("CenterX", cx)
 		host:SetAttribute("HomeOk", home ~= nil)
 	end
