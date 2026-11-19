@@ -26723,6 +26723,28 @@ table.insert(tests, { name = "Court faces: K, Q and J in each suit get their own
 	end
 end })
 
+table.insert(tests, { name = "Pixel match tool: the Concept T reference compared with itself is 0 in every region", fn = function()
+	if not io or not os or not os.execute then return end
+	local f = io.open("tools/pixel_match.py", "r")
+	if not f then return end
+	f:close()
+	local py = io.open("claude/reference/concept_t/full_reference.png", "rb")
+	if not py then return end
+	py:close()
+	local p = io.popen("python3 tools/pixel_match.py claude/reference/concept_t/full_reference.png 2>&1")
+	if not p then return end
+	local out = p:read("*a")
+	p:close()
+	if out:find("No module named", 1, true) or out:find("not found", 1, true) then return end -- no pillow or numpy here
+	local regions = 0
+	for name, value, verdict in out:gmatch("(%S+)%s+([%d%.]+)%s+%(max%s+%d+%)%s+(%u+)") do
+		regions = regions + 1
+		expectEqual(tonumber(value), 0, name .. " differs from itself")
+		expectEqual(verdict, "PASS", name)
+	end
+	expectEqual(regions, 12, "all twelve regions are reported")
+end })
+
 table.insert(tests, { name = "Concept T Patron cards: every recorded card belongs to a real Patron", fn = function()
 	local Art = require(script.Parent.Parent.Engine.ConceptTPatronArt)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
