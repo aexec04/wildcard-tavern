@@ -381,12 +381,21 @@ function M.install(deps)
 	return self
 end
 
+-- True while a painted table screen owns the layout: this one (GAMEPLAY_V1) or Gameplay v2 (other modules ask this one question)
 function M.isActive()
-	return current ~= nil and current.isActive()
+	if current ~= nil and current.isActive() then return true end
+	local ok, v = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+	return ok and v == true
 end
 
+-- Archived behind GAMEPLAY_V1: with it off this screen is given a state that is never "playing", so it hides and gives everything back
 function M.update(state)
-	if current then current.update(state) end
+	if not current then return end
+	if require(Engine:WaitForChild("FeatureFlags")).gameplay() ~= 1 then
+		current.update({ phase = "off" })
+		return
+	end
+	current.update(state)
 end
 
 return M

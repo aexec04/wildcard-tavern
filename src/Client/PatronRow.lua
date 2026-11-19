@@ -656,7 +656,10 @@ local function place(state)
 	ctPlace = ctOn
 	if show and ctOn then
 		-- Concept T play screen: five cards on the painted rug, no panel, nook or Mult panel (rects: Engine/ConceptTLayout.patronRow)
-		lay = { cards = CTLayout.patronRow(rootSize.X, rootSize.Y, limit).cards, plaqueH = 20 }
+		local v2 = false
+		pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
+		local row = v2 and require(Engine:WaitForChild("Gameplay2Layout")).patronRow(rootSize.X, rootSize.Y, limit) or CTLayout.patronRow(rootSize.X, rootSize.Y, limit)
+		lay = { cards = row.cards, plaqueH = 20 }
 	elseif show then
 		-- the Patron display first (card slots under a heading); the painted strip and the code nook are the fallbacks for roots it declines
 		lay = Layout.wrapped(rootSize.X, rootSize.Y, hand, limit, opts) or Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)

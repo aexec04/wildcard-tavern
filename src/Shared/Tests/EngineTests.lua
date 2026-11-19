@@ -28486,4 +28486,49 @@ table.insert(tests, { name = "FeatureFlags: default flags build no corner icons,
 	end
 end })
 
+table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off-screen rects at three sizes, 44 px buttons, slim bar, every seat reserved, flags pick the table", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local F = require(script.Parent.Parent.Engine.FeatureFlags)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 }, { 844, 390 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		assert(L.fits(w, h))
+		local r = L.rects(w, h)
+		local bad = L.overlaps(r)
+		assert(#bad == 0, w .. "x" .. h .. " overlaps: " .. table.concat(bad, ", "))
+		local ok, name = L.onScreen(r, w, h)
+		assert(ok, w .. "x" .. h .. " off screen: " .. tostring(name))
+		assert(r.bar.h <= math.max(30, math.floor(0.08 * h)), "round bar at most 8 percent of the height")
+		assert(r.play.h >= 44 and r.discard.h >= 44 and r.sortRank.h >= 44 and r.sortSuit.h >= 44, "touch targets")
+		assert(#r.slots == 5, "five seats reserved")
+		for i = 1, 5 do
+			assert(r.slots[i].card.w > 0 and r.slots[i].label.h >= 16 and r.slots[i].pill.h >= 18)
+			assert(r.slots[i].pill.y + r.slots[i].pill.h <= r.stage.y, "stage clear of Patron pills")
+		end
+		assert(r.stage.y + r.stage.h <= r.hand.y and r.hand.y + r.hand.h <= r.play.y, "stage, hand and buttons stack without touching")
+		assert(r.play.x + r.play.w <= r.discard.x, "Play Hand left of Discard")
+		for _, k in ipairs(L.CONTROLS) do assert(r[k], "control rect " .. k) end
+		local row = L.patronRow(w, h, 8)
+		assert(#row.cards == 8)
+	end
+	-- the flags: v2 by default, GAMEPLAY_V1 brings the archived table back, neither leaves the hub's own screen
+	assert(F.gameplay() == 2)
+	F.setOverride("GAMEPLAY_V1", true); assert(F.gameplay() == 1); F.setOverride("GAMEPLAY_V1", nil)
+	F.setOverride("GAMEPLAY_V2", false); assert(F.gameplay() == 0); F.setOverride("GAMEPLAY_V2", nil)
+	F.LEGACY_V1 = true; assert(F.gameplay() == 1); F.LEGACY_V1 = false
+	assert(F.gameplay() == 2)
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("Layout.rects(", 1, true), "the client reads the one rect function")
+	assert(not src:find('Instance.new("TextButton")', 1, true) and not src:find('Instance.new("ImageButton")', 1, true), "no separate hit frames: only the real buttons are clickable")
+	assert(src:find("TavernKit", 1, true) and src:find("selfCheck", 1, true), "built on TavernKit with a Studio ClickCheck")
+	assert(not src:find("[\128-\255]"), "no non ASCII glyph in the new plates")
+	local h = io.open("src/Client/init.client.lua", "r")
+	if h then
+		local hub = h:read("*a"); h:close()
+		assert(hub:find("script.Gameplay2", 1, true), "the hub installs Gameplay v2")
+	end
+end })
+
 return tests

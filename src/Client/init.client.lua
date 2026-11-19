@@ -1435,6 +1435,11 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 			deckWidget = DeckWidgetModule.deckWidgetButton.Parent, settingsButton = settingsButton,
 			selectedCount = function() local n = 0 for _ in pairs(selected) do n = n + 1 end return n end, firstCard = function() return cardButtons[1] end, cards = function() return cardButtons end })
 	end)
+	pcall(function() -- Gameplay v2 table: TavernKit plates over the candlelit scene, real buttons on layout rects (Client/Gameplay2.lua)
+		require(script.Gameplay2).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, playButton = playButton, discardButton = discardButton,
+			deckWidget = DeckWidgetModule.deckWidgetButton.Parent,
+			selectedCount = function() local n = 0 for _ in pairs(selected) do n = n + 1 end return n end, firstCard = function() return cardButtons[1] end })
+	end)
 	pcall(function() -- calm parallax, lamp light pool and deal arc (Client/PlayMotion.lua)
 		require(script.PlayMotion).install({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
@@ -2511,6 +2516,7 @@ local function render(state)
 	RoundSelectOverlay.roundSelectFrame.Visible = (state.phase == "roundSelect")
 	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect" or state.phase == "shop") -- stats panel away on Round Select and the Counter
 	pcall(function() require(script.ConceptTPlay).update(state) end) -- Concept T play screen last, so its layout wins
+	pcall(function() require(script.Gameplay2).update(state) end) -- Gameplay v2 (default); the Concept T screen above stands down unless GAMEPLAY_V1
 	pcall(function() local BD = require(script.BoardDrawer) BD.install(root) BD.update(state) end) -- left board drawer: handle, chip, slide
 	Shop.shopFrame.Visible = (state.phase == "shop")
 	GameOverPanel.gameOverFrame.Visible = (state.phase == "gameover")

@@ -9,6 +9,7 @@
 	TavernKit.pill(parent, text, color)      -> Frame      small rounded chip; color is a TavernStyle.PILLS name
 	TavernKit.goldBox(parent, text)          -> Frame      the dark Target box with a gold number
 	TavernKit.title(parent, text)            -> TextLabel  serif cream title with a dark outline
+	TavernKit.skin(button, text, kind)       style an existing TextButton as primary or secondary (the real instance stays the click target)
 	TavernKit.feel(button)                   hover lift and press squeeze, a no-op in Calm mode, Reduce motion and Fast speed
 
 	Gradients are Color only, never Transparency. Position the returned instance yourself.
@@ -101,12 +102,13 @@ function TavernKit.feel(button)
 	end)
 end
 
-local function button(parent, text, kind)
+-- Style a TextButton as a kit button. Used by button() for a new one and by Gameplay v2 for the real Play Hand and Discard
+-- instances, so the drawn rect and the click rect are one object. Idempotent (a second call changes nothing visible).
+function TavernKit.skin(b, text, kind)
 	local k = Style.BUTTONS[kind]
-	local b = Instance.new("TextButton")
-	b.Name = kind == "primary" and "TavernPrimary" or "TavernSecondary"
-	b.Size = UDim2.new(1, 0, 0, k.height)
+	b:SetAttribute("TavernKind", kind)
 	b.AutoButtonColor = false
+	b.BackgroundTransparency = 0
 	b.BackgroundColor3 = col(k.fill)
 	b.BorderSizePixel = 0
 	b.Font = Enum.Font[Style.FONTS.ui]
@@ -115,11 +117,24 @@ local function button(parent, text, kind)
 	b.TextTransparency = 0
 	b.TextStrokeTransparency = 0.3
 	b.TextStrokeColor3 = col(kind == "primary" and "buttonStroke" or "outline")
-	b.Text = text or ""
+	if text then b.Text = text end
+	for _, c in ipairs(b:GetChildren()) do
+		if c:IsA("GuiObject") then c.Visible = false -- old art and labels on a reused button
+		elseif c:IsA("UICorner") or c:IsA("UIStroke") or c:IsA("UIGradient") then c:Destroy() end
+	end
 	corner(b, Style.RADIUS.button)
 	stroke(b, k.stroke, Style.STROKE.button)
 	local base = rgb(Style.rgb(k.fill))
 	shade(b, base:Lerp(Color3.new(1, 1, 1), 0.06), base:Lerp(Color3.new(0, 0, 0), 0.15))
+	return b
+end
+
+local function button(parent, text, kind)
+	local k = Style.BUTTONS[kind]
+	local b = Instance.new("TextButton")
+	b.Name = kind == "primary" and "TavernPrimary" or "TavernSecondary"
+	b.Size = UDim2.new(1, 0, 0, k.height)
+	TavernKit.skin(b, text or "", kind)
 	b.Parent = parent
 	TavernKit.feel(b)
 	return b

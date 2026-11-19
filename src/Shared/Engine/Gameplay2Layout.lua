@@ -1,0 +1,164 @@
+--[[
+	Engine/Gameplay2Layout.lua
+	Gameplay v2: ONE function computes every rect of the new table screen, in pixels of a w x h screen. The client draws each
+	control as the real GuiButton or Frame at its rect, so a painted rect and a click rect cannot drift apart.
+
+	rects(w, h) -> {
+	  bar, round, target, tips            the slim top bar and its three parts (bar is at most 8 percent of the height, 30 px minimum)
+	  slots[1..5] = { card, label, pill } Patron seats, every seat reserved even when empty
+	  stage                               the play area where played cards land and the score builds (clear of Patrons and hand)
+	  hand                                the fanned hand
+	  sortRank, sortSuit                  the two halves of the Rank | Suit control, side by side left of the hand
+	  play, discard, playCount, discardCount   the two action buttons and their remaining-count pills
+	  deck, deckCount                     the draw pile at the right and its count plate
+	}
+	patronRow(w, h, n) -> { cards, labels, pills }   same shape as ConceptTLayout.patronRow, for Client/PatronRow
+	fits(w, h), overlaps(rects) -> list of colliding name pairs (empty when clean), ALLOWED lists intended overlaps
+]]
+
+local M = {}
+
+local function round(n) return math.floor(n + 0.5) end
+
+M.MIN_W, M.MIN_H = 640, 360
+M.MIN_TOUCH = 44
+M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
+M.SEATS = 5
+
+local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
+
+function M.fits(w, h)
+	return (tonumber(w) or 0) >= M.MIN_W and (tonumber(h) or 0) >= M.MIN_H
+end
+
+-- Patron seat rects for n seats (up to 8, more than five overlap evenly inside the same span)
+function M.patronRow(w, h, n)
+	n = math.max(0, math.min(math.floor(tonumber(n) or M.SEATS), 8))
+	local top = round(0.115 * h)
+	local labelH, pillH = math.max(16, round(0.036 * h)), math.max(18, round(0.042 * h))
+	local ch = round(0.205 * h)
+	local cw = round(ch * M.CARD_ASPECT)
+	local gap = math.max(8, round(0.014 * w))
+	local span = M.SEATS * cw + (M.SEATS - 1) * gap
+	local x0 = round((w - span) / 2)
+	local out = { cards = {}, labels = {}, pills = {} }
+	for i = 1, n do
+		local x
+		if n <= M.SEATS then x = x0 + (i - 1) * (cw + gap)
+		else x = x0 + (i - 1) * (span - cw) / (n - 1) end
+		out.cards[i] = box(x, top, cw, ch)
+		out.labels[i] = box(x, top + ch + 2, cw, labelH)
+		out.pills[i] = box(x, top + ch + 2 + labelH + 2, cw, pillH)
+	end
+	return out
+end
+
+function M.rects(w, h)
+	local r = {}
+	local pad = math.max(8, round(0.012 * w))
+	-- top bar: round name, Target gold box, Tips pill (at most 8 percent of the height, never under 30 px)
+	local barH = math.max(30, round(0.07 * h))
+	local barW = math.min(round(0.56 * w), w - 2 * pad)
+	local barX = round((w - barW) / 2)
+	local barY = math.max(4, round(0.012 * h))
+	r.bar = box(barX, barY, barW, barH)
+	local inner = 6
+	local ih = barH - 2 * inner
+	r.round = box(barX + inner, barY + inner, round(barW * 0.36), ih)
+	r.target = box(r.round.x + r.round.w + inner, barY + inner, round(barW * 0.34), ih)
+	local tx = r.target.x + r.target.w + inner
+	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
+	-- Patron seats
+	local row = M.patronRow(w, h, M.SEATS)
+	r.slots = {}
+	for i = 1, M.SEATS do r.slots[i] = { card = row.cards[i], label = row.labels[i], pill = row.pills[i] } end
+	local rowBottom = row.pills[1].y + row.pills[1].h
+	-- buttons: big enough to tap, side by side, centred under the hand
+	local btnH = math.max(M.MIN_TOUCH, round(0.085 * h))
+	local btnY = h - btnH - math.max(4, round(0.012 * h))
+	local btnW = round(0.17 * w)
+	local btnGap = math.max(10, round(0.014 * w))
+	local pairW = btnW * 2 + btnGap
+	local px = round((w - pairW) / 2)
+	r.play = box(px, btnY, btnW, btnH)
+	r.discard = box(px + btnW + btnGap, btnY, btnW, btnH)
+	local cw = math.max(60, round(0.065 * w))
+	local cph = math.max(22, round(btnH * 0.5))
+	r.playCount = box(r.play.x - btnGap - cw, btnY + round((btnH - cph) / 2), cw, cph)
+	r.discardCount = box(r.discard.x + r.discard.w + btnGap, btnY + round((btnH - cph) / 2), cw, cph)
+	-- hand: between the stage and the buttons
+	local handTop = round(0.605 * h)
+	local handH = btnY - 6 - handTop
+	local handW = round(0.60 * w)
+	r.hand = box(round((w - handW) / 2), handTop, handW, handH)
+	-- stage: the open middle between the Patron row (and its pills) and the hand
+	local stTop = rowBottom + 8
+	local stH = math.max(40, handTop - 6 - stTop)
+	local stW = round(0.42 * w)
+	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
+	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
+	local sw = math.max(56, math.min(round(0.07 * w), math.floor((r.hand.x - 2 * pad) / 2)))
+	local sh = M.MIN_TOUCH
+	local sy = handTop + round((handH - sh) / 2)
+	r.sortRank = box(pad, sy, sw, sh)
+	r.sortSuit = box(pad + sw, sy, sw, sh)
+	-- deck: right of the hand, count plate under it
+	local dw = math.min(round(0.115 * w), w - (r.hand.x + r.hand.w) - 2 * pad)
+	local dh = round(dw * 1.1)
+	local dx = w - pad - dw
+	local dy = handTop
+	r.deck = box(dx, dy, dw, dh)
+	r.deckCount = box(dx, dy + dh + 4, dw, math.max(22, round(0.04 * h)))
+	return r
+end
+
+local function intersects(a, b)
+	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+end
+
+-- every named rect, flattened (the seat parts get names like card1, label1, pill1)
+function M.flat(r)
+	local out = {}
+	for k, v in pairs(r) do
+		if k == "slots" then
+			for i, s in ipairs(v) do out["card" .. i] = s.card; out["label" .. i] = s.label; out["pill" .. i] = s.pill end
+		elseif k ~= "bar" and v.x then
+			out[k] = v
+		end
+	end
+	out.bar = r.bar
+	return out
+end
+
+-- bar parts sit inside the bar on purpose
+M.ALLOWED = { ["bar|round"] = true, ["bar|target"] = true, ["bar|tips"] = true }
+
+function M.overlaps(r)
+	local flat = M.flat(r)
+	local names = {}
+	for k in pairs(flat) do names[#names + 1] = k end
+	table.sort(names)
+	local bad = {}
+	for i = 1, #names do
+		for j = i + 1, #names do
+			local a, b = names[i], names[j]
+			if not (M.ALLOWED[a .. "|" .. b] or M.ALLOWED[b .. "|" .. a]) and intersects(flat[a], flat[b]) then
+				bad[#bad + 1] = a .. "|" .. b
+			end
+		end
+	end
+	return bad
+end
+
+-- true when every rect lies inside the w x h screen
+function M.onScreen(r, w, h)
+	for name, v in pairs(M.flat(r)) do
+		if v.x < 0 or v.y < 0 or v.x + v.w > w or v.y + v.h > h then return false, name end
+	end
+	return true
+end
+
+-- the controls that must each exist exactly once (a test checks the client builds these and nothing else clickable)
+M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck" }
+
+return M

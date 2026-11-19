@@ -6,6 +6,7 @@
 
 	enabled(name) -> bool    LEGACY_V1 wins over the single flag
 	cornerIcon(name) -> bool the five round corner icons: "volume", "journey", "handRef", "settings", "collection"
+	gameplay() -> 1 | 2 | 0  which table runs: GAMEPLAY_V1 (Concept T) wins, else GAMEPLAY_V2 (default), else the hub's old screen
 	setOverride(name, v)     tests only: force one flag, nil clears it
 ]]
 
@@ -26,6 +27,8 @@ M.FLAGS = {
 	PACK_ROOM = false,
 	SEASON = false,
 	STOREFRONT = false,
+	GAMEPLAY_V1 = false,     -- the archived Concept T table (Client/ConceptTPlay.lua), kept openable for reference
+	GAMEPLAY_V2 = true,      -- the rebuilt table (Client/Gameplay2.lua, Engine/Gameplay2Layout.lua)
 }
 
 -- corner icon name -> the flag that owns it
@@ -48,6 +51,13 @@ end
 function M.cornerIcon(name)
 	local flag = M.CORNER[name]
 	return flag ~= nil and M.enabled(flag)
+end
+
+-- which table screen runs: 1 = Concept T (GAMEPLAY_V1), 2 = Gameplay v2, 0 = neither (the hub's own old play screen)
+function M.gameplay()
+	if M.enabled("GAMEPLAY_V1") then return 1 end
+	if M.enabled("GAMEPLAY_V2") then return 2 end
+	return 0
 end
 
 function M.setOverride(name, v) overrides[name] = v end
