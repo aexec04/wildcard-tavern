@@ -28380,4 +28380,45 @@ table.insert(tests, { name = "Click targets: one writer owns the Actions and han
 	if ct then expectTrue(ct:find("[ClickCheck]", 1, true) ~= nil and ct:find("IsStudio", 1, true) ~= nil, "Studio self check prints each control against its painted rect") end
 end })
 
+table.insert(tests, { name = "Rarity pill: native rounded pill, 4.5:1 text, 22 px at a 130 px card, width is the word plus 28 px, fits under the card", fn = function()
+	local S = require(script.Parent.Parent.Engine.RarityPillSpec)
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local seen = {}
+	for _, tier in ipairs(S.order) do
+		local sp = S.spec(tier, 130)
+		assert(sp.h == 22, tier .. " is 22 px tall at the reference card")
+		assert(sp.w == S.textWidth(sp.word, sp.textSize) + 28, tier .. " width is text plus 28 px")
+		assert(S.contrast(S.INK, S.FILL[tier]) >= 4.5, tier .. " text reads at 4.5:1 on its fill")
+		assert(sp.textSize >= 14, "text is 14 px or more")
+		assert(sp.marker.x + sp.marker.px < sp.text.x, tier .. " marker sits left of the word, inside the pill")
+		assert(sp.text.x + sp.text.w <= sp.w, tier .. " word box stays inside the pill")
+		local key = table.concat(S.FILL[tier], ",")
+		assert(not seen[key], tier .. " has its own fill")
+		seen[key] = true
+	end
+	assert(S.spec("nonsense", 130).word == "Common", "unknown tier falls back to Common")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
+		local row = Layout.patronRow(sz[1], sz[2], 5)
+		local cw = row.cards[1].w
+		for _, tier in ipairs(S.order) do
+			local sp = S.spec(tier, cw)
+			assert(sp.w <= math.max(cw, S.textWidth("Legendary", 14) + 28), tier .. " fits under its card at " .. sz[1] .. " (" .. sp.w .. " vs " .. cw .. ")")
+			assert(sp.h >= 18, "pill height readable at " .. sz[1])
+		end
+	end
+	if io then
+		local fh = io.open("src/Client/RarityPill.lua", "r")
+		if fh then
+			local src = fh:read("*a"); fh:close()
+			assert(not src:find("ImageLabel", 1, true), "the rarity pill draws no image")
+			assert(src:find("UICorner", 1, true) and src:find("UIStroke", 1, true), "rounded with a stroke")
+		end
+		local pc = io.open("src/Client/ConceptTPatronCard.lua", "r")
+		if pc then
+			local src = pc:read("*a"); pc:close()
+			assert(src:find("RarityPill", 1, true) and not src:find("labelKey", 1, true), "the Patron card draws the native pill, not label art")
+		end
+	end
+end })
+
 return tests

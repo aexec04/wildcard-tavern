@@ -30,19 +30,14 @@ local function piece(slot, name, z)
 end
 
 function M.set(slot, tier, valueText, hasCard)
-	local label = piece(slot, "CTLabel", 12)
+	local label = slot:FindFirstChild("CTLabel")
 	local pill = piece(slot, "CTPill", 12)
 	local on = hasCard == true
-	label.Visible = on
+	if label then label.Visible = on end
 	pill.Visible = on and valueText ~= nil and valueText ~= ""
 	if not on then return end
-	label.Image = Art[Layout.labelKey(tier)] or ""
-	label.AnchorPoint = Vector2.new(0.5, 0)
-	local row = Layout.labelRow(slot.AbsoluteSize.X)
-	label.Position = UDim2.new(0.5, row.centerShift, 1, 2)
-	label.Size = UDim2.fromOffset(row.art.w, row.art.h)
-	-- the marker has its own slot left of the art, so it can never cover a letter
-	pcall(function() require(script.Parent.RarityShape).set(label, tier, row.marker.w, row.marker.x) end)
+	-- the rarity label is real UI (rounded frame, stroke, serif word, marker inside), never a scaled picture
+	require(script.Parent.RarityPill).set(slot, tier, slot.AbsoluteSize.X)
 	pill.Image = Art[Layout.blankPillKey(tier)] or Art[Layout.pillKey(tier)] or ""
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 30)
