@@ -28367,4 +28367,17 @@ table.insert(tests, { name = "FriendlyErrors and InputWatchdog: plain lines unde
 	end
 end })
 
+table.insert(tests, { name = "Click targets: one writer owns the Actions and hand frames while the Concept T screen is up", fn = function()
+	if not io then return end
+	local function read(path) local fh = io.open(path, "r"); if not fh then return nil end local t = fh:read("*a"); fh:close(); return t end
+	local sp, cl, ct = read("src/Client/PlayScenePaint.lua"), read("src/Client/CompactLayout.lua"), read("src/Client/ConceptTPlay.lua")
+	if sp then
+		local a = sp:find("ConceptTPlay", 1, true)
+		local w = sp:find("actionFrame.Position = UDim2.fromOffset(p.actions.x", 1, true)
+		expectTrue(a ~= nil and w ~= nil and a < w and sp:find("if not ctOwns then", 1, true) ~= nil, "PlayScenePaint leaves Actions and the hand alone while Concept T is active")
+	end
+	if cl then expectTrue(cl:find("ConceptTPlay", 1, true) ~= nil and cl:find("ctOwns", 1, true) ~= nil, "CompactLayout leaves them alone too") end
+	if ct then expectTrue(ct:find("[ClickCheck]", 1, true) ~= nil and ct:find("IsStudio", 1, true) ~= nil, "Studio self check prints each control against its painted rect") end
+end })
+
 return tests

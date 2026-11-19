@@ -224,8 +224,13 @@ function PlayScenePaint.install(deps)
 				print(string.format("[PlayTableSet] felt=%d,%d,%d,%d visible=%s", math.floor(f.x), math.floor(f.y), math.floor(f.w), math.floor(f.h), tostring(feltClip ~= nil)))
 			end
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
+			-- the Concept T screen owns the hand and the Actions row while it is up: two writers made the click targets drift off the art
+			local ctOwns = false
+			pcall(function() ctOwns = require(script.Parent.ConceptTPlay).isActive() end)
+			if not ctOwns then
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)
+			end
 			do
 				local HS = require(Engine:WaitForChild("HandSizing"))
 				handFrame:SetAttribute("MaxCardWidth", HS.maxCardWidth(size.X))
@@ -234,8 +239,10 @@ function PlayScenePaint.install(deps)
 					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, frame %d x %d", size.X, cw, ch, cw + HS.GAP, p.hand.w, p.hand.h))
 				end
 			end
+			if not ctOwns then
 			actionFrame.Position = UDim2.fromOffset(p.actions.x, p.actions.y)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
+			end
 			plates(p)
 			if game:GetService("RunService"):IsStudio() then
 				task.delay(1.2, function() pcall(function() require(script.Parent.PlayBoardHud).reportOverlaps(root) end) end) -- [PlateOverlap] in the Output

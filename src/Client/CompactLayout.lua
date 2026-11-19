@@ -55,6 +55,9 @@ function CompactLayout.install(deps)
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		local layout = R.gameplay(vp.X, vp.Y)
 		compact = layout.compact
+		local ctOwns = false -- the Concept T screen owns the hand and Actions positions while it is up
+		pcall(function() ctOwns = require(script.Parent.ConceptTPlay).isActive() end)
+		if ctOwns then tab.Visible = false; return end
 		if compact then
 			handFrame.Position = UDim2.new(0, layout.left, 1, -272)
 			handFrame.Size = UDim2.new(0, layout.availW, 0, 176)

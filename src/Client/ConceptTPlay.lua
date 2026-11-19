@@ -131,6 +131,8 @@ function M.install(deps)
 			deps.discardButton.Size = UDim2.new(0, 200, 1, 0)
 			local cs = deps.actionFrame:FindFirstChild("CompactScale")
 			if cs and held.scale then cs.Scale = held.scale end
+			-- PlayScenePaint re-applies its own plates on a Position change (it was told to leave the frames alone while this screen was up)
+			deps.actionFrame.Position = UDim2.new(deps.actionFrame.Position.X.Scale, deps.actionFrame.Position.X.Offset + 1, deps.actionFrame.Position.Y.Scale, deps.actionFrame.Position.Y.Offset)
 		end
 		for c in pairs(hiddenDeck) do c.Visible = true end
 		hiddenDeck = {}
@@ -293,6 +295,29 @@ function M.install(deps)
 
 	function self.isActive() return active end
 
+	-- Studio only: every real control against the painted piece it rides on. Centres further apart than 4 px are warned once
+	function self.selfCheck()
+		local size = root.AbsoluteSize
+		local r = Layout.rects(size.X, size.Y)
+		local origin = root.AbsolutePosition
+		local pairs_ = {
+			{ "PlayHand", deps.playButton, r.play }, { "Discard", deps.discardButton, r.discard },
+			{ "Gear", deps.settingsButton, r.gear }, { "Deck", deps.deckWidget and deps.deckWidget:FindFirstChild("ClickCatcher"), r.deck },
+		}
+		for _, p in ipairs(pairs_) do
+			local b, want = p[2], p[3]
+			if b and b.Parent then
+				local cx = b.AbsolutePosition.X - origin.X + b.AbsoluteSize.X / 2
+				local cy = b.AbsolutePosition.Y - origin.Y + b.AbsoluteSize.Y / 2
+				local dx, dy = cx - (want.x + want.w / 2), cy - (want.y + want.h / 2)
+				local bad = math.abs(dx) > 4 or math.abs(dy) > 4
+				local line = string.format("[ClickCheck] %s abs=%d,%d size=%dx%d art=%d,%d,%dx%d off=%d,%d", p[1], math.floor(b.AbsolutePosition.X), math.floor(b.AbsolutePosition.Y),
+					math.floor(b.AbsoluteSize.X), math.floor(b.AbsoluteSize.Y), math.floor(want.x), math.floor(want.y), math.floor(want.w), math.floor(want.h), math.floor(dx), math.floor(dy))
+				if bad then warn(line) else print(line) end
+			end
+		end
+	end
+
 	function self.update(state)
 		lastState = state or lastState
 		local size = root.AbsoluteSize
@@ -325,6 +350,10 @@ function M.install(deps)
 		end
 		clearButton(deps.playButton); clearButton(deps.discardButton)
 		apply()
+		if not self.checked and game:GetService("RunService"):IsStudio() then
+			self.checked = true
+			task.delay(1.5, function() pcall(self.selfCheck) end)
+		end
 		if deps.selectedCount then -- the guided first hand hint (Engine/GuidedHand), display only
 			pcall(function()
 				local r = Layout.rects(size.X, size.Y)
