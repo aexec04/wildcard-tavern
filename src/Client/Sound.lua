@@ -308,29 +308,51 @@ return function(deps)
 			backgroundMusic:Play()
 		end
 	end
-	local function setMusicTrack(key)
+	-- Bed crossfade (Engine/MusicMix): stepped volume on the fade group, never a tween, so Calm mode and Reduce motion get the
+	-- same fade in fewer, bigger steps; `bedGain` is the screen's share (the Night map and Run Over beds are quieter).
+	local MusicMix = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MusicMix"))
+	local bedGain = 1
+	local function stepFade(from, to, calm, token, done)
+		local list = MusicMix.fade(calm)
+		local dt = MusicMix.stepTime(calm)
+		task.spawn(function()
+			for i, pair in ipairs(list) do
+				if token ~= fadeToken then return end -- a newer request took over
+				fadeGroup.Volume = from + (to - from) * (to > from and pair[2] or 1 - pair[1])
+				task.wait(dt)
+			end
+			if token == fadeToken and done then done() end
+		end)
+	end
+	local function setMusicTrack(key, gain)
 		local previousKey = lastRequestedKey
 		lastRequestedKey = key
 		local id = customTrackId or MUSIC_IDS[key]
 		if not id or id == "" then
 			return
 		end
+		local newGain = gain or 1
 		if id == currentTrackId then
+			if newGain ~= bedGain then -- same song, new screen: only the bed's level changes, stepped
+				bedGain = newGain
+				fadeToken += 1
+				stepFade(fadeGroup.Volume, bedGain, ClientSettings.get("reduceMotion") == true, fadeToken)
+			end
 			return
 		end
 		fadeToken += 1
 		local mine = fadeToken
-		if currentTrackId ~= nil and not customTrackId and SoundIds.shouldCrossfade(previousKey, key) then
-			TweenService:Create(fadeGroup, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Sine), { Volume = 0 }):Play()
-			task.delay(FADE_TIME, function()
-				if mine ~= fadeToken then
-					return -- a newer request took over
-				end
+		local calm = ClientSettings.get("reduceMotion") == true
+		if currentTrackId ~= nil and not customTrackId and MusicMix.shouldFade(previousKey, key) then
+			local startVolume = fadeGroup.Volume
+			stepFade(startVolume, 0, calm, mine, function()
 				swapTo(id)
-				TweenService:Create(fadeGroup, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Sine), { Volume = 1 }):Play()
+				bedGain = newGain
+				stepFade(0, bedGain, calm, mine)
 			end)
 		else
-			fadeGroup.Volume = 1
+			bedGain = newGain
+			fadeGroup.Volume = bedGain
 			swapTo(id)
 		end
 	end

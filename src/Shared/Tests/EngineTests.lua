@@ -11518,7 +11518,7 @@ table.insert(tests, { name = "SoundIds: biome tracks crossfade only between game
 	local sound = io and io.open and io.open("src/Client/Sound.lua", "r")
 	if sound then
 		local src = sound:read("*a"); sound:close()
-		expectTrue(src:find("shouldCrossfade", 1, true) ~= nil and src:find("SoundGroup", 1, true) ~= nil, "Sound.lua crossfades on a SoundGroup")
+		expectTrue(src:find("MusicMix.shouldFade", 1, true) ~= nil and src:find("SoundGroup", 1, true) ~= nil, "Sound.lua crossfades on a SoundGroup through the MusicMix rules")
 	end
 end })
 
@@ -30581,6 +30581,64 @@ table.insert(tests, { name = "Button labels: a button and its KitLabel never dra
 		{ path = "G.Shop.NextRound.KitLabel", text = "Next Round", textTransparency = 0 },
 	})
 	for _, w in ipairs(once) do expectFalse(w:find("shows twice", 1, true) ~= nil, "no warning when only the label draws") end
+end })
+
+table.insert(tests, { name = "Music mix: one bed per screen on existing ids, stepped crossfade without a pop, tension layer only on the last hand under half the Target, at most 3 voices, Mute and the slider win, no tweens", fn = function()
+	local M = require(script.Parent.Parent.Engine.MusicMix)
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	expectEqual(M.screenOf({}, true), "menu")
+	expectEqual(M.screenOf({ phase = "shop" }), "shop")
+	expectEqual(M.screenOf({ phase = "playing", bossModifier = {} }), "boss")
+	expectEqual(M.screenOf({ phase = "playing" }), "table")
+	expectEqual(M.screenOf({ phase = "roundSelect" }), "map")
+	expectEqual(M.screenOf({ phase = "playing", runOver = true }), "runover")
+	for screen, bed in pairs(M.BEDS) do
+		local id = bed.key == "title" and SoundIds.Music.menu or SoundIds.Music[bed.key]
+		expectTrue(SoundIds.isValidId(id), screen .. " bed uses an existing id")
+		expectTrue(bed.gain > 0 and bed.gain <= 1, screen .. " gain")
+	end
+	expectEqual(M.bedFor("table", "region_snow").key, "region_snow")
+	expectEqual(M.bedFor("boss", "region_snow").key, "boss", "a region never replaces the boss bed")
+	-- tension
+	local base = { phase = "playing", targetScore = 1000, roundScore = 400, handsRemaining = 1 }
+	expectTrue(M.tension(base), "last hand, under half")
+	expectFalse(M.tension({ phase = "playing", targetScore = 1000, roundScore = 600, handsRemaining = 1 }), "over half")
+	expectFalse(M.tension({ phase = "playing", targetScore = 1000, roundScore = 400, handsRemaining = 2 }), "not the last hand")
+	expectFalse(M.tension({ phase = "shop", targetScore = 1000, roundScore = 0, handsRemaining = 1 }), "not on the table")
+	expectFalse(M.tension({ phase = "playing", targetScore = 1000, roundScore = 0, handsRemaining = 1, roundOver = true }), "round already over")
+	expectEqual(M.tensionGain("shop"), 0); expectEqual(M.tensionGain("boss"), 0); expectTrue(M.tensionGain("table") > 0)
+	-- voices
+	expectEqual(#M.voices({ bed = true, outgoing = true, sting = true, tension = true }), 3, "never more than 3 voices")
+	expectEqual(table.concat(M.voices({ bed = true, outgoing = true, sting = true, tension = true }), ","), "bed,sting,outgoing", "tension is the one dropped")
+	expectEqual(table.concat(M.voices({ bed = true, tension = true }), ","), "bed,tension")
+	-- fades: gradual, monotonic, no pop, Calm still steps (fewer, never a jump from 0 to 1)
+	for _, calm in ipairs({ false, true }) do
+		local f = M.fade(calm)
+		expectTrue(#f >= 4, "at least 4 steps")
+		local prevOut, prevIn = 1, 0
+		for i, pair in ipairs(f) do
+			expectTrue(pair[1] <= prevOut + 1e-9 and pair[2] >= prevIn - 1e-9, "monotonic at " .. i)
+			expectTrue(pair[2] - prevIn <= 0.5, "no pop at step " .. i)
+			prevOut, prevIn = pair[1], pair[2]
+		end
+		expectTrue(f[#f][1] == 0 and f[#f][2] == 1, "ends fully on the new bed")
+	end
+	expectTrue(M.stepTime(true) > M.stepTime(false), "Calm steps are longer")
+	expectEqual(M.volume(0.8, true, 1, 1), 0, "Mute wins")
+	expectEqual(M.volume(0, false, 1, 1), 0, "slider at 0 is silent")
+	expectTrue(math.abs(M.volume(0.8, false, 0.5, 0.5) - 0.2) < 1e-9, "slider x gain x fraction")
+	expectTrue(M.shouldFade("title", "gameplay") and not M.shouldFade("shop", "shop") and not M.shouldFade(nil, "shop"))
+	if io and io.open then
+		for _, file in ipairs({ "MusicMixFX.lua" }) do
+			local f = io.open("src/Client/" .. file, "r"); local src = f:read("a"); f:close()
+			expectFalse(src:find("TweenService", 1, true) ~= nil, file .. " makes no tweens")
+		end
+		local f = io.open("src/Client/Sound.lua", "r"); local src = f:read("a"); f:close()
+		local a, b = src:find("local function stepFade", 1, true), src:find("-- JUKEBOX AUTOPLAY/SHUFFLE: drops", 1, true)
+		expectFalse(src:sub(a, b):find("TweenService", 1, true) ~= nil, "the bed crossfade makes no tweens")
+		f = io.open("src/Client/init.client.lua", "r"); src = f:read("a"); f:close()
+		expectTrue(src:find("MusicMixFX", 1, true) ~= nil, "the hub hands the bed choice to MusicMixFX")
+	end
 end })
 
 table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards and the Close plate fit at 1920x1080, 1280x720 and 1024x768 with 44 px plates and readable text", fn = function()

@@ -2203,20 +2203,8 @@ local function render(state)
 	-- Shop (you're browsing, not playing a hand) beats Boss (the target-
 	-- score banner) beats plain Gameplay -- matches which one is actually
 	-- true first in RunState's own phase/round flow.
-	if state.phase == "shop" then
-		SoundModule.setMusicTrack("shop")
-	elseif state.bossModifier then
-		SoundModule.setMusicTrack("boss")
-	else
-		-- per-region track when one is set in Engine/SoundIds (else the plain gameplay track)
-		local okRegion, musicKey = pcall(function()
-			local engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
-			local route = state.worldRoute
-			local regionId = route and #route > 0 and require(engine:WaitForChild("WorldMap")).regionOf(route[#route])
-			return SoundModule.SoundIds.regionMusicKey(regionId)
-		end)
-		SoundModule.setMusicTrack(okRegion and musicKey or "gameplay")
-	end
+	-- one module picks the bed for the screen and runs the tension layer (Engine/MusicMix rules)
+	pcall(function() require(script.MusicMixFX).update(state, SoundModule) end)
 
 	-- visual extras never stop the HUD and the Choice screen below from updating
 	local okExtras, errExtras = pcall(function()
