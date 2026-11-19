@@ -5311,8 +5311,13 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
-		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close" }
+		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
+		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }
 	expectEqual(#S.CueOrder, #required)
+	for _, name in ipairs(S.Named) do expectEqual(S.Cues[name] ~= nil, true, "named cue " .. name) end
+	for _, name in ipairs({ "score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }) do
+		expectEqual(S.cueId(name), nil, name .. " has no id yet, so it plays nothing")
+	end
 	for _, name in ipairs(required) do
 		local cue = S.Cues[name]
 		expectEqual(cue ~= nil, true, name)
@@ -22293,7 +22298,7 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 		local ok = S.cueId(name) ~= nil or FX.layersFor(name) ~= nil or FX.EMPTY_OK[name]
 		expectTrue(ok, name .. " has an id, explicit layers, or is on the silent list")
 	end
-	expectEqual(table.concat(S.silentCues(), ","), "boss_intro", "only boss_intro stays silent (the intro popup is gone)")
+	expectEqual(table.concat(S.silentCues(), ","), "boss_intro,score_tick,score_total,patron_trigger,round_clear,defeat", "boss_intro stays silent (the intro popup is gone); the five Backlog 6 cues wait for ids")
 	for name, layers in pairs(FX.Layers) do
 		for _, layer in ipairs(layers) do
 			expectTrue(S.cueId(layer.cue) ~= nil, name .. " layer plays " .. layer.cue .. " which has a working id")

@@ -41,6 +41,12 @@ SoundIds.Cues = {
 	page_turn = { id = "rbxassetid://9118835414", volume = 0.5, maxLength = 1.0, startAt = 0.8, fade = 0.25 }, -- Tavern Ledger page or tab change (ProSoundEffects "Scrapbook Open And Turn Pages 2")
 	scroll_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.9 }, -- any scroll or panel popup opens (Client/PopupShield.lua; ProSoundEffects "Scrapbook Open And Turn Pages 6")
 	scroll_close = { id = "rbxassetid://9118838541", volume = 0.35, maxLength = 0.7 }, -- it closes (ProSoundEffects "Scraping Brisk Plastic Wood 1")
+	-- Backlog 6 named cues with no id yet (chat Claude fills them from the Roblox audio library; an empty id plays nothing)
+	score_tick = { id = "", volume = 0.35, maxLength = 0.3 }, -- each card or chip beat while a hand scores
+	score_total = { id = "", volume = 0.6 }, -- the final total lands
+	patron_trigger = { id = "", volume = 0.45, maxLength = 0.6 }, -- a Patron's effect fires (Client/PatronRow.trigger)
+	round_clear = { id = "", volume = 0.6 }, -- Round Complete plate (Client/RoundRewardBanner)
+	defeat = { id = "", volume = 0.5 }, -- the run is lost (Run Over screen)
 }
 
 -- Optional alternates for the coin cascade (not the default, so nothing regresses): try them in Studio with DebugGoto "sfx:<cue>".
@@ -51,7 +57,11 @@ SoundIds.CueOrder = {
 	"card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
+	"score_tick", "score_total", "patron_trigger", "round_clear", "defeat",
 }
+
+-- the eleven cue names the backlog asked for; every one must exist in Cues (an empty id is a safe no-op)
+SoundIds.Named = { "card_deal", "card_select", "card_play", "score_tick", "score_total", "patron_trigger", "coin", "round_clear", "defeat", "button_click", "shop_buy" }
 
 -- Music tracks by key. `region_<id>` plays on the gameplay table while the Night's stop is in that region
 -- (empty = fall back to the plain gameplay track).

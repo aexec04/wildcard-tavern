@@ -120,7 +120,7 @@ SoundFX.Layers = {
 		{ cue = "chip", delay = 0.0, semis = 12, volume = 0.45 }, { cue = "chip", delay = 0.09, semis = 19, volume = 0.45 } },
 }
 
-SoundFX.EMPTY_OK = { boss_intro = true }
+SoundFX.EMPTY_OK = { boss_intro = true, score_tick = true, score_total = true, patron_trigger = true, round_clear = true, defeat = true } -- the last five wait for ids (Backlog 6)
 
 function SoundFX.layersFor(name)
 	return SoundFX.Layers[name]

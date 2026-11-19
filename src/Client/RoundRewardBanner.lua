@@ -122,6 +122,7 @@ function RoundRewardBanner.show(args)
 	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= ""
 
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
+	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end) -- no id yet: silent
 	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true) end) -- gold and purple, none in calm mode
 
 	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel }

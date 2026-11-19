@@ -935,6 +935,7 @@ function M.trigger(patronId, event, fast)
 	local c = M.cardOf(patronId)
 	if not c or not c.slot.Visible or not holder then return end
 	local text, key = PatronEvents.text(event)
+	pcall(function() require(script.Parent.Cue).play("patron_trigger", 2) end) -- no id yet: silent
 	-- hop 14 with a gold ring for 0.25 s (the ring stays in calm mode, the hop does not)
 	if not calm() then
 		if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
