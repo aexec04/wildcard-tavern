@@ -30078,25 +30078,26 @@ table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at 
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 }, { 800, 400 }, { 720, 360 } }) do
 		local r = L.rects(sz[1], sz[2])
 		if sz[2] > 360 then for _, k in ipairs(L.TRAY_CONTROLS) do assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2]) end end
-		if not r.traySlot1 then assert(sz[2] <= 360, "only the shortest screen goes without the tray"); goto continue end
-		for _, k in ipairs(L.TRAY_CONTROLS) do
-			assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2])
-			assert(r[k].h >= 44 and r[k].w >= 44, k .. " is a 44 px target at " .. sz[1])
-		end
-		assert(r.traySlot1.y >= 60 and r.traySlot2.x + r.traySlot2.w < r.gear.x, "tray starts under the top bar and is clear of the gear at " .. sz[1])
-		assert(r.traySlot2.x + r.traySlot2.w < r.slots[1].card.x, "tray is clear of the first Patron at " .. sz[1])
-		assert(r.trayUse.y + r.trayUse.h < r.sortRank.y, "tray is above Rank and Suit at " .. sz[1])
-		assert(#L.overlaps(r) == 0, "no overlaps at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
-		assert(L.onScreen(r, sz[1], sz[2]), "on screen at " .. sz[1])
-		if r.trayPrompt then assert(r.trayPrompt.h >= 44 and r.trayPrompt.y > r.trayUse.y, "prompt plate is the third row") end
-		local inner = r.traySlot1.w - 8
-		local all = {}
-		for _, list in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
-			for _, def in ipairs(list) do
-				assert(T.lines(T.label(def.name), inner) <= 2, def.name .. " fits two lines in a " .. r.traySlot1.w .. " px slot at " .. sz[1])
+		if not r.traySlot1 then assert(sz[2] <= 360, "only the shortest screen goes without the tray")end
+		if r.traySlot1 then
+			for _, k in ipairs(L.TRAY_CONTROLS) do
+				assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2])
+				assert(r[k].h >= 44 and r[k].w >= 44, k .. " is a 44 px target at " .. sz[1])
+			end
+			assert(r.traySlot1.y >= 60 and r.traySlot2.x + r.traySlot2.w < r.gear.x, "tray starts under the top bar and is clear of the gear at " .. sz[1])
+			assert(r.traySlot2.x + r.traySlot2.w < r.slots[1].card.x, "tray is clear of the first Patron at " .. sz[1])
+			assert(r.trayUse.y + r.trayUse.h < r.sortRank.y, "tray is above Rank and Suit at " .. sz[1])
+			assert(#L.overlaps(r) == 0, "no overlaps at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
+			assert(L.onScreen(r, sz[1], sz[2]), "on screen at " .. sz[1])
+			if r.trayPrompt then assert(r.trayPrompt.h >= 44 and r.trayPrompt.y > r.trayUse.y, "prompt plate is the third row") end
+			local inner = r.traySlot1.w - 8
+			local all = {}
+			for _, list in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
+				for _, def in ipairs(list) do
+					assert(T.lines(T.label(def.name), inner) <= 2, def.name .. " fits two lines in a " .. r.traySlot1.w .. " px slot at " .. sz[1])
+				end
 			end
 		end
-		::continue::
 	end
 	-- held view: first two of the three boxes, a faint empty slot, the extra count
 	local st = { houseRecipeInventory = { "suit_swap" }, menuRecipeInventory = {}, secretRecipeInventory = {} }

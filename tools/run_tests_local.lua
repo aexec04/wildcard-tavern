@@ -154,6 +154,13 @@ if textOk and textFails and textFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: no Lua 5.3 only syntax (goto, labels) that Luau rejects in Studio.
+local luauOk, luauFails = pcall(dofile, "tools/lint_luau_syntax.lua")
+if luauOk and luauFails and luauFails > 0 then
+	print("FAILED: " .. luauFails .. " goto or label(s), not valid Luau")
+	os.exit(1)
+end
+
 -- Source lint: no fade built from stacked graded-transparency Frames (they show as black lines).
 local stripOk, stripFails = pcall(dofile, "tools/lint_stacked_strips.lua")
 if stripOk and stripFails and stripFails > 0 then
