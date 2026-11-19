@@ -29,12 +29,12 @@ M.MAX_ROUND = 3
 M.PLATE_W = 320
 M.PLATE_MIN_W = 280
 M.PLATE_ASPECT = 1408 / 543
-M.BUTTON_W, M.BUTTON_H = 112, 44
+M.BUTTON_W, M.BUTTON_H = 90, 44
 -- short screens (under about 160 px free above the hand) keep the compact plate: 300 x 72 with a 72 x 44 Got it beside it, the pill picture
 M.WIDE_W, M.WIDE_H, M.WIDE_MIN_W, M.WIDE_BUTTON_W = 300, 72, 200, 72
 -- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate
 M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
-M.GAP = 6
+M.GAP = 8
 
 local BY_ID = {}
 for _, e in ipairs(M.ORDER) do BY_ID[e.id] = e end
