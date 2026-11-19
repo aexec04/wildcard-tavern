@@ -272,4 +272,26 @@ function RunOverLayout.scrollAt(sw, sh, spec, key, S, scale)
 		leftRod = m(S.leftRod), rightRod = m(S.rightRod), fit = fit, origin = origin, inner = inner }
 end
 
+-- compute, then on a short window (the panel is shrunk to fit) grow the button heights until each is still 44 px tall after the
+-- shrink: h * scale = 44 is solved by a few passes (a taller panel shrinks a little more). Never changes the module's heights.
+local TOUCH_KEYS = { "BIG_H", "BTN_H", "SMALL_H", "PILL_H" }
+function RunOverLayout.computeTouch(sw, sh, spec)
+	local base = {}
+	for _, k in ipairs(TOUCH_KEYS) do base[k] = RunOverLayout[k] end
+	local r = RunOverLayout.compute(sw, sh, spec)
+	for _ = 1, 8 do
+		if r.scale >= 0.999 then break end
+		local want = math.ceil(44 / r.scale) + 1
+		local grew = false
+		for _, k in ipairs(TOUCH_KEYS) do
+			local h = math.max(base[k], want)
+			if h ~= RunOverLayout[k] then RunOverLayout[k] = h; grew = true end
+		end
+		if not grew then break end
+		r = RunOverLayout.compute(sw, sh, spec)
+	end
+	for _, k in ipairs(TOUCH_KEYS) do RunOverLayout[k] = base[k] end
+	return r
+end
+
 return RunOverLayout

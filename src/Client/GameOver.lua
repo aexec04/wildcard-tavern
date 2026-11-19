@@ -563,7 +563,7 @@ return function(deps)
 			applyMode("plain")
 			local cols = RunOverLayout.columns(sw)
 			factsH = buildFacts(cols.leftW)
-			r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6,
+			r = RunOverLayout.computeTouch(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6,
 				bigPrimary = true, pills = true, cardSeats = true, textW = textW })
 			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			fit.Scale = r.scale

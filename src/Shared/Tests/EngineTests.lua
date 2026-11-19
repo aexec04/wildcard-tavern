@@ -17454,7 +17454,7 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(has("NightVictory.lua", 'policy = "button"') and has("OverlayQueue.lua", 'policy = "button"'), "result plates: Escape presses their one button")
 	-- run summary and Run Setup polish: road names, buttons clear of the Patrons box, no emoji in Run Setup headers
 	expectTrue(has("GameOver.lua", "stop.name or stop.id") and not has("GameOver.lua", "stop.icon"), "Run Over lists road names, not icon codes")
-	expectTrue(has("GameOver.lua", "RunOverLayout.compute(sw, sh") and has("GameOver.lua", "RunOverPanel"), "Run Over is laid out by the RunOverLayout module in one RunOverPanel")
+	expectTrue(has("GameOver.lua", "RunOverLayout.computeTouch(sw, sh") and has("GameOver.lua", "RunOverPanel"), "Run Over is laid out by the RunOverLayout module in one RunOverPanel")
 	expectTrue(has("GameOver.lua", "b.TextStrokeTransparency = 1"), "Run Over buttons have no heavy text stroke")
 	expectTrue(has("GameOver.lua", "ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border"), "Run Over strokes use Border mode, so text is not doubled")
 	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("GameOver.lua", '"StoreBackdrop"'), "result screens hide StoreBackdrop and its tab strip")
@@ -30599,6 +30599,36 @@ table.insert(tests, { name = "SelfCheck: dim text, low contrast, a plate over it
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	expectTrue(read("src/Client/SelfCheck.lua"):find("IsStudio", 1, true) and read("src/Client/DebugGoto.lua"):find("SelfCheck", 1, true), "Studio only, reachable from DebugGoto")
 	expectTrue(read("claude/skills/wildcard-tavern-studio-check.md"):find("selfcheck", 1, true) ~= nil, "documented")
+end })
+
+table.insert(tests, { name = "Tablet and phone pass: the table, Counter and Run Over at 1280x720, 1024x768 and 844x390 keep 44 px touch targets (after any panel scale), nothing overlapping or off screen", fn = function()
+	local E = script.Parent.Parent.Engine
+	local A = require(E.Gameplay2Audit)
+	local SL = require(E.ShopSceneLayout)
+	local RL = require(E.RunOverLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- the table
+		local a = A.audit(W, H)
+		expectTrue(a.fits, "the v2 table runs at " .. tag)
+		expectEqual(#a.warnings, 0, "table audit at " .. tag .. ": " .. table.concat(a.warnings, "; "))
+		-- the Counter
+		local r = SL.rects(W, H, { offers = 3, packs = 2, room = true })
+		expectTrue(r.tabs.h >= 44, "Counter tabs are a touch target at " .. tag)
+		expectTrue(r.leave.h >= 44, "Next Round is a touch target at " .. tag)
+		expectTrue(r.tabs.x >= 0 and r.tabs.x + r.tabs.w <= W, "Counter tabs on screen at " .. tag)
+		expectTrue(r.leave.x >= 0 and r.leave.y >= 0 and r.leave.x + r.leave.w <= W and r.leave.y + r.leave.h <= H, "Next Round on screen at " .. tag)
+		for i, o in ipairs(r.offers) do expectFalse(hit(o, r.leave), "Patron offer " .. i .. " is clear of Next Round at " .. tag) end
+		for i, o in ipairs(r.packs) do expectFalse(hit(o, r.leave), "pack " .. i .. " is clear of Next Round at " .. tag) end
+		-- Run Over: the panel is scaled to fit, so a button's real height is its height times the scale
+		local C = RL.columns(W)
+		local ro = RL.computeTouch(W, H, { factsH = 120, patrons = 5, primary = 2, more = 5, bigPrimary = true, pills = true, cardSeats = true })
+		for i, rc in ipairs(ro.primary) do expectTrue(rc.h * ro.scale >= 44, "Run Over primary " .. i .. " is at least 44 px tall after scaling (" .. string.format("%.1f", rc.h * ro.scale) .. ") at " .. tag) end
+		for i, rc in ipairs(ro.more) do expectTrue(rc.h * ro.scale >= 44, "Run Over button " .. i .. " is at least 44 px tall after scaling (" .. string.format("%.1f", rc.h * ro.scale) .. ") at " .. tag) end
+		expectTrue(ro.panel.w * ro.scale <= W and ro.panel.h * ro.scale <= H, "Run Over panel fits the window at " .. tag)
+	end
 end })
 
 return tests
