@@ -159,6 +159,7 @@ ShopCards.packTier = packTier
 function ShopCards.new(deps)
 	local playClickSfx = deps.playClickSfx or function() end
 	local particleBurst = deps.particleBurst
+	local sparkled = {} -- offer key -> last sparkle time (Engine/ShopSparkle.shouldPlay)
 	local addTooltip = deps.addTooltip
 	local self = {}
 	local selected = nil -- the card whose action button is pinned open (tap / click)
@@ -341,6 +342,20 @@ function ShopCards.new(deps)
 			rarity = CollectionBook.rarityForId(spec.rarityTab, spec.rarityId)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
+		-- a Rare or better offer gives one small sparkle in its tier colour when it first shows (none in calm mode or on Fast)
+		if particleBurst and spec.kind ~= "owned" then
+			local sp = require(Engine:WaitForChild("ShopSparkle"))
+			local plan = sp.spec(rarity, slow())
+			if plan and sp.shouldPlay(sparkled, tostring(spec.artTab) .. ":" .. tostring(spec.artId or spec.name), os.clock()) then
+				task.delay(0.3, function()
+					if slot.Parent and slot.AbsoluteSize.X > 0 then
+						local pos = slot.AbsolutePosition + slot.AbsoluteSize / 2
+						pcall(particleBurst, UDim2.fromOffset(pos.X, pos.Y), Color3.fromRGB(plan.color[1], plan.color[2], plan.color[3]), plan.count,
+							{ spread = plan.spread, duration = plan.duration })
+					end
+				end)
+			end
+		end
 		-- Pick screens: the tier as a word (readable without colour), only for an item that really has a rarity (ChoiceRarity.lookup is
 		-- nil for an unknown id, so "Common" is never shown by mistake). A dark pill at the top right of the art, 15 px.
 		if spec.rarityWord and spec.rarityTab and spec.rarityId then
