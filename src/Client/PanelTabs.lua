@@ -26,7 +26,7 @@ local PanelTabs = {}
 PanelTabs.TABS = PanelGroups.pages() -- flat list in display order (group order, then page order)
 
 local WOOD = Color3.fromRGB(92, 62, 36)
-local WOOD_ACTIVE = Color3.fromRGB(150, 104, 52)
+local WOOD_ACTIVE = Color3.fromRGB(205, 160, 100)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local INK = Color3.fromRGB(60, 40, 22)
@@ -62,7 +62,7 @@ end
 
 local function styleButton(button, active)
 	button.BackgroundColor3 = active and WOOD_ACTIVE or WOOD
-	button.TextColor3 = active and CREAM or Color3.fromRGB(226, 205, 160)
+	button.TextColor3 = rgb(PanelGroups.textOn(active and { 205, 160, 100 } or { 92, 62, 36 }))
 	local s = button:FindFirstChildOfClass("UIStroke")
 	if s then
 		s.Color = active and GOLD or INK
@@ -117,7 +117,8 @@ local function groupTab(parent, group, active, order)
 	local b = newButton(parent, "", 168, order, 32)
 	b.Name = "Group_" .. group.id
 	b.AutoButtonColor = false
-	b.BackgroundColor3 = active and rgb(group.glow) or rgb(group.color)
+	b.BackgroundColor3 = rgb(PanelGroups.tabFill(group, active))
+	b:SetAttribute("Selected", active)
 	local stroke = b:FindFirstChildOfClass("UIStroke")
 	stroke.Color = active and GOLD or INK
 	stroke.Thickness = active and 3 or 1.5
@@ -152,7 +153,7 @@ local function groupTab(parent, group, active, order)
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 15
 	name.TextXAlignment = Enum.TextXAlignment.Left
-	name.TextColor3 = active and CREAM or Color3.fromRGB(226, 205, 160)
+	name.TextColor3 = rgb(PanelGroups.textOn(PanelGroups.tabFill(group, active)))
 	name.TextTransparency = 0
 	name.TextStrokeTransparency = 1
 	name.Text = group.text
@@ -168,7 +169,8 @@ local function ribbon(parent, group, page, active, order)
 	b.AutoButtonColor = false
 	b.TextSize = 14
 	b.BackgroundColor3 = active and GOLD or rgb(group.color)
-	b.TextColor3 = active and INK or CREAM
+	b:SetAttribute("Selected", active)
+	b.TextColor3 = rgb(PanelGroups.textOn(active and { GOLD.R * 255, GOLD.G * 255, GOLD.B * 255 } or group.color))
 	local stroke = b:FindFirstChildOfClass("UIStroke")
 	stroke.Color = active and Color3.fromRGB(255, 232, 160) or INK
 	stroke.Thickness = active and 2.5 or 1.5

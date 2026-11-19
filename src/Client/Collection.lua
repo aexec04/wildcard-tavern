@@ -152,13 +152,12 @@ return function(deps)
 		if wall then Gallery.mountAlive(wall, panel, backdrop) end -- lantern flicker and the moth (off in calm mode)
 	end)
 
-	local hungSign = Gallery.hangSign(panel) -- brass sign behind the title, hung on two short chains (made first so the text draws over it)
+	-- No title sign: the active sub tab already says Collection, and the plate used to cover the tab row and the progress bar.
 	local titleLabel = label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
-		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
+		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection", Visible = false,
 	})
-	pcall(function() require(script.Parent.ConceptTSkin).title(titleLabel) end) -- serif cream with a dark outline
-	hungSign.bind(titleLabel)
+	pcall(function() require(script.Parent.ConceptTSkin).title(titleLabel) end) -- serif cream with a dark outline (hidden: the active sub tab names the page)
 
 	local expandToggle = require(script.Parent.ExpandToggle)(panel, {
 		collapsedSize = PANEL_SIZE,
@@ -342,9 +341,10 @@ return function(deps)
 	roundCorner(overallFill, 6)
 
 	-- Line one: Overall on the left, the next milestone on the right. Line two: the next unlock. 15 px cream, never truncated.
+	local BAR_PAD = RoomLayout.BAR_PAD -- 16 px inside the plate on both sides
 	local function barLine(y, align, width)
 		return label(overallBar, {
-			Size = UDim2.new(width, -16, 0.5, 0), Position = UDim2.new(align == Enum.TextXAlignment.Right and 1 - width or 0, 8, y, 0),
+			Size = UDim2.new(width, width >= 1 and -2 * BAR_PAD or -BAR_PAD, 0.5, 0), Position = UDim2.new(align == Enum.TextXAlignment.Right and 1 - width or 0, align == Enum.TextXAlignment.Right and 0 or BAR_PAD, y, 0),
 			Font = Enum.Font.GothamBold, TextSize = 15, ZIndex = 23, TextWrapped = false,
 			TextColor3 = Color3.fromRGB(245, 232, 200), TextTransparency = 0, TextStrokeTransparency = 1,
 			TextXAlignment = align, Text = "",

@@ -14840,7 +14840,8 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 		expectTrue(src:find("Gallery.frameTile(tile, found, rgb(rarity.color), shownName(item))", 1, true) ~= nil, "a locked portrait carries its name on the plate, not ???")
 		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
 		expectTrue(src:find("Furn.style(fxKind", 1, true) ~= nil and src:find("furniture.setTab(activeTabId)", 1, true) ~= nil, "Recipes are pinned on a cork board built from their cells")
-		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) ~= nil and src:find("hungSign.bind(titleLabel)", 1, true) ~= nil, "the title hangs as a brass sign")
+		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) == nil and src:find("Visible = false,", 1, true) ~= nil, "no title sign over the tab row and the progress bar")
+		expectTrue(src:find("RoomLayout.BAR_PAD", 1, true) ~= nil, "progress plate text has inner padding")
 		expectTrue(src:find("plaque.Thickness = 2", 1, true) ~= nil, "the progress line sits on a brass-edged plaque")
 	end
 	local w = io and io.open and io.open("src/Client/CollectionWall.lua", "r")
@@ -27992,4 +27993,22 @@ table.insert(tests, { name = "Tutorial Skip: 44 px touch target, always on scree
 	assert(st:find("Replay Tutorial", 1, true) and st:find("deps.replayTutorial", 1, true), "Settings has a Replay Tutorial entry")
 end })
 
+table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every group fill and ribbon, active tab is lighter", fn = function()
+	local PanelGroups = require(script.Parent.Parent.Engine.PanelGroups)
+	for _, g in ipairs(PanelGroups.GROUPS) do
+		for _, active in ipairs({ true, false }) do
+			local bg = PanelGroups.tabFill(g, active)
+			expectTrue(PanelGroups.contrast(PanelGroups.textOn(bg), bg) >= 4.5, g.id .. " tab text contrast " .. tostring(active))
+		end
+		expectTrue(PanelGroups.contrast(PanelGroups.textOn(g.color), g.color) >= 4.5, g.id .. " ribbon text contrast")
+		expectTrue(PanelGroups.tabFill(g, true) ~= PanelGroups.tabFill(g, false), g.id .. " has a distinct selected state")
+	end
+	expectTrue(PanelGroups.textOn({ 222, 182, 104 }) == PanelGroups.INK, "gold fill takes dark ink")
+	expectTrue(PanelGroups.textOn({ 92, 62, 36 }) == PanelGroups.CREAM, "dark wood fill takes cream")
+	expectTrue(PanelGroups.contrast(PanelGroups.textOn({ 205, 160, 100 }), { 205, 160, 100 }) >= 4.5, "Back button fill contrast")
+	local RoomLayout = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	expectTrue(RoomLayout.BAR_PAD >= 16, "progress plate padding is at least 16 px")
+end })
+
 return tests
+

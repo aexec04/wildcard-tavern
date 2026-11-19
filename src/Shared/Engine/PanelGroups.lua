@@ -16,7 +16,7 @@ local PanelGroups = {}
 PanelGroups.GROUPS = {
 	{
 		id = "tome", text = "The Tome", emoji = "📖", art = { "menu_scene", "menu_item_tome" },
-		color = { 112, 72, 40 }, glow = { 150, 104, 60 },
+		color = { 112, 72, 40 }, glow = { 205, 160, 100 },
 		pages = {
 			{ id = "collection", text = "Collection", emoji = "🃏" },
 			{ id = "cosmeticSets", text = "Card Sets", emoji = "🎴" },
@@ -28,7 +28,7 @@ PanelGroups.GROUPS = {
 	},
 	{
 		id = "strongbox", text = "The Strongbox", emoji = "🧰", art = { "menu_icons", "daily" },
-		color = { 40, 92, 60 }, glow = { 70, 138, 92 },
+		color = { 40, 92, 60 }, glow = { 120, 185, 140 },
 		pages = {
 			{ id = "collectionRewards", text = "Rewards", emoji = "🎁" },
 			{ id = "dailyRewards", text = "Daily", emoji = "📅", art = { "menu_icons", "daily" } },
@@ -44,6 +44,36 @@ PanelGroups.GROUPS = {
 		},
 	},
 }
+
+-- Tab text colours (tested): dark ink on gold and light fills, cream on dark fills, whichever reads better (at least 4.5:1).
+PanelGroups.INK = { 40, 26, 14 }
+PanelGroups.CREAM = { 250, 235, 200 }
+
+local function lum(c)
+	local function f(v)
+		v = v / 255
+		return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
+	end
+	return 0.2126 * f(c[1]) + 0.7152 * f(c[2]) + 0.0722 * f(c[3])
+end
+
+function PanelGroups.contrast(a, b)
+	local la, lb = lum(a), lum(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+
+function PanelGroups.textOn(bg)
+	if PanelGroups.contrast(PanelGroups.INK, bg) >= PanelGroups.contrast(PanelGroups.CREAM, bg) then
+		return PanelGroups.INK
+	end
+	return PanelGroups.CREAM
+end
+
+-- The fill a group tab wears: its glow colour when selected (a clear lighter state), its base colour otherwise.
+function PanelGroups.tabFill(group, active)
+	return active and group.glow or group.color
+end
 
 function PanelGroups.groupOf(pageId)
 	for _, g in ipairs(PanelGroups.GROUPS) do
