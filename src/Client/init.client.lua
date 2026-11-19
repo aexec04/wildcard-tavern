@@ -2125,7 +2125,17 @@ local function rebuildHand(handData, phase)
 		cardVisualPosition[index] = visualPosition
 
 		button.MouseButton1Click:Connect(function()
+			if require(script.HandTouchFX).swallow() then return end -- the click that ends a touch drag or long press is not a tap
 			onCardClicked(index)
+		end)
+		-- touch: drag to reorder (cosmetic), long press for the card tooltip (Engine/TouchGestures)
+		pcall(function()
+			require(script.HandTouchFX).attach(handFrame, slot, button, {
+				card = card,
+				onReorder = function(map)
+					for i, pos in pairs(map) do cardVisualPosition[i] = pos end
+				end,
+			})
 		end)
 		button.MouseEnter:Connect(function()
 			if require(script.ModalStage).blocks(button) then return end -- a modal is open: hand cards ignore hover

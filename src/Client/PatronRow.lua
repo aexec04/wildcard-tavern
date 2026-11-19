@@ -266,16 +266,16 @@ local function newCard(i)
 			if not calm() then task.delay(0.15, function() if not c.hovering then startFloat(c, 1) end end) end
 		end
 	end)
-	-- a tap (touch) lifts the card for 1.5 s
-	body.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch and c.id then
+	-- touch: holding the card 0.35 s lifts it and shows the tooltip (Engine/TouchGestures); letting go hides it
+	pcall(function()
+		require(script.Parent.HandTouchFX).press(body, function()
+			if not c.id then return end
 			pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end)
 			showTip(i, c)
-			task.delay(1.5, function()
-				hideTip()
-				if c.hovering then pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end) end
-			end)
-		end
+		end, function()
+			hideTip()
+			if c.hovering then pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end) end
+		end)
 	end)
 	if tooltipFn then
 		tooltipFn(body, function()

@@ -28075,4 +28075,56 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 	end
 end })
 
+table.insert(tests, { name = "TouchGestures: tap, drag and long press thresholds, reorder maths, 44 px targets with 8 px slack, no motion in calm mode, hand and Patron hooks", fn = function()
+	local G = require(script.Parent.Parent.Engine.TouchGestures)
+	expectTrue(G.classify(0, 0.1, true) == "tap" and G.classify(5, 0.2, true) == "tap", "a short still press is a tap")
+	expectTrue(G.classify(0, 0.2, false) == "pending" and G.classify(2, 0.35, false) == "long", "held 0.35 s is a long press")
+	expectTrue(G.classify(0, 0.5, true) == "long", "a long press that ends is not a tap")
+	expectTrue(G.classify(12, 0.05, false) == "drag" and G.classify(-30, 1, true) == "drag", "12 px sideways starts a drag, either way")
+	expectTrue(G.classify(11, 0.1, true) == "pending", "between the tap and drag limits does nothing yet")
+	local o = { "a", "b", "c", "d", "e" }
+	local r = G.reorder(o, 1, 3)
+	expectTrue(table.concat(r) == "bcade" and table.concat(o) == "abcde", "move right, input untouched")
+	expectTrue(table.concat(G.reorder(o, 5, 2)) == "aebcd" and table.concat(G.reorder(o, 3, 3)) == "abcde", "move left, same slot is a no-op")
+	expectTrue(table.concat(G.reorder(o, 2, 99)) == "acdeb" and table.concat(G.reorder(o, 2, -4)) == "bacde", "targets clamp")
+	expectTrue(#G.reorder({}, 1, 2) == 0, "an empty hand is fine")
+	expectTrue(G.slotAt(10, { 0, 50, 100 }) == 1 and G.slotAt(70, { 0, 50, 100 }) == 2 and G.slotAt(500, { 0, 50, 100 }) == 3 and G.slotAt(5, {}) == nil, "nearest slot")
+	local w, h = G.hitSize(30, 20)
+	expectTrue(w == 44 and h == 44 and G.hitSize(60, 90) == 60, "targets are at least 44 px")
+	expectTrue(G.withinTap(30, 0, 40, 60) and not G.withinTap(40, 0, 40, 60), "44 px target plus 8 px slack: 30 px is in, 40 px is out")
+	expectTrue(G.withinTap(0, 38, 40, 60) and not G.withinTap(0, 39, 40, 60), "slack on the tall side")
+	expectTrue(G.motion(true) == nil, "calm mode: no motion")
+	local m = G.motion(false)
+	expectTrue(m.slide == 0.12 and m.lift == 24 and G.LONG_PRESS == 0.35 and G.CUE == "card_flip", "tuned numbers")
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local tip = G.cardTip({ rank = 12, suit = "Hearts" }, Card)
+	expectTrue(tip == "Queen of Hearts", "card name: " .. tip)
+	expectTrue(G.cardTip({ rank = 14, suit = "Spades", stamp = "gold" }, Card):find("Gold Stamp", 1, true) ~= nil, "stamp line")
+	expectTrue(G.cardTip(nil, Card) == "", "no card, no tip")
+	if io and io.open then
+		local f = io.open("src/Client/HandTouchFX.lua", "r")
+		if f then
+			local fx = f:read("*a"); f:close()
+			expectTrue(fx:find("reduceShake", 1, true) and fx:find("TG.motion(calm())", 1, true), "calm gate on every tween")
+			expectTrue(not fx:find("[\128-\255]"), "ASCII only")
+			local n = 0
+			for _ in fx:gmatch("TweenService:Create") do n = n + 1 end
+			local g = 0
+			for _ in fx:gmatch("if motion then") do g = g + 1 end
+			expectTrue(n == 2 and g == 2, "both tweens sit under 'if motion then'")
+			expectTrue(fx:find("Reordering is cosmetic", 1, true) and not fx:find("FireServer", 1, true) and not fx:find("Remote", 1, true), "no server calls")
+		end
+		local hub = io.open("src/Client/init.client.lua", "r")
+		if hub then
+			local src = hub:read("*a"); hub:close()
+			expectTrue(src:find("HandTouchFX).swallow()", 1, true) and src:find("HandTouchFX).attach(", 1, true), "hand cards hook the gestures")
+		end
+		local pr = io.open("src/Client/PatronRow.lua", "r")
+		if pr then
+			local src = pr:read("*a"); pr:close()
+			expectTrue(src:find("HandTouchFX).press(", 1, true), "Patron cards use the long press")
+		end
+	end
+end })
+
 return tests
