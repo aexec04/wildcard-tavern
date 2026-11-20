@@ -165,6 +165,26 @@ function M.decor(w, h)
 	return out
 end
 
+-- The same two pieces for the live table (Gameplay2): `r` is Gameplay2Layout.rects(w, h). The tray's visible part is the deck rect plus an
+-- 8 px lip, the rail's visible part runs from 12 px above the Rank and Suit row to the screen bottom, full width. Returns the same shape as decor.
+M.TRAY_LIP, M.RAIL_RISE = 8, 12
+function M.decorFor(r, w, h)
+	local function place(d, bx, by, bw, bh)
+		local a = d.art
+		local sx, sy = bw / (a.box[3] - a.box[1]), bh / (a.box[4] - a.box[2])
+		return {
+			x = round(bx - a.box[1] * sx), y = round(by - a.box[2] * sy), w = round(a.w * sx), h = round(a.h * sy),
+			box = { x = bx, y = by, w = bw, h = bh },
+		}
+	end
+	local lip = M.TRAY_LIP
+	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
+	return {
+		tray = place(M.DECOR.tray, r.deck.x - lip, r.deck.y - lip, r.deck.w + 2 * lip, r.deck.h + 2 * lip),
+		rail = place(M.DECOR.rail, 0, top, w, h - top),
+	}
+end
+
 -- the bar track rect in pixels, inside the round banner
 function M.bar(rects)
 	local r, b = rects.round, M.barInBanner

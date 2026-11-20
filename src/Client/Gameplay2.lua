@@ -108,6 +108,14 @@ function M.install(deps)
 	deckImg.ZIndex = Z_UI
 	deckImg.Parent = layer
 	local deckPill = Kit.pill(layer, "0 / 52", "wood"); deckPill.Name = "DeckCountPill"; deckPill.ZIndex = Z_UI
+	-- table furniture under the deck and under the bottom row (rects from ConceptTLayout.decorFor), over the felt, under every plate and button
+	local furniture = {}
+	for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" }, { "tray", "DeckTray", "ct_deck_tray" } }) do
+		local img = Instance.new("ImageLabel")
+		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
+		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
+		furniture[spec[1]] = img
+	end
 	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
 	local wallBanners = {}
 	do
@@ -396,6 +404,17 @@ function M.install(deps)
 		end
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		place(deckImg, r.deck); place(deckPill, r.deckCount)
+		do
+			local dc = CTLayout.decorFor(r, size.X, size.Y)
+			for key, img in pairs(furniture) do
+				img.Visible = img.Image ~= ""
+				place(img, dc[key])
+			end
+			if game:GetService("RunService"):IsStudio() and self.decorKey ~= size.X .. "x" .. size.Y then
+				self.decorKey = size.X .. "x" .. size.Y
+				print(("[TableDecor] %dx%d tray=%d,%d,%d,%d rail=%d,%d,%d,%d"):format(size.X, size.Y, dc.tray.box.x, dc.tray.box.y, dc.tray.box.w, dc.tray.box.h, dc.rail.box.x, dc.rail.box.y, dc.rail.box.w, dc.rail.box.h))
+			end
+		end
 		do
 			-- the reference tavern paints its own four banners, so the HUD pair only hangs on scenes without them (Boss rounds)
 				local wb = (TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) and nil or Layout.banners(size.X, size.Y)

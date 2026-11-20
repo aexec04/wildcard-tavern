@@ -24160,6 +24160,22 @@ table.insert(tests, { name = "ConceptTLayout table furniture: the tray sits unde
 		assert(d.rail.box.y > r.hands.y + r.hands.h, tag .. " rail clear of the Hands plate")
 	end
 end })
+table.insert(tests, { name = "Gameplay2 table furniture: tray frames the deck with an 8 px lip, rail runs full width from 12 px above Rank and Suit, both clear of the hand", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = G.rects(w, h)
+		local d = L.decorFor(r, w, h)
+		assert(d.tray.box.x == r.deck.x - 8 and d.tray.box.y == r.deck.y - 8, tag .. " tray lip left and top")
+		assert(d.tray.box.w == r.deck.w + 16 and d.tray.box.h == r.deck.h + 16, tag .. " tray lip size")
+		assert(d.tray.w > 0 and d.tray.h > 0 and d.rail.w > 0 and d.rail.h > 0, tag .. " pictures not 0x0")
+		assert(d.rail.box.x == 0 and d.rail.box.w == w and d.rail.box.y + d.rail.box.h == h, tag .. " rail full width to the bottom")
+		assert(d.rail.box.y == r.sortRank.y - 12, tag .. " rail starts 12 px above Rank and Suit")
+		assert(d.rail.box.y >= r.hand.y + r.hand.h, tag .. " rail below the hand rect")
+	end
+end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
