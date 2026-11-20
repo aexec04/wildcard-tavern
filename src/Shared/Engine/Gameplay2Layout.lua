@@ -217,13 +217,13 @@ function M.deckHit(r)
 	return { x = math.min(r.deck.x, r.deckCount.x), y = top, w = math.max(r.deck.x + r.deck.w, r.deckCount.x + r.deckCount.w) - math.min(r.deck.x, r.deckCount.x), h = bottom - top }
 end
 
--- The TARGET CLEARED / NEW BEST banner (56 px tall, centred): the top of the stage, just under the 26 px hand preview pill, so it never
+-- The TARGET CLEARED / NEW BEST banner (56 px tall, centred): the top of the stage, just under the 32 px hand preview strip, so it never
 -- covers the Patron label and pill rows. Returns the banner's centre Y in px.
 M.BANNER_H = 56
-M.BANNER_AIR = 4 -- px under the preview pill (Gameplay2Preview.H is 26)
+M.BANNER_AIR = 4 -- px under the preview pill (Gameplay2Preview.H is 32)
 function M.bannerY(w, h)
 	local st = M.rects(w, h).stage
-	return st.y + 26 + M.BANNER_AIR + math.floor(M.BANNER_H / 2)
+	return st.y + 32 + M.BANNER_AIR + math.floor(M.BANNER_H / 2)
 end
 
 -- The centre score stack inside the stage: caption, numeral (digits about 56 px tall, so a 72 px font), a gold line directly under

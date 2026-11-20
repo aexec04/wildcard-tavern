@@ -363,6 +363,8 @@ function M.install(deps)
 		local nHand = lastState and lastState.hand and #lastState.hand or 0
 		local idleHand = HSz.frameFor(size.X, CTLayout.handFor(r.hand, size.X, nHand), math.max(nHand, 8))
 		local stageUse = self.playing == true and r.stage or SPlate.idleStage(r.stage, idleHand.y) -- idle: plate and line end 12 px above the tallest card
+		local stripShown = false -- the hand strip stands above the Score plate (never over its caption) when the idle stage has room for both
+		if self.previewText and self.playing ~= true then stageUse, stripShown = PreviewRules.plateStage(stageUse, SPlate.MIN_H) end
 		local live = SPlate.live(stageUse, root.AbsoluteSize.X, capH, progH, self.playing == true)
 		if game:GetService("RunService"):IsStudio() and self.tableRectsKey ~= size.X .. "x" .. size.Y then
 			self.tableRectsKey = size.X .. "x" .. size.Y
@@ -388,7 +390,7 @@ function M.install(deps)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
-		scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true)
+		scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true or stripShown)
 		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
@@ -409,8 +411,21 @@ function M.install(deps)
 		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
 			raise(previewPill, Z_UI + 1)
-			setText(previewPill, self.previewText)
+			if not painted.preview then painted.preview = true; pcall(function() Kit.painted(previewPill, "wh_target") end) end -- the Target and Tips plate family
+			local pw = setText(previewPill, self.previewText)
+			if pw then
+				pw.RichText = true; pw.Text = self.previewRich or self.previewText
+				pw.TextScaled = false; pw.TextSize = math.max(Style.TEXT.chip, 16)
+				pw.TextTruncate = Enum.TextTruncate.AtEnd
+				local pad = pw:FindFirstChild("PreviewPad") or Instance.new("UIPadding")
+				pad.Name = "PreviewPad"; pad.PaddingLeft = UDim.new(0, 28); pad.PaddingRight = UDim.new(0, 28); pad.Parent = pw -- clear of the carved gold ends
+			end
 			previewPill.Visible = true
+			if game:GetService("RunService"):IsStudio() and self.previewRectKey ~= self.previewText then
+				self.previewRectKey = self.previewText
+				local pr = PreviewRules.rect(r.stage, self.previewText)
+				print(("[PreviewStrip] strip=%d,%d,%d,%d plate=%d,%d,%d,%d shifted=%s"):format(pr.x, pr.y, pr.w, pr.h, live.plate.x, live.plate.y, live.plate.w, live.plate.h, tostring(stripShown)))
+			end
 			if game:GetService("RunService"):IsStudio() then -- only one preview may show: the older box must stay hidden
 				local old = deps.root and deps.root:FindFirstChild("CTPreviewPill", true)
 				if old and old.Visible then warn("[Gameplay2] a second preview box (CTPreviewPill) is visible over the centre score") end
@@ -693,9 +708,11 @@ end
 -- the hub passes its live hand preview (Engine/HandPreview) whenever the selection changes, nil when nothing is selected
 function M.setPreview(preview, handLevels)
 	if not current then return end
-	local text = preview and PreviewRules.line(preview, PreviewRules.levelOf(handLevels, preview.name)) or nil
+	local lv = preview and PreviewRules.levelOf(handLevels, preview.name)
+	local text = preview and PreviewRules.line(preview, lv) or nil
 	if current.previewText == text then return end
 	current.previewText = text
+	current.previewRich = preview and PreviewRules.rich(preview, lv) or nil
 	if current.isActive() then pcall(current.refresh) end
 end
 

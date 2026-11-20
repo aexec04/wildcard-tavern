@@ -29736,7 +29736,7 @@ table.insert(tests, { name = "Gameplay v2 hand preview: name, level, chips and m
 		local r = L.rects(sz[1], sz[2])
 		local text = P.line({ name = "Straight Flush", chips = 150, mult = 12 }, 12)
 		local pr = P.rect(r.stage, text)
-		assert(pr.w <= r.stage.w and pr.x >= r.stage.x and pr.x + pr.w <= r.stage.x + r.stage.w and pr.y == r.stage.y and pr.h == 26, "pill inside the stage top at " .. sz[1])
+		assert(pr.w <= r.stage.w and pr.x >= r.stage.x and pr.x + pr.w <= r.stage.x + r.stage.w and pr.y == r.stage.y and pr.h == math.min(32, r.stage.h), "pill inside the stage top at " .. sz[1])
 		for i = 1, 5 do
 			local pill = r.slots[i].pill
 			assert(pr.y >= pill.y + pill.h, "pill under Patron pill " .. i .. " at " .. sz[1])
@@ -29751,6 +29751,41 @@ table.insert(tests, { name = "Gameplay v2 hand preview: name, level, chips and m
 	local fn = pr:match("function M%.placePill%(%).-\nend\n") or ""
 	assert(fn:find("Gameplay2", 1, true) and fn:find("not v2", 1, true), "PatronRow.placePill hides the old preview box on the v2 table")
 	assert(read("src/Client/Gameplay2.lua"):find("PreviewRules.H", 1, true), "the caption row is as tall as the preview pill")
+end })
+
+table.insert(tests, { name = "Gameplay v2 hand strip: painted strip above the Score plate, never over its caption, Chips blue and Mult red at 4.5:1, at five sizes", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local rich = P.rich({ name = "High Card", chips = 15, mult = 13 }, 1)
+	assert(rich:find("High Card Lv 1", 1, true) and rich:find("15 Chips", 1, true) and rich:find("13 Mult", 1, true), "same numbers as line()")
+	assert(rich:find(P.INK.chips, 1, true) and rich:find(P.INK.mult, 1, true) and P.rich(nil, 1) == nil)
+	assert(P.rich({ name = "Pair", chips = 0, mult = 0 }, 2):find("No score", 1, true))
+	local function lin(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+	local function lum(hex)
+		return 0.2126 * lin(tonumber(hex:sub(2, 3), 16)) + 0.7152 * lin(tonumber(hex:sub(4, 5), 16)) + 0.0722 * lin(tonumber(hex:sub(6, 7), 16))
+	end
+	local bg = 0.2126 * lin(40) + 0.7152 * lin(26) + 0.0722 * lin(16) -- the dark wood plate, about (40, 26, 16)
+	for k, hex in pairs(P.INK) do
+		assert((lum(hex) + 0.05) / (bg + 0.05) >= 4.5, k .. " ink reads on the dark plate")
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local strip = P.rect(r.stage, "Straight Flush Lv 12  |  150 Chips x 12 Mult")
+		local ps, shifted = P.plateStage(r.stage, SP.MIN_H)
+		if shifted then
+			assert(strip.y + strip.h + P.GAP <= ps.y, "strip clear of the plate at " .. sz[1] .. "x" .. sz[2])
+			assert(ps.y + ps.h == r.stage.y + r.stage.h and ps.h >= SP.MIN_H, "plate keeps the stage bottom and its minimum")
+		else
+			assert(ps.y == r.stage.y and ps.h == r.stage.h, "unshifted stage is returned as is")
+		end
+	end
+	local big = L.rects(1920, 957)
+	local _, sh = P.plateStage(big.stage, SP.MIN_H)
+	assert(sh, "the reference size has room for strip and plate")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("PreviewRules.plateStage", 1, true) and c:find('Kit.painted(previewPill, "wh_target")', 1, true) and c:find("RichText = true", 1, true), "wired")
 end })
 
 table.insert(tests, { name = "Gameplay v2 centre: the preview pill never touches the score numeral, line or progress text at three sizes", fn = function()
@@ -31834,7 +31869,7 @@ table.insert(tests, { name = "Scoring phase: the Score caption and the N of Targ
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
-	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true)", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
+	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true or stripShown)", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
 end })
 
 table.insert(tests, { name = "Boss round: the scroll is the one rule element, the intro plate and the Night map bars wear the ornate wide plate", fn = function()
