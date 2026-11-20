@@ -77,6 +77,25 @@ function M.install(deps)
 	scene.ZIndex = 1
 	scene.Image = TableArt.table_play_ref or TableArt.table_play or "" -- the reference tavern (four banners, shelves, fireplace); the older scene is the fallback
 	scene.Parent = layer
+	scene.ImageColor3 = Color3.fromRGB(217, 217, 217) -- about 15 percent darker, so the shelves and banners stop competing with the Patron seats
+	do -- soft dark vignette: stepped nested edge bands (no UIGradient.Transparency), darkest at the rim, nothing in the middle, static so Calm mode is the same
+		local vig = Instance.new("Frame"); vig.Name = "SceneVignette"; vig.BackgroundTransparency = 1; vig.BorderSizePixel = 0; vig.Active = false
+		vig.Size = UDim2.fromScale(1, 1); vig.ZIndex = 2; vig.Parent = layer
+		local STEPS, DEPTH = 8, 0.22 -- eight bands, together 22 percent of the width and of the height per side
+		for i = 1, STEPS do
+			local tr = 0.92 -- the bands are nested and stack: the rim gets all eight (about 0.5 transparent), the inner edge one (0.92), the middle none
+			for _, side in ipairs({ "T", "B", "L", "R" }) do
+				local f = Instance.new("Frame"); f.Name = "VigBand" .. side .. i; f.BorderSizePixel = 0; f.Active = false
+				f.BackgroundColor3 = Color3.fromRGB(10, 6, 14); f.BackgroundTransparency = tr; f.ZIndex = 2
+				local w = DEPTH * (STEPS - i + 1) / STEPS
+				if side == "T" then f.Size = UDim2.fromScale(1, w); f.Position = UDim2.fromScale(0, 0)
+				elseif side == "B" then f.Size = UDim2.fromScale(1, w); f.Position = UDim2.fromScale(0, 1 - w)
+				elseif side == "L" then f.Size = UDim2.fromScale(w, 1); f.Position = UDim2.fromScale(0, 0)
+				else f.Size = UDim2.fromScale(w, 1); f.Position = UDim2.fromScale(1 - w, 0) end
+				f.Parent = vig
+			end
+		end
+	end
 
 	-- every drawn piece sits above the scene; the real buttons are lifted to Z_BTN
 	local Z_UI, Z_BTN = 3, 6
