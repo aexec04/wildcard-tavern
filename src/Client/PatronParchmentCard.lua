@@ -35,7 +35,7 @@ end
 function M.sync(c, name)
 	if not c or not c.body then return end
 	local art = c.body:FindFirstChild("PatronArt")
-	local rect = c.id and P.imageRect(c.id)
+	local rect = c.id and P.storedRect(c.id) -- stored texture pixels, not the 1536 px source
 	local paper, ribbon = c.body:FindFirstChild("ParchmentPaper"), c.body:FindFirstChild("ParchmentRibbon")
 	if not art or not rect then
 		if paper then paper.Visible = false end

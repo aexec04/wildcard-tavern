@@ -7,6 +7,7 @@
 
 	layout()          -> { portrait = {x,y,w,h}, ribbon = {x,y,w,h} } as fractions (0..1) of the seat
 	imageRect(id)     -> { x, y, w, h } pixels of the portrait window in the cut card picture, nil when the card has no crop
+	storedRect(id)    -> the same window in stored texture pixels (2/3 of the source), what ImageRectOffset and ImageRectSize take
 	nameRect(w)       -> { x, w } of the name text inside the ribbon for a seat w px wide (clear of the power disc)
 	contrast()        -> contrast ratio of the ink on the ribbon paper (tested at 4.5 or more)
 ]]
@@ -33,6 +34,17 @@ end
 
 function M.imageRect(id)
 	return Crop[tostring(id or "")]
+end
+
+-- The window in STORED texture pixels. Roblox keeps an upload at most 1024 px on its long side, so the 1024 x 1536 cut card is a
+-- 683 x 1024 texture and ImageRectOffset/Size must be scaled by 2/3 (Engine/ImageSpace), or the window lands low and shows the baked name.
+M.SOURCE_W, M.SOURCE_H = 1024, 1536
+function M.storedRect(id)
+	local r = Crop[tostring(id or "")]
+	if not r then return nil end
+	local ImageSpace = require(script.Parent.ImageSpace)
+	local x, y, w, h = ImageSpace.rect(r.x, r.y, r.w, r.h, M.SOURCE_W, M.SOURCE_H)
+	return { x = x, y = y, w = w, h = h }
 end
 
 function M.nameRect(w)

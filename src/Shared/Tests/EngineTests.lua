@@ -32173,4 +32173,19 @@ table.insert(tests, { name = "IconLabelLayout: icon and word rects lie inside ev
 	expectTrue(stray.label.x >= stray.icon.x + stray.icon.w, "the word still starts after the icon")
 end })
 
+table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scaled 2/3 into the stored 683 x 1024 texture, inside it, window ends above the baked name plate", fn = function()
+	local P = require(script.Parent.Parent.Engine.PatronParchment)
+	local Crop = require(script.Parent.Parent.Engine.PatronCardCrop)
+	local n = 0
+	for id, r in pairs(Crop) do
+		local s = P.storedRect(id)
+		expectTrue(math.abs(s.x - r.x * 1024 / 1536) < 0.001 and math.abs(s.h - r.h * 1024 / 1536) < 0.001, id .. ": scaled by 2/3")
+		expectTrue(s.x >= 0 and s.y >= 0 and s.x + s.w <= 683.4 and s.y + s.h <= 1024.1, id .. ": inside the stored texture")
+		expectTrue(r.y + r.h <= 1536 * 0.82, id .. ": window ends above the baked name plate")
+		n = n + 1
+	end
+	expectEqual(n, 81, "one crop per Patron")
+	expectTrue(P.storedRect("no_such_patron") == nil, "no crop, no rect")
+end })
+
 return tests
