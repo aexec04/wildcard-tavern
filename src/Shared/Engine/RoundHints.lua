@@ -164,7 +164,32 @@ end
 
 -- The mockup's hint plate stands in the left column beside the Patron seats (x 18 to 335, y 345 to 485 of 1672 x 941), level with
 -- the first seat's label row; where the consumables tray or anything else is in the way it drops to the open middle under the pills.
+-- The slim strip: one 60 px plate centred above the hand fan with the Got it plate inside it on the right (the concept shows nothing at the
+-- left of the table). 520 wide at 1920 and scaled with the screen (never under 360); it ends STRIP_GAP above the hand rect and may stand
+-- over the idle stage's progress line, but never over a Patron seat or the avoid rects. nil when it does not fit.
+M.STRIP_W, M.STRIP_H, M.STRIP_MIN_W, M.STRIP_GAP, M.STRIP_PAD = 520, 60, 360, 6, 8
+M.STRIP_TITLE, M.STRIP_BODY = 22, 16
+function M.strip(r, viewW, viewH, avoid)
+	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
+	local w = math.min(M.STRIP_W, math.max(M.STRIP_MIN_W, math.floor(M.STRIP_W / 1920 * viewW + 0.5)))
+	local plate = { x = math.floor((viewW - w) / 2), y = r.hand.y - M.STRIP_GAP - M.STRIP_H, w = w, h = M.STRIP_H }
+	local bh = M.BUTTON_H
+	local button = { x = plate.x + w - M.STRIP_PAD - M.BUTTON_W, y = plate.y + math.floor((M.STRIP_H - bh) / 2), w = M.BUTTON_W, h = bh }
+	if plate.x < 0 or plate.y < 0 or plate.x + w > viewW or plate.y + plate.h > viewH then return nil end
+	for _, s in ipairs(r.slots) do
+		for _, part in ipairs({ s.card, s.label, s.pill }) do
+			if part and hit(plate, part) then return nil end
+		end
+	end
+	for _, a in ipairs(avoid or {}) do
+		if hit(plate, a) then return nil end
+	end
+	return { plate = plate, button = button, kind = "strip", textW = w - 3 * M.STRIP_PAD - M.BUTTON_W }
+end
+
 function M.place(r, viewW, viewH, avoid)
+	local strip = M.strip(r, viewW, viewH, avoid)
+	if strip then return strip end
 	if type(r) == "table" and r.slots and r.slots[1] and r.slots[1].label then
 		local top = r.slots[1].label.y
 		for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do -- stay under the consumables tray

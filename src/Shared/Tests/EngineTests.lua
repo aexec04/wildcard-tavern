@@ -30025,7 +30025,7 @@ table.insert(tests, { name = "Boss round table: one boss plate after the intro, 
 		if spot then
 			expectTrue(not hit(spot.plate, rp) and not hit(spot.button, rp), "the hint plate and its button never touch the boss plate at " .. w)
 			for i, sl in ipairs(r.slots) do expectTrue(not hit(spot.plate, sl.card) and not hit(spot.plate, sl.pill), "hint clear of Patron seat " .. i .. " at " .. w) end
-			expectTrue(not hit(spot.plate, r.hand) and not hit(spot.plate, r.stage), "hint clear of hand and stage at " .. w)
+			expectTrue(not hit(spot.plate, r.hand) and (spot.kind == "strip" or not hit(spot.plate, r.stage)), "hint clear of hand (and of the stage unless it is the slim strip) at " .. w)
 		end
 	end
 	if not io then return end
@@ -31053,7 +31053,17 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		expectTrue(f[1] < 90 and f[2] < 90 and f[3] < 90, "Got it fill is dark wood, not green")
 		expectTrue(RH.GOT_IT.text[1] > 200 and RH.GOT_IT.text[2] > 150, "Got it text is gold")
 		local spot = RH.place(L.rects(1920, 1080), 1920, 1080)
-		expectTrue(spot and spot.button.y >= spot.plate.y + spot.plate.h and spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w, "Got it sits under the plate, inside its width, 44 px or more")
+		expectTrue(spot and spot.kind == "strip", "the first choice is the slim strip above the hand")
+		expectTrue(spot.plate.h == 60 and spot.plate.w <= 520 and spot.plate.x + spot.plate.w / 2 == 960, "strip is 60 tall, at most 520 wide, centred")
+		expectTrue(spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w and spot.button.y >= spot.plate.y and spot.button.y + spot.button.h <= spot.plate.y + spot.plate.h, "Got it sits inside the strip on the right, 44 px or more")
+		expectTrue(spot.button.x + spot.button.w / 2 > spot.plate.x + spot.plate.w / 2, "Got it is on the right half")
+		expectTrue(spot.plate.y + spot.plate.h <= L.rects(1920, 1080).hand.y, "strip ends above the hand rect")
+		expectTrue(RH.STRIP_TITLE == 22 and RH.STRIP_BODY >= 14, "strip text sizes")
+		for _, sz2 in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do -- the left side of the table stays empty at the live sizes
+			local rr = L.rects(sz2[1], sz2[2])
+			local sp = RH.place(rr, sz2[1], sz2[2], {})
+			expectTrue(sp and sp.kind == "strip" and sp.plate.x > rr.sortSuit.x + rr.sortSuit.w, "strip is right of Rank and Suit at " .. sz2[1])
+		end
 	end
 	expectTrue(RH.satisfied("round_hint_select", 1) and not RH.satisfied("round_hint_select", 0) and not RH.satisfied("round_hint_tiers", 5), "picking a card finishes the first plate only")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
@@ -31068,7 +31078,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 					expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, "on screen at " .. w .. "x" .. h)
 					for name, other in pairs(L.flat(r)) do
 						local hit = rect.x < other.x + other.w and other.x < rect.x + rect.w and rect.y < other.y + other.h and other.y < rect.y + rect.h
-						expectTrue(not hit, w .. "x" .. h .. ": hint overlaps " .. name)
+						expectTrue(not hit or (spot.kind == "strip" and name == "stage"), w .. "x" .. h .. ": hint overlaps " .. name)
 					end
 				end
 				expectTrue(spot.plate.y + spot.plate.h <= r.hand.y, "above the hand at " .. w .. "x" .. h)
@@ -32560,6 +32570,7 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 			-- window the plate sits where the tray ends instead of at the mockup's y (the mockup has no tray)
 			local tray = r.trayPrompt or r.traySell
 			if tray and hy0 == tray.y + tray.h + 6 then live.RoundHint = nil end
+			if hint.kind == "strip" then live.RoundHint = nil end -- the concept has no hint plate; the slim strip is checked in the RoundHints test
 		end
 		local lines, warns = T.compare(live, w)
 		for _, l in ipairs(lines) do print(w .. " " .. l) end

@@ -133,12 +133,31 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 		if seenRemote then seenRemote:FireServer(entry.id) end -- once per profile
 	end
 	title.Text, body.Text = entry.title, entry.body
+	local strip = spot.kind == "strip"
+	local paint = layer:FindFirstChild(plate.Name .. "Paint")
+	if strip then -- the slim strip is a flat plate: the crown picture is the wrong shape for it
+		if paint then paint:Destroy() end
+		plate.BackgroundTransparency = 0.05
+		for _, d in ipairs(plate:GetChildren()) do if d:IsA("UIStroke") then d.Enabled = true end end
+		title.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 6); title.Size = UDim2.fromOffset(spot.textW, 26); title.TextSize = Rules.STRIP_TITLE
+		body.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 33); body.Size = UDim2.fromOffset(spot.textW, 22); body.TextSize = Rules.STRIP_BODY
+		body.TextWrapped = false; title.TextWrapped = false
+	else
+		if not paint then pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_hint") end) end
+		title.Position = UDim2.new(0.31, 0, 0, 14); title.Size = UDim2.new(0.62, 0, 0, 22); title.TextSize = 18
+		body.Position = UDim2.new(0.31, 0, 0, 38); body.Size = UDim2.new(0.62, 0, 0, 36); body.TextSize = 15
+		body.TextWrapped = true; title.TextWrapped = true
+	end
 	plate.Visible = true
 	plate.Size = UDim2.fromOffset(spot.plate.w, spot.plate.h)
 	plate.Position = UDim2.fromOffset(spot.plate.x, spot.plate.y)
 	button.Visible = true
 	button.Size = UDim2.fromOffset(spot.button.w, spot.button.h)
 	button.Position = UDim2.fromOffset(spot.button.x, spot.button.y)
+	if game:GetService("RunService"):IsStudio() and M.lastKey ~= viewW .. "x" .. viewH .. spot.kind then
+		M.lastKey = viewW .. "x" .. viewH .. spot.kind
+		print(("[HintRects] %s plate=%d,%d,%d,%d button=%d,%d,%d,%d"):format(spot.kind, spot.plate.x, spot.plate.y, spot.plate.w, spot.plate.h, spot.button.x, spot.button.y, spot.button.w, spot.button.h))
+	end
 end
 
 -- Settings > Replay Hints
