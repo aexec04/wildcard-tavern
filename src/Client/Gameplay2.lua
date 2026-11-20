@@ -175,14 +175,14 @@ function M.install(deps)
 	local scorePlate = Instance.new("Frame") -- ornate plate behind the caption, numeral and gold line (the progress line stays under it)
 	scorePlate.Name = "ScorePlate"; scorePlate.BackgroundTransparency = 1; scorePlate.BorderSizePixel = 0; scorePlate.Active = false
 	scorePlate.ZIndex = 3; scorePlate.Parent = layer
-	local scoreCaption = scoreText("ScoreCaption", Enum.Font[Style.FONTS.ui], cream, 0.6)
+	local scoreCaption = scoreText("ScoreCaption", Enum.Font.Merriweather, cream, 0.6) -- cream serif with a soft dark shadow (reference)
 	scoreCaption.Text = "Score"
 	local scoreProgress = scoreText("ScoreProgress", Enum.Font[Style.FONTS.ui], Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]), 0.5)
 	scoreProgress.TextTransparency = 0.1
 	scoreNum.TextTransparency = 0; scoreNum.TextStrokeTransparency = 0.1 -- bold white digits (a thin serif 0 read as an O) with a gold outline
 	scoreNum.Font = Enum.Font.GothamBold
-	scoreNum.TextColor3 = Color3.fromRGB(255, 255, 255)
-	scoreNum.TextStrokeColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3])
+	scoreNum.TextColor3 = Color3.fromRGB(255, 244, 222) -- cream white until the Target is reached, then gold (below)
+	scoreNum.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3]) -- 1 px dark outline
 	scoreCaption.TextTransparency = 0.1
 	local scoreLine = Instance.new("Frame")
 	scoreLine.Name = "ScoreUnderline"
@@ -482,7 +482,7 @@ function M.install(deps)
 		scoreNum.TextSize = SPlate.fitSize(N.textSize, #tostring(scoreNum.Text), live.inner.w); scoreNum.ZIndex = 4
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
 		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 4
-		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 24
+		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = capH -- 30 px at 1920, scaled with the width (SPlate.capFor)
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 4
 		local nudge = SPlate.NAME_NUDGE
 		if nameInCaption and N.numH and N.numH - nudge >= SPlate.IDLE_MIN_FONT then -- the hand name in the caption row clears the carved top border: it drops nudge px and the numeral gives them up
@@ -490,7 +490,7 @@ function M.install(deps)
 			scoreNum.Size = UDim2.new(1, 0, 0, N.numH - nudge); scoreNum.Position = UDim2.fromOffset(0, N.numTop + nudge)
 			scoreNum.TextSize = SPlate.fitSize(N.textSize - nudge, #tostring(scoreNum.Text), live.inner.w)
 		end
-		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
+		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 24
 		scoreProgress.Position = UDim2.fromOffset(0, N.below and N.progressY or (N.lineY + 4)); scoreProgress.ZIndex = 4 -- idle: the line stands 12 px under the plate
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
 			scorePlate.Position = UDim2.fromOffset(live.plate.x, live.plate.y)
@@ -707,7 +707,7 @@ function M.install(deps)
 		local gold = SN.cleared(nowScore, lastState.targetScore)
 		if gold ~= self.numeralGold then
 			self.numeralGold = gold
-			local c = Style.rgb("gold") -- the idle numeral is gold (reference); the cleared tag carries the cleared signal
+			local c = gold and Style.rgb("gold") or { 255, 244, 222 } -- cream white (reference) until the Target is reached, then gold
 			scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
 		end
 		if game:GetService("RunService"):IsStudio() and act ~= "keep" then

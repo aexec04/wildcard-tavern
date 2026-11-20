@@ -29558,7 +29558,7 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("flatOpaque(deps.playButton)", 1, true) and src:find("b.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate (opaque flat, or the painted frame behind it)")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
-	assert(src:find("SPlate.live(", 1, true) and src:find("scoreCaption.TextSize = 24", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
+	assert(src:find("SPlate.live(", 1, true) and src:find("scoreCaption.TextSize = capH", 1, true) and src:find("scoreProgress.TextSize = 24", 1, true), "centre score stack: numeral, caption above, progress text under the line")
 	assert(src:find("ScoreJuiceBanner", 1, true), "a stale TARGET CLEARED shout is hidden once the screen leaves play")
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
@@ -33154,7 +33154,7 @@ table.insert(tests, { name = "Score plate: caption, numeral and progress line st
 	if not io then return end
 	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("SPlate.live(", 1, true) ~= nil and src:find("fitSize", 1, true) ~= nil, "the live plate uses the tested rects")
-	expectTrue(src:find("scoreNum.Font = Enum.Font.GothamBold", 1, true) ~= nil and src:find("scoreNum.TextColor3 = Color3.fromRGB(255, 255, 255)", 1, true) ~= nil, "bold white digits with a gold outline")
+	expectTrue(src:find("scoreNum.Font = Enum.Font.GothamBold", 1, true) ~= nil and src:find("scoreNum.TextColor3 = Color3.fromRGB(255, 244, 222)", 1, true) ~= nil, "bold cream white digits with a dark outline, gold once cleared")
 end })
 
 table.insert(tests, { name = "Gameplay v2: Rank, Suit, Play Hand and Discard share one bottom row, even gaps, clear of the count pills", fn = function()
@@ -33910,6 +33910,18 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 		end
 		expectTrue(spot.plate.y + spot.plate.h <= r.hand.y - PP.HAND_GAP + 1 and (not spot.button or spot.button.y + spot.button.h <= r.hand.y), "above the hand fan")
 	end
+end })
+
+table.insert(tests, { name = "Score plate lettering: caption is the caption row height in serif, numeral cream white until cleared then gold, progress line 24 px", fn = function()
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	expectEqual(SP.capFor(1920), 30, "caption 30 px at 1920")
+	expectTrue(SP.capFor(1280) >= 26 and SP.capFor(1280) <= 30, "caption scales down, never under 26")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f:read("a"); f:close()
+	expectTrue(src:find('scoreText("ScoreCaption", Enum.Font.Merriweather', 1, true) ~= nil, "caption is serif")
+	expectTrue(src:find("scoreCaption.TextSize = capH", 1, true) ~= nil, "caption size follows the caption row")
+	expectTrue(src:find("scoreProgress.TextSize = 24", 1, true) ~= nil, "progress line 24 px")
+	expectTrue(src:find('local c = gold and Style.rgb("gold") or { 255, 244, 222 }', 1, true) ~= nil, "numeral gold only when cleared")
 end })
 
 return tests
