@@ -305,27 +305,36 @@ function TavernKit.icon(host, name, pad)
 		img.BorderSizePixel = 0
 		img.Active = false
 		img.ScaleType = Enum.ScaleType.Fit
-		img.AnchorPoint = Vector2.new(0, 0.5)
-		img.Position = UDim2.new(0.06, 0, 0.5, 0)
 		img.Parent = host
-		-- a square sized in pixels from the plate's height (a zero-width UDim2 with an aspect constraint collapsed to nothing, which hid every icon)
-		-- 0.53 of the plate height (15 percent under the first 0.62); the text padding below is the icon's right edge plus a 10 px gap
+		-- icon 14 px in from the left, word 6 px right of it, both centred vertically (Engine/IconLabelLayout, tested). A square sized in
+		-- pixels (a zero-width UDim2 with an aspect constraint collapsed to nothing). The word is the button's KitLabel when it has one (a
+		-- child, so a UIPadding on the button never moved it: that put the word under the icon), else the host's own text via KitIconPad.
+		local Layout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("IconLabelLayout"))
 		local function size()
-			local s = math.max(8, math.floor(host.AbsoluteSize.Y * 0.53 + 0.5))
-			img.Size = UDim2.fromOffset(s, s)
+			local p = Layout.place(host.AbsoluteSize.X, host.AbsoluteSize.Y)
+			img.Position = UDim2.fromOffset(p.icon.x, p.icon.y)
+			img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
 			local up = host:FindFirstChild("KitIconPad")
-			if up then up.PaddingLeft = UDim.new(0, math.floor(host.AbsoluteSize.X * 0.06 + s + 10)) end
+			if up then up.PaddingLeft = UDim.new(0, p.label.x) end
+			local kl = host:FindFirstChild("KitLabel")
+			if kl and kl:IsA("GuiObject") then
+				kl.AnchorPoint = Vector2.new(0, 0)
+				kl.Position = UDim2.fromOffset(p.label.x, p.label.y)
+				kl.Size = UDim2.fromOffset(p.label.w, p.label.h)
+				kl.TextXAlignment = Enum.TextXAlignment.Left
+			end
 		end
 		size()
 		host:GetPropertyChangedSignal("AbsoluteSize"):Connect(size)
+		host.ChildAdded:Connect(function(c) if c.Name == "KitLabel" then task.defer(size) end end)
 	end
 	img.Image = id
 	img.ImageTransparency = 0
 	img.ZIndex = host.ZIndex + 2
 	if pad and pad > 0 and (host:IsA("TextLabel") or host:IsA("TextButton")) and not host:FindFirstChild("KitIconPad") then
-		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(pad, 0); up.Parent = host
-		local s = img.Size.X.Offset
-		up.PaddingLeft = UDim.new(0, math.floor(host.AbsoluteSize.X * 0.06 + s + 10)) -- clear gap right of the icon at any plate width
+		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.Parent = host
+		local Layout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("IconLabelLayout"))
+		up.PaddingLeft = UDim.new(0, Layout.place(host.AbsoluteSize.X, host.AbsoluteSize.Y).label.x) -- 6 px clear of the icon at any plate width
 		host.TextXAlignment = Enum.TextXAlignment.Left -- the word starts at the padding, so a centred word cannot slide under the icon (its KitLabel mirrors this)
 		local kl = host:FindFirstChild("KitLabel")
 		if kl then kl.TextXAlignment = Enum.TextXAlignment.Left end

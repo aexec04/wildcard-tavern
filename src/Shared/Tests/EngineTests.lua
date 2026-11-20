@@ -32063,4 +32063,24 @@ table.insert(tests, { name = "Gameplay v2: Rank, Suit, Play Hand and Discard sha
 	end
 end })
 
+table.insert(tests, { name = "IconLabelLayout: the icon stands at the left, the word starts 6 px right of it, both centred, never overlapping (Rank and Suit at three sizes)", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, k in ipairs({ "sortRank", "sortSuit" }) do
+			local b = r[k]
+			local p = I.place(b.w, b.h)
+			local tag = sz[1] .. "x" .. sz[2] .. " " .. k
+			expectEqual(p.icon.x, 14, tag .. ": icon 14 px from the left")
+			expectEqual(p.label.x - (p.icon.x + p.icon.w), 6, tag .. ": 6 px between icon and word")
+			expectTrue(p.icon.x + p.icon.w <= p.label.x, tag .. ": icon and word do not overlap")
+			expectTrue(p.icon.y >= 0 and p.icon.y + p.icon.h <= b.h, tag .. ": icon inside the plate height")
+			expectTrue(math.abs((p.icon.y + p.icon.h / 2) - b.h / 2) <= 1, tag .. ": icon centred vertically")
+			expectEqual(p.label.h, b.h, tag .. ": word row is the full height, centred by the label")
+			expectTrue(p.label.x + p.label.w <= b.w - I.RIGHT + 0.001, tag .. ": word ends inside the plate")
+		end
+	end
+end })
+
 return tests
