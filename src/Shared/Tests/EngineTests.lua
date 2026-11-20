@@ -34455,4 +34455,22 @@ table.insert(tests, { name = "Boss rule chip: complete text, short chip at compa
 	end
 end })
 
+table.insert(tests, { name = "Rank and Suit labels keep 4 px clear on each side at five sizes (800x450 included), word 9 px or more", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, key in ipairs({ "sortRank", "sortSuit" }) do
+			local b = r[key]
+			local word = key == "sortRank" and "Rank" or "Suit"
+			local base = math.max(14, math.min(24, math.floor(b.h * 0.4)))
+			local a = I.anchored(b.w, b.h, #word * base * 0.62, base, 10, 4)
+			local left = b.w / 2 + a.icon.dx
+			local right = b.w / 2 + a.label.dx + a.label.w
+			expectTrue(left >= 4 and b.w - right >= 4, word .. " has 4 px clear each side at " .. sz[1] .. "x" .. sz[2] .. " (left " .. left .. ", right gap " .. (b.w - right) .. ")")
+			expectTrue(a.size >= 10, word .. " word 10 px or more at " .. sz[1])
+		end
+	end
+end })
+
 return tests

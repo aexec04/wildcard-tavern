@@ -23,11 +23,18 @@ M.PAD = 6 -- slack added to a measured word width (outline, bold and font differ
 -- The icon, the 6 px gap and the word as ONE group centred in the plate, at least SIDE px from each edge. textW is the word's measured
 -- width at `size`; when the group does not fit, the word shrinks (size * room / textW, floored, never under minSize) and the group fills the room.
 -- Returns { icon, label, size, fits } (label is the group's word box, left aligned).
-function M.group(w, h, textW, size, minSize)
+function M.group(w, h, textW, size, minSize, minSide)
 	w, h = math.max(1, math.floor(w)), math.max(1, math.floor(h))
 	local s = math.max(M.MIN_ICON, math.floor(h * M.ICON_K + 0.5))
-	local room = math.max(0, w - 2 * M.SIDE - s - M.GAP) -- what the word may take
 	textW = math.ceil(math.max(0, textW or 0)) + ((textW or 0) > 0 and M.PAD or 0)
+	-- minSide (optional, a narrow plate): when the word at minSize still does not fit, the side margin falls from SIDE toward minSide (never under it)
+	local side = M.SIDE
+	if minSide and textW > 0 then
+		local atMin = textW * math.min(1, math.max(1, minSize or 14) / math.max(1, size or 14))
+		local need = math.ceil(atMin) + s + M.GAP
+		if need > w - 2 * side then side = math.max(minSide, math.min(side, math.floor((w - need) / 2))) end
+	end
+	local room = math.max(0, w - 2 * side - s - M.GAP) -- what the word may take
 	local newSize, fits = size, true
 	if textW > room and textW > 0 then
 		fits = false
@@ -36,7 +43,7 @@ function M.group(w, h, textW, size, minSize)
 		if textW > room then textW = room end
 	end
 	local total = s + M.GAP + textW
-	local x0 = math.max(M.SIDE, math.floor((w - total) / 2))
+	local x0 = math.max(side, math.floor((w - total) / 2))
 	return {
 		icon = { x = x0, y = math.floor((h - s) / 2), w = s, h = s },
 		label = { x = x0 + s + M.GAP, y = 0, w = textW, h = h },
@@ -48,8 +55,8 @@ end
 -- The same group described from the plate's CENTRE (dx = pixels from the centre to the rect's left edge), so a caller sets
 -- Position = UDim2.new(0.5, dx, ...) and the group is centred in the real plate whatever width was measured. Returns { icon = {dx,y,w,h},
 -- label = {dx,y,w,h}, size, total }.
-function M.anchored(w, h, textW, size, minSize)
-	local g = M.group(w, h, textW, size, minSize)
+function M.anchored(w, h, textW, size, minSize, minSide)
+	local g = M.group(w, h, textW, size, minSize, minSide)
 	local total = g.icon.w + M.GAP + g.label.w
 	return {
 		icon = { dx = -math.floor(total / 2), y = g.icon.y, w = g.icon.w, h = g.icon.h },

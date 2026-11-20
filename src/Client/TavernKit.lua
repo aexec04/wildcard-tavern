@@ -338,7 +338,7 @@ function TavernKit.icon(host, name, pad)
 				kl:SetAttribute("KitBaseSize", base)
 				local ok, bounds = pcall(function() return game:GetService("TextService"):GetTextSize(kl.Text, base, kl.Font, Vector2.new(10000, 10000)) end)
 				if ok and bounds then
-					a = Layout.anchored(pw, ph, bounds.X, base, 14)
+					a = Layout.anchored(pw, ph, bounds.X, base, host.Name:find("^Sort") and 10 or 14, host.Name:find("^Sort") and 4 or nil) -- the Rank and Suit plates are narrow at 800x450: the word may go down to 10 px and the side air to 4 px
 					kl.TextSize = a.size
 				end
 			end
