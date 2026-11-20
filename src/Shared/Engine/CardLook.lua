@@ -20,7 +20,7 @@ M.RANK_FLOOR = 15 -- the UITextSizeConstraint minimum in Client/CardFace
 function M.edge(selected, hovering)
 	local rgb = M.EDGE_RGB
 	if selected and hovering then return { thickness = 3, transparency = 0, rgb = rgb } end
-	if selected then return { thickness = 2, transparency = 0, rgb = rgb } end
+	if selected then return { thickness = 3, transparency = 0, rgb = rgb } end
 	if hovering then return { thickness = 1.5, transparency = 0.5, rgb = rgb } end
 	return { thickness = 1, transparency = 1, rgb = rgb }
 end

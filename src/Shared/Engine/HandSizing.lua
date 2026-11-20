@@ -66,13 +66,14 @@ end
 -- The live hand frame: the layout rect, grown upward (never down, so the pills and buttons keep their clearance) until the frame is tall
 -- enough for cards at their wide target size. The frame is transparent, so the cards just rise into the open stage like the reference.
 M.MAX_RISE = 70
+M.PICK_ROOM = 22 -- the big hand frame stands this far lower (its 16 px bottom padding plus the 6 px reserve above the count pills), so a picked card (28 px lift) has room under the Score plate
 function M.frameFor(areaW, rect, count)
 	if (areaW or 0) < M.BIG_FROM or (count or 0) < 1 then return rect end
 	local byWidth = math.floor((rect.w - 2 * M.PAD) / (count - M.overlapFor(count) * (count - 1)))
 	local want = math.min(M.maxCardWidth(areaW), byWidth)
 	local need = math.floor(want * M.ASPECT) + M.PAD
 	local extra = math.max(0, math.min(M.MAX_RISE, need - rect.h))
-	return { x = rect.x, y = rect.y - extra, w = rect.w, h = rect.h + extra }
+	return { x = rect.x, y = rect.y - extra + M.PICK_ROOM, w = rect.w, h = rect.h + extra } -- same height: only the empty bottom padding moves down
 end
 
 function M.cardSize(areaW, frameW, frameH, count)

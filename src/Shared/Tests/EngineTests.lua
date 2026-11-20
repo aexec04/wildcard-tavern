@@ -21480,7 +21480,7 @@ table.insert(tests, { name = "Hand: five picks in sequence each keep the full 28
 		expectEqual(HL.plan(cards, 24)[2], -28, "a card pulled down to 14 is restored to 28")
 	end
 	local e = CL.edge(true, false)
-	expectEqual(e.thickness, 2, "picked stroke is 2 px")
+	expectEqual(e.thickness, 3, "picked stroke is 3 px")
 	expectEqual(e.transparency, 0, "picked stroke is opaque")
 	expectEqual(e.rgb[1] .. "," .. e.rgb[2] .. "," .. e.rgb[3], "255,214,102", "gold 255,214,102")
 end })
@@ -30625,7 +30625,7 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	assert(not C.isCoolGlow(C.EDGE_RGB), "the edge is warm gold")
 	assert(C.isCoolGlow({ 120, 220, 255 }) and C.isCoolGlow({ 250, 250, 250 }) and not C.isCoolGlow({ 255, 214, 130 }), "cool and white glows are detected")
 	local sel, both, hov, rest = C.edge(true, false), C.edge(true, true), C.edge(false, true), C.edge(false, false)
-	assert(sel.thickness == 2 and sel.transparency == 0, "selected: a 2 px solid edge")
+	assert(sel.thickness == 3 and sel.transparency == 0, "selected: a 3 px solid edge")
 	assert(both.thickness == 3 and both.thickness <= 3, "selected and hovered: at most 3 px")
 	assert(hov.thickness < sel.thickness and hov.transparency >= 0.5, "hover is fainter than selected")
 	assert(rest.transparency == 1, "a resting card has no edge")
@@ -32781,7 +32781,7 @@ table.insert(tests, { name = "Live hand path: roomy windows overlap cards, 8 car
 	for _, sz in ipairs({ { 1920, 957, 140 }, { 1506, 751, 120 }, { 1280, 720, 105 } }) do
 		local r = L.rects(sz[1], sz[2])
 		local hf = HS.frameFor(sz[1], r.hand, 8)
-		expectEqual(hf.y + hf.h, r.hand.y + r.hand.h, "the frame only grows upward at " .. sz[1])
+		expectEqual(hf.y + hf.h, r.hand.y + r.hand.h + HS.PICK_ROOM, "the frame ends PICK_ROOM (inside its bottom padding) under the rect at " .. sz[1])
 		local cw = HS.cardSize(sz[1], hf.w, hf.h, 8)
 		expectTrue(cw >= sz[3], "8 cards at least " .. sz[3] .. " wide at " .. sz[1] .. ", got " .. cw)
 		local gap = HS.gap(sz[1], cw)
@@ -32822,6 +32822,27 @@ table.insert(tests, { name = "Hand fan: 8 cards overlap at most 22 percent, span
 			local hn = HS.frameFor(sz[1], r.hand, n)
 			local cn = HS.cardSize(sz[1], hn.w, hn.h, n)
 			expectTrue(HS.fanSpan(sz[1], cn, n) + 2 * HS.PAD <= hn.w + 1, n .. " cards fit the frame at " .. sz[1])
+		end
+	end
+end })
+
+table.insert(tests, { name = "Picked cards: the highest lifted card (28 px) stays 10 px under the idle Score plate and its text, 8 to 10 cards, four sizes", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, n in ipairs({ 8, 9, 10 }) do
+			local hf = HS.frameFor(sz[1], CT.handFor(r.hand, sz[1], n), math.max(n, 8))
+			local live = SP.live(SP.idleStage(r.stage, hf.y), sz[1], 26, 22, false)
+			local plateBottom = live.plate.y + live.plate.h
+			local gap = (hf.y - SP.PICK_LIFT) - plateBottom
+			if sz[1] >= 1400 then
+				expectTrue(gap >= 10, ("[TableRects] picked gap %d at %dx%d with %d cards, plate bottom %d, tallest card top %d"):format(gap, sz[1], sz[2], n, plateBottom, hf.y))
+			end
+			expectTrue(hf.y + hf.h <= r.hand.y + r.hand.h + HS.PICK_ROOM, "the frame stays inside its own bottom padding")
+			if n == 8 then print(("  [picked gap] %dx%d gap %d px"):format(sz[1], sz[2], gap)) end
 		end
 	end
 end })
