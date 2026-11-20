@@ -24160,7 +24160,7 @@ table.insert(tests, { name = "ConceptTLayout table furniture: the tray sits unde
 		assert(d.rail.box.y > r.hands.y + r.hands.h, tag .. " rail clear of the Hands plate")
 	end
 end })
-table.insert(tests, { name = "Gameplay2 table furniture: tray frames the deck with an 8 px lip, rail runs full width from 12 px above Rank and Suit, both clear of the hand", fn = function()
+table.insert(tests, { name = "Gameplay2 table furniture: the rail runs full width from 12 px above Rank and Suit, clear of the hand, and there is no deck tray", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
@@ -24168,49 +24168,49 @@ table.insert(tests, { name = "Gameplay2 table furniture: tray frames the deck wi
 		local tag = w .. "x" .. h
 		local r = G.rects(w, h)
 		local d = L.decorFor(r, w, h)
-		assert(d.tray.box.x == r.deck.x - 8 and d.tray.box.y == r.deck.y - 8, tag .. " tray lip left and top")
-		assert(d.tray.box.w == r.deck.w + 16 and d.tray.box.h == r.deck.h + 16, tag .. " tray lip size")
-		assert(d.tray.w > 0 and d.tray.h > 0 and d.rail.w > 0 and d.rail.h > 0, tag .. " pictures not 0x0")
+		assert(d.tray == nil, tag .. " no deck tray")
+		assert(d.rail.w > 0 and d.rail.h > 0, tag .. " rail picture not 0x0")
 		assert(d.rail.box.x == 0 and d.rail.box.w == w and d.rail.box.y + d.rail.box.h == h, tag .. " rail full width to the bottom")
 		assert(d.rail.box.y == r.sortRank.y - 12, tag .. " rail starts 12 px above Rank and Suit")
 		assert(d.rail.box.y >= r.hand.y + r.hand.h, tag .. " rail below the hand rect")
 	end
+	local src = io and io.open("src/Client/Gameplay2.lua")
+	if src then
+		local t = src:read("*a"); src:close()
+		assert(not t:find("ct_deck_tray", 1, true) and not t:find("TrayShadow", 1, true), "Gameplay2 builds no tray or tray shadow")
+	end
 end })
-table.insert(tests, { name = "Gameplay2 deck tray: turned about 7 degrees, stays on screen, hint strip keeps 24 px from the tray", fn = function()
+table.insert(tests, { name = "Gameplay2 deck on the felt: pile 0.9 size turned 10 degrees, on the felt, clear of the fan, hint strip and 44/52 plate (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local RH = require(script.Parent.Parent.Engine.RoundHints)
-	assert(L.TRAY_TILT >= 6 and L.TRAY_TILT <= 8, "tilt reduced to about 8 of the baked 15")
+	assert(L.DECK_TILT <= -8 and L.DECK_TILT >= -12, "turned 8 to 12 degrees, top leaning toward the table centre")
+	assert(L.DECK_SCALE == 0.9, "pile scaled by 0.9")
 	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 } }) do
 		local w, h = sz[1], sz[2]
 		local tag = w .. "x" .. h
 		local r = G.rects(w, h)
-		local d = L.decorFor(r, w, h)
-		local hull = L.trayHull(d.tray)
-		assert(hull.x >= 0 and hull.y >= 0 and hull.x + hull.w <= w + 2 and hull.y + hull.h <= h, tag .. " turned tray stays on screen (2 px of transparent art slack) " .. hull.x .. "," .. hull.y .. "," .. hull.w .. "," .. hull.h .. " deck " .. r.deck.x .. "," .. r.deck.y .. "," .. r.deck.w .. "," .. r.deck.h)
-		assert(hull.y + hull.h <= r.deckCount.y + r.deckCount.h + 20, tag .. " tray ends near the 44/52 plate")
+		assert(L.insideFelt(r.deck, L.DECK_TILT, w, h, 0), tag .. " the whole pile is inside the felt ellipse")
+		local hull = L.hullOf(r.deck, L.DECK_TILT)
+		assert(hull.x + hull.w <= w and hull.y + hull.h <= r.deckCount.y + r.deckCount.h, tag .. " pile stays on screen")
+		assert(hull.y + hull.h <= r.deckCount.y + 20, tag .. " pile ends near the 44/52 plate")
+		assert(r.deck.x >= r.hand.x + r.hand.w + 24, tag .. " the hand frame ends 24 px before the pile")
 		local strip = RH.strip(r, w, h)
 		if strip and strip.kind == "strip" and strip.plate.y + strip.plate.h > r.deck.y - 30 and strip.plate.y < r.deck.y + r.deck.h then
-			assert(strip.plate.x + strip.plate.w + 24 <= d.tray.box.x, tag .. " strip keeps 24 px from the tray lip")
+			assert(strip.plate.x + strip.plate.w + 24 <= hull.x, tag .. " hint strip keeps 24 px from the pile")
 		end
+		local pic = L.deckPicture(r.deck)
+		assert(pic.w > r.deck.w and pic.x < r.deck.x and pic.y < r.deck.y, tag .. " the picture is drawn larger than the pile (clear padding)")
+		local sh = L.deckShadow(r.deck)
+		assert(sh.w == r.deck.w + 14 and sh.h == r.deck.h + 14, tag .. " shadow 14 px bigger")
+		assert(sh.y + sh.h / 2 == r.deck.y + r.deck.h / 2 + 5 and sh.x + sh.w / 2 == r.deck.x + r.deck.w / 2 + 5, tag .. " shadow offset 5 px down and toward the rim")
 	end
-end })
-table.insert(tests, { name = "Gameplay2 deck tray: contact shadow is 20 px bigger, 6 px lower, and the live tray is turned", fn = function()
-	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
-	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
-	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
-		local w, h = sz[1], sz[2]
-		local r = G.rects(w, h)
-		local d = L.decorFor(r, w, h)
-		local sh = L.shadowFor(d.tray, r.deck)
-		assert(sh.tray.w == d.tray.box.w + 40 and sh.tray.h == d.tray.box.h + 40, w .. "x" .. h .. " shadow 20 px bigger per side")
-		assert(sh.tray.y == d.tray.box.y - 20 + 6, w .. "x" .. h .. " shadow dropped 6 px")
-		assert(sh.deck.x < r.deck.x and sh.deck.x + sh.deck.w > r.deck.x + r.deck.w, w .. "x" .. h .. " deck shadow wraps the deck")
-	end
+	local r = G.rects(1920, 957)
+	assert(math.abs(r.deck.x + r.deck.w / 2 - 1735) <= 25 and math.abs(r.deck.y + r.deck.h / 2 - 660) <= 10, "pile centre about x1735 y660 at 1920x957 (20 px under the 640 asked for so the pile stays on the felt)")
 	local src = io and io.open("src/Client/Gameplay2.lua")
 	if src then
 		local t = src:read("*a"); src:close()
-		assert(t:find("furniture.tray.Rotation = CTLayout.TRAY_TILT", 1, true), "Gameplay2 applies the tray tilt")
+		assert(t:find("deckImg.Rotation = CTLayout.DECK_TILT", 1, true), "Gameplay2 turns the deck")
 	end
 end })
 table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 reference px inside the felt edge, both ellipses stay on screen (four sizes)", fn = function()
@@ -33174,7 +33174,7 @@ table.insert(tests, { name = "Gameplay2Layout at 1672 x 941: Target, scroll, Tip
 		expectTrue(pr[2].y + pr[2].h <= pr[1].y, "each pill sits fully above its button")
 	end
 	near(r.playCount, 618, 783, 773, 808, "hands pill"); near(r.discardCount, 913, 1090, 773, 808, "discards pill (reference 913 to 1090)")
-	near(r.deck, 1430, 1650, 465, 675, "deck (25 px lower than the mockup so the tray lies on the rim)"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
+	near(r.deck, 1438, 1585, 577, 721, "deck (a 0.9 pile on the felt just inside the right rim, no tray)"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
 end })
 
 table.insert(tests, { name = "IconLabelLayout.anchored: the group hangs from the plate centre, so it lies inside a 144 x 68 plate even when the width measured was 300 or 600 (stale), and TavernKit wires cloned plates", fn = function()

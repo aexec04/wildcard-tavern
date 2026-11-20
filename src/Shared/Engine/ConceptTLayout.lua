@@ -165,9 +165,8 @@ function M.decor(w, h)
 	return out
 end
 
--- The same two pieces for the live table (Gameplay2): `r` is Gameplay2Layout.rects(w, h). The tray's visible part is the deck rect plus an
--- 8 px lip, the rail's visible part runs from 12 px above the Rank and Suit row to the screen bottom, full width. Returns the same shape as decor.
-M.TRAY_LIP, M.RAIL_RISE = 8, 12
+-- The bottom rail for the live table (Gameplay2): `r` is Gameplay2Layout.rects(w, h). The deck has no tray, it sits on the felt. The rail's visible part runs from 12 px above the Rank and Suit row to the screen bottom, full width. Returns the same shape as decor.
+M.RAIL_RISE = 12
 function M.decorFor(r, w, h)
 	local function place(d, bx, by, bw, bh, over)
 		local a = d.art
@@ -178,10 +177,8 @@ function M.decorFor(r, w, h)
 			box = { x = bx, y = by, w = bw, h = bh },
 		}
 	end
-	local lip = M.TRAY_LIP
 	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
 	return {
-		tray = place(M.DECOR.tray, r.deck.x - lip, r.deck.y - lip, r.deck.w + 2 * lip, r.deck.h + 2 * lip),
 		rail = place(M.DECOR.rail, 0, top, w, h - top, M.railOverscan(w)),
 	}
 end
@@ -229,33 +226,56 @@ function M.ellipsePieces(rect, n)
 	return out
 end
 
--- Contact shadows for the tray and the deck: the tray's visible box grown SHADOW_GROW per side and moved SHADOW_DROP down, and the deck rect
--- grown 4 px per side and moved 4 px down, so each peeks out under its object.
-M.SHADOW_GROW, M.SHADOW_DROP = 20, 6
-function M.shadowFor(tray, deck)
-	local g, d = M.SHADOW_GROW, M.SHADOW_DROP
-	local b = tray.box
-	return {
-		tray = { x = b.x - g, y = b.y - g + d, w = b.w + 2 * g, h = b.h + 2 * g },
-		deck = { x = deck.x - 4, y = deck.y, w = deck.w + 8, h = deck.h + 8 },
-	}
+-- The deck sits straight on the felt just inside the right rim (no tray). Its base runs along the rim tangent (the picture is turned
+-- DECK_TILT degrees, negative = counter clockwise, so the top leans toward the table centre) and it is DECK_SCALE of the old size.
+M.DECK_TILT, M.DECK_SCALE, M.DECK_FELT_MARGIN = -10, 0.9, 30
+M.DECK_VISIBLE = 0.75 -- the painted pile fills about this share of the picture's width and height (the rest is clear padding): r.deck is the pile, the picture is drawn deckPicture(r.deck)
+function M.deckPicture(deck)
+	local k = M.DECK_VISIBLE
+	local w, h = round(deck.w / k), round(deck.h / k)
+	return { x = deck.x - round((w - deck.w) / 2), y = deck.y - round((h - deck.h) / 2), w = w, h = h }
 end
-
--- The tray art is drawn leaning about 15 degrees; turning the picture clockwise by TRAY_TILT leaves about 8 (the reference tray leans about 6).
--- trayHull: bounding rect of the tray's visible box after that turn (the picture turns about its own centre).
-M.TRAY_TILT = 6
-function M.trayHull(tray)
-	local rad = math.rad(M.TRAY_TILT)
+-- Contact shadow under the pile: the deck rect grown 14 px, moved 5 px down and 5 px toward the rim (right).
+M.DECK_SHADOW_GROW, M.DECK_SHADOW_DX, M.DECK_SHADOW_DY = 14, 5, 5
+function M.deckShadow(deck)
+	local g = M.DECK_SHADOW_GROW
+	return { x = deck.x - g / 2 + M.DECK_SHADOW_DX, y = deck.y - g / 2 + M.DECK_SHADOW_DY, w = deck.w + g, h = deck.h + g }
+end
+-- corners of `rect` after turning it `deg` degrees about its centre (Roblox: positive = clockwise on screen)
+function M.rotatedCorners(rect, deg)
+	local rad = math.rad(deg or 0)
 	local c, s = math.cos(rad), math.sin(rad)
-	local cx, cy = tray.x + tray.w / 2, tray.y + tray.h / 2
-	local b = tray.box
-	local minx, miny, maxx, maxy = math.huge, math.huge, -math.huge, -math.huge
-	for _, p in ipairs({ { b.x, b.y }, { b.x + b.w, b.y }, { b.x, b.y + b.h }, { b.x + b.w, b.y + b.h } }) do
+	local cx, cy = rect.x + rect.w / 2, rect.y + rect.h / 2
+	local out = {}
+	for _, p in ipairs({ { rect.x, rect.y }, { rect.x + rect.w, rect.y }, { rect.x, rect.y + rect.h }, { rect.x + rect.w, rect.y + rect.h } }) do
 		local dx, dy = p[1] - cx, p[2] - cy
-		local x, y = cx + dx * c - dy * s, cy + dx * s + dy * c
-		minx, miny, maxx, maxy = math.min(minx, x), math.min(miny, y), math.max(maxx, x), math.max(maxy, y)
+		out[#out + 1] = { x = cx + dx * c - dy * s, y = cy + dx * s + dy * c }
+	end
+	return out
+end
+function M.hullOf(rect, deg)
+	local minx, miny, maxx, maxy = math.huge, math.huge, -math.huge, -math.huge
+	for _, p in ipairs(M.rotatedCorners(rect, deg)) do
+		minx, miny, maxx, maxy = math.min(minx, p.x), math.min(miny, p.y), math.max(maxx, p.x), math.max(maxy, p.y)
 	end
 	return { x = round(minx), y = round(miny), w = round(maxx - minx), h = round(maxy - miny) }
+end
+-- true when the pile lies at least `margin` px inside the felt ellipse (feltFor(w, h).rim). The pile is a round stack, so its outline is the
+-- ellipse inscribed in `rect` (24 points), turned `deg` degrees about the rect's centre.
+function M.insideFelt(rect, deg, w, h, margin)
+	local f = M.feltFor(w, h).rim
+	local a, b = f.w / 2 - (margin or 0), f.h / 2 - (margin or 0)
+	local cx, cy = f.x + f.w / 2, f.y + f.h / 2
+	local rad = math.rad(deg or 0)
+	local c, s = math.cos(rad), math.sin(rad)
+	local mx, my = rect.x + rect.w / 2, rect.y + rect.h / 2
+	for i = 0, 23 do
+		local t = i / 24 * 2 * math.pi
+		local dx, dy = rect.w / 2 * math.cos(t), rect.h / 2 * math.sin(t)
+		local x, y = mx + dx * c - dy * s, my + dx * s + dy * c
+		if ((x - cx) / a) ^ 2 + ((y - cy) / b) ^ 2 > 1 then return false end
+	end
+	return true
 end
 
 -- the bar track rect in pixels, inside the round banner

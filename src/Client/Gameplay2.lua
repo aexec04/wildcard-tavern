@@ -110,9 +110,9 @@ function M.install(deps)
 	local deckPill = Kit.pill(layer, "0 / 52", "wood"); deckPill.Name = "DeckCountPill"; deckPill.ZIndex = Z_UI
 	-- table furniture under the deck and under the bottom row (rects from ConceptTLayout.decorFor), over the felt, under every plate and button
 	local furniture = {}
-		-- soft contact shadows (solid black, stacked rounded frames from faint to dark, no gradient): one under the tray, a smaller one under the deck on it
+		-- soft contact shadow under the deck on the felt (solid black, stacked rounded frames from faint to dark, no gradient)
 		local shadows = {}
-		for _, name in ipairs({ "TrayShadow", "DeckShadow" }) do
+		for _, name in ipairs({ "DeckShadow" }) do
 			local sh = Instance.new("Frame"); sh.Name = name; sh.BackgroundTransparency = 1; sh.BorderSizePixel = 0; sh.Active = false; sh.ZIndex = 2; sh.Visible = false; sh.Parent = layer
 			for i, tr in ipairs({ 0.88, 0.8, 0.7 }) do
 				local ring = Instance.new("Frame"); ring.Name = "Ring" .. i; ring.BorderSizePixel = 0; ring.Active = false
@@ -124,7 +124,7 @@ function M.install(deps)
 			end
 			shadows[name] = sh
 		end
-		for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" }, { "tray", "DeckTray", "ct_deck_tray" } }) do
+		for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" } }) do
 		local img = Instance.new("ImageLabel")
 		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
@@ -434,7 +434,7 @@ function M.install(deps)
 			end
 		end
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
-		place(deckImg, r.deck); place(deckPill, r.deckCount)
+		place(deckImg, CTLayout.deckPicture(r.deck)); place(deckPill, r.deckCount)
 		do
 			local dc = CTLayout.decorFor(r, size.X, size.Y)
 			for key, img in pairs(furniture) do
@@ -451,22 +451,24 @@ function M.install(deps)
 						if f then f.Position = UDim2.fromOffset(pc.cx, pc.cy); f.Size = UDim2.fromOffset(pc.len + 1, th); f.Rotation = pc.rot end
 					end
 				end
-				feltRing.Visible = furniture.tray.Visible; rimShadow.Visible = furniture.tray.Visible
+				feltRing.Visible = furniture.rail.Visible; rimShadow.Visible = furniture.rail.Visible
 				if game:GetService("RunService"):IsStudio() and self.feltKey ~= size.X .. "x" .. size.Y then
 					self.feltKey = size.X .. "x" .. size.Y
 					print(("[FeltInlay] %dx%d inlay=%d,%d,%d,%d felt=%d,%d,%d,%d"):format(size.X, size.Y, fl.inlay.x, fl.inlay.y, fl.inlay.w, fl.inlay.h, fl.rim.x, fl.rim.y, fl.rim.w, fl.rim.h))
 				end
 			end
-			furniture.tray.Rotation = CTLayout.TRAY_TILT
-			local sp = CTLayout.shadowFor(dc.tray, r.deck)
-			for name, sh in pairs(shadows) do
-				sh.Visible = furniture.tray.Visible
-				sh.Rotation = CTLayout.TRAY_TILT
-				place(sh, name == "TrayShadow" and sp.tray or sp.deck)
+			deckImg.Rotation = CTLayout.DECK_TILT
+			do
+				local sh = shadows.DeckShadow
+				sh.Visible = furniture.rail.Visible
+				sh.Rotation = CTLayout.DECK_TILT
+				place(sh, CTLayout.deckShadow(r.deck))
 			end
 			if game:GetService("RunService"):IsStudio() and self.decorKey ~= size.X .. "x" .. size.Y then
 				self.decorKey = size.X .. "x" .. size.Y
-				print(("[TableDecor] %dx%d tray=%d,%d,%d,%d rail=%d,%d,%d,%d capClear=%d,%d"):format(size.X, size.Y, dc.tray.box.x, dc.tray.box.y, dc.tray.box.w, dc.tray.box.h, dc.rail.box.x, dc.rail.box.y, dc.rail.box.w, dc.rail.box.h, CTLayout.railCapClear(dc.rail, size.X).left, CTLayout.railCapClear(dc.rail, size.X).right))
+				local fl2 = CTLayout.feltFor(size.X, size.Y).rim
+				local hull = CTLayout.hullOf(r.deck, CTLayout.DECK_TILT)
+				print(("[TableDecor] %dx%d deck=%d,%d,%d,%d hull=%d,%d,%d,%d felt=%d,%d,%d,%d inside=%s rail=%d,%d,%d,%d capClear=%d,%d"):format(size.X, size.Y, r.deck.x, r.deck.y, r.deck.w, r.deck.h, hull.x, hull.y, hull.w, hull.h, fl2.x, fl2.y, fl2.w, fl2.h, tostring(CTLayout.insideFelt(r.deck, CTLayout.DECK_TILT, size.X, size.Y, 0)), dc.rail.box.x, dc.rail.box.y, dc.rail.box.w, dc.rail.box.h, CTLayout.railCapClear(dc.rail, size.X).left, CTLayout.railCapClear(dc.rail, size.X).right))
 			end
 		end
 		do

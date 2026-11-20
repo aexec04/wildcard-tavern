@@ -174,17 +174,34 @@ function M.rects(w, h)
 		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
-	M.DECK_PULL, M.DECK_DROP = 0, 25 -- a 40 px pull left pushes the deck into the hand fan (24 px clear rule), so only the drop is applied
 	local dw = math.min(round((ref and 0.1316 or 0.115) * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)
 	local dx = w - pad - dw
 	local dx0 = dx -- the hand frame keeps its place for the unshifted deck
-	if ref then dx = dx - M.DECK_PULL end -- 40 px left of the screen edge margin so the tray base lies on the rim
 	local dy = handTop
-	if ref then dh = round(dw * 0.98); dy = round(0.468 * h) + M.DECK_DROP end -- reference: the pile stands on the table edge at y 440 to 650 of 941, 25 px lower so the whole tray lies on the rim
+	local deckLeft = dx0
+	if ref then -- no tray: r.deck is the painted pile, 0.9 of its old size (the picture around it is clear padding),  on the felt, centred near x 0.9036 w, y 0.669 h, turned along the rim, nudged left until it is 30 px inside the felt
+		local CT = require(script.Parent:WaitForChild("ConceptTLayout"))
+		dw = round(dw * CT.DECK_SCALE * CT.DECK_VISIBLE); dh = round(dw * 0.98)
+		dx, dy = round(0.9036 * w - dw / 2), round(0.69 * h - dh / 2)
+		local HS = require(script.Parent:WaitForChild("HandSizing"))
+		local fanEnd = 0 -- the right end of the widest fan (9 cards) stays 24 px clear of the pile, so the pile never slides left of this floor (or of 24 px past the hand frame's right edge)
+		for n = 7, 9 do
+			local fr = HS.frameFor(w, CT.handFor(r.hand, w, n), math.max(n, 8))
+			fanEnd = math.max(fanEnd, fr.x + fr.w / 2 + HS.fanSpan(w, HS.cardSize(w, fr.w, fr.h, n), n) / 2)
+		end
+		for _ = 1, 400 do
+			local pile = { x = dx, y = dy, w = dw, h = dh }
+			if CT.insideFelt(pile, CT.DECK_TILT, w, h, CT.DECK_FELT_MARGIN) or dx - 1 < math.max(fanEnd, r.hand.x + r.hand.w) + 24 then break end
+			dx = dx - 1
+		end
+		dx = math.max(dx, math.max(fanEnd, r.hand.x + r.hand.w) + 24)
+		deckLeft = CT.hullOf({ x = dx, y = dy, w = dw, h = dh }, CT.DECK_TILT).x
+	end
 	r.deck = box(dx, dy, dw, dh)
-	local over = (r.hand.x + r.hand.w) - (dx0 - 24) -- the fan's right end stays 24 px clear of the deck: slide the hand frame left if it does not
-	if over > 0 and w >= 1000 then r.hand = box(r.hand.x - over, r.hand.y, r.hand.w, r.hand.h) end
+	local over = (r.hand.x + r.hand.w) - (deckLeft - 24) -- the fan's right end stays 24 px clear of the deck: slide the hand frame left if it does not
+	-- (the reference layout keeps the fan where it is and slides the pile instead)
+	if over > 0 and w >= 1000 and not ref then r.hand = box(r.hand.x - over, r.hand.y, r.hand.w, r.hand.h) end
 	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
 		local ch = math.max(22, round((ref and 0.046 or 0.04) * h))
 		local cwid = math.min(dw, round(ch * 3.4 * 1.4))
