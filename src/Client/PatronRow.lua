@@ -175,7 +175,8 @@ local function newCard(i)
 	innerEdge.Parent = inner
 	do -- the empty seat's ornament (reference): a big four pointed star with concave sides and a small centre diamond in dark gold, plus 20 px corner flourishes
 		local DARK_GOLD = Color3.fromRGB(150, 110, 50)
-		mark.BackgroundColor3 = Color3.fromRGB(46, 31, 21) -- warm dark brown like the reference (was near black)
+		local FLOURISH_GOLD = Color3.fromRGB(190, 150, 70)
+		mark.BackgroundColor3 = Color3.fromRGB(56, 37, 25) -- warm dark brown like the reference (was near black)
 		mark.BackgroundTransparency = 0
 		local faceEdge = Instance.new("Frame") -- 1 px lighter inner edge
 		faceEdge.Name = "FaceEdge"
@@ -186,8 +187,9 @@ local function newCard(i)
 		faceEdge.Parent = mark
 		corner(faceEdge, 8)
 		local faceStroke = Instance.new("UIStroke")
-		faceStroke.Color = Color3.fromRGB(62, 44, 30)
-		faceStroke.Thickness = 1
+		faceStroke.Color = Color3.fromRGB(96, 68, 40)
+		faceStroke.Thickness = 2
+		faceStroke.Transparency = 0.2
 		faceStroke.Parent = faceEdge
 		markEdge.Color = DARK_GOLD
 		innerEdge.Color = DARK_GOLD
@@ -226,11 +228,12 @@ local function newCard(i)
 		local core = bar(star, "SigilCore", UDim2.fromScale(0.5, 0.5), UDim2.fromOffset(10, 10), Color3.fromRGB(214, 168, 76), 0.1)
 		core.AnchorPoint = Vector2.new(0.5, 0.5)
 		core.Rotation = 45
+		pcall(function() local k = mark.BackgroundColor3; print(string.format("[SeatFace] %d,%d,%d", math.floor(k.R * 255 + 0.5), math.floor(k.G * 255 + 0.5), math.floor(k.B * 255 + 0.5))) end)
 		for _, cx in ipairs({ 0, 1 }) do -- corner flourishes: two 20 px arms and a small diamond at each corner of the face
 			for _, cy in ipairs({ 0, 1 }) do
 				local px, py = cx == 0 and 5 or -5, cy == 0 and 5 or -5
-				local ha = bar(mark, "FlourishH", UDim2.new(cx, cx == 0 and px or px - 20, cy, cy == 0 and py or py - 2), UDim2.fromOffset(20, 2), DARK_GOLD, 0.15)
-				local va = bar(mark, "FlourishV", UDim2.new(cx, cx == 0 and px or px - 2, cy, cy == 0 and py or py - 20), UDim2.fromOffset(2, 20), DARK_GOLD, 0.15)
+				local ha = bar(mark, "FlourishH", UDim2.new(cx, cx == 0 and px or px - 20, cy, cy == 0 and py or py - 2), UDim2.fromOffset(20, 2), FLOURISH_GOLD, 0.25)
+				local va = bar(mark, "FlourishV", UDim2.new(cx, cx == 0 and px or px - 2, cy, cy == 0 and py or py - 20), UDim2.fromOffset(2, 20), FLOURISH_GOLD, 0.25)
 				ha.Name, va.Name = "FlourishH", "FlourishV"
 				local dm = bar(mark, "FlourishDiamond", UDim2.new(cx, cx == 0 and px + 8 or px - 8, cy, cy == 0 and py + 8 or py - 8), UDim2.fromOffset(7, 7), Color3.fromRGB(214, 168, 76), 0.2)
 				dm.AnchorPoint = Vector2.new(0.5, 0.5)

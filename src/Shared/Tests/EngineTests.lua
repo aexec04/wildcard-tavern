@@ -33777,7 +33777,7 @@ end })
 table.insert(tests, { name = "Empty Patron seat (reference): a big concave four point star, a small centre diamond, 20 px corner flourishes on a warm brown face with a lighter 1 px edge, no old filled diamond", fn = function()
 	if not io then return end
 	local src = io.open("src/Client/PatronRow.lua"):read("*a")
-	for _, w in ipairs({ '"StarOrnament"', '"SigilCore"', '"FlourishH"', '"FlourishV"', '"FlourishDiamond"', 'Color3.fromRGB(150, 110, 50)', 'Color3.fromRGB(46, 31, 21)', 'Color3.fromRGB(62, 44, 30)', '"FaceEdge"', 'UDim2.fromOffset(20, 2)', 'UDim2.fromScale(0.66, 0.66)', "(1 - d) ^ 2.2" }) do
+	for _, w in ipairs({ '"StarOrnament"', '"SigilCore"', '"FlourishH"', '"FlourishV"', '"FlourishDiamond"', 'Color3.fromRGB(150, 110, 50)', 'Color3.fromRGB(56, 37, 25)', 'Color3.fromRGB(96, 68, 40)', 'Color3.fromRGB(190, 150, 70)', '[SeatFace]', 'faceStroke.Transparency = 0.2', '"FaceEdge"', 'UDim2.fromOffset(20, 2)', 'UDim2.fromScale(0.66, 0.66)', "(1 - d) ^ 2.2" }) do
 		expectTrue(src:find(w, 1, true) ~= nil, w .. " is drawn in the empty seat")
 	end
 	expectTrue(src:find('diamond("SigilHollow"', 1, true) == nil and src:find('diamond("Sigil", 26', 1, true) == nil, "the old small hollow diamond is gone")

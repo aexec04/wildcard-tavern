@@ -14,7 +14,7 @@ function M.sync(c, empty, z)
 		back = Instance.new("Frame")
 		back.Name = "SeatBack"
 		back.Size = UDim2.fromScale(1, 1)
-		back.BackgroundColor3 = Color3.fromRGB(46, 31, 21)
+		back.BackgroundColor3 = Color3.fromRGB(56, 37, 25)
 		back.BackgroundTransparency = 0.45
 		back.BorderSizePixel = 0
 		back.Active = false
