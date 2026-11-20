@@ -475,6 +475,19 @@ function M.install(deps)
 
 	function self.size() return root.AbsoluteSize end
 	function self.refresh() apply() end
+	-- while a hand scores the played row may reach into the hand rect: the unplayed hand cards step aside (hidden, then given back exactly
+	-- as they were), so nothing stands under or over the played cards; the played cards are ghost copies on the root, not these
+	local hiddenHand = {}
+	function self.hideHand(on)
+		if on then
+			for _, c in ipairs(deps.handFrame:GetChildren()) do
+				if c:IsA("GuiObject") and c.Visible and not c:IsA("ScrollingFrame") then hiddenHand[c] = true; c.Visible = false end
+			end
+		else
+			for c in pairs(hiddenHand) do if c.Parent then c.Visible = true end end
+			hiddenHand = {}
+		end
+	end
 
 	function self.shake(which)
 		pcall(function() require(script.Parent.Gameplay2FeelFX).shake(which == "discard" and deps.discardButton or deps.playButton) end)
@@ -671,6 +684,7 @@ function M.setPlaying(on)
 	local v = on == true
 	if current.playing == v then return end
 	current.playing = v
+	if current.hideHand and (current.isActive() or not v) then pcall(current.hideHand, v) end
 	if current.isActive() then pcall(current.refresh) end
 end
 
@@ -688,6 +702,7 @@ end
 function M.playedBand()
 	if not (current and current.isActive()) then return nil end
 	current.playing = true
+	if current.hideHand then pcall(current.hideHand, true) end
 	pcall(current.refresh)
 	local r = current.rects()
 	return require(Engine:WaitForChild("Gameplay2Layout")).playedBand(r, math.max(20, PreviewRules.H), 22)

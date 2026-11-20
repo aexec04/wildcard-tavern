@@ -30442,7 +30442,9 @@ table.insert(tests, { name = "Gameplay v2 scoring moment: Score plate with its c
 		assert(sr.name, "a banner row exists at " .. w .. "x" .. h)
 		-- the plate keeps its caption row while scoring, and its top where the idle plate stands
 		local live = SP.live(r.stage, w, 26, 22, true)
-		assert(live.N.numTop >= 26 and live.N.noProgress, "caption row kept, the of Target line dropped, at " .. w)
+		assert(live.N.numTop >= 26, "caption row kept at " .. w)
+		assert(not live.N.noProgress or r.stage.h < 150, "the of Target line is kept while scoring when the stage can hold it, at " .. w)
+		assert(sr.band.bottom - sr.band.top >= 44, "the cards keep a row at " .. w)
 		assert(live.plate.y == r.stage.y and live.plate.y + live.plate.h <= sr.plateBottom, "plate stays at the stage top at " .. w)
 		assert(sr.name.y - sr.plateBottom >= 12 and sr.band.top - (sr.name.y + sr.name.h) >= 12, "12 px gaps around the banner at " .. w)
 		assert(sr.band.bottom <= r.hand.y + L.HAND_OVERLAP * r.hand.h + 0.5 and sr.band.bottom > sr.band.top, "played row stays inside the allowed reach at " .. w)

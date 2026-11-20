@@ -238,8 +238,11 @@ function M.scoreStack(stageH, capH, progH, compact)
 		-- while a hand scores the plate keeps its caption row whenever the stage can hold caption plus a 28 px numeral, and drops the
 		-- "of Target" line (the hand name banner and the played cards take that room); a shorter stage keeps the numeral alone, so the cards keep their row
 		local top = stageH >= capH + M.COMPACT_FONT_MIN + M.COMPACT_CARD_H + 6 and capH or 0 -- and a row of cards still fits under it
-		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - 10 - M.COMPACT_CARD_H))
-		return { roomy = true, compact = true, noProgress = true, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 }
+		-- the "0 of Target" line stays too when the stage can still hold it with a 28 px numeral and a row of cards
+		local prog = top > 0 and stageH >= top + M.COMPACT_FONT_MIN + progH + 4 + 10 + M.COMPACT_CARD_H
+		local extra = prog and (progH + 4) or 0
+		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - 10 - M.COMPACT_CARD_H - extra))
+		return { roomy = true, compact = true, noProgress = not prog, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 + extra }
 	end
 	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
 	local fixed = capH + 2 + 4 + progH + 4
@@ -269,7 +272,8 @@ M.HAND_OVERLAP = 0.7 -- the played row may reach this share of the hand rect dow
 function M.scoringRows(r, capH)
 	local pad = M.PLATE_PAD
 	local N = M.scoreStack(math.max(1, r.stage.h - 2 * pad), capH or 26, 22, true)
-	local plateBottom = r.stage.y + math.min(r.stage.h, math.max(40, N.numTop + N.numH + 2 * pad))
+	local content = N.noProgress and (N.numTop + N.numH) or N.bottom -- the plate holds the "of Target" line too when it fits
+	local plateBottom = r.stage.y + math.min(r.stage.h, math.max(40, content + 2 * pad))
 	local nameY = plateBottom + M.SCORING_GAP
 	local top = nameY + M.NAME_ROW_H + M.SCORING_GAP
 	local bottom = math.max(r.hand.y - M.PLAYED_GAP, math.min(top + M.PLAYED_GOAL_W * M.PLAYED_RATIO, r.hand.y + M.HAND_OVERLAP * r.hand.h))
