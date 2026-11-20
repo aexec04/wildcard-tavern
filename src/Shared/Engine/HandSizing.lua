@@ -20,8 +20,11 @@ M.BIG_MAX = 124
 M.BIG_FROM = 1200
 M.BASE_FRAME_H = 200
 
+M.WIDE_SHARE = 0.0715 -- reference cards are about 8.4 percent of a 1672 wide frame; 7.15 percent of the width keeps 8 cards inside the fan at 1920 x 957 (137 wide)
+M.WIDE_CAP = 160
+
 function M.maxCardWidth(areaW)
-	if (areaW or 0) >= M.BIG_FROM then return M.BIG_MAX end
+	if (areaW or 0) >= M.BIG_FROM then return math.max(M.BIG_MAX, math.min(M.WIDE_CAP, math.floor(areaW * M.WIDE_SHARE))) end
 	return M.BASE_MAX
 end
 
@@ -34,7 +37,7 @@ end
 -- Frame width that holds `count` cards of the big size (cards, gaps, 2 x padding); 0 on windows that keep the base size.
 function M.wantWidth(areaW, count)
 	if (areaW or 0) < M.BIG_FROM then return 0 end
-	return M.BIG_MAX * count + M.GAP * (count - 1) + 2 * M.PAD
+	return M.maxCardWidth(areaW) * count + M.GAP * (count - 1) + 2 * M.PAD
 end
 
 function M.cardSize(areaW, frameW, frameH, count)

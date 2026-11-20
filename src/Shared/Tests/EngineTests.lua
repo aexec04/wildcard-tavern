@@ -24774,16 +24774,17 @@ end })
 table.insert(tests, { name = "HandSizing: 124 x 180 cards from 1200 wide, old size below, frame holds them, buttons keep clearance", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
-	expectEqual(HS.maxCardWidth(1920), 124)
+	expectEqual(HS.maxCardWidth(1920), 137, "7.15 percent of the width, the reference ratio")
+	expectEqual(HS.maxCardWidth(1280), 124, "never under the old big size")
 	expectEqual(HS.maxCardWidth(1199), 114)
 	expectEqual(HS.frameHeight(1920), 200, "frame unchanged, so keep-out rects do not move")
 	expectEqual(HS.frameHeight(1000), 200)
-	local w, h = HS.cardSize(1920, 1100, 200, 8)
-	expectEqual(w, 124)
-	expectEqual(h, 179)
-	expectEqual(w + HS.GAP, 130, "step 130")
+	local w, h = HS.cardSize(1920, 1275, 230, 8)
+	expectEqual(w, 137)
+	expectEqual(h, 198)
+	expectEqual(w + HS.GAP, 143, "step 143")
 	local sw = HS.cardSize(1920, 700, 200, 8)
-	expectTrue(sw < 124 and sw >= HS.MIN_WIDTH, "a narrow row shrinks the cards")
+	expectTrue(sw < 137 and sw >= HS.MIN_WIDTH, "a narrow row shrinks the cards")
 	for _, size in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1000, 700 } }) do
 		local p = PT.placement(size[1], size[2], 260, 150, PT.OVAL_KEY)
 		if p then
@@ -24980,11 +24981,11 @@ end })
 table.insert(tests, { name = "HandSizing.wantWidth: 8 big cards need 1080 from 1200 wide, none below; the 1920 hand holds them", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
-	expectEqual(HS.wantWidth(1920, 8), 124 * 8 + 6 * 7 + 32)
+	expectEqual(HS.wantWidth(1920, 8), 137 * 8 + 6 * 7 + 32)
 	expectEqual(HS.wantWidth(1000, 8), 0)
 	local p = PT.placement(1920, 957, 300, 150)
 	expectTrue(p ~= nil and p.hand.w >= HS.wantWidth(1920, 8), "1920 hand holds 8 big cards")
-	expectEqual((HS.cardSize(1920, p.hand.w, p.hand.h, 8)), 124)
+	expectTrue((HS.cardSize(1920, p.hand.w, p.hand.h, 8)) >= 124, "the old table keeps its 200 tall frame")
 end })
 
 table.insert(tests, { name = "PatronRowLayout.display: heading over five card slots inside the nook budget, wide enough for names and values, clear of the hand", fn = function()
@@ -32513,6 +32514,27 @@ table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scale
 	end
 	expectEqual(n, 81, "one crop per Patron")
 	expectTrue(P.storedRect("no_such_patron") == nil, "no crop, no rect")
+end })
+
+
+table.insert(tests, { name = "Hand v2: cards grow toward the reference size and 8 cards stay clear of the buttons and deck at 1920x1080, 1920x957, 1506x751, 1280x720", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local want = { ["1920x1080"] = 137, ["1920x957"] = 137 }
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local key = sz[1] .. "x" .. sz[2]
+		local r = L.rects(sz[1], sz[2])
+		for _, n in ipairs({ 8, 9, 10 }) do
+			local hf = CT.handFor(r.hand, sz[1], n)
+			local cw = HS.cardSize(sz[1], hf.w, hf.h, n)
+			expectTrue(cw >= 44, "touch size " .. key)
+			expectTrue(hf.y + hf.h <= r.play.y, "hand ends above Play Hand at " .. key)
+			expectTrue(hf.x + hf.w <= r.deck.x, "hand ends left of the deck at " .. key)
+		end
+		local cw = HS.cardSize(sz[1], r.hand.w, r.hand.h, 8)
+		if want[key] then expectTrue(cw >= 130, "card at least 130 wide at " .. key .. ", got " .. cw) end
+	end
 end })
 
 return tests
