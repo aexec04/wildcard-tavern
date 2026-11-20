@@ -398,11 +398,11 @@ function M.install(deps)
 		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_BTN + 2); raise(discardsPill, Z_BTN + 2); raise(deckPill, Z_UI)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
 		local SPlate = require(Engine:WaitForChild("Gameplay2ScorePlate"))
-		local capH, progH = SPlate.CAP_H, 22 -- the caption row (SPlate.MIN_H counts CAP_H); the strip stands above the plate, so it no longer shares this row
+		local capH, progH = SPlate.capFor(root.AbsoluteSize.X), 22 -- the caption row (SPlate.MIN_H counts CAP_H); the strip stands above the plate, so it no longer shares this row
 		local HSz = require(Engine:WaitForChild("HandSizing"))
 		local nHand = lastState and lastState.hand and #lastState.hand or 0
 		local idleHand = HSz.frameFor(size.X, CTLayout.handFor(r.hand, size.X, nHand), math.max(nHand, 8))
-		local stageUse = self.playing == true and r.stage or SPlate.idleStage(r.stage, idleHand.y) -- idle: plate and line end 12 px above the tallest card
+		local stageUse = self.playing == true and r.stage or SPlate.idleStage(r.stage, idleHand.y, root.AbsoluteSize.X) -- idle: plate and line end 12 px above the tallest card
 		local stripShown = false -- the hand strip stands above the Score plate (never over its caption) when the idle stage has room for both
 		if self.previewText and self.playing ~= true then
 			local ps, ok = PreviewRules.plateStage(stageUse, SPlate.MIN_H)

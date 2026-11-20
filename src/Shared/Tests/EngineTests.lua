@@ -33030,6 +33030,29 @@ table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral
 	end
 end })
 
+table.insert(tests, { name = "Score plate: the idle numeral and plate scale with the live width (42 px numeral at 1506x751, 54 at 1920)", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local want = { [1920] = { 957, 54, 100 }, [1506] = { 751, 42, 84 }, [1280] = { 720, 36, 78 } }
+	for w, v in pairs(want) do
+		local r = L.rects(w, v[1])
+		local hf = HS.frameFor(w, CT.handFor(r.hand, w, 5), 8)
+		local live = SP.live(SP.idleStage(r.stage, hf.y, w), w, SP.capFor(w), 22, false)
+		expectEqual(live.N.numH, v[2], "numeral height at " .. w)
+		expectEqual(live.N.textSize, v[2], "numeral TextSize at " .. w)
+		expectEqual(live.plate.h, v[3], "plate height at " .. w)
+	end
+	expectEqual(SP.capFor(1506), 26, "caption row at 1506")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("idleStage(r.stage, idleHand.y, root.AbsoluteSize.X)", 1, true) ~= nil, "the hub passes the live width to idleStage")
+	end
+end })
+
 table.insert(tests, { name = "PlayRoomArt.backdrop: Classic Tavern draws table_play_ref, sets with a room keep theirs, PlayScenePaint prints [PlayTableBg]", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	local TA = require(script.Parent.Parent.Engine.TableSceneArt)

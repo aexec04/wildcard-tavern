@@ -60,10 +60,15 @@ M.CAP_H = 30 -- the caption row (reference: Score about 28 px)
 M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + M.CAP_H + 12 + 22 -- caption CAP_H, numeral, 12 px gap, progress 22: the smallest stage that holds the whole stack
 M.WIDE_STAGE = 780 -- stage width (0.42 of the screen) from which the plate keeps its full size
 M.IDEAL_H = 2 * M.PAD + 30 + 54 + 12 + 22 -- pad, caption, numeral, gap, progress line
-function M.idleStage(stage, handTop)
+-- numeral and caption row scale with the screen width (54 and 30 at 1920, 41 and 26 at 1506), never above those
+function M.numeralFor(sw) return math.max(30, math.min(M.NUMERAL, round((tonumber(sw) or 1920) * 0.028125))) end
+function M.capFor(sw) return math.max(26, math.min(M.CAP_H, round((tonumber(sw) or 1920) * 0.0173))) end
+function M.idealH(sw) return 2 * M.PAD + M.capFor(sw) + M.numeralFor(sw) + M.PROGRESS_GAP + 22 end
+function M.idleStage(stage, handTop, sw)
 	if not handTop then return stage end
 	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
-	if stage.w >= M.WIDE_STAGE then h = math.max(h, math.min(stage.h, M.IDEAL_H)) end -- a wide table keeps the 100 px plate; a picked card may then rise over the line under it
+	local wide = (sw and stage.w >= 0.4 * sw) or (not sw and stage.w >= M.WIDE_STAGE) -- the stage is 0.42 of the screen at every size
+	if wide then h = math.max(h, math.min(stage.h, sw and M.idealH(sw) or M.IDEAL_H)) end -- a wide table keeps the 100 px plate; a picked card may then rise over the line under it
 	return { x = stage.x, y = stage.y, w = stage.w, h = h }
 end
 
@@ -71,8 +76,8 @@ end
 -- BELOW the plate, PROGRESS_GAP under its border. N.progressY is where that line starts, in the score box's own coordinates.
 M.NUMERAL = 54 -- plate about 100 px tall at 1920: caption 30 + numeral 54 + 2 x 8
 M.PROGRESS_GAP = 12
-local function idleStack(ih, capH, progH)
-	local numH = math.min(M.NUMERAL, ih - M.PROGRESS_GAP - progH - capH)
+local function idleStack(ih, capH, progH, sw)
+	local numH = math.min(sw and M.numeralFor(sw) or M.NUMERAL, ih - M.PROGRESS_GAP - progH - capH)
 	if numH >= M.IDLE_MIN_FONT then
 		local content = capH + numH
 		local py = content + M.PAD + M.PROGRESS_GAP -- plate bottom is PAD under the numeral, then the gap
@@ -85,7 +90,7 @@ end
 function M.live(stage, sw, capH, progH, compact)
 	local pad = M.PAD
 	local ih = math.max(1, stage.h - 2 * pad)
-	local N = compact and Layout.scoreStack(ih, capH, progH, true, nil) or idleStack(ih, capH, progH)
+	local N = compact and Layout.scoreStack(ih, capH, progH, true, nil) or idleStack(ih, capH, progH, sw)
 	local pw = math.min(stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
 	local shows = N.roomy and not N.noProgress -- the progress line only shows on a roomy stage
 	local content = (shows and not N.below) and N.bottom or (N.numTop + N.numH)
