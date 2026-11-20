@@ -33677,6 +33677,26 @@ table.insert(tests, { name = "Patron seat names: a long name wraps to two 10 px 
 	end
 end })
 
+table.insert(tests, { name = "Patron seat names: the size follows the ribbon height and the longest name fills at least 60 percent of the ribbon at 1920x1080", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local NF = require(script.Parent.Parent.Engine.PatronNameFit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
+	local card = L.rects(1920, 1080).slots[1].card
+	local st = PP.rowStyle(live, card.w, card.h)
+	local ribbonH = card.h * PP.RIBBON_H
+	expectTrue(st.wrapped, "names over 11 characters use two lines")
+	expectTrue(st.size >= math.floor(ribbonH * PP.NAME_FILL) - 1, "name size is about 0.55 of the ribbon height (" .. st.size .. " for a " .. math.floor(ribbonH) .. " px ribbon)")
+	local ribbonW = card.w * (1 - 2 * PP.SIDE)
+	local widest = 0
+	for _, n in ipairs(live) do for word in n:gmatch("%S+") do widest = math.max(widest, NF.textWidth(word, st.size)) end end
+	expectTrue(widest >= 0.6 * ribbonW, ("longest word spans %d of %d px ribbon"):format(math.floor(widest), math.floor(ribbonW)))
+	local lay = PP.layout(card.h, true, st.size)
+	expectTrue(lay.ribbon.h * card.h >= 2 * st.size * 0.9, "the grown ribbon holds two lines at that size")
+	local small = L.rects(800, 450).slots[1].card
+	expectTrue(PP.rowStyle(live, small.w, small.h).size >= 9, "800x450 never drops under 9 px")
+end })
+
 table.insert(tests, { name = "Patron seat names: every seat in a row uses one size, nothing is clipped, with the five names from the live capture", fn = function()
 	local PP = require(script.Parent.Parent.Engine.PatronParchment)
 	local NF = require(script.Parent.Parent.Engine.PatronNameFit)
@@ -33693,7 +33713,7 @@ table.insert(tests, { name = "Patron seat names: every seat in a row uses one si
 		for _, names in ipairs(sets) do
 			local st = PP.rowStyle(names, card.w, card.h)
 			local avail = PP.labelRect(card.w, st.wrapped).w
-			expectTrue(st.size >= PP.WRAP_MIN and st.size <= NF.MAX_SIZE, "size in range at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(st.size >= PP.WRAP_MIN and st.size <= PP.NAME_MAX, "size in range at " .. sz[1] .. "x" .. sz[2])
 			for _, n in ipairs(names) do
 				if not st.wrapped then
 					expectTrue(NF.textWidth(n, st.size) <= avail + 0.01, ("'%s' at %d px fits %d px at %dx%d"):format(n, st.size, math.floor(avail), sz[1], sz[2]))

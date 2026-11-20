@@ -53,7 +53,7 @@ function M.sync(c, name)
 	end
 	local style = P.rowStyle(names, c.slot and c.slot.AbsoluteSize.X or 96, c.slot and c.slot.AbsoluteSize.Y or nil)
 	local wrapped = style.wrapped
-	local L = P.layout(c.slot and c.slot.AbsoluteSize.Y or nil, wrapped)
+	local L = P.layout(c.slot and c.slot.AbsoluteSize.Y or nil, wrapped, style.size)
 	local z = art.ZIndex
 	if not paper then
 		paper = make("Frame", "ParchmentPaper", c.body, z - 1)

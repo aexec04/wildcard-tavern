@@ -26,12 +26,17 @@ M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
 M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.04, 0.03, 0.17, 0.93, 0.16
 
 M.TWO_LINE_H = 22 -- two 10 px lines (line height 0.9) plus 2 px each side
+M.NAME_FILL, M.NAME_MAX, M.TWO_LINE_AT = 0.55, 22, 11 -- name size is 0.55 of the ribbon height (the concept's ~20 px at 1672x941); names over 11 characters take two lines
 
--- slotH (px) and wrapped (a name too long for one line): a small seat's 17 percent ribbon (15 px at 800x450) is too short for two
--- lines, so it grows upward to TWO_LINE_H px, its bottom edge unchanged
-function M.layout(slotH, wrapped)
+-- slotH (px), wrapped (a name too long for one line) and size (the row's name size): a seat's 17 percent ribbon is too short for two
+-- lines, so it grows upward to fit them, its bottom edge unchanged
+function M.layout(slotH, wrapped, size)
 	local rh = M.RIBBON_H
-	if wrapped and slotH and slotH > 0 and slotH * rh < M.TWO_LINE_H then rh = M.TWO_LINE_H / slotH end
+	if wrapped and slotH and slotH > 0 then
+		local need = size and math.ceil(2 * size * 0.9) + 4 or M.TWO_LINE_H
+		need = math.max(M.TWO_LINE_H, need)
+		if slotH * rh < need then rh = need / slotH end
+	end
 	local bottom = M.TOP + M.PORTRAIT_H - M.OVERLAP + M.RIBBON_H
 	return {
 		portrait = { x = M.SIDE, y = M.TOP, w = 1 - 2 * M.SIDE, h = M.PORTRAIT_H },
@@ -66,16 +71,16 @@ function M.rowStyle(names, w, h)
 	local longest = 0
 	for _, n in ipairs(names or {}) do longest = math.max(longest, #tostring(n or "")) end
 	if longest == 0 then return { size = NameFit.MAX_SIZE, wrapped = false } end
+	local want = M.NAME_MAX -- about 0.55 of the ribbon height, one size for every seat
+	if h and h > 0 then want = math.max(NameFit.WRAP_SIZE, math.min(M.NAME_MAX, math.floor(h * M.RIBBON_H * M.NAME_FILL))) end
 	local fit = math.floor(avail / (longest * NameFit.CHAR))
-	local cap = NameFit.MAX_SIZE
-	if h and h > 0 then cap = math.min(cap, math.floor(h * M.RIBBON_H) - 2) end -- one line must also fit the ribbon height
-	if fit >= NameFit.MIN_SIZE then return { size = math.max(NameFit.MIN_SIZE, math.min(fit, cap)), wrapped = false } end
-	-- wrapped: 10 px, or 9 px for the rare name with a word too long for the seat (only the 800x450 seats get here)
+	if longest <= M.TWO_LINE_AT and fit >= NameFit.MIN_SIZE then return { size = math.max(NameFit.MIN_SIZE, math.min(fit, want)), wrapped = false } end
+	-- wrapped: two lines at the fill size; 9 px for the rare name with a word too long for the seat (only the 800x450 seats get here)
 	local w2 = M.labelRect(w, true).w
 	local word = 0
 	for _, n in ipairs(names) do for x in tostring(n):gmatch("%S+") do word = math.max(word, #x) end end
 	local sz = math.floor(w2 / (math.max(1, word) * NameFit.CHAR))
-	return { size = math.max(M.WRAP_MIN, math.min(NameFit.WRAP_SIZE, sz)), wrapped = true }
+	return { size = math.max(M.WRAP_MIN, math.min(want, sz)), wrapped = true }
 end
 
 function M.imageRect(id)
