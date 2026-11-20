@@ -618,6 +618,17 @@ function M.install(deps)
 				end)
 			end
 		end
+		pcall(function() -- the 14 pieces against the reference mockup: a warn lists every piece off by more than 12 px or 12 percent
+			local RC = require(Engine:WaitForChild("Gameplay2RefCheck"))
+			local plate = require(Engine:WaitForChild("Gameplay2ScorePlate")).plate(size.X, size.Y)
+			local rows = RC.compare(RC.liveFrom(r, require(Engine:WaitForChild("GearMenu")).quickRects(size.X, size.Y), plate), size.X, size.Y)
+			local bad = {}
+			for _, row in ipairs(rows) do
+				if row.bad then bad[#bad + 1] = string.format("%s dx=%d dy=%d size=%d%%", row.name, math.floor(row.dx + 0.5), math.floor(row.dy + 0.5), math.floor(row.sizePct + 0.5)) end
+			end
+			local line = string.format("[RefCheck] %dx%d %d of %d pieces off the reference", size.X, size.Y, #bad, #rows)
+			if #bad > 0 then warn(line .. ": " .. table.concat(bad, "; ")) else print(line) end
+		end)
 	end
 
 	-- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number.
