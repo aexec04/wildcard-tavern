@@ -235,7 +235,7 @@ M.SCORE_FONT_MIN = 44
 M.COMPACT_FONT = 52
 M.COMPACT_FONT_MIN = 28
 M.COMPACT_CARD_H = 44
-function M.scoreStack(stageH, capH, progH, compact)
+function M.scoreStack(stageH, capH, progH, compact, minFont)
 	if compact then
 		-- while a hand scores the plate keeps its caption row whenever the stage can hold caption plus a 28 px numeral, and drops the
 		-- "of Target" line (the hand name banner and the played cards take that room); a shorter stage keeps the numeral alone, so the cards keep their row
@@ -250,7 +250,7 @@ function M.scoreStack(stageH, capH, progH, compact)
 	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
 	local fixed = capH + 2 + 4 + progH + 4
 	local fontFit = math.min(M.SCORE_FONT, stageH - fixed)
-	local roomy = fontFit >= M.SCORE_FONT_MIN
+	local roomy = fontFit >= (minFont or M.SCORE_FONT_MIN) -- the idle plate passes a smaller minimum so a short stage keeps caption and progress
 	local numTop = roomy and capH or math.floor(stageH * 0.1)
 	local textSize = roomy and fontFit or math.max(20, math.min(56, stageH - numTop - 4))
 	local numH = roomy and fontFit or textSize

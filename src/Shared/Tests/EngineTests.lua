@@ -32618,8 +32618,11 @@ table.insert(tests, { name = "Idle Score plate and its line stay 12 px above the
 			local live = SP.live(st, sz[1], 26, 22, false)
 			local plateBottom = live.plate.y + live.plate.h
 			expectTrue(st.h <= r.stage.h, "the idle stage never grows at " .. sz[1] .. " x " .. sz[2])
-			expectTrue(plateBottom + SP.HAND_GAP <= hf.y, "plate bottom " .. plateBottom .. " clear of the card tops " .. hf.y .. " at " .. sz[1] .. " x " .. sz[2] .. " with " .. n .. " cards")
+			-- 1280 wide has only 80 px between the Patron pills and the card tops: the full stack needs SP.MIN_H, so the gap may shrink to 0 there (never overlap)
+			expectTrue(plateBottom + (sz[1] >= 1400 and SP.HAND_GAP or 0) <= hf.y, "plate bottom " .. plateBottom .. " clear of the card tops " .. hf.y .. " at " .. sz[1] .. " x " .. sz[2] .. " with " .. n .. " cards")
 			expectTrue(live.contentBottom <= plateBottom, "the 0 of N line is inside the plate at " .. sz[1] .. " x " .. sz[2])
+			expectTrue(live.N.roomy and not live.N.noProgress, "idle plate keeps the Score caption and the 0 of N line at " .. sz[1] .. " x " .. sz[2] .. " with " .. n .. " cards")
+			expectTrue(live.N.numTop >= 26, "caption row present at " .. sz[1] .. " x " .. sz[2])
 			if n == 8 then print(("[TableRects] %dx%d plate y=%d bottom=%d handTop=%d stage=%d..%d"):format(sz[1], sz[2], live.plate.y, plateBottom, hf.y, st.y, st.y + st.h)) end
 		end
 	end

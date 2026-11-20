@@ -54,7 +54,8 @@ M.MIN_FONT = 14
 -- The idle Score plate must stay clear of the hand: the live hand frame rises above the layout rect (HandSizing.frameFor), so the stage the
 -- plate may use ends GAP px above the highest card top. `handTop` is that frame's y; the stage only ever shrinks (never under MIN_H).
 M.HAND_GAP = 12
-M.MIN_H = 60
+M.IDLE_MIN_FONT = 18 -- idle numeral minimum: the caption and the "o of N" line stay even on a short stage
+M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + 26 + 2 + 4 + 22 + 4 -- caption 26, line, progress 22: the smallest stage that holds the whole stack
 function M.idleStage(stage, handTop)
 	if not handTop then return stage end
 	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.HAND_GAP - stage.y))
@@ -64,7 +65,7 @@ end
 function M.live(stage, sw, capH, progH, compact)
 	local pad = M.PAD
 	local ih = math.max(1, stage.h - 2 * pad)
-	local N = Layout.scoreStack(ih, capH, progH, compact)
+	local N = Layout.scoreStack(ih, capH, progH, compact, not compact and M.IDLE_MIN_FONT or nil)
 	local pw = math.min(stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
 	local shows = N.roomy and not N.noProgress -- the progress line only shows on a roomy stage
 	local content = shows and N.bottom or (N.numTop + N.numH)
