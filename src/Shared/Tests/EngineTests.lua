@@ -27523,10 +27523,37 @@ table.insert(tests, { name = "Concept T pixel pass 3: Patron cards are 0.112 x 0
 	expectTrue(Art.ct_table_room ~= nil and Art.ct_table_room_old ~= nil and Art.ct_table_room ~= Art.ct_table_room_old, "new room plate and the kept old one")
 end })
 
+table.insert(tests, { name = "Card face parchment: corner index inside the card, 20 percent rank, 4.5:1 ink on the paper under every index row", fn = function()
+	local FA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local L, P = FA.IVORY_LAYOUT, FA.PARCHMENT
+	expectTrue(L.rank.h >= 0.20, "the corner rank is about 20 percent of the card height")
+	for _, k in ipairs({ "rank", "suit" }) do
+		expectTrue(L[k].x >= 0 and L[k].y >= 0 and L[k].x + L[k].w <= 1 and L[k].y + L[k].h <= 1, k .. " rect inside the card")
+	end
+	expectTrue(L.bottom.x - L.bottom.w >= 0 and L.bottom.x <= 1 and L.bottom.y - L.bottom.h >= 0 and L.bottom.y <= 1, "bottom suit inside the card")
+	expectTrue(L.rank.y + L.rank.h <= L.suit.y + 0.01, "rank and suit rows do not overlap")
+	-- paper colour at a card height t: the rim colour fades into the base over the first and last P.fade
+	local function paperAt(t)
+		local d = math.min(t, 1 - t)
+		local m = math.min(1, d / P.fade)
+		return { P.edge[1] + (P.base[1] - P.edge[1]) * m, P.edge[2] + (P.base[2] - P.edge[2]) * m, P.edge[3] + (P.base[3] - P.edge[3]) * m }
+	end
+	local inks = { { 140, 34, 30 }, { 60, 40, 22 } } -- RED_INK and BLACK_INK in Client/CardFace
+	for _, row in ipairs({ L.rank, L.suit }) do
+		local lo, hi = row.y, row.y + row.h
+		for _, ink in ipairs(inks) do
+			for _, t in ipairs({ lo, (lo + hi) / 2, hi }) do
+				expectTrue(CS.contrastRatio(ink, paperAt(t)) >= 4.5, "ink " .. ink[1] .. " on the paper at " .. t .. " is at least 4.5:1")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Concept T pixel pass 3: parchment card face, spaced deck count, HUD text fills its plate", fn = function()
 	local FA = require(script.Parent.Parent.Engine.CardFaceArt)
 	local P = FA.PARCHMENT
-	expectEqual(P.base[1] .. "," .. P.base[2] .. "," .. P.base[3], "240,226,196", "warm parchment base")
+	expectEqual(P.base[1] .. "," .. P.base[2] .. "," .. P.base[3], "240,220,168", "warm parchment base")
 	expectTrue(P.edge[1] < P.base[1] and P.edge[2] < P.base[2] and P.edge[3] < P.base[3], "the rim is darker than the paper")
 	local stops = FA.shadeStops()
 	expectEqual(#stops, 4, "one gradient: edge, paper, paper, edge")

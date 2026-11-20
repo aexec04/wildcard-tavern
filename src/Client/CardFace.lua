@@ -29,7 +29,7 @@
 local CardFace = {}
 
 local SERIF = "rbxasset://fonts/families/Merriweather.json"
-local RED_INK = Color3.fromRGB(160, 50, 40) -- muted brick red
+local RED_INK = Color3.fromRGB(140, 34, 30) -- muted brick red
 local BLACK_INK = Color3.fromRGB(60, 40, 22) -- warm ink, same family as the parchment board
 local WILDCARD_INK = Color3.fromRGB(150, 110, 230)
 local GOLD = Color3.fromRGB(205, 170, 95)

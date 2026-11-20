@@ -47,7 +47,7 @@ CardFaceArt.IVORY_LAYOUT = {
 
 -- Concept T parchment: a warm cream paper (the picture is multiplied by BASE) with a darker rim fading in over the first and last
 -- 18 percent of the card height (one Color-only UIGradient, never Transparency). Reference cards are aged paper, not white.
-CardFaceArt.PARCHMENT = { base = { 240, 226, 196 }, edge = { 200, 172, 128 }, fade = 0.18 }
+CardFaceArt.PARCHMENT = { base = { 240, 220, 168 }, edge = { 214, 184, 136 }, fade = 0.18 } -- base sampled from the reference cards (about 246, 225, 170)
 
 -- keypoints { position, { r, g, b } } of the single vertical gradient
 function CardFaceArt.shadeStops()
