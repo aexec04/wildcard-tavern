@@ -156,6 +156,7 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	button.Position = UDim2.fromOffset(spot.button.x, spot.button.y)
 	if game:GetService("RunService"):IsStudio() and M.lastKey ~= viewW .. "x" .. viewH .. spot.kind then
 		M.lastKey = viewW .. "x" .. viewH .. spot.kind
+		task.defer(function() print(("[HintLive] RoundHint abs=%d,%d size=%d,%d"):format(math.floor(plate.AbsolutePosition.X), math.floor(plate.AbsolutePosition.Y), math.floor(plate.AbsoluteSize.X), math.floor(plate.AbsoluteSize.Y))) end)
 		print(("[HintRects] %s plate=%d,%d,%d,%d button=%d,%d,%d,%d"):format(spot.kind, spot.plate.x, spot.plate.y, spot.plate.w, spot.plate.h, spot.button.x, spot.button.y, spot.button.w, spot.button.h))
 	end
 end

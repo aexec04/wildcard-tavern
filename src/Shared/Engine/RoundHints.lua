@@ -180,13 +180,15 @@ function M.strip(r, viewW, viewH, avoid)
 		local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * viewW)))
 		local plateRight = r.stage.x + math.floor((r.stage.w - pw) / 2) + pw
 		local sx = plateRight + M.STRIP_SIDE_GAP
-		if sx + w <= viewW - M.STRIP_SIDE_GAP then
-			local side = { x = sx, y = r.stage.y, w = w, h = M.STRIP_H }
+		local sw = w
+		if r.deck and r.deck.x then sw = math.min(w, r.deck.x - M.STRIP_SIDE_GAP - sx) end -- narrower beside the deck, never under the minimum
+		if sx + sw <= viewW - M.STRIP_SIDE_GAP and sw >= M.STRIP_MIN_W then
+			local side = { x = sx, y = r.stage.y, w = sw, h = M.STRIP_H }
 			local clear = true
 			for name, rect in pairs(r) do -- any table piece in the way (the deck, the bar) sends it back above the hand
 				if name ~= "stage" and name ~= "slots" and type(rect) == "table" and rect.x and hit(side, rect) then clear = false end
 			end
-			if clear then plate = side end
+			if clear then plate = side; w = sw end
 		end
 	end
 	local bh = M.BUTTON_H

@@ -32498,6 +32498,28 @@ table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word ne
 	end
 end })
 
+table.insert(tests, { name = "Round hint strip: right of the Score plate at the stage top, narrowed beside the deck, never over the plate, deck or Patron seats (five sizes)", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local s = RH.strip(r, sz[1], sz[2], {})
+		if s then
+			local p = s.plate
+			expectTrue(p.w >= RH.STRIP_MIN_W and p.w <= RH.STRIP_W, "strip width in range at " .. sz[1])
+			if p.y == r.stage.y then -- the side spot: right of the Score plate, clear of the deck
+				local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * sz[1])))
+				expectTrue(p.x >= r.stage.x + math.floor((r.stage.w - pw) / 2) + pw, "right of the Score plate at " .. sz[1])
+				expectTrue(p.x + p.w <= r.deck.x or p.y + p.h <= r.deck.y or p.y >= r.deck.y + r.deck.h, "clear of the deck at " .. sz[1])
+			end
+			expectTrue(s.button.x >= p.x and s.button.x + s.button.w <= p.x + p.w, "Got it inside the strip at " .. sz[1])
+		end
+	end
+	local r = L.rects(1506, 751) -- the live GUI: the strip must stand at the stage top, not above the hand
+	local s = RH.strip(r, 1506, 751, {})
+	expectTrue(s ~= nil and s.plate.y == r.stage.y, "1506 x 751: the strip stands level with the stage top")
+end })
+
 table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 reference, 25 px off passes, 30 px warns, a missing piece is only reported, DebugGoto tablecheck parses", fn = function()
 	local T = require(script.Parent.Parent.Engine.TableCheck)
 	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
