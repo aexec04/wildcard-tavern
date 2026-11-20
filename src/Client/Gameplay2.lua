@@ -612,6 +612,19 @@ function M.install(deps)
 		self.writeNumeral(score, "playing")
 	end
 
+	-- the round-ending state is on screen (the shop opens): the numeral must read the final total, even if a count was still running
+	function self.handOff()
+		local final = self.lastScore
+		if type(final) ~= "number" then return end
+		if scoreNum.Text ~= string.format("%d", final) then
+			pcall(function() require(script.Parent.Gameplay2ScoreFX).cancel() end)
+			scoreNum.Text = string.format("%d", final)
+			local fit = self.scoreFit
+			if fit then pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end) end
+		end
+		if game:GetService("RunService"):IsStudio() then print(("[ScoreNumeral] hand-off to shop: text=%s final=%d"):format(scoreNum.Text, final)) end
+	end
+
 	function self.update(state)
 		lastState = state or lastState
 		local size = root.AbsoluteSize
@@ -620,7 +633,7 @@ function M.install(deps)
 		if deps.deckWidget then deps.deckWidget.Visible = Layout.deckWidgetShown(lastState and lastState.phase) end
 		shell(on)
 		if not on then
-			if lastState and lastState.roundScore ~= nil and lastState.phase ~= "playing" then pcall(self.writeNumeral) end
+			if lastState and lastState.roundScore ~= nil and lastState.phase ~= "playing" then pcall(self.writeNumeral); self.handOff() end
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
 				self.prev = nil

@@ -32882,6 +32882,28 @@ table.insert(tests, { name = "ScoreNumeral: the payout landing writes the total 
 	expectEqual(SN.action(199, 199, "shop"), "keep")
 end })
 
+table.insert(tests, { name = "ScoreNumeral: the count finishes in under 1.2 s and the shop hand-off forces the final total", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Score)
+	for _, opts in ipairs({ {}, { target = 65 }, { fast = true } }) do
+		local plan = G.plan(0, 199, opts)
+		if plan and plan.slam then
+			expectTrue(#plan.steps * plan.stepDur < 1.2, "count steps finish under 1.2 s")
+			expectEqual(plan.final, 199)
+		end
+	end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("a"); f:close(); return t end
+	local g2, fx = read("src/Client/Gameplay2.lua"), read("src/Client/Gameplay2ScoreFX.lua")
+	if not g2 or not fx then return end
+	expectTrue(fx:find("function M.cancel()", 1, true) ~= nil, "ScoreFX can cancel a running count")
+	local a = g2:find("function self.handOff()", 1, true)
+	expectTrue(a ~= nil, "Gameplay2 has handOff")
+	local body = g2:sub(a, a + 700)
+	expectTrue(body:find("ScoreFX\"))%.cancel%(%)") ~= nil or body:find(").cancel()", 1, true) ~= nil, "handOff cancels the count")
+	expectTrue(body:find("[ScoreNumeral] hand-off to shop", 1, true) ~= nil, "handOff prints the final text in Studio")
+	expectTrue(g2:find("pcall(self.writeNumeral); self.handOff()", 1, true) ~= nil, "the shop state calls handOff")
+end })
+
 table.insert(tests, { name = "Hand: the fan's lowest card bottom stays above the Hands and Discards pills (middle cards 6 px or more) at 1506x751, 1280x720, 1920x957", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

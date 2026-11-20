@@ -51,6 +51,8 @@ local function celebrate(burstParent, scoreNum, oldScore, newScore, target) -- t
 	pcall(function() require(script.Parent.Gameplay2TierFX).show(burstParent, scoreNum, newScore - oldScore, target) end)
 end
 
+function M.cancel() running = running + 1 end -- a running count stops where it is (the caller then writes the final total)
+
 function M.play(scoreNum, burstParent, oldScore, newScore, setText, target)
 	local fast = ClientSettings.get("animSpeed") == "fast" and PlayerProfile.animationPaceDivisor("fast", false) > 1
 	local plan = Rules.plan(oldScore, newScore, { calm = calm(), fast = fast, target = target })
