@@ -30,6 +30,9 @@ if p then
 				if c:find("%f[%w_]goto%s+[%a_]") or c:find("::[%a_][%w_]*::") then
 					offenders = offenders + 1
 					print(string.format("[lint] %s:%d goto or label is not valid Luau", f, n))
+				elseif c:find("<<") or c:find(">>") then
+					offenders = offenders + 1
+					print(string.format("[lint] %s:%d bit shift operator is not valid Luau (use bit32 or arithmetic)", f, n))
 				end
 			end
 		end
@@ -38,6 +41,6 @@ if p then
 end
 
 if offenders == 0 then
-	print("[lint] no goto or labels in src (Luau safe)")
+	print("[lint] no goto, labels or bit shifts in src (Luau safe)")
 end
 return offenders

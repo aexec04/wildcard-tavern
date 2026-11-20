@@ -31697,8 +31697,8 @@ table.insert(tests, { name = "Painted button frames: Play Hand and Discard use t
 		local f = io.open(path, "rb")
 		if not f then return nil end
 		local head = f:read(24); f:close()
-		local w = (head:byte(17) << 24) | (head:byte(18) << 16) | (head:byte(19) << 8) | head:byte(20)
-		local h = (head:byte(21) << 24) | (head:byte(22) << 16) | (head:byte(23) << 8) | head:byte(24)
+		local w = head:byte(17) * 16777216 + head:byte(18) * 65536 + head:byte(19) * 256 + head:byte(20)
+		local h = head:byte(21) * 16777216 + head:byte(22) * 65536 + head:byte(23) * 256 + head:byte(24)
 		return w, h
 	end
 	for _, piece in ipairs({ "btn_green", "btn_dark" }) do
