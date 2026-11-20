@@ -1517,6 +1517,23 @@ return function(deps)
 						readoutLeft = readoutLeft, readoutRight = readoutRight,
 					})
 					juiceBanner.Position = UDim2.new(0, plan.bannerX, 0, bannerCy)
+					juiceBanner:SetAttribute("Tag", false)
+					juiceBanner.Size = UDim2.new(0, 520, 0, 56); juiceBanner.TextSize = 34
+					pcall(function() -- v2 table: the banner is a small tag in the Score plate's progress row, 12 px inside the border
+						if not bannerText then return end
+						local row = root:FindFirstChild("ScoreProgress", true)
+						if not (row and row.Visible and row.AbsoluteSize.X > 0) then return end
+						local ClearTag = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ClearTag"))
+						local tag = ClearTag.fit({ x = row.AbsolutePosition.X - rootPos.X, y = row.AbsolutePosition.Y - rootPos.Y, w = row.AbsoluteSize.X, h = row.AbsoluteSize.Y }, bannerText)
+						juiceBanner.Size = UDim2.fromOffset(tag.w, tag.h)
+						juiceBanner.TextSize = tag.size
+						juiceBanner.TextWrapped = false
+						juiceBanner.Position = UDim2.fromOffset(tag.cx, tag.cy)
+						juiceBanner:SetAttribute("Tag", true)
+						row.TextTransparency = 1 -- the tag stands in the progress row; the line is back after 2.5 s
+						task.delay(2.5, function() if row.Parent then row.TextTransparency = 0.1 end end)
+						print(("[ClearTag] %s cx=%d cy=%d w=%d h=%d size=%d row w=%d fits=%s"):format(bannerText, tag.cx, tag.cy, tag.w, tag.h, tag.size, row.AbsoluteSize.X, tostring(tag.fits)))
+					end)
 					if bannerText then pcall(function() require(script.Parent.PatronVoice).suppress(2.5) end) end -- no speech bubble beside the banner
 					require(script.Parent.ComboCounter).stand({
 						side = plan.side, edge = plan.comboEdge, limit = plan.limit,
@@ -1578,7 +1595,7 @@ return function(deps)
 					juiceBanner.TextStrokeTransparency = 0.2
 					juiceEdge.Transparency = 0
 					juiceScale.Scale = 0.5
-					tweenTo(juiceScale, { Scale = 1.1 }, pace(0.25), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					tweenTo(juiceScale, { Scale = juiceBanner:GetAttribute("Tag") and 1 or 1.1 }, pace(0.25), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 					playPitched(payoutThudSound, 1.25, 0.5)
 					if clears then
 						CueBridge.play("win", 0.6) -- the round win: the win sting and a coin cascade, the music ducks for the beat

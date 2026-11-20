@@ -33021,4 +33021,21 @@ table.insert(tests, { name = "Scoring polish at the live GUI size 1506x751: play
 	assert(q and q.x + q.w <= plate.x - 12, "quote ends 12 px left of the plate")
 end })
 
+table.insert(tests, { name = "ClearTag: TARGET CLEARED! is a small tag inside the Score plate's progress row at 1506x751 and 1280x720", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CT, L, SP = require(E.ClearTag), require(E.Gameplay2Layout), require(E.Gameplay2ScorePlate)
+	for _, sz in ipairs({ { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local live = SP.live(r.stage, sz[1], 26, 22, false)
+		local N = live.N
+		local row = { x = live.inner.x, y = live.inner.y + N.lineY + 4, w = live.inner.w, h = 22 }
+		for _, text in ipairs({ "TARGET CLEARED!", "NEW BEST!" }) do
+			local t = CT.fit(row, text)
+			assert(t.size <= 16 and t.size >= 14, "tag text 14 to 16 px, got " .. t.size)
+			assert(t.cx - t.w / 2 >= row.x + 12 - 0.5 and t.cx + t.w / 2 <= row.x + row.w - 12 + 0.5, text .. " keeps 12 px from the border at " .. sz[1])
+			assert(t.fits, text .. " fits the plate at " .. sz[1])
+		end
+	end
+end })
+
 return tests
