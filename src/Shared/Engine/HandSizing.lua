@@ -20,7 +20,7 @@ M.BIG_MAX = 124
 M.BIG_FROM = 1200
 M.BASE_FRAME_H = 200
 
-M.WIDE_SHARE = 0.0715 -- reference cards are about 8.4 percent of a 1672 wide frame; 7.15 percent of the width keeps 8 cards inside the fan at 1920 x 957 (137 wide)
+M.WIDE_SHARE = 0.084 -- reference cards are 8.4 percent of the width (140 of 1672); the byWidth and byHeight limits in cardSize still keep 8 or more cards inside the fan
 M.WIDE_CAP = 160
 
 function M.maxCardWidth(areaW)

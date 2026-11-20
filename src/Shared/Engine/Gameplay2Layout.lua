@@ -136,7 +136,7 @@ function M.rects(w, h)
 	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)
 	local handTop = round((h < 500 and 0.54 or (w >= 1600 and 0.585 or 0.605)) * h)
 	local handH = btnY - cph - M.PILL_GAP - 6 - handTop -- the count pills hang above the buttons
-	local handW = round((w < 1000 and 0.68 or 0.664) * w) -- reference fan spans x 300 to 1410 of 1672 (0.664 wide, centre 0.511) -- compact windows widen the hand so eight cards stay at least 56 px wide
+	local handW = round((w < 1000 and 0.68 or 0.67) * w) -- reference fan spans x 300 to 1410 of 1672 (0.664 wide, centre 0.511) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2 + (w < 1000 and 0 or 0.011 * w)), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
 	local stTop = rowBottom + (ref and 0 or 8)
