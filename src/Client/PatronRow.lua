@@ -173,10 +173,22 @@ local function newCard(i)
 	innerEdge.Thickness = 1
 	innerEdge.Transparency = 0.75
 	innerEdge.Parent = inner
-	do -- the empty seat's ornament (reference): a big four pointed star with concave sides and a small centre diamond in dark gold, plus 18 px corner flourishes
+	do -- the empty seat's ornament (reference): a big four pointed star with concave sides and a small centre diamond in dark gold, plus 20 px corner flourishes
 		local DARK_GOLD = Color3.fromRGB(150, 110, 50)
-		mark.BackgroundColor3 = Color3.fromRGB(40, 24, 14)
-		mark.BackgroundTransparency = 0.05
+		mark.BackgroundColor3 = Color3.fromRGB(46, 31, 21) -- warm dark brown like the reference (was near black)
+		mark.BackgroundTransparency = 0
+		local faceEdge = Instance.new("Frame") -- 1 px lighter inner edge
+		faceEdge.Name = "FaceEdge"
+		faceEdge.Size = UDim2.fromScale(1, 1)
+		faceEdge.BackgroundTransparency = 1
+		faceEdge.ZIndex = Z + 1
+		faceEdge.Active = false
+		faceEdge.Parent = mark
+		corner(faceEdge, 8)
+		local faceStroke = Instance.new("UIStroke")
+		faceStroke.Color = Color3.fromRGB(62, 44, 30)
+		faceStroke.Thickness = 1
+		faceStroke.Parent = faceEdge
 		markEdge.Color = DARK_GOLD
 		innerEdge.Color = DARK_GOLD
 		local function bar(parent, name, pos, size, color, tr)
@@ -196,7 +208,7 @@ local function newCard(i)
 		star.Name = "StarOrnament"
 		star.AnchorPoint = Vector2.new(0.5, 0.5)
 		star.Position = UDim2.fromScale(0.5, 0.5)
-		star.Size = UDim2.fromScale(0.62, 0.62)
+		star.Size = UDim2.fromScale(0.66, 0.66)
 		star.BackgroundTransparency = 1
 		star.ZIndex = Z + 2
 		star.Active = false
@@ -214,13 +226,13 @@ local function newCard(i)
 		local core = bar(star, "SigilCore", UDim2.fromScale(0.5, 0.5), UDim2.fromOffset(10, 10), Color3.fromRGB(214, 168, 76), 0.1)
 		core.AnchorPoint = Vector2.new(0.5, 0.5)
 		core.Rotation = 45
-		for _, cx in ipairs({ 0, 1 }) do -- corner flourishes: two 18 px arms and a small diamond at each corner of the face
+		for _, cx in ipairs({ 0, 1 }) do -- corner flourishes: two 20 px arms and a small diamond at each corner of the face
 			for _, cy in ipairs({ 0, 1 }) do
 				local px, py = cx == 0 and 5 or -5, cy == 0 and 5 or -5
-				local ha = bar(mark, "FlourishH", UDim2.new(cx, cx == 0 and px or px - 18, cy, cy == 0 and py or py - 2), UDim2.fromOffset(18, 2), DARK_GOLD, 0.15)
-				local va = bar(mark, "FlourishV", UDim2.new(cx, cx == 0 and px or px - 2, cy, cy == 0 and py or py - 18), UDim2.fromOffset(2, 18), DARK_GOLD, 0.15)
+				local ha = bar(mark, "FlourishH", UDim2.new(cx, cx == 0 and px or px - 20, cy, cy == 0 and py or py - 2), UDim2.fromOffset(20, 2), DARK_GOLD, 0.15)
+				local va = bar(mark, "FlourishV", UDim2.new(cx, cx == 0 and px or px - 2, cy, cy == 0 and py or py - 20), UDim2.fromOffset(2, 20), DARK_GOLD, 0.15)
 				ha.Name, va.Name = "FlourishH", "FlourishV"
-				local dm = bar(mark, "FlourishDiamond", UDim2.new(cx, cx == 0 and px + 8 or px - 8, cy, cy == 0 and py + 8 or py - 8), UDim2.fromOffset(6, 6), Color3.fromRGB(214, 168, 76), 0.2)
+				local dm = bar(mark, "FlourishDiamond", UDim2.new(cx, cx == 0 and px + 8 or px - 8, cy, cy == 0 and py + 8 or py - 8), UDim2.fromOffset(7, 7), Color3.fromRGB(214, 168, 76), 0.2)
 				dm.AnchorPoint = Vector2.new(0.5, 0.5)
 				dm.Rotation = 45
 			end
