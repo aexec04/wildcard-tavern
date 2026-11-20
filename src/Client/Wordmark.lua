@@ -19,8 +19,9 @@ local Wordmark = {}
 -- (Almendra and IMFellEnglishSC are the other candidates).
 Wordmark.FONT = Enum.Font.Fondamento
 Wordmark.TEXT_SIZE = 56
-Wordmark.GLYPH_TOP, Wordmark.GLYPH_H = 12, 75 -- painted lettering: glyph top at screen y12, glyphs 75 px tall
-Wordmark.BAND_GLYPH_TOP, Wordmark.BAND_GLYPH_H = 35, 165 -- where the glyphs sit inside the 220 px crop band of the wordmark picture
+Wordmark.GLYPH_TOP, Wordmark.GLYPH_H = 12, 75 -- painted lettering: glyph top at screen y12, glyphs 75 px tall at 1920 wide
+Wordmark.CROP = { x = 62, y = 425, w = 1426, h = 203 } -- the lettering's exact box in the 1536x1024 picture (alpha bounds), no padding
+Wordmark.WIDTH_FRAC = 0.275 -- glyph width as a share of the screen width: 528 px at 1920, never above 31 percent
 Wordmark.TOP = 4 -- the title label starts 4 px from the top (was 20, which put its lower half over the night window)
 
 local GOLD_TOP = Color3.fromRGB(236, 205, 134)
@@ -88,19 +89,22 @@ function Wordmark.build(parent, opts)
 		title.Text = ""
 		local image = Instance.new("ImageLabel")
 		image.Name = "WordmarkImage"
-		-- placed by the visible glyphs, not the picture: the lettering fills y35..200 of the 220 px band, so the image
-		-- is sized to make the glyphs GLYPH_H tall and shifted up so the glyph top lands on GLYPH_TOP (screen y)
-		local k = Wordmark.GLYPH_H / Wordmark.BAND_GLYPH_H
+		-- the crop is the glyph box itself, so the image rect is the glyph rect: width is a share of the screen, height follows
+		-- the picture's aspect (never stretched), top edge on GLYPH_TOP (screen y)
+		local c = Wordmark.CROP
 		image.AnchorPoint = Vector2.new(0.5, 0)
-		image.Position = UDim2.new(0.5, 0, 0, Wordmark.GLYPH_TOP - Wordmark.TOP - math.floor(Wordmark.BAND_GLYPH_TOP * k + 0.5))
-		image.Size = UDim2.fromOffset(math.floor(1456 * k + 0.5), math.floor(220 * k + 0.5)) -- the crop below is about 6.6:1
+		image.Position = UDim2.new(0.5, 0, 0, Wordmark.GLYPH_TOP - Wordmark.TOP)
+		image.Size = UDim2.new(Wordmark.WIDTH_FRAC, 0, 0, 0)
 		image.BackgroundTransparency = 1
 		image.Image = AssetId.normalize(opts.imageId) or ""
-		-- the painted wordmark is a 1536x1024 canvas with one centred line; show only the band that holds the lettering
-		local rx, ry, rw, rh = ImageSpace.rect(40, 390, 1456, 220, 1536, 1024)
+		local ratio = Instance.new("UIAspectRatio")
+		ratio.AspectRatio = c.w / c.h
+		ratio.DominantAxis = Enum.DominantAxis.Width
+		ratio.Parent = image
+		local rx, ry, rw, rh = ImageSpace.rect(c.x, c.y, c.w, c.h, 1536, 1024)
 		image.ImageRectOffset = Vector2.new(rx, ry)
 		image.ImageRectSize = Vector2.new(rw, rh)
-		image.ScaleType = Enum.ScaleType.Fit
+		image.ScaleType = Enum.ScaleType.Stretch
 		image.ZIndex = z
 		image.Parent = title
 		return { shadow = shadow, title = title, painted = true }

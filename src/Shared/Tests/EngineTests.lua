@@ -32052,7 +32052,15 @@ table.insert(tests, { name = "Wordmark: the painted lettering is placed by its g
 	if not io then return end
 	local f = assert(io.open("src/Client/Wordmark.lua", "r")); local c = f:read("a"); f:close()
 	assert(c:find("GLYPH_TOP, Wordmark.GLYPH_H = 12, 75", 1, true), "glyph top 12, glyph height 75")
-	assert(c:find("Wordmark.GLYPH_TOP - Wordmark.TOP", 1, true) and c:find("Vector2.new(0.5, 0)", 1, true), "the image is shifted by the transparent padding above the glyphs")
+	assert(c:find("Wordmark.GLYPH_TOP - Wordmark.TOP", 1, true) and c:find("Vector2.new(0.5, 0)", 1, true), "the image top sits on the glyph top")
+	local w = tonumber(c:match("WIDTH_FRAC = ([%d%.]+)"))
+	assert(w and w <= 0.31, "glyph width is at most 31 percent of the screen width")
+	local cw, ch = tonumber(c:match("w = (%d+), h = %d+ }")), tonumber(c:match("w = %d+, h = (%d+) }"))
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local gw = sz[1] * w
+		assert(gw <= 0.31 * sz[1] and gw <= 600, "glyph width at " .. sz[1])
+		assert(gw * ch / cw <= 75.5, "glyph height stays within 75 px at " .. sz[1])
+	end
 	local g = assert(io.open("src/Client/ScreenCheck.lua", "r")); local sc = g:read("a"); g:close()
 	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
