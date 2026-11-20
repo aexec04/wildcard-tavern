@@ -505,9 +505,10 @@ function M.install(deps)
 		scoreCaption.Visible = N.roomy and N.numTop >= capH
 		scoreCaption.Text = nameInCaption and (self.previewText:match("^(.-)%s*|") or self.previewText) or (self.playing == true and self.scoringText) or "Score" -- "Flush Lv 2": the plate is too narrow for the Chips x Mult part
 		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
-		do -- compact table: the progress sits inside the plate at the numeral's right end ("0 / 65", 11 px) instead of dropping out
-			local inl = self.playing ~= true and SPlate.inline(live, #tostring(scoreNum.Text)) or nil
-			scoreProgress.TextXAlignment = inl and Enum.TextXAlignment.Right or Enum.TextXAlignment.Center
+		local inl -- set when the compact plate carries the progress inside; the ornament arrows are then hidden
+		do -- compact table: the progress sits inside the plate beside the numeral ("0 / 65", 11 px) instead of dropping out
+			inl = self.playing ~= true and SPlate.inline(live, #tostring(scoreNum.Text)) or nil
+			scoreProgress.TextXAlignment = Enum.TextXAlignment.Center
 			scoreProgress.TextYAlignment = Enum.TextYAlignment.Center
 			if inl then
 				scoreProgress.Size = UDim2.fromOffset(inl.w, inl.h); scoreProgress.Position = UDim2.fromOffset(inl.x, inl.y)
@@ -531,7 +532,7 @@ function M.install(deps)
 			arrow.ZIndex = 4
 			local half = math.floor(math.max(24, math.min(scoreProgress.TextBounds.X, 160)) / 2) -- snug: 12 px gap from the "o of N" text, arrow 52 wide
 			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, (N.below and N.progressY or (N.lineY + 4)) + math.floor(progH / 2))
-			arrow.Visible = scoreProgress.Visible and (half + 12 + 52) * 2 <= (N.below and live.box.w or live.inner.w) -- a flourish that would cross the carved border is dropped
+			arrow.Visible = scoreProgress.Visible and not inl and (half + 12 + 52) * 2 <= (N.below and live.box.w or live.inner.w) -- a flourish that would cross the carved border is dropped
 		end
 		if self.previewText and not self.playing and stripShown then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))

@@ -59,11 +59,13 @@ end
 -- the power disc scales with the card: 48 px on a roomy card (140 px wide, 1920x1080), 40 px from 70 px, 28 px on very narrow
 -- cards, in the card's bottom right corner, 40 percent of it outside the frame
 M.DISC_SIZE, M.DISC_BIG, M.DISC_OVERLAP = 40, 48, 0.5
+M.DISC_TINY_FROM, M.DISC_TINY = 62, 22
 M.DISC_OVERLAP_X = 0.5 -- the disc overlaps the card's bottom right corner by half in both directions, as in the reference
 function M.discDiameter(w)
 	w = tonumber(w) or 0
 	if w >= 140 then return M.DISC_BIG end
-	return w >= 70 and M.DISC_SIZE or 28
+	if w >= 70 then return M.DISC_SIZE end
+	return w >= M.DISC_TINY_FROM and M.DISC_TINY or 28 -- the 66 px seats of 800x450 take a 22 px coin so a 9 px name keeps its 6 px gap
 end
 
 -- Bottom right corner of the card: half of the disc inside the frame, half outside (right and below).

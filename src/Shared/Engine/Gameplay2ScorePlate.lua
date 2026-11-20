@@ -112,17 +112,17 @@ end
 -- Compact tables (800x450): the plate holds the numeral alone, so the "0 / 65" progress goes inside the plate, on the numeral's row at
 -- its right end, 11 px or more. Returns { x, y, w, h, size } in the score box's own coordinates, nil when the plate already shows the
 -- progress line under it, when a hand is scoring, or when the numeral's digits would run into it.
-M.INLINE_SIZE, M.INLINE_W = 11, 76
+M.INLINE_SIZE, M.INLINE_MIN_W = 11, 44
+M.END_CAP, M.CAP_CLEAR = 14, 6 -- the painted plate's end caps are about 14 px deep; the text stays 6 px clear of them
 function M.inline(live, digits)
 	local N = live.N
 	if not N or N.compact or (N.roomy and not N.noProgress) then return nil end
 	local plate, box = live.plate, live.box
-	local w = M.INLINE_W
-	local right = plate.x + plate.w - M.PAD - 2
-	local x = right - w
+	local right = plate.x + plate.w - M.END_CAP - M.CAP_CLEAR
 	local half = 0.5 * math.max(1, tonumber(digits) or 1) * 0.62 * (N.textSize or N.numH or 20)
-	if x < plate.x + plate.w / 2 + half + 4 then return nil end -- no room beside the numeral: it stays alone
-	return { x = x - box.x, y = N.numTop, w = w, h = N.numH, size = M.INLINE_SIZE }
+	local x = plate.x + plate.w / 2 + half + 4 -- the text is centred in the gap between the numeral and the right end cap
+	if right - x < M.INLINE_MIN_W then return nil end -- no room beside the numeral: it stays alone
+	return { x = x - box.x, y = N.numTop, w = right - x, h = N.numH, size = M.INLINE_SIZE }
 end
 
 -- the numeral shrinks (never grows) so `digits` figures fit the inner width; Gotham bold digits are about 0.62 of the font size wide

@@ -33814,6 +33814,8 @@ table.insert(tests, { name = "Compact idle Score plate: the progress sits inside
 				expectTrue(px >= live.plate.x and px + inl.w <= live.plate.x + live.plate.w, "inside the plate horizontally at " .. sz[1] .. "x" .. sz[2])
 				expectTrue(py >= live.plate.y and py + inl.h <= live.plate.y + live.plate.h + 1, "inside the plate vertically at " .. sz[1] .. "x" .. sz[2])
 				expectTrue(py + inl.h <= hf.y, "clear of the hand")
+					local capL, capR = live.plate.x + SP.END_CAP + SP.CAP_CLEAR, live.plate.x + live.plate.w - SP.END_CAP - SP.CAP_CLEAR
+					expectTrue(px >= capL and px + inl.w <= capR + 0.01, ("progress rect %d..%d is 6 px clear of the end caps (%d..%d) at %dx%d"):format(math.floor(px), math.floor(px + inl.w), math.floor(capL), math.floor(capR), sz[1], sz[2]))
 				local half = 0.5 * digits * 0.62 * live.N.textSize
 				expectTrue(px >= live.plate.x + live.plate.w / 2 + half, "clear of the numeral at " .. sz[1] .. "x" .. sz[2] .. " with " .. digits .. " digits")
 			end
@@ -33826,9 +33828,27 @@ table.insert(tests, { name = "Compact idle Score plate: the progress sits inside
 	if io then
 		local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
 		expectTrue(src:find("SPlate.inline(", 1, true) ~= nil, "the table draws the inline progress")
+			expectTrue(src:find("not inl and (half", 1, true) ~= nil, "no ornament arrows beside the inline progress")
 		local g = assert(io.open("src/Client/PatronRow.lua", "r")); local row = g:read("a"); g:close()
 		expectTrue(row:find("MouseButton1", 1, true) ~= nil and row:find("AbsoluteSize.Y < 600", 1, true) ~= nil, "a click opens the Patron plate on compact windows")
 	end
+end })
+
+table.insert(tests, { name = "Patron seat names at 800x450 are 9 px or more, wrapped, inside the label and 6 px clear of the coin", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
+	local c = L.rects(800, 450).slots[1].card
+	local st = PP.rowStyle(live, c.w, c.h)
+	expectTrue(st.size >= 9, "800x450 name size " .. st.size .. " is 9 or more")
+	expectTrue(st.wrapped, "two line wrap")
+	local lr = PP.labelRect(c.w, st.wrapped)
+	expectTrue(lr.x + lr.w <= PP.coinLeft(c.w) - 6 + 0.01, "6 px coin clearance")
+	for _, n in ipairs(live) do
+		for word in n:gmatch("%S+") do expectTrue(#word * st.size * PP.CHAR_W <= lr.w + 0.01, ("'%s' fits the label (%d px)"):format(word, math.floor(lr.w))) end
+	end
+	local lay = PP.layout(c.h, true, st.size)
+	expectTrue(lay.ribbon.h * c.h >= 2 * st.size * 0.9, "ribbon holds two lines")
 end })
 
 table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()

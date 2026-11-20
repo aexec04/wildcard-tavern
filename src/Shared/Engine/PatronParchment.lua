@@ -70,7 +70,7 @@ M.NAME_PAD = 4 -- px kept clear on each side of the name so no letter touches th
 -- The label rect for the style: the one line style keeps clear of the power disc; the two line style (the 800x450 seats, where the
 -- disc leaves only about 30 px) spans the whole ribbon so its words fit, the disc sitting over the lower line's empty right end.
 function M.labelRect(w, wrapped)
-	local x = wrapped and (M.NAME_PAD - 1) or (M.nameRect(w).x + M.NAME_PAD)
+	local x = wrapped and 1 or (M.nameRect(w).x + M.NAME_PAD)
 	return { x = x, w = math.max(0, M.coinLeft(w) - M.COIN_GAP - x) }
 end
 
