@@ -240,7 +240,14 @@ function M.install(deps)
 		bar.BackgroundTransparency = 1
 		for _, c in ipairs(bar:GetChildren()) do if c:IsA("UIStroke") then c.Enabled = false end end
 		Kit.painted(target, "wh_target"); Kit.painted(tips, "wh_target")
-		Kit.painted(handsPill, "wh_small"); Kit.painted(discardsPill, "wh_small"); Kit.painted(deckPill, "wh_count")
+		Kit.painted(deckPill, "wh_count")
+		for _, p in ipairs({ handsPill, discardsPill }) do -- plain dark rounded pill, 1 px gold line, cream text (the concept), no ornate frame
+			p.BackgroundColor3 = Color3.fromRGB(38, 24, 14)
+			local ps = p:FindFirstChildOfClass("UIStroke")
+			if ps then ps.Thickness = 1; ps.Color = Color3.fromRGB(214, 168, 76) end
+			local pw = p:FindFirstChild("Word")
+			if pw then pw.TextColor3 = Color3.fromRGB(245, 232, 200); pw.TextStrokeTransparency = 1 end
+		end
 		do -- the lightbulb icon on Tips, its word moved right of it
 			local bulb = Kit.icon(tips, "bulb")
 			local tw = tips:FindFirstChild("Word")
@@ -302,14 +309,14 @@ function M.install(deps)
 						local gf = Instance.new("Frame"); gf.Name = "GoldFrame"; gf.BackgroundTransparency = 1; gf.BorderSizePixel = 0; gf.Active = false
 						gf.Size = UDim2.fromScale(1, 1); gf.ZIndex = Z_BTN + 2; gf.Parent = b
 						local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 8); gc.Parent = gf
-						local gs = Instance.new("UIStroke"); gs.Thickness = 4; gs.Color = Color3.fromRGB(214, 168, 76); gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gf
+						local gs = Instance.new("UIStroke"); gs.Thickness = 2; gs.Color = Color3.fromRGB(176, 134, 56); gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gf
 						local gi = Instance.new("Frame"); gi.Name = "GoldInner"; gi.BackgroundTransparency = 1; gi.BorderSizePixel = 0; gi.Active = false
-						gi.Size = UDim2.new(1, -16, 1, -16); gi.Position = UDim2.fromOffset(8, 8); gi.ZIndex = Z_BTN + 2; gi.Parent = gf
+						gi.Size = UDim2.new(1, -10, 1, -10); gi.Position = UDim2.fromOffset(5, 5); gi.ZIndex = Z_BTN + 2; gi.Parent = gf
 						local gic = Instance.new("UICorner"); gic.CornerRadius = UDim.new(0, 5); gic.Parent = gi
-						local gis = Instance.new("UIStroke"); gis.Thickness = 2; gis.Color = Color3.fromRGB(150, 110, 50); gis.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gis.Parent = gi
+						local gis = Instance.new("UIStroke"); gis.Thickness = 1; gis.Color = Color3.fromRGB(120, 88, 40); gis.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gis.Parent = gi
 						for _, cx in ipairs({ 0, 1 }) do for _, cy in ipairs({ 0, 1 }) do
 							local d = Instance.new("Frame"); d.Name = "GoldDiamond"; d.BorderSizePixel = 0; d.Active = false; d.Rotation = 45; d.AnchorPoint = Vector2.new(0.5, 0.5)
-							d.Size = UDim2.fromOffset(11, 11); d.Position = UDim2.new(cx, cx == 0 and 6 or -6, cy, cy == 0 and 6 or -6); d.BackgroundColor3 = Color3.fromRGB(240, 196, 92); d.ZIndex = Z_BTN + 3; d.Parent = gf
+							d.Size = UDim2.fromOffset(7, 7); d.Position = UDim2.new(cx, cx == 0 and 4 or -4, cy, cy == 0 and 4 or -4); d.BackgroundColor3 = Color3.fromRGB(240, 196, 92); d.ZIndex = Z_BTN + 3; d.Parent = gf
 						end end
 					end)
 				end
@@ -448,6 +455,10 @@ function M.install(deps)
 			end
 		end
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
+		for _, pr in ipairs({ { handsPill, r.playCount }, { discardsPill, r.discardCount } }) do -- cream 18 px words, smaller only when the pill is too short for them
+			local pw = pr[1]:FindFirstChild("Word")
+			if pw then pw.TextScaled = false; pw.TextSize = math.max(10, math.min(18, math.floor(pr[2].h * 0.6))) end
+		end
 		place(deckImg, CTLayout.deckPicture(r.deck)); place(deckPill, r.deckCount)
 		do
 			local dc = CTLayout.decorFor(r, size.X, size.Y)

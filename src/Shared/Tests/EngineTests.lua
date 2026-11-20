@@ -30452,7 +30452,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(not kit:find("if img.Parent and not img.IsLoaded then", 1, true), "IsLoaded alone never decides: it reads false for a hidden screen and would drop the picture")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "wh_target", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
 	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('paintedButton(b, "primary")', 1, true), "gear and Next Round are painted")
 end })
@@ -34397,6 +34397,19 @@ table.insert(tests, { name = "Table: both scroll lines fit the plate height (1.2
 	expectTrue(a and b and src:sub(a, b):find("PatronPowerPanelFX", 1, true) ~= nil, "replaceHint also re-places the Patron Power panel")
 	f = io.open("src/Client/PatronRow.lua", "r"); local row = f:read("a"); f:close()
 	expectTrue(row:find("NameFit.WRAP_SIZE", 1, true) ~= nil and row:find("TextWrapped = long", 1, true) ~= nil, "a long Patron name wraps instead of ending in an ellipsis")
+end })
+
+table.insert(tests, { name = "Table: Rank and Suit edge is a thin 2 px gold line, Hands and Discards are plain dark pills with a 1 px gold line and cream text, sizes unchanged", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		expectTrue(r.playCount.h >= 1 and r.discardCount.h >= 1 and r.sortRank.w >= 1, "pill and sort rects exist at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f:read("a"); f:close()
+	expectTrue(src:find("gs.Thickness = 2;", 1, true) ~= nil and src:find("gs.Thickness = 4", 1, true) == nil, "Rank and Suit outer gold line is 2 px")
+	expectTrue(src:find("Kit.painted(handsPill", 1, true) == nil and src:find("Kit.painted(discardsPill", 1, true) == nil, "Hands and Discards are not painted with the ornate frame")
+	expectTrue(src:find("ps.Thickness = 1", 1, true) ~= nil and src:find("math.min(18,", 1, true) ~= nil, "1 px gold line and 18 px cream text")
 end })
 
 return tests
