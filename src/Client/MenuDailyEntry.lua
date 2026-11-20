@@ -12,16 +12,16 @@ local Kit = require(script.Parent.TavernKit)
 
 local M = {}
 
-local PARCHMENT = Color3.fromRGB(196, 168, 120)
+local WOOD = Color3.fromRGB(86, 58, 34)
 local GOLD = Color3.fromRGB(222, 182, 104)
-local INK = Color3.fromRGB(60, 40, 22)
+local CREAM = Color3.fromRGB(250, 235, 200)
 
 function M.attach(parent, layoutOrder, onPlay)
 	local frame = Instance.new("Frame")
 	frame.Name = "MenuDailyEntry"
 	frame.Size = UDim2.fromOffset(460, Rules.NOTE_H)
 	frame.LayoutOrder = layoutOrder or Rules.ORDER
-	frame.BackgroundColor3 = PARCHMENT
+	frame.BackgroundColor3 = WOOD -- flat fallback; the painted plate goes on when the board pins the note
 	frame.ZIndex = 10
 	frame.Parent = parent
 	local corner = Instance.new("UICorner")
@@ -32,15 +32,15 @@ function M.attach(parent, layoutOrder, onPlay)
 	stroke.Thickness = 1.5
 	stroke.Parent = frame
 
-	local function text(name, str, size, font, y, h)
+	local function text(name, str, size, font, y, h, color)
 		local t = Instance.new("TextLabel")
 		t.Name = name
-		t.Size = UDim2.new(1, -16, 0, h)
-		t.Position = UDim2.fromOffset(8, y)
+		t.Size = UDim2.new(1, -60, 0, h)
+		t.Position = UDim2.fromOffset(30, y) -- 30 px clear of the painted plate's gold ends
 		t.BackgroundTransparency = 1
 		t.Font = font
 		t.TextSize = size
-		t.TextColor3 = INK
+		t.TextColor3 = color
 		t.TextTransparency = 0
 		t.TextStrokeTransparency = 1
 		t.TextWrapped = true
@@ -51,14 +51,14 @@ function M.attach(parent, layoutOrder, onPlay)
 		t.Parent = frame
 		return t
 	end
-	text("Title", Rules.TITLE, 18, Enum.Font.Merriweather, 4, 22)
-	text("Text", Rules.LINE, 14, Enum.Font.GothamMedium, 26, 20)
+	text("Title", Rules.TITLE, 18, Enum.Font.Merriweather, 10, 22, GOLD)
+	text("Text", Rules.LINE, 14, Enum.Font.GothamMedium, 32, 36, CREAM)
 
 	local play = Kit.primaryButton(frame, Rules.BUTTON_TEXT)
 	play.Name = "DailyPlay"
 	play.AnchorPoint = Vector2.new(1, 1)
 	play.Size = UDim2.fromOffset(Rules.BUTTON.w, Rules.BUTTON.h)
-	play.Position = UDim2.new(1, -8, 1, -6)
+	play.Position = UDim2.new(1, -30, 1, -8)
 	play.ZIndex = 12
 	play.TextSize = 15
 	play.MouseButton1Click:Connect(function()

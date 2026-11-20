@@ -26611,29 +26611,32 @@ table.insert(tests, { name = "Notice Board: notes move closer before one is drop
 	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
 	expectTrue(RL.NOTE_GAP_TIGHT < RL.NOTE_GAP and RL.NOTE_TOP_TIGHT < RL.NOTE_TOP, "a tighter spacing exists")
 	-- the board as measured in Studio at 1506 x 719: news 86, rank 66, and the goal 74 once its line wraps onto two
-	local l, t, r, b = RL.corkRect(1506, 719)
+	local l, t, r, b = RL.corkRect(1920, 957)
 	local cw, ch = r - l, b - t
-	local roomy = RL.noteSlots(cw, ch, { 86, 66, 54 })
+	local sc = math.min(1, (cw - 2 * RL.CORK_MARGIN - 10) / RL.NOTE_W)
+	local availU = (ch - 2 * RL.CORK_MARGIN - 10) / sc
+	local h3 = math.floor(availU - RL.NOTE_TOP_TIGHT - 68 - 64 - 2 * RL.NOTE_GAP_TIGHT) -- the third note fills the cork when the notes are tight, one gap more than that does not fit
+	local roomy = RL.noteSlots(cw, ch, { 68, 64, 30 })
 	expectEqual(roomy.shown, 3)
 	expectEqual(roomy.gap, RL.NOTE_GAP, "notes that fit keep the normal spacing")
-	local wrapped = RL.noteSlots(cw, ch, { 86, 66, 74 }, 3)
+	local wrapped = RL.noteSlots(cw, ch, { 68, 64, h3 }, 3)
 	expectEqual(wrapped.shown, 3, "the wrapped goal note still fits: the notes move closer")
 	expectEqual(wrapped.gap, RL.NOTE_GAP_TIGHT)
 	expectTrue(wrapped.show[1] and wrapped.show[2] and wrapped.show[3])
 	-- a goal line of three rows: something has to go, and it is not the goal
-	local tall = RL.noteSlots(cw, ch, { 86, 66, 98, 82 }, 3)
+	local tall = RL.noteSlots(cw, ch, { 68, 64, h3 + 24, 82 }, 3)
 	expectTrue(tall.show[3] == true, "the Next goal note stays")
 	expectTrue(tall.show[1] == true and not tall.show[2], "the note just above it makes room")
 	expectEqual(tall.shown, 2)
 	expectEqual(#tall.rects, tall.shown)
 	-- without a kept note the old rule holds: notes are shown in order until one does not fit
-	local plain = RL.noteSlots(cw, ch, { 86, 66, 98, 82 })
+	local plain = RL.noteSlots(cw, ch, { 68, 64, h3 + 24, 82 })
 	expectTrue(plain.show[1] and plain.show[2] and not plain.show[3] and not plain.show[4])
 	-- every case, every screen: shown notes are inside the cork, in order, and never overlap
 	for _, size in ipairs({ { 1920, 1080 }, { 1506, 719 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local l2, t2, r2, b2 = RL.corkRect(size[1], size[2])
 		local w2, h2 = r2 - l2, b2 - t2
-		for _, case in ipairs({ { { 86, 66, 74 }, 3 }, { { 86, 66, 98, 82 }, 3 }, { { 66, 98 }, 2 }, { { 86, 66, 54, 82 }, 3 }, { { 400 }, 1 }, { { 86, 66, 74 }, nil } }) do
+		for _, case in ipairs({ { { 86, 66, 74 }, 3 }, { { 68, 64, h3 + 24, 82 }, 3 }, { { 66, 98 }, 2 }, { { 86, 66, 54, 82 }, 3 }, { { 400 }, 1 }, { { 86, 66, 74 }, nil } }) do
 			local fitted = RL.noteSlots(w2, h2, case[1], case[2])
 			local count, prevBottom = 0, nil
 			for i in ipairs(case[1]) do if fitted.show[i] then count = count + 1 end end
@@ -29819,6 +29822,29 @@ table.insert(tests, { name = "Gameplay v2 hand strip: the Score caption and the 
 	assert(c:find("nameInCaption", 1, true) and c:find("t.roomy and not t.noProgress", 1, true) and c:find("and stripShown then", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Menu notes: News, Rank, Goal and Daily share the painted gold plate and one width, 12 px gaps, words 30 px clear of the gold ends, the XP bar sits inside the plate under its text", fn = function()
+	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	assert(R.NOTE_GAP == 12 and R.NOTE_W == 300, "12 px gaps, one width")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do -- News 68, Rank 64, Goal 64: all three stay on the cork at the common sizes
+		local l, t, r, b = R.corkRect(sz[1], sz[2])
+		local fit = R.noteSlots(r - l, b - t, { 68, 64, 64 }, 3)
+		assert(fit.shown == 3 and fit.show[1] and fit.show[2] and fit.show[3], "three notes fit at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/MenuBoard.lua"):find('painted(note, "wh_target")', 1, true), "every pinned note wears wh_target")
+	local H = {}
+	for name, file in pairs({ rank = "MenuRank", goal = "NextGoalBanner", news = "NewsPanel", daily = "MenuDailyEntry" }) do
+		local c = read("src/Client/" .. file .. ".lua")
+		if file ~= "NewsPanel" and file ~= "MenuRank" then assert(not c:find("TextColor3 = INK", 1, true), name .. " text is light on the dark plate") end
+		H[name] = c
+	end
+	assert(H.rank:find("UDim2.new(1, -(66 + 30), 0, 10)", 1, true) and H.rank:find("fromOffset(66, 31)", 1, true), "XP bar below the text lines, inside the plate")
+	assert(H.rank:find("reward.Position = UDim2.fromOffset(66, 43)", 1, true), "text 9..27, bar 31..41, reward 43..59 inside the 64 px plate")
+	assert(H.goal:find("-(72 + 30), 0, 34)", 1, true) and H.news:find("-(68 + 30), 0, 36)", 1, true), "text boxes end 30 px short of the right gold end and hold two lines")
+	assert(H.daily:find("fromOffset(30, y)", 1, true) and H.daily:find("UDim2.new(1, -30, 1, -8)", 1, true), "daily words and button 30 px in")
+end })
+
 table.insert(tests, { name = "Menu polish: the daily strip wears the table's gold framed plate and its words and the tip text stay 28 px inside the frame ends", fn = function()
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -30384,7 +30410,7 @@ end })
 
 table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note with the native green TavernKit Play Daily plate, same start function as the Daily action row, dropped first when the board is crowded", fn = function()
 	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
-	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 78 and D.ORDER > 0, "words and order: after the ticker (0)")
+	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 110 and D.ORDER > 0, "words and order: after the ticker (0)")
 	assert(D.BUTTON.h >= 30 and D.BUTTON.w >= 100, "a plate big enough to press")
 	local bad = (D.TITLE .. D.LINE .. D.BUTTON_TEXT):lower()
 	assert(not bad:find("\u{2014}", 1, true) and not bad:find("--", 1, true) and not bad:find("balatro", 1, true), "no dashes, no banned word")
@@ -32206,7 +32232,7 @@ table.insert(tests, { name = "Notice Board text: Rank on one line with the rewar
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local rank, news, board = read("src/Client/MenuRank.lua"), read("src/Client/NewsPanel.lua"), read("src/Client/MenuBoard.lua")
 	expectTrue(rank:find('reward.Name = "Reward"', 1, true) and rank:find("NoteText.rankLines", 1, true), "the Rank note draws the reward on its own label")
-	expectTrue(news:find("NoteText.newsLine", 1, true) and news:find("NoteText.PAD", 1, true), "the news note uses the shortened line and the padding")
+	expectTrue(news:find("NoteText.newsLine", 1, true) and news:find("-(68 + 30)", 1, true), "the news note uses the shortened line and 30 px clear of the plate ends")
 	expectTrue(board:find("local PADN = 12", 1, true) and board:find("PADN + h1 + h2 + PADN", 1, true), "stacked notes keep 12 px top and bottom")
 end })
 

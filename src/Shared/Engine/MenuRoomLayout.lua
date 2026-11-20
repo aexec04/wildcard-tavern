@@ -24,8 +24,8 @@ MenuRoomLayout.pic = {
 	noticeboard = { l = 0.775, t = 0.137, r = 0.97,  b = 0.41 },   -- cork board on the right wall: opens the All actions list
 }
 -- The cork surface itself (inside the wooden frame of noticeboard): the Notice Board notes are laid out inside it.
-MenuRoomLayout.cork = { l = 0.79, t = 0.17, r = 0.955, b = 0.39 }
-MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 16, 10, 10, 4
+MenuRoomLayout.cork = { l = 0.79, t = 0.155, r = 0.955, b = 0.41 }
+MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 12, 10, 10, 4
 -- When the notes do not all fit they first move closer together (noteSlots), before any note is taken off the board.
 MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT = 8, 4
 MenuRoomLayout.deck = { l = 0.49, t = 0.67, r = 0.56, b = 0.73 }   -- gentle pulse ring on the primary

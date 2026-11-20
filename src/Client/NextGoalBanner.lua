@@ -8,7 +8,6 @@ local NextGoalBanner = {}
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
-local PARCHMENT = Color3.fromRGB(196, 168, 120)
 local INK = Color3.fromRGB(60, 40, 22)
 local WOOD = Color3.fromRGB(86, 58, 34)
 
@@ -18,9 +17,9 @@ local shownText, shownRatio
 function NextGoalBanner.attach(parent, layoutOrder)
 	local frame = Instance.new("Frame")
 	frame.Name = "NextGoalBanner"
-	frame.Size = UDim2.fromOffset(460, 54)
+	frame.Size = UDim2.fromOffset(460, 64) -- same plate and width as the Rank and News notes
 	frame.LayoutOrder = layoutOrder
-	frame.BackgroundColor3 = PARCHMENT
+	frame.BackgroundColor3 = WOOD -- the flat look if the painted plate is missing, cream text stays readable
 	frame.ZIndex = 10
 	frame.Visible = false -- shown once the server sends a goal
 	frame.Parent = parent
@@ -34,7 +33,7 @@ function NextGoalBanner.attach(parent, layoutOrder)
 
 	local well = Instance.new("Frame")
 	well.Size = UDim2.fromOffset(40, 40)
-	well.Position = UDim2.fromOffset(8, 7)
+	well.Position = UDim2.fromOffset(24, 12)
 	well.BackgroundColor3 = WOOD
 	well.ZIndex = 11
 	well.Parent = frame
@@ -58,14 +57,14 @@ function NextGoalBanner.attach(parent, layoutOrder)
 
 	local text = Instance.new("TextLabel")
 	text.Name = "Text"
-	text.Size = UDim2.new(1, -66, 0, 24)
-	text.Position = UDim2.fromOffset(58, 5)
+	text.Size = UDim2.new(1, -(72 + 30), 0, 34) -- two lines fit; the board wraps it
+	text.Position = UDim2.fromOffset(72, 8)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.GothamBold
 	text.TextSize = 15
 	text.TextXAlignment = Enum.TextXAlignment.Left
 	text.TextTruncate = Enum.TextTruncate.AtEnd
-	text.TextColor3 = INK
+	text.TextColor3 = CREAM -- on the dark painted plate
 	text.TextTransparency = 0
 	text.TextStrokeTransparency = 1
 	text.Text = ""
@@ -74,9 +73,9 @@ function NextGoalBanner.attach(parent, layoutOrder)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.Size = UDim2.new(1, -66, 0, 10)
-	track.Position = UDim2.fromOffset(58, 35)
-	track.BackgroundColor3 = Color3.fromRGB(120, 96, 66)
+	track.Size = UDim2.new(1, -(72 + 30), 0, 10)
+	track.Position = UDim2.fromOffset(72, 46)
+	track.BackgroundColor3 = Color3.fromRGB(40, 28, 18)
 	track.ZIndex = 11
 	track.Parent = frame
 	local trackCorner = Instance.new("UICorner")

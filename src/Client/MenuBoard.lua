@@ -189,6 +189,7 @@ function MenuBoard.build(parent)
 		note.Position = UDim2.new()
 		note.Parent = slot
 		lift(note, Z - note.ZIndex)
+		if pcall(function() return require(script.Parent.TavernKit).painted(note, "wh_target") end) and note.BackgroundTransparency >= 1 then note.Rotation = 0 end -- the same gold framed plate as Target and Tips; a sibling picture cannot tilt, so painted notes stand straight
 		for _, d in ipairs(note:GetDescendants()) do
 			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.None end -- rows wrap onto a second line in place(), nothing ends in an ellipsis
 			if d:IsA("TextLabel") and (d.Name == "Text" or d.Name == "Time") then
@@ -306,7 +307,7 @@ function MenuBoard.build(parent)
 			end
 			extra = math.max(0, extra)
 			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines
-				if c.Name == "Track" and c:IsA("GuiObject") then
+				if (c.Name == "Track" or c.Name == "Reward") and c:IsA("GuiObject") then
 					local baseY = c:GetAttribute("BaseY") or c.Position.Y.Offset
 					c:SetAttribute("BaseY", baseY)
 					c.Position = UDim2.new(c.Position.X.Scale, c.Position.X.Offset, 0, baseY + extra)
@@ -329,6 +330,20 @@ function MenuBoard.build(parent)
 			local crowd = not fitted.show[i]
 			slot:SetAttribute("Crowded", crowd)
 			slot.Visible = not crowd
+		end
+		if game:GetService("RunService"):IsStudio() then -- one line per note: where the plate stands and how far its words reach (text bounds are unscaled px inside the note)
+			task.defer(function()
+				for _, slot in ipairs(visibleSlots) do
+					local note = slot:FindFirstChildWhichIsA("GuiObject")
+					if note and slot.Visible then
+						local parts = {}
+						for _, d in ipairs(note:GetDescendants()) do
+							if d:IsA("TextLabel") and d.Text ~= "" then parts[#parts + 1] = ("%s x%d..%d y%d..%d"):format(d.Name, d.Position.X.Offset, d.Position.X.Offset + d.TextBounds.X, d.Position.Y.Offset, d.Position.Y.Offset + d.TextBounds.Y) end
+						end
+						print(("[MenuNotes] %s abs=%d,%d,%d,%d | %s"):format(note.Name, note.AbsolutePosition.X, note.AbsolutePosition.Y, note.AbsoluteSize.X, note.AbsoluteSize.Y, table.concat(parts, "; ")))
+					end
+				end
+			end)
 		end
 		head.Visible = not painted
 		if painted then
