@@ -343,17 +343,19 @@ function TavernKit.icon(host, name, pad)
 				img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
 				local up = host:FindFirstChild("KitIconPad")
 				if up then up.PaddingLeft = UDim.new(0, p.label.x) end
+				if up then img.Position = UDim2.fromOffset(p.icon.x - up.PaddingLeft.Offset, p.icon.y) end -- a UIPadding moves every child, the icon too
 				return
 			end
 			img.AnchorPoint = Vector2.new(0, 0)
 			img.Position = UDim2.new(0.5, a.icon.dx, 0, a.icon.y)
 			img.Size = UDim2.fromOffset(a.icon.w, a.icon.h)
 			local up = host:FindFirstChild("KitIconPad")
-			if up then up.PaddingLeft = UDim.new(0, math.max(0, math.floor(pw / 2) + a.label.dx)) end
+			if up then up.PaddingLeft = UDim.new(0, 0) end -- the KitLabel draws the word; a left padding here shifted the icon and word right by half of it (Nov 19, 39.5 px)
 			kl.AnchorPoint = Vector2.new(0, 0)
 			kl.Position = UDim2.new(0.5, a.label.dx, 0, 0)
 			kl.Size = UDim2.new(0, a.label.w + 4, 1, 0)
 			kl.TextXAlignment = Enum.TextXAlignment.Left
+			if game:GetService("RunService"):IsStudio() and host.Name:find("^Sort") then print(string.format("[PlateGroup] %s plate abs %d,%d size %dx%d icon abs %d,%d word abs %d,%d", host.Name, host.AbsolutePosition.X, host.AbsolutePosition.Y, host.AbsoluteSize.X, host.AbsoluteSize.Y, img.AbsolutePosition.X, img.AbsolutePosition.Y, kl.AbsolutePosition.X, kl.AbsolutePosition.Y)) end
 			if game:GetService("RunService"):IsStudio() and not Layout.inside(pw, ph, Layout.resolve(pw, a)) then warn("[TavernKit.icon] label outside its plate: " .. host:GetFullName()) end
 		end
 		size()

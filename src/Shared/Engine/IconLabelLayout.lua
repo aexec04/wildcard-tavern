@@ -85,6 +85,13 @@ function M.clampInside(w, h, g)
 	return g
 end
 
+-- Where a child of a plate lands (plate pixels) when the plate has a UIPadding of padLeft: the padding moves the child's origin and
+-- shrinks the box that a scale position reads. This was the 39.5 px shift: KitIconPad (about half the plate) sat on the plate while the
+-- icon and word hung from scale 0.5. TavernKit.icon now keeps that padding at 0 when a KitLabel draws the word.
+function M.childX(plateW, padLeft, scale, offset)
+	return padLeft + scale * (plateW - padLeft) + offset
+end
+
 -- true when both rects lie inside the plate (Studio warns when this is false)
 function M.inside(w, h, g)
 	local function ok(r) return r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h end

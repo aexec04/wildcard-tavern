@@ -32228,6 +32228,23 @@ table.insert(tests, { name = "IconLabelLayout: Rank and Suit at 144 x 68 keep 14
 	expectEqual(g0.label.w, 0, "no word, no pad")
 end })
 
+table.insert(tests, { name = "IconLabelLayout.childX: with the KitIconPad at 0 (TavernKit.icon) the Rank and Suit group lands inside a 144 px plate with 14 px margins; the old half-plate padding pushed the word to the border", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	for _, word in ipairs({ "Rank", "Suit" }) do
+		local a = I.anchored(144, 68, 40, 18, 14)
+		local ix, lx = I.childX(144, 0, 0.5, a.icon.dx), I.childX(144, 0, 0.5, a.label.dx)
+		expectTrue(ix >= I.SIDE and 144 - (lx + a.label.w) >= I.SIDE - 1, word .. ": inside with margins")
+		local badPad = 144 / 2 + a.label.dx -- the old padding
+		expectTrue(I.childX(144, badPad, 0.5, a.label.dx) + a.label.w > 144 - I.SIDE, word .. ": the old padding pushed the word to the border")
+	end
+	if not io then return end
+	local f = io.open("src/Client/TavernKit.lua", "r")
+	if not f then return end
+	local src = f:read("a"); f:close()
+	expectTrue(src:find("up.PaddingLeft = UDim.new(0, 0)", 1, true) ~= nil, "TavernKit.icon zeroes KitIconPad when a KitLabel draws the word")
+	expectTrue(src:find("p.icon.x - up.PaddingLeft.Offset", 1, true) ~= nil, "the no-word branch compensates the icon for the padding")
+end })
+
 table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scaled 2/3 into the stored 683 x 1024 texture, inside it, window ends above the baked name plate", fn = function()
 	local P = require(script.Parent.Parent.Engine.PatronParchment)
 	local Crop = require(script.Parent.Parent.Engine.PatronCardCrop)
