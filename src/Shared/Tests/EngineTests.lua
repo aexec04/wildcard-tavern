@@ -34207,11 +34207,13 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 	end
 end })
 
-table.insert(tests, { name = "PatronPowerPanel: the Got it on the hint strip dismisses the panel, the panel has no button of its own", fn = function()
+table.insert(tests, { name = "PatronPowerPanel: the hint strip Got it never closes the panel, which stays the whole round and has no button of its own", fn = function()
 	if not io then return end
 	local f = io.open("src/Client/RoundHintsFX.lua", "r"); local a = f:read("a"); f:close()
 	f = io.open("src/Client/PatronPowerPanelFX.lua", "r"); local b = f:read("a"); f:close()
-	expectTrue(a:find("PP.dismiss()", 1, true) ~= nil, "strip Got it calls the panel dismiss")
+	expectTrue(a:find("PP.dismiss()", 1, true) == nil and b:find("dismissed", 1, true) == nil and b:find("M.dismiss", 1, true) == nil, "nothing dismisses the panel")
+	expectTrue(b:find("Rules.spent(", 1, true) == nil, "playing a hand does not hide the panel")
+	expectTrue(a:find("PP.yieldTo(false)", 1, true) ~= nil, "strip Got it brings back a panel that waited")
 	expectTrue(b:find("PatronPowerGotIt", 1, true) == nil, "no second Got it button")
 end })
 

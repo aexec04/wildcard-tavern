@@ -84,7 +84,7 @@ local function build(layer)
 		if current then localSeen[current] = true end
 		pcall(function()
 			local PP = require(script.Parent.PatronPowerPanelFX)
-			if PP.isYielded() then PP.yieldTo(false) else PP.dismiss() end -- one Got it for the strip and the Patron Power panel; a panel that waited for the hint now shows
+			PP.yieldTo(false) -- a panel that waited for the hint shows again; Got it never closes the panel
 		end)
 		M.hide()
 	end)

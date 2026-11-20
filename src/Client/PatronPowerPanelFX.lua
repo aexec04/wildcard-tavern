@@ -2,7 +2,7 @@
 	Client/PatronPowerPanelFX.lua
 	The Patron Power panel at the left of the table (Engine/PatronPowerPanel): the painted hint plate (crown medallion on the left), the
 	gold heading and one line about the frame colours. It has no Got it plate: the Got it on the Pick your cards strip and a tap on the
-	panel dismiss it. Shown on Night 1 rounds 1 and 2 and on every boss round, gone when the first hand of the round is played or Got it is pressed.
+	panel dismiss it. Shown on Night 1 rounds 1 and 2 and on every boss round for the whole round (Got it and playing hands never close it); only the boss intro hides it.
 	No tweens, so Calm mode and Reduce motion look the same. Display only.
 
 	update(layer, state, rects, viewW, viewH)   from Gameplay2.update; hides itself when nothing is due or nothing fits
@@ -18,7 +18,6 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local M = {}
 local plate, title, body, tap
 local roundKey, handsAtStart -- the round the panel was last due in, and the hands played when it began
-local dismissed = {} -- round keys whose panel was closed with Got it
 
 local function build(layer)
 	plate = Instance.new("Frame")
@@ -54,7 +53,7 @@ local function build(layer)
 	title.Text, body.Text = Rules.TITLE, Rules.BODY
 	title.Position = UDim2.new(0.31, 0, 0, 8); title.Size = UDim2.new(0.64, 0, 0, 28)
 	body.Position = UDim2.new(0.31, 0, 0, 38); body.Size = UDim2.new(0.64, 0, 1, -42)
-	-- a tap on the plate dismisses it; the Got it on the Pick your cards strip does too (RoundHintsFX)
+	-- the panel stays for the whole round: a tap or the strip Got it never closes it (it only waits while the round hint holds its spot)
 	tap = Instance.new("TextButton")
 	tap.Name = "PatronPowerTap"
 	tap.BackgroundTransparency = 1
@@ -62,12 +61,6 @@ local function build(layer)
 	tap.Size = UDim2.fromScale(1, 1)
 	tap.ZIndex = 31
 	tap.Parent = plate
-	tap.MouseButton1Click:Connect(M.dismiss)
-end
-
-function M.dismiss()
-	if roundKey then dismissed[roundKey] = true end
-	M.hide()
 end
 
 function M.hide()
@@ -115,8 +108,6 @@ function M.update(layer, state, rects, viewW, viewH)
 	if yielded then M.hide(); why("hidden: the round hint holds the spot", state); return end
 	local key = ("%s:%s"):format(tostring(state.night), tostring(state.round))
 	if key ~= roundKey then roundKey = key; handsAtStart = tonumber(state.handsPlayedTotal) or 0 end
-	if dismissed[key] then M.hide(); why("hidden: dismissed flag set for " .. key, state); return end
-	if Rules.spent(state, handsAtStart) then M.hide(); why("hidden: a hand was already played this round", state); return end
 	if layer:FindFirstChild("BossIntro") then M.hide(); why("hidden: the boss intro is on screen", state); recheckAfterIntro(layer, state, rects, viewW, viewH); return end -- never shares the screen with the boss intro
 	local avoid = {}
 	local bp = layer:FindFirstChild("BossRulePlate")
