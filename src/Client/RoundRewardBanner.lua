@@ -1,6 +1,6 @@
 --[[
 	Client/RoundRewardBanner.lua
-	Round Complete without a Continue click: a small dark parchment plate with a brass edge near the top centre of the screen lists
+	Round Complete without a Continue click: the painted ornate plate (same piece as the Counter summary plate) centred under the top bar lists
 	Round reward, Interest and a gold Total, counts the Tips up, holds about 2.2 s (1.2 s on fast animation, no fades in calm mode)
 	and fades out by itself. It never blocks: it is not a "...Backdrop", takes no input, and the Counter, Reroll, Haggle, the cards and
 	Next Round work from the first frame. A click or key press anywhere (after a short grace) closes it early. Timing lives in the
@@ -44,21 +44,31 @@ end
 function RoundRewardBanner.setFlavor(text)
 	if current and current.flavorLabel and type(text) == "string" and text ~= "" then
 		current.flavorLabel.Text = text
+		if current.partsRow then current.partsRow.Visible = false end -- the third row is the flavor line now
 		current.flavorLabel.Visible = true
 	end
 end
 
-local function label(parent, text, size, color, order)
+local pendingScore -- "Score 199 of 65", handed over by Gameplay2 when the round is cleared (either order works)
+
+function RoundRewardBanner.rememberScore(text)
+	pendingScore = type(text) == "string" and text or nil
+	if current and current.clearedRow and pendingScore then current.clearedRow.Text = "Target cleared  " .. pendingScore end
+end
+
+local function label(parent, text, size, color, order, font)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
-	l.Size = UDim2.new(1, 0, 0, size + 8)
+	l.Size = UDim2.new(1, 0, 0, size + 4)
 	l.LayoutOrder = order
-	l.Font = Enum.Font.GothamBold
+	l.Font = font or Enum.Font.GothamBold
 	l.TextSize = size
 	l.Text = text
 	l.TextColor3 = color
 	l.TextTransparency = 0
-	l.TextStrokeTransparency = 1
+	l.TextStrokeTransparency = 0.5
+	l.TextStrokeColor3 = Color3.fromRGB(30, 20, 12)
+	l.TextTruncate = Enum.TextTruncate.AtEnd
 	l.ZIndex = Z + 1
 	l.Parent = parent
 	return l
@@ -68,19 +78,18 @@ function RoundRewardBanner.show(args)
 	close()
 	local screenGui = args.screenGui
 	if not screenGui then return end
-	local calm = ClientSettings.get("reduceShake") == true
+	local calm = ClientSettings.get("reduceShake") == true or ClientSettings.get("reduceMotion") == true
 	local plan = RewardBanner.plan(ClientSettings.get("animSpeed"), calm)
 	local data = Payout.breakdown(args.amount, args.interest or 0)
 
-	local gui = Instance.new("CanvasGroup") -- one GroupTransparency fades the whole plate
+	local gui = Instance.new("CanvasGroup") -- one GroupTransparency fades the whole plate (a fade, no motion: Calm mode has none)
 	gui.Name = "RoundRewardBanner"
-	-- top right of the scene: right of the merchant, left of the Tips box and the quest toast column (Engine/RoundRewardBanner spot)
-	local sw = screenGui.AbsoluteSize.X
-	local spot = RewardBanner.spot(sw)
-	gui.AnchorPoint = Vector2.new(1, 0)
-	gui.Position = UDim2.new(0, spot.right, 0, calm and 64 or 48) -- under the Roblox top bar; slides down 16 px as it fades in
-	gui.Size = UDim2.fromOffset(spot.width, 0)
-	gui.AutomaticSize = Enum.AutomaticSize.Y
+	local sw, sh = screenGui.AbsoluteSize.X, screenGui.AbsoluteSize.Y
+	local spot = RewardBanner.place(sw, require(Engine:WaitForChild("ShopSummary")).rect(sw, sh))
+	gui.Position = UDim2.fromOffset(spot.x, spot.y)
+	gui:SetAttribute("PaintW", spot.w) -- slice by the layout size so all four corners stay on the plate (TavernKit.painted); set before Size
+	gui:SetAttribute("PaintH", spot.h)
+	gui.Size = UDim2.fromOffset(spot.w, spot.h)
 	gui.BackgroundColor3 = PLATE
 	gui.BorderSizePixel = 0
 	gui.Active = false
@@ -90,44 +99,37 @@ function RoundRewardBanner.show(args)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = gui
-	local minSize = Instance.new("UISizeConstraint") -- a strip at least 64 px tall
-	minSize.MinSize = Vector2.new(0, 64)
-	minSize.Parent = gui
-	if not calm then
-		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(Celebration.BANNER_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0, spot.right, 0, 64) }):Play() end)
-	end
 	local edge = Instance.new("UIStroke")
 	edge.Color = BRASS
 	edge.Thickness = 3
 	edge.Parent = gui
+	pcall(function() require(script.Parent.TavernKit).painted(gui, "orn_target") end) -- the same painted plate as the Counter summary (flat plate and brass edge stay if the picture is missing)
+	local inset = 30 -- 22 px carved border plus 8 px
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 10), UDim.new(0, 10)
-	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
+	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, inset), UDim.new(0, inset)
+	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, inset), UDim.new(0, inset)
 	pad.Parent = gui
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, 2)
+	list.Padding = UDim.new(0, 0)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.VerticalAlignment = Enum.VerticalAlignment.Center
 	list.Parent = gui
 
-	-- ONE line: "Round Complete  +$4 Tips" (counts up); a small second line names the parts when interest was paid
+	-- three rows: "Round Complete  +$4 Tips" (counts up), "Target cleared  Score 199 of 65" in the gold heading, then the parts or the flavor line
 	local toast = Payout.toastLines(args.amount, args.interest or 0)
-	local mainRow = label(gui, toast.main, 18, GOLD_TEXT, 1)
+	local mainRow = label(gui, toast.main, 20, GOLD_TEXT, 1, Enum.Font.GothamBold)
 	mainRow.Name = "Main"
 	pcall(function() require(script.Parent.ConceptTSkin).title(mainRow, { 255, 214, 130 }) end) -- serif gold with a dark outline
-	if toast.sub then
-		local subRow = label(gui, toast.sub, 14, SOFT, 2)
-		subRow.Name = "Parts"
-		subRow.Font = Enum.Font.GothamMedium
-	end
-	local clearedRow = label(gui, RewardBanner.clearedLine(args.score, args.target), 14, SOFT, 3) -- the stale text is not missed
+	local clearedRow = label(gui, pendingScore and ("Target cleared  " .. pendingScore) or RewardBanner.clearedLine(args.score, args.target), 16, GOLD_TEXT, 2, Enum.Font.GothamBold)
 	clearedRow.Name = "Cleared"
-	clearedRow.Font = Enum.Font.GothamMedium
-	local flavorLabel = label(gui, args.flavor or "", 15, SOFT, 50)
+	pendingScore = nil -- used up: the next round hands over its own
+	local partsRow = label(gui, toast.sub or "", 14, SOFT, 3, Enum.Font.GothamMedium)
+	partsRow.Name = "Parts"
+	partsRow.Visible = toast.sub ~= nil
+	local flavorLabel = label(gui, args.flavor or "", 14, SOFT, 4, Enum.Font.GothamMedium)
 	flavorLabel.Name = "Flavor"
-	flavorLabel.Font = Enum.Font.GothamMedium
-	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= ""
+	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= "" and not partsRow.Visible -- one third row only
 
 	pcall(function() -- the Tips count up one coin at a time, then every Patron hops in order (none in Calm mode)
 		require(script.Parent.CelebrationFX).countUp(mainRow, Payout.breakdown(args.amount, args.interest or 0).total, function(n) return Payout.toastLines(n, 0).main end)
@@ -137,7 +139,8 @@ function RoundRewardBanner.show(args)
 	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end) -- no id yet: silent
 	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true) end) -- gold and purple, none in calm mode
 
-	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel }
+	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel, clearedRow = clearedRow, partsRow = partsRow }
+	if RunService:IsStudio() then print(("[RoundPlate] x=%d y=%d w=%d h=%d (summary x=%d)"):format(spot.x, spot.y, spot.w, spot.h, require(Engine:WaitForChild("ShopSummary")).rect(sw, sh).x)) end
 	local me = current
 	local started = os.clock()
 	local dismissedAt = nil

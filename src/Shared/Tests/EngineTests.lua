@@ -21702,9 +21702,27 @@ table.insert(tests, { name = "Round Complete is a one line toast (no Continue, g
 		local text = f:read("*a")
 		f:close()
 		expectFalse(text:find("TextButton", 1, true) ~= nil, "the toast has no Continue button (no button at all)")
-		expectTrue(text:find("fromOffset(spot.width, 0)", 1, true) ~= nil and text:find("MinSize = Vector2.new(0, 64)", 1, true) ~= nil, "a strip about 300 x 64 at the top right")
+		expectTrue(text:find("fromOffset(spot.w, spot.h)", 1, true) ~= nil and text:find('"orn_target"', 1, true) ~= nil, "the painted summary plate piece at its fixed size")
 		expectFalse(text:find("Active = true", 1, true) ~= nil, "it never takes clicks: the hand stays playable")
 	end
+end })
+
+table.insert(tests, { name = "Round Complete: one merged painted plate, centred, never over the Counter summary plate or the gear, only the Night plate stays separate", fn = function()
+	local B = require(script.Parent.Parent.Engine.RewardBanner)
+	local S = require(script.Parent.Parent.Engine.ShopSummary)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 576 }, { 800, 450 }, { 640, 360 } }) do
+		local sum = S.rect(sz[1], sz[2])
+		local r = B.place(sz[1], sum)
+		expectTrue(r.x >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], "inside the screen at " .. sz[1])
+		expectTrue(r.x + r.w <= sum.x - B.SUMMARY_GAP + 0.01 or r.x >= sum.x + sum.w or r.y + r.h <= sum.y or r.y >= sum.y + sum.h, "clear of the summary plate at " .. sz[1])
+		if sz[1] >= 1280 then expectTrue(math.abs((r.x + r.w / 2) - sz[1] / 2) <= 1, "centred at " .. sz[1]) end
+		print(("[RoundPlate] %dx%d plate x=%d y=%d w=%d h=%d summary x=%d..%d"):format(sz[1], sz[2], r.x, r.y, r.w, r.h, sum.x, sum.x + sum.w))
+	end
+	expectTrue(io == nil or not io.open or (function()
+		local f = io.open("src/Client/Gameplay2.lua", "r"); if not f then return true end
+		local t = f:read("*a"); f:close()
+		return t:find("if lines.night then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) end", 1, true) ~= nil and t:find("rememberScore", 1, true) ~= nil
+	end)(), "an ordinary clear draws no second Target cleared popup and hands the Score line to the Round Complete plate")
 end })
 
 table.insert(tests, { name = "ConfirmCopy: every action has its own labels, Use a recipe never says discard, a missing label is Yes / Cancel, the dialog is parchment in a wood frame", fn = function()

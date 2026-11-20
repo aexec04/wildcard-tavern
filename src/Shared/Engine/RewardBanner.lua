@@ -67,6 +67,17 @@ function RewardBanner.spot(screenW)
 	return { right = w - margin, width = width }
 end
 
+-- The merged Round Complete plate (painted, the same piece and size as the Counter summary plate): centred under the top bar, never over the
+-- summary plate on the right (its left edge minus a 12 px gap caps the right edge) or the gear. `summary` is ShopSummary.rect(w, h).
+RewardBanner.PLATE_W, RewardBanner.PLATE_H, RewardBanner.PLATE_TOP, RewardBanner.SUMMARY_GAP = 300, 124, 74, 12
+function RewardBanner.place(screenW, summary)
+	local w = math.max(1, tonumber(screenW) or 1920)
+	local pw = math.min(RewardBanner.PLATE_W, math.floor(w * 0.30))
+	local x = math.floor((w - pw) / 2)
+	if summary and x + pw > summary.x - RewardBanner.SUMMARY_GAP then x = summary.x - RewardBanner.SUMMARY_GAP - pw end
+	return { x = math.max(0, x), y = RewardBanner.PLATE_TOP, w = pw, h = RewardBanner.PLATE_H }
+end
+
 -- Second line of the plate, so a stale "Target cleared" is never missed; the score joins it when the caller knows it
 function RewardBanner.clearedLine(score, target)
 	local sc = tonumber(score)
