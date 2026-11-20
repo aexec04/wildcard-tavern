@@ -18,6 +18,7 @@ local PatronVoice = {}
 local INK = Color3.fromRGB(60, 40, 22)
 local PARCHMENT = Color3.fromRGB(232, 212, 168)
 local SHOW_SECONDS = 1.8
+local QUOTE_SECONDS = 1.2 -- the v2 quote plate holds at least 1.0 s
 
 local spokeThisHand = {} -- [patronId] = true, cleared when the hand key changes
 local currentHandKey = nil
@@ -148,7 +149,9 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 		pcall(function() require(script.Parent.TavernKit).painted(bubble, "parchment") end)
 		bubbleLabel.Position = UDim2.fromOffset(8, 0)
 		bubbleLabel.Size = UDim2.new(1, -16, 1, 0)
+		bubbleLabel.TextSize = 18
 	end
+	bubbleLabel.TextTransparency, bubbleLabel.TextStrokeTransparency = 0, 1 -- the words and the plate always appear and go together, never bare text
 	local tail = bubble:FindFirstChild("Tail")
 	if tail then
 		tail.Visible = bubbleV2
@@ -159,7 +162,14 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 		end
 	end
 	bubble.Visible = true
-	task.delay(bubbleV2 and 0.9 or SHOW_SECONDS, function() -- v2: gone before the next trigger's pill row beats
+	if bubbleV2 and game:GetService("RunService"):IsStudio() then -- Studio only: where the quote stands 1.4 s after Play Hand
+		task.delay(1.4, function()
+			if mine == bubbleToken and bubble then
+				print(string.format("[QuoteCheck] 1.4 s: visible=%s abs=%d,%d %dx%d textTransparency=%.2f bgTransparency=%.2f paint=%s", tostring(bubble.Visible), bubble.AbsolutePosition.X, bubble.AbsolutePosition.Y, bubble.AbsoluteSize.X, bubble.AbsoluteSize.Y, bubbleLabel.TextTransparency, bubble.BackgroundTransparency, tostring(bubble.Parent and bubble.Parent:FindFirstChild("PatronVoiceBubblePaint") ~= nil)))
+			end
+		end)
+	end
+	task.delay(bubbleV2 and QUOTE_SECONDS or SHOW_SECONDS, function() -- v2: the plate and the words stay at least 1.2 s, then both go in one step
 		if mine == bubbleToken and bubble then bubble.Visible = false end
 	end)
 	return true

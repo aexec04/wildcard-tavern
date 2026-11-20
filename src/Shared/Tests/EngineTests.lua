@@ -32020,6 +32020,15 @@ table.insert(tests, { name = "Table polish: the Pick your cards plate is spent o
 end })
 
 
+table.insert(tests, { name = "Patron quote: the words reset both transparencies, hold at least 1.0 s with their plate and print a Studio QuoteCheck", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronVoice.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("QUOTE_SECONDS = 1.2", 1, true) and c:find("bubbleV2 and QUOTE_SECONDS", 1, true), "the v2 quote holds 1.2 s")
+	assert(c:find("bubbleLabel.TextTransparency, bubbleLabel.TextStrokeTransparency = 0, 1", 1, true), "both text transparencies are reset on every show")
+	assert(c:find("[QuoteCheck]", 1, true) and c:find("task.delay(1.4", 1, true), "Studio line 1.4 s after the quote shows")
+	assert(c:find("TextSize = 18", 1, true), "quote text is 18 px")
+end })
+
 table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245 to 0.834, Patron seats span half the width, buttons at 0.861 of the height, at 1920x1080, 1280x720 and 1506x751", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
