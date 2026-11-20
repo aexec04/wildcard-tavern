@@ -129,8 +129,8 @@ function M.rects(w, h)
 	r.discardCount = box(r.discard.x + r.discard.w - cw + ext, cy, cw, cph)
 	if ref then -- reference: Hands x 620 to 780 and Discards x 915 to 1088 of 1672, y 773 to 808, over the buttons' middle; centres kept, width keeps the 4.7 : 1 counter shape
 		local hw = math.min(round(0.0957 * w), round(cph * 4.7))
-		r.playCount = box(r.play.x + round(0.0538 * w) + round(0.0957 * w / 2) - round(hw / 2), cy, hw, cph)
-		r.discardCount = box(r.discard.x + round(0.0335 * w) + round(0.0957 * w / 2) - round(hw / 2), cy, hw, cph) -- both pills keep the 4.7 : 1 shape of the counter art
+		r.playCount = box(r.play.x + round((r.play.w - hw) / 2), cy, hw, cph) -- both pills are centred above their own button, same size, the 4.7 : 1 shape of the counter art
+		r.discardCount = box(r.discard.x + round((r.discard.w - hw) / 2), cy, hw, cph)
 	end
 	-- hand: between the stage and the buttons
 	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)

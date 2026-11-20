@@ -367,6 +367,8 @@ function M.install(deps)
 		if game:GetService("RunService"):IsStudio() and self.tableRectsKey ~= size.X .. "x" .. size.Y then
 			self.tableRectsKey = size.X .. "x" .. size.Y
 			print(("[TableRects] %dx%d plate y=%d bottom=%d handTop=%d stage=%d..%d caption=%s progress=%s"):format(size.X, size.Y, live.plate.y, live.plate.y + live.plate.h, idleHand.y, stageUse.y, stageUse.y + stageUse.h, tostring(live.N.roomy), tostring(live.N.roomy and not live.N.noProgress)))
+			local function rc(b) return ("%d,%d,%d,%d"):format(b.x, b.y, b.w, b.h) end
+			print(("[ActionRects] play=%s discard=%s hands=%s discards=%s"):format(rc(r.play), rc(r.discard), rc(r.playCount), rc(r.discardCount)))
 		end -- the stack stands 8 px inside the carved border
 		local N = live.N
 		scoreBox.Position = UDim2.fromOffset(live.box.x, live.box.y)

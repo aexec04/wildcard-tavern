@@ -32509,7 +32509,14 @@ table.insert(tests, { name = "Gameplay2Layout at 1672 x 941: Target, scroll, Tip
 		if y0 then expectTrue(math.abs(b.y - y0) <= 6 and math.abs(b.y + b.h - y1) <= 6, name .. " y " .. b.y .. "-" .. (b.y + b.h)) end
 	end
 	near(r.target, 410, 705, 15, 100, "target"); near(r.round, 722, 1130, 15, 100, "scroll"); near(r.tips, 1150, 1395, 15, 100, "tips")
-	near(r.playCount, 620, 780, 773, 808, "hands pill"); near(r.discardCount, 921, 1081, 773, 808, "discards pill (reference 915 to 1088, kept to the 4.7 : 1 art shape)")
+	near(r.play, 530, 840, 810, 900, "play plate"); near(r.discard, 865, 1180, 810, 900, "discard plate")
+	expectEqual(r.play.w, r.discard.w, "Play Hand and Discard plates are the same width"); expectEqual(r.play.h, r.discard.h, "and the same height")
+	expectEqual(r.playCount.w, r.discardCount.w, "the two pills are the same size")
+	for _, pr in ipairs({ { r.play, r.playCount }, { r.discard, r.discardCount } }) do
+		expectTrue(math.abs((pr[2].x + pr[2].w / 2) - (pr[1].x + pr[1].w / 2)) <= 1, "each pill is centred over its button")
+		expectTrue(pr[2].y + pr[2].h <= pr[1].y, "each pill sits fully above its button")
+	end
+	near(r.playCount, 605, 765, 773, 808, "hands pill"); near(r.discardCount, 942, 1102, 773, 808, "discards pill (centred over Discard, 4.7 : 1 art shape)")
 	near(r.deck, 1430, 1650, 440, 650, "deck"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
 end })
 
