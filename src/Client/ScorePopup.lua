@@ -1150,6 +1150,24 @@ return function(deps)
 		-- are already in place by the time the reveal loop starts picking
 		-- them out one at a time.
 		layoutPlayedRow(playedGhosts)
+		local playedAt = os.clock()
+		if game:GetService("RunService"):IsStudio() then -- live check: the played cards stand on the felt at 0.5 s and 1.0 s
+			for _, at in ipairs({ 0.5, 1.0 }) do
+				task.delay(at, function()
+					if scorePopupToken ~= myToken then return end
+					local parts = {}
+					for i, entry in ipairs(playedGhosts) do
+						local g = entry.ghost
+						if g and g.Parent then
+							table.insert(parts, ("%d:%d,%d,%dx%d vis=%s"):format(i, g.AbsolutePosition.X, g.AbsolutePosition.Y, g.AbsoluteSize.X, g.AbsoluteSize.Y, tostring(g.Visible)))
+						else
+							table.insert(parts, ("%d:gone"):format(i))
+						end
+					end
+					print(("[PlayedCards] t=%.1f %s"):format(at, table.concat(parts, " | ")))
+				end)
+			end
+		end
 
 		task.spawn(guarded, function()
 			-- PHASE A (Spectacle pass): freeze-frame beat, fires BEFORE the
@@ -1636,7 +1654,8 @@ return function(deps)
 			-- above; now waits DROPOFF_START_DELAY (see that constant) so
 			-- it reads as its own separate, calmer beat instead of getting
 			-- lumped in with the "explosion."
-			task.delay(pace(DROPOFF_START_DELAY), function()
+			local lanePL = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane"))
+			task.delay(lanePL.holdFor(os.clock() - playedAt, pace(DROPOFF_START_DELAY)), function() -- the cards stay on the felt at least MIN_VISIBLE s
 				if scorePopupToken == myToken then
 					dropOffPlayedGhosts(playedGhosts)
 				end

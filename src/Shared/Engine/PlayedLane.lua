@@ -50,4 +50,11 @@ function PlayedLane.rect(o)
 	}
 end
 
+-- The played cards stay on the felt at least this long (seconds after Play Hand) before they fly to the discard, so a short reveal never
+-- leaves the table empty while the score counts up. holdFor(elapsed, base) -> the delay to wait before the fly-off starts.
+PlayedLane.MIN_VISIBLE = 1.6
+function PlayedLane.holdFor(elapsed, base)
+	return math.max(tonumber(base) or 0, PlayedLane.MIN_VISIBLE - math.max(0, tonumber(elapsed) or 0))
+end
+
 return PlayedLane

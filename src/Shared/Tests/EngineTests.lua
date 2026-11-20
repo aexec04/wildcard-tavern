@@ -24827,6 +24827,17 @@ table.insert(tests, { name = "Patron beats: debug Patrons always fire on High Ca
 	expectTrue(srv:find("Patrons.alwaysFiring(n)", 1, true) ~= nil, "DebugGoto patrons grants always-firing Patrons")
 end })
 
+table.insert(tests, { name = "PlayedLane: played cards stay on the felt at least 1.6 s, the fly-off waits for that, live rects are reported at 0.5 s and 1.0 s", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PlayedLane)
+	expectTrue(PL.MIN_VISIBLE == 1.6, "minimum visible time")
+	expectTrue(math.abs(PL.holdFor(0.2, 0.3) - 1.4) < 1e-9, "a fast reveal waits out the rest of 1.6 s")
+	expectTrue(PL.holdFor(5, 0.3) == 0.3, "a long reveal keeps the normal beat")
+	expectTrue(PL.holdFor(nil, 0.3) == 1.6, "no elapsed time waits the whole 1.6 s")
+	if not io then return end
+	local f = assert(io.open("src/Client/ScorePopup.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("lanePL.holdFor(os.clock() - playedAt", 1, true) and c:find("[PlayedCards] t=", 1, true), "ScorePopup uses the hold and prints the live rects")
+end })
+
 table.insert(tests, { name = "PlayedLane: played cards land between the Patron nook and the hand, shrunk to 50 to 70 percent", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PlayedLane)
 	for _, c in ipairs({ { 957, 150, 640 }, { 720, 120, 470 }, { 957, 0, 700 }, { 600, 110, 480 } }) do
