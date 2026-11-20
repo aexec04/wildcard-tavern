@@ -7,6 +7,7 @@
 	PatronPowerPanel.enabledFor(state, opts) -> bool   opts = { enabled }; playing, not the tutorial, not the guided first hand, no popup
 	PatronPowerPanel.place(r, viewW, viewH, avoid) -> nil | { plate = rect, button = rect, textW }   root pixels; nil when nothing fits clear
 	                                                  of the table (the panel is then skipped, never overlapped)
+	PatronPowerPanel.handClear(viewH) -> px the panel ends above the hand frame (clears the highest left fan card, 10 cards too)
 ]]
 
 local M = {}
@@ -21,7 +22,7 @@ M.ASPECT = 1408 / 543 -- the painted plate wh_hint
 M.BUTTON_W, M.BUTTON_H = 90, 44
 M.BUTTON_COL = 0.31
 M.GAP = 8
-M.HAND_GAP = 8 -- the panel ends this far above the hand frame, so it never touches the fan
+M.HAND_GAP = 8 -- beside the seat column: the panel stays this far left of the first Patron seat
 M.MIN_W = 280
 
 local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
@@ -42,20 +43,17 @@ function M.spent(state, handsAtRoundStart)
 	return (tonumber(state and state.handsPlayedTotal) or 0) > (tonumber(handsAtRoundStart) or 0)
 end
 
-function M.place(r, viewW, viewH, avoid)
-	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] or not r.slots[1].card then return nil end
-	local x = math.floor(M.REF.x * viewW + 0.5)
-	local w = math.max(M.MIN_W, math.floor(M.REF.w * viewW + 0.5)) -- 367 at 1920, the reference scaled to the live width
-	w = math.min(w, r.slots[1].card.x - M.HAND_GAP - x) -- the panel ends above the hand frame, so only the first seat limits its width
-	if w < M.MIN_W then return nil end
-	local plateH = math.floor(w / M.ASPECT + 0.5)
-	local bottom = r.hand.y - M.HAND_GAP
-	local top = 0
-	for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do -- under the consumables tray
-		local t = r[key]
-		if t then top = math.max(top, t.y + t.h + 6) end
-	end
+-- The fan's highest left card stands about 16 px (at 957 tall) above the hand frame; the panel keeps 12 px clear of that.
+function M.handClear(viewH) return 12 + math.floor(0.025 * viewH + 0.5) end
+
+-- One try: the panel ends at `bottom`, nothing above `top`. Returns the spot, or nil when it would overlap a plate.
+local function try(r, viewW, viewH, avoid, x, w0, bottom, top)
+	local w = w0
 	local avail = bottom - top
+	if avail < math.floor(w / M.ASPECT + 0.5) then -- a short column: narrow the plate (down to MIN_W) so it still fits
+		w = math.max(M.MIN_W, math.min(w, math.floor(avail * M.ASPECT)))
+	end
+	local plateH = math.floor(w / M.ASPECT + 0.5)
 	local kind
 	if avail >= plateH + M.GAP + M.BUTTON_H then kind = "tall"
 	elseif avail >= plateH then kind = "compact" -- no Got it plate: the whole panel is the dismiss button
@@ -71,11 +69,37 @@ function M.place(r, viewW, viewH, avoid)
 			if part and (hit(plate, part) or (button and hit(button, part))) then return nil end
 		end
 	end
-	for _, a in ipairs(avoid or {}) do
+	for _, a in ipairs(avoid) do
 		if hit(plate, a) or (button and hit(button, a)) then return nil end
 	end
-	if plate.x < 0 or plate.x + plate.w > viewW or plate.y + total > viewH then return nil end
+	if plate.x < 0 or plate.x + plate.w > viewW or plate.y < 0 or plate.y + total > viewH then return nil end
 	return { plate = plate, button = button, kind = kind, textW = math.floor(w * 0.62) }
+end
+
+function M.place(r, viewW, viewH, avoid)
+	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] or not r.slots[1].card then return nil end
+	avoid = avoid or {}
+	local x = math.floor(M.REF.x * viewW + 0.5)
+	local w = math.max(M.MIN_W, math.floor(M.REF.w * viewW + 0.5)) -- 367 at 1920, the reference scaled to the live width
+	w = math.min(w, r.slots[1].card.x - M.HAND_GAP - x) -- only the first seat limits its width
+	if w < M.MIN_W then return nil end
+	local bottom = r.hand.y - M.handClear(viewH)
+	local top = 0
+	for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do -- under the consumables tray
+		local t = r[key]
+		if t then top = math.max(top, t.y + t.h + 6) end
+	end
+	-- a plate in the left column (the boss rule plate): try under it first, then above it
+	local below, above = top, nil
+	for _, a in ipairs(avoid) do
+		if a.x < x + w and x < a.x + a.w and a.y < bottom then
+			below = math.max(below, a.y + a.h + 6)
+			above = math.min(above or (a.y - 6), a.y - 6)
+		end
+	end
+	local spot = try(r, viewW, viewH, avoid, x, w, bottom, below)
+	if not spot and above then spot = try(r, viewW, viewH, avoid, x, w, above, top) end
+	return spot
 end
 
 return M

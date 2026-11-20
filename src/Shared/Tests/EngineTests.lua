@@ -33908,7 +33908,22 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 				for _, part in ipairs({ slot.card, slot.label, slot.pill }) do expectTrue(not hit(rc, part), "Patron seat clear") end
 			end
 		end
-		expectTrue(spot.plate.y + spot.plate.h <= r.hand.y - PP.HAND_GAP + 1 and (not spot.button or spot.button.y + spot.button.h <= r.hand.y), "above the hand fan")
+		local lowest = spot.button and (spot.button.y + spot.button.h) or (spot.plate.y + spot.plate.h)
+		expectTrue(lowest <= r.hand.y - PP.handClear(sz[2]), "above the hand fan, clear of the highest left card")
+		expectTrue(r.hand.y - lowest >= 12 + math.floor(0.0166 * sz[2]), "at least 12 px over a card that stands 0.0166 of the height above the hand frame")
+		-- boss round: the rule plate sits in the left column; the panel goes under it or above it, never over it, empty tray or not
+		local Moments = require(script.Parent.Parent.Engine.Gameplay2Moments)
+		for _, withTray in ipairs({ true, false }) do
+			local rb = L.rects(sz[1], sz[2])
+			if not withTray then for _, k in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do rb[k] = nil end end
+			local rule = Moments.rulePlate(rb)
+			local bspot = PP.place(rb, sz[1], sz[2], { rule })
+			if not withTray then expectTrue(bspot ~= nil, "boss round panel fits with an empty tray at " .. sz[1] .. "x" .. sz[2]) end
+			if bspot then
+				for _, rc in ipairs({ bspot.plate, bspot.button }) do expectTrue(not hit(rc, rule), "clear of the boss rule plate") end
+				expectTrue(bspot.plate.w >= PP.MIN_W, "boss panel keeps its minimum width")
+			end
+		end
 	end
 end })
 

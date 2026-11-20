@@ -112,6 +112,14 @@ function M.update(layer, state, rects, viewW, viewH)
 	local avoid = {}
 	local bp = layer:FindFirstChild("BossRulePlate")
 	if bp and bp.Visible then avoid[1] = { x = bp.Position.X.Offset, y = bp.Position.Y.Offset, w = bp.Size.X.Offset, h = bp.Size.Y.Offset } end
+	pcall(function() -- the consumables tray is only drawn when something is held: an empty tray frees its column
+		local held = require(Engine:WaitForChild("Gameplay2Tray")).held(state)
+		for _, s in ipairs(held.slots) do if not s.empty then return end end
+		local free = {}
+		for k, v in pairs(rects) do free[k] = v end
+		for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do free[key] = nil end
+		rects = free
+	end)
 	local spot = Rules.place(rects, viewW, viewH, avoid)
 	if not spot then M.hide(); return end -- nothing fits clear of the table: skip it rather than overlap
 	if not plate or plate.Parent ~= layer then build(layer) end
