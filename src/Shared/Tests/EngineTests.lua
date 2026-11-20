@@ -24230,6 +24230,23 @@ table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 referenc
 		assert(t:find('"FeltRimShadow", Color3.fromRGB(0, 0, 0), 12, 0.6', 1, true), "rim shadow 12 px")
 	end
 end })
+table.insert(tests, { name = "Gameplay2 felt inlay: a true ellipse of straight pieces, every piece inside the felt rect (four sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local f = L.feltFor(sz[1], sz[2])
+		local pieces = L.ellipsePieces(f.inlay)
+		assert(#pieces == L.ELLIPSE_PIECES, "piece count")
+		local a, b = f.inlay.w / 2, f.inlay.h / 2
+		for _, p in ipairs(pieces) do
+			assert(p.x0 >= -0.01 and p.x0 <= f.inlay.w + 0.01 and p.y0 >= -0.01 and p.y0 <= f.inlay.h + 0.01, "piece end inside the inlay rect")
+			assert(math.abs(((p.x0 - a) / a) ^ 2 + ((p.y0 - b) / b) ^ 2 - 1) < 1e-6, "piece end lies on the ellipse")
+		end
+		local topY = math.huge -- near the left end the line is far below the top (a rounded rectangle would stay at 0)
+		for _, p in ipairs(pieces) do if p.x0 < f.inlay.w * 0.15 then topY = math.min(topY, p.y0) end end
+		assert(topY > f.inlay.h * 0.1, sz[1] .. "x" .. sz[2] .. " the line curves down at the ends (no flat top)")
+		assert(f.inlay.x >= f.rim.x and f.inlay.y >= f.rim.y and f.inlay.x + f.inlay.w <= f.rim.x + f.rim.w and f.inlay.y + f.inlay.h <= f.rim.y + f.rim.h, "inlay rect inside the felt rect")
+	end
+end })
 table.insert(tests, { name = "Gameplay2 bottom rail: carved end caps lie 6 px or more off screen, rail still covers the full width (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
@@ -33157,7 +33174,7 @@ table.insert(tests, { name = "Gameplay2Layout at 1672 x 941: Target, scroll, Tip
 		expectTrue(pr[2].y + pr[2].h <= pr[1].y, "each pill sits fully above its button")
 	end
 	near(r.playCount, 618, 783, 773, 808, "hands pill"); near(r.discardCount, 913, 1090, 773, 808, "discards pill (reference 913 to 1090)")
-	near(r.deck, 1430, 1650, 440, 650, "deck"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
+	near(r.deck, 1430, 1650, 465, 675, "deck (25 px lower than the mockup so the tray lies on the rim)"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
 end })
 
 table.insert(tests, { name = "IconLabelLayout.anchored: the group hangs from the plate centre, so it lies inside a 144 x 68 plate even when the width measured was 300 or 600 (stale), and TavernKit wires cloned plates", fn = function()

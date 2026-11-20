@@ -211,6 +211,24 @@ function M.feltFor(w, h)
 	return { rim = rim, inlay = { x = rim.x + inset, y = rim.y + inset, w = rim.w - 2 * inset, h = rim.h - 2 * inset } }
 end
 
+-- A true ellipse line inside `rect` drawn as N short straight pieces (UICorner 0.5 on a wide frame gives a rounded rectangle with a flat top, which
+-- crossed the wall). Each piece is { cx, cy, len, rot } relative to the rect's top left; every piece end lies on the ellipse, so it stays inside rect.
+M.ELLIPSE_PIECES = 96
+function M.ellipsePieces(rect, n)
+	n = n or M.ELLIPSE_PIECES
+	local a, b = rect.w / 2, rect.h / 2
+	local out = {}
+	local function pt(i) local t = (i % n) / n * 2 * math.pi; return a + a * math.cos(t), b + b * math.sin(t) end
+	for i = 0, n - 1 do
+		local x0, y0 = pt(i); local x1, y1 = pt(i + 1)
+		out[#out + 1] = {
+			cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, len = math.sqrt((x1 - x0) ^ 2 + (y1 - y0) ^ 2),
+			rot = math.deg(math.atan(y1 - y0, x1 - x0)), x0 = x0, y0 = y0, x1 = x1, y1 = y1,
+		}
+	end
+	return out
+end
+
 -- Contact shadows for the tray and the deck: the tray's visible box grown SHADOW_GROW per side and moved SHADOW_DROP down, and the deck rect
 -- grown 4 px per side and moved 4 px down, so each peeks out under its object.
 M.SHADOW_GROW, M.SHADOW_DROP = 20, 6

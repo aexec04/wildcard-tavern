@@ -174,13 +174,16 @@ function M.rects(w, h)
 		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
+	M.DECK_PULL, M.DECK_DROP = 0, 25 -- a 40 px pull left pushes the deck into the hand fan (24 px clear rule), so only the drop is applied
 	local dw = math.min(round((ref and 0.1316 or 0.115) * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)
 	local dx = w - pad - dw
+	local dx0 = dx -- the hand frame keeps its place for the unshifted deck
+	if ref then dx = dx - M.DECK_PULL end -- 40 px left of the screen edge margin so the tray base lies on the rim
 	local dy = handTop
-	if ref then dh = round(dw * 0.98); dy = round(0.468 * h) end -- reference: the pile stands on the table edge at y 440 to 650 of 941
+	if ref then dh = round(dw * 0.98); dy = round(0.468 * h) + M.DECK_DROP end -- reference: the pile stands on the table edge at y 440 to 650 of 941, 25 px lower so the whole tray lies on the rim
 	r.deck = box(dx, dy, dw, dh)
-	local over = (r.hand.x + r.hand.w) - (dx - 24) -- the fan's right end stays 24 px clear of the deck: slide the hand frame left if it does not
+	local over = (r.hand.x + r.hand.w) - (dx0 - 24) -- the fan's right end stays 24 px clear of the deck: slide the hand frame left if it does not
 	if over > 0 and w >= 1000 then r.hand = box(r.hand.x - over, r.hand.y, r.hand.w, r.hand.h) end
 	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
 		local ch = math.max(22, round((ref and 0.046 or 0.04) * h))

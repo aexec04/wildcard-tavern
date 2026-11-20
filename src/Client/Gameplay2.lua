@@ -135,8 +135,12 @@ function M.install(deps)
 	do
 		local function ellipse(name, color, thick, tr)
 			local f = Instance.new("Frame"); f.Name = name; f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.Active = false; f.ZIndex = 2; f.Visible = false
-			local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0.5, 0); uc.Parent = f
-			local st = Instance.new("UIStroke"); st.Color = color; st.Thickness = thick; st.Transparency = tr; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Parent = f
+			-- a true ellipse of short straight pieces (a UICorner frame is a rounded rectangle with a flat top); laid out by layoutEllipse
+			f.ClipsDescendants = true; f:SetAttribute("Thick", thick)
+			for i = 1, CTLayout.ELLIPSE_PIECES do
+				local p = Instance.new("Frame"); p.Name = "Piece" .. i; p.BorderSizePixel = 0; p.Active = false; p.ZIndex = 2
+				p.BackgroundColor3 = color; p.BackgroundTransparency = tr; p.AnchorPoint = Vector2.new(0.5, 0.5); p.Parent = f
+			end
 			f.Parent = layer
 			return f
 		end
@@ -440,7 +444,18 @@ function M.install(deps)
 			do
 				local fl = CTLayout.feltFor(size.X, size.Y)
 				place(feltRing, fl.inlay); place(rimShadow, fl.rim)
+				for _, ring in ipairs({ feltRing, rimShadow }) do
+					local th = ring:GetAttribute("Thick") or 2
+					for i, pc in ipairs(CTLayout.ellipsePieces(ring == feltRing and fl.inlay or fl.rim)) do
+						local f = ring:FindFirstChild("Piece" .. i)
+						if f then f.Position = UDim2.fromOffset(pc.cx, pc.cy); f.Size = UDim2.fromOffset(pc.len + 1, th); f.Rotation = pc.rot end
+					end
+				end
 				feltRing.Visible = furniture.tray.Visible; rimShadow.Visible = furniture.tray.Visible
+				if game:GetService("RunService"):IsStudio() and self.feltKey ~= size.X .. "x" .. size.Y then
+					self.feltKey = size.X .. "x" .. size.Y
+					print(("[FeltInlay] %dx%d inlay=%d,%d,%d,%d felt=%d,%d,%d,%d"):format(size.X, size.Y, fl.inlay.x, fl.inlay.y, fl.inlay.w, fl.inlay.h, fl.rim.x, fl.rim.y, fl.rim.w, fl.rim.h))
+				end
 			end
 			furniture.tray.Rotation = CTLayout.TRAY_TILT
 			local sp = CTLayout.shadowFor(dc.tray, r.deck)
