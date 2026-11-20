@@ -29212,6 +29212,23 @@ table.insert(tests, { name = "Gameplay2 wall banners: two banners at the referen
 	end
 end })
 
+table.insert(tests, { name = "Table background: normal rounds keep the reference tavern (no HUD banner doubling), the fan's right end clears the deck by 24 px", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local gap = r.deck.x - (r.hand.x + r.hand.w)
+		assert(gap >= 24, "fan right end clears the deck by 24 px at " .. sz[1] .. "x" .. sz[2] .. ", got " .. tostring(gap))
+	end
+	if io then
+		local f = io.open("src/Client/Gameplay2.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			assert(src:find("table_play_ref or TableArt.table_play", 1, true) and src:find("[PlayTableBg] bg=", 1, true), "apply keeps the reference tavern and prints its key")
+			assert(src:find("scene.Image == TableArt.table_play_ref", 1, true), "HUD wall banners are skipped over the painted ones")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Patron seat corner icon: one distinct letter per tier, chip fits a 14 px letter, no stacked pills in v2", fn = function()
 	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
 	local seen = {}

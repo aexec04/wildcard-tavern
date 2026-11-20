@@ -175,6 +175,8 @@ function M.rects(w, h)
 	local dy = handTop
 	if ref then dh = round(dw * 0.98); dy = round(0.468 * h) end -- reference: the pile stands on the table edge at y 440 to 650 of 941
 	r.deck = box(dx, dy, dw, dh)
+	local over = (r.hand.x + r.hand.w) - (dx - 24) -- the fan's right end stays 24 px clear of the deck: slide the hand frame left if it does not
+	if over > 0 and w >= 1000 then r.hand = box(r.hand.x - over, r.hand.y, r.hand.w, r.hand.h) end
 	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
 		local ch = math.max(22, round((ref and 0.046 or 0.04) * h))
 		local cwid = math.min(dw, round(ch * 3.4 * 1.4))

@@ -347,7 +347,8 @@ function M.install(deps)
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		place(deckImg, r.deck); place(deckPill, r.deckCount)
 		do
-			local wb = Layout.banners(size.X, size.Y)
+			-- the reference tavern paints its own four banners, so the HUD pair only hangs on scenes without them (Boss rounds)
+				local wb = (TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) and nil or Layout.banners(size.X, size.Y)
 			for side, img in pairs(wallBanners) do
 				local rc = wb and wb[side]
 				img.Visible = rc ~= nil and img.Image ~= ""
@@ -559,8 +560,11 @@ function M.install(deps)
 			return
 		end
 		local key = sceneKey(lastState)
-		local img = TableArt[key] or ""
-		if scene.Image ~= img then scene.Image = img end
+		local img = (key == "table_play" and (TableArt.table_play_ref or TableArt.table_play)) or TableArt[key] or "" -- normal rounds keep the reference tavern
+		if scene.Image ~= img then
+			scene.Image = img
+			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] bg=%s %s", key == "table_play" and "table_play_ref" or key, img)) end
+		end
 		if lifeAttach() then life.scene(key); life.place(size.X, size.Y) end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
 		do -- a Boss round adds its rule as a second line in the scroll (two lines at most, one line when the bar is too short for two)
