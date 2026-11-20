@@ -141,6 +141,30 @@ function M.rects(w, h)
 	return out
 end
 
+-- Table furniture drawn under the HUD (not in M.frac, so the overlap check ignores it by design): the carved tray under the
+-- draw deck and the wood rail the bottom row rests on. Each picture has transparent margins, so we place its OPAQUE box
+-- (art pixels, measured from the uploaded PNG) at a target box in frame fractions and derive the whole picture rect from that.
+M.DECOR = {
+	tray = { art = { w = 1024, h = 1024, box = { 91, 162, 980, 842 } }, target = { 0.780, 0.690, 0.995, 0.936 } },
+	rail = { art = { w = 1536, h = 1024, box = { 16, 432, 1520, 576 } }, target = { 0.000, 0.856, 1.000, 1.000 } },
+}
+
+function M.decor(w, h)
+	local out = {}
+	for name, d in pairs(M.DECOR) do
+		local a, t = d.art, d.target
+		local tx0, ty0, tx1, ty1 = t[1] * w, t[2] * h, t[3] * w, t[4] * h
+		local sx = (tx1 - tx0) / (a.box[3] - a.box[1])
+		local sy = (ty1 - ty0) / (a.box[4] - a.box[2])
+		out[name] = {
+			x = round(tx0 - a.box[1] * sx), y = round(ty0 - a.box[2] * sy),
+			w = round(a.w * sx), h = round(a.h * sy),
+			box = { x = round(tx0), y = round(ty0), w = round(tx1 - tx0), h = round(ty1 - ty0) }, -- the visible part
+		}
+	end
+	return out
+end
+
 -- the bar track rect in pixels, inside the round banner
 function M.bar(rects)
 	local r, b = rects.round, M.barInBanner

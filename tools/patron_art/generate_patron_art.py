@@ -285,6 +285,9 @@ for _sid in ['winter_evening', 'festival_night', 'closing_time', 'golden_gala', 
     _o["references"]["play_room_%s_front" % _sid] = "art-wip/play_scene/play_table_front_c.png"
 
 CATEGORY_OPTS["table_scene"]["references"]["table_play_ref"] = "claude/reference/concept-table-reference.png"
+# deck tray and bottom rail: edits of crops of the table reference (made by _add_table_art_prompts.py)
+CATEGORY_OPTS["concept_t"]["sizes"].update({"ct_deck_tray": "1024x1024", "ct_rail_strip": "1536x1024"})
+CATEGORY_OPTS["concept_t"]["references"].update({"ct_deck_tray": "art-wip/table_art/ref_tray.png", "ct_rail_strip": "art-wip/table_art/ref_rail.png"})
 
 # set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
 _SKIN_SIZES = {"_face_frame": "1024x1536", "_face_paper": "1024x1024", "_face_court": "1024x1024",

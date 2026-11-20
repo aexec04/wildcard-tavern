@@ -24143,6 +24143,23 @@ table.insert(tests, { name = "ConceptTLayout small screens: five sizes keep ever
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do assert(L.textSize(key, h) >= 15, tag .. " text " .. key) end
 	end
 end })
+table.insert(tests, { name = "ConceptTLayout table furniture: the tray sits under the deck without moving it, the rail band runs the full width under the bottom row and clear of the hand", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local Art = require(script.Parent.Parent.Engine.ConceptTArt)
+	assert(Art.ct_deck_tray ~= "" and Art.ct_rail_strip ~= "", "both pieces have Image ids")
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r, d = L.rects(w, h), L.decor(w, h)
+		assert(d.tray.box.x <= r.deck.x + r.deck.w * 0.1 and d.tray.box.x + d.tray.box.w >= r.deck.x + r.deck.w * 0.9, tag .. " tray spans the book")
+		assert(d.tray.box.y + d.tray.box.h >= r.deck.y + r.deck.h * 0.9 and d.tray.box.y > r.deck.y, tag .. " tray lies under the lower part of the book")
+		assert(d.rail.box.x == 0 and d.rail.box.w == w, tag .. " rail spans the width")
+		assert(d.rail.box.y >= r.hand.y + r.hand.h, tag .. " rail starts below the hand rect")
+		assert(d.rail.box.y <= r.play.y and d.rail.box.y <= r.discard.y, tag .. " Play Hand and Discard rest on the rail")
+		assert(d.rail.box.y + d.rail.box.h == h, tag .. " rail ends on the screen edge")
+		assert(d.rail.box.y > r.hands.y + r.hands.h, tag .. " rail clear of the Hands plate")
+	end
+end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end

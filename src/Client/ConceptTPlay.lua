@@ -86,6 +86,9 @@ function M.install(deps)
 	local room = image(layer, "Room", "ct_table_room", 0)
 	room.Size = UDim2.fromScale(1, 1)
 	room.ScaleType = Enum.ScaleType.Crop
+	-- table furniture under the HUD: the wood rail the bottom row rests on and the carved tray under the draw deck
+	local rail = image(layer, "BottomRail", "ct_rail_strip", 1)
+	local tray = image(layer, "DeckTray", "ct_deck_tray", 1)
 	local coins = image(layer, "Coins", "ct_hud_coins", 2)
 	local hands = image(layer, "Hands", "ct_hud_hands", 2)
 	local round = image(layer, "Round", "ct_hud_round", 2)
@@ -198,6 +201,7 @@ function M.install(deps)
 			cat.place(pr, true)
 		end
 		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
+		do local dc = Layout.decor(size.X, size.Y); place(rail, dc.rail); place(tray, dc.tray) end
 		deckEdge.place(r.deck)
 		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
 		-- numbers fill their plates like the reference (frame height scaled, at least 15 px)
