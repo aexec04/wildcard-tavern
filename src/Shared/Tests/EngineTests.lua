@@ -30848,7 +30848,8 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		expectTrue(TS.contrast(RH.GOT_IT.text, RH.GOT_IT.fill) >= 4.5, "Got it label contrast on the fill")
 		expectTrue(TS.contrast(RH.GOT_IT.text, RH.GOT_IT.hover) >= 4.5, "Got it label contrast on hover")
 		local f = RH.GOT_IT.fill
-		expectTrue(f[2] > f[1] + 40 and f[2] > f[3] + 40, "Got it fill reads green")
+		expectTrue(f[1] < 90 and f[2] < 90 and f[3] < 90, "Got it fill is dark wood, not green")
+		expectTrue(RH.GOT_IT.text[1] > 200 and RH.GOT_IT.text[2] > 150, "Got it text is gold")
 		local spot = RH.place(L.rects(1920, 1080), 1920, 1080)
 		expectTrue(spot and spot.button.y >= spot.plate.y + spot.plate.h and spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w, "Got it sits under the plate, inside its width, 44 px or more")
 	end
@@ -31342,7 +31343,7 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	if io and io.open then
 		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
 		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_hint")', 1, true) ~= nil, "Round hint plate is painted")
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "wh_btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "wh_btn_green")', 1, true) == nil, "Got it is a dark plate, not the green picture")
 		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "guided hint plate is painted")
 		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")
 	end
@@ -32097,7 +32098,7 @@ table.insert(tests, { name = "Ornate frames: full scale slices keep the whole pi
 	local g2 = read("src/Client/Gameplay2.lua")
 	expectTrue(g2:find('"ArrowL"', 1, true) and g2:find('"ArrowL"', 1, true) or g2:find('"ArrowL"', 1, true) ~= nil or g2:find("ArrowL", 1, true) ~= nil, "score plate is 0.19 wide with arrow flourishes")
 	expectTrue(read("src/Shared/Engine/Gameplay2ScorePlate.lua"):find("0.19 * sw", 1, true) ~= nil, "score plate width is 0.19 of the screen")
-	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"wh_btn_green"', 1, true) ~= nil, "Got it wears the whole-picture green frame")
+	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"wh_btn_green"', 1, true) == nil, "Got it no longer wears the green frame")
 end })
 
 table.insert(tests, { name = "Whole-picture plates: no nine-slice, a recorded Image id each, picture aspect within 30 percent of the size it is shown at, icons recorded", fn = function()
@@ -32219,6 +32220,21 @@ table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word ne
 			local textLeft = math.floor(b.w * 0.06 + iconW + 10) -- its padding; the word is left aligned, so it starts here
 			expectTrue(textLeft - iconRight >= 6, nm .. " icon and word gap at " .. sz[1] .. "x" .. sz[2])
 			expectTrue(b.w - textLeft >= 36, nm .. " leaves room for the word at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+	do -- tall plate: Got it under the plate with an 8 px gap, left on the text column, clear of the table candle (x 285 to 365, y 490 to 620 of 1672 x 941) and the left candle (x 150 to 215, y 140 to 330)
+		for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+			local w, h = sz[1], sz[2]
+			local sp = RH.place(L.rects(w, h), w, h, {})
+			if sp and sp.kind == "tall" then
+				expectEqual(sp.button.y - (sp.plate.y + sp.plate.h), 8, "Got it is 8 px under the plate at " .. w)
+				local k = w / 1672
+				for _, c in ipairs({ { 285, 490, 80, 130 }, { 150, 140, 65, 190 } }) do
+					local cx, cy, cw, ch = c[1] * k, c[2] * k, c[3] * k, c[4] * k
+					local hit = sp.button.x < cx + cw and cx < sp.button.x + sp.button.w and sp.button.y < cy + ch and cy < sp.button.y + sp.button.h
+					expectTrue(not hit, "Got it clear of a candle at " .. w .. "x" .. h)
+				end
+			end
 		end
 	end
 	-- wide plate: body y 38, two 15 px lines (36 px box) must end 8 px above the frame bottom

@@ -25,7 +25,7 @@ M.ORDER = {
 M.MAX_NIGHT = 1
 M.MAX_ROUND = 3
 -- the plate is the whole picture pk_w_hint (crown medallion on the left, 1408 x 543, so 2.59 : 1), 320 wide when it fits and down to 280; the small
--- green Got it plate sits UNDER it, centred (reference: hint panel 320 x 140 with the button below)
+-- dark Got it plate sits UNDER it, on the text column (reference: hint panel 320 x 140 with the button below)
 M.PLATE_W = 320
 M.PLATE_MIN_W = 280
 M.PLATE_ASPECT = 1408 / 543
@@ -37,7 +37,10 @@ M.WIDE_BUTTON_H = 44 -- a wide Got it, level with the middle of the plate (it wa
 -- reference: the heading is gold serif on the dark plate (about 8:1), the body cream sans
 M.TITLE_COLOR = { 246, 196, 70 }
 M.PLATE_COLOR = { 46, 28, 14 }
-M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
+-- Got it is a small dark wood plate with a gold edge and gold text (about 8:1), not green
+M.GOT_IT = { fill = { 46, 28, 14 }, hover = { 70, 44, 22 }, edge = { 232, 184, 74 }, text = { 246, 196, 70 }, stroke = { 18, 10, 4 } }
+-- the tall plate's Got it stands 8 px under the plate, its left edge on the text column (0.31 of the plate), well clear of the table candle at the right
+M.BUTTON_COL = 0.31
 M.GAP = 8
 
 local BY_ID = {}
@@ -108,7 +111,7 @@ local function placeAt(r, viewW, viewH, avoid, topAt)
 			if bottom - top >= total then
 				local x, y = col.x0, top
 				local plate = { x = x, y = y, w = plateW, h = plateH }
-				local button = { x = x + math.floor((plateW - M.BUTTON_W) / 2), y = y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H }
+				local button = { x = x + math.floor(plateW * M.BUTTON_COL), y = y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H }
 				local clear = true
 				for name, rect in pairs(r) do
 					if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end

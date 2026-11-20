@@ -58,7 +58,7 @@ local function build(layer)
 	button.Name = "RoundHintGotIt"
 	button.ZIndex = 30
 	pcall(function() require(script.Parent.TavernKit).skin(button, "Got it", "primary") end)
-	do -- warm green plate with a gold edge, set after the kit skin; no tween, so Calm mode is the same
+	do -- dark wood plate with a gold edge and gold text, set after the kit skin; no tween, so Calm mode is the same
 		local G = Rules.GOT_IT
 		local base = Color3.fromRGB(G.fill[1], G.fill[2], G.fill[3])
 		local hot = Color3.fromRGB(G.hover[1], G.hover[2], G.hover[3])
@@ -81,7 +81,6 @@ local function build(layer)
 		button.MouseLeave:Connect(function() button.BackgroundColor3 = base end)
 	end
 	button.Parent = layer
-	pcall(function() require(script.Parent.TavernKit).painted(button, "wh_btn_green") end) -- painted green plate, flat green if it does not load
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
 		M.hide()
