@@ -169,10 +169,26 @@ end
 -- over the idle stage's progress line, but never over a Patron seat or the avoid rects. nil when it does not fit.
 M.STRIP_W, M.STRIP_H, M.STRIP_MIN_W, M.STRIP_GAP, M.STRIP_PAD = 520, 60, 360, 6, 8
 M.STRIP_TITLE, M.STRIP_BODY = 22, 16
+M.STRIP_SIDE_GAP = 12
 function M.strip(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local w = math.min(M.STRIP_W, math.max(M.STRIP_MIN_W, math.floor(M.STRIP_W / 1920 * viewW + 0.5)))
 	local plate = { x = math.floor((viewW - w) / 2), y = r.hand.y - M.STRIP_GAP - M.STRIP_H, w = w, h = M.STRIP_H }
+	-- preferred spot: level with the top of the Score plate and just right of it (the strip above the hand covered the "o of N" line);
+	-- the Score plate is min(stage w, max(240, 0.19 x screen)) wide and centred in the stage (Gameplay2ScorePlate.live)
+	if r.stage then
+		local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * viewW)))
+		local plateRight = r.stage.x + math.floor((r.stage.w - pw) / 2) + pw
+		local sx = plateRight + M.STRIP_SIDE_GAP
+		if sx + w <= viewW - M.STRIP_SIDE_GAP then
+			local side = { x = sx, y = r.stage.y, w = w, h = M.STRIP_H }
+			local clear = true
+			for name, rect in pairs(r) do -- any table piece in the way (the deck, the bar) sends it back above the hand
+				if name ~= "stage" and name ~= "slots" and type(rect) == "table" and rect.x and hit(side, rect) then clear = false end
+			end
+			if clear then plate = side end
+		end
+	end
 	local bh = M.BUTTON_H
 	local button = { x = plate.x + w - M.STRIP_PAD - M.BUTTON_W, y = plate.y + math.floor((M.STRIP_H - bh) / 2), w = M.BUTTON_W, h = bh }
 	if plate.x < 0 or plate.y < 0 or plate.x + w > viewW or plate.y + plate.h > viewH then return nil end

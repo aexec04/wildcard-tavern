@@ -431,6 +431,12 @@ function M.install(deps)
 		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 4
 		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 24
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 4
+		local nudge = SPlate.NAME_NUDGE
+		if nameInCaption and N.numH and N.numH - nudge >= SPlate.IDLE_MIN_FONT then -- the hand name in the caption row clears the carved top border: it drops nudge px and the numeral gives them up
+			scoreCaption.Position = UDim2.fromOffset(0, nudge)
+			scoreNum.Size = UDim2.new(1, 0, 0, N.numH - nudge); scoreNum.Position = UDim2.fromOffset(0, N.numTop + nudge)
+			scoreNum.TextSize = SPlate.fitSize(N.textSize - nudge, #tostring(scoreNum.Text), live.inner.w)
+		end
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.below and N.progressY or (N.lineY + 4)); scoreProgress.ZIndex = 4 -- idle: the line stands 12 px under the plate
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line

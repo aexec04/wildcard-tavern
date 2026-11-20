@@ -31070,7 +31070,14 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		expectTrue(RH.GOT_IT.text[1] > 200 and RH.GOT_IT.text[2] > 150, "Got it text is gold")
 		local spot = RH.place(L.rects(1920, 1080), 1920, 1080)
 		expectTrue(spot and spot.kind == "strip", "the first choice is the slim strip above the hand")
-		expectTrue(spot.plate.h == 60 and spot.plate.w <= 520 and spot.plate.x + spot.plate.w / 2 == 960, "strip is 60 tall, at most 520 wide, centred")
+		do -- the strip stands level with the top of the Score plate, just right of it, so it never covers the "o of N" line
+			local r1080 = L.rects(1920, 1080)
+			local pw = math.min(r1080.stage.w, math.max(240, math.floor(0.19 * 1920)))
+			local plateRight = r1080.stage.x + math.floor((r1080.stage.w - pw) / 2) + pw
+			expectTrue(spot.plate.h == 60 and spot.plate.w <= 520, "strip is 60 tall, at most 520 wide")
+			expectTrue(spot.plate.x >= plateRight + RH.STRIP_SIDE_GAP and spot.plate.y == r1080.stage.y, "strip is right of the Score plate, level with its top")
+			expectTrue(spot.plate.y + spot.plate.h <= r1080.stage.y + 60 and spot.plate.y >= r1080.slots[1].pill.y + r1080.slots[1].pill.h, "strip clear of the Patron pills")
+		end
 		expectTrue(spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w and spot.button.y >= spot.plate.y and spot.button.y + spot.button.h <= spot.plate.y + spot.plate.h, "Got it sits inside the strip on the right, 44 px or more")
 		expectTrue(spot.button.x + spot.button.w / 2 > spot.plate.x + spot.plate.w / 2, "Got it is on the right half")
 		expectTrue(spot.plate.y + spot.plate.h <= L.rects(1920, 1080).hand.y, "strip ends above the hand rect")
