@@ -14434,6 +14434,12 @@ table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave
 		expectTrue(wordmark:find('Instance.new("UIAspectRatio")', 1, true) == nil, "UIAspectRatio is not a class, UIAspectRatioConstraint is")
 		expectTrue(menu:find(").safeBuild(titleGroup", 1, true) ~= nil and menu:find(").build(titleGroup", 1, true) == nil, "Menu builds the wordmark through the pcall guard")
 		expectTrue(wordmark:find("pcall(Wordmark.build", 1, true) ~= nil, "Wordmark.safeBuild pcalls the build")
+		-- Studio loading screen ends by itself (6 s cap), never on a live server
+		local LP = require(script.Parent.Parent.Engine.LoadProgress)
+		expectTrue(LP.studioCap(true, 6) and not LP.studioCap(true, 5.9), "Studio load screen ends at 6 s")
+		expectTrue(not LP.studioCap(false, 600), "a live server never gets the Studio cap")
+		local ls = read("src/ReplicatedFirst/LoadingScreen.client.lua")
+		expectTrue(ls ~= nil and ls:find("studioCap(true", 1, true) ~= nil and ls:find("[LoadDone]", 1, true) ~= nil and ls:find("IsStudio", 1, true) ~= nil, "loading script applies the cap only in Studio and prints [LoadDone]")
 		expectTrue(read("src/Shared/Engine/WinCard.lua"):find("GameName", 1, true) ~= nil, "Win Card uses GameName")
 		expectTrue(read("src/Client/InvitePrompt.lua"):find("GameName", 1, true) ~= nil, "invite prompt uses GameName")
 	end

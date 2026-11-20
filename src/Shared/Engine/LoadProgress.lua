@@ -96,6 +96,13 @@ function LoadProgress.stalled(now, lastProgressAt)
 	return (now - lastProgressAt) >= LoadProgress.ALMOST_AFTER
 end
 
+-- In Studio the DataStore calls fail or hang (403 StudioAccessToApisNotAllowed), so the screen ends by itself after
+-- STUDIO_CAP seconds. Never true on a live server.
+LoadProgress.STUDIO_CAP = 6
+function LoadProgress.studioCap(isStudio, elapsed)
+	return isStudio == true and (tonumber(elapsed) or 0) >= LoadProgress.STUDIO_CAP
+end
+
 -- Status line for the bar's value (tavern voice, no dashes).
 function LoadProgress.status(value, stalledFlag, slowFlag)
 	if slowFlag then return "Still loading, thanks for waiting" end

@@ -47,6 +47,27 @@ task.spawn(function()
 	end
 end)
 
+-- Studio only: DataStore calls hang there, so end the screen by itself after LoadProgress.STUDIO_CAP seconds (or sooner if ready)
+do
+	local okRun, isStudio = pcall(function() return game:GetService("RunService"):IsStudio() end)
+	if okRun and isStudio then
+		local startedAt = os.clock()
+		task.spawn(function()
+			while handle.isAlive() do
+				local elapsed = os.clock() - startedAt
+				if LoadProgress.studioCap(true, elapsed) then
+					skipped = true
+					print(string.format("[LoadDone] %.1f s (Studio cap)", elapsed))
+					handle.fadeOut()
+					return
+				end
+				task.wait(0.1)
+			end
+			print(string.format("[LoadDone] %.1f s", os.clock() - startedAt))
+		end)
+	end
+end
+
 -- a Skip click fades the screen anyway; the assets keep streaming
 task.delay(LoadProgress.SKIP_AFTER + 1, function()
 	if handle.isAlive() then skipped = true end
