@@ -254,7 +254,7 @@ function MenuBoard.build(parent)
 			local note = slot:FindFirstChildWhichIsA("GuiObject")
 			local baseH = note:GetAttribute("BaseH") or note.Size.Y.Offset
 			note:SetAttribute("BaseH", baseH)
-			local extra = 0
+			local extra, rewardGrow = 0, 0
 			for _, d in ipairs(note:GetDescendants()) do
 				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.Name ~= "NoteHit" then
 					local base = d:GetAttribute("BaseTextSize") or d.TextSize
@@ -282,6 +282,7 @@ function MenuBoard.build(parent)
 					else
 						d.TextWrapped = false
 						if d.Size.Y.Scale == 0 and d.Size.Y.Offset > 0 and d.Size.Y.Offset < want + 4 then
+							if d.Name == "Reward" then rewardGrow = (want + 4) - d.Size.Y.Offset end -- the last line grows the plate so it never hangs below the frame
 							d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, want + 4)
 						end
 					end
@@ -305,7 +306,7 @@ function MenuBoard.build(parent)
 				tm.TextWrapped, tm.TextXAlignment, tm.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 				extra = math.max(extra, PADN + h1 + h2 + PADN - baseH)
 			end
-			extra = math.max(0, extra)
+			extra = math.max(0, extra) + rewardGrow
 			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines
 				if (c.Name == "Track" or c.Name == "Reward") and c:IsA("GuiObject") then
 					local baseY = c:GetAttribute("BaseY") or c.Position.Y.Offset

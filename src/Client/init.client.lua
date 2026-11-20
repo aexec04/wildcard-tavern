@@ -2143,6 +2143,11 @@ local function rebuildHand(handData, phase)
 		button.MouseButton1Click:Connect(function()
 			if require(script.HandTouchFX).swallow() then return end -- the click that ends a touch drag or long press is not a tap
 			onCardClicked(index)
+			pcall(function() -- Studio diagnostic: which card each click toggled and how many are picked now
+				local n = 0
+				for _ in pairs(selected) do n = n + 1 end
+				print(string.format("[HandHit] click card %d (position %d) -> selected=%s, %d picked", index, cardVisualPosition[index] or 0, tostring(selected[index] == true), n))
+			end)
 		end)
 		-- touch: drag to reorder (cosmetic), long press for the card tooltip (Engine/TouchGestures)
 		pcall(function()

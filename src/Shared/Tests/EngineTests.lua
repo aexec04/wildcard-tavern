@@ -29839,8 +29839,8 @@ table.insert(tests, { name = "Menu notes: News, Rank, Goal and Daily share the p
 		if file ~= "NewsPanel" and file ~= "MenuRank" then assert(not c:find("TextColor3 = INK", 1, true), name .. " text is light on the dark plate") end
 		H[name] = c
 	end
-	assert(H.rank:find("UDim2.new(1, -(66 + 30), 0, 10)", 1, true) and H.rank:find("fromOffset(66, 31)", 1, true), "XP bar below the text lines, inside the plate")
-	assert(H.rank:find("reward.Position = UDim2.fromOffset(66, 43)", 1, true), "text 9..27, bar 31..41, reward 43..59 inside the 64 px plate")
+	assert(H.rank:find("UDim2.new(1, -(66 + 30), 0, 8)", 1, true) and H.rank:find("fromOffset(66, 32)", 1, true), "XP bar below the text lines, inside the plate")
+	assert(H.rank:find("reward.Position = UDim2.fromOffset(66, 44)", 1, true), "text 10..28, bar 32..40, reward 44..62 inside the 70 px plate")
 	assert(H.goal:find("-(72 + 30), 0, 34)", 1, true) and H.news:find("-(68 + 30), 0, 36)", 1, true), "text boxes end 30 px short of the right gold end and hold two lines")
 	assert(H.daily:find("fromOffset(30, y)", 1, true) and H.daily:find("UDim2.new(1, -30, 1, -8)", 1, true), "daily words and button 30 px in")
 end })
@@ -32884,6 +32884,33 @@ table.insert(tests, { name = "Play table background: the reference tavern scene 
 	for _, sp in ipairs(RL.ROOMS.table_play.spots) do
 		expectTrue(sp.x > 0 and sp.x < 1 and sp.y > 0 and sp.y < 0.6, "spot on the room part of the picture")
 	end
+end })
+
+table.insert(tests, { name = "HandHit: a click on any visible part of a fanned card picks that card, the topmost wins", fn = function()
+	local HH = require(script.Parent.Parent.Engine.HandHit)
+	for _, n in ipairs({ 5, 8, 10 }) do
+		local cards = {}
+		for i = 1, n do -- 147 x 213 cards, 140 px pitch, a -6 to +6 degree arc
+			cards[i] = { index = i, order = i, cx = 100 + (i - 1) * 140, cy = 300 + math.abs(i - (n + 1) / 2) * 4, w = 147, h = 213, rot = -6 + 12 * (i - 1) / (n - 1) }
+		end
+		for i = 1, n do
+			local x, y = HH.visiblePoint(cards, i)
+			expectTrue(x ~= nil, "card " .. i .. " of " .. n .. " has a visible part")
+			expectEqual(HH.pick(cards, x, y), i, "a click on the visible part of card " .. i .. " of " .. n)
+		end
+		expectEqual(HH.pick(cards, -500, 0), nil, "a click off the hand picks nothing")
+	end
+end })
+
+table.insert(tests, { name = "Menu Rank plate: 70 px tall, 16 px lines, 8 px bar, every line ends inside the frame, the board grows the plate when the last line grows", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); local t = f:read("*a"); f:close(); return t end
+	local r, b = read("src/Client/MenuRank.lua"), read("src/Client/MenuBoard.lua")
+	expectTrue(r:find("fromOffset(460, 70)", 1, true) ~= nil, "plate is 70 px tall")
+	-- text y 10 h 18, bar y 32 h 8, reward y 44 h 18: last line ends at 62, 8 px inside the 70 px frame
+	expectTrue(r:find("track.Position = UDim2.fromOffset(66, 32)", 1, true) and r:find("0, 8)\n\ttrack.Position", 1, true), "XP bar 8 px at y 32")
+	expectTrue(r:find("reward.Position = UDim2.fromOffset(66, 44)", 1, true) and r:find("reward.TextSize = 16", 1, true) and r:find("text.TextSize = 16", 1, true), "16 px lines")
+	expectTrue(b:find("rewardGrow", 1, true) ~= nil and b:find("math.max(0, extra) + rewardGrow", 1, true) ~= nil, "board adds the grown Reward line to the plate height")
 end })
 
 return tests

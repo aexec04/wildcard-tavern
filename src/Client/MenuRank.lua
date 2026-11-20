@@ -44,7 +44,7 @@ end
 function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local frame = Instance.new("Frame")
 	frame.Name = "RankBar"
-	frame.Size = UDim2.fromOffset(460, 64) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
+	frame.Size = UDim2.fromOffset(460, 70) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.ZIndex = 10
@@ -60,7 +60,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local badge = Instance.new("TextLabel")
 	badge.Name = "Badge"
 	badge.Size = UDim2.fromOffset(32, 32)
-	badge.Position = UDim2.fromOffset(24, 16)
+	badge.Position = UDim2.fromOffset(24, 19)
 	badge.BackgroundColor3 = GOLD
 	badge.Font = Enum.Font.GothamBold
 	badge.TextSize = 18
@@ -96,8 +96,8 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.Size = UDim2.new(1, -(66 + 30), 0, 10)
-	track.Position = UDim2.fromOffset(66, 31)
+	track.Size = UDim2.new(1, -(66 + 30), 0, 8)
+	track.Position = UDim2.fromOffset(66, 32)
 	track.BackgroundColor3 = Color3.fromRGB(40, 28, 18)
 	track.ZIndex = 11
 	track.Parent = frame
@@ -118,10 +118,10 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local text = Instance.new("TextLabel")
 	text.Name = "Text"
 	text.Size = UDim2.new(1, -(66 + 30), 0, 18)
-	text.Position = UDim2.fromOffset(66, 9)
+	text.Position = UDim2.fromOffset(66, 10)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.GothamBold
-	text.TextSize = 15
+	text.TextSize = 16
 	text.TextXAlignment = Enum.TextXAlignment.Left
 	text.TextColor3 = CREAM
 	text.TextTransparency = 0
@@ -132,11 +132,11 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 
 	local reward = Instance.new("TextLabel") -- "Next: +3 Tips" on its own small line between the XP line and the bar
 	reward.Name = "Reward"
-	reward.Size = UDim2.new(1, -(66 + 30), 0, 16)
-	reward.Position = UDim2.fromOffset(66, 43)
+	reward.Size = UDim2.new(1, -(66 + 30), 0, 18)
+	reward.Position = UDim2.fromOffset(66, 44)
 	reward.BackgroundTransparency = 1
 	reward.Font = Enum.Font.GothamBold
-	reward.TextSize = 14
+	reward.TextSize = 16
 	reward.TextXAlignment = Enum.TextXAlignment.Left
 	reward.TextColor3 = GOLD
 	reward.TextTransparency = 0
