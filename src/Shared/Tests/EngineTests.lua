@@ -33713,6 +33713,44 @@ table.insert(tests, { name = "Patron seat names: every seat in a row uses one si
 	end
 end })
 
+table.insert(tests, { name = "Compact idle Score plate: the progress sits inside the plate on the numeral's row, 11 px or more, clear of the numeral and the hand; roomy sizes keep the line under the plate", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local shownCompact = false
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local hf = HS.frameFor(sz[1], CT.handFor(r.hand, sz[1], 8), 8)
+		local live = SP.live(SP.idleStage(r.stage, hf.y, sz[1]), sz[1], SP.capFor(sz[1]), 22, false)
+		for _, digits in ipairs({ 1, 3, 6 }) do
+			local inl = SP.inline(live, digits)
+			if live.progress then
+				expectTrue(inl == nil, "roomy plate keeps the line under it at " .. sz[1] .. "x" .. sz[2])
+			elseif inl then
+				shownCompact = true
+				expectTrue(inl.size >= 11, "11 px or more")
+				local px, py = inl.x + live.box.x, inl.y + live.box.y
+				expectTrue(px >= live.plate.x and px + inl.w <= live.plate.x + live.plate.w, "inside the plate horizontally at " .. sz[1] .. "x" .. sz[2])
+				expectTrue(py >= live.plate.y and py + inl.h <= live.plate.y + live.plate.h + 1, "inside the plate vertically at " .. sz[1] .. "x" .. sz[2])
+				expectTrue(py + inl.h <= hf.y, "clear of the hand")
+				local half = 0.5 * digits * 0.62 * live.N.textSize
+				expectTrue(px >= live.plate.x + live.plate.w / 2 + half, "clear of the numeral at " .. sz[1] .. "x" .. sz[2] .. " with " .. digits .. " digits")
+			end
+		end
+		if sz[1] == 800 then expectTrue(SP.inline(live, 1) ~= nil, "800x450 shows the inline progress for a short score") end
+	end
+	expectTrue(shownCompact, "a compact size shows the inline progress")
+	local scoring = SP.live({ x = 0, y = 0, w = 600, h = 120 }, 1920, 30, 22, true)
+	expectTrue(SP.inline(scoring, 1) == nil, "never while a hand scores")
+	if io then
+		local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find("SPlate.inline(", 1, true) ~= nil, "the table draws the inline progress")
+		local g = assert(io.open("src/Client/PatronRow.lua", "r")); local row = g:read("a"); g:close()
+		expectTrue(row:find("MouseButton1", 1, true) ~= nil and row:find("AbsoluteSize.Y < 600", 1, true) ~= nil, "a click opens the Patron plate on compact windows")
+	end
+end })
+
 table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

@@ -505,6 +505,18 @@ function M.install(deps)
 		scoreCaption.Visible = N.roomy and N.numTop >= capH
 		scoreCaption.Text = nameInCaption and (self.previewText:match("^(.-)%s*|") or self.previewText) or (self.playing == true and self.scoringText) or "Score" -- "Flush Lv 2": the plate is too narrow for the Chips x Mult part
 		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
+		do -- compact table: the progress sits inside the plate at the numeral's right end ("0 / 65", 11 px) instead of dropping out
+			local inl = self.playing ~= true and SPlate.inline(live, #tostring(scoreNum.Text)) or nil
+			scoreProgress.TextXAlignment = inl and Enum.TextXAlignment.Right or Enum.TextXAlignment.Center
+			scoreProgress.TextYAlignment = Enum.TextYAlignment.Center
+			if inl then
+				scoreProgress.Size = UDim2.fromOffset(inl.w, inl.h); scoreProgress.Position = UDim2.fromOffset(inl.x, inl.y)
+				scoreProgress.TextSize = inl.size; scoreProgress.Visible = true
+				scoreProgress.Text = tostring(scoreProgress.Text):gsub(" of ", " / ")
+			else
+				scoreProgress.Text = tostring(scoreProgress.Text):gsub(" / ", " of ")
+			end
+		end
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
 			if not arrow then

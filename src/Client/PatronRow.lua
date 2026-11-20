@@ -73,6 +73,12 @@ local function touchOnly()
 	return UIS.TouchEnabled and not UIS.MouseEnabled
 end
 
+-- a compact window (root under 600 px tall, 800x450): a mouse click opens the Patron's plate as a tap does on touch
+local function tapInput(input)
+	if input.UserInputType == Enum.UserInputType.Touch then return true end
+	return input.UserInputType == Enum.UserInputType.MouseButton1 and rootRef ~= nil and rootRef.AbsoluteSize.Y < 600
+end
+
 local function showTip(i, c)
 	local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
 	if not owned or not c.id or not tipActive() then return end
@@ -383,7 +389,7 @@ local function newCard(i)
 		if not tipTap.awayHooked then
 			tipTap.awayHooked = true
 			game:GetService("UserInputService").InputBegan:Connect(function(input)
-				if input.UserInputType ~= Enum.UserInputType.Touch or not tipTap.open then return end
+				if not tapInput(input) or not tipTap.open then return end
 				local card = cards[tipTap.open]
 				local rect
 				if card and card.body and card.body.Parent then
@@ -396,10 +402,10 @@ local function newCard(i)
 		end
 		local down
 		body.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.Touch then down = { pos = input.Position, at = os.clock() } end
+			if tapInput(input) then down = { pos = input.Position, at = os.clock() } end
 		end)
 		body.InputEnded:Connect(function(input)
-			if input.UserInputType ~= Enum.UserInputType.Touch or not down then return end
+			if not tapInput(input) or not down then return end
 			local d, held = (input.Position - down.pos).Magnitude, os.clock() - down.at
 			down = nil
 			if not c.id or not TipTap.isTap(d, held) then return end
