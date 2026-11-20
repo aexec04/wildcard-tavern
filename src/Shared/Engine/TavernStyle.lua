@@ -93,6 +93,7 @@ M.PAINTED = {
 	orn_small = { art = "pk_orn_pill_small", full = true, src = { 1291, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
 	orn_square = { art = "pk_orn_square", full = true, src = { 905, 906 }, inset = { l = 230, t = 230, r = 230, b = 230 } },
 	orn_score = { art = "pk_orn_score", full = true, src = { 1502, 563 }, inset = { l = 200, t = 170, r = 200, b = 150 } },
+	orn_target = { art = "pk_w_target", full = true, src = { 1470, 348 }, inset = { l = 200, t = 130, r = 200, b = 130 } }, -- the table Target plate cut as a nine-slice: all four corners alike, nothing hangs outside
 	orn_btn_dark = { art = "pk_orn_btn_dark", full = true, src = { 1398, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
 	orn_btn_green = { art = "pk_orn_btn_green", full = true, src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
 	-- whole-picture set (Nov 19): each plate is ONE finished picture generated at the aspect it is shown at, drawn Stretch with no nine-slice

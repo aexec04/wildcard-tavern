@@ -29819,7 +29819,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 23, "twenty three painted pieces: the eight plain, the six ornate and the nine whole-picture plates")
+	expectTrue(n == 24, "twenty four painted pieces: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice) and the nine whole-picture plates")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -31684,7 +31684,7 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local want = {
-		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "orn_score")' },
+		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "orn_target")' },
 		{ "src/Client/ShopHaggle.lua", 'paintedButton(haggleButton, "secondary")' },
 		{ "src/Client/Shop.lua", 'paintedButton(rerollButton, "secondary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
@@ -31956,7 +31956,7 @@ end })
 
 table.insert(tests, { name = "Ornate frames: full scale slices keep the whole picture height, the score plate is about 0.19 of the width with arrow flourishes, hint plates use ornate pieces", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
-	for _, piece in ipairs({ "orn_wide", "orn_small", "orn_square", "orn_score", "orn_btn_dark", "orn_btn_green", "parchment" }) do
+	for _, piece in ipairs({ "orn_wide", "orn_small", "orn_square", "orn_score", "orn_target", "orn_btn_dark", "orn_btn_green", "parchment" }) do
 		local def = Style.PAINTED[piece]
 		expectTrue(def.full == true, piece .. " draws at full scale")
 		local sl = Style.paintedSlice(piece, 300, 70)
@@ -32005,7 +32005,11 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	expectEqual(PR.pieceFor("tab", false), "wh_btn_dark", "other tabs are the dark whole picture")
 	expectEqual(PR.pieceFor("tag"), "wh_btn_dark", "Reroll tag is ornate")
 	expectEqual(PR.pieceFor("chip"), "orn_wide", "boss notice is the ornate wide plate")
-	expectEqual(PR.pieceFor("summary"), "orn_score", "summary plate is the ornate score frame")
+	expectEqual(PR.pieceFor("summary"), "orn_target", "summary plate is the symmetric ornate Target frame")
+	expectEqual(PR.TAB_Z, 8, "tab pictures sit above the Counter dim layer (Z 5)")
+	local sl = require(script.Parent.Parent.Engine.TavernStyle).paintedSlice("orn_target", 300, 124)
+	expectTrue(sl and sl.left == 200 and sl.right == 1470 - 200 and sl.top == 130 and sl.bottom == 348 - 130, "summary slice keeps all four corners alike")
+	expectTrue(sl.scale * 200 * 2 <= 300 * 0.9 + 1e-9, "both corner columns fit inside the 300 px summary plate")
 	local Sum = require(script.Parent.Parent.Engine.ShopSummary)
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do

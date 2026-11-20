@@ -37,6 +37,7 @@ function ShopPaint.tabs(bar)
 		b.AnchorPoint = Vector2.new(0, 0)
 		b.Position = UDim2.new(s.xs, s.xo, 0, 0)
 		b.Size = UDim2.new(s.ws, s.wo, 1, 0)
+		if b.ZIndex < Rules.TAB_Z then b.ZIndex = Rules.TAB_Z end
 		ShopPaint.plate(b, "tab", b:GetAttribute("TabActive") == true)
 	end
 end

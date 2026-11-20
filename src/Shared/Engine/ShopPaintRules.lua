@@ -12,9 +12,11 @@ function M.pieceFor(kind, active)
 	if kind == "tab" then return active and "wh_btn_green" or "wh_btn_dark" end -- the whole-picture ornate family the table wears (trim and corner scrolls stay readable at 50 px)
 	if kind == "next" then return "orn_btn_green" end
 	if kind == "chip" then return "orn_wide" end
-	if kind == "summary" then return "orn_score" end
+	if kind == "summary" then return "orn_target" end
 	return "wh_btn_dark" -- Reroll and Haggle name tags
 end
+
+M.TAB_Z = 8 -- a tab and its picture (one below) must clear the Counter dim and plate layers at Z 5
 
 function M.tabSlot(i, n, gap)
 	n = math.max(1, n)
