@@ -29788,6 +29788,18 @@ table.insert(tests, { name = "Gameplay v2 hand strip: painted strip above the Sc
 	assert(c:find("PreviewRules.plateStage", 1, true) and c:find('Kit.painted(previewPill, "wh_target")', 1, true) and c:find("RichText = true", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Menu polish: the daily strip wears the table's gold framed plate and its words and the tip text stay 28 px inside the frame ends", fn = function()
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local d = read("src/Client/DailyStrip.lua")
+	assert(d:find('Kit.painted(f, "wh_target")', 1, true), "same painted family as Target and Tips")
+	assert(d:find('label(f, "Streak", 15, 30,', 1, true), "streak word 30 px in from the frame")
+	local t = read("src/Client/MenuLifeFX.lua")
+	assert(t:find("PaddingLeft = UDim.new(0, 28)", 1, true) and t:find("PaddingRight = UDim.new(0, 28)", 1, true), "tip text padded 28 px both sides")
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	assert(S.PAINTED and S.PAINTED.wh_target, "wh_target is a known painted piece")
+end })
+
 table.insert(tests, { name = "Gameplay v2 centre: the preview pill never touches the score numeral, line or progress text at three sizes", fn = function()
 	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
@@ -31899,7 +31911,7 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 		{ "src/Client/Shop.lua", 'paintedButton(rerollButton, "secondary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
-		{ "src/Client/DailyStrip.lua", 'painted(f, "wood_plate")' },
+		{ "src/Client/DailyStrip.lua", 'painted(f, "wh_target")' },
 		{ "src/Client/GameOver.lua", 'painted(factsPlate, "wood_plate")' },
 		{ "src/Client/MenuHotspots.lua", 'paintedButton(allButton, "secondary")' },
 	}

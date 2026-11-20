@@ -69,8 +69,8 @@ local function build(root)
 	f.Active = false
 	f.ZIndex = 40
 	f.Visible = false
-	pcall(function() Kit.painted(f, "wood_plate") end) -- painted frame behind the plate, flat look if it does not load
-	label(f, "Streak", 15, 12, 0, 150, Rules.HEIGHT, "")
+	pcall(function() Kit.painted(f, "wh_target") end) -- the ornate gold framed plate of the table (Target and Tips), flat look if it does not load; , flat look if it does not load
+	label(f, "Streak", 15, 30, 0, 150, Rules.HEIGHT, "")
 	label(f, "Goal", 15, 168, 2, 200, 24, "")
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -137,8 +137,8 @@ function M.update(state)
 	local cr = Rules.chestRect(r)
 	strip.Streak.Text = v.streakText
 	strip.Streak.Size = UDim2.fromOffset(math.min(150, math.floor(r.w * 0.3)), r.h)
-	local goalX = strip.Streak.Size.X.Offset + 20
-	local goalW = math.max(40, cr.x - goalX - 8)
+	local goalX = strip.Streak.Position.X.Offset + strip.Streak.Size.X.Offset + 14 -- 30 px in from the carved gold end
+	local goalW = math.max(40, cr.x - goalX - 12)
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
 	strip.Goal.Text = v.goalText
