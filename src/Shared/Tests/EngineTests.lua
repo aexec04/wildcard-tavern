@@ -33908,6 +33908,8 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 				for _, part in ipairs({ slot.card, slot.label, slot.pill }) do expectTrue(not hit(rc, part), "Patron seat clear") end
 			end
 		end
+		expectTrue(spot.button == nil, "no second Got it plate")
+		expectTrue(spot.plate.y >= math.floor(0.365 * sz[2]), "panel top stays below the left candle holder (about y350 at 957)")
 		local lowest = spot.button and (spot.button.y + spot.button.h) or (spot.plate.y + spot.plate.h)
 		expectTrue(lowest <= r.hand.y - PP.handClear(sz[2]), "above the hand fan, clear of the highest left card")
 		expectTrue(r.hand.y - lowest >= 12 + math.floor(0.0166 * sz[2]), "at least 12 px over a card that stands 0.0166 of the height above the hand frame")
@@ -33925,6 +33927,14 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 			end
 		end
 	end
+end })
+
+table.insert(tests, { name = "PatronPowerPanel: the Got it on the hint strip dismisses the panel, the panel has no button of its own", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/RoundHintsFX.lua", "r"); local a = f:read("a"); f:close()
+	f = io.open("src/Client/PatronPowerPanelFX.lua", "r"); local b = f:read("a"); f:close()
+	expectTrue(a:find("PatronPowerPanelFX).dismiss()", 1, true) ~= nil, "strip Got it calls the panel dismiss")
+	expectTrue(b:find("PatronPowerGotIt", 1, true) == nil, "no second Got it button")
 end })
 
 table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()

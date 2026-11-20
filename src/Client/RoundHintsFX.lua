@@ -84,6 +84,7 @@ local function build(layer)
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
 		M.hide()
+		pcall(function() require(script.Parent.PatronPowerPanelFX).dismiss() end) -- one Got it for the strip and the Patron Power panel
 	end)
 end
 

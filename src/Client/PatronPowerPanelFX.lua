@@ -1,8 +1,8 @@
 --[[
 	Client/PatronPowerPanelFX.lua
 	The Patron Power panel at the left of the table (Engine/PatronPowerPanel): the painted hint plate (crown medallion on the left), the
-	gold heading and one line about the frame colours, and a Got it plate under it (on short screens the whole panel is the dismiss
-	button). Shown on Night 1 rounds 1 and 2 and on every boss round, gone when the first hand of the round is played or Got it is pressed.
+	gold heading and one line about the frame colours. It has no Got it plate: the Got it on the Pick your cards strip and a tap on the
+	panel dismiss it. Shown on Night 1 rounds 1 and 2 and on every boss round, gone when the first hand of the round is played or Got it is pressed.
 	No tweens, so Calm mode and Reduce motion look the same. Display only.
 
 	update(layer, state, rects, viewW, viewH)   from Gameplay2.update; hides itself when nothing is due or nothing fits
@@ -16,7 +16,7 @@ local RoundHints = require(Engine:WaitForChild("RoundHints"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local M = {}
-local plate, title, body, button, tap
+local plate, title, body, tap
 local roundKey, handsAtStart -- the round the panel was last due in, and the hands played when it began
 local dismissed = {} -- round keys whose panel was closed with Got it
 
@@ -54,7 +54,7 @@ local function build(layer)
 	title.Text, body.Text = Rules.TITLE, Rules.BODY
 	title.Position = UDim2.new(0.31, 0, 0, 8); title.Size = UDim2.new(0.64, 0, 0, 28)
 	body.Position = UDim2.new(0.31, 0, 0, 38); body.Size = UDim2.new(0.64, 0, 1, -42)
-	-- the plate is its own dismiss button on short screens (no Got it plate fits there)
+	-- a tap on the plate dismisses it; the Got it on the Pick your cards strip does too (RoundHintsFX)
 	tap = Instance.new("TextButton")
 	tap.Name = "PatronPowerTap"
 	tap.BackgroundTransparency = 1
@@ -62,44 +62,16 @@ local function build(layer)
 	tap.Size = UDim2.fromScale(1, 1)
 	tap.ZIndex = 31
 	tap.Parent = plate
-	button = Instance.new("TextButton")
-	button.Name = "PatronPowerGotIt"
-	button.ZIndex = 30
-	pcall(function() require(script.Parent.TavernKit).skin(button, "Got it", "primary") end)
-	do -- the same dark wood plate with a gold edge as the round hints' Got it
-		local G = RoundHints.GOT_IT
-		for _, d in ipairs(button:GetChildren()) do
-			if d:IsA("UIGradient") or d:IsA("UIStroke") then d:Destroy() end
-		end
-		local edge = Instance.new("UIStroke")
-		edge.Name = "GotItEdge"
-		edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		edge.Color = Color3.fromRGB(G.edge[1], G.edge[2], G.edge[3])
-		edge.Thickness = 2
-		edge.Parent = button
-		local base = Color3.fromRGB(G.fill[1], G.fill[2], G.fill[3])
-		local hot = Color3.fromRGB(G.hover[1], G.hover[2], G.hover[3])
-		button.BackgroundColor3 = base
-		button.TextColor3 = Color3.fromRGB(G.text[1], G.text[2], G.text[3])
-		button.TextStrokeColor3 = Color3.fromRGB(G.stroke[1], G.stroke[2], G.stroke[3])
-		button.TextStrokeTransparency = 0
-		button.TextTransparency = 0
-		button.TextSize = 18
-		button.MouseEnter:Connect(function() button.BackgroundColor3 = hot end)
-		button.MouseLeave:Connect(function() button.BackgroundColor3 = base end)
-	end
-	button.Parent = layer
-	local function close()
-		if roundKey then dismissed[roundKey] = true end
-		M.hide()
-	end
-	button.MouseButton1Click:Connect(close)
-	tap.MouseButton1Click:Connect(close)
+	tap.MouseButton1Click:Connect(M.dismiss)
+end
+
+function M.dismiss()
+	if roundKey then dismissed[roundKey] = true end
+	M.hide()
 end
 
 function M.hide()
 	if plate then plate.Visible = false end
-	if button then button.Visible = false end
 end
 
 function M.update(layer, state, rects, viewW, viewH)
@@ -126,14 +98,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	plate.Visible = true
 	plate.Size = UDim2.fromOffset(spot.plate.w, spot.plate.h)
 	plate.Position = UDim2.fromOffset(spot.plate.x, spot.plate.y)
-	tap.Visible = spot.kind == "compact"
-	if spot.button then
-		button.Visible = true
-		button.Size = UDim2.fromOffset(spot.button.w, spot.button.h)
-		button.Position = UDim2.fromOffset(spot.button.x, spot.button.y)
-	else
-		button.Visible = false
-	end
+	tap.Visible = true
 	if game:GetService("RunService"):IsStudio() and M.lastKey ~= viewW .. "x" .. viewH .. spot.kind then
 		M.lastKey = viewW .. "x" .. viewH .. spot.kind
 		print(("[PowerPanel] %s plate=%d,%d,%d,%d"):format(spot.kind, spot.plate.x, spot.plate.y, spot.plate.w, spot.plate.h))

@@ -5,7 +5,7 @@
 	boss round, until the first hand of the round is played or Got it is pressed. Pure Lua, display only, it never changes a run.
 
 	PatronPowerPanel.enabledFor(state, opts) -> bool   opts = { enabled }; playing, not the tutorial, not the guided first hand, no popup
-	PatronPowerPanel.place(r, viewW, viewH, avoid) -> nil | { plate = rect, button = rect, textW }   root pixels; nil when nothing fits clear
+	PatronPowerPanel.place(r, viewW, viewH, avoid) -> nil | { plate = rect, button = nil (no Got it plate of its own), textW }   root pixels; nil when nothing fits clear
 	                                                  of the table (the panel is then skipped, never overlapped)
 	PatronPowerPanel.handClear(viewH) -> px the panel ends above the hand frame (clears the highest left fan card, 10 cards too)
 ]]
@@ -54,13 +54,10 @@ local function try(r, viewW, viewH, avoid, x, w0, bottom, top)
 		w = math.max(M.MIN_W, math.min(w, math.floor(avail * M.ASPECT)))
 	end
 	local plateH = math.floor(w / M.ASPECT + 0.5)
-	local kind
-	if avail >= plateH + M.GAP + M.BUTTON_H then kind = "tall"
-	elseif avail >= plateH then kind = "compact" -- no Got it plate: the whole panel is the dismiss button
-	else return nil end
-	local total = kind == "tall" and plateH + M.GAP + M.BUTTON_H or plateH
-	local plate = { x = x, y = bottom - total, w = w, h = plateH }
-	local button = kind == "tall" and { x = x + math.floor(w * M.BUTTON_COL), y = plate.y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H } or nil
+	if avail < plateH then return nil end
+	local kind = "compact" -- no Got it plate of its own: the Got it on the hint strip and a tap on the panel both dismiss it
+	local plate = { x = x, y = bottom - plateH, w = w, h = plateH }
+	local button = nil
 	for name, rect in pairs(r) do
 		if name ~= "bar" and name ~= "slots" and type(rect) == "table" and rect.x and (hit(plate, rect) or (button and hit(button, rect))) then return nil end
 	end
@@ -72,7 +69,7 @@ local function try(r, viewW, viewH, avoid, x, w0, bottom, top)
 	for _, a in ipairs(avoid) do
 		if hit(plate, a) or (button and hit(button, a)) then return nil end
 	end
-	if plate.x < 0 or plate.x + plate.w > viewW or plate.y < 0 or plate.y + total > viewH then return nil end
+	if plate.x < 0 or plate.x + plate.w > viewW or plate.y < 0 or plate.y + plateH > viewH then return nil end
 	return { plate = plate, button = button, kind = kind, textW = math.floor(w * 0.62) }
 end
 
