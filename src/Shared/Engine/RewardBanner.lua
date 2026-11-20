@@ -13,8 +13,8 @@
 
 local RewardBanner = {}
 
-RewardBanner.HOLD = 1.25 -- with the 0.2 s fade in and 0.35 s fade out the toast is gone after 1.8 s
-RewardBanner.HOLD_FAST = 0.8
+RewardBanner.HOLD = 0.65 -- with the 0.2 s fade in and 0.35 s fade out the toast is gone after 1.2 s (the Counter summary plate keeps the facts)
+RewardBanner.HOLD_FAST = 0.4
 RewardBanner.GRACE = 0.4 -- the click or key that played the winning hand must not close the banner at once
 
 function RewardBanner.plan(animSpeed, calm)

@@ -123,6 +123,7 @@ function RoundRewardBanner.show(args)
 	pcall(function() require(script.Parent.ConceptTSkin).title(mainRow, { 255, 214, 130 }) end) -- serif gold with a dark outline
 	local clearedRow = label(gui, pendingScore and ("Target cleared  " .. pendingScore) or RewardBanner.clearedLine(args.score, args.target), 16, GOLD_TEXT, 2, Enum.Font.GothamBold)
 	clearedRow.Name = "Cleared"
+	clearedRow.Visible = false -- the Counter summary plate on the right already says Target cleared and the Score, so the banner does not repeat them
 	pendingScore = nil -- used up: the next round hands over its own
 	local partsRow = label(gui, toast.sub or "", 14, SOFT, 3, Enum.Font.GothamMedium)
 	partsRow.Name = "Parts"
@@ -137,7 +138,7 @@ function RoundRewardBanner.show(args)
 	end)
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
 	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end) -- no id yet: silent
-	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true) end) -- gold and purple, none in calm mode
+	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true, 11) end) -- gold and purple, none in calm mode
 
 	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel, clearedRow = clearedRow, partsRow = partsRow }
 	if RunService:IsStudio() then print(("[RoundPlate] x=%d y=%d w=%d h=%d (summary x=%d)"):format(spot.x, spot.y, spot.w, spot.h, require(Engine:WaitForChild("ShopSummary")).rect(sw, sh).x)) end

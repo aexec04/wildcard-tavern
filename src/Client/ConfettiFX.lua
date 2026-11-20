@@ -13,7 +13,7 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local M = {}
 local LIFE = 1.8
 
-function M.burst(screenGui, big)
+function M.burst(screenGui, big, z) -- z: ZIndex of the burst (default 54); the round banner passes 11 so it falls under every plate
 	local calm = ClientSettings.get("reduceShake") == true
 	local n = Confetti.count(calm, ClientSettings.get("animSpeed") == "fast", big == true)
 	if n == 0 or not screenGui then return 0 end
@@ -22,7 +22,7 @@ function M.burst(screenGui, big)
 	holder.BackgroundTransparency = 1
 	holder.Size = UDim2.fromScale(1, 1)
 	holder.Active = false
-	holder.ZIndex = 54 -- under the reward plate (55)
+	holder.ZIndex = z or 54 -- under the reward plate (55)
 	holder.Parent = screenGui
 	local spec = Confetti.pieces(n, math.floor(os.clock() * 1000))
 	local parts = {}
@@ -33,7 +33,7 @@ function M.burst(screenGui, big)
 		f.BackgroundColor3 = Color3.fromRGB(p.color[1], p.color[2], p.color[3])
 		f.Size = UDim2.fromOffset(p.size, math.max(4, math.floor(p.size * 0.6)))
 		f.AnchorPoint = Vector2.new(0.5, 0.5)
-		f.ZIndex = 54
+		f.ZIndex = z or 54
 		f.Visible = false
 		f.Parent = holder
 		parts[i] = f
