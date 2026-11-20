@@ -24,6 +24,30 @@ function M.isWatched(text)
 	return false
 end
 
+-- Menu pieces that must be on screen: { label, how to find it } (Client/ScreenCheck matches by Name or by text)
+M.MENU_PIECES = {
+	{ label = "Title", names = { "WordmarkImage", "MenuTitle" } },
+	{ label = "Deal Me In", text = "deal me in" },
+	{ label = "New Run", text = "new run" },
+	{ label = "All actions", names = { "AllActionsButton" } },
+	{ label = "Tip bar", names = { "MenuTip" } },
+	{ label = "Notice Board", names = { "NoticeBoard" } },
+}
+
+-- pieces = { { label, w, h, visible } } (a missing piece has w = 0); returns lines, warns. A piece with width or height 0, or not
+-- visible, is a WARN: that is how a blank or 0x0 Menu piece gets caught.
+function M.menuCheck(pieces)
+	local lines, warns = {}, {}
+	for _, p in ipairs(pieces or {}) do
+		local w, h = tonumber(p.w) or 0, tonumber(p.h) or 0
+		lines[#lines + 1] = string.format("%s %dx%d%s", tostring(p.label), math.floor(w), math.floor(h), p.visible and "" or " hidden")
+		if w <= 0 or h <= 0 or not p.visible then
+			warns[#warns + 1] = string.format("WARN %s is blank: %dx%d, visible=%s", tostring(p.label), math.floor(w), math.floor(h), tostring(p.visible and true or false))
+		end
+	end
+	return lines, warns
+end
+
 function M.small(size) return (tonumber(size) or 0) < M.MIN_TEXT end
 
 local function extent(a, b)

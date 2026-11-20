@@ -32074,6 +32074,28 @@ table.insert(tests, { name = "Wordmark: the painted lettering is placed by its g
 	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
 
+table.insert(tests, { name = "ScreenCheck.menuCheck flags a 0x0, missing or hidden Menu piece and passes a good Menu", fn = function()
+	local SC = require(script.Parent.Parent.Engine.ScreenCheck)
+	local good = {}
+	for i, spec in ipairs(SC.MENU_PIECES) do good[i] = { label = spec.label, w = 200, h = 60, visible = true } end
+	local lines, warns = SC.menuCheck(good)
+	assert(#lines == #SC.MENU_PIECES and #warns == 0, "a good Menu has no warning")
+	local bad = {}
+	for i, p in ipairs(good) do bad[i] = { label = p.label, w = p.w, h = p.h, visible = true } end
+	bad[1].w, bad[1].h = 0, 0
+	bad[3].visible = false
+	bad[5].h = 0
+	local _, w2 = SC.menuCheck(bad)
+	assert(#w2 == 3 and w2[1]:find("WARN Title is blank", 1, true), "0x0 title, hidden New Run and 0 tall tip bar are flagged")
+	local labels = {}
+	for _, s in ipairs(SC.MENU_PIECES) do labels[s.label] = true end
+	for _, l in ipairs({ "Title", "Deal Me In", "New Run", "All actions", "Tip bar", "Notice Board" }) do assert(labels[l], l .. " is checked") end
+	if io then
+		local f = assert(io.open("src/Client/ScreenCheck.lua", "r")); local c = f:read("a"); f:close()
+		assert(c:find("[MenuCheck]", 1, true), "the client prints [MenuCheck]")
+	end
+end })
+
 table.insert(tests, { name = "Wordmark: the painted image gets explicit nonzero pixel sizes at every screen width", fn = function()
 	local function glyph(sw)
 		local w = math.max(1, math.floor(sw * 0.275 + 0.5))

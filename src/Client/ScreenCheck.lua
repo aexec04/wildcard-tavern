@@ -37,11 +37,37 @@ function M.run()
 			print(string.format("[ScreenCheck] menu %s x%d y%d %dx%d at %dx%d", d.Name, d.AbsolutePosition.X, d.AbsolutePosition.Y, d.AbsoluteSize.X, d.AbsoluteSize.Y, vp and vp.X or 0, vp and vp.Y or 0))
 		end
 	end
+	-- [MenuCheck]: only when the Menu is up; every Menu piece must exist, be visible and not be 0 wide or tall
+	local menuWarns = 0
+	local menuRoot = pg:FindFirstChild("MenuRoot", true)
+	if menuRoot and visible(menuRoot) then
+		local pieces = {}
+		for _, spec in ipairs(Rules.MENU_PIECES) do
+			local best
+			for _, d in ipairs(menuRoot:GetDescendants()) do
+				if d:IsA("GuiObject") then
+					local hit = false
+					if spec.names then
+						for _, n in ipairs(spec.names) do if d.Name == n then hit = true end end
+					elseif (d:IsA("TextLabel") or d:IsA("TextButton")) and string.lower(d.Text) == spec.text then
+						hit = true
+					end
+					if hit and (not best or (visible(d) and d.AbsoluteSize.X > 0)) then best = d end
+					if hit and visible(d) and d.AbsoluteSize.X > 0 then break end
+				end
+			end
+			pieces[#pieces + 1] = { label = spec.label, w = best and best.AbsoluteSize.X or 0, h = best and best.AbsoluteSize.Y or 0, visible = best ~= nil and visible(best) }
+		end
+		local mLines, mWarns = Rules.menuCheck(pieces)
+		print("[MenuCheck] " .. table.concat(mLines, "; "))
+		for _, w in ipairs(mWarns) do warn("[MenuCheck] " .. w) end
+		menuWarns = #mWarns
+	end
 	local lines, warns = Rules.report(items)
 	for _, l in ipairs(lines) do print("[ScreenCheck] " .. l) end
 	for _, w in ipairs(warns) do warn("[ScreenCheck] " .. w) end
 	print(string.format("[ScreenCheck] %d watched pieces, %d warnings", #items, #warns))
-	return #warns
+	return #warns + menuWarns
 end
 
 return M
