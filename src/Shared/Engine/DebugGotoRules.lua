@@ -153,6 +153,16 @@ function DebugGotoRules.scaleFor(w, h)
 	return math.min(1, w / DebugGotoRules.BASE_W, h / DebugGotoRules.BASE_H)
 end
 
+-- scale:WxH frame size: the asked size, never larger than the window
+function DebugGotoRules.frameFor(w, h, vpW, vpH)
+	return math.min(w, vpW or w), math.min(h, vpH or h)
+end
+
+-- a top-level GameUI object that fills the screen (scale 1 or near, small pixel offsets) is the one scale:WxH resizes
+function DebugGotoRules.isFullScreenSize(xs, xo, ys, yo)
+	return xs >= 0.95 and ys >= 0.95 and math.abs(xo) <= 64 and math.abs(yo) <= 64
+end
+
 function DebugGotoRules.parse(value)
 	if type(value) ~= "string" or value == "" then
 		return nil, "empty value"
