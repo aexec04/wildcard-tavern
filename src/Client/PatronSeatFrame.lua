@@ -4,10 +4,16 @@ flat quiet slot comes back (TavernKit.painted). No tweens. ]]
 local M = {}
 
 local ok, Kit = pcall(function() return require(script.Parent.TavernKit) end)
+-- the painted seat face (PatronRow's SeatFacePicture) replaces this back panel when its picture id exists
+local hasFacePic = false
+pcall(function()
+	local id = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ConceptTArt")).ct_seat_face
+	hasFacePic = id ~= nil and id ~= ""
+end)
 
 -- c: the card record from PatronRow (c.float, c.body); empty: true when no Patron stands here; z: the card's base ZIndex.
 function M.sync(c, empty, z)
-	if not ok or not c or not c.float then return end
+	if not ok or not c or not c.float or hasFacePic then return end
 	local back = c.float:FindFirstChild("SeatBack")
 	if not back then
 		if not empty then return end

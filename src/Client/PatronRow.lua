@@ -241,6 +241,30 @@ local function newCard(i)
 			end
 		end
 	end
+	-- painted seat face (ct_seat_face, cropped to the card): replaces the drawn face, star and flourishes; with no picture id the drawn version stays
+	do
+		local picId = require(Engine:WaitForChild("ConceptTArt")).ct_seat_face
+		if picId and picId ~= "" then
+			local pic = Instance.new("ImageLabel")
+			pic.Name = "SeatFacePicture"
+			pic.Size = UDim2.fromScale(1, 1)
+			pic.BackgroundTransparency = 1
+			pic.BorderSizePixel = 0
+			pic.Active = false
+			pic.Image = picId
+			pic.ImageRectOffset = Vector2.new(125, 145) -- the card inside the 1024x1536 picture
+			pic.ImageRectSize = Vector2.new(774, 1246)
+			pic.ScaleType = Enum.ScaleType.Stretch
+			pic.ZIndex = Z + 1
+			pic.Parent = mark
+			mark.BackgroundTransparency = 1
+			for _, ch in ipairs(mark:GetChildren()) do
+				if ch ~= pic and (ch:IsA("GuiObject") or ch:IsA("UIStroke")) then
+					if ch:IsA("UIStroke") then ch.Enabled = false else ch.Visible = false end
+				end
+			end
+		end
+	end
 	c.mark = mark
 	local dim = Instance.new("Frame") -- dims the card while another Patron triggers
 	dim.Name = "Dim"

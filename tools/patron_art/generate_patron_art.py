@@ -234,7 +234,7 @@ CATEGORY_OPTS = {
     # Concept T kit: every piece is an EDIT of a cut from claude/reference/concept_t. Plates are cut from magenta; the room is opaque.
     "concept_t": {"quality": "medium", "style_key": "concept_t_style", "transparent": True, "opaque": ["ct_table_room"],
                   "sizes": {"ct_card_back": "1024x1536", "ct_hud_coins": "1536x1024", "ct_hud_hands": "1536x1024", "ct_hud_round": "1536x1024",
-                            "ct_deck_count": "1536x1024", "ct_felt_inlay": "1536x1024", "ct_btn_blank": "1536x1024", "ct_pill_plain": "1536x1024", "ct_table_room": "1536x1024"},
+                            "ct_deck_count": "1536x1024", "ct_felt_inlay": "1536x1024", "ct_seat_face": "1024x1536", "ct_btn_blank": "1536x1024", "ct_pill_plain": "1536x1024", "ct_table_room": "1536x1024"},
                   "references": dict((k, "claude/reference/concept_t/" + f) for k, f in (
                       ("ct_hud_coins", "hud_coins.png"), ("ct_hud_hands", "hud_hands.png"), ("ct_hud_round", "hud_round.png"),
                       ("ct_deck_count", "deck_count.png"), ("ct_btn_blank", "btn_play.png"), ("ct_pill_plain", "pill_green.png"), ("ct_card_back", "deck.png"),

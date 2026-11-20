@@ -42,6 +42,7 @@ return {
 	["ct_ref_patron_3"] = "rbxassetid://120938022604672",
 	["ct_ref_patron_4"] = "rbxassetid://100019022171060",
 	["ct_ref_patron_5"] = "rbxassetid://97553922278489",
+	["ct_seat_face"] = "rbxassetid://136164812033616",
 	["ct_table_room"] = "rbxassetid://119839604964634",
 	["ct_table_room_old"] = "rbxassetid://117281432443762",
 }

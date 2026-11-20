@@ -24344,6 +24344,16 @@ table.insert(tests, { name = "Gameplay2 felt inlay picture: one painted ring, vi
 		assert(d.inlay.w >= b.w and d.inlay.h >= b.h, w .. "x" .. h .. " picture is at least as large as its line")
 	end
 end })
+table.insert(tests, { name = "Empty Patron seat: painted ct_seat_face picture replaces the drawn face, with the drawn version kept as the fallback", fn = function()
+	local id = require(script.Parent.Parent.Engine.ConceptTArt).ct_seat_face
+	assert(id and id:find("^rbxassetid://%d+$"), "seat face art id recorded")
+	if not io then return end
+	local f = io.open("src/Client/PatronRow.lua")
+	if not f then return end
+	local t = f:read("*a"); f:close()
+	assert(t:find("SeatFacePicture", 1, true) and t:find("ct_seat_face", 1, true), "PatronRow draws the painted face")
+	assert(t:find('picId ~= ""', 1, true) and t:find("StarOrnament", 1, true), "the drawn star stays as the fallback")
+end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
