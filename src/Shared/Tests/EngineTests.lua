@@ -30681,8 +30681,15 @@ table.insert(tests, { name = "Gameplay2Flair: the name sits on a dark banner ins
 	assert(F.sidePlates({ x = 10, y = 0, w = 300, h = 30 }, { x = 0, y = 0, w = 320, h = 30 }) == nil, "no room, no plates")
 	if not io then return end
 	local f = assert(io.open("src/Client/Gameplay2FlairFX.lua", "r")); local fx = f:read("a"); f:close()
-	assert(fx:find("NameBanner", 1, true) and fx:find("ChipsPlate", 1, true) and fx:find("MultPlate", 1, true), "banner and both plates are drawn")
+	assert(fx:find("NameBanner", 1, true) and not fx:find("ChipsPlate", 1, true) and not fx:find("MultPlate", 1, true), "the banner is drawn, the side plates are not (Chips x Mult is in the Score plate caption)")
+	assert(fx:find("f[1].Visible = false", 1, true) and fx:find("plate.Visible = false", 1, true), "every flair part is hidden, not only transparent, at the end")
 	assert(not fx:find("Transparency = ColorSequence", 1, true) and not fx:find("TweenService", 1, true), "no tween, Color-only gradient")
+end })
+
+table.insert(tests, { name = "ScorePopup v2: a stacked played card never sinks under the band (no card reaches the Hands pill)", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/ScorePopup.lua", "r")); local sp = f:read("a"); f:close()
+	assert(sp:find("if okB and band then dy = math.min(dy, 0) end", 1, true), "v2 stack offset is never downward")
 end })
 
 table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edge (no cyan or white), the corner rank is at least 18 px at 1280x720 and never under the 15 px floor", fn = function()
@@ -31092,7 +31099,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		expectTrue(spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w and spot.button.y >= spot.plate.y and spot.button.y + spot.button.h <= spot.plate.y + spot.plate.h, "Got it sits inside the strip on the right, 44 px or more")
 		expectTrue(spot.button.x + spot.button.w / 2 > spot.plate.x + spot.plate.w / 2, "Got it is on the right half")
 		expectTrue(spot.plate.y + spot.plate.h <= L.rects(1920, 1080).hand.y, "strip ends above the hand rect")
-		expectTrue(RH.STRIP_TITLE == 22 and RH.STRIP_BODY >= 14, "strip text sizes")
+		expectTrue(RH.STRIP_TITLE == 22 and RH.STRIP_BODY == 20 and RH.getById("round_hint_select").body == "Pick up to 5 cards, then Play Hand.", "strip text sizes and the shorter first hint line")
 		for _, sz2 in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do -- the left side of the table stays empty at the live sizes
 			local rr = L.rects(sz2[1], sz2[2])
 			local sp = RH.place(rr, sz2[1], sz2[2], {})

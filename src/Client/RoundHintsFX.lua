@@ -141,7 +141,8 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 		for _, d in ipairs(plate:GetChildren()) do if d:IsA("UIStroke") then d.Enabled = true end end
 		title.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 6); title.Size = UDim2.fromOffset(spot.textW, 26); title.TextSize = Rules.STRIP_TITLE
 		body.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 33); body.Size = UDim2.fromOffset(spot.textW, 22); body.TextSize = Rules.STRIP_BODY
-		body.TextWrapped = false; title.TextWrapped = false
+		body.TextWrapped = false; title.TextWrapped = false; body.TextTruncate = Enum.TextTruncate.None
+		pcall(function() while body.TextSize > 14 and body.TextBounds.X > spot.textW do body.TextSize = body.TextSize - 1 end end) -- 20 px, shrunk only when the column is narrower than the line
 	else
 		if not paint then pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_hint") end) end
 		title.Position = UDim2.new(0.31, 0, 0, 14); title.Size = UDim2.new(0.62, 0, 0, 22); title.TextSize = 18

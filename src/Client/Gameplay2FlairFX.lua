@@ -78,27 +78,7 @@ function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
 		bg.Rotation = 90
 		bg.Parent = b
 		fades[#fades + 1] = { b, "frame" }
-		local plates = chips and mult and Flair.sidePlates(br, stage)
-		if plates then
-			local ct, mt = Flair.sideText(chips, mult)
-			for _, def in ipairs({ { "ChipsPlate", plates.chips, ct, Color3.fromRGB(34, 62, 128) }, { "MultPlate", plates.mult, mt, Color3.fromRGB(150, 44, 34) } }) do
-				local pl = frame(root, def[1])
-				pl.Position = UDim2.fromOffset(def[2].x - rect.x, def[2].y - rect.y)
-				pl.Size = UDim2.fromOffset(def[2].w, def[2].h)
-				pl.BackgroundColor3 = def[4]
-				pl.BackgroundTransparency = 0.05
-				corner(pl, 8)
-				local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 1.5; ps.Parent = pl
-				local pt = Instance.new("TextLabel")
-				pt.BackgroundTransparency = 1; pt.Size = UDim2.fromScale(1, 1)
-				pt.Font = Enum.Font.GothamBold; pt.TextSize = 15; pt.TextColor3 = CREAM
-				pt.TextTransparency = 0; pt.TextStrokeColor3 = DARK; pt.TextStrokeTransparency = 0.3
-				pt.Text = def[3]; pt.ZIndex = Z + 2
-				pt.Parent = pl
-				fades[#fades + 1] = { pl, "frame" }
-				fades[#fades + 1] = { pt, "text" }
-			end
-		end
+		-- (no Chips and Mult side plates: the Score plate caption shows Chips x Mult, one trigger line is the only pill)
 	end
 	local label = Instance.new("TextLabel")
 	label.Name = "Name"
@@ -130,6 +110,8 @@ function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
 		pt.Font = Enum.Font.Merriweather; pt.TextSize = 16; pt.TextColor3 = CREAM
 		pt.TextStrokeColor3 = DARK; pt.TextStrokeTransparency = 0.3; pt.Text = "OVERKILL"; pt.ZIndex = Z + 2
 		pt.Parent = plate
+		fades[#fades + 1] = { plate, "frame" }
+		fades[#fades + 1] = { pt, "text" }
 	end
 	live = { root = root }
 	if spec.static then
@@ -248,13 +230,15 @@ function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
 			local a = math.min(1, (e - fade) / 0.2)
 			label.TextTransparency, label.TextStrokeTransparency = a, 0.1 + 0.9 * a
 			if under then under.BackgroundTransparency = a end
-			if plate then plate.BackgroundTransparency = 0.05 + 0.95 * a end
 			for _, f in ipairs(fades) do
 				if f[2] == "frame" then f[1].BackgroundTransparency = 0.05 + 0.95 * a
 				else f[1].TextTransparency, f[1].TextStrokeTransparency = a, 0.3 + 0.7 * a end
 			end
 		end
 		if e >= spec.total then
+			for _, f in ipairs(fades) do f[1].Visible = false end -- hidden, not only transparent
+			label.Visible = false
+			if plate then plate.Visible = false end
 			finish()
 			return true
 		end

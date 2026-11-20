@@ -680,6 +680,7 @@ return function(deps)
 			if PMotion then
 				local _, sy, sr = PMotion.stackSpec(i, #playedGhosts)
 				dy, rot = sy, sr
+				if okB and band then dy = math.min(dy, 0) end -- v2 table: the stack never sinks a card under the band, so none reaches the Hands pill
 				if not entry.ghost:FindFirstChild("StackShadow") then
 					local sh = Instance.new("Frame")
 					sh.Name = "StackShadow"

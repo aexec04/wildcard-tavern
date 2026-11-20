@@ -17,7 +17,7 @@
 local M = {}
 
 M.ORDER = {
-	{ id = "round_hint_select", title = "Pick your cards", body = "Tap up to five cards, then press Play Hand." },
+	{ id = "round_hint_select", title = "Pick your cards", body = "Pick up to 5 cards, then Play Hand." },
 	{ id = "round_hint_tiers", title = "Patron Power", body = "Wood frames are Common, gold are Legendary." },
 	{ id = "round_hint_target", title = "What is Target?", body = "Score the Target before your hands run out." },
 }
@@ -168,7 +168,7 @@ end
 -- left of the table). 520 wide at 1920 and scaled with the screen (never under 360); it ends STRIP_GAP above the hand rect and may stand
 -- over the idle stage's progress line, but never over a Patron seat or the avoid rects. nil when it does not fit.
 M.STRIP_W, M.STRIP_H, M.STRIP_MIN_W, M.STRIP_GAP, M.STRIP_PAD = 520, 60, 360, 6, 8
-M.STRIP_TITLE, M.STRIP_BODY = 22, 16
+M.STRIP_TITLE, M.STRIP_BODY = 22, 20
 M.STRIP_SIDE_GAP = 12
 function M.strip(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
