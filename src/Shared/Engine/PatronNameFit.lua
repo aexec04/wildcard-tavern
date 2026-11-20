@@ -7,6 +7,7 @@ local Style = require(script.Parent.PatronTierStyle)
 local M = {}
 
 M.MIN_SIZE, M.MAX_SIZE, M.GAP, M.CHAR = 11, 16, 4, 0.56
+M.WRAP_SIZE = 10 -- a name too long for the strip at MIN_SIZE wraps to two lines at this size (the 800x450 seats)
 
 function M.inset(w)
 	local d = Style.discDiameter(w)

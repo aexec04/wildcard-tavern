@@ -38,6 +38,14 @@ function M.barTextSize(plateH) return math.max(16, math.min(40, round((tonumber(
 -- ROUND_TEXT_MIN (11 at the smallest windows, the 800x450 floor).
 M.ROUND_TEXT_MIN, M.ROUND_CHAR_W, M.ROUND_INNER = 11, 0.66, 0.81
 function M.roundInnerW(plateW) return math.floor((tonumber(plateW) or 0) * M.ROUND_INNER) end
+-- A line of Gotham text takes about 1.25 times its size in height. roundLineSize(h, lines) is the largest size whose lines all fit a plate h tall
+-- with 2 px padding top and bottom; roundTwoLineMin() is the plate height that holds two lines at ROUND_TEXT_MIN.
+M.ROUND_LINE_H = 1.25
+function M.roundLineSize(h, lines)
+	return math.floor(((tonumber(h) or 0) - 4) / (M.ROUND_LINE_H * math.max(1, lines or 1)))
+end
+function M.roundTwoLineMin() return math.ceil(2 * M.ROUND_LINE_H * M.ROUND_TEXT_MIN) + 4 end
+
 function M.fitRoundText(text, want, plateW)
 	local inner = M.roundInnerW(plateW)
 	local n = math.max(1, #tostring(text))
@@ -98,7 +106,7 @@ function M.rects(w, h)
 	local barX = ref and math.min(round(0.245 * w), w - pad - barW) or round((w - barW) / 2)
 	local barY = math.max(4, round((ref and 0.016 or 0.012) * h)) -- 24 px stay free under the bar for the boss banner
 	r.bar = box(barX, barY, barW, barH)
-	local inner = ref and 0 or 6 -- the reference plates are the whole bar height (y 15 to 100 of 941)
+	local inner = ref and 0 or (barH < 48 and 4 or 6) -- a bar under 48 px tall (800x450) pads 4 so the scroll holds two 11 px lines; the reference plates are the whole bar height (y 15 to 100 of 941)
 	local igap = ref and round(0.0102 * w) or inner -- reference: 17 px between Target and the scroll
 	local ih = barH - 2 * inner
 	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right

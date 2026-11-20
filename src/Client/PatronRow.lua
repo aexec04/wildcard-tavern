@@ -830,6 +830,13 @@ local function place(state)
 				end
 				c.slot.ZIndex = Z + i -- later cards overlap earlier ones
 				fillCard(c, i, owned[i])
+				do -- a name too long for the strip at the smallest size wraps to two 10 px lines instead of ending in an ellipsis
+					local long = NameFit.textWidth(c.name.Text, NameFit.MIN_SIZE) > nr.w
+					c.name.TextWrapped = long
+					c.name.TextScaled = not long
+					if long then c.name.TextSize = NameFit.WRAP_SIZE; c.name.TextTruncate = Enum.TextTruncate.None; c.name.LineHeight = 0.9
+					else c.name.TextTruncate = Enum.TextTruncate.AtEnd; c.name.LineHeight = 1 end
+				end
 				if c.value then
 					c.value.Text = c.valueText or ""
 					c.value.Visible = (c.valueText ~= nil) and PatronValueText.visible(r.w)

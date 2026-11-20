@@ -33867,7 +33867,7 @@ table.insert(tests, { name = "Table fixes (live pass): Speaker and Pause at the 
 	expectTrue(SP.CAP_H == 30 and SP.NUMERAL == 54 and SP.CAP_H + SP.NUMERAL + 2 * SP.PAD >= 96, "plate content is about 100 px")
 	if not io then return end
 	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
-	for _, w in ipairs({ '"GoldFrame"', '"GoldDiamond"', '"GlyphBar"', '"GlyphSpade"', 'ImageTransparency = 1', '<font size="%d"><b>%s</b></font>', '<font size="%d">%s</font>', 'avail * 0.6', 'Style.rgb("gold")' }) do
+	for _, w in ipairs({ '"GoldFrame"', '"GoldDiamond"', '"GlyphBar"', '"GlyphSpade"', 'ImageTransparency = 1', '<font size="%d"><b>%s</b></font>', '<font size="%d">%s</font>', 'avail * 0.55', 'Style.rgb("gold")' }) do
 		expectTrue(g2:find(w, 1, true) ~= nil, w .. " is in the live table")
 	end
 end })
@@ -34112,6 +34112,25 @@ table.insert(tests, { name = "Table: 'Night 1, Round 1' and 'Score N to clear' f
 			expectTrue(#text * size * L.ROUND_CHAR_W <= inner + 0.5, w .. "x" .. h .. ": '" .. text .. "' (" .. size .. " px) fits " .. inner .. " px")
 		end
 	end
+end })
+
+table.insert(tests, { name = "Table: both scroll lines fit the plate height (1.25 line height) at five sizes, and the Patron Power panel is re-placed when the root is rescaled", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		expectTrue(r.round.h >= L.roundTwoLineMin(), w .. "x" .. h .. ": the scroll (" .. r.round.h .. " px) holds two lines at 11 px")
+		local s2 = L.roundLineSize(r.round.h, 2)
+		expectTrue(s2 >= L.ROUND_TEXT_MIN, w .. "x" .. h .. ": two lines at " .. s2 .. " px")
+		expectTrue(2 * s2 * L.ROUND_LINE_H + 4 <= r.round.h, w .. "x" .. h .. ": two lines of " .. s2 .. " px fit " .. r.round.h .. " px with padding")
+	end
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f:read("a"); f:close()
+	local a = src:find("local function replaceHint()", 1, true)
+	local b = a and src:find("root:GetPropertyChangedSignal(\"AbsoluteSize\")", a, true)
+	expectTrue(a and b and src:sub(a, b):find("PatronPowerPanelFX", 1, true) ~= nil, "replaceHint also re-places the Patron Power panel")
+	f = io.open("src/Client/PatronRow.lua", "r"); local row = f:read("a"); f:close()
+	expectTrue(row:find("NameFit.WRAP_SIZE", 1, true) ~= nil and row:find("TextWrapped = long", 1, true) ~= nil, "a long Patron name wraps instead of ending in an ellipsis")
 end })
 
 return tests
