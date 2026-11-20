@@ -605,7 +605,7 @@ return function(deps)
 		-- the played hand lands as a small tilted, slightly overlapping group with a soft shadow (Engine/PlayMotion.stackSpec);
 		-- calm mode keeps the flat row
 		local stacked = false -- a played hand is a clean row: no overlap, no tilt (the stacked fan read as jumbled)
-		local gap = 12
+		local gap = 16
 		local PMotion = stacked and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayMotion")) or nil
 		local totalWidth = 0
 		for _, entry in ipairs(playedGhosts) do

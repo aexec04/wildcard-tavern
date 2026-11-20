@@ -266,7 +266,8 @@ M.NAME_ROW_H = 34    -- the hand name banner row
 M.SCORING_GAP = 12   -- plate to banner, banner to the played cards
 M.PLAYED_GOAL_W = 90 -- played cards are at least this wide when the room allows
 M.PLAYED_RATIO = 1.45-- card height over width
-M.HAND_OVERLAP = 0.7 -- the played row may reach this share of the hand rect down (the hand has fewer cards then); keeps 1506 x 751 near 90 px cards
+M.HAND_OVERLAP = 0.7 -- (kept for tests) the played row may always reach this share of the hand rect down
+M.HAND_BELOW = 12    -- the played row may end this far under the hand rect (the hand has fewer cards then); keeps 1506 x 751 at 88+ px cards
 
 -- The scoring moment, top to bottom inside and just under the stage: the Score plate (caption and counting total, same top as the idle
 -- plate), 12 px, the hand name banner row, 12 px, the played cards (at least 90 wide where the room allows, reaching into the hand rect
@@ -279,7 +280,7 @@ function M.scoringRows(r, capH)
 	local plateBottom = r.stage.y + math.min(r.stage.h, math.max(40, content + 2 * pad))
 	local nameY = plateBottom + M.SCORING_GAP
 	local top = nameY + M.NAME_ROW_H + M.SCORING_GAP
-	local bottom = math.max(r.hand.y - M.PLAYED_GAP, math.min(top + M.PLAYED_GOAL_W * M.PLAYED_RATIO, r.hand.y + M.HAND_OVERLAP * r.hand.h))
+	local bottom = math.max(r.hand.y - M.PLAYED_GAP, math.min(top + M.PLAYED_GOAL_W * M.PLAYED_RATIO, r.hand.y + r.hand.h + M.HAND_BELOW))
 	if bottom - top >= 44 then
 		return { plateBottom = plateBottom, name = { x = r.stage.x, y = nameY, w = r.stage.w, h = M.NAME_ROW_H }, band = { top = top, bottom = bottom } }
 	end

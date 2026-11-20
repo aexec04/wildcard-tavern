@@ -144,6 +144,11 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 		end
 	end)
 	if noRoom then bubble.Visible = false; return true end -- scoring, and no clear spot beside the Score plate: stay silent
+	if bubbleV2 then -- the painted parchment plate (TavernKit.painted keeps the flat look if the picture fails); the label keeps 8 px padding
+		pcall(function() require(script.Parent.TavernKit).painted(bubble, "parchment") end)
+		bubbleLabel.Position = UDim2.fromOffset(8, 0)
+		bubbleLabel.Size = UDim2.new(1, -16, 1, 0)
+	end
 	local tail = bubble:FindFirstChild("Tail")
 	if tail then
 		tail.Visible = bubbleV2

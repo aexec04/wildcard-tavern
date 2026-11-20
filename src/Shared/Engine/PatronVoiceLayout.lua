@@ -29,7 +29,7 @@ end
 
 -- While a hand scores the quote stands BESIDE the Score plate on the stage's top row: left of the plate first, else right, else nil
 -- (no room, no bubble). It never touches the plate, the hand name banner row under it or the played cards. { x, y, w, h } | nil
-M.SIDE_GAP = 8
+M.SIDE_GAP = 12
 function M.beside(plate, stage, rootW)
 	local gap, edge = M.SIDE_GAP, M.EDGE
 	local leftW = math.min(M.MAX_W, plate.x - gap - edge)

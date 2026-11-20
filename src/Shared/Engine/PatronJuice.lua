@@ -108,6 +108,13 @@ function M.popBox(slot, limits)
 end
 
 -- ray length as a share of the card height: a ray from the centre ends inside the pop box (half of 1.2 = 0.6)
-M.RAY_LEN = 0.55
+M.RAY_LEN = 0.5
+
+-- The ray length (share of the card height) that keeps the widest ray (75 degrees off vertical) inside POP_SCALE times the seat
+-- width and the tallest inside the seat's own height, so a Legendary pop never grows past 1.2x of the seat or over the top bar.
+function M.rayLen(w, h)
+	local side = math.sin(math.rad(75))
+	return math.min(M.RAY_LEN, (M.POP_SCALE * w / 2) / (math.max(1, h) * side))
+end
 
 return M

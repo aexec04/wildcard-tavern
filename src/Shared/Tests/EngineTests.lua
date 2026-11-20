@@ -30687,7 +30687,7 @@ table.insert(tests, { name = "Gameplay v2 scoring moment: Score plate with its c
 		assert(sr.band.bottom - sr.band.top >= 44, "the cards keep a row at " .. w)
 		assert(live.plate.y == r.stage.y and live.plate.y + live.plate.h <= sr.plateBottom, "plate stays at the stage top at " .. w)
 		assert(sr.name.y - sr.plateBottom >= 12 and sr.band.top - (sr.name.y + sr.name.h) >= 12, "12 px gaps around the banner at " .. w)
-		assert(sr.band.bottom <= r.hand.y + L.HAND_OVERLAP * r.hand.h + 0.5 and sr.band.bottom > sr.band.top, "played row stays inside the allowed reach at " .. w)
+		assert(sr.band.bottom <= r.hand.y + r.hand.h + L.HAND_BELOW + 0.5 and sr.band.bottom > sr.band.top, "played row stays inside the allowed reach at " .. w)
 		-- the banner's name font fits its row, and the banner and its side plates stay inside the stage
 		local size = math.min(F.FONT, sr.name.h - 4)
 		assert(size >= F.MIN_FONT - 2, "name font readable at " .. w)
@@ -30707,7 +30707,7 @@ table.insert(tests, { name = "Gameplay v2 played lane: cards land under the cent
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 } }) do -- (800x450 has a 33 px stage: the numeral alone, no room for a row)
 		local r = L.rects(sz[1], sz[2])
 		local b = L.playedBand(r, 26, 22)
-		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y + L.HAND_OVERLAP * r.hand.h + 0.5, "band sits under the stage top and no deeper into the hand than HAND_OVERLAP at " .. sz[1])
+		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y + r.hand.h + L.HAND_BELOW + 0.5, "band sits under the stage top and no deeper into the hand than HAND_OVERLAP at " .. sz[1])
 		local lane = Lane.rect({ nookBottom = b.top, handTop = b.bottom, cardW = 110, cardH = 154, popupH = 0, gap = 0, minScale = 0.3 })
 		assert(lane.rowY >= b.top - 0.5, "played cards start inside the band at " .. sz[1])
 		assert(lane.rowY + lane.cardH <= b.bottom + 0.5, "played cards end inside the band at " .. sz[1])
@@ -32986,6 +32986,30 @@ table.insert(tests, { name = "Scoring polish: Patron pop stays within 1.2x of th
 	end
 	assert(V.tailX({ x = 400, w = 250 }, 450) == 50, "tail sits under the seat centre")
 	assert(V.tailX({ x = 400, w = 250 }, 100) == V.TAIL_PAD and V.tailX({ x = 400, w = 250 }, 900) == 250 - V.TAIL_PAD, "tail stays off the corners")
+end })
+
+table.insert(tests, { name = "Scoring polish at the live GUI size 1506x751: played cards at least 70 percent of the hand card, 16 px gaps, ray and quote clear", fn = function()
+	local J = require(script.Parent.Parent.Engine.PatronJuice)
+	local PL = require(script.Parent.Parent.Engine.PlayedLane)
+	local V = require(script.Parent.Parent.Engine.PatronVoiceLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1506, 751, 126, 182 }, { 1920, 957, 147, 213 } }) do
+		local r = L.rects(sz[1], sz[2]); local rows = L.scoringRows(r, 26)
+		local lane = PL.rect({ nookBottom = rows.band.top, handTop = rows.band.bottom, cardW = sz[3], cardH = sz[4], popupH = 0, gap = 0, minScale = 0.3, maxScale = PL.goalScale(sz[3], L.PLAYED_GOAL_W) })
+		if print then print(string.format("[ScoringPolish] %dx%d band %d to %d card %dx%d (hand card %d wide)", sz[1], sz[2], math.floor(rows.band.top), math.floor(rows.band.bottom), math.floor(lane.cardW), math.floor(lane.cardH), sz[3])) end
+		assert(lane.cardW >= math.min(0.7 * sz[3], 88) - 0.01, "played card at least 70 percent of the hand card (88 px cap) at " .. sz[1] .. ", got " .. lane.cardW)
+		assert(rows.band.top - rows.plateBottom >= L.SCORING_GAP + L.NAME_ROW_H, "banner row clear of the Score plate at " .. sz[1])
+		assert(rows.band.bottom <= sz[2], "band on screen at " .. sz[1])
+		local total = 5 * lane.cardW + 4 * 16
+		assert(total <= r.stage.w + 2 * lane.cardW or total < sz[1] * 0.6, "five cards with 16 px gaps fit the table at " .. sz[1])
+	end
+	local seat = { w = 160, h = 218 }
+	local len = J.rayLen(seat.w, seat.h)
+	assert(len <= 0.5 and 2 * len * seat.h * math.sin(math.rad(75)) <= seat.w * J.POP_SCALE + 0.01, "widest ray stays inside 1.2x of the seat width")
+	assert(V.SIDE_GAP >= 12, "quote stands at least 12 px from the Score plate")
+	local plate = { x = 780, y = 308, w = 360, h = 122 }
+	local q = V.beside(plate, { y = 308 }, 1506)
+	assert(q and q.x + q.w <= plate.x - 12, "quote ends 12 px left of the plate")
 end })
 
 return tests
