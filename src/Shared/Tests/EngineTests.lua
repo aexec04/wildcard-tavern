@@ -30556,6 +30556,17 @@ table.insert(tests, { name = "Scoring moment: the Patron quote stands beside the
 	assert(sp:find("scoringRects", 1, true), "the trigger line stands on the banner row")
 end })
 
+table.insert(tests, { name = "Counter boss chip: the layout reserves the painted plate's 28 px and ShopStage draws it at that rect", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local r = L.rects(sz[1], sz[2], { offers = 3, packs = 2, room = true })
+		assert(r.nextBoss.h == 28, "chip is 28 px tall at " .. sz[1])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/ShopStage.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("r.nextBoss.h", 1, true), "ShopStage sizes the chip from the layout rect")
+end })
+
 table.insert(tests, { name = "Gameplay v2 Night 2 and 3 tables: boss rule plate clear of Patrons, score and hand, a tint per rule family, synergy thread visible when narrow, deck click covers the count plate", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

@@ -460,8 +460,8 @@ function ShopSceneLayout.rects(W, H, counts)
 	-- controls along the top
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
 	out.tabs = rect((W - tabsW) / 2, 2, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
-	local bossW = clamp(tabsW * 0.8, 240, 460)
-	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, 18)
+	local bossW = clamp(tabsW * 0.74, 240, 460) -- narrow enough to stay clear of the corner toast stack at 1280 x 720
+	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, 28) -- 28 is the painted plate's height (ShopStage draws it at this rect, so nothing sticks out into the offers)
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
 
 	local leaveW, leaveH = clamp(W * 0.14, 110, 220), 64

@@ -286,7 +286,7 @@ function ShopStage.new(deps)
 		if chip and chip.Parent == shopFrame then
 			chip.AnchorPoint = Vector2.new(0, 0)
 			chip.Position = UDim2.fromOffset(r.nextBoss.x, r.nextBoss.y)
-			chip.Size = UDim2.fromOffset(r.nextBoss.w, 28)
+			chip.Size = UDim2.fromOffset(r.nextBoss.w, r.nextBoss.h)
 			ShopPaint.plate(chip, "chip")
 		end
 		if deps.onLayout then deps.onLayout(r) end
