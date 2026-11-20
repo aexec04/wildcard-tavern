@@ -19,6 +19,8 @@ local Wordmark = {}
 -- (Almendra and IMFellEnglishSC are the other candidates).
 Wordmark.FONT = Enum.Font.Fondamento
 Wordmark.TEXT_SIZE = 56
+Wordmark.GLYPH_TOP, Wordmark.GLYPH_H = 12, 75 -- painted lettering: glyph top at screen y12, glyphs 75 px tall
+Wordmark.BAND_GLYPH_TOP, Wordmark.BAND_GLYPH_H = 35, 165 -- where the glyphs sit inside the 220 px crop band of the wordmark picture
 Wordmark.TOP = 4 -- the title label starts 4 px from the top (was 20, which put its lower half over the night window)
 
 local GOLD_TOP = Color3.fromRGB(236, 205, 134)
@@ -86,9 +88,12 @@ function Wordmark.build(parent, opts)
 		title.Text = ""
 		local image = Instance.new("ImageLabel")
 		image.Name = "WordmarkImage"
-		image.AnchorPoint = Vector2.new(0.5, 0.5)
-		image.Position = UDim2.fromScale(0.5, 0.5)
-		image.Size = UDim2.fromOffset(480, 72) -- the crop below is about 6.6:1
+		-- placed by the visible glyphs, not the picture: the lettering fills y35..200 of the 220 px band, so the image
+		-- is sized to make the glyphs GLYPH_H tall and shifted up so the glyph top lands on GLYPH_TOP (screen y)
+		local k = Wordmark.GLYPH_H / Wordmark.BAND_GLYPH_H
+		image.AnchorPoint = Vector2.new(0.5, 0)
+		image.Position = UDim2.new(0.5, 0, 0, Wordmark.GLYPH_TOP - Wordmark.TOP - math.floor(Wordmark.BAND_GLYPH_TOP * k + 0.5))
+		image.Size = UDim2.fromOffset(math.floor(1456 * k + 0.5), math.floor(220 * k + 0.5)) -- the crop below is about 6.6:1
 		image.BackgroundTransparency = 1
 		image.Image = AssetId.normalize(opts.imageId) or ""
 		-- the painted wordmark is a 1536x1024 canvas with one centred line; show only the band that holds the lettering

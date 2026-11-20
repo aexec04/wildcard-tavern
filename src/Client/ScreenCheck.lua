@@ -33,7 +33,7 @@ function M.run()
 	-- the Menu title and the Notice Board plates: live rects (screen px) at this window size
 	local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
 	for _, d in ipairs(pg:GetDescendants()) do
-		if (d.Name == "MenuTitle" or d.Name == "RankBar" or d.Name == "NextGoalBanner" or d.Name == "NewsBanner") and d:IsA("GuiObject") and visible(d) and d.AbsoluteSize.X > 0 then
+		if (d.Name == "MenuTitle" or d.Name == "WordmarkImage" or d.Name == "RankBar" or d.Name == "NextGoalBanner" or d.Name == "NewsBanner") and d:IsA("GuiObject") and visible(d) and d.AbsoluteSize.X > 0 then
 			print(string.format("[ScreenCheck] menu %s x%d y%d %dx%d at %dx%d", d.Name, d.AbsolutePosition.X, d.AbsolutePosition.Y, d.AbsoluteSize.X, d.AbsoluteSize.Y, vp and vp.X or 0, vp and vp.Y or 0))
 		end
 	end

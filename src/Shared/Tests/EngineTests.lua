@@ -32042,6 +32042,19 @@ table.insert(tests, { name = "Patron quote: the words reset both transparencies,
 	assert(c:find("bubbleLabel.TextTransparency, bubbleLabel.TextStrokeTransparency = 0, 1", 1, true), "both text transparencies are reset on every show")
 	assert(c:find("[QuoteCheck]", 1, true) and c:find("task.delay(1.4", 1, true), "Studio line 1.4 s after the quote shows")
 	assert(c:find("TextSize = 18", 1, true), "quote text is 18 px")
+	assert(c:find("Color3.fromRGB(40, 24, 14)", 1, true) and c:find("= FILL, 0.1", 1, true), "the v2 bubble draws its own dark fill at 0.1")
+	assert(not c:find('painted(bubble', 1, true), "the bubble no longer depends on a late sibling picture")
+	assert(c:find("bStroke.Thickness", 1, true) and c:find("TextTransparency = 1", 1, true) and c:find("Transparency = 1", 1, true), "fill, stroke and words fade together")
+	assert(c:find("bubbleLabel.Visible = not", 1, true), "bare words are hidden when the fill is see-through")
+end })
+
+table.insert(tests, { name = "Wordmark: the painted lettering is placed by its glyph top (y12) and height (75), not by the picture", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/Wordmark.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("GLYPH_TOP, Wordmark.GLYPH_H = 12, 75", 1, true), "glyph top 12, glyph height 75")
+	assert(c:find("Wordmark.GLYPH_TOP - Wordmark.TOP", 1, true) and c:find("Vector2.new(0.5, 0)", 1, true), "the image is shifted by the transparent padding above the glyphs")
+	local g = assert(io.open("src/Client/ScreenCheck.lua", "r")); local sc = g:read("a"); g:close()
+	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
 
 table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245 to 0.834, Patron seats span half the width, buttons at 0.861 of the height, at 1920x1080, 1280x720 and 1506x751", fn = function()
