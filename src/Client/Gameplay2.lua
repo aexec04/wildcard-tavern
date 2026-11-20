@@ -350,13 +350,16 @@ function M.install(deps)
 		end
 		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_BTN + 2); raise(discardsPill, Z_BTN + 2); raise(deckPill, Z_UI)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
-		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)
-		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
-		scoreBox.ZIndex = 3
 		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
-		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH, self.playing == true)
+		local SPlate = require(Engine:WaitForChild("Gameplay2ScorePlate"))
+		local live = SPlate.live(r.stage, root.AbsoluteSize.X, capH, progH, self.playing == true) -- the stack stands 8 px inside the carved border
+		local N = live.N
+		scoreBox.Position = UDim2.fromOffset(live.box.x, live.box.y)
+		scoreBox.Size = UDim2.fromOffset(live.box.w, live.box.h)
+		scoreBox.ZIndex = 3
+		self.scoreFit = { size = N.textSize, w = live.inner.w }
 		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
-		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 4
+		scoreNum.TextSize = SPlate.fitSize(N.textSize, #tostring(scoreNum.Text), live.inner.w); scoreNum.ZIndex = 4
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
 		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 4
 		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
@@ -364,11 +367,8 @@ function M.install(deps)
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 4
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
-			local sw = root.AbsoluteSize.X
-			local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
-			local ph = math.max(40, N.lineY + 4)
-			scorePlate.Position = UDim2.fromOffset(r.stage.x + math.floor((r.stage.w - pw) / 2), r.stage.y - 2)
-			scorePlate.Size = UDim2.fromOffset(pw, ph)
+			scorePlate.Position = UDim2.fromOffset(live.plate.x, live.plate.y)
+			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
 		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
@@ -386,7 +386,7 @@ function M.install(deps)
 			arrow.ZIndex = 4
 			local half = math.floor(math.max(24, math.min(scoreProgress.TextBounds.X, 160)) / 2) -- snug: 12 px gap from the "o of N" text, arrow 52 wide
 			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, N.lineY + 4 + math.floor(progH / 2))
-			arrow.Visible = scoreProgress.Visible
+			arrow.Visible = scoreProgress.Visible and (half + 12 + 52) * 2 <= live.inner.w -- a flourish that would cross the carved border is dropped
 		end
 		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
@@ -554,7 +554,13 @@ function M.install(deps)
 		end
 		do -- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number
 			local nowScore = math.floor(lastState.roundScore or 0)
-			local function put(n) scoreNum.Text = string.format("%d", math.floor(n)) end
+			local function put(n)
+				scoreNum.Text = string.format("%d", math.floor(n))
+				local fit = self.scoreFit
+				if fit then -- a long total shrinks to stay inside the plate's border
+					pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
+				end
+			end
 			if self.lastScore and nowScore > self.lastScore and lastState.phase == "playing" then
 				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
 				if not ok then put(nowScore) end

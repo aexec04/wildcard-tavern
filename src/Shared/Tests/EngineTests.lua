@@ -29133,7 +29133,7 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("flatOpaque(deps.playButton)", 1, true) and src:find("b.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate (opaque flat, or the painted frame behind it)")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
-	assert(src:find("scoreStack(", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
+	assert(src:find("SPlate.live(", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
 	assert(src:find("ScoreJuiceBanner", 1, true), "a stale TARGET CLEARED shout is hidden once the screen leaves play")
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
@@ -31808,8 +31808,8 @@ table.insert(tests, { name = "Ornate frames: full scale slices keep the whole pi
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local g2 = read("src/Client/Gameplay2.lua")
-	expectTrue(g2:find("0.19 * sw", 1, true) and g2:find('"ArrowL"', 1, true) or g2:find('"ArrowL"', 1, true) ~= nil or g2:find("ArrowL", 1, true) ~= nil, "score plate is 0.19 wide with arrow flourishes")
-	expectTrue(g2:find("0.19 * sw", 1, true) ~= nil, "score plate width is 0.19 of the screen")
+	expectTrue(g2:find('"ArrowL"', 1, true) and g2:find('"ArrowL"', 1, true) or g2:find('"ArrowL"', 1, true) ~= nil or g2:find("ArrowL", 1, true) ~= nil, "score plate is 0.19 wide with arrow flourishes")
+	expectTrue(read("src/Shared/Engine/Gameplay2ScorePlate.lua"):find("0.19 * sw", 1, true) ~= nil, "score plate width is 0.19 of the screen")
 	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"wh_btn_green"', 1, true) ~= nil, "Got it wears the whole-picture green frame")
 end })
 
@@ -31982,6 +31982,34 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 		for _, l in ipairs(lines) do print(w .. " " .. l) end
 		expectEqual(#warns, 0, w .. "x" .. h .. ": " .. table.concat(warns, "; "))
 	end
+end })
+
+table.insert(tests, { name = "Score plate: caption, numeral and progress line stand 8 px inside the carved border, a long total shrinks to fit", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local st = L.rects(w, h).stage
+		for _, compact in ipairs({ false, true }) do
+			local lv = P.live(st, w, 20, 22, compact)
+			local tag = w .. "x" .. h .. (compact and " scoring" or " idle")
+			expectTrue(lv.plate.x >= st.x and lv.plate.y >= st.y and lv.plate.x + lv.plate.w <= st.x + st.w and lv.plate.y + lv.plate.h <= st.y + st.h, tag .. ": plate inside the stage")
+			expectTrue(lv.inner.x - lv.plate.x == P.PAD and lv.inner.y - lv.plate.y == P.PAD, tag .. ": 8 px inner padding")
+			-- the stack runs from the box top (numeral row, caption above) down to contentBottom: all of it inside the inner area
+			local top = lv.box.y + (lv.N.roomy and not lv.N.compact and 0 or lv.N.numTop)
+			expectTrue(top >= lv.inner.y, tag .. ": stack top " .. top .. " inside inner top " .. lv.inner.y)
+			expectTrue(lv.contentBottom <= lv.inner.y + lv.inner.h, tag .. ": stack bottom " .. lv.contentBottom .. " inside inner bottom " .. (lv.inner.y + lv.inner.h))
+			expectTrue(lv.N.numH >= 14, tag .. ": numeral readable")
+			-- a 9 digit total fits the inner width, a short one keeps its full size
+			local big = P.fitSize(lv.N.textSize, 9, lv.inner.w)
+			expectTrue(big * 0.62 * 9 <= lv.inner.w or big == P.MIN_FONT, tag .. ": long total fits")
+			expectTrue(P.fitSize(lv.N.textSize, 1, lv.inner.w) == lv.N.textSize, tag .. ": short total keeps its size")
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("SPlate.live(", 1, true) ~= nil and src:find("fitSize", 1, true) ~= nil, "the live plate uses the tested rects")
+	expectTrue(src:find("scoreNum.Font = Enum.Font.GothamBold", 1, true) ~= nil and src:find("scoreNum.TextColor3 = Color3.fromRGB(255, 255, 255)", 1, true) ~= nil, "bold white digits with a gold outline")
 end })
 
 table.insert(tests, { name = "Gameplay v2: Rank, Suit, Play Hand and Discard share one bottom row, even gaps, clear of the count pills", fn = function()

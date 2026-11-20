@@ -45,6 +45,37 @@ function M.rows(w, h)
 	return out
 end
 
+-- The live plate (Client/Gameplay2): the score block (caption, numeral, "o of N" line) stands PAD px inside the carved border on every
+-- side, so nothing touches the trim. `stage` is the layout stage rect, `sw` the screen width, capH/progH the caption and progress rows.
+-- Returns { plate, box, inner, N }: plate = the painted frame, box = where the stack's own origin sits (stage inset PAD top and bottom),
+-- inner = the plate minus its border, N = Layout.scoreStack for the inset height.
+M.PAD = 8
+M.MIN_FONT = 14
+function M.live(stage, sw, capH, progH, compact)
+	local pad = M.PAD
+	local ih = math.max(1, stage.h - 2 * pad)
+	local N = Layout.scoreStack(ih, capH, progH, compact)
+	local pw = math.min(stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
+	local shows = N.roomy and not N.noProgress -- the progress line only shows on a roomy stage
+	local content = shows and N.bottom or (N.numTop + N.numH)
+	local ph = math.min(stage.h, math.max(40, content + 2 * pad))
+	local plate = { x = stage.x + math.floor((stage.w - pw) / 2), y = stage.y, w = pw, h = ph }
+	return {
+		plate = plate,
+		box = { x = stage.x, y = stage.y + pad, w = stage.w, h = ih },
+		inner = { x = plate.x + pad, y = plate.y + pad, w = plate.w - 2 * pad, h = plate.h - 2 * pad },
+		N = N,
+		contentBottom = stage.y + pad + content,
+	}
+end
+
+-- the numeral shrinks (never grows) so `digits` figures fit the inner width; Gotham bold digits are about 0.62 of the font size wide
+function M.fitSize(textSize, digits, innerW)
+	digits = math.max(1, tonumber(digits) or 1)
+	local fit = math.floor(innerW / (0.62 * digits))
+	return math.max(M.MIN_FONT, math.min(textSize, fit))
+end
+
 function M.lingers(hold, calm)
 	hold = tonumber(hold) or 0
 	return hold <= M.MAX_LINGER
