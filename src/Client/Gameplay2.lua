@@ -357,14 +357,21 @@ function M.install(deps)
 		end
 		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_BTN + 2); raise(discardsPill, Z_BTN + 2); raise(deckPill, Z_UI)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
-		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
+		local capH, progH = 26, 22 -- the caption row (SPlate.MIN_H counts 26); the strip stands above the plate, so it no longer shares this row
 		local SPlate = require(Engine:WaitForChild("Gameplay2ScorePlate"))
 		local HSz = require(Engine:WaitForChild("HandSizing"))
 		local nHand = lastState and lastState.hand and #lastState.hand or 0
 		local idleHand = HSz.frameFor(size.X, CTLayout.handFor(r.hand, size.X, nHand), math.max(nHand, 8))
 		local stageUse = self.playing == true and r.stage or SPlate.idleStage(r.stage, idleHand.y) -- idle: plate and line end 12 px above the tallest card
 		local stripShown = false -- the hand strip stands above the Score plate (never over its caption) when the idle stage has room for both
-		if self.previewText and self.playing ~= true then stageUse, stripShown = PreviewRules.plateStage(stageUse, SPlate.MIN_H) end
+		if self.previewText and self.playing ~= true then
+			local ps, ok = PreviewRules.plateStage(stageUse, SPlate.MIN_H)
+			if ok then -- only when the shifted plate still holds the whole stack (caption, normal numeral, "o of N" line)
+				local t = SPlate.live(ps, root.AbsoluteSize.X, capH, progH, false).N
+				if t.roomy and not t.noProgress then stageUse, stripShown = ps, true end
+			end
+		end
+		local nameInCaption = self.previewText ~= nil and self.playing ~= true and not stripShown -- no room for the strip: the hand name takes the caption row instead
 		local live = SPlate.live(stageUse, root.AbsoluteSize.X, capH, progH, self.playing == true)
 		if game:GetService("RunService"):IsStudio() and self.tableRectsKey ~= size.X .. "x" .. size.Y then
 			self.tableRectsKey = size.X .. "x" .. size.Y
@@ -390,7 +397,8 @@ function M.install(deps)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
-		scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true or stripShown)
+		scoreCaption.Visible = N.roomy and N.numTop >= capH
+		scoreCaption.Text = nameInCaption and (self.previewText:match("^(.-)%s*|") or self.previewText) or "Score" -- "Flush Lv 2": the plate is too narrow for the Chips x Mult part
 		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
@@ -408,7 +416,7 @@ function M.install(deps)
 			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, N.lineY + 4 + math.floor(progH / 2))
 			arrow.Visible = scoreProgress.Visible and (half + 12 + 52) * 2 <= live.inner.w -- a flourish that would cross the carved border is dropped
 		end
-		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
+		if self.previewText and not self.playing and stripShown then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
 			raise(previewPill, Z_UI + 1)
 			if not painted.preview then painted.preview = true; pcall(function() Kit.painted(previewPill, "wh_target") end) end -- the Target and Tips plate family

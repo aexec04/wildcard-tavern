@@ -29788,6 +29788,37 @@ table.insert(tests, { name = "Gameplay v2 hand strip: painted strip above the Sc
 	assert(c:find("PreviewRules.plateStage", 1, true) and c:find('Kit.painted(previewPill, "wh_target")', 1, true) and c:find("RichText = true", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Gameplay v2 hand strip: the Score caption and the o of N line stay in every state, the strip only shows when the shifted plate keeps the whole stack, else the name takes the caption row", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local HSz = require(script.Parent.Parent.Engine.HandSizing)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local shownAny, fallbackAny = false, false
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1920, 921 }, { 1600, 900 }, { 1506, 751 }, { 1440, 900 }, { 1366, 768 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local ih = HSz.frameFor(sz[1], CT.handFor(r.hand, sz[1], 8), 8)
+		local idle = SP.idleStage(r.stage, ih.y)
+		local idleN = SP.live(idle, sz[1], 26, 22, false).N
+		local ps, ok = P.plateStage(idle, SP.MIN_H)
+		local useStrip = false
+		if ok then
+			local n = SP.live(ps, sz[1], 26, 22, false).N -- the same gate Client/Gameplay2 uses
+			useStrip = n.roomy and not n.noProgress
+			if useStrip then
+				local strip = P.rect(idle, "Straight Flush Lv 12  |  150 Chips x 12 Mult")
+				assert(strip.y + strip.h + P.GAP <= ps.y, "strip clear of the plate at " .. sz[1] .. "x" .. sz[2])
+				assert(ps.y + ps.h <= ih.y - SP.HAND_GAP + 1 or ps.h == SP.MIN_H, "plate still above the hand")
+			end
+		end
+		if useStrip then shownAny = true else fallbackAny = true; assert(idleN.roomy, "fallback keeps the caption row at " .. sz[1] .. "x" .. sz[2]) end
+	end
+	assert(shownAny and fallbackAny, "both paths are exercised")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("nameInCaption", 1, true) and c:find("t.roomy and not t.noProgress", 1, true) and c:find("and stripShown then", 1, true), "wired")
+end })
+
 table.insert(tests, { name = "Menu polish: the daily strip wears the table's gold framed plate and its words and the tip text stay 28 px inside the frame ends", fn = function()
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -31881,7 +31912,7 @@ table.insert(tests, { name = "Scoring phase: the Score caption and the N of Targ
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
-	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true or stripShown)", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
+	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
 end })
 
 table.insert(tests, { name = "Boss round: the scroll is the one rule element, the intro plate and the Night map bars wear the ornate wide plate", fn = function()
