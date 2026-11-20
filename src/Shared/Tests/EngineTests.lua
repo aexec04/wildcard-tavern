@@ -31984,4 +31984,43 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 	end
 end })
 
+table.insert(tests, { name = "Gameplay v2: Rank, Suit, Play Hand and Discard share one bottom row, even gaps, clear of the count pills", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local row = { r.sortRank, r.sortSuit, r.play, r.discard }
+		local tag = w .. "x" .. h
+		for i = 2, 4 do
+			expectTrue(math.abs(row[i].y - row[1].y) <= 4, tag .. ": same top, control " .. i)
+			expectTrue(math.abs(row[i].h - row[1].h) <= 4, tag .. ": same height, control " .. i)
+		end
+		-- left to right order, no overlap, gaps at least 8 px
+		local gaps = {}
+		for i = 1, 3 do
+			gaps[i] = row[i + 1].x - (row[i].x + row[i].w)
+			expectTrue(gaps[i] >= 8, tag .. ": gap " .. i .. " is " .. gaps[i])
+		end
+		-- the two gaps inside each pair are even: Rank to Suit and Play to Discard differ by at most 12 px
+		expectTrue(math.abs(gaps[1] - gaps[3]) <= 12, tag .. ": pair gaps " .. gaps[1] .. " and " .. gaps[3])
+		expectTrue(math.abs(r.sortRank.w - r.sortSuit.w) <= 2, tag .. ": Rank and Suit equal width")
+		expectTrue(math.abs(r.play.w - r.discard.w) <= 2, tag .. ": Play Hand and Discard equal width")
+		-- the Hands and Discards pills hang above their button, touching neither it nor the sort plates
+		for _, pk in ipairs({ "playCount", "discardCount" }) do
+			local p = r[pk]
+			expectTrue(p.y + p.h < row[3].y, tag .. ": " .. pk .. " above the buttons")
+			for _, k in ipairs({ "sortRank", "sortSuit" }) do
+				local b = r[k]
+				local hit = p.x < b.x + b.w and b.x < p.x + p.w and p.y < b.y + b.h and b.y < p.y + p.h
+				expectTrue(not hit, tag .. ": " .. pk .. " clear of " .. k)
+			end
+		end
+		-- every control is a plain rect with a positive size inside the screen (the live instance is moved onto this one rect, so hit box == plate)
+		for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard" }) do
+			local b = r[k]
+			expectTrue(b.x >= 0 and b.y >= 0 and b.x + b.w <= w and b.y + b.h <= h, tag .. ": " .. k .. " on screen")
+		end
+	end
+end })
+
 return tests
