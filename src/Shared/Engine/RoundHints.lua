@@ -88,9 +88,9 @@ local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.
 
 -- The open middle: left of the score stage, or right of it, between the Patron pills and the hand. The stage itself holds the score,
 -- and the played cards land under it, so the plate stays beside it.
-function M.place(r, viewW, viewH, avoid)
+local function placeAt(r, viewW, viewH, avoid, topAt)
 	if type(r) ~= "table" or not r.stage or not r.hand or not r.slots or not r.slots[1] then return nil end
-	local top = r.slots[1].pill.y + r.slots[1].pill.h + 4
+	local top = topAt or (r.slots[1].pill.y + r.slots[1].pill.h + 4)
 	local bottom = r.hand.y - 6
 	local pad = 8
 	local cols = {
@@ -98,7 +98,7 @@ function M.place(r, viewW, viewH, avoid)
 		{ x0 = r.stage.x + r.stage.w + pad, x1 = viewW - pad }, -- right of it
 	}
 	for _, col in ipairs(cols) do
-		local plateW = math.min(M.PLATE_W, col.x1 - col.x0)
+		local plateW = math.min(math.max(M.PLATE_MIN_W, math.min(360, math.floor(0.19 * viewW + 0.5))), col.x1 - col.x0) -- the mockup plate is 317 of 1672 wide
 		while plateW >= M.PLATE_MIN_W do
 			local plateH = math.floor(plateW / M.PLATE_ASPECT + 0.5)
 			local total = plateH + M.GAP + M.BUTTON_H
@@ -154,6 +154,21 @@ function M.place(r, viewW, viewH, avoid)
 		end
 	end
 	return nil
+end
+
+-- The mockup's hint plate stands in the left column beside the Patron seats (x 18 to 335, y 345 to 485 of 1672 x 941), level with
+-- the first seat's label row; where the consumables tray or anything else is in the way it drops to the open middle under the pills.
+function M.place(r, viewW, viewH, avoid)
+	if type(r) == "table" and r.slots and r.slots[1] and r.slots[1].label then
+		local top = r.slots[1].label.y
+		for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do -- stay under the consumables tray
+			local t = r[key]
+			if t then top = math.max(top, t.y + t.h + 6) end
+		end
+		local beside = placeAt(r, viewW, viewH, avoid, top)
+		if beside then return beside end
+	end
+	return placeAt(r, viewW, viewH, avoid, nil)
 end
 
 return M

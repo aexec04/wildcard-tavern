@@ -42,9 +42,10 @@ end
 -- Patron seat rects for n seats (up to 8, more than five overlap evenly inside the same span)
 function M.patronRow(w, h, n)
 	n = math.max(0, math.min(math.floor(tonumber(n) or M.SEATS), 8))
-	local top = round(0.115 * h)
-	local labelH, pillH = math.max(16, round(0.036 * h)), math.max(18, round(0.042 * h))
-	local ch = round(0.205 * h)
+	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
+	local top = round((ref and 0.12 or 0.115) * h)
+	local labelH, pillH = math.max(ref and 15 or 16, round((ref and 0.022 or 0.036) * h)), math.max(ref and 17 or 18, round((ref and 0.023 or 0.042) * h)) -- on the reference screen slim rows keep the Score plate at its mockup height
+	local ch = round((ref and 0.207 or 0.205) * h) -- the mockup seat is 205 of 941 tall
 	local cw = round(ch * M.CARD_ASPECT)
 	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
 	-- the reference mockup (1672 x 941) spreads the five seats over x 410 to 1255, half of the width (REF_SPAN)
@@ -77,18 +78,18 @@ function M.rects(w, h)
 	-- top bar: round name, Target gold box, Tips pill (at most 8 percent of the height, never under 30 px)
 	-- reference mockup: Target x 410 to 700, Tips ends at 1395 of 1672 (0.245 to 0.834 of the width), y 15 to 100 of 941; the height stays 7 percent so the boss banner still fits above the seats
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
-	local barH = math.max(30, round(0.07 * h))
+	local barH = math.max(30, (ref and math.floor(0.08 * h) or round(0.07 * h))) -- the reference screen is 8 percent so Target and Tips reach the mockup's height
 	local barW = math.min(round((ref and 0.589 or 0.56) * w), w - 2 * pad)
 	local barX = ref and math.min(round(0.245 * w), w - pad - barW) or round((w - barW) / 2)
-	local barY = math.max(4, round(0.012 * h))
+	local barY = math.max(4, round((ref and 0.005 or 0.012) * h)) -- 24 px stay free under the bar for the boss banner
 	r.bar = box(barX, barY, barW, barH)
-	local inner = 6
+	local inner = ref and 3 or 6
 	local ih = barH - 2 * inner
 	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right
 	r.target = box(barX + inner, barY + inner, round(barW * 0.31), ih)
-	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * 0.34), ih)
+	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * (ref and 0.414 or 0.34)), ih) -- the mockup scroll spans x 722 to 1130
 	do -- the parchment scroll is a 3.97 : 1 picture: on a wide bar it keeps at most 1.4 times that shape, centred in its slot (never stretched into a slab)
-		local maxW = round(ih * 3.97 * 1.4)
+		local maxW = round(ih * 3.97 * (ref and 1.43 or 1.4))
 		if r.round.w > maxW then r.round = box(r.round.x + round((r.round.w - maxW) / 2), r.round.y, maxW, ih) end
 	end
 	local tx = r.round.x + r.round.w + inner
@@ -97,6 +98,7 @@ function M.rects(w, h)
 		local maxW = round(ih * 4.22 * 1.4)
 		if r.target.w > maxW then r.target = box(r.target.x, r.target.y, maxW, ih) end
 		if r.tips.w > maxW then r.tips = box(r.tips.x + r.tips.w - maxW, r.tips.y, maxW, ih) end
+		if ref then local tw = round(barW * 0.25); r.tips = box(barX + barW - inner - tw, r.tips.y, tw, ih) end -- mockup Tips x 1150 to 1395
 	end
 	-- the one Settings gear sits in the top right corner (Engine/GearMenu); the consumables tray starts at the top left, under Roblox's top bar
 	local qy = Responsive.clearOfTopBar(pad, 0)
@@ -111,14 +113,14 @@ function M.rects(w, h)
 	local btnH = math.max(M.MIN_TOUCH, round((ref and 0.09 or 0.085) * h))
 	local btnY = h - btnH - math.max(4, round(0.012 * h))
 	if ref then btnY = math.min(round(0.861 * h), btnY) end
-	local btnW = round(0.17 * w)
-	local btnGap = math.max(10, round(0.014 * w))
+	local btnW = round((ref and 0.1855 or 0.17) * w) -- mockup: Play Hand x 530 to 840, Discard x 865 to 1180
+	local btnGap = math.max(10, round((ref and 0.015 or 0.014) * w))
 	local pairW = btnW * 2 + btnGap
-	local px = round((w - pairW) / 2)
+	local px = ref and round(0.317 * w) or round((w - pairW) / 2)
 	r.play = box(px, btnY, btnW, btnH)
 	r.discard = box(px + btnW + btnGap, btnY, btnW, btnH)
 	-- the remaining-count pills ride the top right corner of their button, fully above its top edge (PILL_GAP clear), never past the gap between buttons
-	local cw = math.max(84, round(btnW * 0.5))
+	local cw = math.max(84, round(btnW * (ref and 0.46 or 0.5)))
 	local cph = math.max(22, round(btnH * 0.4))
 	local ext = math.max(0, btnGap - 2)
 	local cy = btnY - cph - M.PILL_GAP
@@ -161,13 +163,13 @@ function M.rects(w, h)
 		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
-	local dw = math.min(round(0.115 * w), w - (r.hand.x + r.hand.w) - 2 * pad)
+	local dw = math.min(round((ref and 0.1286 or 0.115) * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)
 	local dx = w - pad - dw
 	local dy = handTop
 	r.deck = box(dx, dy, dw, dh)
 	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
-		local ch = math.max(22, round(0.04 * h))
+		local ch = math.max(22, round((ref and 0.046 or 0.04) * h))
 		local cwid = math.min(dw, round(ch * 3.4 * 1.4))
 		r.deckCount = box(dx + round((dw - cwid) / 2), dy + dh + 4, cwid, ch)
 	end

@@ -29021,7 +29021,7 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 		assert(r.play.h >= 44 and r.discard.h >= 44 and r.sortRank.h >= 44 and r.sortSuit.h >= 44, "touch targets")
 		assert(#r.slots == 5, "five seats reserved")
 		for i = 1, 5 do
-			assert(r.slots[i].card.w > 0 and r.slots[i].label.h >= 16 and r.slots[i].pill.h >= 18)
+			assert(r.slots[i].card.w > 0 and r.slots[i].label.h >= 15 and r.slots[i].pill.h >= 17)
 			assert(r.slots[i].pill.y + r.slots[i].pill.h <= r.stage.y, "stage clear of Patron pills")
 		end
 		assert(r.stage.y + r.stage.h <= r.hand.y and r.hand.y + r.hand.h <= r.play.y, "stage, hand and buttons stack without touching")
@@ -31908,6 +31908,38 @@ table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 refer
 	expectEqual(#w4, 1, "and no warning of its own")
 	local t = D.parse("tablecheck")
 	expectTrue(t and t.kind == "tablecheck", "DebugGoto tablecheck parses")
+end })
+
+table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay2Layout.rects is within 25 reference px of the 1672 x 941 mockup at 1920x1080 and 1280x720", fn = function()
+	local T = require(script.Parent.Parent.Engine.TableCheck)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = size[1], size[2]
+		-- the live check converts GUI pixels to the reference by width alone, so the reference y is read at the same scale (a 16:9 window against a 16:9 mockup)
+		local r = L.rects(w, h)
+		local live = { TargetBox = r.target, RoundName = r.round, TipsPill = r.tips, SortRank = r.sortRank, SortSuit = r.sortSuit,
+			PlayHand = r.play, Discard = r.discard, DeckCountPill = r.deckCount, ScorePlate = SP.plate(w, h) }
+		local x0, y0, x1, y1
+		for _, s in ipairs(r.slots) do
+			local c = s.card
+			x0 = x0 and math.min(x0, c.x) or c.x; y0 = y0 and math.min(y0, c.y) or c.y
+			x1 = x1 and math.max(x1, c.x + c.w) or c.x + c.w; y1 = y1 and math.max(y1, c.y + c.h) or c.y + c.h
+		end
+		live.PatronSlots = { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+		local hint = RH.place(r, w, h, {})
+		if hint then -- the plate and its Got it button are one piece in the mockup (x 18 to 335, y 345 to 485)
+			local p, b = hint.plate, hint.button
+			local hx0, hy0 = math.min(p.x, b.x), math.min(p.y, b.y)
+			local hx1, hy1 = math.max(p.x + p.w, b.x + b.w), math.max(p.y + p.h, b.y + b.h)
+			if p.w <= RH.PLATE_MIN_W then hx1 = math.min(hx1, hx0 + (335 - 18) / T.REF_W * w); hy1 = math.min(hy1, hy0 + (485 - 345) / T.REF_W * w) end -- held at its readable minimum size on small screens: only its top left corner is compared
+			live.RoundHint = { x = hx0, y = hy0, w = hx1 - hx0, h = hy1 - hy0 }
+		end
+		local lines, warns = T.compare(live, w)
+		for _, l in ipairs(lines) do print(w .. " " .. l) end
+		expectEqual(#warns, 0, w .. "x" .. h .. ": " .. table.concat(warns, "; "))
+	end
 end })
 
 return tests
