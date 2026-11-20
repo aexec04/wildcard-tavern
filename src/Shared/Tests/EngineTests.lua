@@ -21485,6 +21485,22 @@ table.insert(tests, { name = "Hand: five picks in sequence each keep the full 28
 	expectEqual(e.rgb[1] .. "," .. e.rgb[2] .. "," .. e.rgb[3], "255,214,102", "gold 255,214,102")
 end })
 
+table.insert(tests, { name = "Hand: a picked card's lift is capped so its top stays 10 px under the N of Target line; the pick edge is a 3 px gold frame above neighbours", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	expectEqual(G.capLift(28, 600, 512), 28, "plenty of room keeps the full lift")
+	expectEqual(G.capLift(28, 530, 512), 8, "the 8 at top 530 lifts 8 so its top is 522")
+	expectEqual(G.capLift(28, 515, 512), 0, "never negative")
+	expectEqual(G.capLift(28, nil, 512), 28, "unknown rest top keeps the lift")
+	for _, top in ipairs({ 520, 540, 560, 600 }) do
+		expectTrue(top - G.capLift(28, top, 512) >= 522 or G.capLift(28, top, 512) == 0, "picked top clear at rest top " .. top)
+	end
+	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local s = f:read("*a"); f:close()
+	expectTrue(s:find('e.Name = "PickEdge"', 1, true) ~= nil and s:find("Color3.fromRGB(240, 200, 90); es.Thickness = 3", 1, true) ~= nil, "PickEdge is a 3 px (240,200,90) stroke")
+	expectTrue(s:find("button.ZIndex + 60", 1, true) ~= nil, "PickEdge draws above neighbours")
+end })
+
 table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll plates, gold active tab, boss rule line on the plate, [BossStage] log", fn = function()
 	local function read(p)
 		local f = io and io.open and io.open(p, "r")

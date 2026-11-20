@@ -1552,7 +1552,8 @@ local function refreshCardVisual(index, usePop)
 	end
 
 	local selLift = SELECTED_LIFT
-	if isSelected then local ok, v = pcall(function() return require(script.Gameplay2).selectedLift(SELECTED_LIFT) end); if ok and v then selLift = v end end -- clear of the Score plate
+	if isSelected then local ok, v = pcall(function() local s = button.Parent; return require(script.Gameplay2).selectedLift(SELECTED_LIFT, s.AbsolutePosition.Y + s.AbsoluteSize.Y / 2 + (s:GetAttribute("FanY") or 0) - button.AbsoluteSize.Y / (2 * (scaleObject.Scale > 0 and scaleObject.Scale or 1))) end); if ok and v then selLift = v end end -- capped per card: top stays 10 px under the "N of Target" line
+	do local edge = button:FindFirstChild("PickEdge"); if edge then edge.Visible = isSelected end end -- gold 3 px edge above the neighbours (see build)
 	local lift = (isSelected and selLift or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	VisualHelpersModule.tweenTo(button, {
@@ -1564,7 +1565,7 @@ local function refreshCardVisual(index, usePop)
 	do local slot = button.Parent; local base = slot:GetAttribute("BaseZ"); if base == nil then base = slot.ZIndex; slot:SetAttribute("BaseZ", base) end; slot.ZIndex = isSelected and base + 40 or base end -- a picked card draws above its neighbours
 	button.Parent:SetAttribute("LiftY", lift) -- the deal landing in PlayMotion keeps a picked card lifted (Engine/HandLift)
 	if usePop then pcall(function() local y0 = button.AbsolutePosition.Y; task.delay(0.3, function() print(string.format("[HandLift] %s absY %d -> %d (card %d)", button:GetFullName(), math.floor(y0), math.floor(button.AbsolutePosition.Y), index)) end) end) end
-	if usePop then pcall(function() print(string.format("[HandLift] card %d selected=%s liftY=%d", index, tostring(isSelected), math.floor(lift))) end) end
+	if usePop then pcall(function() print(string.format("[HandLift] card %d selected=%s liftY=%d top=%d", index, tostring(isSelected), math.floor(lift), math.floor(button.AbsolutePosition.Y))) end) end
 
 	-- SELECTION/HOVER CUE: see the UIStroke's own comment back in
 	-- rebuildHand for why this moved off button.BackgroundColor3. Looked
@@ -2067,6 +2068,13 @@ local function rebuildHand(handData, phase)
 		cardStroke.Transparency = 1
 		cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		cardStroke.Parent = button
+		do -- the pick edge: a see-through frame at a high ZIndex so the neighbour's card art (also absolute under Global) cannot cover it
+			local e = Instance.new("Frame"); e.Name = "PickEdge"; e.BackgroundTransparency = 1; e.BorderSizePixel = 0; e.Active = false
+			e.Size = UDim2.fromScale(1, 1); e.ZIndex = button.ZIndex + 60; e.Visible = false
+			local ec = Instance.new("UICorner"); ec.CornerRadius = UDim.new(0.06, 0); ec.Parent = e
+			local es = Instance.new("UIStroke"); es.Color = Color3.fromRGB(240, 200, 90); es.Thickness = 3; es.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; es.Parent = e
+			e.Parent = button
+		end
 
 		-- PHASE 1B: Garnish/Special/Stamp visual treatment. Doesn't need
 		-- full card art (see the feature-expansion project doc's stated v1

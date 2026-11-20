@@ -296,6 +296,15 @@ function M.selectedLift(r, want, capH)
 	return want or 28 -- always the full lift so a pick reads on screen; the card draws above the idle plate (Z raised on pick)
 end
 
+-- per card cap: a picked card keeps its top at least PROGRESS_CLEAR px under the bottom of the "N of Target" line
+-- (lift = min(want, restTop - (progressBottom + PROGRESS_CLEAR))), never negative; nil inputs keep the wanted lift
+M.PROGRESS_CLEAR = 10
+function M.capLift(want, restTop, progressBottom)
+	want = want or 28
+	if not (restTop and progressBottom) then return want end
+	return math.max(0, math.min(want, restTop - (progressBottom + M.PROGRESS_CLEAR)))
+end
+
 function M.playedBand(r, capH, progH)
 	return M.scoringRows(r, capH).band
 end
