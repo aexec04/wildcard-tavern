@@ -32552,4 +32552,14 @@ table.insert(tests, { name = "RoundHints: the heading is gold with 4.5:1 on the 
 	expectTrue(found, "Patron Power heading")
 end })
 
+table.insert(tests, { name = "Play table background: the reference tavern scene has a recorded id and its light spots sit on the picture", fn = function()
+	local A = require(script.Parent.Parent.Engine.TableSceneArt)
+	local RL = require(script.Parent.Parent.Engine.RoomLights)
+	expectTrue(type(A.table_play_ref) == "string" and A.table_play_ref:find("rbxassetid://", 1, true) == 1, "table_play_ref id")
+	expectTrue(type(A.table_play) == "string", "the older scene stays as the fallback")
+	for _, sp in ipairs(RL.ROOMS.table_play.spots) do
+		expectTrue(sp.x > 0 and sp.x < 1 and sp.y > 0 and sp.y < 0.6, "spot on the room part of the picture")
+	end
+end })
+
 return tests

@@ -75,7 +75,7 @@ function M.install(deps)
 	scene.Size = UDim2.fromScale(1, 1)
 	scene.ScaleType = Enum.ScaleType.Crop
 	scene.ZIndex = 1
-	scene.Image = TableArt.table_play or ""
+	scene.Image = TableArt.table_play_ref or TableArt.table_play or "" -- the reference tavern (four banners, shelves, fireplace); the older scene is the fallback
 	scene.Parent = layer
 
 	-- every drawn piece sits above the scene; the real buttons are lifted to Z_BTN

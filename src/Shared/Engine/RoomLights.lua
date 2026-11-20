@@ -46,12 +46,13 @@ M.ROOMS = {
 	-- At most 12 animated objects each (glows plus motes), measured by eye from art-wip/table_scene.
 	table_play = {
 		spots = {
-			{ x = 0.114, y = 0.42, size = 0.10, kind = "candle" },
-			{ x = 0.169, y = 0.532, size = 0.08, kind = "candle" },
-			{ x = 0.925, y = 0.46, size = 0.15, kind = "fire" },
-			{ x = 0.85, y = 0.66, size = 0.09, kind = "lantern" },
+			-- measured by eye on table_play_ref (the reference tavern): candlestick left, candle and fireplace right
+			{ x = 0.098, y = 0.285, size = 0.10, kind = "candle" },
+			{ x = 0.142, y = 0.345, size = 0.08, kind = "candle" },
+			{ x = 0.93, y = 0.385, size = 0.15, kind = "fire" },
+			{ x = 0.82, y = 0.39, size = 0.09, kind = "candle" },
 		},
-		shaft = { x = 0.2, y = 0.2, w = 0.1, h = 0.22, period = 9 },
+		shaft = { x = 0.36, y = 0.12, w = 0.1, h = 0.22, period = 9 },
 		motes = 6,
 	},
 	table_boss = {

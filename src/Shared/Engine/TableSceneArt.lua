@@ -9,5 +9,6 @@ return {
 	["table_boss"] = "rbxassetid://108984698099090",
 	["table_counter"] = "rbxassetid://132200807873060",
 	["table_play"] = "rbxassetid://131893863296545",
+	["table_play_ref"] = "rbxassetid://117735338659572",
 	["table_runover"] = "rbxassetid://71178483032874",
 }

@@ -159,9 +159,10 @@ CATEGORY_OPTS = {
                                   "shop_room_b": "art-wip/menu_room/menu_room_wall.png",
                                   "shop_room_c": "art-wip/menu_room/menu_room_wall.png"}},
     "table_scene": {"quality": "medium", "style_key": "house_style", "transparent": True,
-                    "opaque": ["table_play", "table_boss", "table_counter", "table_runover"],
-                    "sizes": {"table_play": "1536x1024", "table_boss": "1536x1024", "table_counter": "1536x1024", "table_runover": "1536x1024"},
+                    "opaque": ["table_play", "table_boss", "table_counter", "table_runover", "table_play_ref"],
+                    "sizes": {"table_play_ref": "1536x1024", "table_play": "1536x1024", "table_boss": "1536x1024", "table_counter": "1536x1024", "table_runover": "1536x1024"},
                     "references": dict((k, "art-wip/menu_room/menu_room_wall.png") for k in ("table_play", "table_boss", "table_counter", "table_runover", "pk_orn_pill_wide", "pk_orn_pill_small", "pk_orn_square", "pk_orn_score", "pk_orn_btn_dark", "pk_orn_btn_green"))},
+    # table_play_ref: the same tavern as claude/reference/concept-table-reference.png, no interface (edit of that picture)
     "collection_scene": {"quality": "high", "style_key": "house_style", "transparent": True,
                          "opaque": ["collection_wall", "collection_room"] + COLL_SEC,
                          "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",
@@ -282,6 +283,8 @@ for _sid in ['winter_evening', 'festival_night', 'closing_time', 'golden_gala', 
         _o["sizes"]["play_room_%s_%s" % (_sid, _suf)] = "1536x1024"
     _o["references"]["play_room_%s_bg" % _sid] = "art-wip/play_scene/play_table_bg_b.png"
     _o["references"]["play_room_%s_front" % _sid] = "art-wip/play_scene/play_table_front_c.png"
+
+CATEGORY_OPTS["table_scene"]["references"]["table_play_ref"] = "claude/reference/concept-table-reference.png"
 
 # set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
 _SKIN_SIZES = {"_face_frame": "1024x1536", "_face_paper": "1024x1024", "_face_court": "1024x1024",
