@@ -5,6 +5,7 @@
 	(DebugGoto round1 then patrons:5). Rules and targets: Engine/TableCheck.
 ]]
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TableCheck"))
 
@@ -40,6 +41,10 @@ function M.run()
 	local gui = pg:FindFirstChild("GameUI") or pg:FindFirstChildOfClass("ScreenGui")
 	if not gui then warn("[TableCheck] no GameUI found") return 0 end
 	local guiW = gui.AbsoluteSize.X
+	-- AbsolutePosition leaves out the top GuiInset, the layout is drawn in the full viewport height: add the inset back to y, scale y by that height.
+	local inset = gui.IgnoreGuiInset and 0 or GuiService:GetGuiInset().Y
+	local cam = workspace.CurrentCamera
+	local guiH = (cam and not gui.IgnoreGuiInset) and cam.ViewportSize.Y or (gui.AbsoluteSize.Y + inset)
 	local live = {}
 	local function byName(name)
 		for _, d in ipairs(pg:GetDescendants()) do
@@ -69,8 +74,9 @@ function M.run()
 		end
 	end
 	if #seats > 0 then live.PatronSlots = union(seats) end
-	local lines, warns = Rules.compare(live, guiW)
-	print(string.format("[TableCheck] GUI width %d, reference %d (scale %.3f)", guiW, Rules.REF_W, Rules.REF_W / math.max(1, guiW)))
+	local lines, warns = Rules.compare(live, guiW, guiH, inset)
+	local kx, ky = Rules.scales(guiW, guiH)
+	print(string.format("[TableCheck] GUI %d x %d, inset %d, reference %d x %d (scale x %.3f, y %.3f)", guiW, guiH, inset, Rules.REF_W, Rules.REF_H, kx, ky))
 	for _, l in ipairs(lines) do print("[TableCheck] " .. l) end
 	for _, w in ipairs(warns) do warn("[TableCheck] " .. w) end
 	print(string.format("[TableCheck] %d of %d pieces within %d px", #Rules.TARGETS - #warns, #Rules.TARGETS, Rules.TOLERANCE))

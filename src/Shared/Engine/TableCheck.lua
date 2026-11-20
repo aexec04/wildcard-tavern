@@ -27,9 +27,15 @@ M.TARGETS = {
 	{ key = "DeckCountPill", x0 = 1430, x1 = 1645 },
 }
 
-function M.toReference(rect, guiW)
-	local k = M.REF_W / math.max(1, tonumber(guiW) or M.REF_W)
-	return { x = rect.x * k, y = rect.y * k, w = rect.w * k, h = rect.h * k }
+function M.scales(guiW, guiH)
+	local w = math.max(1, tonumber(guiW) or M.REF_W)
+	local h = math.max(1, tonumber(guiH) or (w * M.REF_H / M.REF_W))
+	return M.REF_W / w, M.REF_H / h
+end
+
+function M.toReference(rect, guiW, guiH, insetY)
+	local kx, ky = M.scales(guiW, guiH)
+	return { x = rect.x * kx, y = (rect.y + (tonumber(insetY) or 0)) * ky, w = rect.w * kx, h = rect.h * ky }
 end
 
 local function fmt(n) return string.format("%d", math.floor(n + 0.5)) end
@@ -45,14 +51,14 @@ function M.diff(ref, t)
 end
 
 -- Returns the report lines (one per target) and the warnings (pieces more than TOLERANCE off). A missing piece is a line, not a warning.
-function M.compare(live, guiW)
+function M.compare(live, guiW, guiH, insetY)
 	local lines, warns = {}, {}
 	for _, t in ipairs(M.TARGETS) do
 		local r = live[t.key]
 		if not r then
 			lines[#lines + 1] = string.format("%-14s not found on screen", t.key)
 		else
-			local ref = M.toReference(r, guiW)
+			local ref = M.toReference(r, guiW, guiH, insetY)
 			local d, worst = M.diff(ref, t)
 			local ys = t.y0 and string.format(" y %s-%s", fmt(ref.y), fmt(ref.y + ref.h)) or ""
 			local ty = t.y0 and string.format(" y %d-%d", t.y0, t.y1) or ""

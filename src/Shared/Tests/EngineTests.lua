@@ -31906,6 +31906,18 @@ table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 refer
 	local l4, w4 = T.compare(live, 1506)
 	expectEqual(#l4, #T.TARGETS, "a missing piece still gets a line")
 	expectEqual(#w4, 1, "and no warning of its own")
+	-- a 1506 x 751 viewport with a 58 px top inset: AbsolutePosition y is 58 less than the layout y, and y scales by height, not width
+	local kx, ky = T.scales(1506, 751)
+	expectTrue(math.abs(kx - 1672 / 1506) < 1e-9 and math.abs(ky - 941 / 751) < 1e-9, "each axis has its own scale")
+	local ph = T.TARGETS[9] -- PlayHand
+	expectEqual(ph.key, "PlayHand")
+	local abs = { x = ph.x0 / kx, y = ph.y0 / ky - 58, w = (ph.x1 - ph.x0) / kx, h = (ph.y1 - ph.y0) / ky }
+	local r2 = T.toReference(abs, 1506, 751, 58)
+	expectTrue(math.abs(r2.y - ph.y0) < 1e-6 and math.abs(r2.x - ph.x0) < 1e-6 and math.abs(r2.h - (ph.y1 - ph.y0)) < 1e-6, "inset added back, y and height scale by the viewport height")
+	local _, w2 = T.compare({ PlayHand = abs }, 1506, 751, 58)
+	expectEqual(#w2, 0, "Play Hand on target with the inset")
+	local _, w3 = T.compare({ PlayHand = abs }, 1506, 751, 0)
+	expectEqual(#w3, 1, "without the inset the same piece is 58 px high and warns")
 	local t = D.parse("tablecheck")
 	expectTrue(t and t.kind == "tablecheck", "DebugGoto tablecheck parses")
 end })
