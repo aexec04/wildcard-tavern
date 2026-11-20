@@ -306,6 +306,12 @@ function TavernKit.icon(host, name, pad)
 		img.Active = false
 		img.ScaleType = Enum.ScaleType.Fit
 		img.Parent = host
+	end
+	-- hooks go on every host that has none yet, also a Cloned plate that arrives with a KitIcon child but none of the connections
+	TavernKit._wired = TavernKit._wired or setmetatable({}, { __mode = "k" })
+	if not TavernKit._wired[host] then
+		TavernKit._wired[host] = true
+		-- group hung from the plate's CENTRE (scale 0.5 plus a small offset, IconLabelLayout.anchored), so a stale measured width cannot push it out
 		-- icon 14 px in from the left, word 6 px right of it, both centred vertically (Engine/IconLabelLayout, tested). A square sized in
 		-- pixels (a zero-width UDim2 with an aspect constraint collapsed to nothing). The word is the button's KitLabel when it has one (a
 		-- child, so a UIPadding on the button never moved it: that put the word under the icon), else the host's own text via KitIconPad.
@@ -320,29 +326,35 @@ function TavernKit.icon(host, name, pad)
 			end
 			local pw, ph = math.floor(host.AbsoluteSize.X / sc + 0.5), math.floor(host.AbsoluteSize.Y / sc + 0.5)
 			if pw < 2 or ph < 2 then return end -- not laid out yet: the AbsoluteSize signal calls again
-			local p = Layout.place(pw, ph)
 			local kl = host:FindFirstChild("KitLabel")
-			if kl and (kl:IsA("TextLabel") or kl:IsA("TextButton")) and kl.Text ~= "" then -- icon, gap and word are one group centred in the plate, 14 px clear each side, the word shrinks to fit
+			local a
+			if kl and (kl:IsA("TextLabel") or kl:IsA("TextButton")) and kl.Text ~= "" then -- icon, gap and word are one group, 14 px clear each side, the word shrinks to fit
 				local base = kl:GetAttribute("KitBaseSize") or kl.TextSize
 				kl:SetAttribute("KitBaseSize", base)
 				local ok, bounds = pcall(function() return game:GetService("TextService"):GetTextSize(kl.Text, base, kl.Font, Vector2.new(10000, 10000)) end)
 				if ok and bounds then
-					p = Layout.group(pw, ph, bounds.X, base, 14)
-					kl.TextSize = p.size
+					a = Layout.anchored(pw, ph, bounds.X, base, 14)
+					kl.TextSize = a.size
 				end
 			end
-			Layout.clampInside(pw, ph, p)
-			img.Position = UDim2.fromOffset(p.icon.x, p.icon.y)
-			img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
-			local up = host:FindFirstChild("KitIconPad")
-			if up then up.PaddingLeft = UDim.new(0, p.label.x) end
-			if kl and kl:IsA("GuiObject") then
-				kl.AnchorPoint = Vector2.new(0, 0)
-				kl.Position = UDim2.fromOffset(p.label.x, p.label.y)
-				kl.Size = UDim2.fromOffset(p.label.w + 4, p.label.h)
-				kl.TextXAlignment = Enum.TextXAlignment.Left
+			if not a then
+				local p = Layout.place(pw, ph) -- no word to measure: icon at the left
+				img.Position = UDim2.fromOffset(p.icon.x, p.icon.y)
+				img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
+				local up = host:FindFirstChild("KitIconPad")
+				if up then up.PaddingLeft = UDim.new(0, p.label.x) end
+				return
 			end
-			if game:GetService("RunService"):IsStudio() and not Layout.inside(pw, ph, p) then warn("[TavernKit.icon] label outside its plate: " .. host:GetFullName()) end
+			img.AnchorPoint = Vector2.new(0, 0)
+			img.Position = UDim2.new(0.5, a.icon.dx, 0, a.icon.y)
+			img.Size = UDim2.fromOffset(a.icon.w, a.icon.h)
+			local up = host:FindFirstChild("KitIconPad")
+			if up then up.PaddingLeft = UDim.new(0, math.max(0, math.floor(pw / 2) + a.label.dx)) end
+			kl.AnchorPoint = Vector2.new(0, 0)
+			kl.Position = UDim2.new(0.5, a.label.dx, 0, 0)
+			kl.Size = UDim2.new(0, a.label.w + 4, 1, 0)
+			kl.TextXAlignment = Enum.TextXAlignment.Left
+			if game:GetService("RunService"):IsStudio() and not Layout.inside(pw, ph, Layout.resolve(pw, a)) then warn("[TavernKit.icon] label outside its plate: " .. host:GetFullName()) end
 		end
 		size()
 		local kl0 = host:FindFirstChild("KitLabel")

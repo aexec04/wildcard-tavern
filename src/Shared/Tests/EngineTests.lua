@@ -32173,6 +32173,30 @@ table.insert(tests, { name = "IconLabelLayout: icon and word rects lie inside ev
 	expectTrue(stray.label.x >= stray.icon.x + stray.icon.w, "the word still starts after the icon")
 end })
 
+table.insert(tests, { name = "IconLabelLayout.anchored: the group hangs from the plate centre, so it lies inside a 144 x 68 plate even when the width measured was 300 or 600 (stale), and TavernKit wires cloned plates", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	for _, measured in ipairs({ 144, 160, 300, 600 }) do
+		for _, word in ipairs({ 4, 9 }) do
+			local a = I.anchored(measured, 68, word * 18 * 0.56, 18, 14)
+			local r = I.resolve(144, a) -- drawn in the real plate
+			if measured >= 144 or word == 4 then
+				expectTrue(r.icon.x >= 0 and r.icon.x + r.icon.w <= 144, measured .. "/" .. word .. ": icon inside the plate")
+				expectTrue(r.label.x >= r.icon.x + r.icon.w and r.label.x + r.label.w <= 144, measured .. "/" .. word .. ": word right of the icon, inside the plate")
+			end
+		end
+	end
+	local a = I.anchored(144, 68, 4 * 18 * 0.56, 18, 14)
+	local r = I.resolve(144, a)
+	expectTrue(math.abs((r.icon.x + (r.label.x + r.label.w)) / 2 - 72) <= 2, "the icon plus word group is centred")
+	if not io then return end
+	local fh = io.open("src/Client/TavernKit.lua", "r")
+	if fh then
+		local src = fh:read("*a"); fh:close()
+		expectTrue(src:find("Layout.anchored", 1, true) and src:find("UDim2.new(0.5, a.icon.dx", 1, true), "TavernKit hangs the icon from the plate centre")
+		expectTrue(src:find("TavernKit._wired[host]", 1, true), "hooks go on every host, also a Cloned one that already has a KitIcon")
+	end
+end })
+
 table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scaled 2/3 into the stored 683 x 1024 texture, inside it, window ends above the baked name plate", fn = function()
 	local P = require(script.Parent.Parent.Engine.PatronParchment)
 	local Crop = require(script.Parent.Parent.Engine.PatronCardCrop)

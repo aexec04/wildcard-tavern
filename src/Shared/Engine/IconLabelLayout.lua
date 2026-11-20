@@ -44,6 +44,28 @@ function M.group(w, h, textW, size, minSize)
 	}
 end
 
+-- The same group described from the plate's CENTRE (dx = pixels from the centre to the rect's left edge), so a caller sets
+-- Position = UDim2.new(0.5, dx, ...) and the group is centred in the real plate whatever width was measured. Returns { icon = {dx,y,w,h},
+-- label = {dx,y,w,h}, size, total }.
+function M.anchored(w, h, textW, size, minSize)
+	local g = M.group(w, h, textW, size, minSize)
+	local total = g.icon.w + M.GAP + g.label.w
+	return {
+		icon = { dx = -math.floor(total / 2), y = g.icon.y, w = g.icon.w, h = g.icon.h },
+		label = { dx = -math.floor(total / 2) + g.icon.w + M.GAP, y = 0, w = g.label.w, h = h },
+		size = g.size, total = total,
+	}
+end
+
+-- Resolves an `anchored` result against a plate of any width: absolute rects in plate pixels (what Roblox draws).
+function M.resolve(plateW, a)
+	local c = math.floor(plateW / 2)
+	return {
+		icon = { x = c + a.icon.dx, y = a.icon.y, w = a.icon.w, h = a.icon.h },
+		label = { x = c + a.label.dx, y = a.label.y, w = a.label.w, h = a.label.h },
+	}
+end
+
 -- Keeps the icon and the word inside a plate of w x h whatever the caller measured: a rect that starts left of 0 or ends past w is pulled
 -- back in (the word box shrinks, the group slides left). Pure, used by TavernKit.icon after place/group. Returns the same table.
 function M.clampInside(w, h, g)
