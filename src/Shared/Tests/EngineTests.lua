@@ -29110,7 +29110,7 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 		local d = T.discRect(w, h)
 		assert(d.w == (w >= 140 and 48 or (w >= 70 and 40 or 28)), "disc scales with the card (w " .. w .. ")")
 		assert(d.x + d.w > w and d.y + d.h > h, "the disc sits in the bottom right corner and overhangs the frame")
-		assert(math.abs((d.x + d.w - w) / d.w - 0.6) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.4) < 0.06, "about 60 percent of the disc is outside sideways and 40 percent below")
+		assert(math.abs((d.x + d.w - w) / d.w - 0.5) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.5) < 0.06, "about half of the disc is outside sideways and below")
 	end
 	assert(T.unitText("+4 Mult") == "Mult" and T.unitText("+30 Chips") == "Chips" and T.unitText("x1.5 Mult") == "Mult")
 	assert(T.unitText("Retrigger") == "Retrigger" and T.unitText("") == "")
@@ -29349,7 +29349,7 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 	local Style = require(E.TavernStyle)
 	-- 1. the disc: 40 px, bottom right corner, 40 percent outside the frame, label clear of its overhang
 	local d = T.discRect(150, 210)
-	assert(d.w == 48 and d.x + d.w == 150 + 29 and d.y + d.h == 210 + 19, "48 px disc on a roomy card, 29 px sideways and 19 px below the corner")
+	assert(d.w == 48 and d.x + d.w == 150 + 24 and d.y + d.h == 210 + 24, "48 px disc on a roomy card, 24 px sideways and 24 px below the corner")
 	assert(T.discBand(150) >= 16, "the label starts under the disc overhang")
 	-- 2. Next Round: bright green, cream text at 24 px, at least 3:1 (large text) with a solid dark outline
 	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.stroke) >= 4.5, "cream on its dark outline (the plate itself is bright green)")
@@ -30270,8 +30270,15 @@ table.insert(tests, { name = "Patron parchment seat: every cut card has a portra
 	assert(c >= 81, "crop table has every card")
 	local L = P.layout()
 	assert(L.portrait.x >= 0 and L.portrait.x + L.portrait.w <= 1 and L.ribbon.x + L.ribbon.w <= 1, "inside the seat")
-	assert(L.portrait.h >= 0.78, "the portrait fills about 80 percent of the seat")
-	assert(L.portrait.y + L.portrait.h > L.ribbon.y and L.portrait.y + L.portrait.h - L.ribbon.y <= 0.1, "the ribbon overlaps the portrait's bottom")
+	assert(L.portrait.h >= 0.9 and L.portrait.y + L.portrait.h >= 0.94, "the portrait runs to the seat bottom inside a thin border")
+	assert(L.portrait.y + L.portrait.h > L.ribbon.y and L.portrait.y + L.portrait.h - L.ribbon.y <= 0.2, "the ribbon overlaps the portrait's bottom")
+	assert(L.ribbon.y >= 0.8 - 1e-9 and L.ribbon.h <= 0.18, "the ribbon sits in the bottom 20 percent of the seat")
+	local TS = require(script.Parent.Parent.Engine.PatronTierStyle)
+	for _, w in ipairs({ 157, 105, 58 }) do
+		local d = TS.discRect(w, 200)
+		assert(d.x + d.w > w and d.x < w and d.y + d.h > 200 and d.y < 200, "the disc overlaps the bottom right corner")
+		assert(math.abs((d.x + d.w - w) - d.w / 2) <= 1 and math.abs((d.y + d.h - 200) - d.h / 2) <= 1, "by half")
+	end
 	assert(L.ribbon.y + L.ribbon.h <= 1, "ribbon inside the seat")
 	assert(P.contrast() >= 4.5, "ink on the ribbon: " .. P.contrast())
 	for _, w in ipairs({ 157, 140, 120, 105 }) do

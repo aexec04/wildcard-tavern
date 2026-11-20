@@ -58,15 +58,15 @@ end
 
 -- the power disc scales with the card: 48 px on a roomy card (140 px wide, 1920x1080), 40 px from 70 px, 28 px on very narrow
 -- cards, in the card's bottom right corner, 40 percent of it outside the frame
-M.DISC_SIZE, M.DISC_BIG, M.DISC_OVERLAP = 40, 48, 0.4
-M.DISC_OVERLAP_X = 0.6 -- sideways the disc sits 60 percent outside the frame, so only a small corner of it covers the baked name plate
+M.DISC_SIZE, M.DISC_BIG, M.DISC_OVERLAP = 40, 48, 0.5
+M.DISC_OVERLAP_X = 0.5 -- the disc overlaps the card's bottom right corner by half in both directions, as in the reference
 function M.discDiameter(w)
 	w = tonumber(w) or 0
 	if w >= 140 then return M.DISC_BIG end
 	return w >= 70 and M.DISC_SIZE or 28
 end
 
--- Bottom right corner of the card: 60 percent of the disc inside the frame, 40 percent outside (right and below).
+-- Bottom right corner of the card: half of the disc inside the frame, half outside (right and below).
 function M.discRect(w, h)
 	local d = M.discDiameter(w)
 	local out = math.floor(d * M.DISC_OVERLAP + 0.5)
@@ -75,7 +75,8 @@ function M.discRect(w, h)
 end
 
 -- Height under the card that the disc's overhang owns; the rarity label starts under it
-function M.discBand(w) return math.floor(M.discDiameter(w) * M.DISC_OVERLAP + 0.5) + 2 end
+M.DISC_BAND = 0.5 -- the label rows start under the disc, which overhangs by half
+function M.discBand(w) return math.floor(M.discDiameter(w) * M.DISC_BAND + 0.5) + 2 end
 
 function M.unitText(valueText)
 	local t = tostring(valueText or ""):gsub("^%s+", ""):gsub("%s+$", "")

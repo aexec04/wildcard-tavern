@@ -58,8 +58,8 @@ function M.patronRow(w, h, n)
 		if n <= M.SEATS then x = x0 + (i - 1) * (cw + gap)
 		else x = x0 + (i - 1) * (span - cw) / (n - 1) end
 		out.cards[i] = box(x, top, cw, ch)
-		out.labels[i] = box(x, top + ch + half + 2, cw, labelH)
-		out.pills[i] = box(x, top + ch + half + 2 + labelH + 2, cw, pillH)
+		out.labels[i] = box(x, top + ch + half, cw, labelH)
+		out.pills[i] = box(x, top + ch + half + labelH + 2, cw, pillH)
 	end
 	return out
 end

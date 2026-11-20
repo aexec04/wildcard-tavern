@@ -22,8 +22,8 @@ M.RIBBON = { 232, 214, 172 }
 M.INK = { 58, 38, 20 }
 M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
 
--- reference seat: the portrait fills about 80 percent of the card and the name ribbon overlaps the portrait's bottom
-M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.05, 0.04, 0.17, 0.80, 0.07
+-- reference seat: the portrait runs to the card bottom inside a thin cream border and the name ribbon (17 percent of the card) overlaps its bottom
+M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.04, 0.03, 0.17, 0.93, 0.16
 
 function M.layout()
 	return {
