@@ -143,6 +143,38 @@ end
 M.PAINTED_EDGE_MIN = 10
 M.PAINTED_EDGE_MAX = 14
 
+-- Audit of every painted plate: the slice numbers TavernKit hands to Roblox (texture pixels, after the 1024 clamp) must leave a centre
+-- inside the texture, and the scaled corner columns and rows must fit the plate drawn at w x h, otherwise a corner or an edge is cropped.
+-- Returns a list of problem strings (empty = every plate and size is fine). TavernKit prints it once as `[PlateSlices]`.
+M.AUDIT_SIZES = { { 300, 124 }, { 380, 155 }, { 620, 48 }, { 900, 44 }, { 120, 34 }, { 44, 44 }, { 1920, 80 }, { 200, 200 } }
+function M.plateAudit(sizes)
+	local bad = {}
+	for piece, def in pairs(M.PAINTED) do
+		local i = def.inset
+		if i then
+			if i.l + i.r >= def.src[1] or i.t + i.b >= def.src[2] then
+				bad[#bad + 1] = piece .. ": inset larger than the picture"
+			end
+			for _, s in ipairs(sizes or M.AUDIT_SIZES) do
+				local t = M.paintedTexSlice(piece, s[1], s[2])
+				local k = math.min(1, M.TEX_MAX / math.max(def.src[1], def.src[2]))
+				local tw, th = def.src[1] * k, def.src[2] * k
+				local tag = piece .. " at " .. s[1] .. "x" .. s[2]
+				if not t or t.left >= t.right or t.top >= t.bottom or t.right > tw + 1e-6 or t.bottom > th + 1e-6 then
+					bad[#bad + 1] = tag .. ": slice centre outside the " .. math.floor(tw) .. "x" .. math.floor(th) .. " texture"
+				else
+					-- rendered corner columns and rows (texture px x SliceScale) against the plate
+					local cols, rows = (t.left + (tw - t.right)) * t.scale, (t.top + (th - t.bottom)) * t.scale
+					if cols > s[1] + 1e-6 then bad[#bad + 1] = tag .. ": corner columns " .. math.floor(cols) .. " px wider than the plate" end
+					if rows > s[2] + 1e-6 then bad[#bad + 1] = tag .. ": corner rows " .. math.floor(rows) .. " px taller than the plate" end
+				end
+			end
+		end
+	end
+	table.sort(bad)
+	return bad
+end
+
 -- One ornate button family for every screen (Counter, Night map, Run Over, pause): kind "primary" is the green plate, "secondary" the dark
 -- wood one. A button near the whole-picture aspect (2.6 to 5.2 wide for 1) wears the finished wh_btn picture; any other shape (a full width
 -- Select bar, a square icon button, an unmeasured plate) wears the ornate nine-slice of the same family, so nothing stretches.

@@ -32054,6 +32054,18 @@ table.insert(tests, { name = "Whole-picture plates: no nine-slice, a recorded Im
 	for _, n in ipairs({ "speaker", "pause", "bulb", "bars", "spade", "crown" }) do expectTrue(type(Art["pk_w_icon_" .. n]) == "string" and #Art["pk_w_icon_" .. n] > 10, n .. " icon has a recorded id") end
 end })
 
+table.insert(tests, { name = "Painted plates: no plate id is cropped at any audited size (slice centre inside the 1024 texture, corners fit the plate)", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TavernStyle)
+	local bad = TS.plateAudit()
+	assert(#bad == 0, "[PlateSlices] " .. table.concat(bad, "; "))
+	-- the audit does see a crop: a piece whose corners are wider than the plate would be listed
+	local keep = TS.PAINTED.wood_plate
+	TS.PAINTED.wood_plate = { art = keep.art, src = keep.src, inset = { l = 900, t = 100, r = 900, b = 100 } }
+	local broken = TS.plateAudit({ { 300, 124 } })
+	TS.PAINTED.wood_plate = keep
+	assert(#broken >= 1, "audit catches an inset larger than the picture")
+end })
+
 table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole picture near its aspect and the ornate nine-slice elsewhere; every screen uses it", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)

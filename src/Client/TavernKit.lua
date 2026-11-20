@@ -208,6 +208,8 @@ function TavernKit.painted(host, piece)
 	if paintedArt == nil then
 		local ok, art = pcall(function() return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PaintedKitArt")) end)
 		paintedArt = ok and art or false
+		local bad = Style.plateAudit() -- one Studio line: any plate whose picture would be cropped
+		print("[PlateSlices] " .. (#bad == 0 and ("ok, all plates fit at " .. #Style.AUDIT_SIZES .. " sizes") or table.concat(bad, "; ")))
 	end
 	local id = paintedArt and paintedArt[def.art]
 	if not id or id == "" then return nil end
