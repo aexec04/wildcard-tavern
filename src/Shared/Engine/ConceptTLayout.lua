@@ -169,11 +169,12 @@ end
 -- 8 px lip, the rail's visible part runs from 12 px above the Rank and Suit row to the screen bottom, full width. Returns the same shape as decor.
 M.TRAY_LIP, M.RAIL_RISE = 8, 12
 function M.decorFor(r, w, h)
-	local function place(d, bx, by, bw, bh)
+	local function place(d, bx, by, bw, bh, over)
 		local a = d.art
-		local sx, sy = bw / (a.box[3] - a.box[1]), bh / (a.box[4] - a.box[2])
+		over = over or 0 -- the picture is drawn `over` px wider on each side of the visible box (its carved end caps then lie off screen)
+		local sx, sy = (bw + 2 * over) / (a.box[3] - a.box[1]), bh / (a.box[4] - a.box[2])
 		return {
-			x = round(bx - a.box[1] * sx), y = round(by - a.box[2] * sy), w = round(a.w * sx), h = round(a.h * sy),
+			x = round(bx - over - a.box[1] * sx), y = round(by - a.box[2] * sy), w = round(a.w * sx), h = round(a.h * sy),
 			box = { x = bx, y = by, w = bw, h = bh },
 		}
 	end
@@ -181,8 +182,23 @@ function M.decorFor(r, w, h)
 	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
 	return {
 		tray = place(M.DECOR.tray, r.deck.x - lip, r.deck.y - lip, r.deck.w + 2 * lip, r.deck.h + 2 * lip),
-		rail = place(M.DECOR.rail, 0, top, w, h - top),
+		rail = place(M.DECOR.rail, 0, top, w, h - top, M.railOverscan(w)),
 	}
+end
+
+-- The rail picture has a carved cap at each end (art px 16 to 105 on the left, 1430 to 1520 on the right of a 1536 wide picture). They touched the Rank
+-- plate and sat above the 44/52 plate, so the picture is drawn wider than the screen by the cap width plus 6 px and the caps lie off screen.
+M.RAIL_CAP_ART = { left = 105, right = 1430, w = 1536, box0 = 16, box1 = 1520 }
+function M.railOverscan(w)
+	local c = M.RAIL_CAP_ART
+	local frac = (c.left - c.box0) / (c.box1 - c.box0)
+	return math.ceil((frac * w + 9) / (1 - 2 * frac))
+end
+-- px between each carved cap and the screen edge (negative = the cap is off screen); both should be <= -6 for a clean edge
+function M.railCapClear(rail, w)
+	local c = M.RAIL_CAP_ART
+	local k = rail.w / c.w
+	return { left = rail.x + c.left * k, right = w - (rail.x + c.right * k) }
 end
 
 -- The tray art is drawn leaning about 15 degrees; turning the picture clockwise by TRAY_TILT leaves about 8 (the reference tray leans about 6).

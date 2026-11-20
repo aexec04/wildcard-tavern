@@ -24195,6 +24195,18 @@ table.insert(tests, { name = "Gameplay2 deck tray: turned about 7 degrees, stays
 		end
 	end
 end })
+table.insert(tests, { name = "Gameplay2 bottom rail: carved end caps lie 6 px or more off screen, rail still covers the full width (four sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local d = L.decorFor(G.rects(w, h), w, h)
+		local clear = L.railCapClear(d.rail, w)
+		assert(clear.left <= -6 and clear.right <= -6, w .. "x" .. h .. " caps off screen: " .. clear.left .. ", " .. clear.right)
+		assert(d.rail.x <= 0 and d.rail.x + d.rail.w >= w, w .. "x" .. h .. " rail picture covers the width")
+		assert(d.rail.box.x == 0 and d.rail.box.w == w, w .. "x" .. h .. " visible rail is full width")
+	end
+end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end

@@ -412,7 +412,7 @@ function M.install(deps)
 			end
 			if game:GetService("RunService"):IsStudio() and self.decorKey ~= size.X .. "x" .. size.Y then
 				self.decorKey = size.X .. "x" .. size.Y
-				print(("[TableDecor] %dx%d tray=%d,%d,%d,%d rail=%d,%d,%d,%d"):format(size.X, size.Y, dc.tray.box.x, dc.tray.box.y, dc.tray.box.w, dc.tray.box.h, dc.rail.box.x, dc.rail.box.y, dc.rail.box.w, dc.rail.box.h))
+				print(("[TableDecor] %dx%d tray=%d,%d,%d,%d rail=%d,%d,%d,%d capClear=%d,%d"):format(size.X, size.Y, dc.tray.box.x, dc.tray.box.y, dc.tray.box.w, dc.tray.box.h, dc.rail.box.x, dc.rail.box.y, dc.rail.box.w, dc.rail.box.h, CTLayout.railCapClear(dc.rail, size.X).left, CTLayout.railCapClear(dc.rail, size.X).right))
 			end
 		end
 		do
