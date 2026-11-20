@@ -33382,4 +33382,14 @@ table.insert(tests, { name = "Empty Patron seat (reference): a big concave four 
 	expectTrue(src:find('diamond("SigilHollow"', 1, true) == nil and src:find('diamond("Sigil", 26', 1, true) == nil, "the old small hollow diamond is gone")
 end })
 
+table.insert(tests, { name = "Scoring row: an empty event line and the old pills draw nothing on the v2 table, no size pop on a played card, live rects are printed", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/ScorePopup.lua", "r"); if not f then return end
+	local pop = f:read("*a"); f:close()
+	expectTrue(pop:find("scorePopupEventLabel.Visible = scorePopupEventLabel.Text ~= \"\"", 1, true) ~= nil, "the empty event line is hidden, not only transparent")
+	expectTrue(pop:find("handPill.Visible = false; readoutPill.Visible = false", 1, true) ~= nil, "the old pills stay hidden on every layout pass")
+	expectTrue(pop:find("(okP and v2Pop) and 1 or 1.22", 1, true) ~= nil, "no size pop on the v2 table")
+	expectTrue(pop:find("[ScoringLive]", 1, true) ~= nil, "Studio prints the live rects")
+end })
+
 return tests

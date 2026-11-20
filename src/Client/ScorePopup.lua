@@ -387,6 +387,18 @@ return function(deps)
 		scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.25
 		local edge = scorePopupEventLabel:FindFirstChild("EventEdge")
 		if edge then edge.Enabled = scorePopupEventLabel.Text ~= "" end
+		pcall(function() -- v2 table: an empty line draws nothing, and while it shows the name banner behind it is hidden (no ghost name or bar)
+			local okA, v2 = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+			if not (okA and v2) then return end
+			local has = scorePopupEventLabel.Text ~= ""
+			scorePopupEventLabel.Visible = has
+			local hf = root:FindFirstChild("HandFlair", true)
+			if hf then
+				local b, n = hf:FindFirstChild("NameBanner"), hf:FindFirstChild("Name")
+				if b then b.Visible = not has end
+				if n then n.Visible = not has end
+			end
+		end)
 	end)
 	scorePopupEventLabel.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
 	local eventTabCorner = Instance.new("UICorner")
@@ -657,12 +669,21 @@ return function(deps)
 			scorePopup.Size = UDim2.new(0, math.min(360, nm.w), 0, POPUP_H)
 			scorePopup.Position = UDim2.fromOffset(nm.x + nm.w / 2, nm.y + math.max(0, (nm.h - 24) / 2))
 			scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.05
+			scorePopupEventLabel.Visible = scorePopupEventLabel.Text ~= ""
+			handPill.Visible = false; readoutPill.Visible = false -- the old Chips x Mult box and name strip never show on the v2 table
 			local edge = scorePopupEventLabel:FindFirstChild("EventEdge")
 			if not edge then
 				edge = Instance.new("UIStroke"); edge.Name = "EventEdge"; edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				edge.Color = Color3.fromRGB(214, 170, 80); edge.Thickness = 2; edge.Parent = scorePopupEventLabel
 			end
 			edge.Enabled = scorePopupEventLabel.Text ~= ""
+			if game:GetService("RunService"):IsStudio() then
+				task.delay(0.5, function() -- live rects of what could still draw a bar in the scoring row
+					for _, o in ipairs({ scorePopupEventLabel, handPill, readoutPill }) do
+						warn(string.format("[ScoringLive] %s visible=%s abs=%d,%d %dx%d", o.Name ~= "" and o.Name or "EventLabel", tostring(o.Visible), o.AbsolutePosition.X, o.AbsolutePosition.Y, o.AbsoluteSize.X, o.AbsoluteSize.Y))
+					end
+				end)
+			end
 			print(string.format("[ScoringRects] event %d,%d plate-bottom %d banner %d,%d %dx%d cards %d to %d", scorePopup.Position.X.Offset, scorePopup.Position.Y.Offset, sr.plate.y + sr.plate.h, nm.x, nm.y, nm.w, nm.h, sr.band.top, sr.band.bottom))
 		end)
 		if #playedGhosts == 0 then
@@ -799,7 +820,9 @@ return function(deps)
 		local ghost = entry.ghost
 		local overlay = ensureHighlightOverlay(entry)
 		ghost.Visible = true
-		tweenTo(entry.scale, { Scale = 1.22 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		-- v2 table: no size pop (it grew a card's bottom over the Hands pill); the white flash and the 14 px lift carry the beat
+		local okP, v2Pop = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+		tweenTo(entry.scale, { Scale = (okP and v2Pop) and 1 or 1.22 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 		tweenTo(overlay, { BackgroundTransparency = 0.45 }, 0.1)
 		task.delay(0.16, function()
 			if ghost.Parent then
