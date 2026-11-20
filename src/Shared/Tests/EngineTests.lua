@@ -33677,6 +33677,34 @@ table.insert(tests, { name = "Patron seat names: a long name wraps to two 10 px 
 	end
 end })
 
+table.insert(tests, { name = "Patron seat names: 20 percent larger than the first pass (19 px or more at 1920x957), fill 55 percent at 1920x1080, nothing wider than the label at 1280x720 and 800x450", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local NF = require(script.Parent.Parent.Engine.PatronNameFit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
+	local c957 = L.rects(1920, 957).slots[1].card
+	local st957 = PP.rowStyle(live, c957.w, c957.h)
+	expectTrue(st957.size >= 19, "1920x957 name size " .. st957.size .. " is 19 or more")
+	local c1080 = L.rects(1920, 1080).slots[1].card
+	local st = PP.rowStyle(live, c1080.w, c1080.h)
+	local ribbonW = c1080.w * (1 - 2 * PP.SIDE)
+	local widest = 0
+	for _, n in ipairs(live) do for word in n:gmatch("%S+") do widest = math.max(widest, NF.textWidth(word, st.size)) end end
+	expectTrue(widest >= 0.55 * ribbonW, "longest word fills 55 percent of the ribbon at 1920x1080")
+	for _, sz in ipairs({ { 1280, 720 }, { 800, 450 } }) do
+		local c = L.rects(sz[1], sz[2]).slots[1].card
+		local s = PP.rowStyle(live, c.w, c.h)
+		local avail = PP.labelRect(c.w, s.wrapped).w
+		for _, n in ipairs(live) do
+			if s.wrapped then
+				for word in n:gmatch("%S+") do expectTrue(NF.textWidth(word, s.size) <= avail, sz[1] .. "x" .. sz[2] .. ": '" .. word .. "' fits the label") end
+			else
+				expectTrue(NF.textWidth(n, s.size) <= avail, sz[1] .. "x" .. sz[2] .. ": '" .. n .. "' fits the label")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Patron seat names: the size follows the ribbon height and the longest name fills at least 60 percent of the ribbon at 1920x1080", fn = function()
 	local PP = require(script.Parent.Parent.Engine.PatronParchment)
 	local NF = require(script.Parent.Parent.Engine.PatronNameFit)

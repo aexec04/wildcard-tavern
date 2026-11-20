@@ -26,7 +26,7 @@ M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
 M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.04, 0.03, 0.17, 0.93, 0.16
 
 M.TWO_LINE_H = 22 -- two 10 px lines (line height 0.9) plus 2 px each side
-M.NAME_FILL, M.NAME_MAX, M.TWO_LINE_AT = 0.55, 22, 11 -- name size is 0.55 of the ribbon height (the concept's ~20 px at 1672x941); names over 11 characters take two lines
+M.NAME_FILL, M.NAME_MAX, M.TWO_LINE_AT = 0.66, 26, 11 -- name size is 0.66 of the ribbon height (the concept's ~20 px at 1672x941, 20 percent over the first 0.55 pass); names over 11 characters take two lines
 
 -- slotH (px), wrapped (a name too long for one line) and size (the row's name size): a seat's 17 percent ribbon is too short for two
 -- lines, so it grows upward to fit them, its bottom edge unchanged
