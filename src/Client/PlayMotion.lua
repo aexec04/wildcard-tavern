@@ -162,7 +162,7 @@ function M.install(deps)
 				local t = (os.clock() - t0) / dur
 				if t >= 1 then
 					conn:Disconnect()
-					button.Position = UDim2.new(0.5, landX, 0.5, landY)
+					button.Position = UDim2.new(0.5, landX, 0.5, require(game:GetService("ReplicatedStorage").Shared.Engine.HandLift).landY(landY, slot:GetAttribute("LiftY")))
 					button.Rotation = slot:GetAttribute("FanRot") or 0
 					slot:SetAttribute("Dealing", nil)
 					return

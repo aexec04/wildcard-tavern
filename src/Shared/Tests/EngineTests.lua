@@ -32886,6 +32886,17 @@ table.insert(tests, { name = "Play table background: the reference tavern scene 
 	end
 end })
 
+table.insert(tests, { name = "HandLift: five picked cards rest five lifts, and a deal landing keeps a picked card lifted", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	local sel = { [1] = true, [3] = true, [4] = true, [6] = true, [8] = true }
+	local offs = HL.offsets(sel, 8, 28)
+	local lifted = 0
+	for i = 1, 8 do if offs[i] == 28 then lifted = lifted + 1 else assert(offs[i] == 0) end end
+	assert(lifted == 5, "5 selected = 5 lifted offsets")
+	assert(HL.landY(12, 28) == -16, "a picked card lands 28 px above its fan Y")
+	assert(HL.landY(12, nil) == 12 and HL.landY(12, 0) == 12, "an unpicked card lands on its fan Y")
+end })
+
 table.insert(tests, { name = "HandHit: a click on any visible part of a fanned card picks that card, the topmost wins", fn = function()
 	local HH = require(script.Parent.Parent.Engine.HandHit)
 	for _, n in ipairs({ 5, 8, 10 }) do

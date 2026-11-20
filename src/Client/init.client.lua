@@ -1559,6 +1559,8 @@ local function refreshCardVisual(index, usePop)
 		Position = UDim2.new(0.5, (button.Parent:GetAttribute("FanX") or 0) + spreadX, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),
 	}, 0.08) -- Engine/FeelTuning.HOVER_EASE
 	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
+	button.Parent:SetAttribute("LiftY", lift) -- the deal landing in PlayMotion keeps a picked card lifted (Engine/HandLift)
+	if usePop then pcall(function() print(string.format("[HandLift] card %d selected=%s liftY=%d", index, tostring(isSelected), math.floor(lift))) end) end
 
 	-- SELECTION/HOVER CUE: see the UIStroke's own comment back in
 	-- rebuildHand for why this moved off button.BackgroundColor3. Looked
