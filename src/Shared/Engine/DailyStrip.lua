@@ -90,9 +90,9 @@ function M.rectBelow(w, h, cardsBottom)
 end
 
 -- On the main menu the strip stands in the bottom row to the RIGHT of the Deal Me In column: the tip plate (Engine/MenuLife) is on the
--- left, the sign column (210 px, centred) in the middle and All actions (168 x 42, 16 px from the corner) at the right, 16 px between
+-- left, the sign column (340 px, centred) in the middle and All actions (220 x 56, 16 px from the corner) at the right, 16 px between
 -- neighbours. Returns nil when the gap is narrower than MENU_MIN_W (small screens), then the strip is left out of the menu.
-M.MENU_GAP, M.MENU_SIGN_HALF, M.MENU_ALL_W, M.MENU_MIN_W, M.MENU_MAX_W = 16, 105, 168, 340, 560
+M.MENU_GAP, M.MENU_SIGN_HALF, M.MENU_ALL_W, M.MENU_MIN_W, M.MENU_MAX_W = 16, 170, 220, 340, 560
 function M.menuRect(w, h)
 	w, h = math.floor(tonumber(w) or 0), math.floor(tonumber(h) or 0)
 	local left = math.floor(w / 2) + M.MENU_SIGN_HALF + M.MENU_GAP

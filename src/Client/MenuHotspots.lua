@@ -447,12 +447,12 @@ function Hotspots.build(opts)
 	allButton.Name = "AllActionsButton"
 	allButton.AnchorPoint = Vector2.new(1, 1)
 	allButton.Position = UDim2.new(1, -16, 1, -16)
-	allButton.Size = UDim2.fromOffset(168, 42)
+	allButton.Size = UDim2.fromOffset(220, 56)
 	allButton.AutoButtonColor = false
 	allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22) -- a dark wood plate with a brass edge like Deal Me In (cream on it is over 10:1)
 	allButton.BackgroundTransparency = 0
 	allButton.Font = Enum.Font.GothamBold
-	allButton.TextSize = 16
+	allButton.TextSize = 20
 	allButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 	allButton.TextTransparency = 0
 	allButton.TextStrokeTransparency = 1
@@ -750,25 +750,25 @@ function Hotspots.build(opts)
 				local plaque = button:FindFirstChild("Plaque")
 				plaque.Visible = true
 				plaque.AnchorPoint = Vector2.new(0.5, 1)
-				plaque.Position = UDim2.new(0.5, 0, 1, -46) -- New Run (34 px) sits under it with a 12 px gap
-				plaque.Size = UDim2.fromOffset(210, 38)
+				plaque.Position = UDim2.new(0.5, 0, 1, -66) -- New Run (56 px) sits under it with a 10 px gap
+				plaque.Size = UDim2.fromOffset(340, 64)
 				plaque.Desc.Visible = false
 				plaque.Title.Text = button:GetAttribute("HotspotLabel")
 				plaque.Title.Size = UDim2.new(1, -20, 1, 0)
 				plaque.Title.Position = UDim2.fromOffset(10, 0)
-				plaque.Title.TextSize = 22
+				plaque.Title.TextSize = 24
 				require(script.Parent.MenuPlayButton).style(plaque, lanterns, TweenService) -- Concept T green button look and gentle pulse
 			end
 			homes.newRun = function(button)
-				setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(150, 34))
+				setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(220, 56))
 				button.AnchorPoint = Vector2.new(0.5, 1)
 				button.Position = UDim2.new(0.5, 0, 1, 0)
-				button:FindFirstChild("Plaque").Title.TextSize = 16
+				button:FindFirstChild("Plaque").Title.TextSize = 20
 				button.Parent = frame
-				pcall(function() -- ornate dark wood plate (150 x 34 picks the wide whole picture), the flat plaque stays if art is missing
+				pcall(function() -- ornate dark wood plate (220 x 56 picks the wide whole picture), the flat plaque stays if art is missing
 					local kit = require(script.Parent.TavernKit)
 					local plaque = button:FindFirstChild("Plaque")
-					local img = kit.painted(plaque, require(game:GetService("ReplicatedStorage").Shared.Engine.TavernStyle).buttonPiece("secondary", 150, 34))
+					local img = kit.painted(plaque, require(game:GetService("ReplicatedStorage").Shared.Engine.TavernStyle).buttonPiece("secondary", 220, 56))
 					if img then plaque.BackgroundTransparency = 1 end
 				end)
 			end

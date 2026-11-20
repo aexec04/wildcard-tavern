@@ -27202,15 +27202,15 @@ table.insert(tests, { name = "Menu on a very wide screen: the card table stays a
 			top, bottom = top - (bottom - (H - RL.PLAY_SIGN_MARGIN)), H - RL.PLAY_SIGN_MARGIN
 		end
 		local mid = (r.l + r.r) / 2
-		-- "Deal Me In": 210 x 38, its bottom 46 px above the frame's bottom. "New Run": 34 px on the frame's bottom.
-		local signTop, signBottom = bottom - RL.PLAY_SIGN_H, bottom - 46
+		-- "Deal Me In": 340 x 64, its bottom 66 px above the frame's bottom. "New Run": 56 px on the frame's bottom.
+		local signTop, signBottom = bottom - RL.PLAY_SIGN_H, bottom - 66
 		expectTrue(mid - RL.PLAY_SIGN_W / 2 >= r.l and mid + RL.PLAY_SIGN_W / 2 <= r.r, "the sign is no wider than the click surface" .. at)
 		expectTrue(signTop >= top and signBottom <= bottom, "Deal Me In lies on the click surface" .. at)
 		expectTrue(signTop >= 0 and bottom <= H, "and on the screen" .. at)
 	end
-	expectTrue(RL.holdsSign(0, 0, 210, 108, 1000, 1000), "just big enough")
-	expectFalse(RL.holdsSign(0, 0, 209, 108, 1000, 1000), "too narrow for the sign")
-	expectFalse(RL.holdsSign(0, 0, 210, 107, 1000, 1000), "too short for the sign and its margin")
+	expectTrue(RL.holdsSign(0, 0, 340, 154, 1000, 1000), "just big enough")
+	expectFalse(RL.holdsSign(0, 0, 339, 154, 1000, 1000), "too narrow for the sign")
+	expectFalse(RL.holdsSign(0, 0, 340, 153, 1000, 1000), "too short for the sign and its margin")
 	expectFalse(RL.holdsSign(0, 900, 400, 1200, 1000, 1000), "only the part on screen counts")
 	expectTrue(RL.layout(200, 844).play.strip, "a sliver of the table is still a strip plate (the phone list is shown there)")
 	-- every other hotspot keeps the old rule: mostly cropped away means a strip plate
@@ -27226,9 +27226,9 @@ table.insert(tests, { name = "Menu on a very wide screen: the card table stays a
 	local f = io.open("src/Client/MenuHotspots.lua", "r")
 	if not f then return end
 	local hot = f:read("*a"); f:close()
-	expectTrue(hot:find("plaque.Position = UDim2.new(0.5, 0, 1, -46)", 1, true) ~= nil and hot:find("plaque.Size = UDim2.fromOffset(210, 38)", 1, true) ~= nil,
-		"the sign the rule is sized for: 210 wide, 38 tall, 46 above the frame's bottom")
-	expectTrue(hot:find('setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(150, 34))', 1, true) ~= nil, "New Run is 34 px under it")
+	expectTrue(hot:find("plaque.Position = UDim2.new(0.5, 0, 1, -66)", 1, true) ~= nil and hot:find("plaque.Size = UDim2.fromOffset(340, 64)", 1, true) ~= nil,
+		"the sign the rule is sized for: 340 wide, 64 tall, 66 above the frame's bottom (New Run 56 plus a 10 px gap)")
+	expectTrue(hot:find('setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(220, 56))', 1, true) ~= nil, "New Run is 56 px under it")
 	expectTrue(hot:find('if hs.id == "play" and b > h - 24 then', 1, true) ~= nil, "and the 24 px margin under New Run")
 end })
 
@@ -28369,13 +28369,13 @@ table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column
 		local r = M.tipRect(w, h)
 		if r then
 			shown = shown + 1
-			assert(r.x >= 16 and r.x + r.w <= w / 2 - 105 - 16 + 0.001, "tip clear of the sign column at " .. w)
+			assert(r.x >= 16 and r.x + r.w <= w / 2 - 170 - 16 + 0.001, "tip clear of the sign column at " .. w)
 			assert(r.y + r.h <= h - 16 + 0.001 and r.y >= 0, "tip inside the screen at " .. w)
-			assert(r.w >= 240 and r.h >= 42, "tip plate size at " .. w)
-			-- All actions is 168 x 42 at 16 px from the bottom right corner
-			assert(r.x + r.w <= w - 16 - 168, "tip clear of All actions at " .. w)
+			assert(r.w >= 240 and r.h >= 56, "tip plate size at " .. w)
+			-- All actions is 220 x 56 at 16 px from the bottom right corner
+			assert(r.x + r.w <= w - 16 - 220, "tip clear of All actions at " .. w)
 		else
-			assert(h < M.TIP_MIN_HEIGHT or w / 2 - 105 - 16 - 16 < 240, "tip left out only when there is no room at " .. w)
+			assert(h < M.TIP_MIN_HEIGHT or w / 2 - 170 - 16 - 16 < 240, "tip left out only when there is no room at " .. w)
 		end
 	end
 	assert(shown >= 4 and M.tipRect(1920, 1080) and M.tipRect(1920, 1080).w == 520)
@@ -28392,16 +28392,16 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 		local strip = D.menuRect(w, h)
 		if strip then
 			shown = shown + 1
-			local sign = { x = w / 2 - 105, y = 0, w = 210, h = h } -- the whole column, any height
-			local all = { x = w - 16 - 168, y = h - 16 - 42, w = 168, h = 42 }
+			local sign = { x = w / 2 - 170, y = 0, w = 340, h = h } -- the whole column, any height
+			local all = { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 }
 			assert(not hit(strip, sign) and not hit(strip, all), "strip clear of sign column and All actions at " .. w)
-			assert(strip.x - (w / 2 + 105) >= 16 and all.x - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(strip.x - (w / 2 + 170) >= 16 and all.x - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
 			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
 			local tip = L.tipRect(w, h)
 			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
 		end
 	end
-	assert(shown >= 3 and D.menuRect(600, 800) == nil)
+	assert(shown >= 2 and D.menuRect(600, 800) == nil)
 end })
 
 table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 44 px tall and clear of each other at desktop, tablet, compact and phone sizes", fn = function()

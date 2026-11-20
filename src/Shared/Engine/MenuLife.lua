@@ -32,8 +32,8 @@ M.TIPS = {
 }
 
 -- The tip stands on a small plate in the bottom left corner, level with All actions (bottom right) and clear of the Deal Me In
--- sign and New Run plaque that hang in the centre column (210 px wide). Returns nil when there is no room for one line.
-M.TIP_MARGIN, M.TIP_PLATE_H, M.TIP_MAX_W, M.TIP_MIN_W, M.TIP_SIGN_HALF, M.TIP_GAP = 16, 42, 520, 240, 105, 16
+-- sign and New Run plaque that hang in the centre column (340 px wide). Returns nil when there is no room for one line.
+M.TIP_MARGIN, M.TIP_PLATE_H, M.TIP_MAX_W, M.TIP_MIN_W, M.TIP_SIGN_HALF, M.TIP_GAP = 16, 56, 520, 240, 170, 16
 function M.tipRect(width, height)
 	width, height = tonumber(width) or 0, tonumber(height) or 0
 	if height ~= 0 and height < M.TIP_MIN_HEIGHT then return nil end

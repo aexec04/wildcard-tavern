@@ -71,7 +71,7 @@ end
 -- as a strip plate the table had "Deal Me In" above its own click surface and "New Run" over the rest of it: a click on
 -- the sign did nothing. That was every screen wider than 2.37 to 1 (a 21:9 monitor, a short window), where more than
 -- 40 percent of the table is cropped off the bottom. The table stays a prop while the part on screen holds the sign.
-MenuRoomLayout.PLAY_SIGN_W, MenuRoomLayout.PLAY_SIGN_H, MenuRoomLayout.PLAY_SIGN_MARGIN = 210, 84, 24
+MenuRoomLayout.PLAY_SIGN_W, MenuRoomLayout.PLAY_SIGN_H, MenuRoomLayout.PLAY_SIGN_MARGIN = 340, 130, 24
 
 function MenuRoomLayout.holdsSign(l, t, r, b, W, H)
 	local width = math.min(r, W) - math.max(l, 0)
