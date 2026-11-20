@@ -33014,6 +33014,22 @@ table.insert(tests, { name = "Idle Score plate and its line stay 12 px above the
 	expectEqual(SP.idleStage({ x = 1, y = 2, w = 3, h = 99 }, nil).h, 99, "no hand rect keeps the stage")
 end })
 
+table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local r = L.rects(1920, 957)
+	for _, n in ipairs({ 5, 8, 10 }) do
+		local hf = HS.frameFor(1920, CT.handFor(r.hand, 1920, n), math.max(n, 8))
+		local stage = { x = r.stage.x, y = 410, w = r.stage.w, h = r.stage.h - 24 }
+		local live = SP.live(SP.idleStage(stage, hf.y), 1920, SP.CAP_H, 22, false)
+		expectEqual(live.plate.h, 100, "plate height with " .. n .. " cards")
+		expectEqual(live.N.numH, 54, "numeral height with " .. n .. " cards")
+		expectTrue(live.plate.y + live.plate.h < hf.y - SP.PICK_LIFT, "plate bottom clear of a lifted card top")
+	end
+end })
+
 table.insert(tests, { name = "PlayRoomArt.backdrop: Classic Tavern draws table_play_ref, sets with a room keep theirs, PlayScenePaint prints [PlayTableBg]", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	local TA = require(script.Parent.Parent.Engine.TableSceneArt)
@@ -33210,7 +33226,7 @@ table.insert(tests, { name = "Table fixes (live pass): Speaker and Pause at the 
 	expectTrue(SP.CAP_H == 30 and SP.NUMERAL == 54 and SP.CAP_H + SP.NUMERAL + 2 * SP.PAD >= 96, "plate content is about 100 px")
 	if not io then return end
 	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
-	for _, w in ipairs({ '"GoldFrame"', '"GoldDiamond"', '"GlyphBar"', '"GlyphSpade"', 'ImageTransparency = 1', '<font size="30"><b>%s</b></font>', '<font size="20">%s</font>', 'Style.rgb("gold")' }) do
+	for _, w in ipairs({ '"GoldFrame"', '"GoldDiamond"', '"GlyphBar"', '"GlyphSpade"', 'ImageTransparency = 1', '<font size="%d"><b>%s</b></font>', '<font size="%d">%s</font>', 'avail * 0.6', 'Style.rgb("gold")' }) do
 		expectTrue(g2:find(w, 1, true) ~= nil, w .. " is in the live table")
 	end
 end })

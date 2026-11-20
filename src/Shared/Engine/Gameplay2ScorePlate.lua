@@ -58,9 +58,12 @@ M.PICK_LIFT = 28 -- a picked card rises this far above the card tops: the idle p
 M.IDLE_MIN_FONT = 18 -- idle numeral minimum: the caption and the "o of N" line stay even on a short stage
 M.CAP_H = 30 -- the caption row (reference: Score about 28 px)
 M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + M.CAP_H + 12 + 22 -- caption CAP_H, numeral, 12 px gap, progress 22: the smallest stage that holds the whole stack
+M.WIDE_STAGE = 780 -- stage width (0.42 of the screen) from which the plate keeps its full size
+M.IDEAL_H = 2 * M.PAD + 30 + 54 + 12 + 22 -- pad, caption, numeral, gap, progress line
 function M.idleStage(stage, handTop)
 	if not handTop then return stage end
 	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
+	if stage.w >= M.WIDE_STAGE then h = math.max(h, math.min(stage.h, M.IDEAL_H)) end -- a wide table keeps the 100 px plate; a picked card may then rise over the line under it
 	return { x = stage.x, y = stage.y, w = stage.w, h = h }
 end
 

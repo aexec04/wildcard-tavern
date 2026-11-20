@@ -240,14 +240,14 @@ function M.install(deps)
 						local gf = Instance.new("Frame"); gf.Name = "GoldFrame"; gf.BackgroundTransparency = 1; gf.BorderSizePixel = 0; gf.Active = false
 						gf.Size = UDim2.fromScale(1, 1); gf.ZIndex = Z_BTN + 2; gf.Parent = b
 						local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 8); gc.Parent = gf
-						local gs = Instance.new("UIStroke"); gs.Thickness = 3; gs.Color = Color3.fromRGB(214, 168, 76); gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gf
+						local gs = Instance.new("UIStroke"); gs.Thickness = 4; gs.Color = Color3.fromRGB(214, 168, 76); gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gf
 						local gi = Instance.new("Frame"); gi.Name = "GoldInner"; gi.BackgroundTransparency = 1; gi.BorderSizePixel = 0; gi.Active = false
-						gi.Size = UDim2.new(1, -10, 1, -10); gi.Position = UDim2.fromOffset(5, 5); gi.ZIndex = Z_BTN + 2; gi.Parent = gf
+						gi.Size = UDim2.new(1, -16, 1, -16); gi.Position = UDim2.fromOffset(8, 8); gi.ZIndex = Z_BTN + 2; gi.Parent = gf
 						local gic = Instance.new("UICorner"); gic.CornerRadius = UDim.new(0, 5); gic.Parent = gi
-						local gis = Instance.new("UIStroke"); gis.Thickness = 1; gis.Color = Color3.fromRGB(150, 110, 50); gis.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gis.Parent = gi
+						local gis = Instance.new("UIStroke"); gis.Thickness = 2; gis.Color = Color3.fromRGB(150, 110, 50); gis.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gis.Parent = gi
 						for _, cx in ipairs({ 0, 1 }) do for _, cy in ipairs({ 0, 1 }) do
 							local d = Instance.new("Frame"); d.Name = "GoldDiamond"; d.BorderSizePixel = 0; d.Active = false; d.Rotation = 45; d.AnchorPoint = Vector2.new(0.5, 0.5)
-							d.Size = UDim2.fromOffset(7, 7); d.Position = UDim2.new(cx, cx == 0 and 4 or -4, cy, cy == 0 and 4 or -4); d.BackgroundColor3 = Color3.fromRGB(240, 196, 92); d.ZIndex = Z_BTN + 3; d.Parent = gf
+							d.Size = UDim2.fromOffset(11, 11); d.Position = UDim2.new(cx, cx == 0 and 6 or -6, cy, cy == 0 and 6 or -6); d.BackgroundColor3 = Color3.fromRGB(240, 196, 92); d.ZIndex = Z_BTN + 3; d.Parent = gf
 						end end
 					end)
 				end
@@ -417,6 +417,7 @@ function M.install(deps)
 			self.tableRectsKey = size.X .. "x" .. size.Y
 			print(("[TableRects] %dx%d plate y=%d bottom=%d handTop=%d stage=%d..%d caption=%s progress=%s"):format(size.X, size.Y, live.plate.y, live.plate.y + live.plate.h, idleHand.y, stageUse.y, stageUse.y + stageUse.h, tostring(live.N.roomy), tostring(live.N.roomy and not live.N.noProgress)))
 			local function rc(b) return ("%d,%d,%d,%d"):format(b.x, b.y, b.w, b.h) end
+			print(("[ScorePlateSize] plate=%dx%d numeral=%dx%d textSize=%d"):format(live.plate.w, live.plate.h, live.N.numH and live.inner.w or 0, live.N.numH or 0, live.N.textSize or 0))
 			print(("[ActionRects] play=%s discard=%s hands=%s discards=%s"):format(rc(r.play), rc(r.discard), rc(r.playCount), rc(r.discardCount)))
 		end -- the stack stands 8 px inside the carved border
 		local N = live.N
@@ -718,8 +719,11 @@ function M.install(deps)
 				roundLabel.RichText = ih >= 62
 				local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
 				if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
-					roundLabel.TextSize = 20
-					roundLabel.Text = string.format('<font size="30"><b>%s</b></font>\n<font size="20">%s</font>', roundLabel.Text, goal)
+					local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
+					local titleSz, goalSz = math.min(30, math.floor(avail * 0.6)), math.min(20, math.floor(avail * 0.36))
+					roundLabel.TextSize = goalSz
+					roundLabel.TextYAlignment = Enum.TextYAlignment.Center
+					roundLabel.Text = string.format('<font size="%d"><b>%s</b></font>\n<font size="%d">%s</font>', titleSz, roundLabel.Text, goalSz, goal)
 				else
 					roundLabel.TextSize = math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2)))
 					roundLabel.Text = roundLabel.Text .. "\n" .. goal
