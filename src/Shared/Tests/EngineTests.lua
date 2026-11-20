@@ -32040,6 +32040,10 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 		assert(rows.tips.y + rows.tips.h <= Sum.HEIGHT - Sum.BORDER, "summary text inside the border at " .. W)
 		assert(rows.title.x >= Sum.BORDER and rows.title.x + rows.title.w <= r.w - Sum.BORDER, "summary text inside side border at " .. W)
 		assert(rows.score.size >= 15, "summary text size at " .. W)
+		-- picture aspect: the sliced picture (both corner columns and its scaled height) fits the rect, so all four corners show
+		local ps = require(script.Parent.Parent.Engine.TavernStyle).paintedSlice("orn_target", r.w, r.h)
+		assert(ps.scale * 400 <= r.w, "both corner columns inside the summary rect at " .. W)
+		assert(ps.scale * 348 <= r.h + 1e-9, "scaled picture height inside the summary rect at " .. W)
 		local rect = SL.rects(W, H, { offers = 3, packs = 2 })
 		local rp = SL.rerollPlate(rect)
 		if rp and rect.area then

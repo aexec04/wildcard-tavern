@@ -28,6 +28,8 @@ local function place(shopFrame)
 	local size = shopFrame.AbsoluteSize
 	local r = Summary.rect(size.X, size.Y)
 	plate.Position = UDim2.fromOffset(r.x, r.y)
+	plate:SetAttribute("PaintW", r.w) -- slice by the layout size so all four corners stay on the plate (TavernKit.painted); set before Size, which refits
+	plate:SetAttribute("PaintH", r.h)
 	plate.Size = UDim2.fromOffset(r.w, r.h)
 end
 
@@ -42,6 +44,8 @@ function M.attach(shopFrame)
 	plate.Name = "RoundSummary"
 	plate.Active = false
 	plate.ZIndex = 12
+	plate:SetAttribute("PaintW", Summary.WIDTH_MAX)
+	plate:SetAttribute("PaintH", Summary.HEIGHT)
 	pcall(function() Kit.painted(plate, "orn_target") end)
 	labels = {}
 	local rr = Summary.rows(Summary.WIDTH_MAX)

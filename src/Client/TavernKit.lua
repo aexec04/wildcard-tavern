@@ -230,7 +230,10 @@ function TavernKit.painted(host, piece)
 		img.Size = host.Size
 		img.Visible = host.Visible
 		img.ZIndex = math.max(0, host.ZIndex - 1)
-		local sl = Style.paintedSlice(piece, host.AbsoluteSize.X, host.AbsoluteSize.Y)
+		-- a plate that names its own layout size (attributes PaintW and PaintH) slices by that, not by AbsoluteSize: under a scaled
+		-- parent AbsoluteSize is in screen pixels while SliceScale is in local units, which can push the right corners off the plate
+		local pw, ph = host:GetAttribute("PaintW"), host:GetAttribute("PaintH")
+		local sl = Style.paintedSlice(piece, pw or host.AbsoluteSize.X, ph or host.AbsoluteSize.Y)
 		if sl then
 			img.ScaleType = Enum.ScaleType.Slice
 			img.SliceCenter = Rect.new(sl.left, sl.top, sl.right, sl.bottom)
