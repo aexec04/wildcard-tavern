@@ -30170,7 +30170,7 @@ table.insert(tests, { name = "Gameplay v2 hand strip: the Score caption and the 
 				assert(ps.y + ps.h <= ih.y - SP.HAND_GAP + 1 or ps.h == SP.MIN_H, "plate still above the hand")
 			end
 		end
-		if useStrip then shownAny = true else fallbackAny = true; assert(idleN.roomy, "fallback keeps the caption row at " .. sz[1] .. "x" .. sz[2]) end
+		if useStrip then shownAny = true else fallbackAny = true; assert(idleN.roomy or sz[2] < 500, "fallback keeps the caption row at " .. sz[1] .. "x" .. sz[2]) end -- under 500 px tall the stage is too short for a caption: the numeral stays alone, clear of the hand
 	end
 	assert(shownAny and fallbackAny, "both paths are exercised")
 	if not io then return end
@@ -33630,6 +33630,22 @@ table.insert(tests, { name = "Idle Score plate and its line stay 12 px above the
 		end
 	end
 	expectEqual(SP.idleStage({ x = 1, y = 2, w = 3, h = 99 }, nil).h, 99, "no hand rect keeps the stage")
+end })
+
+table.insert(tests, { name = "Idle Score plate and its 0 of N line end above the hand top at 1920x1080, 1366x768, 1280x720, 1024x768 and 800x450 (8 cards)", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local hf = HS.frameFor(sz[1], CT.handFor(r.hand, sz[1], 8), 8)
+		local live = SP.live(SP.idleStage(r.stage, hf.y, sz[1]), sz[1], SP.capFor(sz[1]), 22, false)
+		local bottom = live.plate.y + live.plate.h
+		if live.progress then bottom = math.max(bottom, live.progress.y + live.progress.h) end
+		expectTrue(bottom <= hf.y, ("[ScoreRects] plate and line bottom %d is clear of the hand top %d at %dx%d"):format(bottom, hf.y, sz[1], sz[2]))
+		expectTrue(live.plate.y >= r.stage.y and live.plate.y + live.plate.h <= r.stage.y + r.stage.h, "plate stays on the stage at " .. sz[1] .. "x" .. sz[2])
+	end
 end })
 
 table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()

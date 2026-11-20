@@ -67,7 +67,9 @@ function M.capFor(sw) return math.max(26, math.min(M.CAP_H, round((tonumber(sw) 
 function M.idealH(sw) return 2 * M.PAD + M.capFor(sw) + M.numeralFor(sw) + M.PROGRESS_GAP + 22 end
 function M.idleStage(stage, handTop, sw)
 	if not handTop then return stage end
-	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
+	-- the floor is MIN_H, but never taller than the stage itself: a compact table (800x450, stage 32 px) keeps the plate on the stage,
+	-- clear of the hand, with the numeral alone (no caption, no "o of N" line under it)
+	local h = math.max(math.min(M.MIN_H, stage.h), math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
 	local wide = (sw and stage.w >= 0.4 * sw) or (not sw and stage.w >= M.WIDE_STAGE) -- the stage is 0.42 of the screen at every size
 	if wide then h = math.max(h, math.min(stage.h, sw and M.idealH(sw) or M.IDEAL_H)) end -- a wide table keeps the 100 px plate; a picked card may then rise over the line under it
 	return { x = stage.x, y = stage.y, w = stage.w, h = h }
