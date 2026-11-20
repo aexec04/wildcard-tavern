@@ -34000,4 +34000,20 @@ table.insert(tests, { name = "Score plate lettering: caption is the caption row 
 	expectTrue(src:find('local c = gold and Style.rgb("gold") or { 255, 244, 222 }', 1, true) ~= nil, "numeral gold only when cleared")
 end })
 
+table.insert(tests, { name = "Gameplay2Layout at 1024x768, 1366x768 and 800x450: on screen, no overlaps, 44 px touch targets, deck clear of the hand", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, size in ipairs({ { 1024, 768 }, { 1366, 768 }, { 800, 450 } }) do
+		local w, h = size[1], size[2]
+		local r = L.rects(w, h)
+		local ok, name = L.onScreen(r, w, h)
+		expectTrue(ok, w .. "x" .. h .. " every rect is on screen (" .. tostring(name) .. ")")
+		expectTrue(#L.overlaps(r) == 0, w .. "x" .. h .. " no overlaps: " .. table.concat(L.overlaps(r), ","))
+		for _, k in ipairs({ "play", "discard", "sortRank", "sortSuit", "gear" }) do
+			expectTrue(r[k].w >= 44 and r[k].h >= 44, w .. "x" .. h .. " " .. k .. " is at least 44 px")
+		end
+		expectTrue(r.deck.x >= r.hand.x + r.hand.w, w .. "x" .. h .. " deck right of the hand frame")
+		expectTrue(r.sortSuit.x + r.sortSuit.w <= r.play.x, w .. "x" .. h .. " Rank and Suit stay left of Play Hand")
+	end
+end })
+
 return tests
