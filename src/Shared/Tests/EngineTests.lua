@@ -29076,7 +29076,7 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 		local d = T.discRect(w, h)
 		assert(d.w == (w >= 140 and 48 or (w >= 70 and 40 or 28)), "disc scales with the card (w " .. w .. ")")
 		assert(d.x + d.w > w and d.y + d.h > h, "the disc sits in the bottom right corner and overhangs the frame")
-		assert(math.abs((d.x + d.w - w) / d.w - 0.4) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.4) < 0.06, "about 40 percent of the disc is outside the frame")
+		assert(math.abs((d.x + d.w - w) / d.w - 0.6) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.4) < 0.06, "about 60 percent of the disc is outside sideways and 40 percent below")
 	end
 	assert(T.unitText("+4 Mult") == "Mult" and T.unitText("+30 Chips") == "Chips" and T.unitText("x1.5 Mult") == "Mult")
 	assert(T.unitText("Retrigger") == "Retrigger" and T.unitText("") == "")
@@ -29311,7 +29311,7 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 	local Style = require(E.TavernStyle)
 	-- 1. the disc: 40 px, bottom right corner, 40 percent outside the frame, label clear of its overhang
 	local d = T.discRect(150, 210)
-	assert(d.w == 48 and d.x + d.w == 150 + 19 and d.y + d.h == 210 + 19, "48 px disc on a roomy card, 19 px (40 percent) outside the corner")
+	assert(d.w == 48 and d.x + d.w == 150 + 29 and d.y + d.h == 210 + 19, "48 px disc on a roomy card, 29 px sideways and 19 px below the corner")
 	assert(T.discBand(150) >= 16, "the label starts under the disc overhang")
 	-- 2. Next Round: bright green, cream text at 24 px, at least 3:1 (large text) with a solid dark outline
 	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.stroke) >= 4.5, "cream on its dark outline (the plate itself is bright green)")
@@ -30194,7 +30194,7 @@ table.insert(tests, { name = "Patron name strip: every Patron name fits beside t
 	for _, w in ipairs({ 157, 140, 120, 105 }) do
 		local r = Fit.rect(w)
 		local d = Style.discDiameter(w)
-		local discLeft = w - (d - math.floor(d * Style.DISC_OVERLAP + 0.5)) -- where the disc starts over the strip
+		local discLeft = w - (d - math.floor(d * Style.DISC_OVERLAP_X + 0.5)) -- where the disc starts over the strip
 		assert(r.x + r.w <= discLeft, "name ends before the disc at card width " .. w)
 		for _, p in ipairs(Patrons.Definitions) do
 			if w >= 157 then -- 1920x1080 cards: every name shows in full
@@ -32079,6 +32079,39 @@ table.insert(tests, { name = "IconLabelLayout: the icon stands at the left, the 
 			expectTrue(math.abs((p.icon.y + p.icon.h / 2) - b.h / 2) <= 1, tag .. ": icon centred vertically")
 			expectEqual(p.label.h, b.h, tag .. ": word row is the full height, centred by the label")
 			expectTrue(p.label.x + p.label.w <= b.w - I.RIGHT + 0.001, tag .. ": word ends inside the plate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "TableCheck inset: GetGuiInset 0 falls back to viewport minus GUI height, then the root offset; 1506 x 751 with a 58 px inset puts Play Hand on target", fn = function()
+	local T = require(script.Parent.Parent.Engine.TableCheck)
+	expectEqual(T.insetFrom(58, 751, 693, 0), 58, "a reported inset wins")
+	expectEqual(T.insetFrom(0, 751, 693, 0), 58, "viewport 751 minus GUI 693")
+	expectEqual(T.insetFrom(0, nil, nil, -58), 58, "root sits 58 above 0")
+	expectEqual(T.insetFrom(0, 751, 751, 0), 0, "nothing hidden, nothing added")
+	local inset = T.insetFrom(0, 751, 693, 0)
+	local ref = T.toReference({ x = 0, y = 589, w = 100, h = 50 }, 1506, 751, inset) -- ClickCheck's abs y for Play Hand
+	expectTrue(math.abs(ref.y - 810) <= 25, "Play Hand y is within 25 reference px of 810, got " .. ref.y)
+end })
+
+table.insert(tests, { name = "IconLabelLayout.group: icon, 6 px gap and word are one centred group, 14 px clear each side, the word shrinks to fit (Rank and Suit at four sizes)", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, k in ipairs({ "sortRank", "sortSuit" }) do
+			local b = r[k]
+			for _, word in ipairs({ 4, 9 }) do -- "Suit" and a long word, in characters
+				local g = I.group(b.w, b.h, word * 18 * 0.56, 18, 14)
+				local tag = sz[1] .. " " .. k .. " " .. word
+				expectTrue(g.icon.x >= I.SIDE, tag .. ": 14 px clear on the left")
+				expectTrue(g.label.x + g.label.w <= b.w - I.SIDE + 0.001, tag .. ": 14 px clear on the right")
+				expectEqual(g.label.x - (g.icon.x + g.icon.w), I.GAP, tag .. ": 6 px between icon and word")
+				if g.fits then
+					expectTrue(math.abs(g.icon.x - (b.w - (g.label.x + g.label.w)) ) <= 1, tag .. ": group centred")
+				end
+				expectTrue(g.size >= 14, tag .. ": word never under 14 px")
+			end
 		end
 	end
 end })

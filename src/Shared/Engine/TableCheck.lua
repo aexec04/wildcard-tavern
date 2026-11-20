@@ -33,6 +33,18 @@ function M.scales(guiW, guiH)
 	return M.REF_W / w, M.REF_H / h
 end
 
+-- The top inset the layout space has and AbsolutePosition leaves out. GetGuiInset can read 0 live, so fall back to the viewport height minus
+-- the ScreenGui's height, then to how far above 0 the game root sits. Never negative.
+function M.insetFrom(guiInset, viewportH, guiH, rootY)
+	local a = tonumber(guiInset) or 0
+	if a > 0 then return a end
+	local v, g = tonumber(viewportH), tonumber(guiH)
+	if v and g and v - g > 0 then return v - g end
+	local r = tonumber(rootY) or 0
+	if r < 0 then return -r end
+	return 0
+end
+
 function M.toReference(rect, guiW, guiH, insetY)
 	local kx, ky = M.scales(guiW, guiH)
 	return { x = rect.x * kx, y = (rect.y + (tonumber(insetY) or 0)) * ky, w = rect.w * kx, h = rect.h * ky }

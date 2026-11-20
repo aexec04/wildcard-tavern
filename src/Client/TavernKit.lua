@@ -312,15 +312,24 @@ function TavernKit.icon(host, name, pad)
 		local Layout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("IconLabelLayout"))
 		local function size()
 			local p = Layout.place(host.AbsoluteSize.X, host.AbsoluteSize.Y)
+			local kl = host:FindFirstChild("KitLabel")
+			if kl and (kl:IsA("TextLabel") or kl:IsA("TextButton")) and kl.Text ~= "" then -- icon, gap and word are one group centred in the plate, 14 px clear each side, the word shrinks to fit
+				local base = kl:GetAttribute("KitBaseSize") or kl.TextSize
+				kl:SetAttribute("KitBaseSize", base)
+				local ok, bounds = pcall(function() return game:GetService("TextService"):GetTextSize(kl.Text, base, kl.Font, Vector2.new(10000, 10000)) end)
+				if ok and bounds then
+					p = Layout.group(host.AbsoluteSize.X, host.AbsoluteSize.Y, bounds.X, base, 14)
+					kl.TextSize = p.size
+				end
+			end
 			img.Position = UDim2.fromOffset(p.icon.x, p.icon.y)
 			img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
 			local up = host:FindFirstChild("KitIconPad")
 			if up then up.PaddingLeft = UDim.new(0, p.label.x) end
-			local kl = host:FindFirstChild("KitLabel")
 			if kl and kl:IsA("GuiObject") then
 				kl.AnchorPoint = Vector2.new(0, 0)
 				kl.Position = UDim2.fromOffset(p.label.x, p.label.y)
-				kl.Size = UDim2.fromOffset(p.label.w, p.label.h)
+				kl.Size = UDim2.fromOffset(p.label.w + 4, p.label.h)
 				kl.TextXAlignment = Enum.TextXAlignment.Left
 			end
 		end

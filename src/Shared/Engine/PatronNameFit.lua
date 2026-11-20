@@ -10,8 +10,8 @@ M.MIN_SIZE, M.MAX_SIZE, M.GAP, M.CHAR = 11, 16, 4, 0.56
 
 function M.inset(w)
 	local d = Style.discDiameter(w)
-	local out = math.floor(d * Style.DISC_OVERLAP + 0.5)
-	return d - out + M.GAP -- the disc shows 60 percent of its width over the strip
+	local out = math.floor(d * Style.DISC_OVERLAP_X + 0.5)
+	return d - out + M.GAP -- the disc shows 40 percent of its width over the strip
 end
 
 function M.rect(w)

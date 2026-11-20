@@ -59,6 +59,7 @@ end
 -- the power disc scales with the card: 48 px on a roomy card (140 px wide, 1920x1080), 40 px from 70 px, 28 px on very narrow
 -- cards, in the card's bottom right corner, 40 percent of it outside the frame
 M.DISC_SIZE, M.DISC_BIG, M.DISC_OVERLAP = 40, 48, 0.4
+M.DISC_OVERLAP_X = 0.6 -- sideways the disc sits 60 percent outside the frame, so only a small corner of it covers the baked name plate
 function M.discDiameter(w)
 	w = tonumber(w) or 0
 	if w >= 140 then return M.DISC_BIG end
@@ -69,7 +70,8 @@ end
 function M.discRect(w, h)
 	local d = M.discDiameter(w)
 	local out = math.floor(d * M.DISC_OVERLAP + 0.5)
-	return { x = w - d + out, y = h - d + out, w = d, h = d }
+	local outX = math.floor(d * M.DISC_OVERLAP_X + 0.5)
+	return { x = w - d + outX, y = h - d + out, w = d, h = d }
 end
 
 -- Height under the card that the disc's overhang owns; the rarity label starts under it

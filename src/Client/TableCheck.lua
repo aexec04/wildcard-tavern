@@ -42,9 +42,10 @@ function M.run()
 	if not gui then warn("[TableCheck] no GameUI found") return 0 end
 	local guiW = gui.AbsoluteSize.X
 	-- AbsolutePosition leaves out the top GuiInset, the layout is drawn in the full viewport height: add the inset back to y, scale y by that height.
-	local inset = gui.IgnoreGuiInset and 0 or GuiService:GetGuiInset().Y
 	local cam = workspace.CurrentCamera
-	local guiH = (cam and not gui.IgnoreGuiInset) and cam.ViewportSize.Y or (gui.AbsoluteSize.Y + inset)
+	local root = gui:FindFirstChild("GameRoot")
+	local inset = Rules.insetFrom(GuiService:GetGuiInset().Y, cam and cam.ViewportSize.Y, gui.AbsoluteSize.Y, root and root.AbsolutePosition.Y)
+	local guiH = gui.AbsoluteSize.Y + inset
 	local live = {}
 	local function byName(name)
 		for _, d in ipairs(pg:GetDescendants()) do
