@@ -19,6 +19,7 @@ local Wordmark = {}
 -- (Almendra and IMFellEnglishSC are the other candidates).
 Wordmark.FONT = Enum.Font.Fondamento
 Wordmark.TEXT_SIZE = 56
+Wordmark.TOP = 4 -- the title label starts 4 px from the top (was 20, which put its lower half over the night window)
 
 local GOLD_TOP = Color3.fromRGB(236, 205, 134)
 local GOLD_BOTTOM = Color3.fromRGB(184, 146, 80)
@@ -71,14 +72,14 @@ function Wordmark.build(parent, opts)
 	local painted = opts.imageId ~= nil and tostring(opts.imageId) ~= ""
 
 	local shadow = baseLabel("MenuTitleShadow", z - 1)
-	shadow.Position = UDim2.new(0, 3, 0, 23)
+	shadow.Position = UDim2.new(0, 3, 0, Wordmark.TOP + 3)
 	shadow.TextColor3 = Color3.fromRGB(0, 0, 0)
 	shadow.TextTransparency = 0.75
 	shadow.Text = painted and "" or name
 	shadow.Parent = parent
 
 	local title = baseLabel("MenuTitle", z)
-	title.Position = UDim2.new(0, 0, 0, 20)
+	title.Position = UDim2.new(0, 0, 0, Wordmark.TOP)
 	title.Parent = parent
 
 	if painted then

@@ -282,7 +282,7 @@ return function(deps)
 		{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
 		{ inst = hotspotLayer, base = UDim2.new(), px = 0 },
 		{ inst = titleGroup, base = UDim2.new(), px = P.near },
-		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
+		{ inst = menuTitle, base = UDim2.new(0, 0, 0, require(script.Parent.Wordmark).TOP), px = 0, tilt = true },
 	}
 	logoLayer = parallaxLayers[#parallaxLayers]
 	for _, layer in ipairs(mapWorld.layers) do table.insert(parallaxLayers, layer) end

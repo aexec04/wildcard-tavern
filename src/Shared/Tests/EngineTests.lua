@@ -32020,6 +32020,21 @@ table.insert(tests, { name = "Table polish: the Pick your cards plate is spent o
 end })
 
 
+table.insert(tests, { name = "Menu title sits 4 px from the top, all three Notice Board plates fit at 1920x957, 1506x751 and 1280x720, ScreenCheck prints their live rects", fn = function()
+	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local l, t, r, b = R.corkRect(sz[1], sz[2])
+		local fit = R.noteSlots(r - l, b - t, { 86, 86, 70 }, 3, 2)
+		assert(fit.shown == 3 and fit.show[1] and fit.show[2] and fit.show[3], "three plates at " .. sz[1])
+	end
+	if not io then return end
+	local function read(p) local f = assert(io.open(p, "r")); local c = f:read("a"); f:close(); return c end
+	local w, m, sc = read("src/Client/Wordmark.lua"), read("src/Client/Menu.lua"), read("src/Client/ScreenCheck.lua")
+	assert(w:find("Wordmark.TOP = 4", 1, true) and w:find("Wordmark.TOP)", 1, true), "the title label starts 4 px from the top")
+	assert(m:find("Wordmark).TOP", 1, true), "the parallax base uses the same top")
+	assert(sc:find("[ScreenCheck] menu", 1, true), "the screencheck prints the title and the three plates")
+end })
+
 table.insert(tests, { name = "Patron quote: the words reset both transparencies, hold at least 1.0 s with their plate and print a Studio QuoteCheck", fn = function()
 	if not io then return end
 	local f = assert(io.open("src/Client/PatronVoice.lua", "r")); local c = f:read("a"); f:close()
