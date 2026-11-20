@@ -283,6 +283,10 @@ function M.scoringRows(r, capH)
 	local nameY = plateBottom + M.SCORING_GAP
 	local top = nameY + M.NAME_ROW_H + M.SCORING_GAP
 	local bottom = math.max(r.hand.y - M.PLAYED_GAP, math.min(top + M.PLAYED_GOAL_W * M.PLAYED_RATIO, r.hand.y + r.hand.h + M.HAND_BELOW))
+	for _, key in ipairs({ "playCount", "discardCount" }) do -- the Hands and Discards pills stand under the hand: the row stops 4 px above them
+		local pill = r[key]
+		if pill and pill.y - 4 < bottom and pill.y - 4 - top >= 44 then bottom = pill.y - 4 end
+	end
 	if bottom - top >= 44 then
 		return { plateBottom = plateBottom, name = { x = r.stage.x, y = nameY, w = r.stage.w, h = M.NAME_ROW_H }, band = { top = top, bottom = bottom } }
 	end

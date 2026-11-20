@@ -445,7 +445,7 @@ function M.install(deps)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
 		scoreCaption.Visible = N.roomy and N.numTop >= capH
-		scoreCaption.Text = nameInCaption and (self.previewText:match("^(.-)%s*|") or self.previewText) or "Score" -- "Flush Lv 2": the plate is too narrow for the Chips x Mult part
+		scoreCaption.Text = nameInCaption and (self.previewText:match("^(.-)%s*|") or self.previewText) or (self.playing == true and self.scoringText) or "Score" -- "Flush Lv 2": the plate is too narrow for the Chips x Mult part
 		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
@@ -548,7 +548,8 @@ function M.install(deps)
 		local over = require(Engine:WaitForChild("Gameplay2Flair")).overkill(preview.score, preview.targetScore)
 		local ch, mu = require(Engine:WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
 		local row = Layout.scoringRows(r, math.max(20, PreviewRules.H)).name -- under the Score plate, above the played cards, 12 px each side
-		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, ch, mu, row)
+		self.scoringText = ("%d x %d"):format(math.floor((ch or 0) + 0.5), math.floor((mu or 0) + 0.5)) -- Chips x Mult live in the Score plate caption, not in side pills next to the one trigger line
+		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, nil, nil, row)
 	end
 
 	function self.rects()
@@ -837,6 +838,7 @@ function M.setPlaying(on)
 	local v = on == true
 	if current.playing == v then return end
 	current.playing = v
+	if not v then current.scoringText = nil end
 	if current.hideHand and (current.isActive() or not v) then pcall(current.hideHand, v) end
 	if current.isActive() then pcall(current.refresh) end
 end

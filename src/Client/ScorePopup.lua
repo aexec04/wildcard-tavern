@@ -1392,7 +1392,8 @@ return function(deps)
 
 					-- v2 table: the Patron's own pill under its tag rows is the one callout, so no text flies off the portrait
 					local okFly, v2Fly = pcall(function() return isPatronEntry and require(script.Parent.Gameplay2).isActive() end)
-					if sourcePos and not (okFly and v2Fly) then
+					local okAny, v2Any = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+					if sourcePos and not (okFly and v2Fly) and not (okAny and v2Any) then -- v2: the one trigger line on the banner row says it, no duplicate floating text
 						if entry.kind == "tips" then
 							floatTipsText(sourcePos, entry)
 						elseif entry.kind == "chips" then

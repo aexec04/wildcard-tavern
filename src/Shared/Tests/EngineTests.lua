@@ -32520,6 +32520,28 @@ table.insert(tests, { name = "Round hint strip: right of the Score plate at the 
 	expectTrue(s ~= nil and s.plate.y == r.stage.y, "1506 x 751: the strip stands level with the stage top")
 end })
 
+table.insert(tests, { name = "Scoring row: the played band ends above the Hands and Discards pills, the Flair has no side plates and the caption carries Chips x Mult (five sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local rows = L.scoringRows(r, 26)
+		for _, key in ipairs({ "playCount", "discardCount" }) do
+			local pill = r[key]
+			if pill and rows.name then expectTrue(rows.band.bottom <= pill.y or pill.y - 4 - rows.band.top < 44, key .. " stays clear of the played band at " .. sz[1]) end
+		end
+	end
+	if io then
+		local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+		local g2 = read("src/Client/Gameplay2.lua")
+		if g2 then
+			expectTrue(g2:find("preview.name, over, nil, nil, row", 1, true) ~= nil, "the v2 flair draws no Chips and Mult side plates")
+			expectTrue(g2:find("self.scoringText", 1, true) ~= nil, "the caption carries the Chips x Mult line while scoring")
+		end
+		local sp = read("src/Client/ScorePopup.lua")
+		if sp then expectTrue(sp:find("not (okAny and v2Any)", 1, true) ~= nil, "no duplicate floating entry text on the v2 table") end
+	end
+end })
+
 table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 reference, 25 px off passes, 30 px warns, a missing piece is only reported, DebugGoto tablecheck parses", fn = function()
 	local T = require(script.Parent.Parent.Engine.TableCheck)
 	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
@@ -33276,7 +33298,7 @@ table.insert(tests, { name = "Scoring polish at the live GUI size 1506x751: play
 		local r = L.rects(sz[1], sz[2]); local rows = L.scoringRows(r, 26)
 		local lane = PL.rect({ nookBottom = rows.band.top, handTop = rows.band.bottom, cardW = sz[3], cardH = sz[4], popupH = 0, gap = 0, minScale = 0.3, maxScale = PL.goalScale(sz[3], L.PLAYED_GOAL_W) })
 		if print then print(string.format("[ScoringPolish] %dx%d band %d to %d card %dx%d (hand card %d wide)", sz[1], sz[2], math.floor(rows.band.top), math.floor(rows.band.bottom), math.floor(lane.cardW), math.floor(lane.cardH), sz[3])) end
-		assert(lane.cardW >= math.min(0.7 * sz[3], 88) - 0.01, "played card at least 70 percent of the hand card (88 px cap) at " .. sz[1] .. ", got " .. lane.cardW)
+		assert(lane.cardW >= math.min(0.7 * sz[3], 84) - 0.01, "played card at least 70 percent of the hand card (84 px floor, the row stops above the Hands pill) at " .. sz[1] .. ", got " .. lane.cardW)
 		assert(rows.band.top - rows.plateBottom >= L.SCORING_GAP + L.NAME_ROW_H, "banner row clear of the Score plate at " .. sz[1])
 		assert(rows.band.bottom <= sz[2], "band on screen at " .. sz[1])
 		local total = 5 * lane.cardW + 4 * 16
