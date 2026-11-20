@@ -32886,6 +32886,13 @@ table.insert(tests, { name = "Play table background: the reference tavern scene 
 	end
 end })
 
+table.insert(tests, { name = "HandLift: a settled lift that was overwritten is put back, a running tween is left alone", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	assert(HL.enforceY(10, 10, 24, 0.1) == nil, "tween may still run")
+	assert(HL.enforceY(10, 10, 24, 0.5) == -14, "overwritten lift restored")
+	assert(HL.enforceY(-14, 10, 24, 0.5) == nil, "already lifted")
+	assert(HL.enforceY(10, 10, 0, 0.5) == nil, "unpicked card rests at fan Y")
+end })
 table.insert(tests, { name = "HandLift: five picked cards rest five lifts, and a deal landing keeps a picked card lifted", fn = function()
 	local HL = require(script.Parent.Parent.Engine.HandLift)
 	local sel = { [1] = true, [3] = true, [4] = true, [6] = true, [8] = true }

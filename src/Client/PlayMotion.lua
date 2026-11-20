@@ -91,6 +91,14 @@ function M.install(deps)
 					btn.Position = btn.Position + UDim2.fromOffset(fx - ox, fy - oy)
 				end
 			end
+			local lb, liftAt = slot:FindFirstChildOfClass("TextButton"), slot:GetAttribute("LiftAt")
+			if lb and liftAt and not slot:GetAttribute("Dealing") then -- a later write must not drop a pick's lift
+				local fixY = require(game:GetService("ReplicatedStorage").Shared.Engine.HandLift).enforceY(lb.Position.Y.Offset, slot:GetAttribute("FanY") or 0, slot:GetAttribute("LiftY") or 0, os.clock() - liftAt)
+				if fixY then
+					if not slot:GetAttribute("LiftFixed") then slot:SetAttribute("LiftFixed", true) print(string.format("[HandLift] enforced card %s y %d -> %d (something overwrote the lift)", tostring(slot:GetAttribute("HandIndex")), lb.Position.Y.Offset, fixY)) end
+					lb.Position = UDim2.new(lb.Position.X.Scale, lb.Position.X.Offset, lb.Position.Y.Scale, fixY)
+				end
+			end
 			local us = slot:FindFirstChild("DepthScale")
 			if not us then us = Instance.new("UIScale") us.Name = "DepthScale" us.Parent = slot end
 			us.Scale = PM.cardScale(i, #slots)

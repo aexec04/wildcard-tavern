@@ -13,4 +13,14 @@ function M.offsets(selectedByIndex, count, lift)
 	return out
 end
 
+-- A card whose lift tween ended (SETTLE seconds after the pick) must rest at fan Y minus its lift. Returns the Y to write, or nil
+-- when the card is already there or the tween may still be running. Guards against any later write that drops the lift.
+M.SETTLE = 0.2
+function M.enforceY(currentY, fanY, liftY, age)
+	if not age or age < M.SETTLE then return nil end
+	local want = M.landY(fanY, liftY)
+	if math.abs((currentY or 0) - want) < 0.5 then return nil end
+	return want
+end
+
 return M
