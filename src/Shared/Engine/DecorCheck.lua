@@ -45,10 +45,10 @@ end
 function M.check(p)
 	local lines, warns = {}, {}
 	lines[#lines + 1] = fmt("felt", p.felt)
-	lines[#lines + 1] = fmt("inlay", p.inlay)
+	lines[#lines + 1] = p.inlay and fmt("inlay", p.inlay) or "inlay none"
 	lines[#lines + 1] = fmt("deck", p.deck)
 	lines[#lines + 1] = fmt("rail", p.rail.box)
-	if not M.inside(p.inlay, p.felt) then
+	if p.inlay and not M.inside(p.inlay, p.felt) then
 		warns[#warns + 1] = "the inlay leaves the felt: " .. fmt("inlay", p.inlay) .. " vs " .. fmt("felt", p.felt)
 	end
 	if not CT.insideFelt(p.deck, p.tilt or CT.DECK_TILT, p.w, p.h, 0) then

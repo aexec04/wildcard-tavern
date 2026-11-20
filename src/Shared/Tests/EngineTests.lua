@@ -24239,6 +24239,10 @@ table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table pass
 	local _, w1 = D.check(p)
 	assert(#w1 == 1 and w1[1]:find("inlay leaves the felt", 1, true), "an inlay past the felt warns")
 	p = params(1920, 957)
+	p.inlay = nil -- no inlay on the table: nothing to warn about
+	local l0, w0 = D.check(p)
+	assert(#l0 == 4 and #w0 == 0, "an absent inlay is valid")
+	p = params(1920, 957)
 	p.deck = { x = p.felt.x + p.felt.w - 40, y = p.deck.y, w = p.deck.w, h = p.deck.h }
 	local _, w2 = D.check(p)
 	assert(#w2 == 1 and w2[1]:find("deck leaves the felt", 1, true), "a deck past the felt warns")
@@ -24260,8 +24264,7 @@ table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 referenc
 	local src = io and io.open("src/Client/Gameplay2.lua")
 	if src then
 		local t = src:read("*a"); src:close()
-		assert(t:find('"FeltInlay", Color3.fromRGB(190, 150, 70), 2, 0.45', 1, true), "inlay: 2 px gold 190,150,70 transparency 0.45")
-		assert(t:find('"FeltRimShadow", Color3.fromRGB(0, 0, 0), 12, 0.6', 1, true), "rim shadow 12 px")
+		assert(not t:find("FeltInlay", 1, true) and not t:find("FeltRimShadow", 1, true), "no dashed inlay or stair-step rim shadow pieces are built")
 	end
 end })
 table.insert(tests, { name = "Gameplay2 felt inlay: a true ellipse of straight pieces, every piece inside the felt rect (four sizes)", fn = function()

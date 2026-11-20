@@ -130,23 +130,6 @@ function M.install(deps)
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
 		furniture[spec[1]] = img
 	end
-	-- felt finish: a thin gold inlay line inset inside the felt and a soft dark band where the felt meets the rim (outlines only, no fills, no gradient)
-	local feltRing, rimShadow
-	do
-		local function ellipse(name, color, thick, tr)
-			local f = Instance.new("Frame"); f.Name = name; f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.Active = false; f.ZIndex = 2; f.Visible = false
-			-- a true ellipse of short straight pieces (a UICorner frame is a rounded rectangle with a flat top); laid out by layoutEllipse
-			f.ClipsDescendants = true; f:SetAttribute("Thick", thick)
-			for i = 1, CTLayout.ELLIPSE_PIECES do
-				local p = Instance.new("Frame"); p.Name = "Piece" .. i; p.BorderSizePixel = 0; p.Active = false; p.ZIndex = 2
-				p.BackgroundColor3 = color; p.BackgroundTransparency = tr; p.AnchorPoint = Vector2.new(0.5, 0.5); p.Parent = f
-			end
-			f.Parent = layer
-			return f
-		end
-		rimShadow = ellipse("FeltRimShadow", Color3.fromRGB(0, 0, 0), 12, 0.6)
-		feltRing = ellipse("FeltInlay", Color3.fromRGB(190, 150, 70), 2, 0.45)
-	end
 	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
 	local wallBanners = {}
 	do
@@ -440,22 +423,6 @@ function M.install(deps)
 			for key, img in pairs(furniture) do
 				img.Visible = img.Image ~= ""
 				place(img, dc[key])
-			end
-			do
-				local fl = CTLayout.feltFor(size.X, size.Y)
-				place(feltRing, fl.inlay); place(rimShadow, fl.rim)
-				for _, ring in ipairs({ feltRing, rimShadow }) do
-					local th = ring:GetAttribute("Thick") or 2
-					for i, pc in ipairs(CTLayout.ellipsePieces(ring == feltRing and fl.inlay or fl.rim)) do
-						local f = ring:FindFirstChild("Piece" .. i)
-						if f then f.Position = UDim2.fromOffset(pc.cx, pc.cy); f.Size = UDim2.fromOffset(pc.len + 1, th); f.Rotation = pc.rot end
-					end
-				end
-				feltRing.Visible = furniture.rail.Visible; rimShadow.Visible = furniture.rail.Visible
-				if game:GetService("RunService"):IsStudio() and self.feltKey ~= size.X .. "x" .. size.Y then
-					self.feltKey = size.X .. "x" .. size.Y
-					print(("[FeltInlay] %dx%d inlay=%d,%d,%d,%d felt=%d,%d,%d,%d"):format(size.X, size.Y, fl.inlay.x, fl.inlay.y, fl.inlay.w, fl.inlay.h, fl.rim.x, fl.rim.y, fl.rim.w, fl.rim.h))
-				end
 			end
 			deckImg.Rotation = CTLayout.DECK_TILT
 			do

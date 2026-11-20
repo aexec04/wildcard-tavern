@@ -25,11 +25,18 @@ end
 
 function M.run()
 	local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local rail = pg:FindFirstChild("BottomRail", true)
-	if not rail or not visible(rail) then
-		warn("[DecorCheck] the live table is not open (no visible BottomRail): open a round first")
+	local rail
+	for _, d in ipairs(pg:GetDescendants()) do
+		if d.Name == "BottomRail" and d:IsA("GuiObject") then
+			if visible(d) then rail = d; break end
+			rail = rail or d
+		end
+	end
+	if not rail then
+		warn("[DecorCheck] the live table is not open (no BottomRail found): open a round first")
 		return 1
 	end
+	if not visible(rail) then warn("[DecorCheck] BottomRail found but hidden (Image empty or table closed); measuring anyway") end
 	local layer = rail.Parent
 	local ox, oy = layer.AbsolutePosition.X, layer.AbsolutePosition.Y
 	local w, h = layer.AbsoluteSize.X, layer.AbsoluteSize.Y
@@ -45,14 +52,14 @@ function M.run()
 	local bad = 0
 	for _, nm in ipairs({ "FeltInlay", "FeltRimShadow" }) do
 		local g = layer:FindFirstChild(nm)
-		if not g or not g.Visible or g.AbsoluteSize.X <= 0 then warn("[DecorCheck] " .. nm .. " is missing, hidden or 0 wide"); bad = bad + 1 end
+		if g and (not g.Visible or g.AbsoluteSize.X <= 0) then warn("[DecorCheck] " .. nm .. " exists but is hidden or 0 wide"); bad = bad + 1 end
 	end
 	local plates = {}
 	for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard", "deckCount" }) do plates[#plates + 1] = { label = k, rect = r[k] } end
 	local lines, warns = Rules.check({
 		w = w, h = h,
-		felt = live("FeltRimShadow") or CT.feltFor(w, h).rim,
-		inlay = live("FeltInlay") or CT.feltFor(w, h).inlay,
+		felt = CT.feltFor(w, h).rim,
+		inlay = live("FeltInlay"), -- nil while the table has no inlay picture
 		deck = r.deck, tilt = CT.DECK_TILT,
 		rail = { x = railPic.x, w = railPic.w, box = railBox },
 		plates = plates,
