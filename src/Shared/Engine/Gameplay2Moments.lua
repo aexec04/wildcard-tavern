@@ -173,7 +173,8 @@ function M.plateLine(name, rule)
 end
 
 function M.bossGlow(calm)
-	return { color = { 150, 38, 30 }, transparency = calm and 0.9 or 0.84 }
+	-- a light red wash: over the reference felt (60, 85, 45) 0.84 turned it brown olive (74, 77, 47); at 0.94 the felt stays green
+	return { color = { 150, 38, 30 }, transparency = calm and 0.96 or 0.94 }
 end
 
 local ICONS = {

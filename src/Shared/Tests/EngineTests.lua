@@ -29636,6 +29636,18 @@ table.insert(tests, { name = "Gameplay v2 moments: Target cleared plate lines an
 	assert(boss == "The Tax Man" and select(2, M.bossText({ round = 3, bossModifier = { name = "The Tax Man", description = "Hearts score nothing." } })) == "Hearts score nothing.")
 	assert(M.bossText({ round = 1, bossModifier = { name = "x" } }) == nil and M.bossText({ round = 3 }) == nil)
 	assert(M.bossGlow(false).color[1] > M.bossGlow(false).color[3], "a redder glow")
+	do -- the boss wash keeps the felt green and within 15 percent of the idle brightness (reference felt 60, 85, 45)
+		local felt = { 60, 85, 45 }
+		for _, calm in ipairs({ false, true }) do
+			local g = M.bossGlow(calm)
+			local out = {}
+			for i = 1, 3 do out[i] = felt[i] * g.transparency + g.color[i] * (1 - g.transparency) end
+			assert(out[2] > out[1] + 8 and out[2] > out[3], "felt stays green under the boss wash, calm " .. tostring(calm))
+			local luma = function(c) return 0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3] end
+			assert(luma(out) >= luma(felt) * 0.85 and luma(out) <= luma(felt) * 1.15, "boss felt within 15 percent of the idle brightness")
+			assert(g.transparency >= 0.9, "a light wash: the Bouncer mood stays, the felt is not hidden")
+		end
+	end
 	assert(M.defeatLine({ roundScore = 120, targetScore = 300 }) == "Out of hands. Score 120 of 300.")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
