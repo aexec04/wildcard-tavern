@@ -396,6 +396,9 @@ local function fillCard(c, i, owned)
 			if rs1 then rs1.Enabled = false end
 			local ro1 = c.body:FindFirstChild("RarityOrnaments")
 			if ro1 then ro1.Visible = false end
+			pcall(function() -- Gameplay v2: cream parchment seat (portrait window, ribbon name) instead of the baked wood frame
+				if require(script.Parent.Gameplay2).isActive() then require(script.Parent.PatronParchmentCard).sync(c, owned.name) end
+			end)
 		end
 	else
 		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, "common", nil, false) end)

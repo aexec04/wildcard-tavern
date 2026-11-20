@@ -1,0 +1,57 @@
+--[[
+	Engine/PatronParchment.lua
+	Gameplay v2 Patron seats: a cream parchment card, not the cut card's wood frame. The seat shows only the portrait window of
+	the cut card (`PatronCardCrop`, measured per card by tools/patron_card_crops.py) on cream paper with a gold edge, the Patron's
+	name on a cream ribbon under it (code text, so the baked name plate is cropped away), the tier ring and the gold power disc
+	drawn by Client/PatronTierFX over it. Rarity stays in the ring colour and the corner letter, never colour alone.
+
+	layout()          -> { portrait = {x,y,w,h}, ribbon = {x,y,w,h} } as fractions (0..1) of the seat
+	imageRect(id)     -> { x, y, w, h } pixels of the portrait window in the cut card picture, nil when the card has no crop
+	nameRect(w)       -> { x, w } of the name text inside the ribbon for a seat w px wide (clear of the power disc)
+	contrast()        -> contrast ratio of the ink on the ribbon paper (tested at 4.5 or more)
+]]
+
+local Crop = require(script.Parent.PatronCardCrop)
+local NameFit = require(script.Parent.PatronNameFit)
+
+local M = {}
+
+M.PAPER = { 240, 226, 196 }
+M.RIBBON = { 232, 214, 172 }
+M.INK = { 58, 38, 20 }
+M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
+
+M.SIDE, M.TOP, M.RIBBON_H, M.GAP = 0.05, 0.04, 0.17, 0.02
+
+function M.layout()
+	local portraitH = 1 - M.TOP - M.RIBBON_H - M.GAP - 0.03
+	return {
+		portrait = { x = M.SIDE, y = M.TOP, w = 1 - 2 * M.SIDE, h = portraitH },
+		ribbon = { x = M.SIDE, y = M.TOP + portraitH + M.GAP, w = 1 - 2 * M.SIDE, h = M.RIBBON_H },
+	}
+end
+
+function M.imageRect(id)
+	return Crop[tostring(id or "")]
+end
+
+function M.nameRect(w)
+	local r = NameFit.rect(math.max(0, (tonumber(w) or 0) * (1 - 2 * M.SIDE)))
+	return { x = r.x, w = r.w }
+end
+
+local function lum(c)
+	local function ch(v)
+		v = v / 255
+		return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
+	end
+	return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+end
+
+function M.contrast()
+	local a, b = lum(M.RIBBON), lum(M.INK)
+	if a < b then a, b = b, a end
+	return (a + 0.05) / (b + 0.05)
+end
+
+return M

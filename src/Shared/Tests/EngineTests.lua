@@ -30209,6 +30209,43 @@ table.insert(tests, { name = "Patron name strip: every Patron name fits beside t
 	assert(src:find("NameFit.rect(r.w)", 1, true) and src:find("TextScaled = true", 1, true) and src:find("IsStudio", 1, true), "row sizes the name by its card width and warns in Studio")
 end })
 
+table.insert(tests, { name = "Patron parchment seat: every cut card has a portrait window inside its picture, ribbon and portrait never overlap, ink is 4.5:1", fn = function()
+	local P = require(script.Parent.Parent.Engine.PatronParchment)
+	local Crop = require(script.Parent.Parent.Engine.PatronCardCrop)
+	local CardArt = require(script.Parent.Parent.Engine.ConceptTPatronArt)
+	local Fit = require(script.Parent.Parent.Engine.PatronNameFit)
+	local n = 0
+	for key, id in pairs(CardArt) do
+		if type(id) == "string" and id ~= "" and key:sub(1, 4) == "ctp_" then
+			local r = P.imageRect(key:sub(5))
+			assert(r, "no portrait crop for " .. key)
+			assert(r.x >= 0 and r.y >= 0 and r.x + r.w <= 1024 and r.y + r.h <= 1536, key .. " crop leaves the picture")
+			local aspect = r.w / r.h
+			assert(aspect > 0.6 and aspect < 1.0, key .. " crop aspect " .. aspect)
+			assert(r.y + r.h <= 1536 * 0.86, key .. " crop reaches the baked name plate")
+			n = n + 1
+		end
+	end
+	assert(n >= 81, "all 81 cut cards are covered, got " .. n)
+	local c = 0
+	for _ in pairs(Crop) do c = c + 1 end
+	assert(c >= 81, "crop table has every card")
+	local L = P.layout()
+	assert(L.portrait.x >= 0 and L.portrait.x + L.portrait.w <= 1 and L.ribbon.x + L.ribbon.w <= 1, "inside the seat")
+	assert(L.portrait.y + L.portrait.h <= L.ribbon.y, "portrait ends above the ribbon")
+	assert(L.ribbon.y + L.ribbon.h <= 1, "ribbon inside the seat")
+	assert(P.contrast() >= 4.5, "ink on the ribbon: " .. P.contrast())
+	for _, w in ipairs({ 157, 140, 120, 105 }) do
+		local nr = P.nameRect(w)
+		assert(nr.w >= Fit.textWidth(string.rep("m", 9), Fit.MIN_SIZE) * 0.9, "room for nine letters on the ribbon at seat width " .. w)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronRow.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("PatronParchmentCard", 1, true), "the row draws the parchment seat")
+	local g = assert(io.open("src/Client/PatronParchmentCard.lua", "r")); local cl = g:read("a"); g:close()
+	assert(not cl:find("TweenService", 1, true) and not cl:lower():find("balatro", 1, true), "static, clean")
+end })
+
 table.insert(tests, { name = "PatronJuice: each tier adds an effect, Calm mode keeps only the pill text, order and pill text, one FxLoop job, no per particle tween", fn = function()
 	local J = require(script.Parent.Parent.Engine.PatronJuice)
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
