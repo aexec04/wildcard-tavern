@@ -143,10 +143,16 @@ function M.install(deps)
 			end
 			shadows[name] = sh
 		end
-		for _, spec in ipairs({ { "inlay", "FeltInlay", "ct_felt_inlay" }, { "rail", "BottomRail", "ct_rail_strip" } }) do
+		for _, spec in ipairs({ { "inlay", "FeltInlay", "ct_felt_inlay" }, { "rail", "BottomRail", "ct_rail_strip" }, { "rim", "TableRim", "ct_table_rim" } }) do
 		local img = Instance.new("ImageLabel")
 		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
+		if spec[1] == "rim" then -- the wide wood rim lies slightly wider than the root at the sides: same clip frame as the rail, drawn above the flat rail
+			local clip = layer:FindFirstChild("RailClip")
+			if clip then img.Parent = clip end
+			local rail = furniture.rail
+			if rail and img.Image ~= "" then rail.ImageTransparency = 1 end -- the curved rim replaces the flat rail strip (kept in the tree: its rect and the deck shadow follow it)
+		end
 		if spec[1] == "rail" then -- the rail picture is drawn wider than the root (its carved end caps lie outside), so a clip frame the size of the root keeps it inside a scaled or letterboxed root
 			local clip = Instance.new("Frame"); clip.Name = "RailClip"; clip.BackgroundTransparency = 1; clip.BorderSizePixel = 0; clip.Active = false
 			clip.ClipsDescendants = true; clip.Size = UDim2.fromScale(1, 1); clip.ZIndex = 2; clip.Parent = layer

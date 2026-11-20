@@ -171,6 +171,9 @@ end
 
 -- The bottom rail for the live table (Gameplay2): `r` is Gameplay2Layout.rects(w, h). The deck has no tray, it sits on the felt. The rail's visible part runs from 12 px above the Rank and Suit row to the screen bottom, full width. Returns the same shape as decor.
 M.RAIL_RISE = 12
+-- Wide wood rim (ct_table_rim, 1536x1024): one oval ring, thick at the bottom, transparent inside. `box` is the ring's outer edge in picture px and `hole` the
+-- inside edge; decorFor sizes the picture so the hole lies on the felt ellipse, which puts the thick lower rim under the bottom buttons.
+M.RIM_ART = { art = { w = 1536, h = 1024, box = { 4, 118, 1532, 873 } }, hole = { 70, 150, 1470, 750 } }
 function M.decorFor(r, w, h)
 	local function place(d, bx, by, bw, bh, over)
 		local a = d.art
@@ -184,6 +187,12 @@ function M.decorFor(r, w, h)
 	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
 	return {
 		rail = place(M.DECOR.rail, 0, top, w, h - top, M.railOverscan(w)),
+		rim = (function()
+			local f, R = M.feltFor(w, h).rim, M.RIM_ART
+			local b, hl = R.art.box, R.hole
+			local sx, sy = f.w / (hl[3] - hl[1]), f.h / (hl[4] - hl[2]) -- screen px per picture px, the hole is laid on the felt ellipse
+			return place(R, round(f.x - (hl[1] - b[1]) * sx), round(f.y - (hl[2] - b[2]) * sy), round((b[3] - b[1]) * sx), round((b[4] - b[2]) * sy))
+		end)(),
 		inlay = (function()
 			local i = M.feltFor(w, h).inlay -- shrunk around its centre so both ends stay well inside the painted felt (the oak rim is narrower than the ellipse at its ends)
 			local sw, sh = i.w * M.INLAY_SHRINK, i.h * M.INLAY_SHRINK

@@ -24372,6 +24372,28 @@ table.insert(tests, { name = "Gameplay2 bottom rail: carved end caps lie 6 px or
 		assert(d.rail.box.x == 0 and d.rail.box.w == w, w .. "x" .. h .. " visible rail is full width")
 	end
 end })
+table.insert(tests, { name = "Gameplay2 table rim: ct_table_rim hole lies on the felt ellipse, the thick lower rim reaches under the bottom buttons and ends on screen (five sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(require(script.Parent.Parent.Engine.ConceptTArt).ct_table_rim, "rim art id recorded")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = G.rects(w, h)
+		local d = L.decorFor(r, w, h)
+		local f = L.feltFor(w, h).rim
+		local R = L.RIM_ART
+		local k = d.rim.w / R.art.w
+		local hx0, hy0 = d.rim.x + R.hole[1] * k, d.rim.y + R.hole[2] * (d.rim.h / R.art.h)
+		local hx1, hy1 = d.rim.x + R.hole[3] * k, d.rim.y + R.hole[4] * (d.rim.h / R.art.h)
+		assert(math.abs(hx0 - f.x) <= 2 and math.abs(hx1 - (f.x + f.w)) <= 2 and math.abs(hy0 - f.y) <= 2 and math.abs(hy1 - (f.y + f.h)) <= 2, w .. "x" .. h .. " rim hole on the felt ellipse")
+		local b = d.rim.box
+		assert(b.y + b.h <= h + 1, w .. "x" .. h .. " rim ends on screen: " .. (b.y + b.h))
+		for _, nm in ipairs({ "play", "discard", "sortRank", "sortSuit" }) do
+			local bt = r[nm]
+			assert(bt.y + bt.h <= hy1 + (b.y + b.h - hy1) and bt.y + bt.h > hy1 - bt.h, w .. "x" .. h .. " " .. nm .. " sits on the lower rim")
+		end
+	end
+end })
 table.insert(tests, { name = "Gameplay2 felt inlay picture: one painted ring, visible line on the felt inlay rect and inside the felt (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)

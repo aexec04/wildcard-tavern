@@ -292,6 +292,9 @@ CATEGORY_OPTS["table_scene"]["references"]["table_boss_ref"] = "art-wip/table_sc
 # deck tray and bottom rail: edits of crops of the table reference (made by _add_table_art_prompts.py)
 CATEGORY_OPTS["concept_t"]["sizes"].update({"ct_deck_tray": "1024x1024", "ct_rail_strip": "1536x1024"})
 CATEGORY_OPTS["concept_t"]["references"].update({"ct_deck_tray": "art-wip/table_art/ref_tray.png", "ct_rail_strip": "art-wip/table_art/ref_rail.png"})
+# lower oval table rim (wide wood band under the hand and behind the bottom buttons), an edit of a crop of the table reference
+CATEGORY_OPTS["concept_t"]["sizes"]["ct_table_rim"] = "1536x1024"
+CATEGORY_OPTS["concept_t"]["references"]["ct_table_rim"] = "art-wip/table_art/ref_rim.png"
 
 # set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
 _SKIN_SIZES = {"_face_frame": "1024x1536", "_face_paper": "1024x1024", "_face_court": "1024x1024",
