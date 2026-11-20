@@ -1561,6 +1561,7 @@ local function refreshCardVisual(index, usePop)
 	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
 	button.Parent:SetAttribute("LiftAt", os.clock())
 	button.Parent:SetAttribute("Picked", isSelected)
+	do local slot = button.Parent; local base = slot:GetAttribute("BaseZ"); if base == nil then base = slot.ZIndex; slot:SetAttribute("BaseZ", base) end; slot.ZIndex = isSelected and base + 40 or base end -- a picked card draws above its neighbours
 	button.Parent:SetAttribute("LiftY", lift) -- the deal landing in PlayMotion keeps a picked card lifted (Engine/HandLift)
 	if usePop then pcall(function() local y0 = button.AbsolutePosition.Y; task.delay(0.3, function() print(string.format("[HandLift] %s absY %d -> %d (card %d)", button:GetFullName(), math.floor(y0), math.floor(button.AbsolutePosition.Y), index)) end) end) end
 	if usePop then pcall(function() print(string.format("[HandLift] card %d selected=%s liftY=%d", index, tostring(isSelected), math.floor(lift))) end) end

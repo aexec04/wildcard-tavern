@@ -12,7 +12,7 @@
 
 local M = {}
 
-M.EDGE_RGB = { 232, 184, 74 }
+M.EDGE_RGB = { 255, 214, 102 }
 M.MIN_RANK_1280 = 18
 M.RANK_BOX = { w = 0.36, h = 0.18 } -- Client/CardFace default index box, as fractions of the card
 M.RANK_FLOOR = 15 -- the UITextSizeConstraint minimum in Client/CardFace

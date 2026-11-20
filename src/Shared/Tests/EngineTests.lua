@@ -21462,18 +21462,27 @@ table.insert(tests, { name = "Counter: Next boss strip is the ornate gold plate 
 	end
 end })
 
-table.insert(tests, { name = "Hand: selected cards (lift 28 px) stay clear of the idle Score plate at five sizes", fn = function()
+table.insert(tests, { name = "Hand: five picks in sequence each keep the full 28 px lift and a 2 px gold stroke at five sizes", fn = function()
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local FT = require(script.Parent.Parent.Engine.FeelTuning)
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	local CL = require(script.Parent.Parent.Engine.CardLook)
 	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
 		local r = G.rects(sz[1], sz[2])
-		local plateBottom = G.scoringRows(r).plateBottom
-		local lift = G.selectedLift(r, FT.SELECTED_LIFT)
-		local cardTop = r.hand.y - lift
-		expectTrue(lift >= 10 and lift <= FT.SELECTED_LIFT, "lift between hover and 28 at " .. sz[1])
-		print(string.format("[HandLift] %dx%d hand.y %d lifted top %d plateBottom %d stage %d..%d", sz[1], sz[2], r.hand.y, cardTop, plateBottom, r.stage.y, r.stage.y + r.stage.h))
-		expectTrue(lift == 10 or cardTop >= plateBottom + 4, "selected cards stay 4 px under the Score plate at " .. sz[1] .. "x" .. sz[2])
+		local cards = {}
+		for i = 1, 5 do
+			local lift = G.selectedLift(r, FT.SELECTED_LIFT) -- what the hub stores in LiftY on each pick
+			expectEqual(lift, 28, "full lift at " .. sz[1] .. "x" .. sz[2])
+			cards[i] = { picked = true, y = -lift, fanY = 0, liftY = lift, age = 1 }
+		end
+		for k, y in pairs(HL.plan(cards, 24)) do expectTrue(y == nil, "settled pick untouched " .. k) end
+		cards[2].y = -14
+		expectEqual(HL.plan(cards, 24)[2], -28, "a card pulled down to 14 is restored to 28")
 	end
+	local e = CL.edge(true, false)
+	expectEqual(e.thickness, 2, "picked stroke is 2 px")
+	expectEqual(e.transparency, 0, "picked stroke is opaque")
+	expectEqual(e.rgb[1] .. "," .. e.rgb[2] .. "," .. e.rgb[3], "255,214,102", "gold 255,214,102")
 end })
 
 table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll plates, gold active tab, boss rule line on the plate, [BossStage] log", fn = function()

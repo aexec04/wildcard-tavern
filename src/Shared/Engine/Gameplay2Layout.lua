@@ -291,8 +291,7 @@ end
 -- how far a picked card rises: the wanted lift, cut so its top stays 4 px under the idle Score plate (never under the hover lift of 10)
 M.LIFT_CLEAR = 4
 function M.selectedLift(r, want, capH)
-	local plateBottom = M.scoringRows(r, capH).plateBottom
-	return math.max(10, math.min(want or 28, r.hand.y - plateBottom - M.LIFT_CLEAR))
+	return want or 28 -- always the full lift so a pick reads on screen; the card draws above the idle plate (Z raised on pick)
 end
 
 function M.playedBand(r, capH, progH)
