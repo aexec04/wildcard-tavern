@@ -625,7 +625,7 @@ return function(deps)
 		local laneReadoutH = POPUP_H
 		local okB, band = pcall(function() return require(script.Parent.Gameplay2).playedBand() end)
 		if okB and band then -- v2 table: the cards stand under the centre score block and no legacy readout hangs above them
-			laneTop, laneHandTop, laneReadoutH = band.top, math.min(laneHandTop, band.bottom), 0
+			laneTop, laneHandTop, laneReadoutH = band.top, band.bottom, 0 -- the band may reach into the hand rect (fewer cards stand there while a hand scores)
 		end
 		local lane = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane")).rect({
 			nookBottom = laneTop, handTop = laneHandTop,

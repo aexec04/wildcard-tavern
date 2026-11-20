@@ -235,12 +235,11 @@ M.COMPACT_FONT_MIN = 28
 M.COMPACT_CARD_H = 44
 function M.scoreStack(stageH, capH, progH, compact)
 	if compact then
-		-- a tall stage keeps the caption's row empty for the Patron trigger pills (they sit right under the tag rows); a short one cannot
-		local top = stageH >= 150 and capH or 0
-		local noProgress = stageH < 100 -- a very short stage keeps the numeral alone while a hand scores
-		if noProgress then progH = 0 end
-		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - progH - 10 - M.COMPACT_CARD_H))
-		return { roomy = true, compact = true, noProgress = noProgress, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 + (noProgress and 0 or 4 + progH) }
+		-- while a hand scores the plate keeps its caption row whenever the stage can hold caption plus a 28 px numeral, and drops the
+		-- "of Target" line (the hand name banner and the played cards take that room); a shorter stage keeps the numeral alone, so the cards keep their row
+		local top = stageH >= capH + M.COMPACT_FONT_MIN + M.COMPACT_CARD_H + 6 and capH or 0 -- and a row of cards still fits under it
+		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - 10 - M.COMPACT_CARD_H))
+		return { roomy = true, compact = true, noProgress = true, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 }
 	end
 	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
 	local fixed = capH + 2 + 4 + progH + 4
@@ -256,11 +255,33 @@ end
 -- there is ONE scoring display and the cards never cover it. Root pixels: { top, bottom }.
 M.PLAYED_GAP = 4
 M.PLAYED_MIN_H = 80
+M.PLATE_PAD = 8      -- the score block stands this far inside the carved border (Gameplay2ScorePlate.PAD)
+M.NAME_ROW_H = 34    -- the hand name banner row
+M.SCORING_GAP = 12   -- plate to banner, banner to the played cards
+M.PLAYED_GOAL_W = 90 -- played cards are at least this wide when the room allows
+M.PLAYED_RATIO = 1.4 -- card height over width
+M.HAND_OVERLAP = 0.45 -- the played row may reach this share of the hand rect down (the hand has fewer cards then)
+
+-- The scoring moment, top to bottom inside and just under the stage: the Score plate (caption and counting total, same top as the idle
+-- plate), 12 px, the hand name banner row, 12 px, the played cards (at least 90 wide where the room allows, reaching into the hand rect
+-- when the stage is short). { plateBottom, name = { x, y, w, h } | nil, band = { top, bottom } }. A stage too short for a banner row
+-- keeps the old shape: no name row, cards right under the numeral.
+function M.scoringRows(r, capH)
+	local pad = M.PLATE_PAD
+	local N = M.scoreStack(math.max(1, r.stage.h - 2 * pad), capH or 26, 22, true)
+	local plateBottom = r.stage.y + math.min(r.stage.h, math.max(40, N.numTop + N.numH + 2 * pad))
+	local nameY = plateBottom + M.SCORING_GAP
+	local top = nameY + M.NAME_ROW_H + M.SCORING_GAP
+	local bottom = math.max(r.hand.y - M.PLAYED_GAP, math.min(top + M.PLAYED_GOAL_W * M.PLAYED_RATIO, r.hand.y + M.HAND_OVERLAP * r.hand.h))
+	if bottom - top >= 44 then
+		return { plateBottom = plateBottom, name = { x = r.stage.x, y = nameY, w = r.stage.w, h = M.NAME_ROW_H }, band = { top = top, bottom = bottom } }
+	end
+	local N0 = M.scoreStack(r.stage.h, capH or 26, 22, true)
+	return { plateBottom = plateBottom, name = nil, band = { top = r.stage.y + N0.bottom + 2, bottom = r.hand.y - M.PLAYED_GAP } }
+end
+
 function M.playedBand(r, capH, progH)
-	-- the cards stand wholly under the compact score block (numeral and "of Target" line) and above the hand
-	local N = M.scoreStack(r.stage.h, capH or 26, progH or 22, true)
-	local bottom = r.hand.y - M.PLAYED_GAP
-	return { top = r.stage.y + N.bottom + 2, bottom = bottom }
+	return M.scoringRows(r, capH).band
 end
 
 local function intersects(a, b)

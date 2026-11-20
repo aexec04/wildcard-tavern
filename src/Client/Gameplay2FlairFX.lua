@@ -51,15 +51,15 @@ local function stop()
 	live = nil
 end
 
-function M.show(layer, stage, avoidBottom, handName, over, chips, mult)
+function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
 	stop()
 	if not layer or not layer.Parent or not handName or handName == "" then return end
-	local size = Flair.fontSize(stage, avoidBottom)
-	if not size then return end
+	local size = row and math.min(Flair.FONT, row.h - 4) or Flair.fontSize(stage, avoidBottom) -- a given row (below the Score plate) sets the size
+	if not size or size < Flair.MIN_FONT - 2 then return end
 	local still = Kit.still()
 	local fast = ClientSettings.get("animSpeed") == "fast"
 	local spec = Flair.spec(handName, still, fast, over)
-	local rect = Flair.nameRect(stage, avoidBottom, size)
+	local rect = row and { x = row.x, y = row.y, w = row.w, h = row.h } or Flair.nameRect(stage, avoidBottom, size)
 	local root = frame(layer, "HandFlair")
 	root.Position = UDim2.fromOffset(rect.x, rect.y)
 	root.Size = UDim2.fromOffset(rect.w, rect.h)

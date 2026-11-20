@@ -374,7 +374,7 @@ function M.install(deps)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
-		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
+		scoreCaption.Visible = N.roomy and N.numTop >= capH and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
 			if not arrow then
@@ -462,7 +462,8 @@ function M.install(deps)
 		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
 		local over = require(Engine:WaitForChild("Gameplay2Flair")).overkill(preview.score, preview.targetScore)
 		local ch, mu = require(Engine:WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
-		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, ch, mu)
+		local row = Layout.scoringRows(r, math.max(20, PreviewRules.H)).name -- under the Score plate, above the played cards, 12 px each side
+		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, ch, mu, row)
 	end
 
 	function self.rects()

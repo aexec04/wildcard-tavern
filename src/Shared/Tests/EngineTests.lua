@@ -30431,16 +30431,44 @@ table.insert(tests, { name = "Counter after a win: summary plate clear of the ge
 	assert(read("src/Client/ShopPurse.lua"):find('"wh_target"', 1, true) and read("src/Client/ShopPurse.lua"):find('"bulb"', 1, true), "Tips pill is the painted table plate with the bulb")
 end })
 
+table.insert(tests, { name = "Gameplay v2 scoring moment: Score plate with its caption, then the hand name banner, then the played cards, 12 px gaps, nothing overlapping, at three sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local F = require(script.Parent.Parent.Engine.Gameplay2Flair)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local sr = L.scoringRows(r, 26)
+		assert(sr.name, "a banner row exists at " .. w .. "x" .. h)
+		-- the plate keeps its caption row while scoring, and its top where the idle plate stands
+		local live = SP.live(r.stage, w, 26, 22, true)
+		assert(live.N.numTop >= 26 and live.N.noProgress, "caption row kept, the of Target line dropped, at " .. w)
+		assert(live.plate.y == r.stage.y and live.plate.y + live.plate.h <= sr.plateBottom, "plate stays at the stage top at " .. w)
+		assert(sr.name.y - sr.plateBottom >= 12 and sr.band.top - (sr.name.y + sr.name.h) >= 12, "12 px gaps around the banner at " .. w)
+		assert(sr.band.bottom <= r.hand.y + L.HAND_OVERLAP * r.hand.h + 0.5 and sr.band.bottom > sr.band.top, "played row stays inside the allowed reach at " .. w)
+		-- the banner's name font fits its row, and the banner and its side plates stay inside the stage
+		local size = math.min(F.FONT, sr.name.h - 4)
+		assert(size >= F.MIN_FONT - 2, "name font readable at " .. w)
+		local br = F.bannerRect(sr.name, r.stage, "Four of a Kind", size)
+		assert(br.x >= r.stage.x and br.x + br.w <= r.stage.x + r.stage.w and br.y == sr.name.y, "banner inside the stage at " .. w)
+		-- no overlap with the Patron seats
+		for _, sl in ipairs(r.slots) do assert(sr.name.y >= sl.pill.y + sl.pill.h and sr.name.y >= sl.label.y + sl.label.h, "banner under the Patron seats at " .. w) end
+		local wide = (sr.band.bottom - sr.band.top) / L.PLAYED_RATIO
+		print(string.format("  [scoring rects] %dx%d plate bottom %d, banner y %d h %d, cards y %d to %d (about %d px wide)", w, h, math.floor(sr.plateBottom), math.floor(sr.name.y), sr.name.h, math.floor(sr.band.top), math.floor(sr.band.bottom), math.floor(wide)))
+		if w >= 1900 then assert(wide >= 90 - 0.5, "played cards at least 90 wide at " .. w) end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay v2 played lane: cards land under the centre score block and above the hand at every size, one scoring display", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local Lane = require(script.Parent.Parent.Engine.PlayedLane)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 } }) do -- (800x450 has a 33 px stage: the numeral alone, no room for a row)
 		local r = L.rects(sz[1], sz[2])
 		local b = L.playedBand(r, 26, 22)
-		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y, "band sits inside the stage and above the hand at " .. sz[1])
+		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y + L.HAND_OVERLAP * r.hand.h + 0.5, "band sits under the stage top and no deeper into the hand than HAND_OVERLAP at " .. sz[1])
 		local lane = Lane.rect({ nookBottom = b.top, handTop = b.bottom, cardW = 110, cardH = 154, popupH = 0, gap = 0, minScale = 0.3 })
 		assert(lane.rowY >= b.top - 0.5, "played cards start inside the band at " .. sz[1])
-		assert(lane.rowY + lane.cardH <= b.bottom + 0.5, "played cards end above the hand at " .. sz[1])
+		assert(lane.rowY + lane.cardH <= b.bottom + 0.5, "played cards end inside the band at " .. sz[1])
 		-- the played row never covers the compact score block (numeral, gold line and the "of Target" text)
 		local N = L.scoreStack(r.stage.h, 26, 22, true)
 		assert(lane.rowY >= r.stage.y + N.bottom, "played cards start under the score block at " .. sz[1] .. "x" .. sz[2])
