@@ -32472,7 +32472,7 @@ table.insert(tests, { name = "Boss round: the rule plate clears the Patron row, 
 		assert(not (pl and pl.w and hit(rp, pl)), "rule plate clear of the Score plate at " .. sz[1])
 	end
 	if not io then return end
-	local f = assert(io.open("src/Client/Gameplay2MomentsFX.lua", "r")); local c = f:read("a"); f:close()
+	local f = assert(io.open("src/Shared/Engine/Gameplay2Moments.lua", "r")); local c = f:read("a"); f:close()
 	assert(c:find("math.min(18, pr.h - 6)", 1, true), "rule plate words are 18 px")
 end })
 
@@ -34410,6 +34410,49 @@ table.insert(tests, { name = "Table: Rank and Suit edge is a thin 2 px gold line
 	expectTrue(src:find("gs.Thickness = 2;", 1, true) ~= nil and src:find("gs.Thickness = 4", 1, true) == nil, "Rank and Suit outer gold line is 2 px")
 	expectTrue(src:find("Kit.painted(handsPill", 1, true) == nil and src:find("Kit.painted(discardsPill", 1, true) == nil, "Hands and Discards are not painted with the ornate frame")
 	expectTrue(src:find("ps.Thickness = 1", 1, true) ~= nil and src:find("math.min(18,", 1, true) ~= nil, "1 px gold line and 18 px cream text")
+end })
+
+table.insert(tests, { name = "Boss rule chip: complete text, short chip at compact sizes, clear of the felt oval, seats, stage and hand at four sizes; the scroll carries the rule", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local compactSeen = false
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local f = CT.feltFor(w, h).rim
+		local a, b, cx, cy = f.w / 2, f.h / 2, f.x + f.w / 2, f.y + f.h / 2
+		for _, def in ipairs(BR.Definitions) do
+			local chip = M.ruleChip(r, w, h, def.name, def.description)
+			expectTrue(chip ~= nil, def.name .. " has a chip at " .. w)
+			local q = chip.rect
+			expectTrue(chip.size >= 9, "chip text 9 px or more at " .. w)
+			local textX = 4 + (q.h - 8) + M.ICON_GAP
+			expectTrue(#chip.text * chip.size * 0.6 + textX + 8 <= q.w + 0.5 or not chip.compact and M.ruleFits(M.rulePlate(r), def.name, def.description), "chip text inside the chip at " .. w .. " " .. def.name)
+			for i, sl in ipairs(r.slots) do
+				for _, part in ipairs({ "card", "label", "pill" }) do expectTrue(not hit(q, sl[part]), "chip clear of seat " .. i .. " " .. part .. " at " .. w) end
+			end
+			expectTrue(not hit(q, r.stage) and not hit(q, r.hand), "chip clear of stage and hand at " .. w)
+			if chip.compact then
+				compactSeen = true
+				for _, px in ipairs({ q.x, q.x + q.w / 2, q.x + q.w }) do
+					expectTrue(((px - cx) / a) ^ 2 + ((q.y + q.h - cy) / b) ^ 2 >= 1, "chip clear of the table oval at " .. w .. " " .. def.name)
+				end
+				expectTrue(chip.text:find("^Boss: ") ~= nil, "compact chip is a short label")
+				local sub = M.ruleSubtitle(def.description, r.round.w)
+				expectTrue(r.round.h >= 36 or M.subtitleSize(sub, r.round.w) >= 9, "the rule subtitle fits the scroll at 9 px or more at " .. w .. " " .. def.name)
+			end
+		end
+	end
+	expectTrue(compactSeen, "the compact chip is exercised at 800x450")
+	expectEqual(M.ruleSubtitle("Deals you one fewer card this round."), "One fewer card", "rule subtitle")
+	local src = io and io.open("src/Client/Gameplay2.lua", "r")
+	if src then
+		local c = src:read("a"); src:close()
+		expectTrue(c:find("Moments.ruleSubtitle", 1, true) ~= nil, "the scroll shows the rule when the chip is compact")
+	end
 end })
 
 return tests

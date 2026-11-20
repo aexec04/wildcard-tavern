@@ -304,7 +304,8 @@ function M.boss(layer, rects, state, w, h)
 	local bdef = state.bossModifier and state.bossModifier.id and BossRounds.getById(state.bossModifier.id)
 	local tintSet = Rules.bossTint(bdef and bdef.rules)
 	-- one line rule plate under the Patron row, tinted by the boss rule family (static, no tween)
-	local pr = Rules.rulePlate(rects)
+	local chip = Rules.ruleChip(rects, w, h, name, rule)
+	local pr = chip and chip.rect
 	local nameSlot = layer:FindFirstChild("RoundName")
 	if not pr or rule == "" or (nameSlot and nameSlot:GetAttribute("RuleInScroll") == true) then -- the scroll carries the rule: one rule element only
 		if rulePlate then rulePlate.Visible = false end
@@ -337,8 +338,9 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.Visible = true
 		rulePlate.Position = UDim2.fromOffset(pr.x, pr.y)
 		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
-		rulePlate.TextSize = math.max(14, math.min(18, pr.h - 6)) -- 18 px words on a 30 px plate
-		rulePlate.Text = Rules.plateLine(name, rule)
+		rulePlate.TextSize = chip.size -- 18 px words on a 30 px plate; 12 px on the short compact chip
+		rulePlate.Text = chip.text
+		rulePlate.TextTruncate = chip.compact and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
 		local parts = Rules.rulePlateParts(pr)
 		local side = parts.icon.w
 		-- children of a UIPadding parent start after its left padding: shift the chip back by textX so it lands at icon.x (it sat ON the first letters)

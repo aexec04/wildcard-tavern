@@ -804,6 +804,22 @@ function M.install(deps)
 				local ih = roundLabel.AbsoluteSize.Y
 				pcall(function() ih = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.h end) -- ask the layout, not the label: after a root rescale the label still holds its old size
 				local inScroll = bname ~= nil and brule ~= "" and ih >= 2 * 15 + 6
+				local compactRule = false -- a short scroll with a compact chip: the rule is the second line at 9 px or more, the chip holds "Boss: Name"
+				if bname ~= nil and brule ~= "" and not inScroll and ih >= 28 then
+					local okc, ch = pcall(function() local rr = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y); return Moments.ruleChip(rr, root.AbsoluteSize.X, root.AbsoluteSize.Y, bname, brule) end)
+					compactRule = okc and ch ~= nil and ch.compact
+				end
+				if compactRule then
+					local pw = roundLabel.AbsoluteSize.X
+					pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
+					local sub = Moments.ruleSubtitle(brule, pw)
+					roundLabel:SetAttribute("RuleInScroll", false)
+					roundLabel.RichText = false
+					roundLabel.TextWrapped = true
+					roundLabel.TextTruncate = Enum.TextTruncate.None
+					roundLabel.TextSize = math.max(9, math.min(13, math.floor((ih - 4) / 2.5), Moments.subtitleSize(sub, pw)))
+					roundLabel.Text = roundLabel.Text .. "\n" .. sub
+				else
 					roundLabel:SetAttribute("RuleInScroll", inScroll) -- the scroll is then the one rule element: Gameplay2MomentsFX hides the separate rule plate
 					roundLabel.RichText = false
 					if inScroll then
@@ -840,6 +856,7 @@ function M.install(deps)
 					local pw = roundLabel.AbsoluteSize.X
 					pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
 					roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, Layout.roundLineSize(ih, 1))), pw) -- one line: fits the scroll in width and height
+				end
 				end
 			end
 	end

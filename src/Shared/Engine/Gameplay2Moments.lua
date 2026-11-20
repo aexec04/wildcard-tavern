@@ -131,6 +131,53 @@ function M.rulePlate(r)
 	return { x = x, y = y, w = w, h = math.min(M.RULE_H, maxH) }
 end
 
+-- Compact sizes: when the full "Name: rule" line does not fit the plate (about 7.5 px a letter at 14 px plus the icon), the plate becomes a short chip
+-- "Boss: Name" and the rule goes in the Night and Round scroll as its second line. The chip is a small box above the left rim: its height is
+-- COMPACT_H, its width follows the label, and it is pulled up until no corner touches the felt ellipse.
+M.COMPACT_H, M.COMPACT_SIZE, M.CHIP_CHAR_W = 22, 12, 0.6
+function M.ruleFits(pr, name, rule)
+	local need = #M.plateLine(name, rule) * 14 * 0.55 + M.rulePlateParts(pr).textX + 8
+	return pr.w >= need
+end
+function M.chipLabel(name) return "Boss: " .. tostring(name or "Boss") end
+-- returns { rect, compact, text, size }; nil when there is no room at all
+function M.ruleChip(r, w, h, name, rule)
+	local pr = M.rulePlate(r)
+	if not pr then return nil end
+	if M.ruleFits(pr, name, rule) then return { rect = pr, compact = false, text = M.plateLine(name, rule), size = math.max(14, math.min(18, pr.h - 6)) } end
+	local size = M.COMPACT_SIZE
+	local label = M.chipLabel(name)
+	local ch = M.COMPACT_H
+	local textX = 4 + (ch - 8) + M.ICON_GAP
+	local cw = math.min(pr.w, math.ceil(#label * size * M.CHIP_CHAR_W) + textX + 8)
+	local rect = { x = pr.x, y = pr.y, w = cw, h = ch }
+	local f = require(script.Parent.ConceptTLayout).feltFor(w, h).rim
+	local a, b, cx, cy = f.w / 2, f.h / 2, f.x + f.w / 2, f.y + f.h / 2
+	local function touches(q) -- the chip's lower corners are the points nearest the felt
+		for _, px in ipairs({ q.x, q.x + q.w }) do
+			if ((px - cx) / a) ^ 2 + ((q.y + q.h - cy) / b) ^ 2 < 1 then return true end
+		end
+		return false
+	end
+	local guard = 0
+	while touches(rect) and rect.y > 0 and guard < 200 do rect.y = rect.y - 1; guard = guard + 1 end
+	return { rect = rect, compact = true, text = label, size = size }
+end
+-- the largest size at which `text` fits one line of a scroll plateW wide (0.58 of the size per letter, 90 percent of the width)
+function M.subtitleSize(text, plateW) return math.floor(plateW * 0.9 / (math.max(1, #tostring(text)) * 0.58)) end
+-- the second scroll line in compact mode: the rule alone (the chip carries the boss name)
+function M.ruleSubtitle(rule, plateW)
+	local line = M.plateLine("", rule):gsub("^:%s*", "")
+	line = line:gsub(" this round", ""):gsub(" every hand", ""):gsub(" after every hand you play", " each hand")
+	local function cap(t) return (t:gsub("^%l", string.upper)) end
+	-- still too long for one line at 9 px: keep the first clause, then drop trailing words
+	if plateW and M.subtitleSize(line, plateW) < 9 then
+		line = line:gsub("[,(].*$", ""):gsub(" but .*$", ""):gsub(" and .*$", ""):gsub("%s+$", "")
+		while M.subtitleSize(line, plateW) < 9 and line:find(" ") do line = line:gsub("%s+%S+$", "") end
+	end
+	return cap(line)
+end
+
 -- Inside the one rule plate: a square icon chip at the left edge and the text starting ICON_GAP px after it, so the chip never covers a letter.
 M.ICON_GAP = 12
 function M.rulePlateParts(pr)
