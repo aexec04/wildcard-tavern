@@ -247,7 +247,7 @@ function MenuBoard.build(parent)
 			end
 		end
 		local scale0 = RoomLayout.noteSlots(r - l, b - t, {}).scale -- the scale depends on the width only
-		-- the notes are drawn at NOTE_W and shrunk by the scale; raise each line's size so it still reads at least 14 px on screen.
+		-- the notes are drawn at NOTE_W and shrunk by the scale; raise each line's size so it still reads at least MIN_TEXT (18) px on screen.
 		-- A line that does not fit wraps onto more lines (the note grows by the extra height), so no text is ever cut with an ellipsis.
 		heights = {}
 		for _, slot in ipairs(visibleSlots) do
@@ -259,7 +259,7 @@ function MenuBoard.build(parent)
 				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.Name ~= "NoteHit" then
 					local base = d:GetAttribute("BaseTextSize") or d.TextSize
 					d:SetAttribute("BaseTextSize", base)
-					local want = math.max(base, math.ceil(14 / scale0))
+					local want = math.max(base, math.ceil(RoomLayout.MIN_TEXT / scale0))
 					d.TextSize = want
 					d.TextTruncate = Enum.TextTruncate.None
 					if d.Name == "Text" or d.Name == "Time" then
@@ -328,9 +328,10 @@ function MenuBoard.build(parent)
 				end
 			end
 			if rank then extra = require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize).h - baseH end
-			note.Size = UDim2.fromOffset(NOTE_W, baseH + extra)
+			local noteH = math.max(baseH + extra, RoomLayout.minNoteH(note.Name))
+			note.Size = UDim2.fromOffset(NOTE_W, noteH)
 			slot.Size = note.Size
-			heights[#heights + 1] = baseH + extra
+			heights[#heights + 1] = noteH
 		end
 		local keep = nil
 		for i, slot in ipairs(visibleSlots) do

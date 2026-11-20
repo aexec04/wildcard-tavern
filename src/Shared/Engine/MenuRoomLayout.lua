@@ -26,6 +26,12 @@ MenuRoomLayout.pic = {
 -- The cork surface itself (inside the wooden frame of noticeboard): the Notice Board notes are laid out inside it.
 MenuRoomLayout.cork = { l = 0.79, t = 0.155, r = 0.955, b = 0.41 }
 MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 12, 10, 10, 4
+-- Notes read at least MIN_TEXT px on screen (the table plates use 22). Plate height floors: the daily and Rank plates 86, the goal plate 70.
+MenuRoomLayout.MIN_TEXT = 18
+function MenuRoomLayout.minNoteH(name)
+	if name == "NextGoalBanner" then return 70 end
+	return 86
+end
 -- When the notes do not all fit they first move closer together (noteSlots), before any note is taken off the board.
 MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT = 8, 4
 MenuRoomLayout.deck = { l = 0.49, t = 0.67, r = 0.56, b = 0.73 }   -- gentle pulse ring on the primary

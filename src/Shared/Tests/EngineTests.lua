@@ -29873,6 +29873,19 @@ table.insert(tests, { name = "Gameplay v2 hand strip: the Score caption and the 
 	assert(c:find("nameInCaption", 1, true) and c:find("t.roomy and not t.noProgress", 1, true) and c:find("and stripShown then", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Menu notes: text reads 18 px or more on screen, plates are 86, 86 and 70 tall and all three stay on the cork at 1920x957 and 1506x751", fn = function()
+	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	assert(R.MIN_TEXT == 18 and R.minNoteH("RankBar") == 86 and R.minNoteH("NextGoalBanner") == 70, "numbers")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 } }) do
+		local l, t, r, b = R.corkRect(sz[1], sz[2])
+		local fit = R.noteSlots(r - l, b - t, { 86, 86, 70 }, 3)
+		assert(fit.shown == 3, "three tall notes fit at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/MenuBoard.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("RoomLayout.MIN_TEXT / scale0", 1, true) and c:find("RoomLayout.minNoteH(note.Name)", 1, true), "the board uses them")
+end })
+
 table.insert(tests, { name = "Menu notes: News, Rank, Goal and Daily share the painted gold plate and one width, 12 px gaps, words 30 px clear of the gold ends, the XP bar sits inside the plate under its text", fn = function()
 	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
 	assert(R.NOTE_GAP == 12 and R.NOTE_W == 300, "12 px gaps, one width")
