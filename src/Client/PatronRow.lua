@@ -252,11 +252,16 @@ local function newCard(i)
 			pic.BorderSizePixel = 0
 			pic.Active = false
 			pic.Image = picId
-			pic.ImageRectOffset = Vector2.new(125, 145) -- the card inside the 1024x1536 picture
-			pic.ImageRectSize = Vector2.new(774, 1246)
+			-- the uploaded file is already trimmed to the card (774x1246), so no ImageRect: the whole image stretches over the seat
 			pic.ScaleType = Enum.ScaleType.Stretch
 			pic.ZIndex = Z + 1
 			pic.Parent = mark
+			task.defer(function() -- Studio check: the picture rect must equal the seat rect
+				pcall(function()
+					local p, m = pic.AbsolutePosition, mark.AbsolutePosition
+					print(string.format("[SeatFace] picture x%d y%d w%d h%d, seat x%d y%d w%d h%d", math.floor(p.X + 0.5), math.floor(p.Y + 0.5), math.floor(pic.AbsoluteSize.X + 0.5), math.floor(pic.AbsoluteSize.Y + 0.5), math.floor(m.X + 0.5), math.floor(m.Y + 0.5), math.floor(mark.AbsoluteSize.X + 0.5), math.floor(mark.AbsoluteSize.Y + 0.5)))
+				end)
+			end)
 			mark.BackgroundTransparency = 1
 			for _, ch in ipairs(mark:GetChildren()) do
 				if ch ~= pic and (ch:IsA("GuiObject") or ch:IsA("UIStroke")) then
