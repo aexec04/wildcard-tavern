@@ -32549,6 +32549,29 @@ table.insert(tests, { name = "Scoring row: the played band ends above the Hands 
 	end
 end })
 
+table.insert(tests, { name = "ScreenCheck: watched words, overlap, text under 18 px and overlapping pieces are reported, DebugGoto screencheck parses", fn = function()
+	local S = require(script.Parent.Parent.Engine.ScreenCheck)
+	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectTrue(S.isWatched("Deal Me In") and S.isWatched("Next Round") and S.isWatched("Rank 3") and not S.isWatched("") and not S.isWatched("Hello"), "watch words")
+	expectTrue(S.overlap({ x = 0, y = 0, w = 10, h = 10 }, { x = 20, y = 0, w = 10, h = 10 }) == 0, "apart")
+	expectTrue(S.overlap({ x = 0, y = 0, w = 10, h = 10 }, { x = 5, y = 5, w = 10, h = 10 }) == 25, "overlap area")
+	expectTrue(S.small(17) and not S.small(18), "18 px floor")
+	local a, b, c = {}, {}, {}
+	local lines, warns = S.report({
+		{ name = "A", text = "Shop", size = 16, watched = true, group = a, rect = { x = 0, y = 0, w = 100, h = 40 } },
+		{ name = "B", text = "Next Round", size = 20, watched = true, group = b, rect = { x = 50, y = 10, w = 100, h = 40 } },
+		{ name = "C", text = "Rank 2", size = 20, watched = true, group = c, rect = { x = 300, y = 0, w = 80, h = 30 } },
+	})
+	expectTrue(#lines == 3 and #warns == 2, "one small text and one overlap")
+	local _, none = S.report({
+		{ name = "A", text = "Shop", size = 20, watched = true, group = a, rect = { x = 0, y = 0, w = 100, h = 40 } },
+		{ name = "B", text = "Next Round", size = 20, watched = true, group = b, rect = { x = 102, y = 0, w = 100, h = 40 } },
+	})
+	expectTrue(#none == 0, "touching pieces are clear")
+	local t = D.parse("screencheck")
+	expectTrue(t and t.kind == "screencheck", "DebugGoto screencheck parses")
+end })
+
 table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 reference, 25 px off passes, 30 px warns, a missing piece is only reported, DebugGoto tablecheck parses", fn = function()
 	local T = require(script.Parent.Parent.Engine.TableCheck)
 	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
