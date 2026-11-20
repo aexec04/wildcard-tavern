@@ -51,7 +51,8 @@ local function build(layer)
 		t.Parent = plate
 		return t
 	end
-	title = label("Title", 14, 20, 16, Color3.fromRGB(255, 244, 214), Enum.Font.GothamBold)
+	local TC = Rules.TITLE_COLOR
+	title = label("Title", 14, 22, 18, Color3.fromRGB(TC[1], TC[2], TC[3]), Enum.Font.Merriweather)
 	body = label("Body", 38, 36, 15, Color3.fromRGB(235, 218, 180), Enum.Font.Gotham)
 	button = Instance.new("TextButton")
 	button.Name = "RoundHintGotIt"

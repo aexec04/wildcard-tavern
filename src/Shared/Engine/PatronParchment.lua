@@ -22,13 +22,13 @@ M.RIBBON = { 232, 214, 172 }
 M.INK = { 58, 38, 20 }
 M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
 
-M.SIDE, M.TOP, M.RIBBON_H, M.GAP = 0.05, 0.04, 0.17, 0.02
+-- reference seat: the portrait fills about 80 percent of the card and the name ribbon overlaps the portrait's bottom
+M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.05, 0.04, 0.17, 0.80, 0.07
 
 function M.layout()
-	local portraitH = 1 - M.TOP - M.RIBBON_H - M.GAP - 0.03
 	return {
-		portrait = { x = M.SIDE, y = M.TOP, w = 1 - 2 * M.SIDE, h = portraitH },
-		ribbon = { x = M.SIDE, y = M.TOP + portraitH + M.GAP, w = 1 - 2 * M.SIDE, h = M.RIBBON_H },
+		portrait = { x = M.SIDE, y = M.TOP, w = 1 - 2 * M.SIDE, h = M.PORTRAIT_H },
+		ribbon = { x = M.SIDE, y = M.TOP + M.PORTRAIT_H - M.OVERLAP, w = 1 - 2 * M.SIDE, h = M.RIBBON_H },
 	}
 end
 

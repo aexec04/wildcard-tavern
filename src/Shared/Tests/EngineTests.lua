@@ -30270,7 +30270,8 @@ table.insert(tests, { name = "Patron parchment seat: every cut card has a portra
 	assert(c >= 81, "crop table has every card")
 	local L = P.layout()
 	assert(L.portrait.x >= 0 and L.portrait.x + L.portrait.w <= 1 and L.ribbon.x + L.ribbon.w <= 1, "inside the seat")
-	assert(L.portrait.y + L.portrait.h <= L.ribbon.y, "portrait ends above the ribbon")
+	assert(L.portrait.h >= 0.78, "the portrait fills about 80 percent of the seat")
+	assert(L.portrait.y + L.portrait.h > L.ribbon.y and L.portrait.y + L.portrait.h - L.ribbon.y <= 0.1, "the ribbon overlaps the portrait's bottom")
 	assert(L.ribbon.y + L.ribbon.h <= 1, "ribbon inside the seat")
 	assert(P.contrast() >= 4.5, "ink on the ribbon: " .. P.contrast())
 	for _, w in ipairs({ 157, 140, 120, 105 }) do
@@ -32535,6 +32536,20 @@ table.insert(tests, { name = "Hand v2: cards grow toward the reference size and 
 		local cw = HS.cardSize(sz[1], r.hand.w, r.hand.h, 8)
 		if want[key] then expectTrue(cw >= 130, "card at least 130 wide at " .. key .. ", got " .. cw) end
 	end
+end })
+
+table.insert(tests, { name = "RoundHints: the heading is gold with 4.5:1 on the plate, the Patron Power heading is capitalised", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local function lum(c)
+		local function f(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * f(c[1]) + 0.7152 * f(c[2]) + 0.0722 * f(c[3])
+	end
+	local a, b = lum(RH.TITLE_COLOR), lum(RH.PLATE_COLOR)
+	expectTrue((a + 0.05) / (b + 0.05) >= 4.5, "gold on the dark plate")
+	expectTrue(RH.TITLE_COLOR[1] > 200 and RH.TITLE_COLOR[2] > 160 and RH.TITLE_COLOR[3] < 120, "the heading is gold")
+	local found = false
+	for _, h in ipairs(RH.ORDER) do if h.title == "Patron Power" then found = true end end
+	expectTrue(found, "Patron Power heading")
 end })
 
 return tests

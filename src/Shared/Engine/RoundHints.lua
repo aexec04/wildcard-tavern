@@ -18,7 +18,7 @@ local M = {}
 
 M.ORDER = {
 	{ id = "round_hint_select", title = "Pick your cards", body = "Tap up to five cards, then press Play Hand." },
-	{ id = "round_hint_tiers", title = "Patron power", body = "Wood frames are Common, gold are Legendary." },
+	{ id = "round_hint_tiers", title = "Patron Power", body = "Wood frames are Common, gold are Legendary." },
 	{ id = "round_hint_target", title = "What is Target?", body = "Score the Target before your hands run out." },
 }
 
@@ -34,6 +34,9 @@ M.BUTTON_W, M.BUTTON_H = 90, 44
 M.WIDE_W, M.WIDE_H, M.WIDE_MIN_W, M.WIDE_BUTTON_W = 300, 84, 200, 92
 M.WIDE_BUTTON_H = 44 -- a wide Got it, level with the middle of the plate (it was a square 72 x 72)
 -- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate
+-- reference: the heading is gold serif on the dark plate (about 8:1), the body cream sans
+M.TITLE_COLOR = { 246, 196, 70 }
+M.PLATE_COLOR = { 46, 28, 14 }
 M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
 M.GAP = 8
 
