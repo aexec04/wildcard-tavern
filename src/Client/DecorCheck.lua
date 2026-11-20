@@ -65,6 +65,13 @@ function M.run()
 		plates = plates,
 	})
 	print(string.format("[DecorCheck] %dx%d %s", w, h, table.concat(lines, "; ")))
+	do -- [FeltInlay]: the ring picture's visible line against the felt rect
+		local ring, fe = live("FeltInlay") and dc.inlay.box or nil, CT.feltFor(w, h).rim
+		if ring then
+			local gap = math.min(ring.x - fe.x, ring.y - fe.y, fe.x + fe.w - ring.x - ring.w, fe.y + fe.h - ring.y - ring.h)
+			print(string.format("[FeltInlay] ring x%d y%d w%d h%d, felt x%d y%d w%d h%d, gap %d, inside %s", math.floor(ring.x + 0.5), math.floor(ring.y + 0.5), math.floor(ring.w + 0.5), math.floor(ring.h + 0.5), fe.x, fe.y, fe.w, fe.h, math.floor(gap + 0.5), tostring(gap >= CT.INLAY_MARGIN)))
+		end
+	end
 	for _, msg in ipairs(warns) do warn("[DecorCheck] " .. msg) end
 	print(string.format("[DecorCheck] %d warnings", #warns + bad))
 	return #warns + bad

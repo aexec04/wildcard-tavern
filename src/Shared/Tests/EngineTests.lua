@@ -24227,7 +24227,7 @@ table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table pass
 		local fl = L.feltFor(w, h)
 		local plates = {}
 		for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard", "deckCount" }) do plates[#plates + 1] = { label = k, rect = r[k] } end
-		return { w = w, h = h, felt = fl.rim, inlay = fl.inlay, deck = r.deck, tilt = L.DECK_TILT, rail = { x = dc.rail.x, w = dc.rail.w, box = dc.rail.box }, plates = plates }
+		return { w = w, h = h, felt = fl.rim, inlay = dc.inlay.box, deck = r.deck, tilt = L.DECK_TILT, rail = { x = dc.rail.x, w = dc.rail.w, box = dc.rail.box }, plates = plates }
 	end
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
 		local lines, warns = D.check(params(sz[1], sz[2]))
@@ -24237,7 +24237,11 @@ table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table pass
 	local p = params(1920, 957)
 	p.inlay = { x = p.felt.x - 10, y = p.felt.y, w = p.felt.w, h = p.felt.h }
 	local _, w1 = D.check(p)
-	assert(#w1 == 1 and w1[1]:find("inlay leaves the felt", 1, true), "an inlay past the felt warns")
+	assert(#w1 >= 1 and w1[1]:find("inlay leaves the felt", 1, true), "an inlay past the felt warns")
+	p = params(1920, 957)
+	p.inlay = { x = p.felt.x + 5, y = p.felt.y + 5, w = p.felt.w - 10, h = p.felt.h - 10 }
+	local _, w1b = D.check(p)
+	assert(#w1b == 1 and w1b[1]:find("px inside the felt", 1, true), "a ring closer than 18 px to the felt edge warns")
 	p = params(1920, 957)
 	p.inlay = nil -- no inlay on the table: nothing to warn about
 	local l0, w0 = D.check(p)
@@ -24298,6 +24302,7 @@ table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 referenc
 	if src then
 		local t = src:read("*a"); src:close()
 		assert(not t:find("FeltRimShadow", 1, true) and not t:find("FeltInlay.Piece", 1, true), "no dashed inlay or stair-step rim shadow pieces are built")
+		assert(t:find("ImageColor3 = Color3.fromRGB(190, 150, 70)", 1, true) and t:find("ImageTransparency = 0.5", 1, true), "the ring is tinted gold at 0.5 transparency")
 		assert(t:find('"FeltInlay", "ct_felt_inlay"', 1, true), "the inlay is one painted ring picture")
 	end
 end })
@@ -24339,7 +24344,12 @@ table.insert(tests, { name = "Gameplay2 felt inlay picture: one painted ring, vi
 		local f = L.feltFor(w, h)
 		local d = L.decorFor(G.rects(w, h), w, h)
 		local b = d.inlay.box
-		assert(b.x == f.inlay.x and b.y == f.inlay.y and b.w == f.inlay.w and b.h == f.inlay.h, w .. "x" .. h .. " ring line sits on the felt inlay rect")
+		local cx, cy = f.inlay.x + f.inlay.w / 2, f.inlay.y + f.inlay.h / 2
+		assert(math.abs(b.x + b.w / 2 - cx) <= 1 and math.abs(b.y + b.h / 2 - cy) <= 1, w .. "x" .. h .. " ring line stays centred on the felt inlay rect")
+		assert(math.abs(b.w - f.inlay.w * (1 - L.INLAY_SHRINK)) <= 1.5 and math.abs(b.h - f.inlay.h * (1 - L.INLAY_SHRINK)) <= 1.5, w .. "x" .. h .. " ring line is the inlay rect shrunk by 3 percent")
+		local gap = math.min(b.x - f.rim.x, b.y - f.rim.y, f.rim.x + f.rim.w - b.x - b.w, f.rim.y + f.rim.h - b.y - b.h)
+		print(string.format("[FeltInlay] %dx%d ring x%d y%d w%d h%d felt x%d y%d w%d h%d gap %d", w, h, b.x, b.y, b.w, b.h, f.rim.x, f.rim.y, f.rim.w, f.rim.h, gap))
+		assert(gap >= L.INLAY_MARGIN, w .. "x" .. h .. " both ring ends stay at least 18 px inside the felt")
 		assert(b.x >= f.rim.x and b.y >= f.rim.y and b.x + b.w <= f.rim.x + f.rim.w and b.y + b.h <= f.rim.y + f.rim.h, w .. "x" .. h .. " ring line inside the felt")
 		assert(d.inlay.w >= b.w and d.inlay.h >= b.h, w .. "x" .. h .. " picture is at least as large as its line")
 	end

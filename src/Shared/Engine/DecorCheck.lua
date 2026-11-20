@@ -51,6 +51,11 @@ function M.check(p)
 	if p.inlay and not M.inside(p.inlay, p.felt) then
 		warns[#warns + 1] = "the inlay leaves the felt: " .. fmt("inlay", p.inlay) .. " vs " .. fmt("felt", p.felt)
 	end
+	if p.inlay then
+		local m = CT.INLAY_MARGIN
+		local gap = math.min(p.inlay.x - p.felt.x, p.inlay.y - p.felt.y, p.felt.x + p.felt.w - p.inlay.x - p.inlay.w, p.felt.y + p.felt.h - p.inlay.y - p.inlay.h)
+		if gap < m then warns[#warns + 1] = string.format("the inlay is only %d px inside the felt (needs %d): ", math.floor(gap + 0.5), m) .. fmt("inlay", p.inlay) end
+	end
 	if not CT.insideFelt(p.deck, p.tilt or CT.DECK_TILT, p.w, p.h, 0) then
 		warns[#warns + 1] = "the deck leaves the felt: " .. fmt("deck", p.deck)
 	end

@@ -150,6 +150,8 @@ M.DECOR = {
 }
 -- thin gold ring picture (ct_felt_inlay); box is the visible line, placed on the felt inlay rect (not a DECOR entry: it has no screen target)
 M.INLAY_ART = { art = { w = 1536, h = 1024, box = { 84, 133, 1452, 872 } } }
+M.INLAY_SHRINK = 0.03 -- the ring is drawn 3 percent smaller than the felt inlay rect (of its width and height, around its centre)
+M.INLAY_MARGIN = 18 -- px the ring's ends must stay inside the felt rect
 
 function M.decor(w, h)
 	local out = {}
@@ -182,7 +184,11 @@ function M.decorFor(r, w, h)
 	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
 	return {
 		rail = place(M.DECOR.rail, 0, top, w, h - top, M.railOverscan(w)),
-		inlay = (function() local i = M.feltFor(w, h).inlay; return place(M.INLAY_ART, i.x, i.y, i.w, i.h) end)(),
+		inlay = (function()
+			local i = M.feltFor(w, h).inlay -- shrunk around its centre so both ends stay well inside the painted felt (the oak rim is narrower than the ellipse at its ends)
+			local sw, sh = i.w * M.INLAY_SHRINK, i.h * M.INLAY_SHRINK
+			return place(M.INLAY_ART, round(i.x + sw / 2), round(i.y + sh / 2), round(i.w - sw), round(i.h - sh))
+		end)(),
 	}
 end
 

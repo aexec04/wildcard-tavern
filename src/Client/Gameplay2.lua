@@ -128,7 +128,7 @@ function M.install(deps)
 		local img = Instance.new("ImageLabel")
 		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
-		if spec[1] == "inlay" then img.ImageTransparency = 0.35; img.ClipsDescendants = true end
+		if spec[1] == "inlay" then img.ImageTransparency = 0.5; img.ImageColor3 = Color3.fromRGB(190, 150, 70); img.ClipsDescendants = true end -- thin warm gold, not cream
 		furniture[spec[1]] = img
 	end
 	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
