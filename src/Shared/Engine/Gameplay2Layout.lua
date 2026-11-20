@@ -102,10 +102,10 @@ function M.rects(w, h)
 	local igap = ref and round(0.0102 * w) or inner -- reference: 17 px between Target and the scroll
 	local ih = barH - 2 * inner
 	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right
-	r.target = box(barX + inner, barY + inner, round(barW * (ref and 0.2995 or 0.31)), ih)
-	r.round = box(r.target.x + r.target.w + igap, barY + inner, round(barW * (ref and 0.414 or 0.34)), ih) -- the mockup scroll spans x 722 to 1130
+	r.target = box(barX + inner, barY + inner, round(barW * (ref and 0.2995 or 0.27)), ih) -- compact bars give the scroll the room: Target and Tips take 0.27 each
+	r.round = box(r.target.x + r.target.w + igap, barY + inner, round(barW * (ref and 0.414 or 0.42)), ih) -- the mockup scroll spans x 722 to 1130
 	do -- the parchment scroll is a 3.97 : 1 picture: on a wide bar it keeps at most 1.4 times that shape, centred in its slot (never stretched into a slab)
-		local maxW = round(ih * 3.97 * (ref and 1.43 or 1.4))
+		local maxW = round(ih * 3.97 * (ref and 1.43 or 1.55))
 		if r.round.w > maxW then r.round = box(r.round.x + round((r.round.w - maxW) / 2), r.round.y, maxW, ih) end
 	end
 	local tx = r.round.x + r.round.w + igap

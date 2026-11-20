@@ -34058,6 +34058,46 @@ table.insert(tests, { name = "Table: the round hint stays inside the root and cl
 	end
 end })
 
+table.insert(tests, { name = "Table: both scroll lines fit at five sizes, the goal line shows from a 28 px scroll and nothing is cut", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		expectTrue(r.round.h >= 2 * L.ROUND_TEXT_MIN + 6, w .. "x" .. h .. ": the scroll holds two 11 px lines")
+		for _, text in ipairs({ "Night 8, Round 3", "Score 12000 to clear" }) do
+			local size = L.fitRoundText(text, 30, r.round.w)
+			expectTrue(size >= L.ROUND_TEXT_MIN and #text * size * L.ROUND_CHAR_W <= L.roundInnerW(r.round.w) + 0.5 or size == L.ROUND_TEXT_MIN, w .. "x" .. h .. ": '" .. text .. "' fits at " .. size)
+		end
+		expectFalse(hit(r.target, r.round) or hit(r.round, r.tips) or hit(r.target, r.tips), w .. "x" .. h .. ": Target, scroll and Tips do not overlap")
+		expectTrue(r.target.w >= 100 and r.tips.w >= 100, w .. "x" .. h .. ": Target and Tips keep 100 px")
+	end
+end })
+
+table.insert(tests, { name = "Table: the round hint never covers the Score plate, Patron seats, hand or bottom buttons at five sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L, RH, SP = require(E.Gameplay2Layout), require(E.RoundHints), require(E.Gameplay2ScorePlate)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local shown = 0
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local spot = RH.place(r, w, h, {})
+		if spot then
+			shown = shown + 1
+			local sp = SP.live(r.stage, w, 20, 22).plate
+			for _, part in ipairs({ spot.plate, spot.button }) do
+				expectFalse(hit(part, sp), w .. "x" .. h .. ": hint clear of the Score plate")
+				expectFalse(hit(part, r.hand) or hit(part, r.play) or hit(part, r.discard) or hit(part, r.sortRank) or hit(part, r.sortSuit), w .. "x" .. h .. ": hint clear of the hand and bottom buttons")
+				for _, s in ipairs(r.slots) do
+					expectFalse(hit(part, s.card) or hit(part, s.label) or hit(part, s.pill), w .. "x" .. h .. ": hint clear of the Patron seats")
+				end
+			end
+		end
+	end
+	expectTrue(shown >= 3, "the hint is placed at three or more of the five sizes")
+end })
+
 table.insert(tests, { name = "Table: 'Night 1, Round 1' and 'Score N to clear' fit the round scroll at 1024x768, 1280x720, 800x450 and 1920x957, never under 11 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	for _, sz in ipairs({ { 1024, 768 }, { 1280, 720 }, { 800, 450 }, { 1920, 957 } }) do

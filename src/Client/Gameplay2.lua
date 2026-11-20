@@ -798,10 +798,11 @@ function M.install(deps)
 				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
 				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
 				roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
-			elseif bname == nil and ih >= 2 * 15 + 6 then -- a normal round: bold title line plus the goal line (two lines, never cut)
+			elseif bname == nil and ih >= 2 * Layout.ROUND_TEXT_MIN + 6 then -- a normal round: bold title line plus the goal line (two lines, never cut)
 				roundLabel:SetAttribute("RuleInScroll", false)
 				roundLabel.TextWrapped = true
 				roundLabel.RichText = ih >= 62
+				roundLabel.TextTruncate = Enum.TextTruncate.None
 				local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
 				if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
 					local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
@@ -816,11 +817,13 @@ function M.install(deps)
 				else
 					local pw = roundLabel.AbsoluteSize.X
 					if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
-					roundLabel.TextSize = Layout.fitRoundText(goal, math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2))), pw)
+					roundLabel.TextTruncate = Enum.TextTruncate.None -- the text is fitted to the scroll, never cut with an ellipsis
+					roundLabel.TextSize = Layout.fitRoundText(goal, math.max(Layout.ROUND_TEXT_MIN, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2))), pw)
 					roundLabel.Text = roundLabel.Text .. "\n" .. goal
 				end
 			else
 				roundLabel.RichText = false
+				roundLabel.TextTruncate = Enum.TextTruncate.None
 				local pw = roundLabel.AbsoluteSize.X
 				if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
 				roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, ih - 4)), pw) -- one line: fits the scroll in width and height

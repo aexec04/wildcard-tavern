@@ -15,6 +15,7 @@
 ]]
 
 local M = {}
+local ScorePlate = require(script.Parent.Gameplay2ScorePlate)
 
 M.ORDER = {
 	{ id = "round_hint_select", title = "Pick your cards", body = "Pick up to 5 cards, then Play Hand." },
@@ -175,36 +176,45 @@ M.STRIP_TRAY_GAP =24 + 8 -- 24 px clear of the deck tray lip (the lip is 8 px ou
 function M.strip(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local w = math.min(M.STRIP_W, math.max(M.STRIP_MIN_W, math.floor(M.STRIP_W / 1920 * viewW + 0.5)))
-	local plate = { x = math.floor((viewW - w) / 2), y = r.hand.y - M.STRIP_GAP - M.STRIP_H, w = w, h = M.STRIP_H }
-	-- preferred spot: level with the top of the Score plate and just right of it (the strip above the hand covered the "o of N" line);
-	-- the Score plate is min(stage w, max(240, 0.19 x screen)) wide and centred in the stage (Gameplay2ScorePlate.live)
+	local above = { x = math.floor((viewW - w) / 2), y = r.hand.y - M.STRIP_GAP - M.STRIP_H, w = w, h = M.STRIP_H }
+	local cands, score = {}, nil -- score: the Score plate and its progress line, which the strip never covers
+	-- preferred spot: level with the top of the Score plate and just right of it (the strip above the hand covered the "o of N" line),
+	-- then the mirror spot left of it, then above the hand; the Score plate is min(stage w, max(240, 0.19 x screen)) wide, centred in the stage
 	if r.stage then
 		local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * viewW)))
-		local plateRight = r.stage.x + math.floor((r.stage.w - pw) / 2) + pw
-		local sx = plateRight + M.STRIP_SIDE_GAP
+		local plateLeft = r.stage.x + math.floor((r.stage.w - pw) / 2)
+		local sx = plateLeft + pw + M.STRIP_SIDE_GAP
+		score = ScorePlate.live(r.stage, viewW, 20, 22).plate
 		local sw = w
 		if r.deck and r.deck.x then sw = math.min(w, r.deck.x - M.STRIP_TRAY_GAP - sx) end -- narrower beside the deck, never under the minimum
 		if sx + sw <= viewW - M.STRIP_SIDE_GAP and sw >= M.STRIP_SIDE_MIN_W then
-			local side = { x = sx, y = r.stage.y, w = sw, h = M.STRIP_H }
-			local clear = true
-			for name, rect in pairs(r) do -- any table piece in the way (the deck, the bar) sends it back above the hand
-				if name ~= "stage" and name ~= "slots" and type(rect) == "table" and rect.x and hit(side, rect) then clear = false end
+			cands[#cands + 1] = { x = sx, y = r.stage.y, w = sw, h = M.STRIP_H }
+		end
+	end
+	cands[#cands + 1] = above
+	for _, plate in ipairs(cands) do
+		local ok = plate.x >= 0 and plate.y >= 0 and plate.x + plate.w <= viewW and plate.y + plate.h <= viewH
+		if ok and plate ~= above then
+			for name, rect in pairs(r) do -- any table piece in the way (the deck, the bar) sends it to the next spot
+				if name ~= "stage" and name ~= "slots" and type(rect) == "table" and rect.x and hit(plate, rect) then ok = false end
 			end
-			if clear then plate = side; w = sw end
+		end
+		if ok and score and hit(plate, score) then ok = false end
+		for _, s in ipairs(r.slots) do
+			for _, part in ipairs({ s.card, s.label, s.pill }) do
+				if ok and part and hit(plate, part) then ok = false end
+			end
+		end
+		for _, a in ipairs(avoid or {}) do
+			if ok and hit(plate, a) then ok = false end
+		end
+		if ok then
+			local bh = M.BUTTON_H
+			local button = { x = plate.x + plate.w - M.STRIP_PAD - M.BUTTON_W, y = plate.y + math.floor((M.STRIP_H - bh) / 2), w = M.BUTTON_W, h = bh }
+			return { plate = plate, button = button, kind = "strip", textW = plate.w - 3 * M.STRIP_PAD - M.BUTTON_W }
 		end
 	end
-	local bh = M.BUTTON_H
-	local button = { x = plate.x + w - M.STRIP_PAD - M.BUTTON_W, y = plate.y + math.floor((M.STRIP_H - bh) / 2), w = M.BUTTON_W, h = bh }
-	if plate.x < 0 or plate.y < 0 or plate.x + w > viewW or plate.y + plate.h > viewH then return nil end
-	for _, s in ipairs(r.slots) do
-		for _, part in ipairs({ s.card, s.label, s.pill }) do
-			if part and hit(plate, part) then return nil end
-		end
-	end
-	for _, a in ipairs(avoid or {}) do
-		if hit(plate, a) then return nil end
-	end
-	return { plate = plate, button = button, kind = "strip", textW = w - 3 * M.STRIP_PAD - M.BUTTON_W }
+	return nil
 end
 
 function M.place(r, viewW, viewH, avoid)
