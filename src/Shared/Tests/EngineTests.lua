@@ -33937,6 +33937,31 @@ table.insert(tests, { name = "PatronPowerPanel: the Got it on the hint strip dis
 	expectTrue(b:find("PatronPowerGotIt", 1, true) == nil, "no second Got it button")
 end })
 
+table.insert(tests, { name = "Boss felt lift: the live boss felt (52, 60, 40) rises to green at about 85 percent of the normal felt (60, 90, 50)", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local lf, g = M.bossFeltLift(), M.bossGlow(false)
+	local function over(c, layer) local a = 1 - layer.transparency; local o = {}; for i = 1, 3 do o[i] = c[i] * (1 - a) + layer.color[i] * a end; return o end
+	local out = over({ 52, 60, 40 }, lf)
+	local normal = { 60, 90, 50 }
+	local lum = function(c) return 0.2126 * c[1] + 0.7152 * c[2] + 0.0722 * c[3] end
+	local ratio = lum(out) / lum(normal)
+	expectTrue(ratio >= 0.8 and ratio <= 0.9, "felt about 85 percent of normal, got " .. ratio)
+	expectTrue(out[2] > out[1] + 15 and out[2] > out[3] + 20, "still clearly green")
+	expectTrue(g.transparency >= 0.95, "the red wash stays thin")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2MomentsFX.lua", "r"); local src = f:read("a"); f:close()
+	expectTrue(src:find("BossFeltLift", 1, true) ~= nil and src:find("feltFor(w, h).inlay", 1, true) ~= nil, "the boss draws the felt lift on the felt")
+end })
+
+table.insert(tests, { name = "Patron Power panel: a boss round shows it even when a guided first hand flag is left on, and a reason is named when hidden", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	local boss = { phase = "playing", night = 1, round = 3, isBossRound = true, guidedFirstHand = true, handsPlayedTotal = 0 }
+	expectTrue(PP.enabledFor(boss) and PP.reason(boss) == nil, "boss1 jump with the guided flag")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 1, guidedFirstHand = true, handsPlayedTotal = 0 }), "the guided first hand still owns round 1")
+	expectTrue(type(PP.reason({ phase = "playing", night = 2, round = 2 })) == "string", "a reason for a late round")
+	expectTrue(PP.reason({ phase = "shop" }):find("shop", 1, true) ~= nil, "phase named")
+end })
+
 table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()
 	local TA = require(script.Parent.Parent.Engine.TableSceneArt)
 	expectTrue(type(TA.table_boss_ref) == "string" and TA.table_boss_ref:find("rbxassetid://", 1, true) == 1, "table_boss_ref id")

@@ -74,13 +74,21 @@ function M.hide()
 	if plate then plate.Visible = false end
 end
 
+local function why(reason, state)
+	if not game:GetService("RunService"):IsStudio() then return end
+	local line = ("[PanelCheck] %s (night %s round %s boss %s)"):format(reason, tostring(state and state.night), tostring(state and state.round), tostring(state and state.isBossRound))
+	if M.lastWhy ~= line then M.lastWhy = line; print(line) end
+end
+
 function M.update(layer, state, rects, viewW, viewH)
 	local opts = { enabled = ClientSettings.get("roundHints") ~= false }
-	if not Rules.enabledFor(state, opts) then M.hide(); return end
+	local off = Rules.reason(state, opts)
+	if off then M.hide(); why("hidden: " .. off, state); return end
 	local key = ("%s:%s"):format(tostring(state.night), tostring(state.round))
 	if key ~= roundKey then roundKey = key; handsAtStart = tonumber(state.handsPlayedTotal) or 0 end
-	if dismissed[key] or Rules.spent(state, handsAtStart) then M.hide(); return end
-	if layer:FindFirstChild("BossIntro") then M.hide(); return end -- never shares the screen with the boss intro
+	if dismissed[key] then M.hide(); why("hidden: dismissed flag set for " .. key, state); return end
+	if Rules.spent(state, handsAtStart) then M.hide(); why("hidden: a hand was already played this round", state); return end
+	if layer:FindFirstChild("BossIntro") then M.hide(); why("hidden: the boss intro is on screen", state); return end -- never shares the screen with the boss intro
 	local avoid = {}
 	local bp = layer:FindFirstChild("BossRulePlate")
 	if bp and bp.Visible then avoid[1] = { x = bp.Position.X.Offset, y = bp.Position.Y.Offset, w = bp.Size.X.Offset, h = bp.Size.Y.Offset } end
@@ -93,9 +101,10 @@ function M.update(layer, state, rects, viewW, viewH)
 		rects = free
 	end)
 	local spot = Rules.place(rects, viewW, viewH, avoid)
-	if not spot then M.hide(); return end -- nothing fits clear of the table: skip it rather than overlap
+	if not spot then M.hide(); why("hidden: nothing fits clear of the table", state); return end -- nothing fits clear of the table: skip it rather than overlap
 	if not plate or plate.Parent ~= layer then build(layer) end
 	plate.Visible = true
+	why("shown", state)
 	plate.Size = UDim2.fromOffset(spot.plate.w, spot.plate.h)
 	plate.Position = UDim2.fromOffset(spot.plate.x, spot.plate.y)
 	tap.Visible = true

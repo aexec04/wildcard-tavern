@@ -27,14 +27,23 @@ M.MIN_W = 280
 
 local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 
-function M.enabledFor(state, opts)
+-- nil when the panel is due, else the reason it is not (printed by the Studio [PanelCheck] line)
+function M.reason(state, opts)
 	opts = opts or {}
-	if opts.enabled == false then return false end
-	if type(state) ~= "table" or state.phase ~= "playing" or state.isTutorial == true then return false end
-	if state.choice ~= nil then return false end
-	if state.guidedFirstHand == true and (tonumber(state.handsPlayedTotal) or 0) < 1 then return false end -- the guided hint owns the screen
+	if opts.enabled == false then return "hints off in Settings" end
+	if type(state) ~= "table" then return "no state" end
+	if state.phase ~= "playing" then return "phase " .. tostring(state.phase) end
+	if state.isTutorial == true then return "tutorial" end
+	if state.choice ~= nil then return "a choice is open" end
+	-- the guided hint owns the first hand of a run; a boss round (or any later round) is never that hand, whatever flag a jump left behind
+	if state.guidedFirstHand == true and state.isBossRound ~= true and (tonumber(state.handsPlayedTotal) or 0) < 1 then return "guided first hand" end
 	local early = (tonumber(state.night) or 1) == 1 and (tonumber(state.round) or 1) <= M.MAX_ROUND
-	return early or state.isBossRound == true
+	if not (early or state.isBossRound == true) then return ("night %s round %s is not early and not a boss round"):format(tostring(state.night), tostring(state.round)) end
+	return nil
+end
+
+function M.enabledFor(state, opts)
+	return M.reason(state, opts) == nil
 end
 
 -- True once a hand has been played in this round (the panel is spent). handsLeft vs the round's start is the only per round signal the

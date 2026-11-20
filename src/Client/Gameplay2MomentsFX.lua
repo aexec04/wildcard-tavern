@@ -295,6 +295,8 @@ function M.boss(layer, rects, state, w, h)
 	local rulePlate = layer:FindFirstChild("BossRulePlate")
 	if not name then
 		if tint then tint.Visible = false end
+		local lift0 = layer:FindFirstChild("BossFeltLift")
+		if lift0 then lift0.Visible = false end
 		if banner then banner.Visible = false end
 		if rulePlate then rulePlate.Visible = false end
 		return
@@ -362,6 +364,25 @@ function M.boss(layer, rects, state, w, h)
 	tint.BackgroundColor3 = Color3.fromRGB(g.color[1], g.color[2], g.color[3])
 	tint.BackgroundTransparency = g.transparency
 	tint.Visible = true
+	do -- a thin green layer on the felt only (inside the inlay ellipse, under the cards, plates and Patron seats) so the boss felt reads green
+		local lift = layer:FindFirstChild("BossFeltLift")
+		if not lift then
+			lift = Instance.new("Frame")
+			lift.Name = "BossFeltLift"
+			lift.BorderSizePixel = 0
+			lift.Active = false
+			lift.ZIndex = 2
+			lift.Parent = layer
+			local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0.5, 0); rc.Parent = lift
+		end
+		local fl = require(Engine:WaitForChild("ConceptTLayout")).feltFor(w, h).inlay
+		local lf = Rules.bossFeltLift()
+		lift.BackgroundColor3 = Color3.fromRGB(lf.color[1], lf.color[2], lf.color[3])
+		lift.BackgroundTransparency = lf.transparency
+		lift.Position = UDim2.fromOffset(fl.x, fl.y)
+		lift.Size = UDim2.fromOffset(fl.w, fl.h)
+		lift.Visible = true
+	end
 	local stale = layer:FindFirstChild("BossIntro") -- an intro that outlived its hold and fade is removed, never left over the Patrons
 	if stale and stale:GetAttribute("Born") and os.clock() - stale:GetAttribute("Born") > 8 then stale:Destroy() end
 	local introKey = Rules.bossEntranceKey(state)
