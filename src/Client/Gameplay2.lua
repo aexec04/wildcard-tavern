@@ -806,16 +806,24 @@ function M.install(deps)
 				if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
 					local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
 					local titleSz, goalSz = math.min(30, math.floor(avail * 0.6)), math.min(20, math.floor(avail * 0.36))
+					local pw = roundLabel.AbsoluteSize.X
+					if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
+					titleSz = Layout.fitRoundText(roundLabel.Text, titleSz, pw / 1.1) -- bold words run wider than plain ones
+					goalSz = Layout.fitRoundText(goal, goalSz, pw)
 					roundLabel.TextSize = goalSz
 					roundLabel.TextYAlignment = Enum.TextYAlignment.Center
 					roundLabel.Text = string.format('<font size="%d"><b>%s</b></font>\n<font size="%d">%s</font>', titleSz, roundLabel.Text, goalSz, goal)
 				else
-					roundLabel.TextSize = math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2)))
+					local pw = roundLabel.AbsoluteSize.X
+					if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
+					roundLabel.TextSize = Layout.fitRoundText(goal, math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2))), pw)
 					roundLabel.Text = roundLabel.Text .. "\n" .. goal
 				end
 			else
 				roundLabel.RichText = false
-				roundLabel.TextSize = baseSize
+				local pw = roundLabel.AbsoluteSize.X
+				if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
+				roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, ih - 4)), pw) -- one line: fits the scroll in width and height
 			end
 		end
 		self.writeNumeral()
@@ -866,7 +874,13 @@ function M.install(deps)
 		end
 	end
 
-	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply() end end)
+	-- the hint plate keeps its old spot when the root is rescaled (DebugGoto scale, a resized window): place it again from the new size
+	local function replaceHint()
+		if not (active and lastState and deps.selectedCount) then return end
+		local size = root.AbsoluteSize
+		pcall(function() require(script.Parent.RoundHintsFX).update(layer, lastState, deps.selectedCount(), Layout.rects(size.X, size.Y), size.X, size.Y) end)
+	end
+	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply(); replaceHint() end end)
 	for _, inst in ipairs({ deps.actionFrame, deps.playButton, deps.discardButton }) do -- another module moved the real controls off their rects: put them back at once
 		inst:GetPropertyChangedSignal("Position"):Connect(function()
 			if active and not self.applying then
@@ -881,6 +895,7 @@ function M.install(deps)
 		while layer.Parent do
 			task.wait(0.25)
 			if active then
+				replaceHint()
 				pcall(shell, true)
 				local ok, err = pcall(apply)
 				if not ok and not self.warned then self.warned = true; warn("[Gameplay2] apply stopped on an error: " .. tostring(err)) end

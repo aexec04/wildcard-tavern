@@ -33,6 +33,17 @@ M.REF_SPAN = 0.506 -- Patron seats span (1255 - 410) / 1672 of the width in the 
 M.REF_MIN_W, M.REF_MIN_H = 1200, 600 -- smaller windows keep the compact proportions (cards and the tray need the room)
 -- top bar words (Target: 65, Tips: 0, the scroll's two lines) grow with the plate height: reference text is about 44 px at 1672 on an 85 px plate
 function M.barTextSize(plateH) return math.max(16, math.min(40, round((tonumber(plateH) or 0) * 0.5))) end
+-- The Night and Round scroll: the painted scroll pads 15 percent on the left (wax seal) and 4 on the right, so the words get 81 percent of
+-- its width. Bold serif words are about 0.66 of their size wide per character; a title is shrunk until it fits that room, never under
+-- ROUND_TEXT_MIN (11 at the smallest windows, the 800x450 floor).
+M.ROUND_TEXT_MIN, M.ROUND_CHAR_W, M.ROUND_INNER = 11, 0.66, 0.81
+function M.roundInnerW(plateW) return math.floor((tonumber(plateW) or 0) * M.ROUND_INNER) end
+function M.fitRoundText(text, want, plateW)
+	local inner = M.roundInnerW(plateW)
+	local n = math.max(1, #tostring(text))
+	local fit = math.floor(inner / (n * M.ROUND_CHAR_W))
+	return math.max(M.ROUND_TEXT_MIN, math.min(want, fit))
+end
 M.PILL_GAP = 4 -- clear air between a count pill and the top edge of its button
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
@@ -82,7 +93,7 @@ function M.rects(w, h)
 	-- top bar: round name, Target gold box, Tips pill (at most 8 percent of the height, never under 30 px)
 	-- reference mockup: Target x 410 to 700, Tips ends at 1395 of 1672 (0.245 to 0.834 of the width), y 15 to 100 of 941; the height stays 7 percent so the boss banner still fits above the seats
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
-	local barH = math.max(30, (ref and round(0.085 * h) or round(0.07 * h))) -- the reference screen is 8 percent so Target and Tips reach the mockup's height
+	local barH = math.max(h < 500 and 40 or 30, (ref and round(0.085 * h) or round(0.07 * h))) -- the reference screen is 8 percent so Target and Tips reach the mockup's height
 	local barW = math.min(round((ref and 0.589 or 0.56) * w), w - 2 * pad)
 	local barX = ref and math.min(round(0.245 * w), w - pad - barW) or round((w - barW) / 2)
 	local barY = math.max(4, round((ref and 0.016 or 0.012) * h)) -- 24 px stay free under the bar for the boss banner

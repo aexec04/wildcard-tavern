@@ -29475,7 +29475,7 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 		assert(#bad == 0, w .. "x" .. h .. " overlaps: " .. table.concat(bad, ", "))
 		local ok, name = L.onScreen(r, w, h)
 		assert(ok, w .. "x" .. h .. " off screen: " .. tostring(name))
-		assert(r.bar.h <= math.max(30, math.floor(0.09 * h + 0.5)), "round bar at most 9 percent of the height (the reference plates are 85 of 941)")
+		assert(r.bar.h <= math.max(h < 500 and 40 or 30, math.floor(0.09 * h + 0.5)), "round bar at most 9 percent of the height (the reference plates are 85 of 941)")
 		assert(r.play.h >= 44 and r.discard.h >= 44 and r.sortRank.h >= 44 and r.sortSuit.h >= 44, "touch targets")
 		assert(#r.slots == 5, "five seats reserved")
 		for i = 1, 5 do
@@ -34038,6 +34038,39 @@ table.insert(tests, { name = "Gameplay2Layout at 1024x768, 1366x768 and 800x450:
 		end
 		expectTrue(r.deck.x >= r.hand.x + r.hand.w, w .. "x" .. h .. " deck right of the hand frame")
 		expectTrue(r.sortSuit.x + r.sortSuit.w <= r.play.x, w .. "x" .. h .. " Rank and Suit stay left of Play Hand")
+	end
+end })
+
+table.insert(tests, { name = "Table: the round hint stays inside the root and clear of Play Hand and the hand cards at 1024x768, 1280x720, 800x450 and 1920x957", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L, RH = require(E.Gameplay2Layout), require(E.RoundHints)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1024, 768 }, { 1280, 720 }, { 800, 450 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local spot = RH.place(r, w, h, {})
+		if spot then -- nil means it is skipped at that size, which is also inside the screen
+			for _, part in ipairs({ spot.plate, spot.button }) do
+				expectTrue(part.x >= 0 and part.y >= 0 and part.x + part.w <= w - 12 and part.y + part.h <= h, w .. "x" .. h .. ": hint inside the root, 12 px from the right edge")
+				expectFalse(hit(part, r.play) or hit(part, r.discard) or hit(part, r.hand), w .. "x" .. h .. ": hint clear of Play Hand, Discard and the hand")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Table: 'Night 1, Round 1' and 'Score N to clear' fit the round scroll at 1024x768, 1280x720, 800x450 and 1920x957, never under 11 px", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1024, 768 }, { 1280, 720 }, { 800, 450 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local plate = L.rects(w, h).round
+		local inner = L.roundInnerW(plate.w)
+		local texts = { "Night 1, Round 1", "Night 8, Round 3" }
+		if plate.h >= 36 then texts[3] = "Score 12000 to clear" end -- a shorter scroll shows the title line only
+		for _, text in ipairs(texts) do
+			local size = L.fitRoundText(text, 30, plate.w)
+			expectTrue(size >= L.ROUND_TEXT_MIN, w .. "x" .. h .. ": '" .. text .. "' is " .. size .. " px, not under 11")
+			expectTrue(#text * size * L.ROUND_CHAR_W <= inner + 0.5, w .. "x" .. h .. ": '" .. text .. "' (" .. size .. " px) fits " .. inner .. " px")
+		end
 	end
 end })
 
