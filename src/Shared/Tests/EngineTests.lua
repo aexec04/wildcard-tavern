@@ -32826,6 +32826,19 @@ table.insert(tests, { name = "Hand fan: 8 cards overlap at most 22 percent, span
 	end
 end })
 
+table.insert(tests, { name = "ScoreNumeral: a total that arrives in the cleared phase is written, counting only runs while playing, gold from the Target on", fn = function()
+	local SN = require(script.Parent.Parent.Engine.ScoreNumeral)
+	-- the sequence the plate saw: idle 0, hand played (count up), round cleared (shop state), next round starts
+	expectEqual(SN.action(nil, 0, "playing"), "set", "first state writes the number")
+	expectEqual(SN.action(0, 199, "playing"), "count", "counting phase animates")
+	expectEqual(SN.action(0, 199, "shop"), "set", "cleared phase writes 199 at once, never stays 0")
+	expectEqual(SN.action(0, 199, "roundEnd"), "set", "any non playing phase writes")
+	expectEqual(SN.action(199, 199, "shop"), "keep", "same total is left alone")
+	expectEqual(SN.action(199, 0, "playing"), "set", "a new round resets to 0")
+	expectTrue(SN.cleared(199, 65), "199 of 65 is cleared")
+	expectTrue(not SN.cleared(64, 65) and not SN.cleared(0, 0), "under the Target or no Target is not cleared")
+end })
+
 table.insert(tests, { name = "Picked cards: the highest lifted card (28 px) stays 10 px under the idle Score plate and its text, 8 to 10 cards, four sizes", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

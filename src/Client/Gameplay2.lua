@@ -626,11 +626,22 @@ function M.install(deps)
 					pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
 				end
 			end
-			if self.lastScore and nowScore > self.lastScore and lastState.phase == "playing" then
+			local SN = require(Engine:WaitForChild("ScoreNumeral"))
+			local act = SN.action(self.lastScore, nowScore, lastState.phase)
+			if act == "count" then
 				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
-				if not ok then put(nowScore) end
-			elseif not self.lastScore or nowScore < self.lastScore then
+				if not ok then put(nowScore); act = "count failed, set" end
+			elseif act == "set" then
 				put(nowScore)
+			end
+			local gold = SN.cleared(nowScore, lastState.targetScore)
+			if gold ~= self.numeralGold then
+				self.numeralGold = gold
+				local c = Style.rgb(gold and "gold" or "cream")
+				scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
+			end
+			if game:GetService("RunService"):IsStudio() and act ~= "keep" then
+				print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(lastState.phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
 			end
 			self.lastScore = nowScore
 		end
