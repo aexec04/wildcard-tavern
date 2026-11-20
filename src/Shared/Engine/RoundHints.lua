@@ -108,11 +108,11 @@ local function placeAt(r, viewW, viewH, avoid, topAt)
 		local plateW = math.min(math.max(M.PLATE_MIN_W, math.min(360, math.floor(0.19 * viewW + 0.5))), col.x1 - col.x0) -- the mockup plate is 317 of 1672 wide
 		while plateW >= M.PLATE_MIN_W do
 			local plateH = math.floor(plateW / M.PLATE_ASPECT + 0.5)
-			local total = plateH + M.GAP + M.BUTTON_H
+			local total = plateH + M.GAP + M.BUTTON_H + M.STRIP_PAD
 			if bottom - top >= total then
 				local x, y = col.x0, top
-				local plate = { x = x, y = y, w = plateW, h = plateH }
-				local button = { x = x + math.floor(plateW * M.BUTTON_COL), y = y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H }
+				local plate = { x = x, y = y, w = plateW, h = plateH + M.GAP + M.BUTTON_H + M.STRIP_PAD } -- one card: Got it sits inside it, bottom right
+				local button = { x = x + plateW - M.STRIP_PAD - M.BUTTON_W, y = y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H }
 				local clear = true
 				for name, rect in pairs(r) do
 					if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end
@@ -127,7 +127,7 @@ local function placeAt(r, viewW, viewH, avoid, topAt)
 					if hit(plate, a) or hit(button, a) then clear = false end
 				end
 				if plate.x >= 0 and button.x + button.w <= viewW and y + total <= viewH and clear then
-					return { plate = plate, button = button, kind = "tall" }
+					return { plate = plate, button = button, kind = "tall", textW = plateW - 2 * M.STRIP_PAD - 4 }
 				end
 			end
 			plateW = plateW - 20
@@ -140,8 +140,8 @@ local function placeAt(r, viewW, viewH, avoid, topAt)
 		local plateW = total - M.GAP - M.WIDE_BUTTON_W
 		if plateW >= M.WIDE_MIN_W then
 			local x, y = col.x0, top
-			local plate = { x = x, y = y, w = plateW, h = h }
-			local button = { x = x + plateW + M.GAP, y = y + math.floor((h - M.WIDE_BUTTON_H) / 2), w = M.WIDE_BUTTON_W, h = M.WIDE_BUTTON_H } -- vertically centred on the plate
+			local plate = { x = x, y = y, w = total, h = h } -- one card: Got it sits inside it, at the right
+			local button = { x = x + total - M.STRIP_PAD - M.WIDE_BUTTON_W, y = y + math.floor((h - M.WIDE_BUTTON_H) / 2), w = M.WIDE_BUTTON_W, h = M.WIDE_BUTTON_H } -- vertically centred on the plate
 			local clear = true
 			for name, rect in pairs(r) do
 				if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end
@@ -156,7 +156,7 @@ local function placeAt(r, viewW, viewH, avoid, topAt)
 				if hit(plate, a) or hit(button, a) then clear = false end
 			end
 			if plate.x >= 0 and button.x + button.w <= viewW and y + h <= viewH and clear then
-				return { plate = plate, button = button, kind = "wide" }
+				return { plate = plate, button = button, kind = "wide", textW = total - 3 * M.STRIP_PAD - M.WIDE_BUTTON_W - 4 }
 			end
 		end
 	end

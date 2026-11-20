@@ -32,7 +32,6 @@ local function build(layer)
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
 	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate
-	pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_hint") end) -- the whole picture with the crown medallion at the left, flat plate if it does not load
 	local function label(name, y, h, size, color, font)
 		local t = Instance.new("TextLabel")
 		t.Name = name
@@ -153,19 +152,21 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	title.Text, body.Text = entry.title, entry.body
 	local strip = spot.kind == "strip"
 	local paint = layer:FindFirstChild(plate.Name .. "Paint")
-	if strip then -- the slim strip is a flat plate: the crown picture is the wrong shape for it
+	do -- every size is the same flat card with Got it inside it (no crown picture); the layout only moves and scales it
 		if paint then paint:Destroy() end
 		plate.BackgroundTransparency = 0.05
 		for _, d in ipairs(plate:GetChildren()) do if d:IsA("UIStroke") then d.Enabled = true end end
+	end
+	if not strip then
+		local P = Rules.STRIP_PAD + 4
+		title.Position = UDim2.fromOffset(P, 8); title.Size = UDim2.fromOffset(spot.textW, 24); title.TextSize = 18
+		body.Position = UDim2.fromOffset(P, 34); body.Size = UDim2.fromOffset(spot.textW, math.max(20, spot.plate.h - 34 - (spot.kind == "tall" and spot.button.h + 8 or 8))); body.TextSize = 15
+		body.TextWrapped = true; title.TextWrapped = false; body.TextTruncate = Enum.TextTruncate.None
+	else
 		title.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 6); title.Size = UDim2.fromOffset(spot.textW, 26); title.TextSize = Rules.STRIP_TITLE
 		body.Position = UDim2.fromOffset(Rules.STRIP_PAD + 4, 33); body.Size = UDim2.fromOffset(spot.textW, 22); body.TextSize = Rules.STRIP_BODY
 		body.TextWrapped = false; title.TextWrapped = false; body.TextTruncate = Enum.TextTruncate.None
 		pcall(function() while body.TextSize > 14 and body.TextBounds.X > spot.textW do body.TextSize = body.TextSize - 1 end end) -- 20 px, shrunk only when the column is narrower than the line
-	else
-		if not paint then pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_hint") end) end
-		title.Position = UDim2.new(0.31, 0, 0, 14); title.Size = UDim2.new(0.62, 0, 0, 22); title.TextSize = 18
-		body.Position = UDim2.new(0.31, 0, 0, 38); body.Size = UDim2.new(0.62, 0, 0, 36); body.TextSize = 15
-		body.TextWrapped = true; title.TextWrapped = true
 	end
 	plate.Visible = true
 	plate.Size = UDim2.fromOffset(spot.plate.w, spot.plate.h)

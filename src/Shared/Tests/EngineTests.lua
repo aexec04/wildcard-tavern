@@ -31928,7 +31928,7 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x" }, patronLimit = 1 }), "no free seat: off")
 	if io and io.open then
 		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_hint")', 1, true) ~= nil, "Round hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_hint")', 1, true) == nil, "Round hint is one flat card at every size, no crown picture")
 		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "wh_btn_green")', 1, true) == nil, "Got it is a dark plate, not the green picture")
 		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "guided hint plate is painted")
 		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")
@@ -32940,7 +32940,7 @@ table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word ne
 			local w, h = sz[1], sz[2]
 			local sp = RH.place(L.rects(w, h), w, h, {})
 			if sp and sp.kind == "tall" then
-				expectEqual(sp.button.y - (sp.plate.y + sp.plate.h), 8, "Got it is 8 px under the plate at " .. w)
+				expectTrue(sp.button.y + sp.button.h <= sp.plate.y + sp.plate.h, "Got it is inside the card at " .. w)
 				local k = w / 1672
 				for _, c in ipairs({ { 285, 490, 80, 130 }, { 150, 140, 65, 190 } }) do
 					local cx, cy, cw, ch = c[1] * k, c[2] * k, c[3] * k, c[4] * k
@@ -32962,6 +32962,20 @@ table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word ne
 		local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
 		local kit = read("src/Client/TavernKit.lua")
 		if kit then expectTrue(kit:find("host.TextXAlignment = Enum.TextXAlignment.Left", 1, true) ~= nil, "icon plates left align the word") end
+	end
+end })
+
+table.insert(tests, { name = "Round hint: Got it is inside the hint rect and the text column clears it at 1920x1080, 1366x768, 1280x720, 1024x768 and 800x450", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local spot = RH.place(L.rects(sz[1], sz[2]), sz[1], sz[2], {})
+		if spot then
+			local p, b = spot.plate, spot.button
+			local tag = sz[1] .. "x" .. sz[2] .. " " .. spot.kind
+			expectTrue(b.x >= p.x and b.y >= p.y and b.x + b.w <= p.x + p.w and b.y + b.h <= p.y + p.h, "Got it inside the hint at " .. tag)
+			expectTrue(spot.textW and spot.textW > 100, "text column set at " .. tag)
+		end
 	end
 end })
 
