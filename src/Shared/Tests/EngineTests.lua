@@ -33489,6 +33489,26 @@ table.insert(tests, { name = "Hand: the fan's lowest card bottom stays above the
 	end
 end })
 
+table.insert(tests, { name = "Hand fan arc at 1920x957 matches the reference (30 px end drop and 8 degrees at 941 tall, scaled): end drop at least 26 px, end tilt at least 7 degrees, at 5, 8 and 10 cards", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local savedFan, savedOn = PM.FAN, PM.HAND_FAN_ENABLED
+	PM.FAN = CT.fanProfile(957); PM.HAND_FAN_ENABLED = true
+	for _, n in ipairs({ 5, 8, 10 }) do
+		local parts, midY, maxY, maxTilt = {}, math.huge, 0, 0
+		for i = 1, n do
+			local _, dy = PM.cardOffset(i, n)
+			local rot = PM.cardTilt(i, n)
+			parts[#parts + 1] = ("%d:y%+.0f r%+.1f"):format(i, dy, rot)
+			midY = math.min(midY, dy); maxY = math.max(maxY, dy); maxTilt = math.max(maxTilt, math.abs(rot))
+		end
+		print(("[FanArc] 1920x957 %d cards (centre y offset, rotation): %s; reference end drop %.0f px, tilt 8"):format(n, table.concat(parts, ", "), 30 * 957 / 941))
+		expectTrue(maxY - midY >= 26, ("end drop %.0f px at %d cards"):format(maxY - midY, n))
+		expectTrue(maxTilt >= 7, ("end tilt %.1f at %d cards"):format(maxTilt, n))
+	end
+	PM.FAN, PM.HAND_FAN_ENABLED = savedFan, savedOn
+end })
+
 table.insert(tests, { name = "Picked cards: the highest lifted card (28 px) stays 10 px under the idle Score plate and its text, 8 to 10 cards, four sizes", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
