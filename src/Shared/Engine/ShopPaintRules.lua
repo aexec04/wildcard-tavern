@@ -9,10 +9,11 @@
 local M = {}
 
 function M.pieceFor(kind, active)
-	if kind == "tab" then return active and "orn_btn_green" or "orn_btn_dark" end -- the ornate family (tabs are wide, so the nine-slice)
+	if kind == "tab" then return active and "wh_btn_green" or "wh_btn_dark" end -- the whole-picture ornate family the table wears (trim and corner scrolls stay readable at 50 px)
 	if kind == "next" then return "orn_btn_green" end
-	if kind == "chip" then return "wood_plate" end
-	return "orn_btn_dark" -- Reroll and Haggle name tags
+	if kind == "chip" then return "orn_wide" end
+	if kind == "summary" then return "orn_score" end
+	return "wh_btn_dark" -- Reroll and Haggle name tags
 end
 
 function M.tabSlot(i, n, gap)

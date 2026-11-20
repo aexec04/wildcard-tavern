@@ -31682,7 +31682,7 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local want = {
-		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "wood_plate")' },
+		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "orn_score")' },
 		{ "src/Client/ShopHaggle.lua", 'paintedButton(haggleButton, "secondary")' },
 		{ "src/Client/Shop.lua", 'paintedButton(rerollButton, "secondary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
@@ -31996,7 +31996,31 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	expectEqual(Style.buttonPiece("secondary", 310, 80), "wh_btn_dark", "a 310x80 secondary is the whole dark picture")
 	expectEqual(Style.buttonPiece("primary", 900, 44), "orn_btn_green", "a wide Select bar is the ornate nine-slice")
 	expectEqual(Style.buttonPiece("secondary", 60, 60), "orn_btn_dark", "a square button is the ornate nine-slice")
-	expectEqual(Style.buttonPiece("secondary", 0, 0), "orn_btn_dark", "an unmeasured plate is the ornate nine-slice")
+	expectEqual(Style.buttonPiece("secondary", 0, 0), "wh_btn_dark", "an unmeasured plate is the whole picture, never the thin nine-slice")
+	-- Counter after a win: every plate wears the ornate family; summary, Reroll and Next Round keep clear of the screen edges
+	local PR = require(script.Parent.Parent.Engine.ShopPaintRules)
+	expectEqual(PR.pieceFor("tab", true), "wh_btn_green", "selected tab is the green whole picture")
+	expectEqual(PR.pieceFor("tab", false), "wh_btn_dark", "other tabs are the dark whole picture")
+	expectEqual(PR.pieceFor("tag"), "wh_btn_dark", "Reroll tag is ornate")
+	expectEqual(PR.pieceFor("chip"), "orn_wide", "boss notice is the ornate wide plate")
+	expectEqual(PR.pieceFor("summary"), "orn_score", "summary plate is the ornate score frame")
+	local Sum = require(script.Parent.Parent.Engine.ShopSummary)
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local W, H = sz[1], sz[2]
+		local r = Sum.rect(W, H)
+		assert(r.x >= 0 and r.x + r.w <= W - Sum.GEAR_CLEAR, "summary plate clear of the gear at " .. W)
+		local rows = Sum.rows(r.w)
+		assert(rows.tips.y + rows.tips.h <= Sum.HEIGHT - Sum.BORDER, "summary text inside the border at " .. W)
+		assert(rows.title.x >= Sum.BORDER and rows.title.x + rows.title.w <= r.w - Sum.BORDER, "summary text inside side border at " .. W)
+		assert(rows.score.size >= 15, "summary text size at " .. W)
+		local rect = SL.rects(W, H, { offers = 3, packs = 2 })
+		local rp = SL.rerollPlate(rect)
+		if rp and rect.area then
+			assert(rp.x >= 0, "Reroll fully on screen at " .. W)
+			assert(rp.y + rp.h <= rect.area.h - 12, "Reroll 12 px above the bottom at " .. W)
+		end
+	end
 	for _, kind in ipairs({ "primary", "secondary" }) do
 		for _, sz in ipairs({ { 310, 80 }, { 900, 44 }, { 44, 44 }, { 0, 0 } }) do
 			local piece = Style.buttonPiece(kind, sz[1], sz[2])

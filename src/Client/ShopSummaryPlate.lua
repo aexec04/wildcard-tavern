@@ -42,7 +42,7 @@ function M.attach(shopFrame)
 	plate.Name = "RoundSummary"
 	plate.Active = false
 	plate.ZIndex = 12
-	pcall(function() Kit.painted(plate, "wood_plate") end)
+	pcall(function() Kit.painted(plate, "orn_score") end)
 	labels = {}
 	local rr = Summary.rows(Summary.WIDTH_MAX)
 	local rows = { { "Title", rr.title }, { "Score", rr.score }, { "Tips", rr.tips } }

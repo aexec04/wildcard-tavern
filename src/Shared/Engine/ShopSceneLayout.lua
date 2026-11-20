@@ -640,7 +640,7 @@ function ShopSceneLayout.rerollPlate(r)
 		elseif k.x - o.x - 8 >= w then y = k.y else y = k.y + k.h + air end
 	end
 	local limit = r.area and r.area.h
-	if limit then y = math.min(y, limit - h - 4) end
+	if limit then y = math.min(y, limit - h - 12) end
 	return rect(o.x, y, w, h)
 end
 

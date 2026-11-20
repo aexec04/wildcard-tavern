@@ -138,7 +138,8 @@ M.PAINTED_EDGE_MAX = 14
 M.BUTTON_ASPECT = { min = 2.6, max = 5.2 }
 function M.buttonPiece(kind, w, h)
 	local green = kind ~= "secondary"
-	local a = (w and h and h > 0) and (w / h) or 0
+	if not (w and h and w > 1 and h > 1) then return green and "wh_btn_green" or "wh_btn_dark" end -- not laid out yet: the whole picture (a 0 aspect used to pick the thin nine-slice, which read flat)
+	local a = w / h
 	if a >= M.BUTTON_ASPECT.min and a <= M.BUTTON_ASPECT.max then
 		return green and "wh_btn_green" or "wh_btn_dark"
 	end
