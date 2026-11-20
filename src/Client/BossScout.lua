@@ -23,6 +23,7 @@ local BossScout = {}
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(70, 48, 30)
+local KIT_BROWN, KIT_GOLD = Color3.fromRGB(90, 60, 30), Color3.fromRGB(200, 165, 90) -- TavernStyle brown and goldTrim: the Rule Ban plate wears the secondary kit button colours
 
 local banner, chip, tokenChip
 local chipWanted, chipWatching = false, false
@@ -77,7 +78,7 @@ local function buildBanner(parent)
 	local ban = Instance.new("TextButton")
 	ban.Name = "BanButton"
 	ban.Size = UDim2.fromScale(1, 1)
-	ban.BackgroundColor3 = WOOD -- wooden plate like Haggle and Reroll, not a saturated red block
+	ban.BackgroundColor3 = KIT_BROWN -- the kit's brown secondary plate with a gold edge, not a saturated red block
 	ban.AutoButtonColor = false
 	ban.Font = Enum.Font.GothamBold
 	ban.TextSize = 14
@@ -89,7 +90,7 @@ local function buildBanner(parent)
 	ban.Parent = banner
 	corner(ban, 8)
 	local plateStroke = Instance.new("UIStroke")
-	plateStroke.Color = Color3.fromRGB(38, 24, 14)
+	plateStroke.Color = KIT_GOLD
 	plateStroke.Thickness = 2
 	plateStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	plateStroke.Parent = ban
