@@ -32213,6 +32213,21 @@ table.insert(tests, { name = "IconLabelLayout.anchored: the group hangs from the
 	end
 end })
 
+table.insert(tests, { name = "IconLabelLayout: Rank and Suit at 144 x 68 keep 14 px clear on both sides with the width pad, group centred, the word box centred text never reaches the border", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	for _, word in ipairs({ "Rank", "Suit" }) do
+		for _, perChar in ipairs({ 0.5, 0.6, 0.7 }) do -- real metrics are not available offline: three plausible glyph widths
+			local a = I.anchored(144, 68, #word * 20 * perChar, 20, 14)
+			local r = I.resolve(144, a)
+			expectTrue(r.icon.x >= I.SIDE, word .. ": 14 px clear left")
+			expectTrue(144 - (r.label.x + r.label.w) >= I.SIDE - 1, word .. ": 14 px clear right")
+			expectTrue(math.abs(r.icon.x - (144 - (r.label.x + r.label.w))) <= 2, word .. ": equal margins")
+		end
+	end
+	local g0 = I.group(144, 68, 0, 18, 14)
+	expectEqual(g0.label.w, 0, "no word, no pad")
+end })
+
 table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scaled 2/3 into the stored 683 x 1024 texture, inside it, window ends above the baked name plate", fn = function()
 	local P = require(script.Parent.Parent.Engine.PatronParchment)
 	local Crop = require(script.Parent.Parent.Engine.PatronCardCrop)

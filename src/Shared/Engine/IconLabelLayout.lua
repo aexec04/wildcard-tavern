@@ -18,6 +18,7 @@ function M.place(w, h)
 end
 
 M.SIDE = 14 -- clear air on each side of the icon plus word group
+M.PAD = 6 -- slack added to a measured word width (outline, bold and font differences); the word is centred in its box so the slack is even
 
 -- The icon, the 6 px gap and the word as ONE group centred in the plate, at least SIDE px from each edge. textW is the word's measured
 -- width at `size`; when the group does not fit, the word shrinks (size * room / textW, floored, never under minSize) and the group fills the room.
@@ -26,7 +27,7 @@ function M.group(w, h, textW, size, minSize)
 	w, h = math.max(1, math.floor(w)), math.max(1, math.floor(h))
 	local s = math.max(M.MIN_ICON, math.floor(h * M.ICON_K + 0.5))
 	local room = math.max(0, w - 2 * M.SIDE - s - M.GAP) -- what the word may take
-	textW = math.ceil(math.max(0, textW or 0))
+	textW = math.ceil(math.max(0, textW or 0)) + ((textW or 0) > 0 and M.PAD or 0)
 	local newSize, fits = size, true
 	if textW > room and textW > 0 then
 		fits = false
