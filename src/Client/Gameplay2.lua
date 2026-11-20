@@ -471,6 +471,8 @@ function M.install(deps)
 		return Layout.rects(size.X, size.Y)
 	end
 
+	function self.rootW() return root.AbsoluteSize.X end
+
 	function self.size() return root.AbsoluteSize end
 	function self.refresh() apply() end
 
@@ -670,6 +672,17 @@ function M.setPlaying(on)
 	if current.playing == v then return end
 	current.playing = v
 	if current.isActive() then pcall(current.refresh) end
+end
+
+-- the scoring moment's reserved rects in root pixels (plate, hand name banner row, played band, stage), nil when the v2 table is not up
+function M.scoringRects()
+	if not (current and current.isActive()) then return nil end
+	local r = current.rects()
+	local L = require(Engine:WaitForChild("Gameplay2Layout"))
+	local capH = math.max(20, PreviewRules.H)
+	local rows = L.scoringRows(r, capH)
+	local live = require(Engine:WaitForChild("Gameplay2ScorePlate")).live(r.stage, current.rootW and current.rootW() or r.stage.w * 1.5, capH, 22, true)
+	return { stage = r.stage, plate = live.plate, name = rows.name, band = rows.band }
 end
 
 function M.playedBand()

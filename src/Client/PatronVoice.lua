@@ -104,7 +104,7 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 	bubble.AnchorPoint = Vector2.new(0, 0.5)
 	bubble.Size = UDim2.fromOffset(190, 40)
 	bubble.Position = UDim2.fromOffset(left, pos.Y + size.Y / 2)
-	local bubbleV2 = false
+	local bubbleV2, noRoom = false, false
 	pcall(function() -- v2 table: below the Patron row, centred on its own Patron, never over a neighbour's face
 		local okA, active = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
 		local okE, rowBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
@@ -114,12 +114,20 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 			-- under the tag rows AND the trigger pill row (never over a rarity or effect pill), so the bubble starts below both
 			local below = pos.Y + G2.triggerPillY(gui.AbsoluteSize.X, gui.AbsoluteSize.Y) + G2.TRIGGER_PILL_H
 			bubbleV2 = true
-			local R = require(Eng:WaitForChild("PatronVoiceLayout")).rect(pos.X, size.X, below, gui.AbsoluteSize.X)
+			local PVL = require(Eng:WaitForChild("PatronVoiceLayout"))
+			local R = PVL.rect(pos.X, size.X, below, gui.AbsoluteSize.X)
+			local okS, sr = pcall(function() return require(script.Parent.Gameplay2).scoringRects() end)
+			if okS and sr then -- a hand is scoring: beside the Score plate, never over it, the banner or the played cards (none when no room)
+				R = PVL.beside(sr.plate, sr.stage, gui.AbsoluteSize.X)
+				if not R then noRoom = true; return end
+				pcall(function() print(string.format("[ScoringRects] quote %d,%d %dx%d plate %d,%d %dx%d banner %s cards %d to %d", R.x, R.y, R.w, R.h, sr.plate.x, sr.plate.y, sr.plate.w, sr.plate.h, sr.name and string.format("%d,%d %dx%d", sr.name.x, sr.name.y, sr.name.w, sr.name.h) or "none", sr.band.top, sr.band.bottom)) end)
+			end
 			bubble.AnchorPoint = Vector2.new(0, 0)
 			bubble.Size = UDim2.fromOffset(R.w, R.h)
 			bubble.Position = UDim2.fromOffset(R.x, R.y)
 		end
 	end)
+	if noRoom then bubble.Visible = false; return true end -- scoring, and no clear spot beside the Score plate: stay silent
 	bubble.Visible = true
 	task.delay(bubbleV2 and 0.9 or SHOW_SECONDS, function() -- v2: gone before the next trigger's pill row beats
 		if mine == bubbleToken and bubble then bubble.Visible = false end

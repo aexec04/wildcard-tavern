@@ -30526,6 +30526,36 @@ table.insert(tests, { name = "Patron speech bubble on the v2 table: below the ro
 	assert(c:find("PatronVoiceLayout", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Scoring moment: the Patron quote stands beside the Score plate, clear of plate, banner row and played cards at five sizes", fn = function()
+	local V = require(script.Parent.Parent.Engine.PatronVoiceLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local shown = 0
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local rows = L.scoringRows(r, 26)
+		local plate = SP.live(r.stage, sz[1], 26, 22, true).plate
+		local q = V.beside(plate, r.stage, sz[1])
+		if q then
+			shown = shown + 1
+			assert(q.x >= 0 and q.x + q.w <= sz[1], "quote inside the screen at " .. sz[1])
+			assert(not hit(q, plate), "quote clear of the Score plate at " .. sz[1])
+			if rows.name then assert(not hit(q, rows.name), "quote clear of the banner row at " .. sz[1]) end
+			assert(not hit(q, { x = 0, y = rows.band.top, w = sz[1], h = math.max(1, rows.band.bottom - rows.band.top) }), "quote clear of the played cards at " .. sz[1])
+		end
+	end
+	assert(shown >= 3, "the quote has room at the common sizes")
+	assert(V.beside({ x = 100, y = 200, w = 300, h = 100 }, { x = 90, y = 200, w = 320, h = 200 }, 500) == nil, "no room on either side means no bubble")
+	local right = V.beside({ x = 20, y = 200, w = 240, h = 100 }, { x = 10, y = 200, w = 260, h = 200 }, 1000)
+	assert(right and right.x >= 260, "left side full: the quote moves right of the plate")
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronVoice.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("scoringRects", 1, true) and c:find("[ScoringRects]", 1, true), "PatronVoice uses the scoring rects and prints the Studio line")
+	local g = assert(io.open("src/Client/ScorePopup.lua", "r")); local sp = g:read("a"); g:close()
+	assert(sp:find("scoringRects", 1, true), "the trigger line stands on the banner row")
+end })
+
 table.insert(tests, { name = "Gameplay v2 Night 2 and 3 tables: boss rule plate clear of Patrons, score and hand, a tint per rule family, synergy thread visible when narrow, deck click covers the count plate", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

@@ -385,6 +385,8 @@ return function(deps)
 	-- the readout draws in front of the played cards (ghosts are ZIndex 30 in Global layering), and the event line sits on a dark tab
 	scorePopupEventLabel:GetPropertyChangedSignal("Text"):Connect(function()
 		scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.25
+		local edge = scorePopupEventLabel:FindFirstChild("EventEdge")
+		if edge then edge.Enabled = scorePopupEventLabel.Text ~= "" end
 	end)
 	scorePopupEventLabel.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
 	local eventTabCorner = Instance.new("UICorner")
@@ -647,6 +649,21 @@ return function(deps)
 			if cx + half > rootSize.X - 8 then cx = cardsLeft - 16 - half end
 			scorePopup.Position = UDim2.fromOffset(cx, lane.sideY)
 		end
+		pcall(function() -- v2 table: the trigger line stands ON the hand name banner row (12 px under the Score plate), never over the cards
+			local sr = okB and band and require(script.Parent.Gameplay2).scoringRects() or nil
+			if not (sr and sr.name) then return end
+			local nm = sr.name
+			scorePopup.Size = UDim2.new(0, math.min(360, nm.w), 0, POPUP_H)
+			scorePopup.Position = UDim2.fromOffset(nm.x + nm.w / 2, nm.y + math.max(0, (nm.h - 24) / 2))
+			scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.05
+			local edge = scorePopupEventLabel:FindFirstChild("EventEdge")
+			if not edge then
+				edge = Instance.new("UIStroke"); edge.Name = "EventEdge"; edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				edge.Color = Color3.fromRGB(214, 170, 80); edge.Thickness = 2; edge.Parent = scorePopupEventLabel
+			end
+			edge.Enabled = scorePopupEventLabel.Text ~= ""
+			print(string.format("[ScoringRects] event %d,%d plate-bottom %d banner %d,%d %dx%d cards %d to %d", scorePopup.Position.X.Offset, scorePopup.Position.Y.Offset, sr.plate.y + sr.plate.h, nm.x, nm.y, nm.w, nm.h, sr.band.top, sr.band.bottom))
+		end)
 		if #playedGhosts == 0 then
 			return
 		end
