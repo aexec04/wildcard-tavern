@@ -23,4 +23,21 @@ function M.enforceY(currentY, fanY, liftY, age)
 	return want
 end
 
+-- The one rule for the whole hand: every card whose pick is settled rests at fan Y minus its lift, whatever else wrote Position.
+-- cards: list of { picked, y, fanY, liftY, age }; returns a list of the Y to write per card (nil = leave it). A picked card with no
+-- recorded lift is not trusted to rest flat: it takes `want`.
+function M.plan(cards, want)
+	local out = {}
+	for i, c in ipairs(cards) do
+		if c.picked then
+			local lift = (c.liftY and c.liftY > 0) and c.liftY or want
+			out[i] = M.enforceY(c.y, c.fanY, lift, c.age)
+		end
+	end
+	return out
+end
+
+-- a deal flag older than this is stale (the landing tween never cleared it), so it no longer blocks the lift guard
+M.DEAL_STALE = 3
+
 return M

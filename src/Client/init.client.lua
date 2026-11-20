@@ -1560,6 +1560,7 @@ local function refreshCardVisual(index, usePop)
 	}, 0.08) -- Engine/FeelTuning.HOVER_EASE
 	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
 	button.Parent:SetAttribute("LiftAt", os.clock())
+	button.Parent:SetAttribute("Picked", isSelected)
 	button.Parent:SetAttribute("LiftY", lift) -- the deal landing in PlayMotion keeps a picked card lifted (Engine/HandLift)
 	if usePop then pcall(function() local y0 = button.AbsolutePosition.Y; task.delay(0.3, function() print(string.format("[HandLift] %s absY %d -> %d (card %d)", button:GetFullName(), math.floor(y0), math.floor(button.AbsolutePosition.Y), index)) end) end) end
 	if usePop then pcall(function() print(string.format("[HandLift] card %d selected=%s liftY=%d", index, tostring(isSelected), math.floor(lift))) end) end
@@ -1828,6 +1829,7 @@ local function onCardClicked(index)
 	end
 	SoundModule.playCue(selected[index] and "card_select" or "card_deselect") -- putting a card back has its own softer cue
 	refreshCardVisual(index, true)
+	pcall(function() require(script.HandLiftReport).print(handFrame, index) end)
 	refreshScorePreview()
 
 	-- INTERACTIVE TUTORIAL: a no-op unless the walkthrough is both active

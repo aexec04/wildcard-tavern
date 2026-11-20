@@ -70,6 +70,8 @@ function M.install(deps)
 		end
 		table.sort(slots, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
 		local selected = 0
+		local HL = require(game:GetService("ReplicatedStorage").Shared.Engine.HandLift)
+		local liftCards, liftBtns = {}, {}
 		for i, slot in ipairs(slots) do
 			-- Roblox does not draw Rotation on a layout-controlled slot (AbsoluteRotation stays 0), so the tilt goes on the
 			-- card button inside the slot and the slot keeps the target in an attribute
@@ -91,18 +93,23 @@ function M.install(deps)
 					btn.Position = btn.Position + UDim2.fromOffset(fx - ox, fy - oy)
 				end
 			end
-			local lb, liftAt = slot:FindFirstChildOfClass("TextButton"), slot:GetAttribute("LiftAt")
-			if lb and liftAt and not slot:GetAttribute("Dealing") then -- a later write must not drop a pick's lift
-				local fixY = require(game:GetService("ReplicatedStorage").Shared.Engine.HandLift).enforceY(lb.Position.Y.Offset, slot:GetAttribute("FanY") or 0, slot:GetAttribute("LiftY") or 0, os.clock() - liftAt)
-				if fixY then
-					if not slot:GetAttribute("LiftFixed") then slot:SetAttribute("LiftFixed", true) print(string.format("[HandLift] enforced card %s y %d -> %d (something overwrote the lift)", tostring(slot:GetAttribute("HandIndex")), lb.Position.Y.Offset, fixY)) end
-					lb.Position = UDim2.new(lb.Position.X.Scale, lb.Position.X.Offset, lb.Position.Y.Scale, fixY)
-				end
-			end
 			local us = slot:FindFirstChild("DepthScale")
 			if not us then us = Instance.new("UIScale") us.Name = "DepthScale" us.Parent = slot end
 			us.Scale = PM.cardScale(i, #slots)
 			if slot:GetAttribute("Lifted") then selected += 1 end
+			-- every picked card keeps its lift whatever wrote Position since (one pass over the hand, Engine/HandLift.plan)
+			local lb, liftAt, dealAt = slot:FindFirstChildOfClass("TextButton"), slot:GetAttribute("LiftAt"), slot:GetAttribute("DealAt")
+			local dealing = slot:GetAttribute("Dealing") and not (dealAt and os.clock() - dealAt > HL.DEAL_STALE)
+			if lb and liftAt and not dealing and slot:GetAttribute("Picked") then
+				liftBtns[#liftCards + 1] = { lb, slot }
+				liftCards[#liftCards + 1] = { picked = true, y = lb.Position.Y.Offset, fanY = slot:GetAttribute("FanY") or 0, liftY = slot:GetAttribute("LiftY"), age = os.clock() - liftAt }
+			end
+		end
+		local fixes = HL.plan(liftCards, 24)
+		for k, fixY in pairs(fixes) do
+			local lb, slot = liftBtns[k][1], liftBtns[k][2]
+			if not slot:GetAttribute("LiftFixed") then slot:SetAttribute("LiftFixed", true) print(string.format("[HandLift] enforced card %s y %d -> %d (something overwrote the lift)", tostring(slot:GetAttribute("HandIndex")), lb.Position.Y.Offset, fixY)) end
+			lb.Position = UDim2.new(lb.Position.X.Scale, lb.Position.X.Offset, lb.Position.Y.Scale, fixY)
 		end
 		return selected
 	end
@@ -159,6 +166,7 @@ function M.install(deps)
 		local delay, dur = PM.dealTiming(order, count)
 		local landX, landY = slot:GetAttribute("FanX") or 0, slot:GetAttribute("FanY") or 0
 		slot:SetAttribute("Dealing", true)
+		slot:SetAttribute("DealAt", os.clock())
 		button.Position = UDim2.new(0.5, fromX, 0.5, fromY)
 		button.Rotation = 14
 		task.delay(delay, function()

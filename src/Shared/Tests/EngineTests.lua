@@ -32904,6 +32904,25 @@ table.insert(tests, { name = "HandLift: five picked cards rest five lifts, and a
 	assert(HL.landY(12, nil) == 12 and HL.landY(12, 0) == 12, "an unpicked card lands on its fan Y")
 end })
 
+table.insert(tests, { name = "HandLift: five picks in sequence, a re-layout that writes the bare fan Y after each click, and every picked card is put back", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	local cards = {}
+	for i = 1, 8 do cards[i] = { picked = false, y = 20 + i, fanY = 20 + i, liftY = 0, age = 5 } end
+	for pick = 1, 5 do
+		cards[pick].picked, cards[pick].liftY = true, 24
+		for i = 1, pick do cards[i].y = cards[i].fanY end -- the re-layout drops every lift
+		local fixes = HL.plan(cards, 24)
+		for i = 1, 8 do
+			if i <= pick then assert(fixes[i] == cards[i].fanY - 24, "card " .. i .. " restored after pick " .. pick) else assert(fixes[i] == nil) end
+			if fixes[i] then cards[i].y = fixes[i] end
+		end
+	end
+	local lifted = 0
+	for i = 1, 8 do if cards[i].y == cards[i].fanY - 24 then lifted = lifted + 1 end end
+	assert(lifted == 5, "5 picked = 5 lifted on screen")
+	assert(HL.plan({ { picked = true, y = 9, fanY = 9, liftY = 0, age = 5 } }, 24)[1] == -15, "a picked card with no recorded lift takes the wanted one")
+end })
+
 table.insert(tests, { name = "HandHit: a click on any visible part of a fanned card picks that card, the topmost wins", fn = function()
 	local HH = require(script.Parent.Parent.Engine.HandHit)
 	for _, n in ipairs({ 5, 8, 10 }) do
