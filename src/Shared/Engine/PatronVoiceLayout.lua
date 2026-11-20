@@ -40,4 +40,11 @@ function M.beside(plate, stage, rootW)
 	return nil
 end
 
+-- The tail points up at the speaking seat: its x inside the bubble (0 = left edge), kept TAIL_PAD from either corner.
+M.TAIL_PAD = 18
+function M.tailX(bubble, seatCenterX)
+	local x = seatCenterX - bubble.x
+	return math.floor(math.max(M.TAIL_PAD, math.min(bubble.w - M.TAIL_PAD, x)))
+end
+
 return M

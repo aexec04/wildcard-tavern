@@ -53,6 +53,22 @@ local function ensureBubble(gui)
 	bubbleLabel.TextWrapped = true
 	bubbleLabel.ZIndex = 61
 	bubbleLabel.Parent = bubble
+	local tail = Instance.new("Frame") -- parchment tail on the top edge, points up at the speaking seat
+	tail.Name = "Tail"
+	tail.AnchorPoint = Vector2.new(0.5, 0.5)
+	tail.Size = UDim2.fromOffset(12, 12)
+	tail.Position = UDim2.new(0, 24, 0, 0)
+	tail.Rotation = 45
+	tail.BackgroundColor3 = PARCHMENT
+	tail.BorderSizePixel = 0
+	tail.Active = false
+	tail.Visible = false
+	tail.ZIndex = 60
+	tail.Parent = bubble
+	local tailStroke = Instance.new("UIStroke")
+	tailStroke.Color = Color3.fromRGB(96, 64, 36)
+	tailStroke.Thickness = 1.5
+	tailStroke.Parent = tail
 end
 
 -- handKey: any value that is the same for every Patron trigger within one scored hand.
@@ -128,6 +144,15 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 		end
 	end)
 	if noRoom then bubble.Visible = false; return true end -- scoring, and no clear spot beside the Score plate: stay silent
+	local tail = bubble:FindFirstChild("Tail")
+	if tail then
+		tail.Visible = bubbleV2
+		if bubbleV2 then
+			local PVL = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronVoiceLayout"))
+			local bx, bw = bubble.Position.X.Offset, bubble.Size.X.Offset
+			tail.Position = UDim2.new(0, PVL.tailX({ x = bx, w = bw }, pos.X + size.X / 2), 0, 0)
+		end
+	end
 	bubble.Visible = true
 	task.delay(bubbleV2 and 0.9 or SHOW_SECONDS, function() -- v2: gone before the next trigger's pill row beats
 		if mine == bubbleToken and bubble then bubble.Visible = false end

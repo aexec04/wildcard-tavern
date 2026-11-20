@@ -146,7 +146,7 @@ function M.play(slot, tier, kind, amount, rim)
 			local r = frame(fx, "Ray" .. i, 54)
 			r.AnchorPoint = Vector2.new(0.5, 1)
 			r.Position = UDim2.fromScale(0.5, 0.5)
-			r.Size = UDim2.new(0, 4, 0.8, 0)
+			r.Size = UDim2.new(0, 4, Juice.RAY_LEN, 0)
 			r.Rotation = -75 + 30 * (i - 1)
 			r.BackgroundColor3 = GOLD
 			r.BackgroundTransparency = 1

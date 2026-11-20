@@ -633,6 +633,7 @@ return function(deps)
 			nookBottom = laneTop, handTop = laneHandTop,
 			cardW = baseW, cardH = baseH, popupH = laneReadoutH,
 			gap = okB and band and 0 or nil, minScale = okB and band and 0.3 or nil, -- v2: the band is already exact
+			maxScale = okB and band and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane")).goalScale(baseW, require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Gameplay2Layout")).PLAYED_GOAL_W) or nil, -- v2: cards reach 90 px wide when the band is tall enough
 		})
 		local rowY = lane.rowY
 		totalWidth = (lane.cardW + gap) * #playedGhosts - gap

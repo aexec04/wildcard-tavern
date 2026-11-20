@@ -32942,4 +32942,31 @@ table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next
 	assert(L.rows(16).h == 70, "70 px at the 16 px base")
 end })
 
+table.insert(tests, { name = "Scoring polish: Patron pop stays within 1.2x of the seat and the band, played cards reach 90 px, the quote tail points at its seat", fn = function()
+	local J = require(script.Parent.Parent.Engine.PatronJuice)
+	local PL = require(script.Parent.Parent.Engine.PlayedLane)
+	local V = require(script.Parent.Parent.Engine.PatronVoiceLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local seat = { x = 700, y = 140, w = 125, h = 170 }
+	local b = J.popBox(seat, { top = 125, bottom = 345 })
+	assert(b.w <= seat.w * 1.2 + 0.01 and b.w <= 150.01, "pop is about 150 px wide")
+	assert(b.y >= 125 and b.y + b.h <= 345, "pop stays inside y 125 to 345")
+	local low = J.popBox({ x = 0, y = 300, w = 125, h = 170 }, { top = 125, bottom = 345 })
+	assert(low.y + low.h <= 345 and low.y >= 125, "a low seat is clamped into the band")
+	assert(J.RAY_LEN <= 0.6, "rays end inside the pop box")
+	assert(PL.goalScale(147, 90) == PL.MAX_SCALE, "wide hand cards keep the 0.7 cap")
+	assert(math.abs(PL.goalScale(100, 90) - 0.9) < 1e-9, "narrow hand cards scale up to the 90 px goal")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 } }) do
+		local r = L.rects(sz[1], sz[2]); local rows = L.scoringRows(r, 26)
+		local baseW, baseH = 147, 213
+		local lane = PL.rect({ nookBottom = rows.band.top, handTop = rows.band.bottom, cardW = baseW, cardH = baseH, popupH = 0, gap = 0, minScale = 0.3, maxScale = PL.goalScale(baseW, L.PLAYED_GOAL_W) })
+		local old = PL.rect({ nookBottom = rows.band.top, handTop = rows.band.bottom, cardW = baseW, cardH = baseH, popupH = 0, gap = 0, minScale = 0.3 })
+		assert(lane.cardW >= old.cardW - 0.01, "played cards are no smaller than before at " .. sz[1])
+		if print then print(string.format("[ScoringPolish] %d band %d to %d card %dx%d (was %d wide)", sz[1], math.floor(rows.band.top), math.floor(rows.band.bottom), math.floor(lane.cardW), math.floor(lane.cardH), math.floor(old.cardW))) end
+		assert(lane.rowY >= rows.band.top - 0.5 and lane.rowY + lane.cardH <= rows.band.bottom + 0.5, "cards inside the band at " .. sz[1])
+	end
+	assert(V.tailX({ x = 400, w = 250 }, 450) == 50, "tail sits under the seat centre")
+	assert(V.tailX({ x = 400, w = 250 }, 100) == V.TAIL_PAD and V.tailX({ x = 400, w = 250 }, 900) == 250 - V.TAIL_PAD, "tail stays off the corners")
+end })
+
 return tests

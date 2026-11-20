@@ -94,4 +94,20 @@ function M.particle(i, n, p)
 	return x, y
 end
 
+-- The trigger effect never grows past 1.2x of the seat card and stays inside the band under the top bar and above the Score plate.
+-- slot = { x, y, w, h } the seat card; limits = { top, bottom } root pixels. Returns { x, y, w, h }.
+M.POP_SCALE = 1.2
+function M.popBox(slot, limits)
+	local w, h = slot.w * M.POP_SCALE, slot.h * M.POP_SCALE
+	local x, y = slot.x + slot.w / 2 - w / 2, slot.y + slot.h / 2 - h / 2
+	if limits then
+		h = math.min(h, limits.bottom - limits.top)
+		y = math.max(limits.top, math.min(y, limits.bottom - h))
+	end
+	return { x = x, y = y, w = w, h = h }
+end
+
+-- ray length as a share of the card height: a ray from the centre ends inside the pop box (half of 1.2 = 0.6)
+M.RAY_LEN = 0.55
+
 return M

@@ -265,7 +265,7 @@ M.PLATE_PAD = 8      -- the score block stands this far inside the carved border
 M.NAME_ROW_H = 34    -- the hand name banner row
 M.SCORING_GAP = 12   -- plate to banner, banner to the played cards
 M.PLAYED_GOAL_W = 90 -- played cards are at least this wide when the room allows
-M.PLAYED_RATIO = 1.4 -- card height over width
+M.PLAYED_RATIO = 1.45-- card height over width
 M.HAND_OVERLAP = 0.7 -- the played row may reach this share of the hand rect down (the hand has fewer cards then); keeps 1506 x 751 near 90 px cards
 
 -- The scoring moment, top to bottom inside and just under the stage: the Score plate (caption and counting total, same top as the idle
