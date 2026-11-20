@@ -85,12 +85,11 @@ function M.patronRow(w, h, n)
 	return out
 end
 
--- With more than 7 cards the fan is shifted 0.015 of the width left so its last card ends before the deck book (about x 0.80);
--- 7 cards or fewer keep the reference spread. Returns the hand rect to use.
-M.HAND_SHIFT_8 = 0.015
-function M.handFor(rect, w, n)
-	if (tonumber(n) or 0) <= 7 then return rect end
-	return { x = math.max(0, rect.x - round(M.HAND_SHIFT_8 * w)), y = rect.y, w = rect.w, h = rect.h }
+-- The fan stays centred on the Play Hand and Discard pair for every hand size (the old 0.015 shift for 8 or more cards is gone: with
+-- the card overlap even 9 cards end 60 px or more before the deck book at 1920x957, 1920x1080 and 1280x720; a test checks it).
+M.HAND_SHIFT_8 = 0
+function M.handFor(rect, _w, _n)
+	return rect
 end
 
 -- the Rank | Suit sort pill: a flat 120 x 34 wood pill, 44 px tall on compact screens (touch target)

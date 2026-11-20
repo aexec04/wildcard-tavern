@@ -27870,7 +27870,27 @@ table.insert(tests, { name = "ConceptTLayout parity: Patron cards, labels and pi
 		assert(box.w == 120 and box.h >= 34 and ((w >= 1000 and h >= 600) or box.h >= 44), tag .. " sort pill size, 44 px tall on compact")
 		assert(math.abs((s.y + s.h / 2) - (r.play.y + r.play.h / 2)) <= 1, tag .. " sort pill shares the Play Hand centre line")
 		local h7, h8 = L.handFor(r.hand, w, 7), L.handFor(r.hand, w, 8)
-		assert(h7.x == r.hand.x and h8.x < r.hand.x and h8.x + h8.w < 0.80 * w, tag .. " eight cards shift left, seven keep the reference")
+		assert(h7.x == r.hand.x and h8.x == r.hand.x, tag .. " seven and eight cards keep the reference rect, centred on Play Hand and Discard")
+	end
+end })
+
+table.insert(tests, { name = "Hand fan: 7 to 9 cards stay centred on the Play Hand and Discard pair, span at least 45 percent, 24 px clear of the deck", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local pair = (r.play.x + r.discard.x + r.discard.w) / 2
+		for n = 7, 9 do
+			local f = HS.frameFor(w, CT.handFor(r.hand, w, n), math.max(n, 8))
+			local cw = HS.cardSize(w, f.w, f.h, n)
+			local span = HS.fanSpan(w, cw, n)
+			local c = f.x + f.w / 2
+			assert(math.abs(c - pair) <= 12, w .. "x" .. h .. " n=" .. n .. " fan centre " .. c .. " vs pair " .. pair)
+			assert(span >= 0.45 * w, w .. "x" .. h .. " n=" .. n .. " span " .. span)
+			assert(c + span / 2 <= r.deck.x - 24, w .. "x" .. h .. " n=" .. n .. " clear of the deck")
+		end
 	end
 end })
 
