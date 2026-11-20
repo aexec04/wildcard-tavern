@@ -33215,4 +33215,13 @@ table.insert(tests, { name = "Table fixes (live pass): Speaker and Pause at the 
 	end
 end })
 
+table.insert(tests, { name = "Empty Patron seat (reference): a big concave four point star, a small centre diamond, 18 px corner flourishes on a near black brown face, no old filled diamond", fn = function()
+	if not io then return end
+	local src = io.open("src/Client/PatronRow.lua"):read("*a")
+	for _, w in ipairs({ '"StarOrnament"', '"SigilCore"', '"FlourishH"', '"FlourishV"', '"FlourishDiamond"', 'Color3.fromRGB(150, 110, 50)', 'Color3.fromRGB(40, 24, 14)', 'UDim2.fromOffset(18, 2)', 'UDim2.fromScale(0.62, 0.62)', "(1 - d) ^ 2.2" }) do
+		expectTrue(src:find(w, 1, true) ~= nil, w .. " is drawn in the empty seat")
+	end
+	expectTrue(src:find('diamond("SigilHollow"', 1, true) == nil and src:find('diamond("Sigil", 26', 1, true) == nil, "the old small hollow diamond is gone")
+end })
+
 return tests

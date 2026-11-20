@@ -173,25 +173,58 @@ local function newCard(i)
 	innerEdge.Thickness = 1
 	innerEdge.Transparency = 0.75
 	innerEdge.Parent = inner
-	do -- the empty seat's sigil: a gold four point diamond (compass star) on the dark panel, drawn from rotated squares so no glyph is needed
-		local function diamond(name, size, color, tr)
-			local d = Instance.new("Frame")
-			d.Name = name
-			d.AnchorPoint = Vector2.new(0.5, 0.5)
-			d.Position = UDim2.fromScale(0.5, 0.5)
-			d.Size = UDim2.fromOffset(size, size)
-			d.Rotation = 45
-			d.BackgroundColor3 = color
-			d.BackgroundTransparency = tr
-			d.BorderSizePixel = 0
-			d.ZIndex = Z + 1
-			d.Active = false
-			d.Parent = mark
-			return d
+	do -- the empty seat's ornament (reference): a big four pointed star with concave sides and a small centre diamond in dark gold, plus 18 px corner flourishes
+		local DARK_GOLD = Color3.fromRGB(150, 110, 50)
+		mark.BackgroundColor3 = Color3.fromRGB(40, 24, 14)
+		mark.BackgroundTransparency = 0.05
+		markEdge.Color = DARK_GOLD
+		innerEdge.Color = DARK_GOLD
+		local function bar(parent, name, pos, size, color, tr)
+			local f = Instance.new("Frame")
+			f.Name = name
+			f.Position = pos
+			f.Size = size
+			f.BackgroundColor3 = color
+			f.BackgroundTransparency = tr
+			f.BorderSizePixel = 0
+			f.ZIndex = Z + 2
+			f.Active = false
+			f.Parent = parent
+			return f
 		end
-		diamond("Sigil", 26, GOLD, 0.25)
-		diamond("SigilHollow", 18, Color3.fromRGB(32, 24, 20), 0.05)
-		diamond("SigilCore", 8, GOLD, 0.1)
+		local star = Instance.new("Frame") -- square host, about 60 percent of the slot width (about 80 px of the reference's 145)
+		star.Name = "StarOrnament"
+		star.AnchorPoint = Vector2.new(0.5, 0.5)
+		star.Position = UDim2.fromScale(0.5, 0.5)
+		star.Size = UDim2.fromScale(0.62, 0.62)
+		star.BackgroundTransparency = 1
+		star.ZIndex = Z + 2
+		star.Active = false
+		star.Parent = mark
+		local ar = Instance.new("UIAspectRatioConstraint")
+		ar.AspectRatio = 1
+		ar.Parent = star
+		local N = 15
+		for k = 0, N - 1 do -- two crossing spikes built from stripes whose width falls off with a power of the distance: the sides curve in (concave)
+			local d = math.abs(2 * (k + 0.5) / N - 1)
+			local half = 0.17 * (1 - d) ^ 2.2 + 0.012 -- half width as a fraction of the host
+			bar(star, "SpikeV" .. k, UDim2.fromScale(0.5 - half, k / N), UDim2.fromScale(2 * half, 1 / N), DARK_GOLD, 0.2)
+			bar(star, "SpikeH" .. k, UDim2.fromScale(k / N, 0.5 - half), UDim2.fromScale(1 / N, 2 * half), DARK_GOLD, 0.2)
+		end
+		local core = bar(star, "SigilCore", UDim2.fromScale(0.5, 0.5), UDim2.fromOffset(10, 10), Color3.fromRGB(214, 168, 76), 0.1)
+		core.AnchorPoint = Vector2.new(0.5, 0.5)
+		core.Rotation = 45
+		for _, cx in ipairs({ 0, 1 }) do -- corner flourishes: two 18 px arms and a small diamond at each corner of the face
+			for _, cy in ipairs({ 0, 1 }) do
+				local px, py = cx == 0 and 5 or -5, cy == 0 and 5 or -5
+				local ha = bar(mark, "FlourishH", UDim2.new(cx, cx == 0 and px or px - 18, cy, cy == 0 and py or py - 2), UDim2.fromOffset(18, 2), DARK_GOLD, 0.15)
+				local va = bar(mark, "FlourishV", UDim2.new(cx, cx == 0 and px or px - 2, cy, cy == 0 and py or py - 18), UDim2.fromOffset(2, 18), DARK_GOLD, 0.15)
+				ha.Name, va.Name = "FlourishH", "FlourishV"
+				local dm = bar(mark, "FlourishDiamond", UDim2.new(cx, cx == 0 and px + 8 or px - 8, cy, cy == 0 and py + 8 or py - 8), UDim2.fromOffset(6, 6), Color3.fromRGB(214, 168, 76), 0.2)
+				dm.AnchorPoint = Vector2.new(0.5, 0.5)
+				dm.Rotation = 45
+			end
+		end
 	end
 	c.mark = mark
 	local dim = Instance.new("Frame") -- dims the card while another Patron triggers
