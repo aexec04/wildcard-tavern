@@ -59,7 +59,7 @@ function M.run()
 	local lines, warns = Rules.check({
 		w = w, h = h,
 		felt = CT.feltFor(w, h).rim,
-		inlay = live("FeltInlay"), -- nil while the table has no inlay picture
+		inlay = layer:FindFirstChild("FeltInlay") and layer.FeltInlay.Visible and dc.inlay.box or nil, -- the ring's visible line, nil while the picture is hidden
 		deck = r.deck, tilt = CT.DECK_TILT,
 		rail = { x = railPic.x, w = railPic.w, box = railBox },
 		plates = plates,

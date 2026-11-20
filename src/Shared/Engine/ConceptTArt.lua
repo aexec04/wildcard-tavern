@@ -16,6 +16,7 @@ return {
 	["ct_deck_a"] = "rbxassetid://72064944352239",
 	["ct_deck_count"] = "rbxassetid://113254156108727",
 	["ct_deck_tray"] = "rbxassetid://99933786725578",
+	["ct_felt_inlay"] = "rbxassetid://94780812728487",
 	["ct_glow_ring"] = "rbxassetid://91713611017108",
 	["ct_hud_coins"] = "rbxassetid://82390083856080",
 	["ct_hud_gear"] = "rbxassetid://84644478411168",

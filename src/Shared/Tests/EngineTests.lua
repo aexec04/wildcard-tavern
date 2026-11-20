@@ -24297,7 +24297,8 @@ table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 referenc
 	local src = io and io.open("src/Client/Gameplay2.lua")
 	if src then
 		local t = src:read("*a"); src:close()
-		assert(not t:find("FeltInlay", 1, true) and not t:find("FeltRimShadow", 1, true), "no dashed inlay or stair-step rim shadow pieces are built")
+		assert(not t:find("FeltRimShadow", 1, true) and not t:find("FeltInlay.Piece", 1, true), "no dashed inlay or stair-step rim shadow pieces are built")
+		assert(t:find('"FeltInlay", "ct_felt_inlay"', 1, true), "the inlay is one painted ring picture")
 	end
 end })
 table.insert(tests, { name = "Gameplay2 felt inlay: a true ellipse of straight pieces, every piece inside the felt rect (four sizes)", fn = function()
@@ -24327,6 +24328,20 @@ table.insert(tests, { name = "Gameplay2 bottom rail: carved end caps lie 6 px or
 		assert(clear.left <= -6 and clear.right <= -6, w .. "x" .. h .. " caps off screen: " .. clear.left .. ", " .. clear.right)
 		assert(d.rail.x <= 0 and d.rail.x + d.rail.w >= w, w .. "x" .. h .. " rail picture covers the width")
 		assert(d.rail.box.x == 0 and d.rail.box.w == w, w .. "x" .. h .. " visible rail is full width")
+	end
+end })
+table.insert(tests, { name = "Gameplay2 felt inlay picture: one painted ring, visible line on the felt inlay rect and inside the felt (four sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(require(script.Parent.Parent.Engine.ConceptTArt).ct_felt_inlay, "inlay art id recorded")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local f = L.feltFor(w, h)
+		local d = L.decorFor(G.rects(w, h), w, h)
+		local b = d.inlay.box
+		assert(b.x == f.inlay.x and b.y == f.inlay.y and b.w == f.inlay.w and b.h == f.inlay.h, w .. "x" .. h .. " ring line sits on the felt inlay rect")
+		assert(b.x >= f.rim.x and b.y >= f.rim.y and b.x + b.w <= f.rim.x + f.rim.w and b.y + b.h <= f.rim.y + f.rim.h, w .. "x" .. h .. " ring line inside the felt")
+		assert(d.inlay.w >= b.w and d.inlay.h >= b.h, w .. "x" .. h .. " picture is at least as large as its line")
 	end
 end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()

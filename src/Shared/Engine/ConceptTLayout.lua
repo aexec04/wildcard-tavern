@@ -148,6 +148,8 @@ M.DECOR = {
 	tray = { art = { w = 1024, h = 1024, box = { 91, 162, 980, 842 } }, target = { 0.780, 0.690, 0.995, 0.936 } },
 	rail = { art = { w = 1536, h = 1024, box = { 16, 432, 1520, 576 } }, target = { 0.000, 0.856, 1.000, 1.000 } },
 }
+-- thin gold ring picture (ct_felt_inlay); box is the visible line, placed on the felt inlay rect (not a DECOR entry: it has no screen target)
+M.INLAY_ART = { art = { w = 1536, h = 1024, box = { 84, 133, 1452, 872 } } }
 
 function M.decor(w, h)
 	local out = {}
@@ -180,6 +182,7 @@ function M.decorFor(r, w, h)
 	local top = math.min(r.sortRank.y, r.play.y, r.discard.y) - M.RAIL_RISE
 	return {
 		rail = place(M.DECOR.rail, 0, top, w, h - top, M.railOverscan(w)),
+		inlay = (function() local i = M.feltFor(w, h).inlay; return place(M.INLAY_ART, i.x, i.y, i.w, i.h) end)(),
 	}
 end
 

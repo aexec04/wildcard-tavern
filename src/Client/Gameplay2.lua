@@ -124,10 +124,11 @@ function M.install(deps)
 			end
 			shadows[name] = sh
 		end
-		for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" } }) do
+		for _, spec in ipairs({ { "inlay", "FeltInlay", "ct_felt_inlay" }, { "rail", "BottomRail", "ct_rail_strip" } }) do
 		local img = Instance.new("ImageLabel")
 		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
+		if spec[1] == "inlay" then img.ImageTransparency = 0.35; img.ClipsDescendants = true end
 		furniture[spec[1]] = img
 	end
 	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
