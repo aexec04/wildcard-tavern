@@ -51,6 +51,16 @@ end
 -- inner = the plate minus its border, N = Layout.scoreStack for the inset height.
 M.PAD = 8
 M.MIN_FONT = 14
+-- The idle Score plate must stay clear of the hand: the live hand frame rises above the layout rect (HandSizing.frameFor), so the stage the
+-- plate may use ends GAP px above the highest card top. `handTop` is that frame's y; the stage only ever shrinks (never under MIN_H).
+M.HAND_GAP = 12
+M.MIN_H = 60
+function M.idleStage(stage, handTop)
+	if not handTop then return stage end
+	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.HAND_GAP - stage.y))
+	return { x = stage.x, y = stage.y, w = stage.w, h = h }
+end
+
 function M.live(stage, sw, capH, progH, compact)
 	local pad = M.PAD
 	local ih = math.max(1, stage.h - 2 * pad)

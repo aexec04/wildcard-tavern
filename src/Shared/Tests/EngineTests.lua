@@ -32578,6 +32578,27 @@ table.insert(tests, { name = "Live hand path: roomy windows overlap cards, 8 car
 	expectEqual(HS.gap(1000, 100), HS.GAP, "narrow windows keep the 6 px gap")
 end })
 
+table.insert(tests, { name = "Idle Score plate and its line stay 12 px above the tallest hand card at 8, 9 and 10 cards, 1920x1080, 1920x957, 1506x751, 1280x720", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, n in ipairs({ 8, 9, 10 }) do
+			local hf = HS.frameFor(sz[1], CT.handFor(r.hand, sz[1], n), math.max(n, 8))
+			local st = SP.idleStage(r.stage, hf.y)
+			local live = SP.live(st, sz[1], 26, 22, false)
+			local plateBottom = live.plate.y + live.plate.h
+			expectTrue(st.h <= r.stage.h, "the idle stage never grows at " .. sz[1] .. " x " .. sz[2])
+			expectTrue(plateBottom + SP.HAND_GAP <= hf.y, "plate bottom " .. plateBottom .. " clear of the card tops " .. hf.y .. " at " .. sz[1] .. " x " .. sz[2] .. " with " .. n .. " cards")
+			expectTrue(live.contentBottom <= plateBottom, "the 0 of N line is inside the plate at " .. sz[1] .. " x " .. sz[2])
+			if n == 8 then print(("[TableRects] %dx%d plate y=%d bottom=%d handTop=%d stage=%d..%d"):format(sz[1], sz[2], live.plate.y, plateBottom, hf.y, st.y, st.y + st.h)) end
+		end
+	end
+	expectEqual(SP.idleStage({ x = 1, y = 2, w = 3, h = 99 }, nil).h, 99, "no hand rect keeps the stage")
+end })
+
 table.insert(tests, { name = "PlayRoomArt.backdrop: Classic Tavern draws table_play_ref, sets with a room keep theirs, PlayScenePaint prints [PlayTableBg]", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	local TA = require(script.Parent.Parent.Engine.TableSceneArt)

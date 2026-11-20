@@ -359,7 +359,15 @@ function M.install(deps)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
 		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
 		local SPlate = require(Engine:WaitForChild("Gameplay2ScorePlate"))
-		local live = SPlate.live(r.stage, root.AbsoluteSize.X, capH, progH, self.playing == true) -- the stack stands 8 px inside the carved border
+		local HSz = require(Engine:WaitForChild("HandSizing"))
+		local nHand = lastState and lastState.hand and #lastState.hand or 0
+		local idleHand = HSz.frameFor(size.X, CTLayout.handFor(r.hand, size.X, nHand), math.max(nHand, 8))
+		local stageUse = self.playing == true and r.stage or SPlate.idleStage(r.stage, idleHand.y) -- idle: plate and line end 12 px above the tallest card
+		local live = SPlate.live(stageUse, root.AbsoluteSize.X, capH, progH, self.playing == true)
+		if game:GetService("RunService"):IsStudio() and self.tableRectsKey ~= size.X .. "x" .. size.Y then
+			self.tableRectsKey = size.X .. "x" .. size.Y
+			print(("[TableRects] %dx%d plate y=%d bottom=%d handTop=%d stage=%d..%d"):format(size.X, size.Y, live.plate.y, live.plate.y + live.plate.h, idleHand.y, stageUse.y, stageUse.y + stageUse.h))
+		end -- the stack stands 8 px inside the carved border
 		local N = live.N
 		scoreBox.Position = UDim2.fromOffset(live.box.x, live.box.y)
 		scoreBox.Size = UDim2.fromOffset(live.box.w, live.box.h)
