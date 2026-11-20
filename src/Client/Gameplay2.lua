@@ -110,11 +110,38 @@ function M.install(deps)
 	local deckPill = Kit.pill(layer, "0 / 52", "wood"); deckPill.Name = "DeckCountPill"; deckPill.ZIndex = Z_UI
 	-- table furniture under the deck and under the bottom row (rects from ConceptTLayout.decorFor), over the felt, under every plate and button
 	local furniture = {}
-	for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" }, { "tray", "DeckTray", "ct_deck_tray" } }) do
+		-- soft contact shadows (solid black, stacked rounded frames from faint to dark, no gradient): one under the tray, a smaller one under the deck on it
+		local shadows = {}
+		for _, name in ipairs({ "TrayShadow", "DeckShadow" }) do
+			local sh = Instance.new("Frame"); sh.Name = name; sh.BackgroundTransparency = 1; sh.BorderSizePixel = 0; sh.Active = false; sh.ZIndex = 2; sh.Visible = false; sh.Parent = layer
+			for i, tr in ipairs({ 0.88, 0.8, 0.7 }) do
+				local ring = Instance.new("Frame"); ring.Name = "Ring" .. i; ring.BorderSizePixel = 0; ring.Active = false
+			ring.BackgroundColor3 = Color3.new(0, 0, 0); ring.BackgroundTransparency = tr; ring.ZIndex = 2
+			ring.AnchorPoint = Vector2.new(0.5, 0.5); ring.Position = UDim2.fromScale(0.5, 0.5)
+			ring.Size = UDim2.new(1, -2 * (i - 1) * 5, 1, -2 * (i - 1) * 5)
+			ring.Parent = sh
+			local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 14); uc.Parent = ring
+			end
+			shadows[name] = sh
+		end
+		for _, spec in ipairs({ { "rail", "BottomRail", "ct_rail_strip" }, { "tray", "DeckTray", "ct_deck_tray" } }) do
 		local img = Instance.new("ImageLabel")
 		img.Name = spec[2]; img.BackgroundTransparency = 1; img.BorderSizePixel = 0; img.Active = false
 		img.Image = Art[spec[3]] or ""; img.ScaleType = Enum.ScaleType.Stretch; img.ZIndex = 2; img.Visible = false; img.Parent = layer
 		furniture[spec[1]] = img
+	end
+	-- felt finish: a thin gold inlay line inset inside the felt and a soft dark band where the felt meets the rim (outlines only, no fills, no gradient)
+	local feltRing, rimShadow
+	do
+		local function ellipse(name, color, thick, tr)
+			local f = Instance.new("Frame"); f.Name = name; f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.Active = false; f.ZIndex = 2; f.Visible = false
+			local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0.5, 0); uc.Parent = f
+			local st = Instance.new("UIStroke"); st.Color = color; st.Thickness = thick; st.Transparency = tr; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Parent = f
+			f.Parent = layer
+			return f
+		end
+		rimShadow = ellipse("FeltRimShadow", Color3.fromRGB(0, 0, 0), 12, 0.6)
+		feltRing = ellipse("FeltInlay", Color3.fromRGB(190, 150, 70), 2, 0.45)
 	end
 	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
 	local wallBanners = {}
@@ -409,6 +436,18 @@ function M.install(deps)
 			for key, img in pairs(furniture) do
 				img.Visible = img.Image ~= ""
 				place(img, dc[key])
+			end
+			do
+				local fl = CTLayout.feltFor(size.X, size.Y)
+				place(feltRing, fl.inlay); place(rimShadow, fl.rim)
+				feltRing.Visible = furniture.tray.Visible; rimShadow.Visible = furniture.tray.Visible
+			end
+			furniture.tray.Rotation = CTLayout.TRAY_TILT
+			local sp = CTLayout.shadowFor(dc.tray, r.deck)
+			for name, sh in pairs(shadows) do
+				sh.Visible = furniture.tray.Visible
+				sh.Rotation = CTLayout.TRAY_TILT
+				place(sh, name == "TrayShadow" and sp.tray or sp.deck)
 			end
 			if game:GetService("RunService"):IsStudio() and self.decorKey ~= size.X .. "x" .. size.Y then
 				self.decorKey = size.X .. "x" .. size.Y

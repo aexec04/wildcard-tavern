@@ -201,6 +201,28 @@ function M.railCapClear(rail, w)
 	return { left = rail.x + c.left * k, right = w - (rail.x + c.right * k) }
 end
 
+-- Felt finish on the live table, from the reference picture (1672x941): the oval felt edge meets the rim at x 50 to 1620, y 445 to 850; the gold
+-- inlay is the felt inset 22 reference px (about 1.3 percent of the width) on every side. `rim` is the ellipse the 12 px dark band is stroked on.
+M.FELT_REF = { x0 = 50 / 1672, y0 = 445 / 941, x1 = 1620 / 1672, y1 = 850 / 941, inset = 22 / 1672 }
+function M.feltFor(w, h)
+	local f = M.FELT_REF
+	local inset = round(f.inset * w)
+	local rim = { x = round(f.x0 * w), y = round(f.y0 * h), w = round((f.x1 - f.x0) * w), h = round((f.y1 - f.y0) * h) }
+	return { rim = rim, inlay = { x = rim.x + inset, y = rim.y + inset, w = rim.w - 2 * inset, h = rim.h - 2 * inset } }
+end
+
+-- Contact shadows for the tray and the deck: the tray's visible box grown SHADOW_GROW per side and moved SHADOW_DROP down, and the deck rect
+-- grown 4 px per side and moved 4 px down, so each peeks out under its object.
+M.SHADOW_GROW, M.SHADOW_DROP = 20, 6
+function M.shadowFor(tray, deck)
+	local g, d = M.SHADOW_GROW, M.SHADOW_DROP
+	local b = tray.box
+	return {
+		tray = { x = b.x - g, y = b.y - g + d, w = b.w + 2 * g, h = b.h + 2 * g },
+		deck = { x = deck.x - 4, y = deck.y, w = deck.w + 8, h = deck.h + 8 },
+	}
+end
+
 -- The tray art is drawn leaning about 15 degrees; turning the picture clockwise by TRAY_TILT leaves about 8 (the reference tray leans about 6).
 -- trayHull: bounding rect of the tray's visible box after that turn (the picture turns about its own centre).
 M.TRAY_TILT = 6

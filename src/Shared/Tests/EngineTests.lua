@@ -24195,6 +24195,41 @@ table.insert(tests, { name = "Gameplay2 deck tray: turned about 7 degrees, stays
 		end
 	end
 end })
+table.insert(tests, { name = "Gameplay2 deck tray: contact shadow is 20 px bigger, 6 px lower, and the live tray is turned", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local r = G.rects(w, h)
+		local d = L.decorFor(r, w, h)
+		local sh = L.shadowFor(d.tray, r.deck)
+		assert(sh.tray.w == d.tray.box.w + 40 and sh.tray.h == d.tray.box.h + 40, w .. "x" .. h .. " shadow 20 px bigger per side")
+		assert(sh.tray.y == d.tray.box.y - 20 + 6, w .. "x" .. h .. " shadow dropped 6 px")
+		assert(sh.deck.x < r.deck.x and sh.deck.x + sh.deck.w > r.deck.x + r.deck.w, w .. "x" .. h .. " deck shadow wraps the deck")
+	end
+	local src = io and io.open("src/Client/Gameplay2.lua")
+	if src then
+		local t = src:read("*a"); src:close()
+		assert(t:find("furniture.tray.Rotation = CTLayout.TRAY_TILT", 1, true), "Gameplay2 applies the tray tilt")
+	end
+end })
+table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 reference px inside the felt edge, both ellipses stay on screen (four sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local f = L.feltFor(w, h)
+		local tag = w .. "x" .. h
+		assert(f.rim.x >= 0 and f.rim.y >= 0 and f.rim.x + f.rim.w <= w and f.rim.y + f.rim.h <= h, tag .. " rim ellipse on screen")
+		assert(f.inlay.x > f.rim.x and f.inlay.y > f.rim.y and f.inlay.w < f.rim.w and f.inlay.h < f.rim.h, tag .. " inlay inside the rim ellipse")
+		assert(math.abs((f.inlay.x - f.rim.x) - 22 / 1672 * w) <= 1, tag .. " inset 22 reference px")
+	end
+	local src = io and io.open("src/Client/Gameplay2.lua")
+	if src then
+		local t = src:read("*a"); src:close()
+		assert(t:find('"FeltInlay", Color3.fromRGB(190, 150, 70), 2, 0.45', 1, true), "inlay: 2 px gold 190,150,70 transparency 0.45")
+		assert(t:find('"FeltRimShadow", Color3.fromRGB(0, 0, 0), 12, 0.6', 1, true), "rim shadow 12 px")
+	end
+end })
 table.insert(tests, { name = "Gameplay2 bottom rail: carved end caps lie 6 px or more off screen, rail still covers the full width (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
