@@ -255,12 +255,12 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
-				if not painted[nm] then -- parchment face (reference: cream 232,200,150, dark brown text and icon, gold edge): a flat plate, no dark picture
+				if not painted[nm] then -- dark wood face (reference: carved brown like Discard, cream text, gold icon and edge): a flat plate, no picture
 					painted[nm] = true
 					pcall(function()
 						if not b:FindFirstChildOfClass("UICorner") then local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 8); uc.Parent = b end
 						local ic = Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2)
-						local ink = Color3.fromRGB(58, 36, 20)
+						local ink = Color3.fromRGB(240, 196, 92) -- gold glyph on the dark wood
 						if ic and ic:IsA("ImageLabel") then -- the painted icon sits on a dark disc: keep its box (the layout moves it) and draw a bare dark glyph in it
 							ic.ImageTransparency = 1
 							if nm == "SortRank" then
@@ -273,7 +273,7 @@ function M.install(deps)
 								g.Font = Enum.Font.GothamBold; g.TextScaled = true; g.TextColor3 = ink; g.TextStrokeTransparency = 1; g.ZIndex = Z_BTN + 1; g.Active = false; g.Parent = ic
 							end
 						end
-						-- the ornate gold edge (same family as Target and Tips) drawn ABOVE the parchment face: outer gold ring, thin dark gold inner line, four corner diamonds
+						-- the ornate gold edge (same family as Target and Tips) drawn ABOVE the wood face: outer gold ring, thin dark gold inner line, four corner diamonds
 						local gf = Instance.new("Frame"); gf.Name = "GoldFrame"; gf.BackgroundTransparency = 1; gf.BorderSizePixel = 0; gf.Active = false
 						gf.Size = UDim2.fromScale(1, 1); gf.ZIndex = Z_BTN + 2; gf.Parent = b
 						local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 8); gc.Parent = gf
