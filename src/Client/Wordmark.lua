@@ -97,7 +97,7 @@ function Wordmark.build(parent, opts)
 		image.Size = UDim2.new(Wordmark.WIDTH_FRAC, 0, 0, 0)
 		image.BackgroundTransparency = 1
 		image.Image = AssetId.normalize(opts.imageId) or ""
-		local ratio = Instance.new("UIAspectRatio")
+		local ratio = Instance.new("UIAspectRatioConstraint")
 		ratio.AspectRatio = c.w / c.h
 		ratio.DominantAxis = Enum.DominantAxis.Width
 		ratio.Parent = image
@@ -134,6 +134,27 @@ function Wordmark.build(parent, opts)
 	place()
 	title:GetPropertyChangedSignal("TextBounds"):Connect(place)
 
+	return { shadow = shadow, title = title, painted = false }
+end
+
+-- The Menu calls this: a failure in the wordmark (painted or plain) must never blank the Menu. Falls back to the plain
+-- lettering, then to two empty frames the parallax and reveal code can still move.
+function Wordmark.safeBuild(parent, opts)
+	local ok, result = pcall(Wordmark.build, parent, opts)
+	if ok and result then return result end
+	warn("[Wordmark] painted build failed, using plain lettering: " .. tostring(result))
+	local plain = {}
+	for k, v in pairs(opts or {}) do plain[k] = v end
+	plain.imageId = nil
+	local ok2, result2 = pcall(Wordmark.build, parent, plain)
+	if ok2 and result2 then return result2 end
+	warn("[Wordmark] plain build failed too: " .. tostring(result2))
+	local shadow, title = Instance.new("Frame"), Instance.new("Frame")
+	for _, f in ipairs({ shadow, title }) do
+		f.BackgroundTransparency = 1
+		f.Size = UDim2.new(1, 0, 0, 80)
+		f.Parent = parent
+	end
 	return { shadow = shadow, title = title, painted = false }
 end
 

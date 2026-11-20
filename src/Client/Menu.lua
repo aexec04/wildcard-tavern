@@ -96,7 +96,7 @@ return function(deps)
 	titleGroup.ZIndex = 11
 	titleGroup.Parent = menuFrame
 
-	local wordmark = require(script.Parent.Wordmark).build(titleGroup, {
+	local wordmark = require(script.Parent.Wordmark).safeBuild(titleGroup, {
 		imageId = ContentArt.getImageId("logo", "logo_wordmark"),
 		zIndex = 11,
 	})

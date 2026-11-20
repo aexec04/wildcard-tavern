@@ -14431,6 +14431,9 @@ table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave
 		expectTrue(menu:find("MenuRibbon", 1, true) == nil, "Menu title has no tagline ribbon")
 		expectTrue(wordmark:find("GameName", 1, true) ~= nil, "Wordmark takes its text from GameName")
 		expectTrue(wordmark:find("UIGradient.Transparency", 1, true) == nil, "gradient is Color only")
+		expectTrue(wordmark:find('Instance.new("UIAspectRatio")', 1, true) == nil, "UIAspectRatio is not a class, UIAspectRatioConstraint is")
+		expectTrue(menu:find(").safeBuild(titleGroup", 1, true) ~= nil and menu:find(").build(titleGroup", 1, true) == nil, "Menu builds the wordmark through the pcall guard")
+		expectTrue(wordmark:find("pcall(Wordmark.build", 1, true) ~= nil, "Wordmark.safeBuild pcalls the build")
 		expectTrue(read("src/Shared/Engine/WinCard.lua"):find("GameName", 1, true) ~= nil, "Win Card uses GameName")
 		expectTrue(read("src/Client/InvitePrompt.lua"):find("GameName", 1, true) ~= nil, "invite prompt uses GameName")
 	end
