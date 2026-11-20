@@ -633,7 +633,7 @@ end
 -- The Reroll plate (44 px tall, cream text): left aligned with the Patron row, directly under it. When the pack row under the Patrons
 -- starts far enough to the right it stands in that row's left margin (so it never sits under a pack), else under the last row. Rects
 -- are the dealt (untilted) card rects plus a 10 px allowance for the tilt.
-ShopSceneLayout.REROLL_W, ShopSceneLayout.REROLL_H, ShopSceneLayout.REROLL_AIR = 150, 44, 10
+ShopSceneLayout.REROLL_W, ShopSceneLayout.REROLL_H, ShopSceneLayout.REROLL_AIR = 190, 44, 24
 function ShopSceneLayout.rerollPlate(r)
 	local o, k = r.offers and r.offers[1], r.packs and r.packs[1]
 	if not o then return nil end
@@ -645,7 +645,11 @@ function ShopSceneLayout.rerollPlate(r)
 	end
 	local limit = r.area and r.area.h
 	if limit then y = math.min(y, limit - h - 12) end
-	return rect(o.x, y, w, h)
+	-- centred under the Patron row, so the plate and its dice never touch a card name
+	local last = r.offers[#r.offers]
+	local x = o.x
+	if not k then x = math.floor(o.x + (last.x + last.w - o.x - w) / 2) end
+	return rect(math.max(x, o.x), y, w, h)
 end
 
 -- Rects of the two scrolling card rows (transparent containers; the cards inside are centred). A row is the cards

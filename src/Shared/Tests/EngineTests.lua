@@ -30821,7 +30821,7 @@ table.insert(tests, { name = "Counter room: normal offers are about 170 x 230 (3
 			assert(r.offers[1].w >= 165 and r.offers[1].h >= 224, "offers about 170 x 230 at " .. sz[1] .. "x" .. sz[2] .. " with " .. c[2] .. " packs, got " .. r.offers[1].w .. " x " .. r.offers[1].h)
 			if c[2] > 0 then assert(r.packs[1].w >= 77, "packs keep their minimum width") end
 			local p = SL.rerollPlate(r)
-			assert(p.h == 44 and p.x == r.offers[1].x, "Reroll plate is 44 px tall and left aligned with the Patron row")
+			assert(p.h == 44 and p.x >= r.offers[1].x, "Reroll plate is 44 px tall and starts inside the Patron row span")
 			for _, list in ipairs({ r.offers, r.packs }) do
 				for _, o in ipairs(list) do assert(not SL.intersects(p, o), "Reroll plate clear of every card at " .. sz[1] .. "x" .. sz[2]) end
 			end
@@ -31006,7 +31006,7 @@ table.insert(tests, { name = "Counter offers at 1920x957 and 1920x1080: a lone o
 		for _, counts in ipairs({ { 1, 0 }, { 1, 2 }, { 3, 0 }, { 3, 2 }, { 4, 2 } }) do
 			local r = rects(counts[1], counts[2])
 			local plate = S.rerollPlate(r)
-			assert(plate and plate.h >= 44 and plate.x == r.offers[1].x, "Reroll is 44 px tall, left aligned with the row")
+			assert(plate and plate.h >= 44 and plate.x >= r.offers[1].x, "Reroll is 44 px tall, inside the row span")
 			for i, o in ipairs(r.offers) do
 				for _, k in ipairs(r.keepOut) do assert(not hit(o, k), "offer " .. i .. " clear of the bell, ledger, arch, wall, Next Round and tabs") end
 				assert(not hit(o, plate), "offer " .. i .. " clear of Reroll")
