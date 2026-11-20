@@ -22,7 +22,7 @@ M.BASE_FRAME_H = 200
 
 M.WIDE_SHARE = 0.084 -- reference cards are 8.4 percent of the width (140 of 1672); the byWidth and byHeight limits in cardSize still keep 8 or more cards inside the fan
 M.WIDE_CAP = 160
-M.OVERLAP = 0.18 -- on roomy windows neighbouring cards overlap by this share of a card width up to 8 cards (the reference shows 8 cards with a small overlap, every corner readable)
+M.OVERLAP = 0.10 -- on roomy windows neighbouring cards overlap by this share of a card width up to 8 cards (about 90 percent of each face shows; the fan may span up to 0.67 of the screen)
 M.OVERLAP_MAX_SHARE = 0.22 -- the 8 card overlap stays under this share (test)
 M.OVERLAP_PER_CARD = 0.045 -- each card past 8 adds this much overlap, so big hands compress gradually
 M.OVERLAP_CAP = 0.5
@@ -42,7 +42,7 @@ end
 
 -- gap between neighbouring cards: the old 6 px, or a negative overlap on roomy windows
 function M.gap(areaW, cardW, count)
-	if (areaW or 0) >= M.BIG_FROM then return -math.floor((cardW or 0) * M.overlapFor(count)) end
+	if (areaW or 0) >= M.BIG_FROM then return -math.ceil((cardW or 0) * M.overlapFor(count)) end -- rounded up so the fan never spans more than cardSize counted on
 	return M.GAP
 end
 

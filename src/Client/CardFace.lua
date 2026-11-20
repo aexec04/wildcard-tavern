@@ -529,7 +529,7 @@ function CardFace.layoutHand(handFrame)
 		local list = handFrame:FindFirstChildOfClass("UIListLayout")
 		if list then
 			local big = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH
-			list.Padding = UDim.new(0, big and -math.floor(width * HandSizing.overlapFor(count)) or CARD_GAP)
+			list.Padding = UDim.new(0, big and HandSizing.gap(1200, width, count) or CARD_GAP)
 		end
 	end
 

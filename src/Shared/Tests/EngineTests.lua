@@ -32668,6 +32668,15 @@ table.insert(tests, { name = "Hand fan: 8 cards overlap at most 22 percent, span
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	expectTrue(HS.overlapFor(8) <= HS.OVERLAP_MAX_SHARE, "8 card overlap at most 22 percent")
+	expectEqual(HS.overlapFor(8), 0.10, "8 cards overlap about 10 percent, nearly the whole face shows")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local hf = HS.frameFor(sz[1], r.hand, 8)
+		local cw = HS.cardSize(sz[1], hf.w, hf.h, 8)
+		local hidden = -HS.gap(sz[1], cw, 8) / cw
+		expectTrue(hidden <= 0.12, "live gap hides at most 12 percent of a card at " .. sz[1] .. ", got " .. hidden)
+		expectTrue(HS.fanSpan(sz[1], cw, 8) <= 0.66 * sz[1], "8 card fan within 66 percent of the width at " .. sz[1])
+	end
 	local prev = HS.overlapFor(8)
 	for n = 9, 14 do
 		local o = HS.overlapFor(n)
