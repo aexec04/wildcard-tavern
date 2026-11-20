@@ -46,6 +46,7 @@ local COLORBLIND_INK = {
 local SUIT_LETTER = { ["♠"] = "S", ["♥"] = "H", ["♦"] = "D", ["♣"] = "C" }
 
 local ClientSettings = require(script.Parent.ClientSettings)
+local HandSizing = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandSizing"))
 
 -- Every face built so far, so they can be redrawn when the setting flips.
 local builtFaces = setmetatable({}, { __mode = "k" }) -- [button] = args
@@ -514,14 +515,22 @@ function CardFace.layoutHand(handFrame)
 	local maxWidth = math.max(MAX_CARD_WIDTH, handFrame:GetAttribute("MaxCardWidth") or 0)
 	local width = maxWidth
 	if frameSize.X > 0 and count > 0 then
-		local byWidth = math.floor((frameSize.X - 2 * TRAY_PAD - CARD_GAP * (count - 1)) / count)
 		local bigHand = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH -- cards stand on the bottom padding only
+		local byWidth = math.floor((frameSize.X - 2 * TRAY_PAD - CARD_GAP * (count - 1)) / count)
+		if bigHand then byWidth = math.floor((frameSize.X - 2 * TRAY_PAD) / (count - HandSizing.OVERLAP * (count - 1))) end -- reference cards overlap
 		local byHeight = math.floor((frameSize.Y - (bigHand and TRAY_PAD or 2 * TRAY_PAD)) / CARD_ASPECT)
 		width = math.clamp(math.min(maxWidth, byWidth, byHeight), MIN_CARD_WIDTH, maxWidth)
 	end
 	local height = math.floor(width * CARD_ASPECT)
 	for _, slot in ipairs(slots) do
 		slot.Size = UDim2.fromOffset(width, height)
+	end
+	do -- roomy windows: neighbours overlap like the reference hand (the list layout padding goes negative)
+		local list = handFrame:FindFirstChildOfClass("UIListLayout")
+		if list then
+			local big = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH
+			list.Padding = UDim.new(0, big and -math.floor(width * HandSizing.OVERLAP) or CARD_GAP)
+		end
 	end
 
 	local tray, host = getTray(handFrame)

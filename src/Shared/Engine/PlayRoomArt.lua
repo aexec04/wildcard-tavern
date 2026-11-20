@@ -55,6 +55,17 @@ local function recorded(art, key)
 	return type(v) == "string" and v ~= "" and v ~= "rbxassetid://0"
 end
 
+-- The backdrop the play screen draws: a set with its own recorded room keeps it; everything else (Classic Tavern) gets the reference
+-- tavern scene (`table_play_ref` in TableSceneArt) and falls back to the old classic picture when that id is missing.
+-- Returns key, id (the rbxassetid string or nil).
+PlayRoomArt.REF_BG = "table_play_ref"
+function PlayRoomArt.backdrop(setId, art, tableArt)
+	local room = PlayRoomArt.roomArt(setId, art)
+	if room.room then return room.bg, art[room.bg] end
+	if recorded(tableArt, PlayRoomArt.REF_BG) then return PlayRoomArt.REF_BG, tableArt[PlayRoomArt.REF_BG] end
+	return room.bg, art and art[room.bg]
+end
+
 function PlayRoomArt.roomArt(setId, art)
 	if type(setId) == "string" and PlayRoomArt.SETS[setId] then
 		local k = PlayRoomArt.keys(setId)

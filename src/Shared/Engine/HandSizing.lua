@@ -22,6 +22,13 @@ M.BASE_FRAME_H = 200
 
 M.WIDE_SHARE = 0.084 -- reference cards are 8.4 percent of the width (140 of 1672); the byWidth and byHeight limits in cardSize still keep 8 or more cards inside the fan
 M.WIDE_CAP = 160
+M.OVERLAP = 0.25 -- on roomy windows neighbouring cards overlap by this share of a card width (reference step is about 0.64 of the width)
+
+-- gap between neighbouring cards: the old 6 px, or a negative overlap on roomy windows
+function M.gap(areaW, cardW)
+	if (areaW or 0) >= M.BIG_FROM then return -math.floor((cardW or 0) * M.OVERLAP) end
+	return M.GAP
+end
 
 function M.maxCardWidth(areaW)
 	if (areaW or 0) >= M.BIG_FROM then return math.max(M.BIG_MAX, math.min(M.WIDE_CAP, math.floor(areaW * M.WIDE_SHARE))) end
@@ -40,11 +47,28 @@ function M.wantWidth(areaW, count)
 	return M.maxCardWidth(areaW) * count + M.GAP * (count - 1) + 2 * M.PAD
 end
 
+-- The live hand frame: the layout rect, grown upward (never down, so the pills and buttons keep their clearance) until the frame is tall
+-- enough for cards at their wide target size. The frame is transparent, so the cards just rise into the open stage like the reference.
+M.MAX_RISE = 70
+function M.frameFor(areaW, rect, count)
+	if (areaW or 0) < M.BIG_FROM or (count or 0) < 1 then return rect end
+	local byWidth = math.floor((rect.w - 2 * M.PAD) / (count - M.OVERLAP * (count - 1)))
+	local want = math.min(M.maxCardWidth(areaW), byWidth)
+	local need = math.floor(want * M.ASPECT) + M.PAD
+	local extra = math.max(0, math.min(M.MAX_RISE, need - rect.h))
+	return { x = rect.x, y = rect.y - extra, w = rect.w, h = rect.h + extra }
+end
+
 function M.cardSize(areaW, frameW, frameH, count)
 	local maxW = M.maxCardWidth(areaW)
 	local width = maxW
 	if frameW > 0 and count > 0 then
-		local byWidth = math.floor((frameW - 2 * M.PAD - M.GAP * (count - 1)) / count)
+		local byWidth
+		if (areaW or 0) >= M.BIG_FROM then
+			byWidth = math.floor((frameW - 2 * M.PAD) / (count - M.OVERLAP * (count - 1)))
+		else
+			byWidth = math.floor((frameW - 2 * M.PAD - M.GAP * (count - 1)) / count)
+		end
 		local byHeight = math.floor((frameH - M.PAD) / M.ASPECT) -- cards stand on the bottom padding only
 		width = math.max(M.MIN_WIDTH, math.min(maxW, byWidth, byHeight))
 	end

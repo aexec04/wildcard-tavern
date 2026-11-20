@@ -16,6 +16,7 @@ local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local R = require(Engine:WaitForChild("ResponsiveLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
 local PlayRoomArt = require(Engine:WaitForChild("PlayRoomArt"))
+local TableSceneArt = require(Engine:WaitForChild("TableSceneArt"))
 local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 local Guard = require(script.Parent:WaitForChild("PlayPaintGuard"))
 
@@ -156,7 +157,11 @@ function PlayScenePaint.install(deps)
 		if room.layout and PlayTableLayout.SETS[room.layout] then
 			setId, artKey = room.layout, room.front
 		end
-		if bg then bg.Image = art[room.bg] or bgId end
+		if bg then
+			local key, bid = PlayRoomArt.backdrop(sid, art, TableSceneArt)
+			bg.Image = bid or bgId
+			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] key=%s id=%s", tostring(key), tostring(bg.Image))) end
+		end
 		-- default look: the wood-only oval front (play_table_front_c) when recorded and the tavern backdrop is there; else the old front
 		local oval = (not setId) and bg and art[PlayTableLayout.SETS[PlayTableLayout.OVAL_KEY].art] or nil
 		if oval then setId = PlayTableLayout.OVAL_KEY; artKey = PlayTableLayout.SETS[setId].art end
@@ -236,7 +241,7 @@ function PlayScenePaint.install(deps)
 				handFrame:SetAttribute("MaxCardWidth", HS.maxCardWidth(size.X))
 				if game:GetService("RunService"):IsStudio() then
 					local cw, ch = HS.cardSize(size.X, p.hand.w, p.hand.h, 8)
-					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, frame %d x %d", size.X, cw, ch, cw + HS.GAP, p.hand.w, p.hand.h))
+					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, frame %d x %d", size.X, cw, ch, cw + HS.gap(size.X, cw), p.hand.w, p.hand.h))
 				end
 			end
 			if not ctOwns then

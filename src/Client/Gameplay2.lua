@@ -337,7 +337,10 @@ function M.install(deps)
 				and require(Engine:WaitForChild("PlayRules")).allows(lastState, n) ~= false
 			FX.setLegal(deps.playButton, legal)
 		end)
-		place(deps.handFrame, CTLayout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
+		do
+			local n = lastState and lastState.hand and #lastState.hand or 0
+			place(deps.handFrame, require(Engine:WaitForChild("HandSizing")).frameFor(size.X, CTLayout.handFor(r.hand, size.X, n), math.max(n, 8)))
+		end
 		place(bar, r.bar)
 		place(roundLabel, r.round)
 		place(target, r.target); place(tips, r.tips)

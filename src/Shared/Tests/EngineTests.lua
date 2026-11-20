@@ -22459,7 +22459,7 @@ table.insert(tests, { name = "PlayRoomArt: every Card Set maps to its recorded r
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
 	local psp, plates, board, shop = read("src/Client/PlayScenePaint.lua"), read("src/Client/PlayPlates.lua"), read("src/Client/PlayBoardPaint.lua"), read("src/Client/ShopBackdrop.lua")
 	if psp and plates and board and shop then
-		expectTrue(psp:find("PlayRoomArt.roomArt(sid, art)", 1, true) ~= nil and psp:find("bg.Image = art[room.bg] or bgId", 1, true) ~= nil, "the backdrop and the front follow the equipped set live")
+		expectTrue(psp:find("PlayRoomArt.roomArt(sid, art)", 1, true) ~= nil and psp:find("bg.Image = bid or bgId", 1, true) ~= nil, "the backdrop and the front follow the equipped set live")
 		expectTrue(psp:find("HudTheme.onSkin(tint)", 1, true) ~= nil, "a skin change (equip, Preview) re-runs it")
 		expectTrue(psp:find("groove.ImageRectOffset", 1, true) ~= nil, "the rim crop is placed above the cards")
 		expectTrue(plates:find('GetAttribute("RoomTint")', 1, true) ~= nil and board:find('GetAttribute("RoomTint")', 1, true) ~= nil and shop:find('GetAttribute("RoomTint")', 1, true) ~= nil, "board, plates and Counter read the room tint")
@@ -32542,6 +32542,43 @@ table.insert(tests, { name = "Hand v2: cards grow toward the reference size and 
 		end
 		local cw = HS.cardSize(sz[1], r.hand.w, r.hand.h, 8)
 		if want[key] then expectTrue(cw >= 130, "card at least 130 wide at " .. key .. ", got " .. cw) end
+	end
+end })
+
+table.insert(tests, { name = "Live hand path: roomy windows overlap cards, 8 cards reach about 0.084 of the width at 1506, 1920 and 1280", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 957, 140 }, { 1506, 751, 120 }, { 1280, 720, 105 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local hf = HS.frameFor(sz[1], r.hand, 8)
+		expectEqual(hf.y + hf.h, r.hand.y + r.hand.h, "the frame only grows upward at " .. sz[1])
+		local cw = HS.cardSize(sz[1], hf.w, hf.h, 8)
+		expectTrue(cw >= sz[3], "8 cards at least " .. sz[3] .. " wide at " .. sz[1] .. ", got " .. cw)
+		local gap = HS.gap(sz[1], cw)
+		expectTrue(gap < 0, "neighbours overlap at " .. sz[1])
+		expectTrue(8 * cw + 7 * gap + 2 * HS.PAD <= r.hand.w, "the overlapped row fits the frame at " .. sz[1])
+	end
+	expectEqual(HS.gap(1000, 100), HS.GAP, "narrow windows keep the 6 px gap")
+end })
+
+table.insert(tests, { name = "PlayRoomArt.backdrop: Classic Tavern draws table_play_ref, sets with a room keep theirs, PlayScenePaint prints [PlayTableBg]", fn = function()
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local TA = require(script.Parent.Parent.Engine.TableSceneArt)
+	local PA = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local key, id = PRA.backdrop("classic_tavern", PA, TA)
+	expectEqual(key, "table_play_ref", "classic key")
+	expectEqual(id, TA.table_play_ref, "classic id")
+	key = PRA.backdrop(nil, PA, TA)
+	expectEqual(key, "table_play_ref", "no set")
+	local k2 = PRA.backdrop("winter_evening", PA, TA)
+	expectTrue(k2 == "play_table_bg_b" or k2 == "play_room_winter_evening_bg", "a set room is not replaced: " .. tostring(k2))
+	local k3 = PRA.backdrop("classic_tavern", PA, {})
+	expectEqual(k3, "play_table_bg_b", "missing reference id falls back")
+	if not io then return end
+	local f = io.open("src/Client/PlayScenePaint.lua", "r")
+	if f then
+		local src = f:read("a"); f:close()
+		expectTrue(src:find("PlayRoomArt.backdrop(sid, art, TableSceneArt)", 1, true) ~= nil and src:find("[PlayTableBg] key=", 1, true) ~= nil, "PlayScenePaint draws and prints the backdrop key")
 	end
 end })
 
