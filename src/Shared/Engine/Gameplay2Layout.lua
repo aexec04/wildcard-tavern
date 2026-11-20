@@ -369,4 +369,9 @@ function M.deckWidgetShown(phase)
 	return phase ~= "gameover"
 end
 
+-- the Rank and Suit gold frames, icons and words belong to the table only: never on the Counter, Round Select or the Menu
+function M.sortChromeShown(active)
+	return active == true
+end
+
 return M

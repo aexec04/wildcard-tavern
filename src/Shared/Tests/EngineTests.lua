@@ -30752,7 +30752,7 @@ table.insert(tests, { name = "Counter after a win: summary plate clear of the ge
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local g = read("src/Client/Gameplay2.lua")
-	assert(g:find('half:FindFirstChild(kn); if kc then kc.Visible = false', 1, true), "restore hides the Rank and Suit icon and word")
+	assert(g:find('sortChrome(k, false)', 1, true) and g:find('"KitIcon", "KitLabel", "GoldFrame", "GoldInner"', 1, true), "restore hides the Rank and Suit icon, word and gold frames")
 	assert(read("src/Client/ShopPurse.lua"):find('"wh_target"', 1, true) and read("src/Client/ShopPurse.lua"):find('"bulb"', 1, true), "Tips pill is the painted table plate with the bulb")
 end })
 
@@ -33410,6 +33410,13 @@ table.insert(tests, { name = "Gameplay2RefCheck: the 14 pieces sit within 12 px 
 			expectTrue(not row.bad, row.name .. " off the reference at " .. w .. "x" .. h)
 		end
 	end
+end })
+
+table.insert(tests, { name = "Gameplay2Layout: Rank and Suit gold frames show only while the table is active, hidden on the Counter, Round Select and Menu", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	expectEqual(L.sortChromeShown(true), true, "table")
+	for _, screen in ipairs({ "shop", "roundSelect", "menu" }) do expectEqual(L.sortChromeShown(false), false, screen) end
+	expectEqual(L.sortChromeShown(nil), false, "unknown is hidden")
 end })
 
 return tests

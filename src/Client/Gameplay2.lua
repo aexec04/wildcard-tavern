@@ -205,6 +205,16 @@ function M.install(deps)
 		end
 	end)
 
+	local function sortChrome(toggle, on)
+		on = Layout.sortChromeShown(on)
+		for _, nm in ipairs({ "SortRank", "SortSuit" }) do
+			local b = toggle and toggle:FindFirstChild(nm)
+			if b then
+				for _, kn in ipairs({ "KitIcon", "KitLabel", "GoldFrame", "GoldInner" }) do local kc = b:FindFirstChild(kn); if kc then kc.Visible = on end end
+			end
+		end
+	end
+
 	-- the real Rank and Suit buttons live inside the hub's SortToggle; Gameplay v2 draws each as its own brown plate
 	local function splitSort(toggle, r)
 		toggle:SetAttribute("Split", true)
@@ -217,7 +227,6 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
-				for _, kn in ipairs({ "KitIcon", "KitLabel" }) do local kc = b:FindFirstChild(kn); if kc then kc.Visible = true end end
 				if not painted[nm] then -- parchment face (reference: cream 232,200,150, dark brown text and icon, gold edge): a flat plate, no dark picture
 					painted[nm] = true
 					pcall(function()
@@ -253,6 +262,7 @@ function M.install(deps)
 				end
 			end
 		end
+		sortChrome(toggle, true)
 	end
 
 	local active, lastState = false, nil
@@ -314,12 +324,12 @@ function M.install(deps)
 				elseif k.Name == "SortToggle" then
 					k:SetAttribute("Flat", false)
 					k:SetAttribute("Split", false)
+					sortChrome(k, false) -- gold frames, icons and words stay on the table (Counter, Nov 20)
 					k.Size = UDim2.fromOffset(132, 28)
 					for _, nm in ipairs({ "SortRank", "SortSuit" }) do -- back to the two halves of the shared track
 						local half = k:FindFirstChild(nm)
 						if half then
 							-- the icon and word belong to the table plate: out of the table phase they would float as stray chips (Counter, Nov 19)
-							for _, kn in ipairs({ "KitIcon", "KitLabel" }) do local kc = half:FindFirstChild(kn); if kc then kc.Visible = false end end
 							half.Size = UDim2.new(0.5, -5, 1, -6)
 							half.Position = UDim2.new(nm == "SortRank" and 0 or 0.5, nm == "SortRank" and 3 or 2, 0, 3)
 						end
@@ -708,6 +718,11 @@ function M.install(deps)
 			end
 			pcall(function() require(script.Parent.NightIntroFX).reset(layer) end) -- the next round shows its intro again
 			fanHand(false, size.Y); restoreOld()
+			if game:GetService("RunService"):IsStudio() and lastState and lastState.phase ~= "playing" then -- Studio only: no gold frame may stay lit off the table
+				for _, d in ipairs(deps.actionFrame:GetDescendants()) do
+					if (d.Name == "GoldFrame" or d.Name == "GoldInner") and d.Visible then warn("[SortChrome] visible off the table: " .. d:GetFullName()) end
+				end
+			end
 			-- the "TARGET CLEARED!" shout of the last hand must not hang over the Counter
 			local jb = root:FindFirstChild("ScoreJuiceBanner")
 			if jb and jb:IsA("TextLabel") and lastState and lastState.phase ~= "playing" then jb.TextTransparency = 1; jb.TextStrokeTransparency = 1 end
