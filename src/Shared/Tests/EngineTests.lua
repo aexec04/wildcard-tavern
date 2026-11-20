@@ -32153,4 +32153,24 @@ table.insert(tests, { name = "IconLabelLayout.group: icon, 6 px gap and word are
 	end
 end })
 
+table.insert(tests, { name = "IconLabelLayout: icon and word rects lie inside every Rank and Suit plate (live rects), and clampInside pulls a stray group back in", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 800, 450 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, k in ipairs({ "sortRank", "sortSuit" }) do
+			local b = r[k]
+			local w, h = math.floor(b.w), math.floor(b.h)
+			for _, word in ipairs({ 4, 9 }) do
+				local g = I.clampInside(w, h, I.group(w, h, word * 18 * 0.56, 18, 14))
+				expectTrue(I.inside(w, h, g), sz[1] .. " " .. k .. " " .. word .. ": icon and word inside the plate")
+			end
+		end
+	end
+	local stray = { icon = { x = 300, y = 5, w = 30, h = 30 }, label = { x = 336, y = 0, w = 80, h = 40 } } -- measured against a far wider parent
+	I.clampInside(144, 68, stray)
+	expectTrue(I.inside(144, 68, stray), "a group placed past the plate edge is pulled inside")
+	expectTrue(stray.label.x >= stray.icon.x + stray.icon.w, "the word still starts after the icon")
+end })
+
 return tests

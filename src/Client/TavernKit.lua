@@ -311,17 +311,27 @@ function TavernKit.icon(host, name, pad)
 		-- child, so a UIPadding on the button never moved it: that put the word under the icon), else the host's own text via KitIconPad.
 		local Layout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("IconLabelLayout"))
 		local function size()
-			local p = Layout.place(host.AbsoluteSize.X, host.AbsoluteSize.Y)
+			local sc = 1 -- a UIScale on the plate or above it scales offsets too: measure the plate in its own units
+			local anc = host
+			while anc and anc:IsA("GuiObject") do
+				local us = anc:FindFirstChildOfClass("UIScale")
+				if us and us.Scale > 0 then sc = sc * us.Scale end
+				anc = anc.Parent
+			end
+			local pw, ph = math.floor(host.AbsoluteSize.X / sc + 0.5), math.floor(host.AbsoluteSize.Y / sc + 0.5)
+			if pw < 2 or ph < 2 then return end -- not laid out yet: the AbsoluteSize signal calls again
+			local p = Layout.place(pw, ph)
 			local kl = host:FindFirstChild("KitLabel")
 			if kl and (kl:IsA("TextLabel") or kl:IsA("TextButton")) and kl.Text ~= "" then -- icon, gap and word are one group centred in the plate, 14 px clear each side, the word shrinks to fit
 				local base = kl:GetAttribute("KitBaseSize") or kl.TextSize
 				kl:SetAttribute("KitBaseSize", base)
 				local ok, bounds = pcall(function() return game:GetService("TextService"):GetTextSize(kl.Text, base, kl.Font, Vector2.new(10000, 10000)) end)
 				if ok and bounds then
-					p = Layout.group(host.AbsoluteSize.X, host.AbsoluteSize.Y, bounds.X, base, 14)
+					p = Layout.group(pw, ph, bounds.X, base, 14)
 					kl.TextSize = p.size
 				end
 			end
+			Layout.clampInside(pw, ph, p)
 			img.Position = UDim2.fromOffset(p.icon.x, p.icon.y)
 			img.Size = UDim2.fromOffset(p.icon.w, p.icon.h)
 			local up = host:FindFirstChild("KitIconPad")
@@ -332,8 +342,15 @@ function TavernKit.icon(host, name, pad)
 				kl.Size = UDim2.fromOffset(p.label.w + 4, p.label.h)
 				kl.TextXAlignment = Enum.TextXAlignment.Left
 			end
+			if game:GetService("RunService"):IsStudio() and not Layout.inside(pw, ph, p) then warn("[TavernKit.icon] label outside its plate: " .. host:GetFullName()) end
 		end
 		size()
+		local kl0 = host:FindFirstChild("KitLabel")
+		if kl0 then
+			for _, prop in ipairs({ "Text", "TextSize", "TextXAlignment" }) do -- ButtonLabelTop mirrors the button's own text over the group
+				kl0:GetPropertyChangedSignal(prop):Connect(function() task.defer(size) end)
+			end
+		end
 		host:GetPropertyChangedSignal("AbsoluteSize"):Connect(size)
 		host.ChildAdded:Connect(function(c) if c.Name == "KitLabel" then task.defer(size) end end)
 	end

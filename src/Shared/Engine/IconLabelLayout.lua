@@ -44,4 +44,28 @@ function M.group(w, h, textW, size, minSize)
 	}
 end
 
+-- Keeps the icon and the word inside a plate of w x h whatever the caller measured: a rect that starts left of 0 or ends past w is pulled
+-- back in (the word box shrinks, the group slides left). Pure, used by TavernKit.icon after place/group. Returns the same table.
+function M.clampInside(w, h, g)
+	w, h = math.max(1, math.floor(w)), math.max(1, math.floor(h))
+	local i, l = g.icon, g.label
+	if i.w > w then i.w = w; i.h = math.min(i.h, w) end
+	if i.x < 0 or i.x + i.w > w or l.x + l.w > w then -- a group measured against the wrong width: pack it again from the left edge
+		i.x = math.min(M.SIDE, math.max(0, w - i.w))
+		l.x = math.min(w, i.x + i.w + M.GAP)
+		l.w = math.min(l.w, math.max(0, w - l.x - M.SIDE))
+	end
+	if l.x < i.x + i.w then l.x = math.min(w, i.x + i.w) end
+	if l.x + l.w > w then l.w = math.max(0, w - l.x) end
+	if i.y < 0 then i.y = 0 end
+	if i.y + i.h > h then i.y = math.max(0, h - i.h) end
+	return g
+end
+
+-- true when both rects lie inside the plate (Studio warns when this is false)
+function M.inside(w, h, g)
+	local function ok(r) return r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h end
+	return ok(g.icon) and ok(g.label)
+end
+
 return M
