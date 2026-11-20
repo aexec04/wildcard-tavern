@@ -32621,6 +32621,32 @@ table.insert(tests, { name = "Live hand path: roomy windows overlap cards, 8 car
 	expectEqual(HS.gap(1000, 100), HS.GAP, "narrow windows keep the 6 px gap")
 end })
 
+table.insert(tests, { name = "Hand fan: 8 cards overlap at most 22 percent, span about half the width or more, 10+ cards compress gradually", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	expectTrue(HS.overlapFor(8) <= HS.OVERLAP_MAX_SHARE, "8 card overlap at most 22 percent")
+	local prev = HS.overlapFor(8)
+	for n = 9, 14 do
+		local o = HS.overlapFor(n)
+		expectTrue(o >= prev and o <= HS.OVERLAP_CAP, "overlap grows gradually to the cap at " .. n)
+		prev = o
+	end
+	for _, sz in ipairs({ { 1920, 957, 0.5 }, { 1920, 1080, 0.5 }, { 1506, 751, 0.5 }, { 1280, 720, 0.5 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local hf = HS.frameFor(sz[1], r.hand, 8)
+		local cw = HS.cardSize(sz[1], hf.w, hf.h, 8)
+		local step = cw + HS.gap(sz[1], cw, 8)
+		expectTrue(step >= cw * 0.78 - 1, "step at least 78 percent of the card at " .. sz[1])
+		local span = HS.fanSpan(sz[1], cw, 8)
+		expectTrue(span / sz[1] >= sz[3], "8 card fan spans " .. sz[3] .. " of the width at " .. sz[1] .. ", got " .. span / sz[1])
+		for _, n in ipairs({ 10, 12 }) do
+			local hn = HS.frameFor(sz[1], r.hand, n)
+			local cn = HS.cardSize(sz[1], hn.w, hn.h, n)
+			expectTrue(HS.fanSpan(sz[1], cn, n) + 2 * HS.PAD <= hn.w + 1, n .. " cards fit the frame at " .. sz[1])
+		end
+	end
+end })
+
 table.insert(tests, { name = "Idle Score plate and its line stay 12 px above the tallest hand card at 8, 9 and 10 cards, 1920x1080, 1920x957, 1506x751, 1280x720", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

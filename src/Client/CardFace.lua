@@ -517,7 +517,7 @@ function CardFace.layoutHand(handFrame)
 	if frameSize.X > 0 and count > 0 then
 		local bigHand = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH -- cards stand on the bottom padding only
 		local byWidth = math.floor((frameSize.X - 2 * TRAY_PAD - CARD_GAP * (count - 1)) / count)
-		if bigHand then byWidth = math.floor((frameSize.X - 2 * TRAY_PAD) / (count - HandSizing.OVERLAP * (count - 1))) end -- reference cards overlap
+		if bigHand then byWidth = math.floor((frameSize.X - 2 * TRAY_PAD) / (count - HandSizing.overlapFor(count) * (count - 1))) end -- reference cards overlap
 		local byHeight = math.floor((frameSize.Y - (bigHand and TRAY_PAD or 2 * TRAY_PAD)) / CARD_ASPECT)
 		width = math.clamp(math.min(maxWidth, byWidth, byHeight), MIN_CARD_WIDTH, maxWidth)
 	end
@@ -529,7 +529,7 @@ function CardFace.layoutHand(handFrame)
 		local list = handFrame:FindFirstChildOfClass("UIListLayout")
 		if list then
 			local big = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH
-			list.Padding = UDim.new(0, big and -math.floor(width * HandSizing.OVERLAP) or CARD_GAP)
+			list.Padding = UDim.new(0, big and -math.floor(width * HandSizing.overlapFor(count)) or CARD_GAP)
 		end
 	end
 

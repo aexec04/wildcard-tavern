@@ -241,7 +241,7 @@ function PlayScenePaint.install(deps)
 				handFrame:SetAttribute("MaxCardWidth", HS.maxCardWidth(size.X))
 				if game:GetService("RunService"):IsStudio() then
 					local cw, ch = HS.cardSize(size.X, p.hand.w, p.hand.h, 8)
-					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, frame %d x %d", size.X, cw, ch, cw + HS.gap(size.X, cw), p.hand.w, p.hand.h))
+					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, overlap %d%%, fan %d (%d%% of width), frame %d x %d", size.X, cw, ch, cw + HS.gap(size.X, cw, 8), math.floor(HS.overlapFor(8) * 100), HS.fanSpan(size.X, cw, 8), math.floor(100 * HS.fanSpan(size.X, cw, 8) / size.X), p.hand.w, p.hand.h))
 				end
 			end
 			if not ctOwns then

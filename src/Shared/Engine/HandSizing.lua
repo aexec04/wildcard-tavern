@@ -22,11 +22,27 @@ M.BASE_FRAME_H = 200
 
 M.WIDE_SHARE = 0.084 -- reference cards are 8.4 percent of the width (140 of 1672); the byWidth and byHeight limits in cardSize still keep 8 or more cards inside the fan
 M.WIDE_CAP = 160
-M.OVERLAP = 0.25 -- on roomy windows neighbouring cards overlap by this share of a card width (reference step is about 0.64 of the width)
+M.OVERLAP = 0.18 -- on roomy windows neighbouring cards overlap by this share of a card width up to 8 cards (the reference shows 8 cards with a small overlap, every corner readable)
+M.OVERLAP_MAX_SHARE = 0.22 -- the 8 card overlap stays under this share (test)
+M.OVERLAP_PER_CARD = 0.045 -- each card past 8 adds this much overlap, so big hands compress gradually
+M.OVERLAP_CAP = 0.5
+
+-- overlap share for a hand of `count` cards
+function M.overlapFor(count)
+	local extra = math.max(0, (count or 8) - 8)
+	return math.min(M.OVERLAP_CAP, M.OVERLAP + M.OVERLAP_PER_CARD * extra)
+end
+
+-- width of the fan (first card left edge to last card right edge) for `count` cards of width `cardW`
+function M.fanSpan(areaW, cardW, count)
+	count = count or 1
+	if count <= 1 then return cardW end
+	return cardW + (count - 1) * (cardW + M.gap(areaW, cardW, count))
+end
 
 -- gap between neighbouring cards: the old 6 px, or a negative overlap on roomy windows
-function M.gap(areaW, cardW)
-	if (areaW or 0) >= M.BIG_FROM then return -math.floor((cardW or 0) * M.OVERLAP) end
+function M.gap(areaW, cardW, count)
+	if (areaW or 0) >= M.BIG_FROM then return -math.floor((cardW or 0) * M.overlapFor(count)) end
 	return M.GAP
 end
 
@@ -52,7 +68,7 @@ end
 M.MAX_RISE = 70
 function M.frameFor(areaW, rect, count)
 	if (areaW or 0) < M.BIG_FROM or (count or 0) < 1 then return rect end
-	local byWidth = math.floor((rect.w - 2 * M.PAD) / (count - M.OVERLAP * (count - 1)))
+	local byWidth = math.floor((rect.w - 2 * M.PAD) / (count - M.overlapFor(count) * (count - 1)))
 	local want = math.min(M.maxCardWidth(areaW), byWidth)
 	local need = math.floor(want * M.ASPECT) + M.PAD
 	local extra = math.max(0, math.min(M.MAX_RISE, need - rect.h))
@@ -65,7 +81,7 @@ function M.cardSize(areaW, frameW, frameH, count)
 	if frameW > 0 and count > 0 then
 		local byWidth
 		if (areaW or 0) >= M.BIG_FROM then
-			byWidth = math.floor((frameW - 2 * M.PAD) / (count - M.OVERLAP * (count - 1)))
+			byWidth = math.floor((frameW - 2 * M.PAD) / (count - M.overlapFor(count) * (count - 1)))
 		else
 			byWidth = math.floor((frameW - 2 * M.PAD - M.GAP * (count - 1)) / count)
 		end
