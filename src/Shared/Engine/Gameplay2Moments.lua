@@ -17,7 +17,6 @@
 	bossBanner(rects, w, h)          -> { x, y, w, h } or nil (no room)
 	bossText(state)                  -> name, rule (nil, nil when not a boss round)
 	bossGlow(calm)                   -> { color = {r,g,b}, transparency }
-	bossFeltLift()                   -> { color = {r,g,b}, transparency } a thin green layer over the felt on a boss round (felt about 85 percent of the normal table)
 	nightLines(prev)                 -> nil | { title = "Night cleared" | "Run complete", sub, runComplete, button } (a Boss Round was cleared)
 	nightPlate(w, h, runComplete)    -> { x, y, w, h } the Night plate (bigger for Run complete), inside the screen
 	continueRect(plate)              -> { x, y, w, h } relative to the plate, 48 px tall
@@ -179,10 +178,6 @@ function M.bossGlow(calm)
 end
 
 -- the live boss felt read (52, 60, 40) against the normal table (60, 90, 50): this green layer (alpha 0.24) lifts it to about (54, 77, 45)
-function M.bossFeltLift()
-	return { color = { 60, 130, 60 }, transparency = 0.76 }
-end
-
 local ICONS = {
 	fewerHands = "H", fewerDiscards = "D", lowHandSize = "C", cardToss = "T", cardCount = "N", suitDebuff = "S", faceDebuff = "F",
 	oddRank = "O", noRepeat = "R", handBan = "B", targetBoost = "G", weakenChips = "Ch", weakenMult = "Mu", tipsDrain = "$", patronLimit = "P",

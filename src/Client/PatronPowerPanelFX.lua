@@ -80,7 +80,22 @@ local function why(reason, state)
 	if M.lastWhy ~= line then M.lastWhy = line; print(line) end
 end
 
+local waiting, latest = false, nil
+-- the panel is only drawn when update runs: after the boss intro closes nothing else triggers it, so look again 0.6 s after the intro is gone
+local function recheckAfterIntro(layer, state, rects, viewW, viewH)
+	if waiting then return end
+	waiting = true
+	task.spawn(function()
+		local t = 0
+		while layer.Parent and layer:FindFirstChild("BossIntro") and t < 30 do task.wait(0.1); t += 0.1 end
+		task.wait(0.6)
+		waiting = false
+		if layer.Parent and latest then M.update(table.unpack(latest, 1, 5)) end
+	end)
+end
+
 function M.update(layer, state, rects, viewW, viewH)
+	latest = { layer, state, rects, viewW, viewH } -- the recheck after a boss intro uses the newest call, never a stale one
 	local opts = { enabled = ClientSettings.get("roundHints") ~= false }
 	local off = Rules.reason(state, opts)
 	if off then M.hide(); why("hidden: " .. off, state); return end
@@ -88,7 +103,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	if key ~= roundKey then roundKey = key; handsAtStart = tonumber(state.handsPlayedTotal) or 0 end
 	if dismissed[key] then M.hide(); why("hidden: dismissed flag set for " .. key, state); return end
 	if Rules.spent(state, handsAtStart) then M.hide(); why("hidden: a hand was already played this round", state); return end
-	if layer:FindFirstChild("BossIntro") then M.hide(); why("hidden: the boss intro is on screen", state); return end -- never shares the screen with the boss intro
+	if layer:FindFirstChild("BossIntro") then M.hide(); why("hidden: the boss intro is on screen", state); recheckAfterIntro(layer, state, rects, viewW, viewH); return end -- never shares the screen with the boss intro
 	local avoid = {}
 	local bp = layer:FindFirstChild("BossRulePlate")
 	if bp and bp.Visible then avoid[1] = { x = bp.Position.X.Offset, y = bp.Position.Y.Offset, w = bp.Size.X.Offset, h = bp.Size.Y.Offset } end

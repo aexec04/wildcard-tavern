@@ -33937,20 +33937,20 @@ table.insert(tests, { name = "PatronPowerPanel: the Got it on the hint strip dis
 	expectTrue(b:find("PatronPowerGotIt", 1, true) == nil, "no second Got it button")
 end })
 
-table.insert(tests, { name = "Boss felt lift: the live boss felt (52, 60, 40) rises to green at about 85 percent of the normal felt (60, 90, 50)", fn = function()
+table.insert(tests, { name = "Boss felt: no overlay frame is drawn (it showed as a slab over the rim and wall), the red wash stays thin", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
-	local lf, g = M.bossFeltLift(), M.bossGlow(false)
-	local function over(c, layer) local a = 1 - layer.transparency; local o = {}; for i = 1, 3 do o[i] = c[i] * (1 - a) + layer.color[i] * a end; return o end
-	local out = over({ 52, 60, 40 }, lf)
-	local normal = { 60, 90, 50 }
-	local lum = function(c) return 0.2126 * c[1] + 0.7152 * c[2] + 0.0722 * c[3] end
-	local ratio = lum(out) / lum(normal)
-	expectTrue(ratio >= 0.8 and ratio <= 0.9, "felt about 85 percent of normal, got " .. ratio)
-	expectTrue(out[2] > out[1] + 15 and out[2] > out[3] + 20, "still clearly green")
-	expectTrue(g.transparency >= 0.95, "the red wash stays thin")
+	expectTrue(M.bossFeltLift == nil, "the felt lift layer is gone")
+	expectTrue(M.bossGlow(false).transparency >= 0.95, "the red wash stays thin")
 	if not io then return end
 	local f = io.open("src/Client/Gameplay2MomentsFX.lua", "r"); local src = f:read("a"); f:close()
-	expectTrue(src:find("BossFeltLift", 1, true) ~= nil and src:find("feltFor(w, h).inlay", 1, true) ~= nil, "the boss draws the felt lift on the felt")
+	expectTrue(src:find("lift:Destroy()", 1, true) ~= nil, "a leftover lift frame is removed")
+end })
+
+table.insert(tests, { name = "Patron Power panel: it looks again 0.6 s after the boss intro closes", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/PatronPowerPanelFX.lua", "r"); local src = f:read("a"); f:close()
+	expectTrue(src:find("recheckAfterIntro(", 1, true) ~= nil and src:find("task.wait(0.6)", 1, true) ~= nil, "a rechecking wait of 0.6 s after the intro")
+	expectTrue(src:find('FindFirstChild("BossIntro")', 1, true) ~= nil and src:find("latest", 1, true) ~= nil, "it waits for the intro to go and uses the newest state")
 end })
 
 table.insert(tests, { name = "Patron Power panel: a boss round shows it even when a guided first hand flag is left on, and a reason is named when hidden", fn = function()
