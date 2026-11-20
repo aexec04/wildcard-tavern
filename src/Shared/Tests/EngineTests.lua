@@ -34109,7 +34109,7 @@ table.insert(tests, { name = "PatronPowerPanel: the Got it on the hint strip dis
 	if not io then return end
 	local f = io.open("src/Client/RoundHintsFX.lua", "r"); local a = f:read("a"); f:close()
 	f = io.open("src/Client/PatronPowerPanelFX.lua", "r"); local b = f:read("a"); f:close()
-	expectTrue(a:find("PatronPowerPanelFX).dismiss()", 1, true) ~= nil, "strip Got it calls the panel dismiss")
+	expectTrue(a:find("PP.dismiss()", 1, true) ~= nil, "strip Got it calls the panel dismiss")
 	expectTrue(b:find("PatronPowerGotIt", 1, true) == nil, "no second Got it button")
 end })
 
@@ -34237,6 +34237,27 @@ table.insert(tests, { name = "Table: the round hint never covers the Score plate
 		end
 	end
 	expectTrue(shown >= 3, "the hint is placed at three or more of the five sizes")
+end })
+
+table.insert(tests, { name = "Table: the round hint never overlaps the Patron Power panel at five sizes (placed with the panel rect as an obstacle)", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L, RH, PP = require(E.Gameplay2Layout), require(E.RoundHints), require(E.PatronPowerPanel)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local panels = 0
+	for _, sz in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local panel = PP.place(r, w, h, {})
+		local avoid = {}
+		if panel then panels = panels + 1; avoid[1] = panel.plate end
+		local spot = RH.place(r, w, h, avoid)
+		if spot and panel then
+			for _, part in ipairs({ spot.plate, spot.button }) do
+				expectFalse(hit(part, panel.plate), w .. "x" .. h .. ": hint clear of the Patron Power panel")
+			end
+		end
+	end
+	expectTrue(panels >= 2, "the panel is placed at two or more of the five sizes")
 end })
 
 table.insert(tests, { name = "Table: 'Night 1, Round 1' and 'Score N to clear' fit the round scroll at 1024x768, 1280x720, 800x450 and 1920x957, never under 11 px", fn = function()

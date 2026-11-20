@@ -74,6 +74,19 @@ function M.hide()
 	if plate then plate.Visible = false end
 end
 
+-- the live rect of the panel while it is on screen (the round hint places itself clear of it), else nil
+function M.liveRect()
+	if plate and plate.Visible and plate.Parent then
+		return { x = plate.Position.X.Offset, y = plate.Position.Y.Offset, w = plate.Size.X.Offset, h = plate.Size.Y.Offset }
+	end
+	return nil
+end
+
+-- true while the round hint holds the only free spot: the panel waits and comes back after the hint's Got it
+local yielded = false
+function M.yieldTo(on) yielded = on == true end
+function M.isYielded() return yielded end
+
 local function why(reason, state)
 	if not game:GetService("RunService"):IsStudio() then return end
 	local line = ("[PanelCheck] %s (night %s round %s boss %s)"):format(reason, tostring(state and state.night), tostring(state and state.round), tostring(state and state.isBossRound))
@@ -99,6 +112,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	local opts = { enabled = ClientSettings.get("roundHints") ~= false }
 	local off = Rules.reason(state, opts)
 	if off then M.hide(); why("hidden: " .. off, state); return end
+	if yielded then M.hide(); why("hidden: the round hint holds the spot", state); return end
 	local key = ("%s:%s"):format(tostring(state.night), tostring(state.round))
 	if key ~= roundKey then roundKey = key; handsAtStart = tonumber(state.handsPlayedTotal) or 0 end
 	if dismissed[key] then M.hide(); why("hidden: dismissed flag set for " .. key, state); return end

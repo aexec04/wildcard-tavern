@@ -83,13 +83,17 @@ local function build(layer)
 	button.Parent = layer
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
+		pcall(function()
+			local PP = require(script.Parent.PatronPowerPanelFX)
+			if PP.isYielded() then PP.yieldTo(false) else PP.dismiss() end -- one Got it for the strip and the Patron Power panel; a panel that waited for the hint now shows
+		end)
 		M.hide()
-		pcall(function() require(script.Parent.PatronPowerPanelFX).dismiss() end) -- one Got it for the strip and the Patron Power panel
 	end)
 end
 
 function M.hide()
 	current = nil
+	pcall(function() require(script.Parent.PatronPowerPanelFX).yieldTo(false) end)
 	if plate then plate.Visible = false end
 	if button then button.Visible = false end
 end
@@ -123,7 +127,20 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	local avoid = {}
 	local bp = layer:FindFirstChild("BossRulePlate")
 	if bp and bp.Visible then avoid[1] = { x = bp.Position.X.Offset, y = bp.Position.Y.Offset, w = bp.Size.X.Offset, h = bp.Size.Y.Offset } end
-	local spot = Rules.place(rects, viewW, viewH, avoid)
+	local PPFX = require(script.Parent.PatronPowerPanelFX)
+	local panelRect = PPFX.liveRect()
+	local spot
+	if panelRect then
+		avoid[#avoid + 1] = panelRect -- the hint never prints over the Patron Power panel
+		spot = Rules.place(rects, viewW, viewH, avoid)
+		if not spot then -- nothing clear of the panel: the hint shows first and the panel comes back after Got it
+			avoid[#avoid] = nil
+			spot = Rules.place(rects, viewW, viewH, avoid)
+			if spot then PPFX.yieldTo(true); PPFX.hide() end
+		end
+	else
+		spot = Rules.place(rects, viewW, viewH, avoid)
+	end
 	if not spot then M.hide(); return end -- nothing fits clear of the table: skip it rather than overlap
 	if not plate or plate.Parent ~= layer then build(layer) end
 	if current ~= entry.id then
