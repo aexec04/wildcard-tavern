@@ -44,15 +44,16 @@ function M.attach(shopFrame)
 	plate.ZIndex = 12
 	pcall(function() Kit.painted(plate, "wood_plate") end)
 	labels = {}
-	local rows = { { "Title", 26, 4 }, { "Score", 20, 34 }, { "Tips", 20, 60 } }
+	local rr = Summary.rows(Summary.WIDTH_MAX)
+	local rows = { { "Title", rr.title }, { "Score", rr.score }, { "Tips", rr.tips } }
 	for i, spec in ipairs(rows) do
 		local l = Instance.new("TextLabel")
 		l.Name = spec[1]
 		l.BackgroundTransparency = 1
-		l.Size = UDim2.new(1, -16, 0, 26)
-		l.Position = UDim2.fromOffset(8, spec[3])
+		l.Size = UDim2.new(1, -2 * (Summary.BORDER + Summary.PAD), 0, spec[2].h) -- 8 px inside the carved border
+		l.Position = UDim2.fromOffset(spec[2].x, spec[2].y)
 		l.Font = Enum.Font[i == 1 and Style.FONTS.title or Style.FONTS.ui]
-		l.TextSize = spec[2]
+		l.TextSize = spec[2].size
 		l.TextColor3 = i == 1 and Color3.fromRGB(255, 214, 130) or Color3.fromRGB(250, 238, 212)
 		l.TextTransparency, l.TextStrokeTransparency = 0, 0.4
 		l.TextStrokeColor3 = Color3.fromRGB(30, 20, 12)

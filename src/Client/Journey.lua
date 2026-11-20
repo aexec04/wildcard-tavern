@@ -820,8 +820,8 @@ return function(deps)
 	-- ROUND SELECT FEATURE / Client/RoundSelect.lua -- so this bar is purely
 	-- informational now.)
 	local journeyInfoBar = Instance.new("Frame")
-	journeyInfoBar.Size = UDim2.new(1, -30, 0, 92)
-	journeyInfoBar.Position = UDim2.new(0, 15, 1, -152)
+	journeyInfoBar.Size = UDim2.new(1, -30, 0, 100) -- 14 px carved border plus 8 px of air on every side leaves 56 px of text
+	journeyInfoBar.Position = UDim2.new(0, 15, 1, -160)
 	journeyInfoBar.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
 	journeyInfoBar.ZIndex = 21
 	journeyInfoBar.Parent = journeyPanel
@@ -829,8 +829,8 @@ return function(deps)
 	pcall(function() require(script.Parent.TavernKit).painted(journeyInfoBar, "wood_plate") end) -- painted frame, flat look if it does not load
 
 	local journeyBossInfoLabel = Instance.new("TextLabel")
-	journeyBossInfoLabel.Size = UDim2.new(1, -24, 1, -16)
-	journeyBossInfoLabel.Position = UDim2.new(0, 12, 0, 8)
+	journeyBossInfoLabel.Size = UDim2.new(1, -44, 1, -44)
+	journeyBossInfoLabel.Position = UDim2.new(0, 22, 0, 22)
 	journeyBossInfoLabel.BackgroundTransparency = 1
 	journeyBossInfoLabel.Font = Enum.Font.Gotham
 	journeyBossInfoLabel.TextSize = 14
@@ -873,7 +873,7 @@ return function(deps)
 				local artId = ContentArtJ.getImageId("boss_rounds", mod.id)
 				art = artId and PatronPlaque.applyById(journeyInfoBar, artId, {
 					size = UDim2.fromOffset(72, 72),
-					position = UDim2.new(1, -84, 0.5, -36),
+					position = UDim2.new(1, -94, 0.5, -36),
 					zIndex = 23,
 					cornerRadius = 10,
 					ring = true,
@@ -883,7 +883,7 @@ return function(deps)
 					art:SetAttribute("BossId", mod.id)
 				end
 			end
-			journeyBossInfoLabel.Size = art and UDim2.new(1, -108, 1, -16) or UDim2.new(1, -24, 1, -16)
+			journeyBossInfoLabel.Size = art and UDim2.new(1, -126, 1, -44) or UDim2.new(1, -44, 1, -44)
 		end
 	end
 

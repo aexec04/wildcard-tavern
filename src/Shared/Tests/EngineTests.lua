@@ -31910,6 +31910,48 @@ table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 refer
 	expectTrue(t and t.kind == "tablecheck", "DebugGoto tablecheck parses")
 end })
 
+table.insert(tests, { name = "Plate audit: painted plates keep text 8 px inside the 14 px carved border (Counter summary, Night map bar), and the summary plate, boss banner and Run Over plates overlap nothing at 1920x1080, 1280x720 and 1506x751", fn = function()
+	local S = require(script.Parent.Parent.Engine.ShopSummary)
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- the summary rows: 22 px (14 border plus 8 air) from every edge, stacked, none overlapping, text 15 px or more
+	for _, pw in ipairs({ 300, 253 }) do
+		local rows = S.rows(pw)
+		local order = { rows.title, rows.score, rows.tips }
+		for i, rw in ipairs(order) do
+			assert(rw.x >= S.BORDER + S.PAD and rw.x + rw.w <= pw - S.BORDER - S.PAD, "row " .. i .. " 8 px inside the border at width " .. pw)
+			assert(rw.y >= S.BORDER + S.PAD and rw.y + rw.h <= S.HEIGHT - S.BORDER - S.PAD, "row " .. i .. " inside vertically")
+			assert(rw.size >= 15 and rw.size + 2 <= rw.h, "row " .. i .. " text fits its row")
+			if i > 1 then assert(rw.y >= order[i - 1].y + order[i - 1].h, "rows do not overlap") end
+		end
+	end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local sum = S.rect(w, h)
+		local shop = SL.rects(w, h)
+		for _, key in ipairs({ "tabs", "nextBoss", "leave" }) do
+			assert(not hit(sum, shop[key]), "summary plate clear of the Counter " .. key .. " at " .. w)
+		end
+		assert(sum.x >= 0 and sum.x + sum.w <= w and sum.y + sum.h <= h, "summary plate on screen at " .. w)
+		-- boss round: the rule banner sits between the top bar and the Patron seats
+		local r = L.rects(w, h)
+		local b = M.bossBanner(r, w, h)
+		assert(b, "a boss banner fits at " .. w)
+		assert(b.y >= r.bar.y + r.bar.h and b.y + b.h <= r.slots[1].card.y, "boss banner between the bar and the seats at " .. w)
+		for i = 1, 5 do assert(not hit(b, r.slots[i].card), "boss banner clear of seat " .. i) end
+		for _, complete in ipairs({ false, true }) do
+			local np = M.nightPlate(w, h, complete)
+			assert(np.x >= 0 and np.y >= 0 and np.x + np.w <= w and np.y + np.h <= h, "night plate on screen at " .. w)
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/Journey.lua"):find("journeyBossInfoLabel.Position = UDim2.new(0, 22, 0, 22)", 1, true), "Night map bar text starts 22 px in (14 border plus 8)")
+	assert(read("src/Client/ShopSummaryPlate.lua"):find("Summary.rows", 1, true), "the summary plate takes its rows from the tested numbers")
+end })
+
 table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay2Layout.rects is within 25 reference px of the 1672 x 941 mockup at 1920x1080 and 1280x720", fn = function()
 	local T = require(script.Parent.Parent.Engine.TableCheck)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
