@@ -467,6 +467,7 @@ function Hotspots.build(opts)
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- the default (Contextual) strokes the button's TEXT too, which crushed the letters
 		s.Parent = allButton
 	end
+	pcall(function() require(script.Parent.TavernKit).paintedButton(allButton, "secondary") end) -- ornate dark wood button like Run Over and the Counter, flat look if it does not load
 	local function toggleList()
 		if state.listOpen then
 			closeAll()

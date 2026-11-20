@@ -31728,7 +31728,10 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
 		{ "src/Client/DailyStrip.lua", 'painted(f, "wood_plate")' },
+		{ "src/Client/GameOver.lua", 'painted(factsPlate, "wood_plate")' },
+		{ "src/Client/MenuHotspots.lua", 'paintedButton(allButton, "secondary")' },
 	}
+	expectEqual(require(script.Parent.Parent.Engine.TavernStyle).buttonPiece("secondary", 168, 42), "wh_btn_dark", "the 168 x 42 All actions button wears the whole dark wood picture")
 	for _, w in ipairs(want) do
 		local src = read(w[1])
 		local at = src:find(w[2], 1, true)

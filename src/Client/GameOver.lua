@@ -204,6 +204,7 @@ return function(deps)
 		ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		ps.Parent = factsPlate
 	end
+	pcall(function() require(script.Parent.TavernKit).painted(factsPlate, "wood_plate") end) -- thin painted wood border (10 to 14 px, inside PLATE_PAD), flat look if it does not load
 	local factsF = frame("Facts")
 	local patronsLabel = label(content, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
