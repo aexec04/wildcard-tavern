@@ -98,7 +98,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	track.Name = "Track"
 	track.Size = UDim2.new(1, -(66 + 30), 0, 8)
 	track.Position = UDim2.fromOffset(66, 32)
-	track.BackgroundColor3 = Color3.fromRGB(40, 28, 18)
+	track.BackgroundColor3 = Color3.fromRGB(92, 68, 42) -- a lit wood track so the empty bar still reads at 0 percent
 	track.ZIndex = 11
 	track.Parent = frame
 	local trackCorner = Instance.new("UICorner")

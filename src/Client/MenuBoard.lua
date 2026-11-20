@@ -306,14 +306,28 @@ function MenuBoard.build(parent)
 				tm.TextWrapped, tm.TextXAlignment, tm.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 				extra = math.max(extra, PADN + h1 + h2 + PADN - baseH)
 			end
+			local rank = note.Name == "RankBar" and note:FindFirstChild("Text") and note:FindFirstChild("Track") and note:FindFirstChild("Reward")
+			if rank then -- the Rank plate lays its rows out from the text size, so no line can sit on the frame edge
+				local R = require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize)
+				rank.Position = UDim2.fromOffset(rank.Position.X.Offset, R.textY)
+				rank.Size = UDim2.new(rank.Size.X.Scale, rank.Size.X.Offset, 0, R.textH)
+				rank.TextWrapped = false
+				local track, rw = note.Track, note.Reward
+				track.Position = UDim2.new(track.Position.X.Scale, track.Position.X.Offset, 0, R.barY)
+				rw.Position = UDim2.new(rw.Position.X.Scale, rw.Position.X.Offset, 0, R.rewardY)
+				rw.Size = UDim2.new(rw.Size.X.Scale, rw.Size.X.Offset, 0, R.rewardH)
+				rw.TextSize = rank.TextSize
+				extra, rewardGrow = R.h - baseH, 0
+			end
 			extra = math.max(0, extra) + rewardGrow
-			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines
+			for _, c in ipairs(rank and {} or note:GetChildren()) do -- the progress track under the text moves down with the extra lines
 				if (c.Name == "Track" or c.Name == "Reward") and c:IsA("GuiObject") then
 					local baseY = c:GetAttribute("BaseY") or c.Position.Y.Offset
 					c:SetAttribute("BaseY", baseY)
 					c.Position = UDim2.new(c.Position.X.Scale, c.Position.X.Offset, 0, baseY + extra)
 				end
 			end
+			if rank then extra = require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize).h - baseH end
 			note.Size = UDim2.fromOffset(NOTE_W, baseH + extra)
 			slot.Size = note.Size
 			heights[#heights + 1] = baseH + extra

@@ -32924,4 +32924,15 @@ table.insert(tests, { name = "Menu Rank plate: 70 px tall, 16 px lines, 8 px bar
 	expectTrue(b:find("rewardGrow", 1, true) ~= nil and b:find("math.max(0, extra) + rewardGrow", 1, true) ~= nil, "board adds the grown Reward line to the plate height")
 end })
 
+table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next line never overlap the XP line and end 8 px inside the frame", fn = function()
+	local L = require(script.Parent.Parent.Engine.RankPlateLayout)
+	for _, ts in ipairs({ 14, 16, 20, 24, 28 }) do
+		local R = L.rows(ts)
+		assert(R.barY >= R.textY + R.textH + 4, "bar under the XP line at " .. ts)
+		assert(R.rewardY >= R.barY + R.barH + 4, "Next line under the bar at " .. ts)
+		assert(R.h - (R.rewardY + R.rewardH) == 8, "8 px bottom padding at " .. ts)
+	end
+	assert(L.rows(16).h == 70, "70 px at the 16 px base")
+end })
+
 return tests
