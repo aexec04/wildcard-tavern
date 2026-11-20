@@ -29275,7 +29275,7 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("flatOpaque(deps.playButton)", 1, true) and src:find("b.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate (opaque flat, or the painted frame behind it)")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
-	assert(src:find("SPlate.live(", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
+	assert(src:find("SPlate.live(", 1, true) and src:find("scoreCaption.TextSize = 24", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
 	assert(src:find("ScoreJuiceBanner", 1, true), "a stale TARGET CLEARED shout is hidden once the screen leaves play")
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
@@ -30317,7 +30317,9 @@ table.insert(tests, { name = "Table top bar (reference pass): quick buttons scal
 	expectTrue(G.quickSize(1280) > 44 and G.quickSize(1280) < 109, "scales down")
 	expectTrue(G.quickSize(600) == 44 and G.quickSize(1024) == 44, "44 px floor on compact windows")
 	local q = G.quickRects(1920, 957)
-	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 12, "12 px gap")
+	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 21 and q.speaker.y == 15 and q.speaker.x + 54 == 115, "reference: centres x 115 and 245, top y 15 at 1920")
+	local qc = G.quickRects(1024, 600)
+	expectTrue(qc.pause.x - (qc.speaker.x + qc.speaker.w) == 12, "compact keeps the 12 px gap")
 	expectTrue(L.barTextSize(85) == 40, "40 px words on the 1920 plate")
 	expectTrue(L.barTextSize(10) >= 16, "never under 16")
 	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
@@ -30339,7 +30341,7 @@ table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at 
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
 		local q, g, m = G.quickRects(w, h), G.gearRect(w, h), G.menuRect(w, h)
-		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w < g.x and q.speaker.x + q.speaker.w + G.QUICK_GAP <= q.pause.x and q.speaker.y == g.y, "row order and gap, top left " .. w)
+		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w < g.x and q.speaker.x + q.speaker.w + 8 <= q.pause.x and q.pause.y == q.speaker.y, "row order and gap, top left " .. w)
 		expectTrue(q.speaker.w >= 44 and q.speaker.h >= 44 and q.pause.h >= 44, "44 px targets " .. w)
 		expectTrue(not hit(q.speaker, g) and not hit(q.pause, g) and not hit(q.speaker, m) and not hit(q.pause, m), "clear of gear and menu " .. w)
 		local r = L.rects(w, h)
@@ -32565,7 +32567,7 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 	end
 end })
 
-table.insert(tests, { name = "Score plate (reference): idle plate holds the caption and a 48 px numeral, the 'o of N' line stands 12 px under the plate inside the stage, at three sizes", fn = function()
+table.insert(tests, { name = "Score plate (reference): idle plate holds the caption and a 54 px numeral, the 'o of N' line stands 12 px under the plate inside the stage, at three sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local P, L, HS = require(E.Gameplay2ScorePlate), require(E.Gameplay2Layout), require(E.HandSizing)
 	local CT = require(E.ConceptTLayout)
@@ -32577,7 +32579,7 @@ table.insert(tests, { name = "Score plate (reference): idle plate holds the capt
 		local tag = w .. "x" .. h
 		print(string.format("[ScoreRects] %s plate=%d,%d,%d,%d numeral=%d progress=%s", tag, lv.plate.x, lv.plate.y, lv.plate.w, lv.plate.h, lv.N.textSize, lv.progress and (lv.progress.y .. "+" .. lv.progress.h) or "none"))
 		-- 48 px where the stage allows it (1920 wide); a short stage (the live 1506 x 751) shrinks the numeral, never under the idle minimum
-		expectTrue(lv.N.below and lv.N.textSize >= P.IDLE_MIN_FONT and (h < 900 or lv.N.textSize == 48), tag .. ": numeral 48 px (or shrunk on a short stage), got " .. tostring(lv.N.textSize))
+		expectTrue(lv.N.below and lv.N.textSize >= P.IDLE_MIN_FONT and (h < 900 or lv.N.textSize == P.NUMERAL), tag .. ": numeral 54 px (or shrunk on a short stage), got " .. tostring(lv.N.textSize))
 		expectTrue(lv.progress ~= nil and lv.progress.y - (lv.plate.y + lv.plate.h) == P.PROGRESS_GAP, tag .. ": line 12 px under the plate")
 		local clear = h < 900 and 0 or (P.PICK_LIFT + P.HAND_GAP - 1) -- a short stage is held at MIN_H and may use the lift room; it never reaches the hand
 		expectTrue(lv.progress.y + lv.progress.h <= hf.y - clear and lv.progress.y + lv.progress.h <= r.stage.y + math.max(r.stage.h, P.MIN_H), tag .. ": line stays clear of the hand")
@@ -33197,6 +33199,19 @@ table.insert(tests, { name = "ClearTag: TARGET CLEARED! is a small tag inside th
 			assert(t.cx - t.w / 2 >= row.x + 12 - 0.5 and t.cx + t.w / 2 <= row.x + row.w - 12 + 0.5, text .. " keeps 12 px from the border at " .. sz[1])
 			assert(t.fits, text .. " fits the plate at " .. sz[1])
 		end
+	end
+end })
+
+table.insert(tests, { name = "Table fixes (live pass): Speaker and Pause at the reference spot, Rank and Suit carry a gold frame and bare glyphs, Score plate is about 100 px with a gold numeral, the round scroll has two sized lines", fn = function()
+	local E = script.Parent.Parent.Engine
+	local SP, G = require(E.Gameplay2ScorePlate), require(E.GearMenu)
+	local q = G.quickRects(1920, 957)
+	expectTrue(q.speaker.y + q.speaker.h / 2 < 80 and q.speaker.y <= 20, "centre near y 65 and top with the top bar")
+	expectTrue(SP.CAP_H == 30 and SP.NUMERAL == 54 and SP.CAP_H + SP.NUMERAL + 2 * SP.PAD >= 96, "plate content is about 100 px")
+	if not io then return end
+	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
+	for _, w in ipairs({ '"GoldFrame"', '"GoldDiamond"', '"GlyphBar"', '"GlyphSpade"', 'ImageTransparency = 1', '<font size="30"><b>%s</b></font>', '<font size="20">%s</font>', 'Style.rgb("gold")' }) do
+		expectTrue(g2:find(w, 1, true) ~= nil, w .. " is in the live table")
 	end
 end })
 

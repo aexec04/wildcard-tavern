@@ -147,7 +147,8 @@ function M.install(deps)
 		return t
 	end
 	local cream = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
-	local scoreNum = scoreText("ScoreNumeral", Enum.Font[Style.FONTS.title], cream, 0.5)
+	local scoreNum = scoreText("ScoreNumeral", Enum.Font[Style.FONTS.title], Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3]), 0.5)
+	scoreNum.TextTransparency = 0
 	local scorePlate = Instance.new("Frame") -- ornate plate behind the caption, numeral and gold line (the progress line stays under it)
 	scorePlate.Name = "ScorePlate"; scorePlate.BackgroundTransparency = 1; scorePlate.BorderSizePixel = 0; scorePlate.Active = false
 	scorePlate.ZIndex = 3; scorePlate.Parent = layer
@@ -222,7 +223,32 @@ function M.install(deps)
 					pcall(function()
 						if not b:FindFirstChildOfClass("UICorner") then local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 8); uc.Parent = b end
 						local ic = Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2)
-						if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = Color3.fromRGB(58, 36, 20) end
+						local ink = Color3.fromRGB(58, 36, 20)
+						if ic and ic:IsA("ImageLabel") then -- the painted icon sits on a dark disc: keep its box (the layout moves it) and draw a bare dark glyph in it
+							ic.ImageTransparency = 1
+							if nm == "SortRank" then
+								for i, wf in ipairs({ 1, 0.7, 0.45 }) do
+									local bar = Instance.new("Frame"); bar.Name = "GlyphBar"; bar.BorderSizePixel = 0; bar.Active = false; bar.BackgroundColor3 = ink
+									bar.Size = UDim2.fromScale(0.8 * wf, 0.16); bar.Position = UDim2.fromScale(0.1, 0.16 + (i - 1) * 0.27); bar.ZIndex = Z_BTN + 1; bar.Parent = ic
+								end
+							else
+								local g = Instance.new("TextLabel"); g.Name = "GlyphSpade"; g.BackgroundTransparency = 1; g.Size = UDim2.fromScale(1, 1); g.Text = utf8.char(0x2660)
+								g.Font = Enum.Font.GothamBold; g.TextScaled = true; g.TextColor3 = ink; g.TextStrokeTransparency = 1; g.ZIndex = Z_BTN + 1; g.Active = false; g.Parent = ic
+							end
+						end
+						-- the ornate gold edge (same family as Target and Tips) drawn ABOVE the parchment face: outer gold ring, thin dark gold inner line, four corner diamonds
+						local gf = Instance.new("Frame"); gf.Name = "GoldFrame"; gf.BackgroundTransparency = 1; gf.BorderSizePixel = 0; gf.Active = false
+						gf.Size = UDim2.fromScale(1, 1); gf.ZIndex = Z_BTN + 2; gf.Parent = b
+						local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 8); gc.Parent = gf
+						local gs = Instance.new("UIStroke"); gs.Thickness = 3; gs.Color = Color3.fromRGB(214, 168, 76); gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gf
+						local gi = Instance.new("Frame"); gi.Name = "GoldInner"; gi.BackgroundTransparency = 1; gi.BorderSizePixel = 0; gi.Active = false
+						gi.Size = UDim2.new(1, -10, 1, -10); gi.Position = UDim2.fromOffset(5, 5); gi.ZIndex = Z_BTN + 2; gi.Parent = gf
+						local gic = Instance.new("UICorner"); gic.CornerRadius = UDim.new(0, 5); gic.Parent = gi
+						local gis = Instance.new("UIStroke"); gis.Thickness = 1; gis.Color = Color3.fromRGB(150, 110, 50); gis.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gis.Parent = gi
+						for _, cx in ipairs({ 0, 1 }) do for _, cy in ipairs({ 0, 1 }) do
+							local d = Instance.new("Frame"); d.Name = "GoldDiamond"; d.BorderSizePixel = 0; d.Active = false; d.Rotation = 45; d.AnchorPoint = Vector2.new(0.5, 0.5)
+							d.Size = UDim2.fromOffset(7, 7); d.Position = UDim2.new(cx, cx == 0 and 4 or -4, cy, cy == 0 and 4 or -4); d.BackgroundColor3 = Color3.fromRGB(240, 196, 92); d.ZIndex = Z_BTN + 3; d.Parent = gf
+						end end
 					end)
 				end
 			end
@@ -371,8 +397,8 @@ function M.install(deps)
 		end
 		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_BTN + 2); raise(discardsPill, Z_BTN + 2); raise(deckPill, Z_UI)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
-		local capH, progH = 26, 22 -- the caption row (SPlate.MIN_H counts 26); the strip stands above the plate, so it no longer shares this row
 		local SPlate = require(Engine:WaitForChild("Gameplay2ScorePlate"))
+		local capH, progH = SPlate.CAP_H, 22 -- the caption row (SPlate.MIN_H counts CAP_H); the strip stands above the plate, so it no longer shares this row
 		local HSz = require(Engine:WaitForChild("HandSizing"))
 		local nHand = lastState and lastState.hand and #lastState.hand or 0
 		local idleHand = HSz.frameFor(size.X, CTLayout.handFor(r.hand, size.X, nHand), math.max(nHand, 8))
@@ -402,7 +428,7 @@ function M.install(deps)
 		scoreNum.TextSize = SPlate.fitSize(N.textSize, #tostring(scoreNum.Text), live.inner.w); scoreNum.ZIndex = 4
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
 		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 4
-		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
+		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 24
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 4
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.below and N.progressY or (N.lineY + 4)); scoreProgress.ZIndex = 4 -- idle: the line stands 12 px under the plate
@@ -606,7 +632,7 @@ function M.install(deps)
 		local gold = SN.cleared(nowScore, lastState.targetScore)
 		if gold ~= self.numeralGold then
 			self.numeralGold = gold
-			local c = Style.rgb(gold and "gold" or "cream")
+			local c = Style.rgb("gold") -- the idle numeral is gold (reference); the cleared tag carries the cleared signal
 			scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
 		end
 		if game:GetService("RunService"):IsStudio() and act ~= "keep" then
@@ -677,19 +703,29 @@ function M.install(deps)
 			local bname, brule = Moments.bossText(lastState)
 			local baseSize = Style.TEXT.subtitle
 			local ih = roundLabel.AbsoluteSize.Y
+			if ih < 36 then pcall(function() ih = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.h end) end -- not laid out yet on the first update: ask the layout, not the label
 			local inScroll = bname ~= nil and brule ~= "" and ih >= 2 * 15 + 6
 				roundLabel:SetAttribute("RuleInScroll", inScroll) -- the scroll is then the one rule element: Gameplay2MomentsFX hides the separate rule plate
+				roundLabel.RichText = false
 				if inScroll then
 				roundLabel.TextWrapped = true
 				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
 				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
 				roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
-			elseif bname == nil and ih >= 2 * 15 + 6 then -- a normal round: title line plus the goal line (two lines, never cut)
+			elseif bname == nil and ih >= 2 * 15 + 6 then -- a normal round: bold title line plus the goal line (two lines, never cut)
 				roundLabel:SetAttribute("RuleInScroll", false)
 				roundLabel.TextWrapped = true
-				roundLabel.TextSize = math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2)))
-				roundLabel.Text = roundLabel.Text .. string.format("\nScore %d to clear", math.floor(lastState.targetScore or 0))
+				roundLabel.RichText = ih >= 62
+				local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
+				if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
+					roundLabel.TextSize = 20
+					roundLabel.Text = string.format('<font size="30"><b>%s</b></font>\n<font size="20">%s</font>', roundLabel.Text, goal)
+				else
+					roundLabel.TextSize = math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2)))
+					roundLabel.Text = roundLabel.Text .. "\n" .. goal
+				end
 			else
+				roundLabel.RichText = false
 				roundLabel.TextSize = baseSize
 			end
 		end

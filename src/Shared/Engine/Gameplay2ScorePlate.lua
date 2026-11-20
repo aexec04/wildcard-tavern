@@ -56,7 +56,8 @@ M.MIN_FONT = 14
 M.HAND_GAP = 10
 M.PICK_LIFT = 28 -- a picked card rises this far above the card tops: the idle plate ends HAND_GAP above the highest picked card
 M.IDLE_MIN_FONT = 18 -- idle numeral minimum: the caption and the "o of N" line stay even on a short stage
-M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + 26 + 12 + 22 -- caption 26, numeral, 12 px gap, progress 22: the smallest stage that holds the whole stack
+M.CAP_H = 30 -- the caption row (reference: Score about 28 px)
+M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + M.CAP_H + 12 + 22 -- caption CAP_H, numeral, 12 px gap, progress 22: the smallest stage that holds the whole stack
 function M.idleStage(stage, handTop)
 	if not handTop then return stage end
 	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
@@ -65,7 +66,7 @@ end
 
 -- Idle plate like the reference: the plate holds the caption and a 48 px numeral only; the "o of N" line (with its arrow flourishes) stands
 -- BELOW the plate, PROGRESS_GAP under its border. N.progressY is where that line starts, in the score box's own coordinates.
-M.NUMERAL = 48
+M.NUMERAL = 54 -- plate about 100 px tall at 1920: caption 30 + numeral 54 + 2 x 8
 M.PROGRESS_GAP = 12
 local function idleStack(ih, capH, progH)
 	local numH = math.min(M.NUMERAL, ih - M.PROGRESS_GAP - progH - capH)

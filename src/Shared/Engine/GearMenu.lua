@@ -58,8 +58,15 @@ function M.quickSize(w)
 end
 function M.quickRects(w, h)
 	local g = M.gearRect(w, h)
-	local x0 = M.margin(w)
 	local q = M.quickSize(w)
+	if q > M.SIZE then
+		-- reference (1672 x 941, x 1.148): centres x 115 and 245 and the top of the top bar (y about 15 at 957), so they never sit over the candle
+		local x0 = round(61 / M.QUICK_REF_W * w)
+		local gap = round(21 / M.QUICK_REF_W * w)
+		local y = math.max(4, round(0.016 * h))
+		return { speaker = { x = x0, y = y, w = q, h = q }, pause = { x = x0 + q + gap, y = y, w = q, h = q } }
+	end
+	local x0 = M.margin(w)
 	local speaker = { x = x0, y = g.y, w = q, h = q }
 	local pause = { x = x0 + q + M.QUICK_GAP, y = g.y, w = q, h = q }
 	return { speaker = speaker, pause = pause }
