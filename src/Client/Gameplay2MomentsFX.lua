@@ -335,7 +335,7 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.Visible = true
 		rulePlate.Position = UDim2.fromOffset(pr.x, pr.y)
 		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
-		rulePlate.TextSize = math.max(14, math.min(16, pr.h - 6))
+		rulePlate.TextSize = math.max(14, math.min(18, pr.h - 6)) -- 18 px words on a 30 px plate
 		rulePlate.Text = Rules.plateLine(name, rule)
 		local parts = Rules.rulePlateParts(pr)
 		local side = parts.icon.w

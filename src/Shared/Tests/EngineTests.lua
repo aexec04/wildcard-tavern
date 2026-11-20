@@ -32065,6 +32065,27 @@ table.insert(tests, { name = "Wordmark: the painted lettering is placed by its g
 	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
 
+table.insert(tests, { name = "Boss round: the rule plate clears the Patron row, Score plate, stage and hand at three sizes, words are 18 px", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local rp = assert(M.rulePlate(r), "rule plate fits at " .. sz[1])
+		assert(math.min(18, rp.h - 6) == 18, "18 px words fit the plate height at " .. sz[1])
+		for _, s in ipairs(r.slots) do
+			assert(not hit(rp, s.card) and not hit(rp, s.pill), "rule plate clear of Patron seat at " .. sz[1])
+		end
+		assert(not hit(rp, r.stage) and not hit(rp, r.hand), "rule plate clear of stage and hand at " .. sz[1])
+		local pl = SP.plate(sz[1], sz[2])
+		assert(not (pl and pl.w and hit(rp, pl)), "rule plate clear of the Score plate at " .. sz[1])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2MomentsFX.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("math.min(18, pr.h - 6)", 1, true), "rule plate words are 18 px")
+end })
+
 table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245 to 0.834, Patron seats span half the width, buttons at 0.861 of the height, at 1920x1080, 1280x720 and 1506x751", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
