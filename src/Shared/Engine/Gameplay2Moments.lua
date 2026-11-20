@@ -174,7 +174,7 @@ end
 
 function M.bossGlow(calm)
 	-- a light red wash: over the reference felt (60, 85, 45) 0.84 turned it brown olive (74, 77, 47); at 0.94 the felt stays green
-	return { color = { 150, 38, 30 }, transparency = calm and 0.96 or 0.94 }
+	return { color = { 150, 38, 30 }, transparency = calm and 0.97 or 0.96 } -- the boss backdrop (table_boss_ref) is already red lit with a green felt at about 70 percent, so the wash stays thin
 end
 
 local ICONS = {

@@ -443,4 +443,5 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 ## Table art: seat face fills its seat, felt ring thin gold (Nov 20)
 - Seat face: `ct_seat_face` file trimmed to the card (774x1246) and re-uploaded (new id 93052654705386, no generation spend); PatronRow no longer sets an ImageRect, the picture is scale 1,1 Stretch so the border meets the seat edge. Studio prints `[SeatFace] picture ... seat ...`.
 - Felt ring: tinted gold (190,150,70), ImageTransparency 0.5, drawn 3 percent smaller around its centre; gap to the felt is 31, 30, 24 and 21 px at 1920x1080, 1920x957, 1506x751 and 1280x720 (rule: at least 18). `DebugGoto decorcheck` prints `[FeltInlay]`.
-- Tests: 1286 passing.
+- Boss backdrop: `table_boss_ref` (TableSceneArt, an edit of the interface-free reference tavern, red candle mood, green felt about 70 percent as bright) replaces the old pixelated `table_boss` on Boss rounds, with the reference candle spots and no HUD banners; the red wash is thinner (0.96, calm 0.97). Not checked live: `DebugGoto boss1` prints `[PlayTableBg] bg=table_boss_ref`.
+- Tests: 1289 passing.

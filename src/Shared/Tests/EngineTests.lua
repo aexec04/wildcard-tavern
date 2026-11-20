@@ -33927,6 +33927,20 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 	end
 end })
 
+table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()
+	local TA = require(script.Parent.Parent.Engine.TableSceneArt)
+	expectTrue(type(TA.table_boss_ref) == "string" and TA.table_boss_ref:find("rbxassetid://", 1, true) == 1, "table_boss_ref id")
+	expectTrue(TA.table_boss_ref ~= TA.table_boss, "a new picture, not the old pixelated scene")
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectTrue(M.bossGlow(false).transparency >= 0.95 and M.bossGlow(true).transparency >= 0.95, "thin red wash over the red lit backdrop")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if not f then return end
+	local src = f:read("a"); f:close()
+	expectTrue(src:find("TableArt.table_boss_ref", 1, true) ~= nil and src:find('life.scene(bossRef and "table_play" or key)', 1, true) ~= nil, "Gameplay2 draws table_boss_ref on the boss round")
+	expectTrue(src:find("[PlayTableBg] bg=", 1, true) ~= nil and src:find('"table_boss_ref"', 1, true) ~= nil, "the backdrop print names table_boss_ref")
+end })
+
 table.insert(tests, { name = "Score plate lettering: caption is the caption row height in serif, numeral cream white until cleared then gold, progress line 24 px", fn = function()
 	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
 	expectEqual(SP.capFor(1920), 30, "caption 30 px at 1920")
