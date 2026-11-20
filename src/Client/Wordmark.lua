@@ -68,6 +68,22 @@ local function flourish(parent, side, z)
 	return gem
 end
 
+-- Pixel size of the painted glyph box for a screen width: width is WIDTH_FRAC of it, height follows the crop's aspect.
+function Wordmark.glyphSize(screenW)
+	local c = Wordmark.CROP
+	local w = math.max(1, math.floor(screenW * Wordmark.WIDTH_FRAC + 0.5))
+	return w, math.max(1, math.floor(w * c.h / c.w + 0.5))
+end
+
+local function screenWidth(node)
+	local gui = node and node:FindFirstAncestorOfClass("ScreenGui")
+	if gui and gui.AbsoluteSize.X > 0 then return gui.AbsoluteSize.X end
+	local cam = workspace.CurrentCamera
+	if cam and cam.ViewportSize.X > 0 then return cam.ViewportSize.X end
+	if node and node.AbsoluteSize.X > 0 then return node.AbsoluteSize.X end
+	return 1920
+end
+
 function Wordmark.build(parent, opts)
 	opts = opts or {}
 	local z = opts.zIndex or 11
@@ -94,7 +110,8 @@ function Wordmark.build(parent, opts)
 		local c = Wordmark.CROP
 		image.AnchorPoint = Vector2.new(0.5, 0)
 		image.Position = UDim2.new(0.5, 0, 0, Wordmark.GLYPH_TOP - Wordmark.TOP)
-		image.Size = UDim2.new(Wordmark.WIDTH_FRAC, 0, 0, 0)
+		local sw0 = screenWidth(parent)
+		image.Size = UDim2.fromOffset(Wordmark.glyphSize(sw0)) -- explicit pixels: a 0 height parent made the old scale size 0x0
 		image.BackgroundTransparency = 1
 		image.Image = AssetId.normalize(opts.imageId) or ""
 		local ratio = Instance.new("UIAspectRatioConstraint")
@@ -107,6 +124,21 @@ function Wordmark.build(parent, opts)
 		image.ScaleType = Enum.ScaleType.Stretch
 		image.ZIndex = z
 		image.Parent = title
+		local function resize()
+			image.Size = UDim2.fromOffset(Wordmark.glyphSize(screenWidth(image)))
+		end
+		local gui = image:FindFirstAncestorOfClass("ScreenGui")
+		if gui then gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize) end
+		task.defer(function()
+			if not image.Parent then return end
+			resize()
+			local ok, studio = pcall(function() return game:GetService("RunService"):IsStudio() end)
+			if ok and studio then
+				local a, b = image.AbsoluteSize, image.AbsolutePosition
+				print(string.format("[WordmarkSize] %dx%d at %d,%d", math.floor(a.X), math.floor(a.Y), math.floor(b.X), math.floor(b.Y)))
+				if a.X <= 0 or a.Y <= 0 then warn("[WordmarkSize] the painted wordmark measures 0x0") end
+			end
+		end)
 		return { shadow = shadow, title = title, painted = true }
 	end
 

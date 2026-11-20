@@ -32074,6 +32074,23 @@ table.insert(tests, { name = "Wordmark: the painted lettering is placed by its g
 	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
 
+table.insert(tests, { name = "Wordmark: the painted image gets explicit nonzero pixel sizes at every screen width", fn = function()
+	local function glyph(sw)
+		local w = math.max(1, math.floor(sw * 0.275 + 0.5))
+		return w, math.max(1, math.floor(w * 203 / 1426 + 0.5))
+	end
+	for _, sw in ipairs({ 1920, 1506, 1280, 844, 360 }) do
+		local w, h = glyph(sw)
+		assert(w > 0 and h > 0, "nonzero glyph size at " .. sw)
+	end
+	assert(select(1, glyph(1920)) == 528 and select(2, glyph(1920)) == 75, "528 x 75 at 1920")
+	if not io then return end
+	local f = assert(io.open("src/Client/Wordmark.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("image.Size = UDim2.fromOffset(Wordmark.glyphSize(sw0))", 1, true), "the image Size is pixels, never a scale of a 0 height parent")
+	assert(not c:find("UDim2.new(Wordmark.WIDTH_FRAC, 0, 0, 0)", 1, true), "the old 0 height size is gone")
+	assert(c:find("[WordmarkSize]", 1, true) and c:find("measures 0x0", 1, true), "Studio warns when the image measures 0x0")
+end })
+
 table.insert(tests, { name = "Boss round: the rule plate clears the Patron row, Score plate, stage and hand at three sizes, words are 18 px", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
