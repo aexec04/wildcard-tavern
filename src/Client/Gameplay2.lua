@@ -374,7 +374,8 @@ function M.install(deps)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
-		scoreCaption.Visible = N.roomy and N.numTop >= capH and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
+		scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true)
+		scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
 		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
 			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
 			if not arrow then

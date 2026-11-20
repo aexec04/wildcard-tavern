@@ -31680,6 +31680,26 @@ table.insert(tests, { name = "Gameplay v2 reference proportions: top bar x 0.245
 end })
 
 
+table.insert(tests, { name = "Scoring phase: the Score caption and the N of Target line stay on the plate with the counting total between them, banner and cards stay under the plate", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local live = SP.live(r.stage, sz[1], 26, 22, true)
+		local N = live.N
+		local tag = sz[1] .. "x" .. sz[2]
+		expectTrue(N.roomy and N.numTop >= 26, "caption row kept while a hand scores at " .. tag)
+		expectTrue(not N.noProgress, "the of Target line is kept while a hand scores at " .. tag)
+		expectTrue(N.progressY >= N.numTop + N.numH - 2, "the line stands under the numeral at " .. tag)
+		expectTrue(live.plate.y + live.plate.h <= r.stage.y + r.stage.h + 0.5, "the plate stays inside the stage at " .. tag)
+		local rows = L.scoringRows(r, 26)
+		expectTrue(rows.name == nil or rows.name.y >= rows.plateBottom, "the hand name banner stands under the plate at " .. tag)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true)", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
+end })
+
 table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll and Haggle, the Run Over buttons and the daily strip, each behind pcall so a missing picture keeps the flat look", fn = function()
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end

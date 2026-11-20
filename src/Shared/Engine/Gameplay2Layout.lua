@@ -239,9 +239,10 @@ function M.scoreStack(stageH, capH, progH, compact)
 		-- "of Target" line (the hand name banner and the played cards take that room); a shorter stage keeps the numeral alone, so the cards keep their row
 		local top = stageH >= capH + M.COMPACT_FONT_MIN + M.COMPACT_CARD_H + 6 and capH or 0 -- and a row of cards still fits under it
 		-- the "0 of Target" line stays too when the stage can still hold it with a 28 px numeral and a row of cards
-		local prog = top > 0 and stageH >= top + M.COMPACT_FONT_MIN + progH + 4 + 10 + M.COMPACT_CARD_H
+		-- (the played cards stand under the hand name banner below the plate, so the line only needs room inside the plate itself)
+		local prog = top > 0 and stageH >= top + M.COMPACT_FONT_MIN + progH + 4 + 4
 		local extra = prog and (progH + 4) or 0
-		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - 10 - M.COMPACT_CARD_H - extra))
+		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - 4 - extra))
 		return { roomy = true, compact = true, noProgress = not prog, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 + extra }
 	end
 	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
