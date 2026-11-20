@@ -16,7 +16,10 @@ MenuPlayButton.PULSE_SECONDS = Life.PULSE_PERIOD / 2
 function MenuPlayButton.style(plaque, loops, TweenService)
 	if plaque:FindFirstChild("ConceptTArt") then return end
 	local id = Art.ct_btn_blank -- the text-free plate; ct_btn_play_a has "Play Hand" baked in
-	if not id or id == "" then return end -- no art recorded: keep the wood plate
+	-- first choice: the lit ornate green button every other screen uses (sibling picture, so it gets its own pulse scale below)
+	local okKit, ornate = pcall(function() return require(script.Parent.TavernKit).paintedButton(plaque, "primary") end)
+	if not okKit or not ornate then ornate = nil end
+	if not ornate and (not id or id == "") then return end -- no art at all: keep the wood plate
 	plaque.BackgroundTransparency = 1
 	local rim = plaque:FindFirstChild("Rim")
 	if rim then rim.Enabled = false end
@@ -25,9 +28,10 @@ function MenuPlayButton.style(plaque, loops, TweenService)
 	end
 	local art = Instance.new("ImageLabel")
 	art.Name = "ConceptTArt"
+	if ornate then art.Visible = false end -- marker only; the ornate picture is the plate
 	art.BackgroundTransparency = 1
 	art.Size = UDim2.fromScale(1, 1)
-	art.Image = id
+	art.Image = id or ""
 	art.ScaleType = Enum.ScaleType.Stretch
 	art.Active = false
 	art.ZIndex = plaque.ZIndex
@@ -43,6 +47,13 @@ function MenuPlayButton.style(plaque, loops, TweenService)
 	local scale = Instance.new("UIScale")
 	scale.Name = "PulseScale"
 	scale.Parent = plaque
+	if ornate then
+		local s2 = Instance.new("UIScale"); s2.Name = "PulseScale"; s2.Parent = ornate
+		if loops and TweenService then
+			table.insert(loops, TweenService:Create(s2, TweenInfo.new(MenuPlayButton.PULSE_SECONDS, Enum.EasingStyle.Sine,
+				Enum.EasingDirection.InOut, -1, true), { Scale = MenuPlayButton.PULSE_SCALE }))
+		end
+	end
 	if loops and TweenService then
 		table.insert(loops, TweenService:Create(scale, TweenInfo.new(MenuPlayButton.PULSE_SECONDS, Enum.EasingStyle.Sine,
 			Enum.EasingDirection.InOut, -1, true), { Scale = MenuPlayButton.PULSE_SCALE }))

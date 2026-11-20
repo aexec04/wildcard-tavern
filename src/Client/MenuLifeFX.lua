@@ -58,6 +58,7 @@ function M.new(menuFrame, calm)
 	end
 	menuFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	fit()
+	pcall(function() require(script.Parent.TavernKit).paintedButton(tip, "secondary") end) -- ornate dark wood plate like All actions, flat look if it does not load
 
 	function self.begin(now)
 		startedAt = now or os.clock()

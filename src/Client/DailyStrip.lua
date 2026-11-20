@@ -96,12 +96,25 @@ local function build(root)
 	return f
 end
 
+local lastState, hooked
+
 function M.update(state)
 	local g = gui()
-	if not g or type(state) ~= "table" then return end
-	if not strip or not strip.Parent then strip = build(g); lastKey = nil end
+	if not g then return end
 	local menu = g:FindFirstChild("MenuRoot", true)
 	local onMenu = menu ~= nil and menu:IsA("GuiObject") and menu.Visible
+	-- No state yet (Studio with no DataStore, or the menu opened before the first render): the Menu still shows the strip with its
+	-- placeholder words (Rules.view falls back for nil login and quests), so it is never just missing.
+	if type(state) ~= "table" then
+		state = lastState or {} -- phase is nil without a state, so off the Menu the strip hides below
+	else
+		lastState = state
+	end
+	if not strip or not strip.Parent then strip = build(g); lastKey = nil end
+	if menu and not hooked then
+		hooked = true
+		menu:GetPropertyChangedSignal("Visible"):Connect(function() M.update(lastState) end) -- opening the Menu draws the strip without waiting for a render
+	end
 	local show = onMenu or Rules.visible(state.phase)
 	strip.Visible = show
 	if not show then return end

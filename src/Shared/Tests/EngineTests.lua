@@ -27685,6 +27685,17 @@ table.insert(tests, { name = "Menu play button: Concept T green art, pulse only 
 	expectTrue(hot:find("if calm() then return end\n\t\tfor _, t in ipairs(lanterns)", 1, true) ~= nil, "startLoops plays the pulse only outside calm mode")
 	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt).ct_btn_blank ~= nil, "the art id is recorded")
 end })
+table.insert(tests, { name = "Main menu bottom row: strip shows with no state, Tip bar and Deal Me In wear the ornate plates", fn = function()
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	local strip = read("src/Client/DailyStrip.lua")
+	expectTrue(strip:find("state = lastState or {}", 1, true) ~= nil, "no state yet: the Menu strip still draws with placeholder words")
+	expectTrue(strip:find('GetPropertyChangedSignal("Visible")', 1, true) ~= nil, "the strip follows the Menu opening")
+	expectTrue(read("src/Client/MenuLifeFX.lua"):find('paintedButton(tip, "secondary")', 1, true) ~= nil, "Tip bar is an ornate plate")
+	expectTrue(read("src/Client/MenuPlayButton.lua"):find('paintedButton(plaque, "primary")', 1, true) ~= nil, "Deal Me In is the lit ornate primary")
+	local V = require(script.Parent.Parent.Engine.DailyStrip).view(nil, nil)
+	expectTrue(V.streakText ~= "" and V.goalText ~= "", "nil login and quests give placeholder words")
+end })
 table.insert(tests, { name = "ConceptTLayout parity: Patron cards, labels and pills stay on screen and clear of the hand, preview pill and sort frame clear of buttons, at five sizes", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
