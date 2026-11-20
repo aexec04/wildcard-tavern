@@ -13,7 +13,7 @@ local M = {}
 
 M.MIN_TEXT = 18
 M.TOLERANCE = 4
-M.WATCH = { "shop", "patrons", "recipes", "passes", "packs", "next round", "next boss", "boss", "deal me in", "rank", "level" }
+M.WATCH = { "shop", "patrons", "recipes", "passes", "packs", "reroll", "next round", "next boss", "boss", "deal me in", "rank", "level" }
 
 function M.isWatched(text)
 	local t = string.lower(tostring(text or ""))
@@ -77,6 +77,25 @@ function M.report(items)
 				if w > M.TOLERANCE and h > M.TOLERANCE then
 					warns[#warns + 1] = string.format("%s '%s' overlaps %s '%s'", a.name, a.text, b.name, b.text)
 				end
+			end
+		end
+	end
+	return lines, warns
+end
+
+-- Boss round: the boss banner pieces (medallion, name plate) against the table pieces they must stay clear of (Target, Score plate,
+-- Patron row). No reference picture exists for the banner, so this prints rects and warns only for overlap (more than TOLERANCE px
+-- both ways) and for text under MIN_TEXT. banner = { { label, rect, size? } }, table = { { label, rect } }; rects { x, y, w, h }.
+function M.bossCheck(banner, tablePieces)
+	local lines, warns = {}, {}
+	for _, b in ipairs(banner or {}) do
+		local r = b.rect
+		lines[#lines + 1] = string.format("%s x%d y%d %dx%d", tostring(b.label), math.floor(r.x), math.floor(r.y), math.floor(r.w), math.floor(r.h))
+		if b.size and M.small(b.size) then warns[#warns + 1] = string.format("%s text is %d px, under %d", tostring(b.label), math.floor(b.size), M.MIN_TEXT) end
+		for _, t in ipairs(tablePieces or {}) do
+			local w, h = extent(r, t.rect)
+			if w > M.TOLERANCE and h > M.TOLERANCE then
+				warns[#warns + 1] = string.format("%s overlaps %s by %dx%d", tostring(b.label), tostring(t.label), math.floor(w), math.floor(h))
 			end
 		end
 	end

@@ -63,11 +63,37 @@ function M.run()
 		for _, w in ipairs(mWarns) do warn("[MenuCheck] " .. w) end
 		menuWarns = #mWarns
 	end
+	-- [BossCheck]: only in a Boss Round; the boss banner against Target, Score plate and the Patron cards (rects and warns, no reference picture)
+	local bossWarns = 0
+	local host = pg:FindFirstChild("BossFightHost", true)
+	if host and visible(host) then
+		local function rectOf(g) return { x = g.AbsolutePosition.X, y = g.AbsolutePosition.Y, w = g.AbsoluteSize.X, h = g.AbsoluteSize.Y } end
+		local banner, tbl = {}, {}
+		for _, nm in ipairs({ "BossMedallion", "NamePlate" }) do
+			local g = host:FindFirstChild(nm, true)
+			if g and g:IsA("GuiObject") and visible(g) and g.AbsoluteSize.X > 0 then
+				local size
+				for _, d in ipairs(g:GetDescendants()) do
+					if d:IsA("TextLabel") and d.Text ~= "" and visible(d) and (not size or d.TextSize < size) then size = d.TextSize end
+				end
+				banner[#banner + 1] = { label = nm, rect = rectOf(g), size = size }
+			end
+		end
+		for _, d in ipairs(pg:GetDescendants()) do
+			if d:IsA("GuiObject") and (d.Name == "TargetBox" or d.Name == "ScorePlate" or d.Name:match("^PatronCard%d+$")) and visible(d) and d.AbsoluteSize.X > 0 then
+				tbl[#tbl + 1] = { label = d.Name, rect = rectOf(d) }
+			end
+		end
+		local bLines, bWarns = Rules.bossCheck(banner, tbl)
+		print("[BossCheck] " .. (#bLines > 0 and table.concat(bLines, "; ") or "no boss banner piece is visible"))
+		for _, w in ipairs(bWarns) do warn("[BossCheck] " .. w) end
+		bossWarns = #bWarns
+	end
 	local lines, warns = Rules.report(items)
 	for _, l in ipairs(lines) do print("[ScreenCheck] " .. l) end
 	for _, w in ipairs(warns) do warn("[ScreenCheck] " .. w) end
 	print(string.format("[ScreenCheck] %d watched pieces, %d warnings", #items, #warns))
-	return #warns + menuWarns
+	return #warns + menuWarns + bossWarns
 end
 
 return M

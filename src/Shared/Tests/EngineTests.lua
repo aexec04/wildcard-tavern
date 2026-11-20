@@ -32074,6 +32074,18 @@ table.insert(tests, { name = "Wordmark: the painted lettering is placed by its g
 	assert(sc:find("WordmarkImage", 1, true), "the screencheck prints the image rect")
 end })
 
+table.insert(tests, { name = "ScreenCheck.bossCheck flags a boss banner over the Patron row or Score plate, text under 18 px, and passes a clear banner; the shop watches Reroll", fn = function()
+	local SC = require(script.Parent.Parent.Engine.ScreenCheck)
+	local tbl = { { label = "PatronCard1", rect = { x = 414, y = 125, w = 146, h = 205 } }, { label = "ScorePlate", rect = { x = 778, y = 365, w = 360, h = 90 } } }
+	local lines, warns = SC.bossCheck({ { label = "NamePlate", rect = { x = 20, y = 4, w = 340, h = 64 }, size = 18 } }, tbl)
+	assert(#lines == 1 and #warns == 0, "a clear banner passes")
+	local _, w2 = SC.bossCheck({ { label = "NamePlate", rect = { x = 400, y = 100, w = 300, h = 64 }, size = 18 } }, tbl)
+	assert(#w2 == 1 and w2[1]:find("PatronCard1"), "a banner over a Patron card warns")
+	local _, w3 = SC.bossCheck({ { label = "NamePlate", rect = { x = 20, y = 4, w = 340, h = 64 }, size = 15 } }, tbl)
+	assert(#w3 == 1 and w3[1]:find("15 px"), "text under 18 px warns")
+	assert(SC.isWatched("Reroll 5"), "the shop's Reroll is watched")
+end })
+
 table.insert(tests, { name = "ScreenCheck.menuCheck flags a 0x0, missing or hidden Menu piece and passes a good Menu", fn = function()
 	local SC = require(script.Parent.Parent.Engine.ScreenCheck)
 	local good = {}
