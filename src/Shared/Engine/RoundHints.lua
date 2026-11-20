@@ -71,7 +71,7 @@ function M.next(state, seen, opts)
 		if not seen[e.id] then
 			local ok = true
 			if e.id == "round_hint_select" then ok = round == 1 and not M.expired(e.id, state)
-			elseif e.id == "round_hint_tiers" then ok = owned(state) >= 1
+			elseif e.id == "round_hint_tiers" then ok = owned(state) >= 1 and not (opts and opts.panelOwnsTiers) -- the left panel shows it
 			elseif e.id == "round_hint_target" then ok = round >= 2 end
 			if ok then return e end
 			-- an unseen entry that is not due yet does not block the ones after it, but only the first due one shows

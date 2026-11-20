@@ -95,7 +95,7 @@ end
 
 function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	local calm = ClientSettings.get("reduceShake") == true
-	local opts = { enabled = ClientSettings.get("roundHints") ~= false, calm = calm }
+	local opts = { enabled = ClientSettings.get("roundHints") ~= false, calm = calm, panelOwnsTiers = true }
 	if not Rules.enabledFor(state, opts) then M.hide(); return end
 	if current and (Rules.satisfied(current, selectedCount) or Rules.expired(current, state)) then
 		localSeen[current] = true

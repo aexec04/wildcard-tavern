@@ -33878,4 +33878,38 @@ table.insert(tests, { name = "Gameplay2Layout: Rank and Suit gold frames show on
 	expectEqual(L.sortChromeShown(nil), false, "unknown is hidden")
 end })
 
+table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rounds 1 and 2 and boss rounds, clear of every plate at four sizes, text 18 px or more", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local base = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0 }
+	expectTrue(PP.enabledFor(base), "night 1 round 1")
+	expectTrue(PP.enabledFor({ phase = "playing", night = 1, round = 2 }), "night 1 round 2")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 3 }), "round 3 is not early")
+	expectTrue(PP.enabledFor({ phase = "playing", night = 4, round = 3, isBossRound = true }), "boss round")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 2, round = 1 }), "night 2")
+	expectTrue(not PP.enabledFor({ phase = "shop", night = 1, round = 1 }), "not in the shop")
+	expectTrue(not PP.enabledFor(base, { enabled = false }), "hints toggle off")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 1, isTutorial = true }), "tutorial")
+	expectTrue(not PP.spent(base, 0) and PP.spent({ handsPlayedTotal = 1 }, 0), "spent after a hand")
+	expectTrue(PP.TITLE_SIZE >= 18 and PP.BODY_SIZE >= 18, "text at least 18 px")
+	expectEqual(PP.TITLE, "Patron Power")
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local spot = PP.place(r, sz[1], sz[2], {})
+		expectTrue(spot ~= nil, sz[1] .. "x" .. sz[2] .. " fits")
+		local parts = { spot.plate, spot.button }
+		for _, rc in ipairs(parts) do
+			expectTrue(rc.x >= 0 and rc.y >= 0 and rc.x + rc.w <= sz[1] and rc.y + rc.h <= sz[2], "on screen")
+			for name, other in pairs(r) do
+				if name ~= "slots" and type(other) == "table" and other.x then expectTrue(not hit(rc, other), name .. " is clear at " .. sz[1] .. "x" .. sz[2]) end
+			end
+			for _, slot in ipairs(r.slots) do
+				for _, part in ipairs({ slot.card, slot.label, slot.pill }) do expectTrue(not hit(rc, part), "Patron seat clear") end
+			end
+		end
+		expectTrue(spot.plate.y + spot.plate.h <= r.hand.y - PP.HAND_GAP + 1 and (not spot.button or spot.button.y + spot.button.h <= r.hand.y), "above the hand fan")
+	end
+end })
+
 return tests
