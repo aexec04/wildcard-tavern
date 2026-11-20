@@ -100,20 +100,25 @@ function M.update(state)
 	local g = gui()
 	if not g or type(state) ~= "table" then return end
 	if not strip or not strip.Parent then strip = build(g); lastKey = nil end
-	local show = Rules.visible(state.phase)
+	local menu = g:FindFirstChild("MenuRoot", true)
+	local onMenu = menu ~= nil and menu:IsA("GuiObject") and menu.Visible
+	local show = onMenu or Rules.visible(state.phase)
 	strip.Visible = show
 	if not show then return end
 
 	local v = Rules.view(state.login, state.dailyQuests)
 	local size = g.AbsoluteSize
-	local r = Rules.rectBelow(size.X, size.Y, cardsBottom(g, state.phase))
+	local r
+	if onMenu then r = Rules.menuRect(size.X, size.Y) -- bottom row between the Deal Me In column and All actions
+	else r = Rules.rectBelow(size.X, size.Y, cardsBottom(g, state.phase)) end
 	if not r then strip.Visible = false; return end -- no clear band under the cards: leave it out rather than cover them
 	strip.Chest:SetAttribute("ClaimDay", v.claimDay) -- always current, so a refused claim can be tried again
 	strip.Chest:SetAttribute("State", v.chest)
-	local key = table.concat({ v.streakText, v.goalText, v.chest, r.x, r.y, r.w, r.h }, "|")
+	local key = table.concat({ v.streakText, v.goalText, v.chest, r.x, r.y, r.w, r.h, onMenu and "m" or "n" }, "|")
 	if key == lastKey then return end
 	lastKey = key
 
+	if onMenu then print(string.format("[MenuRects] strip x=%d y=%d w=%d h=%d (screen %dx%d)", r.x, r.y, r.w, r.h, size.X, size.Y)) end
 	strip.Position = UDim2.fromOffset(r.x, r.y)
 	strip.Size = UDim2.fromOffset(r.w, r.h)
 	local cr = Rules.chestRect(r)
@@ -130,6 +135,7 @@ function M.update(state)
 
 	local chest = strip.Chest
 	Kit.skin(chest, v.chestText, v.chest == "ready" and "primary" or "secondary")
+	pcall(Kit.paintedButton, chest, v.chest == "ready" and "primary" or "secondary") -- lit ornate button, flat look if the picture does not load
 	chest.Position = UDim2.fromOffset(cr.x, cr.y)
 	chest.Size = UDim2.fromOffset(cr.w, cr.h)
 	chest.Active = v.chest == "ready"

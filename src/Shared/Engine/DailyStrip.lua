@@ -89,6 +89,21 @@ function M.rectBelow(w, h, cardsBottom)
 	return nil
 end
 
+-- On the main menu the strip stands in the bottom row to the RIGHT of the Deal Me In column: the tip plate (Engine/MenuLife) is on the
+-- left, the sign column (210 px, centred) in the middle and All actions (168 x 42, 16 px from the corner) at the right, 16 px between
+-- neighbours. Returns nil when the gap is narrower than MENU_MIN_W (small screens), then the strip is left out of the menu.
+M.MENU_GAP, M.MENU_SIGN_HALF, M.MENU_ALL_W, M.MENU_MIN_W, M.MENU_MAX_W = 16, 105, 168, 340, 560
+function M.menuRect(w, h)
+	w, h = math.floor(tonumber(w) or 0), math.floor(tonumber(h) or 0)
+	local left = math.floor(w / 2) + M.MENU_SIGN_HALF + M.MENU_GAP
+	local right = w - M.MENU_GAP - M.MENU_ALL_W - M.MENU_GAP
+	local sw = math.min(M.MENU_MAX_W, right - left)
+	if sw < M.MENU_MIN_W or h < 300 then return nil end
+	local sh = math.max(M.HEIGHT, M.MIN_TOUCH)
+	-- level with All actions: both end 16 px above the bottom edge
+	return { x = left, y = h - M.MENU_GAP - sh, w = sw, h = sh }
+end
+
 function M.chestRect(strip)
 	local cw = math.max(M.MIN_TOUCH, math.min(150, math.floor(strip.w * 0.28)))
 	local ch = math.max(M.MIN_TOUCH, strip.h - 4)

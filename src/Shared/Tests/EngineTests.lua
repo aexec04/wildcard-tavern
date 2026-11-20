@@ -28266,6 +28266,28 @@ table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column
 	assert(M.tipRect(600, 800) == nil and M.tipRect(1920, 400) == nil)
 end })
 
+table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me In column and All actions never overlap and keep 16 px between neighbours", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local L = require(script.Parent.Parent.Engine.MenuLife)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local shown = 0
+	for _, s in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = s[1], s[2]
+		local strip = D.menuRect(w, h)
+		if strip then
+			shown = shown + 1
+			local sign = { x = w / 2 - 105, y = 0, w = 210, h = h } -- the whole column, any height
+			local all = { x = w - 16 - 168, y = h - 16 - 42, w = 168, h = 42 }
+			assert(not hit(strip, sign) and not hit(strip, all), "strip clear of sign column and All actions at " .. w)
+			assert(strip.x - (w / 2 + 105) >= 16 and all.x - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
+			local tip = L.tipRect(w, h)
+			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
+		end
+	end
+	assert(shown >= 3 and D.menuRect(600, 800) == nil)
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 44 px tall and clear of each other at desktop, tablet, compact and phone sizes", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 784, 600 }, { 800, 450 }, { 604, 390 }, { 360, 640 } }
