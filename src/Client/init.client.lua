@@ -1578,6 +1578,7 @@ local function refreshCardVisual(index, usePop)
 			Thickness = look.thickness,
 			Transparency = look.transparency,
 		}, 0.15)
+		if usePop and isSelected then pcall(function() print(string.format("[PickStroke] card %d enabled=%s thickness=%s mode=%s parent=%s abs=%dx%d bgT=%s", index, tostring(stroke.Enabled), tostring(look.thickness), tostring(stroke.ApplyStrokeMode), stroke.Parent and stroke.Parent.Name or "nil", math.floor(button.AbsoluteSize.X), math.floor(button.AbsoluteSize.Y), tostring(button.BackgroundTransparency))) end) end
 	end
 
 	if usePop then

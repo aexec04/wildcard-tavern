@@ -27516,7 +27516,7 @@ table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pil
 	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
 	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
 	local prof = L.fanProfile(1000)
-	expectTrue(prof.deg == 8 and prof.dip == 34 and prof.endScale == 1, "fan profile for the real hand")
+	expectTrue(prof.deg == 8 and prof.dip == 12 and prof.endScale == 1, "fan profile for the real hand")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
 		local r = L.rects(size[1], size[2])
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
@@ -32849,6 +32849,23 @@ table.insert(tests, { name = "ScoreNumeral: Gameplay2.update writes the numeral 
 	local early = src:find("if not on then", upd, true)
 	local w = src:find("pcall(self.writeNumeral)", upd, true)
 	expectTrue(upd and early and w and w > early and w < src:find("return\n", early, true), "writeNumeral runs inside the not-playing branch before it returns")
+end })
+
+table.insert(tests, { name = "Hand: the fan's lowest card bottom stays above the Hands and Discards pills (middle cards 6 px or more) at 1506x751, 1280x720, 1920x957", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1506, 751 }, { 1280, 720 }, { 1920, 957 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, n in ipairs({ 5, 8 }) do
+			local hf = HS.frameFor(sz[1], CT.handFor(r.hand, sz[1], n), math.max(n, 8))
+			local dip = CT.fanProfile(sz[2]).dip
+			local midBottom = hf.y + hf.h - HS.PAD
+			local pillTop = math.min(r.playCount.y, r.discardCount.y)
+			print(("[HandPillGap] %dx%d %d cards: middle gap %d, end card dips %d more"):format(sz[1], sz[2], n, pillTop - midBottom, dip))
+			expectTrue(pillTop - midBottom >= 6, ("middle card bottom %d vs pill top %d at %d x %d"):format(midBottom, pillTop, sz[1], sz[2]))
+		end
+	end
 end })
 
 table.insert(tests, { name = "Picked cards: the highest lifted card (28 px) stays 10 px under the idle Score plate and its text, 8 to 10 cards, four sizes", fn = function()
