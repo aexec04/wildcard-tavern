@@ -68,6 +68,14 @@ function M.attach(shopFrame)
 	shopFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() place(shopFrame) end)
 	place(shopFrame)
 	paint()
+	-- Studio report: where the plate and its picture really sit (a clipped or off screen picture shows here)
+	task.delay(3, function()
+		local pic = plate and plate.Parent and plate.Parent:FindFirstChild("RoundSummaryPaint")
+		if not pic then return end
+		local function d(o) return string.format("pos=%d,%d size=%d,%d clips=%s", o.AbsolutePosition.X, o.AbsolutePosition.Y, o.AbsoluteSize.X, o.AbsoluteSize.Y, tostring(o.ClipsDescendants)) end
+		print("[SummaryPlate] plate " .. d(plate) .. " | picture " .. d(pic) .. " scale=" .. tostring(pic.ScaleType) .. " slice=" ..
+			tostring(pic.SliceCenter) .. " sliceScale=" .. string.format("%.3f", pic.SliceScale) .. " | parent " .. d(pic.Parent))
+	end)
 end
 
 return M

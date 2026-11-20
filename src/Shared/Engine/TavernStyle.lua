@@ -130,6 +130,16 @@ function M.paintedSlice(piece, w, h)
 	scale = math.max(0.01, scale)
 	return { left = i.l, top = i.t, right = sw - i.r, bottom = sh - i.b, scale = scale }
 end
+-- Roblox keeps an uploaded picture at 1024 px on its longer side at most, so SliceCenter is read in THAT texture, not in the source
+-- file: a 1470 px wide plate sliced at source numbers lost its whole right edge (the right slice line sat past the texture). This turns
+-- a paintedSlice result into texture numbers: the rect shrinks by the factor and SliceScale grows by it, so the plate keeps its size.
+M.TEX_MAX = 1024
+function M.paintedTexSlice(piece, w, h)
+	local sl, p = M.paintedSlice(piece, w, h), M.PAINTED[piece]
+	if not sl then return nil end
+	local k = math.min(1, M.TEX_MAX / math.max(p.src[1], p.src[2]))
+	return { left = sl.left * k, top = sl.top * k, right = sl.right * k, bottom = sl.bottom * k, scale = sl.scale / k }
+end
 M.PAINTED_EDGE_MIN = 10
 M.PAINTED_EDGE_MAX = 14
 

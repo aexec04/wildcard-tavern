@@ -32048,6 +32048,24 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	local sl = require(script.Parent.Parent.Engine.TavernStyle).paintedSlice("orn_target", 300, 124)
 	expectTrue(sl and sl.left == 200 and sl.right == 1470 - 200 and sl.top == 130 and sl.bottom == 348 - 130, "summary slice keeps all four corners alike")
 	expectTrue(sl.scale * 200 * 2 <= 300 * 0.9 + 1e-9, "both corner columns fit inside the 300 px summary plate")
+	-- Roblox keeps a picture at 1024 px on its longer side: the slice rect TavernKit draws with lies inside that texture for every piece
+	-- (the 1470 px summary plate lost its right edge when SliceCenter sat past the texture), and looks the same size on screen
+	do
+		local TS = require(script.Parent.Parent.Engine.TavernStyle)
+		for piece, def in pairs(TS.PAINTED) do
+			local tw = TS.paintedTexSlice(piece, 300, 124)
+			local sw = TS.paintedSlice(piece, 300, 124)
+			if def.inset then
+				local k = math.min(1, TS.TEX_MAX / math.max(def.src[1], def.src[2]))
+				expectTrue(tw.right <= def.src[1] * k + 1e-9 and tw.bottom <= def.src[2] * k + 1e-9, piece .. " slice rect inside the clamped texture")
+				expectTrue(math.abs(tw.scale * tw.left - sw.scale * sw.left) < 1e-6, piece .. " corner keeps its on screen size")
+			else
+				expectTrue(tw == nil, piece .. " whole picture has no slice")
+			end
+		end
+		local t = TS.paintedTexSlice("orn_target", 300, 124)
+		expectTrue(t.right <= 1024 and t.left < t.right, "summary right slice line inside the 1024 texture")
+	end
 	local Sum = require(script.Parent.Parent.Engine.ShopSummary)
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
