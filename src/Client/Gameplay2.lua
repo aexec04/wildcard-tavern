@@ -94,10 +94,10 @@ function M.install(deps)
 	roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	roundLabel.ZIndex = Z_UI + 1
 	roundLabel.Parent = layer
-	local target = Kit.goldBox(layer, "Target 0"); target.Name = "TargetBox"; target.ZIndex = Z_UI + 1
-	local tips = Kit.pill(layer, "Tips 0", "wood"); tips.Name = "TipsPill"; tips.ZIndex = Z_UI + 1
-	local handsPill = Kit.pill(layer, "Hands 0", "green"); handsPill.Name = "HandsPill"; handsPill.ZIndex = Z_UI
-	local discardsPill = Kit.pill(layer, "Discards 0", "wood"); discardsPill.Name = "DiscardsPill"; discardsPill.ZIndex = Z_UI
+	local target = Kit.goldBox(layer, "Target: 0"); target.Name = "TargetBox"; target.ZIndex = Z_UI + 1
+	local tips = Kit.pill(layer, "Tips: 0", "wood"); tips.Name = "TipsPill"; tips.ZIndex = Z_UI + 1
+	local handsPill = Kit.pill(layer, "Hands: 0", "green"); handsPill.Name = "HandsPill"; handsPill.ZIndex = Z_UI
+	local discardsPill = Kit.pill(layer, "Discards: 0", "wood"); discardsPill.Name = "DiscardsPill"; discardsPill.ZIndex = Z_UI
 	local deckImg = Instance.new("ImageLabel")
 	deckImg.Name = "DeckBook"
 	deckImg.BackgroundTransparency = 1
@@ -217,7 +217,14 @@ function M.install(deps)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
 				for _, kn in ipairs({ "KitIcon", "KitLabel" }) do local kc = b:FindFirstChild(kn); if kc then kc.Visible = true end end
-				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "wh_btn_sq"); Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2) end) end
+				if not painted[nm] then -- parchment face (reference: cream 232,200,150, dark brown text and icon, gold edge): a flat plate, no dark picture
+					painted[nm] = true
+					pcall(function()
+						if not b:FindFirstChildOfClass("UICorner") then local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 8); uc.Parent = b end
+						local ic = Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2)
+						if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = Color3.fromRGB(58, 36, 20) end
+					end)
+				end
 			end
 		end
 	end
@@ -344,6 +351,13 @@ function M.install(deps)
 		place(bar, r.bar)
 		place(roundLabel, r.round)
 		place(target, r.target); place(tips, r.tips)
+		do -- Target: and Tips: words grow with the plate (Layout.barTextSize), the Tips bulb with them
+			local ts = Layout.barTextSize(r.target.h)
+			for _, pl in ipairs({ target, tips }) do
+				local tw = pl:FindFirstChild("Value") or pl:FindFirstChild("Word")
+				if tw then tw.TextScaled = false; tw.TextSize = ts end
+			end
+		end
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		place(deckImg, r.deck); place(deckPill, r.deckCount)
 		do
@@ -670,14 +684,19 @@ function M.install(deps)
 				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
 				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
 				roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			elseif bname == nil and ih >= 2 * 15 + 6 then -- a normal round: title line plus the goal line (two lines, never cut)
+				roundLabel:SetAttribute("RuleInScroll", false)
+				roundLabel.TextWrapped = true
+				roundLabel.TextSize = math.max(14, math.min(Layout.barTextSize(ih * 2), math.floor((ih - 6) / 2)))
+				roundLabel.Text = roundLabel.Text .. string.format("\nScore %d to clear", math.floor(lastState.targetScore or 0))
 			else
 				roundLabel.TextSize = baseSize
 			end
 		end
 		self.writeNumeral()
 		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
-		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
-		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))
+		setText(target, string.format("Target: %d", math.floor(lastState.targetScore or 0)))
+		setText(tips, string.format("Tips: %d", math.floor(lastState.tips or 0)))
 		do -- the Hands and Discards pills tick (pop) when their count changes
 			local function ticked(pill, text)
 				local w = pill:FindFirstChild("Word") or pill:FindFirstChild("Value")
@@ -687,8 +706,8 @@ function M.install(deps)
 					pcall(function() require(script.Parent.Gameplay2FeelFX).tick(pill, old, text) end)
 				end
 			end
-			ticked(handsPill, string.format("Hands %d", math.floor(lastState.handsRemaining or 0)))
-			ticked(discardsPill, string.format("Discards %d", math.floor(lastState.discardsRemaining or 0)))
+			ticked(handsPill, string.format("Hands: %d", math.floor(lastState.handsRemaining or 0)))
+			ticked(discardsPill, string.format("Discards: %d", math.floor(lastState.discardsRemaining or 0)))
 		end
 		local remaining = 0
 		for _, suit in pairs(lastState.deckCounts or {}) do

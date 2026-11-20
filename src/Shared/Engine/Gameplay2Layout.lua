@@ -31,6 +31,8 @@ M.SEATS = 5
 M.SORT_GAP = 8
 M.REF_SPAN = 0.506 -- Patron seats span (1255 - 410) / 1672 of the width in the reference mockup
 M.REF_MIN_W, M.REF_MIN_H = 1200, 600 -- smaller windows keep the compact proportions (cards and the tray need the room)
+-- top bar words (Target: 65, Tips: 0, the scroll's two lines) grow with the plate height: reference text is about 44 px at 1672 on an 85 px plate
+function M.barTextSize(plateH) return math.max(16, math.min(40, round((tonumber(plateH) or 0) * 0.5))) end
 M.PILL_GAP = 4 -- clear air between a count pill and the top edge of its button
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
@@ -146,7 +148,7 @@ function M.rects(w, h)
 	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
 	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
 	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
-	local ty = qy + 52 -- one row below the Speaker and Pause buttons (44 px + 8 px gap, Engine/GearMenu.quickRects)
+	local ty = qy + require(script.Parent:WaitForChild("GearMenu")).quickSize(w) + 8 -- one row below the Speaker and Pause buttons (Engine/GearMenu.quickRects)
 	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
 		local sw2 = math.floor((trayW - 8) / 2)
 		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)

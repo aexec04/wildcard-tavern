@@ -49,12 +49,19 @@ end
 
 -- the speaker (Sound toggle) and Pause round buttons sit in a row at the TOP LEFT (the reference puts them left of the Target plate), same size
 -- and top as the gear, 8 px apart; they do what the menu rows do. The consumables tray starts one row lower (Gameplay2Layout, M.SIZE + QUICK_GAP).
-M.QUICK_GAP = 8
+M.QUICK_GAP = 12
+-- reference: the two round gold buttons are about 95 px at 1672 wide, so 109 px at 1920; they scale with the width and never go under 44 px
+M.QUICK_REF, M.QUICK_REF_W = 109, 1920
+function M.quickSize(w)
+	if (tonumber(w) or 0) < 1200 then return M.SIZE end -- compact windows keep the 44 px buttons (the tray needs the room)
+	return math.max(M.SIZE, math.min(M.QUICK_REF, round((tonumber(w) or M.QUICK_REF_W) * M.QUICK_REF / M.QUICK_REF_W)))
+end
 function M.quickRects(w, h)
 	local g = M.gearRect(w, h)
 	local x0 = M.margin(w)
-	local speaker = { x = x0, y = g.y, w = M.SIZE, h = M.SIZE }
-	local pause = { x = x0 + M.SIZE + M.QUICK_GAP, y = g.y, w = M.SIZE, h = M.SIZE }
+	local q = M.quickSize(w)
+	local speaker = { x = x0, y = g.y, w = q, h = q }
+	local pause = { x = x0 + q + M.QUICK_GAP, y = g.y, w = q, h = q }
 	return { speaker = speaker, pause = pause }
 end
 

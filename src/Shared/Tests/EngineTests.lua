@@ -30085,7 +30085,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(not kit:find("if img.Parent and not img.IsLoaded then", 1, true), "IsLoaded alone never decides: it reads false for a hidden screen and would drop the picture")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_btn_sq", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
 	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('paintedButton(b, "primary")', 1, true), "gear and Next Round are painted")
 end })
@@ -30308,6 +30308,28 @@ table.insert(tests, { name = "Gameplay v2 polish run: every whole-picture plate 
 			expectTrue(not hit(seen[i][2], seen[j][2]), seen[i][1] .. " and " .. seen[j][1] .. " overlap at " .. w .. "x" .. h)
 		end end
 	end
+end })
+
+table.insert(tests, { name = "Table top bar (reference pass): quick buttons scale to 109 px at 1920 with a 12 px gap, stay 44 px minimum and clear of the tray, bar words grow with the plate", fn = function()
+	local E = script.Parent.Parent.Engine
+	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)
+	expectTrue(G.quickSize(1920) == 109, "109 px at 1920")
+	expectTrue(G.quickSize(1280) > 44 and G.quickSize(1280) < 109, "scales down")
+	expectTrue(G.quickSize(600) == 44 and G.quickSize(1024) == 44, "44 px floor on compact windows")
+	local q = G.quickRects(1920, 957)
+	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 12, "12 px gap")
+	expectTrue(L.barTextSize(85) == 40, "40 px words on the 1920 plate")
+	expectTrue(L.barTextSize(10) >= 16, "never under 16")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local qq = G.quickRects(sz[1], sz[2])
+		print(string.format("[TopBarRects] %dx%d speaker=%d,%d,%d pause=%d,%d tray=%s target=%d,%d,%d,%d wordPx=%d", sz[1], sz[2], qq.speaker.x, qq.speaker.y, qq.speaker.w, qq.pause.x, qq.pause.y, r.traySlot1 and r.traySlot1.y or -1, r.target.x, r.target.y, r.target.w, r.target.h, L.barTextSize(r.target.h)))
+		if r.traySlot1 then expectTrue(r.traySlot1.y >= qq.speaker.y + qq.speaker.h + 8, "tray under the quick row at " .. sz[1]) end
+		expectTrue(qq.pause.x + qq.pause.w < r.target.x, "quick row left of Target at " .. sz[1])
+	end
+	if not io then return end
+	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
+	for _, w in ipairs({ '"Target: %d"', '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
 end })
 
 table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at the top left, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
@@ -31751,8 +31773,8 @@ table.insert(tests, { name = "Self check cleanup: count pills clear of button wo
 		local nodes = {
 			{ path = "A.Play.KitLabel", text = "Play Hand", textTransparency = 0, rect = r.play },
 			{ path = "A.Discard.KitLabel", text = "Discard", textTransparency = 0, rect = r.discard },
-			{ path = "B.HandsPill.Word", text = "Hands 4", textTransparency = 0, rect = r.playCount },
-			{ path = "B.DiscardsPill.Word", text = "Discards 3", textTransparency = 0, rect = r.discardCount },
+			{ path = "B.HandsPill.Word", text = "Hands: 4", textTransparency = 0, rect = r.playCount },
+			{ path = "B.DiscardsPill.Word", text = "Discards: 3", textTransparency = 0, rect = r.discardCount },
 		}
 		local out = S.check(nodes)
 		expectEqual(#out, 0, "no label overlap at " .. sz[1] .. "x" .. sz[2] .. ": " .. table.concat(out, "; "))
@@ -32532,6 +32554,10 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 			local hx1, hy1 = math.max(p.x + p.w, b.x + b.w), math.max(p.y + p.h, b.y + b.h)
 			if p.w <= RH.PLATE_MIN_W then hx1 = math.min(hx1, hx0 + (335 - 18) / T.REF_W * w); hy1 = math.min(hy1, hy0 + (485 - 345) / T.REF_W * w) end -- held at its readable minimum size on small screens: only its top left corner is compared
 			live.RoundHint = { x = hx0, y = hy0, w = hx1 - hx0, h = hy1 - hy0 }
+			-- the plate stays under the consumables tray (RoundHints.place); the tray hangs below the 109 px Speaker and Pause row, so on a short
+			-- window the plate sits where the tray ends instead of at the mockup's y (the mockup has no tray)
+			local tray = r.trayPrompt or r.traySell
+			if tray and hy0 == tray.y + tray.h + 6 then live.RoundHint = nil end
 		end
 		local lines, warns = T.compare(live, w)
 		for _, l in ipairs(lines) do print(w .. " " .. l) end

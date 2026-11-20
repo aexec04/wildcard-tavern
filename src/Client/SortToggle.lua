@@ -115,13 +115,14 @@ function SortToggle.build(parent, onPick)
 			local lighter = flat and Color3.fromRGB(240, 222, 178) or c3(p.fill):Lerp(Color3.fromRGB(205, 160, 96), 0.22)
 			local bg = on and lighter or c3(p.hover)
 			b.BackgroundTransparency = (lit or split) and 0 or 1
-			b.BackgroundColor3 = split and (on and Color3.fromRGB(240, 222, 178) or Color3.fromRGB(90, 60, 30)) or bg
+			b.BackgroundColor3 = split and (on and Color3.fromRGB(246, 228, 184) or Color3.fromRGB(232, 200, 150)) or bg -- Gameplay v2: both halves are parchment, the picked one lighter
 			if split then bg = b.BackgroundColor3 end
 			local tc = c3(p.text)
 			if lit then
 				local lum = bg.R * 0.299 + bg.G * 0.587 + bg.B * 0.114
 				tc = lum > 0.5 and Color3.fromRGB(38, 24, 12) or Color3.fromRGB(246, 232, 200)
 			end
+			if split then tc = Color3.fromRGB(58, 36, 20) end -- dark brown ink on the parchment, 4.5:1 or better
 			b.TextColor3 = tc
 			local pick = b:FindFirstChild("PickLine")
 			if not pick then
@@ -133,7 +134,7 @@ function SortToggle.build(parent, onPick)
 				pick.Parent = b
 			end
 			pick.Enabled = on or split
-			pick.Color = split and Color3.fromRGB(200, 165, 90) or Color3.fromRGB(214, 176, 92)
+			pick.Color = split and (on and Color3.fromRGB(255, 214, 102) or Color3.fromRGB(150, 110, 50)) or Color3.fromRGB(214, 176, 92)
 			pick.Thickness = split and 1.5 or 1
 			b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
 			b.TextStrokeTransparency = 1
