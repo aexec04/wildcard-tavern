@@ -33722,7 +33722,7 @@ table.insert(tests, { name = "Patron seat names: the size follows the ribbon hei
 	local lay = PP.layout(card.h, true, st.size)
 	expectTrue(lay.ribbon.h * card.h >= 2 * st.size * 0.9, "the grown ribbon holds two lines at that size")
 	local small = L.rects(800, 450).slots[1].card
-	expectTrue(PP.rowStyle(live, small.w, small.h).size >= 9, "800x450 never drops under 9 px")
+	expectTrue(PP.rowStyle(live, small.w, small.h).size >= PP.WRAP_MIN, "800x450 never drops under the wrap minimum (the name stops short of the coin first)")
 end })
 
 table.insert(tests, { name = "Patron seat names: every seat in a row uses one size, nothing is clipped, with the five names from the live capture", fn = function()
@@ -33758,6 +33758,24 @@ table.insert(tests, { name = "Patron seat names: every seat in a row uses one si
 	if io then
 		local f = assert(io.open("src/Client/PatronParchmentCard.lua", "r")); local src = f:read("a"); f:close()
 		assert(not src:find("TextScaled = true", 1, true) and src:find("rowStyle", 1, true), "fixed size name, no per seat scaling")
+	end
+end })
+
+table.insert(tests, { name = "Patron seat names: the name label and the widest line of the live names stop at least 4 px short of the power coin at 1920x1080, 1920x957, 1280x720 and 800x450", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		local c = L.rects(sz[1], sz[2]).slots[1].card
+		local st = PP.rowStyle(live, c.w, c.h)
+		local lr = PP.labelRect(c.w, st.wrapped)
+		expectTrue(lr.x + lr.w <= PP.coinLeft(c.w) - 4, ("label right edge %d is 4 px or more left of the coin %d at %dx%d (size %d, wrapped %s)"):format(math.floor(lr.x + lr.w), math.floor(PP.coinLeft(c.w)), sz[1], sz[2], st.size, tostring(st.wrapped)))
+		for _, n in ipairs(live) do
+			local widest = 0
+			for word in n:gmatch("%S+") do widest = math.max(widest, #word * st.size * PP.CHAR_W) end
+			if not st.wrapped then widest = #n * st.size * PP.CHAR_W end
+			expectTrue(widest <= lr.w + 0.01, ("'%s' fits the coin-clear label at %dx%d"):format(n, sz[1], sz[2]))
+		end
 	end
 end })
 

@@ -50,7 +50,18 @@ function M.wraps(name, w)
 	return NameFit.textWidth(name, NameFit.MIN_SIZE) > math.max(0, r.w - 4)
 end
 
-M.WRAP_MIN = 9
+M.WRAP_MIN = 7 -- a row with a very long word (Efficient) may go this small at 800x450 rather than touch the coin
+M.COIN_GAP = 6 -- px kept clear between the end of a name and the power coin
+M.CHAR_W = 0.62 -- Merriweather is wider than the engine's 0.56 estimate; sizes and label fits use this
+
+-- left edge of the power coin in ribbon coordinates (the label's parent) for a seat w px wide: the coin sits on the seat's bottom
+-- right corner, half of it hanging outside, and the ribbon starts SIDE of the seat in
+function M.coinLeft(w)
+	local Style = require(script.Parent.PatronTierStyle)
+	local d = Style.discDiameter(w)
+	local outX = math.floor(d * Style.DISC_OVERLAP_X + 0.5)
+	return w - d + outX - M.SIDE * w
+end
 M.NAME_PAD = 4 -- px kept clear on each side of the name so no letter touches the ribbon edge
 
 -- One name style for the whole row of seats (names = every Patron name shown, w = seat width, h = seat height, px).
@@ -59,27 +70,25 @@ M.NAME_PAD = 4 -- px kept clear on each side of the name so no letter touches th
 -- The label rect for the style: the one line style keeps clear of the power disc; the two line style (the 800x450 seats, where the
 -- disc leaves only about 30 px) spans the whole ribbon so its words fit, the disc sitting over the lower line's empty right end.
 function M.labelRect(w, wrapped)
-	if not wrapped then
-		local r = M.nameRect(w)
-		return { x = r.x + M.NAME_PAD, w = math.max(0, r.w - 2 * M.NAME_PAD) }
-	end
-	return { x = M.NAME_PAD - 1, w = math.max(0, w * (1 - 2 * M.SIDE) - 2 * (M.NAME_PAD - 1)) }
+	local x = wrapped and (M.NAME_PAD - 1) or (M.nameRect(w).x + M.NAME_PAD)
+	return { x = x, w = math.max(0, M.coinLeft(w) - M.COIN_GAP - x) }
 end
 
 function M.rowStyle(names, w, h)
 	local avail = M.labelRect(w, false).w
+	local CW = M.CHAR_W
 	local longest = 0
 	for _, n in ipairs(names or {}) do longest = math.max(longest, #tostring(n or "")) end
 	if longest == 0 then return { size = NameFit.MAX_SIZE, wrapped = false } end
 	local want = M.NAME_MAX -- about 0.55 of the ribbon height, one size for every seat
 	if h and h > 0 then want = math.max(NameFit.WRAP_SIZE, math.min(M.NAME_MAX, math.floor(h * M.RIBBON_H * M.NAME_FILL))) end
-	local fit = math.floor(avail / (longest * NameFit.CHAR))
+	local fit = math.floor(avail / (longest * CW))
 	if longest <= M.TWO_LINE_AT and fit >= NameFit.MIN_SIZE then return { size = math.max(NameFit.MIN_SIZE, math.min(fit, want)), wrapped = false } end
 	-- wrapped: two lines at the fill size; 9 px for the rare name with a word too long for the seat (only the 800x450 seats get here)
 	local w2 = M.labelRect(w, true).w
 	local word = 0
 	for _, n in ipairs(names) do for x in tostring(n):gmatch("%S+") do word = math.max(word, #x) end end
-	local sz = math.floor(w2 / (math.max(1, word) * NameFit.CHAR))
+	local sz = math.floor(w2 / (math.max(1, word) * CW))
 	return { size = math.max(M.WRAP_MIN, math.min(want, sz)), wrapped = true }
 end
 
