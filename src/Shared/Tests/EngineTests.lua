@@ -32851,6 +32851,22 @@ table.insert(tests, { name = "ScoreNumeral: Gameplay2.update writes the numeral 
 	expectTrue(upd and early and w and w > early and w < src:find("return\n", early, true), "writeNumeral runs inside the not-playing branch before it returns")
 end })
 
+table.insert(tests, { name = "ScoreNumeral: the payout landing writes the total while the round-ending state is held back, and a stale refresh cannot reset it", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("a"); f:close(); return t end
+	local g2, sl = read("src/Client/Gameplay2.lua"), read("src/Client/ScoreLand.lua")
+	if not g2 or not sl then return end
+	expectTrue(sl:find("Gameplay2).landScore(goal.score)", 1, true) ~= nil, "ScoreLand.land hands the total to the Score plate")
+	local a = g2:find("function self.landScore(score)", 1, true)
+	expectTrue(a ~= nil, "Gameplay2 has landScore")
+	local body = g2:sub(a, a + 600)
+	expectTrue(body:find("copy.roundScore = score", 1, true) ~= nil and body:find("lastState = copy", 1, true) ~= nil, "the held state's roundScore is replaced so a refresh keeps the total")
+	expectTrue(body:find('self.writeNumeral(score, "playing")', 1, true) ~= nil, "the numeral counts up")
+	local SN = require(script.Parent.Parent.Engine.ScoreNumeral)
+	expectEqual(SN.action(0, 199, "playing"), "count")
+	expectEqual(SN.action(199, 199, "shop"), "keep")
+end })
+
 table.insert(tests, { name = "Hand: the fan's lowest card bottom stays above the Hands and Discards pills (middle cards 6 px or more) at 1506x751, 1280x720, 1920x957", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

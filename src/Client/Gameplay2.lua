@@ -571,8 +571,9 @@ function M.install(deps)
 
 	-- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number.
 	-- Also called when the round has ended (phase not playing): the total that arrives then must still be written.
-	function self.writeNumeral()
-		local nowScore = math.floor(lastState.roundScore or 0)
+	function self.writeNumeral(score, phase)
+		local nowScore = math.floor(score or lastState.roundScore or 0)
+		phase = phase or lastState.phase
 		local function put(n)
 			scoreNum.Text = string.format("%d", math.floor(n))
 			local fit = self.scoreFit
@@ -581,7 +582,7 @@ function M.install(deps)
 			end
 		end
 		local SN = require(Engine:WaitForChild("ScoreNumeral"))
-		local act = SN.action(self.lastScore, nowScore, lastState.phase)
+		local act = SN.action(self.lastScore, nowScore, phase)
 		if act == "count" then
 			local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
 			if not ok then put(nowScore); act = "count failed, set" end
@@ -595,9 +596,20 @@ function M.install(deps)
 			scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
 		end
 		if game:GetService("RunService"):IsStudio() and act ~= "keep" then
-			print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(lastState.phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
+			print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
 		end
 		self.lastScore = nowScore
+	end
+
+	-- the hand's payout landed (ScoreLand.land) while the round-ending state is still held back by the reveal: count the numeral up
+	-- now and keep it, so a later refresh with the old state (roundScore 0) cannot write 0 over it
+	function self.landScore(score)
+		if not lastState or type(score) ~= "number" then return end
+		local copy = {}
+		for k, v in pairs(lastState) do copy[k] = v end
+		copy.roundScore = score
+		lastState = copy
+		self.writeNumeral(score, "playing")
 	end
 
 	function self.update(state)
@@ -794,6 +806,11 @@ end
 
 function M.update(state)
 	if current then current.update(state) end
+end
+
+-- the payout landed: the Score plate's numeral shows the new round total even while the round-ending state is held back
+function M.landScore(score)
+	if current and current.landScore then current.landScore(score) end
 end
 
 return M

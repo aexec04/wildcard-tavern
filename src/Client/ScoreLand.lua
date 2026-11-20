@@ -80,6 +80,7 @@ function ScoreLand.land()
 	held = false
 	local goal = pending or latest
 	pending = nil
+	if goal then pcall(function() require(script.Parent.Gameplay2).landScore(goal.score) end) end -- the Score plate's numeral too
 	if not goal or not shown then return end
 	local from = shown.score
 	if goal.target ~= shown.target or goal.score <= from or not ClientSettings.motionAllowed() then
