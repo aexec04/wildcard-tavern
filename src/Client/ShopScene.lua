@@ -285,6 +285,26 @@ function ShopScene.new(deps)
 		bubble.AnchorPoint = Vector2.new(0, 0)
 		bubble.Position = UDim2.fromOffset(r.bubble.x, r.bubble.y)
 		bubble.Size = UDim2.fromOffset(r.bubble.w, r.bubble.h)
+		-- the painted parchment plate with a small tail pointing left at Marlo (flat plate stays if the picture fails)
+		if not bubble:FindFirstChild("BubbleTail") then
+			for i, d in ipairs({ { 18, Color3.fromRGB(110, 76, 40), 0 }, { 12, PARCHMENT, -1 } }) do
+				local t = Instance.new("Frame")
+				t.Name = i == 1 and "BubbleTail" or "BubbleTailFill"
+				t.AnchorPoint = Vector2.new(0.5, 0.5)
+				t.Size = UDim2.fromOffset(d[1], d[1])
+				t.Position = UDim2.new(0, d[3], 0.5, 0)
+				t.Rotation = 45
+				t.BackgroundColor3 = d[2]
+				t.BorderSizePixel = 0
+				t.Active = false
+				t.ZIndex = bubble.ZIndex - 1 -- under the painted plate: only the outer half shows
+				t.Parent = bubble
+			end
+			local ShopPaint = require(script.Parent.ShopPaint)
+			ShopPaint.plate(bubble, "bubble")
+			local pad = bubble:FindFirstChildOfClass("UIPadding")
+			if pad then pad.PaddingLeft = UDim.new(0, 16); pad.PaddingRight = UDim.new(0, 16) end
+		end
 	end
 
 	-- Marlo's small reactions: rotation only, never flashing or red; skipped in calm mode.

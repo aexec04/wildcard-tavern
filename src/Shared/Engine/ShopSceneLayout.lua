@@ -33,6 +33,8 @@ ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, swa
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
 ShopSceneLayout.FACE_X0, ShopSceneLayout.FACE_X1, ShopSceneLayout.FACE_H = 0.25, 0.75, 0.35 -- Marlo's face: middle half of his rect, top 35 percent
+ShopSceneLayout.BOSS_H = 40 -- the Next boss plate: tall enough for 16 px text inside the painted gold frame
+ShopSceneLayout.BUBBLE_H = 58 -- Marlo's parchment speech plate: two lines of 16 px
 ShopSceneLayout.TAB_GAP = 8-- clear space between the tab row and the Next boss line
 ShopSceneLayout.MIN_TOUCH = 44 -- smallest height of a tappable control (tabs, Next Round)
 
@@ -409,7 +411,7 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	if nb.y < faceBottom and nb.x < faceRight and nb.x + nb.w > out.marlo.x + out.marlo.w * ShopSceneLayout.FACE_X0 then
 		nb.x = clamp(faceRight + 8, 8, math.max(8, W - nb.w - 8))
 	end
-	local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
+	local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), ShopSceneLayout.BUBBLE_H
 	local tabsBottom = nb.y + nb.h
 	out.bubble = rect(clamp(faceRight + 8, 8, W - bubbleW - 8), tabsBottom + 10, bubbleW, bubbleH)
 
@@ -461,7 +463,7 @@ function ShopSceneLayout.rects(W, H, counts)
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
 	out.tabs = rect((W - tabsW) / 2, 2, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
 	local bossW = clamp(tabsW * 0.74, 240, 460) -- narrow enough to stay clear of the corner toast stack at 1280 x 720
-	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, 28) -- 28 is the painted plate's height (ShopStage draws it at this rect, so nothing sticks out into the offers)
+	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, ShopSceneLayout.BOSS_H) -- BOSS_H is the painted plate's height (ShopStage draws it at this rect, so nothing sticks out into the offers)
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
 
 	local leaveW, leaveH = clamp(W * 0.14, 110, 220), 64
@@ -503,7 +505,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		-- the foot of the table stays at least TABLE_FOOT above the Next Round sign (and always above the bottom of the screen)
 		local bottomLimit = math.min(H - ShopSceneLayout.TABLE_EDGE, out.leave.y - ShopSceneLayout.TABLE_FOOT)
 		-- Marlo's speech plate sits near his shoulder under the tabs, above the offers: the table starts below it
-		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
+		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), ShopSceneLayout.BUBBLE_H
 		out.bubble = rect(out.marlo.x + out.marlo.w * 0.7, tabsBottom + 10, bubbleW, bubbleH)
 		local topLimit = out.bubble.y + out.bubble.h + 6
 		local avail = math.max(rightLimit - leftLimit, 80)
@@ -575,7 +577,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		}
 		out.light = rect(8, out.surfaceY, W - 16, counterH * 0.4)
 		local bx = out.marlo.x + out.marlo.w + 8
-		out.bubble = rect(bx, out.marlo.y, W - bx - 8, 54)
+		out.bubble = rect(bx, out.marlo.y, W - bx - 8, ShopSceneLayout.BUBBLE_H)
 	end
 	return out
 end
@@ -664,7 +666,7 @@ end
 
 -- Free zone for the My Patrons / My Recipes tabs: right of Marlo, below the tab bar, above Next Round.
 -- Coordinates are in shopFrame space; the lists live in a content area at (10, 84).
-ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 84, 80
+ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 102, 80 -- 102: under the 40 px Next boss strip (ends at 94)
 function ShopSceneLayout.tabZone(W, H, noMarlo, room)
 	local r = ShopSceneLayout.rects(W, H, { offers = 1, packs = 0, noMarlo = noMarlo, room = room })
 	local x0 = 10

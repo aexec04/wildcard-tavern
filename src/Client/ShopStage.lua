@@ -287,6 +287,8 @@ function ShopStage.new(deps)
 			chip.AnchorPoint = Vector2.new(0, 0)
 			chip.Position = UDim2.fromOffset(r.nextBoss.x, r.nextBoss.y)
 			chip.Size = UDim2.fromOffset(r.nextBoss.w, r.nextBoss.h)
+			chip.TextSize = 16
+			chip.TextColor3 = Color3.fromRGB(246, 236, 210) -- cream on the dark gold strip, well over 4.5:1
 			ShopPaint.plate(chip, "chip")
 		end
 		if deps.onLayout then deps.onLayout(r) end

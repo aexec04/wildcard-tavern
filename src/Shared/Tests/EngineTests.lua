@@ -21444,6 +21444,24 @@ table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varie
 	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
 end })
 
+table.insert(tests, { name = "Counter: Next boss strip is the ornate gold plate at 40 px, Marlo's bubble is a painted parchment plate", fn = function()
+	local Rules = require(script.Parent.Parent.Engine.ShopPaintRules)
+	local SSL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	expectEqual(Rules.pieceFor("chip"), "orn_target", "boss strip wears the Target plate family")
+	expectEqual(Rules.pieceFor("bubble"), "parchment", "bubble wears the parchment plate")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		for _, room in ipairs({ true, false }) do
+			local r = SSL.rects(sz[1], sz[2], { offers = 3, packs = 2, room = room })
+			expectEqual(r.nextBoss.h, SSL.BOSS_H, "boss strip height at " .. sz[1])
+			expectTrue(r.nextBoss.y >= r.tabs.y + r.tabs.h + 8, "boss strip under the tabs at " .. sz[1])
+			expectEqual(r.bubble.h, SSL.BUBBLE_H, "bubble height at " .. sz[1])
+			local a, b = r.bubble, r.nextBoss
+			local overlap = a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+			expectTrue(not overlap, "bubble clear of the boss strip at " .. sz[1])
+		end
+	end
+end })
+
 table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll plates, gold active tab, boss rule line on the plate, [BossStage] log", fn = function()
 	local function read(p)
 		local f = io and io.open and io.open(p, "r")
@@ -30662,11 +30680,11 @@ table.insert(tests, { name = "Scoring moment: the Patron quote stands beside the
 	assert(sp:find("scoringRects", 1, true), "the trigger line stands on the banner row")
 end })
 
-table.insert(tests, { name = "Counter boss chip: the layout reserves the painted plate's 28 px and ShopStage draws it at that rect", fn = function()
+table.insert(tests, { name = "Counter boss chip: the layout reserves the painted plate's 40 px and ShopStage draws it at that rect", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
 		local r = L.rects(sz[1], sz[2], { offers = 3, packs = 2, room = true })
-		assert(r.nextBoss.h == 28, "chip is 28 px tall at " .. sz[1])
+		assert(r.nextBoss.h == 40, "chip is 40 px tall at " .. sz[1])
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/ShopStage.lua", "r")); local c = f:read("a"); f:close()
@@ -32162,7 +32180,7 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	expectEqual(PR.pieceFor("tab", true), "wh_btn_green", "selected tab is the green whole picture")
 	expectEqual(PR.pieceFor("tab", false), "wh_btn_dark", "other tabs are the dark whole picture")
 	expectEqual(PR.pieceFor("tag"), "wh_btn_dark", "Reroll tag is ornate")
-	expectEqual(PR.pieceFor("chip"), "orn_wide", "boss notice is the ornate wide plate")
+	expectEqual(PR.pieceFor("chip"), "orn_target", "boss notice is the ornate gold strip")
 	expectEqual(PR.pieceFor("summary"), "orn_target", "summary plate is the symmetric ornate Target frame")
 	expectEqual(PR.TAB_Z, 8, "tab pictures sit above the Counter dim layer (Z 5)")
 	local sl = require(script.Parent.Parent.Engine.TavernStyle).paintedSlice("orn_target", 300, 124)
