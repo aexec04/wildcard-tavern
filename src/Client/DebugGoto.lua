@@ -295,6 +295,11 @@ function DebugGoto.init(deps)
 			if not okT then warn("[DebugGoto] tablecheck failed: " .. tostring(errT)) end
 			return
 		end
+		if target.kind == "decorcheck" then
+			local okD, errD = pcall(function() require(script.Parent.DecorCheck).run() end)
+			if not okD then warn("[DebugGoto] decorcheck failed: " .. tostring(errD)) end
+			return
+		end
 		if target.kind == "screencheck" then
 			local okK, errK = pcall(function() require(script.Parent.ScreenCheck).run() end)
 			if not okK then warn("[DebugGoto] screencheck failed: " .. tostring(errK)) end

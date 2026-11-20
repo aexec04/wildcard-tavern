@@ -24213,6 +24213,40 @@ table.insert(tests, { name = "Gameplay2 deck on the felt: pile 0.9 size turned 1
 		assert(t:find("deckImg.Rotation = CTLayout.DECK_TILT", 1, true), "Gameplay2 turns the deck")
 	end
 end })
+table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table passes at four sizes, and a bad inlay, deck or rail cap each warn", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local D = require(script.Parent.Parent.Engine.DecorCheck)
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local t = R.parse and R.parse("decorcheck")
+	if t == nil and R.parseTarget then t = R.parseTarget("decorcheck") end
+	assert(t and t.kind == "decorcheck", "decorcheck is a DebugGoto command")
+	local function params(w, h)
+		local r = G.rects(w, h)
+		local dc = L.decorFor(r, w, h)
+		local fl = L.feltFor(w, h)
+		local plates = {}
+		for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard", "deckCount" }) do plates[#plates + 1] = { label = k, rect = r[k] } end
+		return { w = w, h = h, felt = fl.rim, inlay = fl.inlay, deck = r.deck, tilt = L.DECK_TILT, rail = { x = dc.rail.x, w = dc.rail.w, box = dc.rail.box }, plates = plates }
+	end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local lines, warns = D.check(params(sz[1], sz[2]))
+		assert(#lines == 4, "four rect lines")
+		assert(#warns == 0, sz[1] .. "x" .. sz[2] .. " live table has warnings: " .. table.concat(warns, "; "))
+	end
+	local p = params(1920, 957)
+	p.inlay = { x = p.felt.x - 10, y = p.felt.y, w = p.felt.w, h = p.felt.h }
+	local _, w1 = D.check(p)
+	assert(#w1 == 1 and w1[1]:find("inlay leaves the felt", 1, true), "an inlay past the felt warns")
+	p = params(1920, 957)
+	p.deck = { x = p.felt.x + p.felt.w - 40, y = p.deck.y, w = p.deck.w, h = p.deck.h }
+	local _, w2 = D.check(p)
+	assert(#w2 == 1 and w2[1]:find("deck leaves the felt", 1, true), "a deck past the felt warns")
+	p = params(1920, 957)
+	p.rail = { x = 0, w = 1536, box = p.rail.box } -- no overscan: the carved caps stand on screen over Rank and the count plate
+	local _, w3 = D.check(p)
+	assert(#w3 >= 1 and w3[1]:find("cap overlaps", 1, true), "a rail cap on screen over a plate warns")
+end })
 table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 reference px inside the felt edge, both ellipses stay on screen (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
