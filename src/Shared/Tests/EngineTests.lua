@@ -21489,7 +21489,7 @@ table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll 
 		local function hits(a) return a.x < face.x + face.w and face.x < a.x + a.w and a.y < face.y + face.h and face.y < a.y + a.h end
 		expectTrue(not hits(r.nextBoss), "Next boss strip clear of Marlo's face at " .. sz[1])
 		expectTrue(not hits(r.bubble), "speech plate clear of Marlo's face at " .. sz[1])
-		expectTrue(r.nextBoss.w <= 520 and r.nextBoss.x >= 0 and r.nextBoss.x + r.nextBoss.w <= sz[1], "Next boss strip on screen and at most 520 wide at " .. sz[1])
+		expectTrue(r.nextBoss.w <= SSL.BOSS_MAX_W and r.nextBoss.x >= 0 and r.nextBoss.x + r.nextBoss.w <= sz[1], "Next boss strip on screen and at most 620 wide at " .. sz[1])
 	end
 	local hub = read("src/Client/init.client.lua")
 	expectTrue(hub:find('<b><font size="16">%s%s</font></b>', 1, true) ~= nil and hub:find('size="14" color="#E6D2AA"', 1, true) ~= nil, "boss plate: bold name 16, rule 14")

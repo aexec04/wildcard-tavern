@@ -33,6 +33,8 @@ ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, swa
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
 ShopSceneLayout.FACE_X0, ShopSceneLayout.FACE_X1, ShopSceneLayout.FACE_H = 0.25, 0.75, 0.35 -- Marlo's face: middle half of his rect, top 35 percent
+ShopSceneLayout.BOSS_MAX_W = 620
+ShopSceneLayout.BOSS_PAD = 28 -- text keeps this far inside the ornate gold ends
 ShopSceneLayout.BOSS_H = 40 -- the Next boss plate: tall enough for 16 px text inside the painted gold frame
 ShopSceneLayout.BUBBLE_H = 58 -- Marlo's parchment speech plate: two lines of 16 px
 ShopSceneLayout.TAB_GAP = 8-- clear space between the tab row and the Next boss line
@@ -462,7 +464,7 @@ function ShopSceneLayout.rects(W, H, counts)
 	-- controls along the top
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
 	out.tabs = rect((W - tabsW) / 2, 2, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
-	local bossW = clamp(tabsW * 0.74, 240, 460) -- narrow enough to stay clear of the corner toast stack at 1280 x 720
+	local bossW = clamp(W * 0.32, 240, ShopSceneLayout.BOSS_MAX_W) -- 614 at 1920, narrower on small screens so it stays clear of the corner toast stack
 	out.nextBoss = rect((W - bossW) / 2, 2 +ShopSceneLayout.MIN_TOUCH + ShopSceneLayout.TAB_GAP, bossW, ShopSceneLayout.BOSS_H) -- BOSS_H is the painted plate's height (ShopStage draws it at this rect, so nothing sticks out into the offers)
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
 
