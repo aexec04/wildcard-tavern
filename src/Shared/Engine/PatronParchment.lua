@@ -25,11 +25,24 @@ M.EDGE = { 205, 160, 70 } -- thin gold edge on the paper
 -- reference seat: the portrait runs to the card bottom inside a thin cream border and the name ribbon (17 percent of the card) overlaps its bottom
 M.SIDE, M.TOP, M.RIBBON_H, M.PORTRAIT_H, M.OVERLAP = 0.04, 0.03, 0.17, 0.93, 0.16
 
-function M.layout()
+M.TWO_LINE_H = 22 -- two 10 px lines (line height 0.9) plus 2 px each side
+
+-- slotH (px) and wrapped (a name too long for one line): a small seat's 17 percent ribbon (15 px at 800x450) is too short for two
+-- lines, so it grows upward to TWO_LINE_H px, its bottom edge unchanged
+function M.layout(slotH, wrapped)
+	local rh = M.RIBBON_H
+	if wrapped and slotH and slotH > 0 and slotH * rh < M.TWO_LINE_H then rh = M.TWO_LINE_H / slotH end
+	local bottom = M.TOP + M.PORTRAIT_H - M.OVERLAP + M.RIBBON_H
 	return {
 		portrait = { x = M.SIDE, y = M.TOP, w = 1 - 2 * M.SIDE, h = M.PORTRAIT_H },
-		ribbon = { x = M.SIDE, y = M.TOP + M.PORTRAIT_H - M.OVERLAP, w = 1 - 2 * M.SIDE, h = M.RIBBON_H },
+		ribbon = { x = M.SIDE, y = bottom - rh, w = 1 - 2 * M.SIDE, h = rh },
 	}
+end
+
+-- true when the name needs two lines in a seat w px wide (it does not fit on one line at the smallest size)
+function M.wraps(name, w)
+	local r = M.nameRect(w)
+	return NameFit.textWidth(name, NameFit.MIN_SIZE) > math.max(0, r.w - 4)
 end
 
 function M.imageRect(id)

@@ -33648,6 +33648,35 @@ table.insert(tests, { name = "Idle Score plate and its 0 of N line end above the
 	end
 end })
 
+table.insert(tests, { name = "Patron seat names: a long name wraps to two 10 px lines in a ribbon at least 22 px tall (no ellipsis) at 800x450 and every registry name fits one of the two ways", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local NF = require(script.Parent.Parent.Engine.PatronNameFit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local card = r.slots[1].card
+		local longSeen = false
+		for _, p in pairs(Patrons.Definitions) do
+			local name = type(p) == "table" and p.name
+			if name then
+				local wrapped = PP.wraps(name, card.w)
+				local lay = PP.layout(card.h, wrapped)
+				local ribbonPx = lay.ribbon.h * card.h
+				if wrapped then
+					longSeen = true
+					expectTrue(ribbonPx >= PP.TWO_LINE_H - 0.5, ("ribbon %.1f px holds two lines for '%s' at %dx%d"):format(ribbonPx, name, sz[1], sz[2]))
+					expectTrue(2 * NF.WRAP_SIZE * 0.9 + 2 <= ribbonPx, "two wrapped lines fit the ribbon")
+					expectTrue(lay.ribbon.y + lay.ribbon.h <= 1, "ribbon stays inside the seat")
+				else
+					expectTrue(NF.textWidth(name, NF.MIN_SIZE) <= PP.nameRect(card.w).w, "a name that does not wrap fits one line")
+				end
+			end
+		end
+		if sz[1] == 800 then expectTrue(longSeen, "at 800x450 some Patron names wrap") end
+	end
+end })
+
 table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

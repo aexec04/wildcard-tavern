@@ -745,6 +745,56 @@ function M.install(deps)
 		if game:GetService("RunService"):IsStudio() then print(("[ScoreNumeral] hand-off to shop: text=%s final=%d"):format(scoreNum.Text, final)) end
 	end
 
+	-- the Night and Round scroll text: sized from the layout's scroll rect, so it can be run again when the root is rescaled
+	local function fitBanner()
+		if not lastState then return end
+			roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
+			do -- a Boss round adds its rule as a second line in the scroll (two lines at most, one line when the bar is too short for two)
+				local bname, brule = Moments.bossText(lastState)
+				local baseSize = Style.TEXT.subtitle
+				local ih = roundLabel.AbsoluteSize.Y
+				pcall(function() ih = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.h end) -- ask the layout, not the label: after a root rescale the label still holds its old size
+				local inScroll = bname ~= nil and brule ~= "" and ih >= 2 * 15 + 6
+					roundLabel:SetAttribute("RuleInScroll", inScroll) -- the scroll is then the one rule element: Gameplay2MomentsFX hides the separate rule plate
+					roundLabel.RichText = false
+					if inScroll then
+					roundLabel.TextWrapped = true
+					roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
+					roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
+					roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
+				elseif bname == nil and ih >= Layout.roundTwoLineMin() then -- a normal round: bold title line plus the goal line (two lines, never cut)
+					roundLabel:SetAttribute("RuleInScroll", false)
+					roundLabel.TextWrapped = true
+					roundLabel.RichText = ih >= 62
+					roundLabel.TextTruncate = Enum.TextTruncate.None
+					local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
+					if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
+						local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
+						local titleSz, goalSz = math.min(30, math.floor(avail * 0.55)), math.min(20, math.floor(avail * 0.35))
+						local pw = roundLabel.AbsoluteSize.X
+						pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
+						titleSz = Layout.fitRoundText(roundLabel.Text, titleSz, pw / 1.1) -- bold words run wider than plain ones
+						goalSz = Layout.fitRoundText(goal, goalSz, pw)
+						roundLabel.TextSize = goalSz
+						roundLabel.TextYAlignment = Enum.TextYAlignment.Center
+						roundLabel.Text = string.format('<font size="%d"><b>%s</b></font>\n<font size="%d">%s</font>', titleSz, roundLabel.Text, goalSz, goal)
+					else
+						local pw = roundLabel.AbsoluteSize.X
+						pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
+						roundLabel.TextTruncate = Enum.TextTruncate.None -- the text is fitted to the scroll, never cut with an ellipsis
+						roundLabel.TextSize = Layout.fitRoundText(goal, math.max(Layout.ROUND_TEXT_MIN, math.min(Layout.barTextSize(ih * 2), Layout.roundLineSize(ih, 2))), pw)
+						roundLabel.Text = roundLabel.Text .. "\n" .. goal
+					end
+				else
+					roundLabel.RichText = false
+					roundLabel.TextTruncate = Enum.TextTruncate.None
+					local pw = roundLabel.AbsoluteSize.X
+					pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
+					roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, Layout.roundLineSize(ih, 1))), pw) -- one line: fits the scroll in width and height
+				end
+			end
+	end
+
 	function self.update(state)
 		lastState = state or lastState
 		local size = root.AbsoluteSize
@@ -784,51 +834,7 @@ function M.install(deps)
 			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] bg=%s %s", key == "table_play" and "table_play_ref" or (bossRef and "table_boss_ref" or key), img)) end
 		end
 		if lifeAttach() then life.scene(bossRef and "table_play" or key); life.place(size.X, size.Y) end -- the boss reference tavern has the reference layout, so it uses its candle spots
-		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
-		do -- a Boss round adds its rule as a second line in the scroll (two lines at most, one line when the bar is too short for two)
-			local bname, brule = Moments.bossText(lastState)
-			local baseSize = Style.TEXT.subtitle
-			local ih = roundLabel.AbsoluteSize.Y
-			if ih < 36 then pcall(function() ih = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.h end) end -- not laid out yet on the first update: ask the layout, not the label
-			local inScroll = bname ~= nil and brule ~= "" and ih >= 2 * 15 + 6
-				roundLabel:SetAttribute("RuleInScroll", inScroll) -- the scroll is then the one rule element: Gameplay2MomentsFX hides the separate rule plate
-				roundLabel.RichText = false
-				if inScroll then
-				roundLabel.TextWrapped = true
-				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
-				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
-				roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
-			elseif bname == nil and ih >= Layout.roundTwoLineMin() then -- a normal round: bold title line plus the goal line (two lines, never cut)
-				roundLabel:SetAttribute("RuleInScroll", false)
-				roundLabel.TextWrapped = true
-				roundLabel.RichText = ih >= 62
-				roundLabel.TextTruncate = Enum.TextTruncate.None
-				local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
-				if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
-					local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
-					local titleSz, goalSz = math.min(30, math.floor(avail * 0.55)), math.min(20, math.floor(avail * 0.35))
-					local pw = roundLabel.AbsoluteSize.X
-					if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
-					titleSz = Layout.fitRoundText(roundLabel.Text, titleSz, pw / 1.1) -- bold words run wider than plain ones
-					goalSz = Layout.fitRoundText(goal, goalSz, pw)
-					roundLabel.TextSize = goalSz
-					roundLabel.TextYAlignment = Enum.TextYAlignment.Center
-					roundLabel.Text = string.format('<font size="%d"><b>%s</b></font>\n<font size="%d">%s</font>', titleSz, roundLabel.Text, goalSz, goal)
-				else
-					local pw = roundLabel.AbsoluteSize.X
-					if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
-					roundLabel.TextTruncate = Enum.TextTruncate.None -- the text is fitted to the scroll, never cut with an ellipsis
-					roundLabel.TextSize = Layout.fitRoundText(goal, math.max(Layout.ROUND_TEXT_MIN, math.min(Layout.barTextSize(ih * 2), Layout.roundLineSize(ih, 2))), pw)
-					roundLabel.Text = roundLabel.Text .. "\n" .. goal
-				end
-			else
-				roundLabel.RichText = false
-				roundLabel.TextTruncate = Enum.TextTruncate.None
-				local pw = roundLabel.AbsoluteSize.X
-				if pw < 60 then pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end) end
-				roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, Layout.roundLineSize(ih, 1))), pw) -- one line: fits the scroll in width and height
-			end
-		end
+		fitBanner()
 		self.writeNumeral()
 		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
 		setText(target, string.format("Target: %d", math.floor(lastState.targetScore or 0)))
@@ -881,6 +887,7 @@ function M.install(deps)
 	local function replaceHint()
 		if not (active and lastState and deps.selectedCount) then return end
 		local size = root.AbsoluteSize
+		pcall(fitBanner) -- the Night and Round text follows the new scroll size
 		pcall(function() require(script.Parent.PatronPowerPanelFX).update(layer, lastState, Layout.rects(size.X, size.Y), size.X, size.Y) end) -- the Patron Power panel is re-placed (or hidden when nothing fits) at the new size
 		pcall(function() require(script.Parent.RoundHintsFX).update(layer, lastState, deps.selectedCount(), Layout.rects(size.X, size.Y), size.X, size.Y) end)
 	end

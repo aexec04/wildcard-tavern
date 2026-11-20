@@ -42,7 +42,8 @@ function M.sync(c, name)
 		if ribbon then ribbon.Visible = false end
 		return
 	end
-	local L = P.layout()
+	local wrapped = P.wraps(name, c.slot and c.slot.AbsoluteSize.X or 96)
+	local L = P.layout(c.slot and c.slot.AbsoluteSize.Y or nil, wrapped)
 	local z = art.ZIndex
 	if not paper then
 		paper = make("Frame", "ParchmentPaper", c.body, z - 1)
@@ -93,6 +94,11 @@ function M.sync(c, name)
 		t.Position = UDim2.new(0, nr.x + 2, 0, 0)
 		t.Size = UDim2.new(0, math.max(0, nr.w - 4), 1, 0)
 		t.Text = tostring(name or "")
+		-- a name too long for one line at the smallest size wraps to two 10 px lines in the taller ribbon, never an ellipsis
+		t.TextWrapped = wrapped
+		t.TextScaled = not wrapped
+		if wrapped then t.TextSize = NameFit.WRAP_SIZE; t.TextTruncate = Enum.TextTruncate.None; t.LineHeight = 0.9
+		else t.TextTruncate = Enum.TextTruncate.AtEnd; t.LineHeight = 1 end
 	end
 end
 
