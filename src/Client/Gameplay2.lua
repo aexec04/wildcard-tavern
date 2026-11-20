@@ -721,6 +721,12 @@ function M.scoringRects()
 	return { stage = r.stage, plate = live.plate, name = rows.name, band = rows.band }
 end
 
+-- the lift for a picked hand card on the v2 table (28 px, less when the Score plate sits close above the hand), nil when v2 is not up
+function M.selectedLift(want)
+	if not (current and current.isActive()) then return nil end
+	return require(Engine:WaitForChild("Gameplay2Layout")).selectedLift(current.rects(), want, math.max(20, PreviewRules.H))
+end
+
 function M.playedBand()
 	if not (current and current.isActive()) then return nil end
 	current.playing = true

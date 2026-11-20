@@ -1551,7 +1551,9 @@ local function refreshCardVisual(index, usePop)
 		targetScale = BASE_SCALE
 	end
 
-	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
+	local selLift = SELECTED_LIFT
+	if isSelected then local ok, v = pcall(function() return require(script.Gameplay2).selectedLift(SELECTED_LIFT) end); if ok and v then selLift = v end end -- clear of the Score plate
+	local lift = (isSelected and selLift or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	VisualHelpersModule.tweenTo(button, {
 		Position = UDim2.new(0.5, (button.Parent:GetAttribute("FanX") or 0) + spreadX, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),

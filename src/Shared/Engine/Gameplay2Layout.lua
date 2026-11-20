@@ -287,6 +287,13 @@ function M.scoringRows(r, capH)
 	return { plateBottom = plateBottom, name = nil, band = { top = r.stage.y + N0.bottom + 2, bottom = r.hand.y - M.PLAYED_GAP } }
 end
 
+-- how far a picked card rises: the wanted lift, cut so its top stays 4 px under the idle Score plate (never under the hover lift of 10)
+M.LIFT_CLEAR = 4
+function M.selectedLift(r, want, capH)
+	local plateBottom = M.scoringRows(r, capH).plateBottom
+	return math.max(10, math.min(want or 28, r.hand.y - plateBottom - M.LIFT_CLEAR))
+end
+
 function M.playedBand(r, capH, progH)
 	return M.scoringRows(r, capH).band
 end
