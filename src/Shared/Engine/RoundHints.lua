@@ -166,8 +166,8 @@ end
 -- The mockup's hint plate stands in the left column beside the Patron seats (x 18 to 335, y 345 to 485 of 1672 x 941), level with
 -- the first seat's label row; where the consumables tray or anything else is in the way it drops to the open middle under the pills.
 -- The slim strip: one 60 px plate centred above the hand fan with the Got it plate inside it on the right (the concept shows nothing at the
--- left of the table). 520 wide at 1920 and scaled with the screen (never under 360); it ends STRIP_GAP above the hand rect and may stand
--- over the idle stage's progress line, but never over a Patron seat or the avoid rects. nil when it does not fit.
+-- left of the table). 520 wide at 1920 and scaled with the screen (never under 360); it ends STRIP_GAP above the hand rect and never stands
+-- over the Score plate or its progress line, and never over a Patron seat or the avoid rects. nil when it does not fit.
 M.STRIP_W, M.STRIP_H, M.STRIP_MIN_W, M.STRIP_GAP, M.STRIP_PAD = 520, 60, 360, 6, 8
 M.STRIP_TITLE, M.STRIP_BODY = 22, 20
 M.STRIP_SIDE_GAP = 12
@@ -177,14 +177,15 @@ function M.strip(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local w = math.min(M.STRIP_W, math.max(M.STRIP_MIN_W, math.floor(M.STRIP_W / 1920 * viewW + 0.5)))
 	local above = { x = math.floor((viewW - w) / 2), y = r.hand.y - M.STRIP_GAP - M.STRIP_H, w = w, h = M.STRIP_H }
-	local cands, score = {}, nil -- score: the Score plate and its progress line, which the strip never covers
+	local cands, score, progress = {}, nil, nil -- score: the Score plate and its progress line, which the strip never covers
 	-- preferred spot: level with the top of the Score plate and just right of it (the strip above the hand covered the "o of N" line),
 	-- then the mirror spot left of it, then above the hand; the Score plate is min(stage w, max(240, 0.19 x screen)) wide, centred in the stage
 	if r.stage then
 		local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * viewW)))
 		local plateLeft = r.stage.x + math.floor((r.stage.w - pw) / 2)
 		local sx = plateLeft + pw + M.STRIP_SIDE_GAP
-		score = ScorePlate.live(r.stage, viewW, 20, 22).plate
+		local live = ScorePlate.live(r.stage, viewW, 20, 22)
+		score, progress = live.plate, live.progress
 		local sw = w
 		if r.deck and r.deck.x then sw = math.min(w, r.deck.x - M.STRIP_TRAY_GAP - sx) end -- narrower beside the deck, never under the minimum
 		if sx + sw <= viewW - M.STRIP_SIDE_GAP and sw >= M.STRIP_SIDE_MIN_W then
@@ -200,6 +201,7 @@ function M.strip(r, viewW, viewH, avoid)
 			end
 		end
 		if ok and score and hit(plate, score) then ok = false end
+		if ok and progress and hit(plate, progress) then ok = false end -- the "0 of N" line under the plate stays readable
 		for _, s in ipairs(r.slots) do
 			for _, part in ipairs({ s.card, s.label, s.pill }) do
 				if ok and part and hit(plate, part) then ok = false end

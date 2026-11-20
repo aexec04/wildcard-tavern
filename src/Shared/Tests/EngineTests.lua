@@ -31433,7 +31433,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		expectTrue(spot.button.x + spot.button.w / 2 > spot.plate.x + spot.plate.w / 2, "Got it is on the right half")
 		expectTrue(spot.plate.y + spot.plate.h <= L.rects(1920, 1080).hand.y, "strip ends above the hand rect")
 		expectTrue(RH.STRIP_TITLE == 22 and RH.STRIP_BODY == 20 and RH.getById("round_hint_select").body == "Pick up to 5 cards, then Play Hand.", "strip text sizes and the shorter first hint line")
-		for _, sz2 in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do -- the left side of the table stays empty at the live sizes
+		for _, sz2 in ipairs({ { 1920, 957 }, { 1506, 751 } }) do -- the strip sits beside the Score plate where it fits; narrower tables use the side column rather than cover the progress line
 			local rr = L.rects(sz2[1], sz2[2])
 			local sp = RH.place(rr, sz2[1], sz2[2], {})
 			expectTrue(sp and sp.kind == "strip" and sp.plate.x > rr.sortSuit.x + rr.sortSuit.w, "strip is right of Rank and Suit at " .. sz2[1])
@@ -34204,9 +34204,11 @@ table.insert(tests, { name = "Table: the round hint never covers the Score plate
 		local spot = RH.place(r, w, h, {})
 		if spot then
 			shown = shown + 1
-			local sp = SP.live(r.stage, w, 20, 22).plate
+			local live = SP.live(r.stage, w, 20, 22)
+			local sp = live.plate
 			for _, part in ipairs({ spot.plate, spot.button }) do
 				expectFalse(hit(part, sp), w .. "x" .. h .. ": hint clear of the Score plate")
+				if live.progress then expectFalse(hit(part, live.progress), w .. "x" .. h .. ": hint clear of the progress line") end
 				expectFalse(hit(part, r.hand) or hit(part, r.play) or hit(part, r.discard) or hit(part, r.sortRank) or hit(part, r.sortSuit), w .. "x" .. h .. ": hint clear of the hand and bottom buttons")
 				for _, s in ipairs(r.slots) do
 					expectFalse(hit(part, s.card) or hit(part, s.label) or hit(part, s.pill), w .. "x" .. h .. ": hint clear of the Patron seats")
