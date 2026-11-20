@@ -24267,6 +24267,31 @@ table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table pass
 	local _, w3 = D.check(p)
 	assert(#w3 >= 1 and w3[1]:find("cap overlaps", 1, true), "a rail cap on screen over a plate warns")
 end })
+table.insert(tests, { name = "Rail: the visible rail box spans the root exactly and its end caps lie outside it at 1280x720, 1024x768, 1366x768 and 800x450", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1280, 720 }, { 1024, 768 }, { 1366, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = G.rects(w, h)
+		local rail = L.decorFor(r, w, h).rail
+		assert(rail.box.x == 0 and rail.box.w == w, tag .. " rail box is the root width, got x=" .. rail.box.x .. " w=" .. rail.box.w)
+		assert(rail.box.y + rail.box.h == h, tag .. " rail reaches the root bottom")
+		local cap = L.railCapClear(rail, w)
+		assert(cap.left <= -6 and cap.right <= -6, tag .. " carved caps outside the root (clipped by the root clip frame)")
+		for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard" }) do
+			local p = r[k]
+			assert(p.x >= rail.box.x and p.x + p.w <= rail.box.x + rail.box.w, tag .. " " .. k .. " sits on the rail")
+		end
+	end
+	if io then -- the client puts the rail picture inside a clip frame so a scaled root never shows the overscan
+		local f = io.open("src/Client/Gameplay2.lua", "r")
+		if f then
+			local src = f:read("a"); f:close()
+			assert(src:find('"RailClip"', 1, true) and src:find("clip.ClipsDescendants = true", 1, true), "Gameplay2 clips the rail to the root")
+		end
+	end
+end })
 table.insert(tests, { name = "DecorCheck sizes: 1280x720, 1506x751 and the boss table pass, deck 24 px clear of the plates and no hand of 8 to 10 cards reaches the pile", fn = function()
 	local D = require(script.Parent.Parent.Engine.DecorCheck)
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
