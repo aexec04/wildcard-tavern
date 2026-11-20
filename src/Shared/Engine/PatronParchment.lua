@@ -45,6 +45,39 @@ function M.wraps(name, w)
 	return NameFit.textWidth(name, NameFit.MIN_SIZE) > math.max(0, r.w - 4)
 end
 
+M.WRAP_MIN = 9
+M.NAME_PAD = 4 -- px kept clear on each side of the name so no letter touches the ribbon edge
+
+-- One name style for the whole row of seats (names = every Patron name shown, w = seat width, h = seat height, px).
+-- size: the largest size at which the longest name fits one line (11 to 16 px), the same for every seat; when even 11 px does not
+-- fit, every seat uses the 10 px wrapped style instead (wrapped = true, two lines in the taller ribbon, no ellipsis).
+-- The label rect for the style: the one line style keeps clear of the power disc; the two line style (the 800x450 seats, where the
+-- disc leaves only about 30 px) spans the whole ribbon so its words fit, the disc sitting over the lower line's empty right end.
+function M.labelRect(w, wrapped)
+	if not wrapped then
+		local r = M.nameRect(w)
+		return { x = r.x + M.NAME_PAD, w = math.max(0, r.w - 2 * M.NAME_PAD) }
+	end
+	return { x = M.NAME_PAD - 1, w = math.max(0, w * (1 - 2 * M.SIDE) - 2 * (M.NAME_PAD - 1)) }
+end
+
+function M.rowStyle(names, w, h)
+	local avail = M.labelRect(w, false).w
+	local longest = 0
+	for _, n in ipairs(names or {}) do longest = math.max(longest, #tostring(n or "")) end
+	if longest == 0 then return { size = NameFit.MAX_SIZE, wrapped = false } end
+	local fit = math.floor(avail / (longest * NameFit.CHAR))
+	local cap = NameFit.MAX_SIZE
+	if h and h > 0 then cap = math.min(cap, math.floor(h * M.RIBBON_H) - 2) end -- one line must also fit the ribbon height
+	if fit >= NameFit.MIN_SIZE then return { size = math.max(NameFit.MIN_SIZE, math.min(fit, cap)), wrapped = false } end
+	-- wrapped: 10 px, or 9 px for the rare name with a word too long for the seat (only the 800x450 seats get here)
+	local w2 = M.labelRect(w, true).w
+	local word = 0
+	for _, n in ipairs(names) do for x in tostring(n):gmatch("%S+") do word = math.max(word, #x) end end
+	local sz = math.floor(w2 / (math.max(1, word) * NameFit.CHAR))
+	return { size = math.max(M.WRAP_MIN, math.min(NameFit.WRAP_SIZE, sz)), wrapped = true }
+end
+
 function M.imageRect(id)
 	return Crop[tostring(id or "")]
 end

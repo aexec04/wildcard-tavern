@@ -813,6 +813,11 @@ local function place(state)
 	boost.cardsY = lay and lay.display and lay.rect.y or nil
 	placeBoost((not ctOn) and lay and nook and nook.lastBack or nil, rootSize.X / k)
 	M.placePill()
+	do -- every seat's name uses one size, from the longest name on the table
+		local names = {}
+		for i = 1, #owned do if owned[i] and owned[i].name then names[#names + 1] = owned[i].name end end
+		pcall(function() require(script.Parent.PatronParchmentCard).setRow(names) end)
+	end
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end

@@ -33677,6 +33677,42 @@ table.insert(tests, { name = "Patron seat names: a long name wraps to two 10 px 
 	end
 end })
 
+table.insert(tests, { name = "Patron seat names: every seat in a row uses one size, nothing is clipped, with the five names from the live capture", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	local NF = require(script.Parent.Parent.Engine.PatronNameFit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
+	local all = {}
+	for _, p in pairs(Patrons.Definitions) do if type(p) == "table" and p.name then all[#all + 1] = p.name end end
+	table.sort(all)
+	local sets = { live }
+	for i = 1, math.max(1, #all - 4), 5 do sets[#sets + 1] = { all[i], all[i + 1], all[i + 2], all[i + 3], all[i + 4] } end
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local card = L.rects(sz[1], sz[2]).slots[1].card
+		for _, names in ipairs(sets) do
+			local st = PP.rowStyle(names, card.w, card.h)
+			local avail = PP.labelRect(card.w, st.wrapped).w
+			expectTrue(st.size >= PP.WRAP_MIN and st.size <= NF.MAX_SIZE, "size in range at " .. sz[1] .. "x" .. sz[2])
+			for _, n in ipairs(names) do
+				if not st.wrapped then
+					expectTrue(NF.textWidth(n, st.size) <= avail + 0.01, ("'%s' at %d px fits %d px at %dx%d"):format(n, st.size, math.floor(avail), sz[1], sz[2]))
+				else
+					for word in tostring(n):gmatch("%S+") do
+						expectTrue(NF.textWidth(word, st.size) <= avail + 0.01, ("word '%s' (%d px at size %d) fits %d px on its line at %dx%d"):format(word, math.floor(NF.textWidth(word, st.size)), st.size, math.floor(avail), sz[1], sz[2]))
+					end
+				end
+			end
+		end
+		if sz[1] == 800 then expectTrue(PP.rowStyle(live, card.w, card.h).size <= 11, "800x450 uses the smallest size") end
+	end
+	expectEqual(PP.rowStyle(live, 157, 220).size, PP.rowStyle({ "The Bard", "Suit Yourself" }, 157, 220).size, "the size depends on the longest name only")
+	if io then
+		local f = assert(io.open("src/Client/PatronParchmentCard.lua", "r")); local src = f:read("a"); f:close()
+		assert(not src:find("TextScaled = true", 1, true) and src:find("rowStyle", 1, true), "fixed size name, no per seat scaling")
+	end
+end })
+
 table.insert(tests, { name = "Idle Score plate stays 100 px with a 54 px numeral when the Patron row ends low (stage top 410 at 1920x957, 5 to 10 cards)", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

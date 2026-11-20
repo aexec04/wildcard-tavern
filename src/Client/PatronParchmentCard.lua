@@ -10,7 +10,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local P = require(Engine:WaitForChild("PatronParchment"))
-local NameFit = require(Engine:WaitForChild("PatronNameFit"))
 
 local M = {}
 
@@ -32,6 +31,10 @@ local function make(class, name, parent, z)
 	return f
 end
 
+-- every Patron name on the table, so all seats share one name size (set by PatronRow before it syncs the seats)
+local rowNames = {}
+function M.setRow(names) rowNames = names or {} end
+
 function M.sync(c, name)
 	if not c or not c.body then return end
 	local art = c.body:FindFirstChild("PatronArt")
@@ -42,7 +45,14 @@ function M.sync(c, name)
 		if ribbon then ribbon.Visible = false end
 		return
 	end
-	local wrapped = P.wraps(name, c.slot and c.slot.AbsoluteSize.X or 96)
+	local names = rowNames
+	if name then -- a row that was not announced still sizes for this seat's own name
+		local found = false
+		for _, n in ipairs(names) do if n == name then found = true break end end
+		if not found then names = { name } end
+	end
+	local style = P.rowStyle(names, c.slot and c.slot.AbsoluteSize.X or 96, c.slot and c.slot.AbsoluteSize.Y or nil)
+	local wrapped = style.wrapped
 	local L = P.layout(c.slot and c.slot.AbsoluteSize.Y or nil, wrapped)
 	local z = art.ZIndex
 	if not paper then
@@ -74,15 +84,12 @@ function M.sync(c, name)
 		t.BackgroundTransparency = 1
 		t.Font = Enum.Font.Merriweather
 		t.TextXAlignment = Enum.TextXAlignment.Left
-		t.TextScaled = true
+		t.TextScaled = false
 		t.TextSize = 15
 		t.TextColor3 = c3(P.INK)
 		t.TextTransparency = 0
 		t.TextStrokeTransparency = 1
-		t.TextTruncate = Enum.TextTruncate.AtEnd
-		local cons = Instance.new("UITextSizeConstraint")
-		cons.MinTextSize, cons.MaxTextSize = NameFit.MIN_SIZE, NameFit.MAX_SIZE
-		cons.Parent = t
+		t.TextTruncate = Enum.TextTruncate.None
 	end
 	ribbon.Visible = true
 	ribbon.Position = UDim2.fromScale(L.ribbon.x, L.ribbon.y)
@@ -90,15 +97,16 @@ function M.sync(c, name)
 	local t = ribbon:FindFirstChild("Name")
 	if t then
 		local w = c.slot and c.slot.AbsoluteSize.X or 96
-		local nr = P.nameRect(w)
-		t.Position = UDim2.new(0, nr.x + 2, 0, 0)
-		t.Size = UDim2.new(0, math.max(0, nr.w - 4), 1, 0)
+		local nr = P.labelRect(w, wrapped)
+		t.Position = UDim2.new(0, nr.x, 0, 0)
+		t.Size = UDim2.new(0, nr.w, 1, 0)
 		t.Text = tostring(name or "")
 		-- a name too long for one line at the smallest size wraps to two 10 px lines in the taller ribbon, never an ellipsis
 		t.TextWrapped = wrapped
-		t.TextScaled = not wrapped
-		if wrapped then t.TextSize = NameFit.WRAP_SIZE; t.TextTruncate = Enum.TextTruncate.None; t.LineHeight = 0.9
-		else t.TextTruncate = Enum.TextTruncate.AtEnd; t.LineHeight = 1 end
+		t.TextScaled = false -- one fixed size for every seat, from the longest name
+		t.TextSize = style.size
+		t.TextTruncate = Enum.TextTruncate.None
+		t.LineHeight = wrapped and 0.9 or 1
 	end
 end
 
