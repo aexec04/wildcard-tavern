@@ -31269,8 +31269,8 @@ table.insert(tests, { name = "Night map and menu: info bar, subtitle, Select, Sk
 	expectTrue(rs:find('paintedButton(selectButton, "primary")', 1, true) ~= nil, "Select is the painted green plate")
 	expectTrue(rs:find('paintedButton(skipButton, "secondary")', 1, true) ~= nil, "Skip is the painted dark plate")
 	expectTrue(rs:find('painted(tipsChip, "count_tab")', 1, true) ~= nil, "Tips chip is painted")
-	expectTrue(jn:find('painted(journeyInfoBar, "wood_plate")', 1, true) ~= nil, "Night map info bar is painted")
-	expectTrue(jn:find('painted(journeySubtitle, "wood_plate")', 1, true) ~= nil, "Night map subtitle is painted")
+	expectTrue(jn:find('painted(journeyInfoBar, "orn_wide")', 1, true) ~= nil, "Night map info bar is painted")
+	expectTrue(jn:find('painted(journeySubtitle, "orn_wide")', 1, true) ~= nil, "Night map subtitle is painted")
 	expectTrue(mb:find('painted(head, "wood_plate")', 1, true) ~= nil, "Notice Board name plate is painted")
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	for _, piece in ipairs({ "btn_green", "btn_dark", "count_tab", "wood_plate" }) do
@@ -31698,6 +31698,24 @@ table.insert(tests, { name = "Scoring phase: the Score caption and the N of Targ
 	if not io then return end
 	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("scoreCaption.Visible = N.roomy and N.numTop >= capH and (not self.previewText or self.playing == true)", 1, true) ~= nil, "a leftover hand preview does not hide the caption while a hand scores")
+end })
+
+table.insert(tests, { name = "Boss round: the scroll is the one rule element, the intro plate and the Night map bars wear the ornate wide plate", fn = function()
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local g2 = read("src/Client/Gameplay2.lua")
+	expectTrue(g2:find('roundLabel:SetAttribute("RuleInScroll", inScroll)', 1, true) ~= nil, "the table says whether the scroll carries the rule")
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(fx:find('nameSlot:GetAttribute("RuleInScroll") == true', 1, true) ~= nil, "the separate rule plate hides when the scroll carries the rule")
+	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "the boss intro plate is ornate")
+	local jr = read("src/Client/Journey.lua")
+	expectTrue(jr:find('painted(journeyInfoBar, "orn_wide")', 1, true) ~= nil, "the Night map info bar is ornate")
+	expectTrue(jr:find('painted(journeySubtitle, "orn_wide")', 1, true) ~= nil, "the Night map subtitle bar is ornate")
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for _, sz in ipairs({ { 560, 104 }, { 1500, 100 }, { 800, 100 } }) do
+		local sl = Style.paintedSlice("orn_wide", sz[1], sz[2])
+		expectTrue(sl and sl.scale * 340 <= sz[1] and sl.scale * 514 <= sz[2] + 1e-9, "orn_wide keeps all four corners inside a " .. sz[1] .. " x " .. sz[2] .. " plate")
+	end
 end })
 
 table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll and Haggle, the Run Over buttons and the daily strip, each behind pcall so a missing picture keeps the flat look", fn = function()

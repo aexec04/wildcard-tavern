@@ -564,7 +564,9 @@ function M.install(deps)
 			local bname, brule = Moments.bossText(lastState)
 			local baseSize = Style.TEXT.subtitle
 			local ih = roundLabel.AbsoluteSize.Y
-			if bname and brule ~= "" and ih >= 2 * 15 + 6 then
+			local inScroll = bname ~= nil and brule ~= "" and ih >= 2 * 15 + 6
+				roundLabel:SetAttribute("RuleInScroll", inScroll) -- the scroll is then the one rule element: Gameplay2MomentsFX hides the separate rule plate
+				if inScroll then
 				roundLabel.TextWrapped = true
 				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
 				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)

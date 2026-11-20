@@ -213,6 +213,7 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 12); pc.Parent = plate
 	local st = Instance.new("UIStroke"); st.Color = Color3.fromRGB(tint.edge[1], tint.edge[2], tint.edge[3]); st.Thickness = 3; st.Parent = plate
 	plate.Parent = holder
+	pcall(function() Kit.painted(plate, "orn_wide") end) -- the ornate wide plate of the table (the flat tinted plate and its stroke come back if the picture is missing)
 	local portraitRect, textRect = Rules.bossIntroParts(rect)
 	local chip = Instance.new("Frame")
 	chip.Name = "Portrait"
@@ -302,7 +303,8 @@ function M.boss(layer, rects, state, w, h)
 	local tintSet = Rules.bossTint(bdef and bdef.rules)
 	-- one line rule plate under the Patron row, tinted by the boss rule family (static, no tween)
 	local pr = Rules.rulePlate(rects)
-	if not pr or rule == "" then
+	local nameSlot = layer:FindFirstChild("RoundName")
+	if not pr or rule == "" or (nameSlot and nameSlot:GetAttribute("RuleInScroll") == true) then -- the scroll carries the rule: one rule element only
 		if rulePlate then rulePlate.Visible = false end
 	else
 		if not rulePlate then
