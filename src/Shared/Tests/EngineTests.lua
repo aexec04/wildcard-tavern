@@ -24251,6 +24251,39 @@ table.insert(tests, { name = "DecorCheck: decorcheck parses, the live table pass
 	local _, w3 = D.check(p)
 	assert(#w3 >= 1 and w3[1]:find("cap overlaps", 1, true), "a rail cap on screen over a plate warns")
 end })
+table.insert(tests, { name = "DecorCheck sizes: 1280x720, 1506x751 and the boss table pass, deck 24 px clear of the plates and no hand of 8 to 10 cards reaches the pile", fn = function()
+	local D = require(script.Parent.Parent.Engine.DecorCheck)
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	-- the boss table is the same layout (no boss specific rects), so boss1 at 1920x957 is the 1920x957 table
+	for _, sz in ipairs({ { 1280, 720 }, { 1506, 751 }, { 1920, 957 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = G.rects(w, h)
+		local dc = L.decorFor(r, w, h)
+		local plates = {}
+		for _, k in ipairs({ "sortRank", "sortSuit", "play", "discard", "deckCount" }) do plates[#plates + 1] = { label = k, rect = r[k] } end
+		local _, warns = D.check({ w = w, h = h, felt = L.feltFor(w, h).rim, deck = r.deck, tilt = L.DECK_TILT, rail = { x = dc.rail.x, w = dc.rail.w, box = dc.rail.box }, plates = plates })
+		assert(#warns == 0, tag .. " warns: " .. table.concat(warns, "; "))
+		local hull = L.hullOf(r.deck, L.DECK_TILT)
+		local strip = RH.strip(r, w, h)
+		if strip and strip.kind == "strip" then
+			local pl = strip.plate
+			local gx = math.max(pl.x - (hull.x + hull.w), hull.x - (pl.x + pl.w))
+			local gy = math.max(pl.y - (hull.y + hull.h), hull.y - (pl.y + pl.h))
+			assert(math.max(gx, gy) >= 24, tag .. " hint strip within 24 px of the pile")
+		end
+		for n = 8, 10 do
+			local hf = HS.frameFor(w, r.hand, n)
+			local cw = HS.cardSize(w, hf.w, hf.h, n)
+			local span = math.min(HS.fanSpan(w, cw, n), hf.w)
+			local right = r.hand.x + r.hand.w / 2 + span / 2
+			assert(right + 12 <= hull.x, tag .. " " .. n .. " cards end " .. math.floor(right) .. " but the pile starts at " .. math.floor(hull.x))
+		end
+	end
+end })
 table.insert(tests, { name = "Gameplay2 felt finish: gold inlay sits 22 reference px inside the felt edge, both ellipses stay on screen (four sizes)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
