@@ -170,6 +170,8 @@ end
 M.STRIP_W, M.STRIP_H, M.STRIP_MIN_W, M.STRIP_GAP, M.STRIP_PAD = 520, 60, 360, 6, 8
 M.STRIP_TITLE, M.STRIP_BODY = 22, 20
 M.STRIP_SIDE_GAP = 12
+M.STRIP_SIDE_MIN_W = 330 -- the side spot may be a little narrower than the strip above the hand (the tray gap takes 20 px of it)
+M.STRIP_TRAY_GAP =24 + 8 -- 24 px clear of the deck tray lip (the lip is 8 px outside the deck rect)
 function M.strip(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local w = math.min(M.STRIP_W, math.max(M.STRIP_MIN_W, math.floor(M.STRIP_W / 1920 * viewW + 0.5)))
@@ -181,8 +183,8 @@ function M.strip(r, viewW, viewH, avoid)
 		local plateRight = r.stage.x + math.floor((r.stage.w - pw) / 2) + pw
 		local sx = plateRight + M.STRIP_SIDE_GAP
 		local sw = w
-		if r.deck and r.deck.x then sw = math.min(w, r.deck.x - M.STRIP_SIDE_GAP - sx) end -- narrower beside the deck, never under the minimum
-		if sx + sw <= viewW - M.STRIP_SIDE_GAP and sw >= M.STRIP_MIN_W then
+		if r.deck and r.deck.x then sw = math.min(w, r.deck.x - M.STRIP_TRAY_GAP - sx) end -- narrower beside the deck, never under the minimum
+		if sx + sw <= viewW - M.STRIP_SIDE_GAP and sw >= M.STRIP_SIDE_MIN_W then
 			local side = { x = sx, y = r.stage.y, w = sw, h = M.STRIP_H }
 			local clear = true
 			for name, rect in pairs(r) do -- any table piece in the way (the deck, the bar) sends it back above the hand

@@ -24176,6 +24176,25 @@ table.insert(tests, { name = "Gameplay2 table furniture: tray frames the deck wi
 		assert(d.rail.box.y >= r.hand.y + r.hand.h, tag .. " rail below the hand rect")
 	end
 end })
+table.insert(tests, { name = "Gameplay2 deck tray: turned about 7 degrees, stays on screen, hint strip keeps 24 px from the tray", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	assert(L.TRAY_TILT >= 6 and L.TRAY_TILT <= 8, "tilt reduced to about 8 of the baked 15")
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = G.rects(w, h)
+		local d = L.decorFor(r, w, h)
+		local hull = L.trayHull(d.tray)
+		assert(hull.x >= 0 and hull.y >= 0 and hull.x + hull.w <= w + 2 and hull.y + hull.h <= h, tag .. " turned tray stays on screen (2 px of transparent art slack) " .. hull.x .. "," .. hull.y .. "," .. hull.w .. "," .. hull.h .. " deck " .. r.deck.x .. "," .. r.deck.y .. "," .. r.deck.w .. "," .. r.deck.h)
+		assert(hull.y + hull.h <= r.deckCount.y + r.deckCount.h + 20, tag .. " tray ends near the 44/52 plate")
+		local strip = RH.strip(r, w, h)
+		if strip and strip.kind == "strip" and strip.plate.y + strip.plate.h > r.deck.y - 30 and strip.plate.y < r.deck.y + r.deck.h then
+			assert(strip.plate.x + strip.plate.w + 24 <= d.tray.box.x, tag .. " strip keeps 24 px from the tray lip")
+		end
+	end
+end })
 table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 8 seats), hand, sort pill and buttons stay on screen, never overlap, touch targets 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
@@ -32742,7 +32761,7 @@ table.insert(tests, { name = "Round hint strip: right of the Score plate at the 
 		local s = RH.strip(r, sz[1], sz[2], {})
 		if s then
 			local p = s.plate
-			expectTrue(p.w >= RH.STRIP_MIN_W and p.w <= RH.STRIP_W, "strip width in range at " .. sz[1])
+			expectTrue(p.w >= RH.STRIP_SIDE_MIN_W and p.w <= RH.STRIP_W, "strip width in range at " .. sz[1])
 			if p.y == r.stage.y then -- the side spot: right of the Score plate, clear of the deck
 				local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * sz[1])))
 				expectTrue(p.x >= r.stage.x + math.floor((r.stage.w - pw) / 2) + pw, "right of the Score plate at " .. sz[1])

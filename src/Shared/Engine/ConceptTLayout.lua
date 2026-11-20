@@ -185,6 +185,23 @@ function M.decorFor(r, w, h)
 	}
 end
 
+-- The tray art is drawn leaning about 15 degrees; turning the picture clockwise by TRAY_TILT leaves about 8 (the reference tray leans about 6).
+-- trayHull: bounding rect of the tray's visible box after that turn (the picture turns about its own centre).
+M.TRAY_TILT = 6
+function M.trayHull(tray)
+	local rad = math.rad(M.TRAY_TILT)
+	local c, s = math.cos(rad), math.sin(rad)
+	local cx, cy = tray.x + tray.w / 2, tray.y + tray.h / 2
+	local b = tray.box
+	local minx, miny, maxx, maxy = math.huge, math.huge, -math.huge, -math.huge
+	for _, p in ipairs({ { b.x, b.y }, { b.x + b.w, b.y }, { b.x, b.y + b.h }, { b.x + b.w, b.y + b.h } }) do
+		local dx, dy = p[1] - cx, p[2] - cy
+		local x, y = cx + dx * c - dy * s, cy + dx * s + dy * c
+		minx, miny, maxx, maxy = math.min(minx, x), math.min(miny, y), math.max(maxx, x), math.max(maxy, y)
+	end
+	return { x = round(minx), y = round(miny), w = round(maxx - minx), h = round(maxy - miny) }
+end
+
 -- the bar track rect in pixels, inside the round banner
 function M.bar(rects)
 	local r, b = rects.round, M.barInBanner
