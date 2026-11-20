@@ -46,6 +46,16 @@ function M.gap(areaW, cardW, count)
 	return M.GAP
 end
 
+-- Roomy windows, with the live frame width: the fan fills the frame's inner width (reference: 8 cards span 18 to 84 percent of the width),
+-- so the gap opens up to M.GAP_OPEN_MAX of a card width (a small positive gap) and closes to the old overlap, never tighter, as the count grows.
+M.GAP_OPEN_MAX = 0.1
+function M.gapFor(areaW, cardW, count, frameW)
+	local base = M.gap(areaW, cardW, count)
+	if (areaW or 0) < M.BIG_FROM or (frameW or 0) <= 0 or (count or 0) < 2 then return base end
+	local fill = math.floor(((frameW - 2 * M.PAD) - count * cardW) / (count - 1))
+	return math.max(base, math.min(fill, math.floor(cardW * M.GAP_OPEN_MAX)))
+end
+
 function M.maxCardWidth(areaW)
 	if (areaW or 0) >= M.BIG_FROM then return math.max(M.BIG_MAX, math.min(M.WIDE_CAP, math.floor(areaW * M.WIDE_SHARE))) end
 	return M.BASE_MAX

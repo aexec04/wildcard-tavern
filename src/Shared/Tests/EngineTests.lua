@@ -27600,7 +27600,7 @@ table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pil
 	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
 	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
 	local prof = L.fanProfile(1000)
-	expectTrue(prof.deg == 8 and prof.dip == 12 and prof.endScale == 1, "fan profile for the real hand")
+	expectTrue(prof.deg == 8 and prof.dip == 30 and prof.endScale == 1, "fan profile for the real hand")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
 		local r = L.rects(size[1], size[2])
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
@@ -33300,6 +33300,25 @@ table.insert(tests, { name = "ScoreNumeral: the count finishes in under 1.2 s an
 	expectTrue(g2:find("pcall(self.writeNumeral); self.handOff()", 1, true) ~= nil, "the shop state calls handOff")
 end })
 
+table.insert(tests, { name = "Hand fan: 8 cards fill the frame (gap opens to at most 10 percent of a card), 10 cards keep the old overlap, ends dip 3 percent of the height", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		for _, n in ipairs({ 5, 8, 9, 10 }) do
+			local hf = HS.frameFor(w, CT.handFor(r.hand, w, n), math.max(n, 8))
+			local cw = HS.cardSize(w, hf.w, hf.h, n)
+			local g = HS.gapFor(1200, cw, n, hf.w)
+			assert(g >= HS.gap(1200, cw, n) and g <= math.floor(cw * HS.GAP_OPEN_MAX), ("gap %d in range at %dx%d n=%d"):format(g, w, h, n))
+			local span = n * cw + (n - 1) * g
+			assert(span <= hf.w - 2 * HS.PAD + n, ("fan %d inside the frame %d at %dx%d n=%d"):format(span, hf.w, w, h, n))
+			if n == 8 then print(("  [fan] %dx%d span %d (%.0f%% of the width), gap %d, card %d"):format(w, h, span, span / w * 100, g, cw)) end
+		end
+		assert(CT.fanProfile(h).dip >= math.floor(h * 0.03 + 0.5), "ends dip 3 percent of the height")
+	end
+end })
 table.insert(tests, { name = "Hand: the fan's lowest card bottom stays above the Hands and Discards pills (middle cards 6 px or more) at 1506x751, 1280x720, 1920x957", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
