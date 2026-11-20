@@ -107,9 +107,9 @@ function M.clearTiming(calm, fast)
 end
 
 function M.bossBanner(r, w, h)
-	local top = r.bar.y + r.bar.h + 2
+	local top = r.bar.y + r.bar.h + 1
 	local slotTop = r.slots[1].card.y
-	local bh = math.min(M.MAX_BANNER_H, slotTop - top - 4)
+	local bh = math.min(M.MAX_BANNER_H, slotTop - top - 2)
 	if bh < M.MIN_BANNER_H then return nil end
 	local bw = r.bar.w
 	return { x = r.bar.x, y = top, w = bw, h = bh }

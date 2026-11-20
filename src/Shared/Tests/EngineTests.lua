@@ -29017,7 +29017,7 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 		assert(#bad == 0, w .. "x" .. h .. " overlaps: " .. table.concat(bad, ", "))
 		local ok, name = L.onScreen(r, w, h)
 		assert(ok, w .. "x" .. h .. " off screen: " .. tostring(name))
-		assert(r.bar.h <= math.max(30, math.floor(0.08 * h)), "round bar at most 8 percent of the height")
+		assert(r.bar.h <= math.max(30, math.floor(0.09 * h + 0.5)), "round bar at most 9 percent of the height (the reference plates are 85 of 941)")
 		assert(r.play.h >= 44 and r.discard.h >= 44 and r.sortRank.h >= 44 and r.sortSuit.h >= 44, "touch targets")
 		assert(#r.slots == 5, "five seats reserved")
 		for i = 1, 5 do
@@ -29109,7 +29109,11 @@ table.insert(tests, { name = "Gameplay v2: count pills ride the top right corner
 		local r = L.rects(sz[1], sz[2])
 		for _, p in ipairs({ { r.play, r.playCount }, { r.discard, r.discardCount } }) do
 			local b, c = p[1], p[2]
-			assert(c.x + c.w >= b.x + b.w and c.x >= b.x, "pill hangs on the right half of its button")
+			if sz[1] >= L.REF_MIN_W and sz[2] >= L.REF_MIN_H then
+				assert(c.x >= b.x and c.x + c.w <= b.x + b.w, "reference size: the pill sits over the middle of its button, inside its width")
+			else
+				assert(c.x + c.w >= b.x + b.w and c.x >= b.x, "compact: the pill hangs on the right half of its button")
+			end
 			assert(c.y + c.h + L.PILL_GAP <= b.y, "pill sits fully above the top edge of the button with a 4 px gap, so its word never shares pixels with the button label at " .. sz[1] .. "x" .. sz[2])
 		end
 		assert(r.playCount.x + r.playCount.w <= r.discard.x, "the Play pill stays left of Discard")
@@ -30308,7 +30312,7 @@ table.insert(tests, { name = "Gameplay2Flair: better hands get more flair, under
 		local avoid = 0
 		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
 		local size = F.fontSize(r.stage, avoid)
-		if sz[1] == 1920 then assert(size == 40, "40 px at 1920x1080, got " .. tostring(size)) end
+		if sz[1] == 1920 then assert(size and size >= 32 and size <= 40, "32 to 40 px at 1920x1080 (the seats sit at the reference height, so the stage is shorter), got " .. tostring(size)) end
 		if size then
 			assert(size >= F.MIN_FONT and size <= 40, "font range")
 			local n = F.nameRect(r.stage, avoid, size)
@@ -32171,6 +32175,18 @@ table.insert(tests, { name = "IconLabelLayout: icon and word rects lie inside ev
 	I.clampInside(144, 68, stray)
 	expectTrue(I.inside(144, 68, stray), "a group placed past the plate edge is pulled inside")
 	expectTrue(stray.label.x >= stray.icon.x + stray.icon.w, "the word still starts after the icon")
+end })
+
+table.insert(tests, { name = "Gameplay2Layout at 1672 x 941: Target, scroll, Tips, count pills, deck and count plate sit at the reference mockup rects (within 6 px)", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local r = L.rects(1672, 941)
+	local function near(b, x0, x1, y0, y1, name)
+		expectTrue(math.abs(b.x - x0) <= 6 and math.abs(b.x + b.w - x1) <= 6, name .. " x " .. b.x .. "-" .. (b.x + b.w))
+		if y0 then expectTrue(math.abs(b.y - y0) <= 6 and math.abs(b.y + b.h - y1) <= 6, name .. " y " .. b.y .. "-" .. (b.y + b.h)) end
+	end
+	near(r.target, 410, 705, 15, 100, "target"); near(r.round, 722, 1130, 15, 100, "scroll"); near(r.tips, 1150, 1395, 15, 100, "tips")
+	near(r.playCount, 620, 780, 773, 808, "hands pill"); near(r.discardCount, 921, 1081, 773, 808, "discards pill (reference 915 to 1088, kept to the 4.7 : 1 art shape)")
+	near(r.deck, 1430, 1650, 440, 650, "deck"); near(r.deckCount, 1428, 1648, 833, 900, "count plate")
 end })
 
 table.insert(tests, { name = "IconLabelLayout.anchored: the group hangs from the plate centre, so it lies inside a 144 x 68 plate even when the width measured was 300 or 600 (stale), and TavernKit wires cloned plates", fn = function()

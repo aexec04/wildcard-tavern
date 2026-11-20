@@ -43,9 +43,9 @@ end
 function M.patronRow(w, h, n)
 	n = math.max(0, math.min(math.floor(tonumber(n) or M.SEATS), 8))
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
-	local top = round((ref and 0.12 or 0.115) * h)
+	local top = round((ref and 0.131 or 0.115) * h) -- reference: seats start at y 125 of 941, under the 100 px bar with room for the boss banner
 	local labelH, pillH = math.max(ref and 15 or 16, round((ref and 0.022 or 0.036) * h)), math.max(ref and 17 or 18, round((ref and 0.023 or 0.042) * h)) -- on the reference screen slim rows keep the Score plate at its mockup height
-	local ch = round((ref and 0.207 or 0.205) * h) -- the mockup seat is 205 of 941 tall
+	local ch = round((ref and 0.203 or 0.205) * h) -- the mockup seat is 205 of 941 tall
 	local cw = round(ch * M.CARD_ASPECT)
 	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
 	-- the reference mockup (1672 x 941) spreads the five seats over x 410 to 1255, half of the width (REF_SPAN)
@@ -78,21 +78,22 @@ function M.rects(w, h)
 	-- top bar: round name, Target gold box, Tips pill (at most 8 percent of the height, never under 30 px)
 	-- reference mockup: Target x 410 to 700, Tips ends at 1395 of 1672 (0.245 to 0.834 of the width), y 15 to 100 of 941; the height stays 7 percent so the boss banner still fits above the seats
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
-	local barH = math.max(30, (ref and math.floor(0.08 * h) or round(0.07 * h))) -- the reference screen is 8 percent so Target and Tips reach the mockup's height
+	local barH = math.max(30, (ref and round(0.085 * h) or round(0.07 * h))) -- the reference screen is 8 percent so Target and Tips reach the mockup's height
 	local barW = math.min(round((ref and 0.589 or 0.56) * w), w - 2 * pad)
 	local barX = ref and math.min(round(0.245 * w), w - pad - barW) or round((w - barW) / 2)
-	local barY = math.max(4, round((ref and 0.005 or 0.012) * h)) -- 24 px stay free under the bar for the boss banner
+	local barY = math.max(4, round((ref and 0.016 or 0.012) * h)) -- 24 px stay free under the bar for the boss banner
 	r.bar = box(barX, barY, barW, barH)
-	local inner = ref and 3 or 6
+	local inner = ref and 0 or 6 -- the reference plates are the whole bar height (y 15 to 100 of 941)
+	local igap = ref and round(0.0102 * w) or inner -- reference: 17 px between Target and the scroll
 	local ih = barH - 2 * inner
 	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right
-	r.target = box(barX + inner, barY + inner, round(barW * 0.31), ih)
-	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * (ref and 0.414 or 0.34)), ih) -- the mockup scroll spans x 722 to 1130
+	r.target = box(barX + inner, barY + inner, round(barW * (ref and 0.2995 or 0.31)), ih)
+	r.round = box(r.target.x + r.target.w + igap, barY + inner, round(barW * (ref and 0.414 or 0.34)), ih) -- the mockup scroll spans x 722 to 1130
 	do -- the parchment scroll is a 3.97 : 1 picture: on a wide bar it keeps at most 1.4 times that shape, centred in its slot (never stretched into a slab)
 		local maxW = round(ih * 3.97 * (ref and 1.43 or 1.4))
 		if r.round.w > maxW then r.round = box(r.round.x + round((r.round.w - maxW) / 2), r.round.y, maxW, ih) end
 	end
-	local tx = r.round.x + r.round.w + inner
+	local tx = r.round.x + r.round.w + igap
 	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
 	do -- Target and Tips are 4.2 : 1 pictures: at most 1.4 times that shape, Target hugs the left end of the bar and Tips the right
 		local maxW = round(ih * 4.22 * 1.4)
@@ -126,6 +127,11 @@ function M.rects(w, h)
 	local cy = btnY - cph - M.PILL_GAP
 	r.playCount = box(r.play.x + r.play.w - cw + ext, cy, cw, cph)
 	r.discardCount = box(r.discard.x + r.discard.w - cw + ext, cy, cw, cph)
+	if ref then -- reference: Hands x 620 to 780 and Discards x 915 to 1088 of 1672, y 773 to 808, over the buttons' middle; centres kept, width keeps the 4.7 : 1 counter shape
+		local hw = math.min(round(0.0957 * w), round(cph * 4.7))
+		r.playCount = box(r.play.x + round(0.0538 * w) + round(0.0957 * w / 2) - round(hw / 2), cy, hw, cph)
+		r.discardCount = box(r.discard.x + round(0.0335 * w) + round(0.0957 * w / 2) - round(hw / 2), cy, hw, cph) -- both pills keep the 4.7 : 1 shape of the counter art
+	end
 	-- hand: between the stage and the buttons
 	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)
 	local handTop = round((h < 500 and 0.54 or 0.605) * h)
@@ -133,7 +139,7 @@ function M.rects(w, h)
 	local handW = round((w < 1000 and 0.68 or 0.664) * w) -- reference fan spans x 300 to 1410 of 1672 (0.664 wide, centre 0.511) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2 + (w < 1000 and 0 or 0.011 * w)), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
-	local stTop = rowBottom + 8
+	local stTop = rowBottom + (ref and 0 or 8)
 	local stH = math.max(24, handTop - 6 - stTop) -- the score is one quiet line, so a short stage is fine
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
@@ -163,15 +169,20 @@ function M.rects(w, h)
 		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
-	local dw = math.min(round((ref and 0.1286 or 0.115) * w), w - (r.hand.x + r.hand.w) - 2 * pad)
+	local dw = math.min(round((ref and 0.1316 or 0.115) * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)
 	local dx = w - pad - dw
 	local dy = handTop
+	if ref then dh = round(dw * 0.98); dy = round(0.468 * h) end -- reference: the pile stands on the table edge at y 440 to 650 of 941
 	r.deck = box(dx, dy, dw, dh)
 	do -- the count plate is a 3.4 : 1 picture: at most 1.4 times that shape, centred under the book
 		local ch = math.max(22, round((ref and 0.046 or 0.04) * h))
 		local cwid = math.min(dw, round(ch * 3.4 * 1.4))
 		r.deckCount = box(dx + round((dw - cwid) / 2), dy + dh + 4, cwid, ch)
+		if ref then -- reference: the count plate is the bottom right counter, x 1428 to 1648, y 833 to 900, level with the buttons
+			local cwr = math.min(round(0.1316 * w), w - pad - dx)
+			r.deckCount = box(math.min(round(0.854 * w), w - pad - cwr), btnY + round(0.0244 * h), cwr, round(0.0712 * h))
+		end
 	end
 	return r
 end
