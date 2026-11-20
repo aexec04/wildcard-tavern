@@ -33395,7 +33395,7 @@ table.insert(tests, { name = "Scoring row: an empty event line and the old pills
 	expectTrue(pop:find("[ScoringLive]", 1, true) ~= nil, "Studio prints the live rects")
 end })
 
-table.insert(tests, { name = "Gameplay2RefCheck: the 14 pieces sit within 12 px and 12 percent of the reference at three sizes (the Score plate is the one known 13 px exception)", fn = function()
+table.insert(tests, { name = "Gameplay2RefCheck: the 14 pieces sit within 12 px and 12 percent of the reference at three sizes, Score plate included", fn = function()
 	local E = script.Parent.Parent.Engine
 	local RC, L, G, SP = require(E.Gameplay2RefCheck), require(E.Gameplay2Layout), require(E.GearMenu), require(E.Gameplay2ScorePlate)
 	expectEqual(#RC.ORDER, 14, "14 pieces")
@@ -33407,7 +33407,7 @@ table.insert(tests, { name = "Gameplay2RefCheck: the 14 pieces sit within 12 px 
 		local w, h = sz[1], sz[2]
 		local rows = RC.compare(RC.liveFrom(L.rects(w, h), G.quickRects(w, h), SP.plate(w, h)), w, h)
 		for _, row in ipairs(rows) do
-			if row.name ~= "scorePlate" then expectTrue(not row.bad, row.name .. " off the reference at " .. w .. "x" .. h) end
+			expectTrue(not row.bad, row.name .. " off the reference at " .. w .. "x" .. h)
 		end
 	end
 end })

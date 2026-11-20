@@ -46,8 +46,8 @@ function M.patronRow(w, h, n)
 	n = math.max(0, math.min(math.floor(tonumber(n) or M.SEATS), 8))
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
 	local top = round((ref and 0.131 or 0.115) * h) -- reference: seats start at y 125 of 941, under the 100 px bar with room for the boss banner
-	local labelH, pillH = math.max(ref and 15 or 16, round((ref and 0.022 or 0.036) * h)), math.max(ref and 17 or 18, round((ref and 0.023 or 0.042) * h)) -- on the reference screen slim rows keep the Score plate at its mockup height
-	local ch = round((ref and 0.203 or 0.205) * h) -- the mockup seat is 205 of 941 tall
+	local labelH, pillH = math.max(16, round((ref and 0.018 or 0.036) * h)), math.max(ref and 17 or 18, round((ref and 0.019 or 0.042) * h)) -- on the reference screen slim rows keep the Score plate at its mockup height
+	local ch = round((ref and 0.194 or 0.205) * h) -- the mockup seat is 205 of 941 tall
 	local cw = round(ch * M.CARD_ASPECT)
 	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
 	-- the reference mockup (1672 x 941) spreads the five seats over x 410 to 1255, half of the width (REF_SPAN)
