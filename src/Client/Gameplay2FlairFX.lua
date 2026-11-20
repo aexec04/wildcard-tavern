@@ -6,8 +6,9 @@
 	Under 1.2 s in all and a tap skips it. Calm mode, Reduce motion and Fast speed with no room for motion: the text only, 1 s.
 	It takes no clicks and sits above the numeral, below the Patron row.
 
-	show(layer, stage, avoidBottom, handName, over)   layer is the table's frame, stage the centre rect, avoidBottom the bottom of
-	                                                  the Patron row's last row, over true when one hand beat the Target
+	show(layer, stage, avoidBottom, handName, over, chips, mult)   layer is the table's frame, stage the centre rect, avoidBottom the
+	                                                  bottom of the Patron row's last row, over true when one hand beat the Target;
+	                                                  chips and mult (the hand's own) show on two small plates beside the name banner
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -50,7 +51,7 @@ local function stop()
 	live = nil
 end
 
-function M.show(layer, stage, avoidBottom, handName, over)
+function M.show(layer, stage, avoidBottom, handName, over, chips, mult)
 	stop()
 	if not layer or not layer.Parent or not handName or handName == "" then return end
 	local size = Flair.fontSize(stage, avoidBottom)
@@ -62,6 +63,43 @@ function M.show(layer, stage, avoidBottom, handName, over)
 	local root = frame(layer, "HandFlair")
 	root.Position = UDim2.fromOffset(rect.x, rect.y)
 	root.Size = UDim2.fromOffset(rect.w, rect.h)
+	local fades = {} -- { inst, kind } the banner and plates fade out with the name
+	local br = Flair.bannerRect(rect, stage, handName, size)
+	if br then -- dark ornate banner behind the gold name: dark wood, thin gold edge, a Color-only lighter top
+		local b = frame(root, "NameBanner")
+		b.Position = UDim2.fromOffset(br.x - rect.x, br.y - rect.y)
+		b.Size = UDim2.fromOffset(br.w, br.h)
+		b.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
+		b.BackgroundTransparency = 0.05
+		corner(b, 10)
+		local bs = Instance.new("UIStroke"); bs.Color = GOLD; bs.Thickness = 2; bs.Parent = b
+		local bg = Instance.new("UIGradient")
+		bg.Color = ColorSequence.new(Color3.fromRGB(86, 58, 30), Color3.fromRGB(44, 28, 16))
+		bg.Rotation = 90
+		bg.Parent = b
+		fades[#fades + 1] = { b, "frame" }
+		local plates = chips and mult and Flair.sidePlates(br, stage)
+		if plates then
+			local ct, mt = Flair.sideText(chips, mult)
+			for _, def in ipairs({ { "ChipsPlate", plates.chips, ct, Color3.fromRGB(34, 62, 128) }, { "MultPlate", plates.mult, mt, Color3.fromRGB(150, 44, 34) } }) do
+				local pl = frame(root, def[1])
+				pl.Position = UDim2.fromOffset(def[2].x - rect.x, def[2].y - rect.y)
+				pl.Size = UDim2.fromOffset(def[2].w, def[2].h)
+				pl.BackgroundColor3 = def[4]
+				pl.BackgroundTransparency = 0.05
+				corner(pl, 8)
+				local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 1.5; ps.Parent = pl
+				local pt = Instance.new("TextLabel")
+				pt.BackgroundTransparency = 1; pt.Size = UDim2.fromScale(1, 1)
+				pt.Font = Enum.Font.GothamBold; pt.TextSize = 15; pt.TextColor3 = CREAM
+				pt.TextTransparency = 0; pt.TextStrokeColor3 = DARK; pt.TextStrokeTransparency = 0.3
+				pt.Text = def[3]; pt.ZIndex = Z + 2
+				pt.Parent = pl
+				fades[#fades + 1] = { pl, "frame" }
+				fades[#fades + 1] = { pt, "text" }
+			end
+		end
+	end
 	local label = Instance.new("TextLabel")
 	label.Name = "Name"
 	label.BackgroundTransparency = 1
@@ -211,6 +249,10 @@ function M.show(layer, stage, avoidBottom, handName, over)
 			label.TextTransparency, label.TextStrokeTransparency = a, 0.1 + 0.9 * a
 			if under then under.BackgroundTransparency = a end
 			if plate then plate.BackgroundTransparency = 0.05 + 0.95 * a end
+			for _, f in ipairs(fades) do
+				if f[2] == "frame" then f[1].BackgroundTransparency = 0.05 + 0.95 * a
+				else f[1].TextTransparency, f[1].TextStrokeTransparency = a, 0.3 + 0.7 * a end
+			end
 		end
 		if e >= spec.total then
 			finish()

@@ -30337,6 +30337,39 @@ table.insert(tests, { name = "Gameplay2Flair: better hands get more flair, under
 	assert(read("src/Shared/Engine/Gameplay2Perf.lua"):find("Gameplay2FlairFX.lua", 1, true), "listed in the FxLoop lint")
 end })
 
+table.insert(tests, { name = "Gameplay2Flair: the name sits on a dark banner inside the stage, Chips and Mult plates flank it on the same row when they fit, never over the hand or Patron row, at five sizes", fn = function()
+	local F = require(script.Parent.Parent.Engine.Gameplay2Flair)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local plated = 0
+	for _, sz in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local avoid = 0
+		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
+		local size = F.fontSize(r.stage, avoid)
+		if size then
+			local n = F.nameRect(r.stage, avoid, size)
+			local b = F.bannerRect(n, r.stage, "Straight Flush", size)
+			assert(b.x >= r.stage.x and b.x + b.w <= r.stage.x + r.stage.w and b.y == n.y and b.h == n.h, "banner inside the stage and the name row")
+			assert(b.y >= avoid and b.y + b.h <= r.hand.y and b.y + b.h <= r.play.y, "banner clear of the Patron row, hand and Play Hand")
+			local p = F.sidePlates(b, r.stage)
+			if p then
+				plated = plated + 1
+				assert(p.chips.x + p.chips.w + F.SIDE_GAP <= b.x and p.mult.x >= b.x + b.w + F.SIDE_GAP, "plates beside the banner, not over it")
+				assert(p.chips.x >= r.stage.x and p.mult.x + p.mult.w <= r.stage.x + r.stage.w, "plates inside the stage")
+				assert(p.chips.y >= n.y and p.chips.y + p.chips.h <= n.y + n.h and p.mult.y == p.chips.y, "plates on the name row")
+			end
+		end
+	end
+	assert(plated >= 1, "at least one size has room for the plates")
+	local c, m = F.sideText(126.4, 3.6)
+	assert(c == "126 Chips" and m == "x 4 Mult", "whole numbers")
+	assert(F.sidePlates({ x = 10, y = 0, w = 300, h = 30 }, { x = 0, y = 0, w = 320, h = 30 }) == nil, "no room, no plates")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2FlairFX.lua", "r")); local fx = f:read("a"); f:close()
+	assert(fx:find("NameBanner", 1, true) and fx:find("ChipsPlate", 1, true) and fx:find("MultPlate", 1, true), "banner and both plates are drawn")
+	assert(not fx:find("Transparency = ColorSequence", 1, true) and not fx:find("TweenService", 1, true), "no tween, Color-only gradient")
+end })
+
 table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edge (no cyan or white), the corner rank is at least 18 px at 1280x720 and never under the 15 px floor", fn = function()
 	local C = require(script.Parent.Parent.Engine.CardLook)
 	local A = require(script.Parent.Parent.Engine.Gameplay2Audit)

@@ -458,7 +458,8 @@ function M.install(deps)
 		local avoid = 0
 		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
 		local over = require(Engine:WaitForChild("Gameplay2Flair")).overkill(preview.score, preview.targetScore)
-		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over)
+		local ch, mu = require(Engine:WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
+		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, ch, mu)
 	end
 
 	function self.rects()

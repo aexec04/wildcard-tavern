@@ -15,7 +15,10 @@
 	spec(handName, calm, fast, over)  -> { tier, slam, sweep, underline, burst, vignette, overkill, total, hold, static }
 	fontSize(stage, avoidBottom)      -> pixels (at most 40) or nil when there is no room
 	nameRect(stage, avoidBottom, size) -> { x, y, w, h } above the numeral digits, below the Patron row (avoidBottom), inside the stage width
-	overkillRect(name, stage, handName, size) -> { x, y, w, h } or nil: a small plate right of the name, nil when it does not fit
+	bannerRect(name, stage, handName, size) -> { x, y, w, h } the dark banner behind the name
+	sidePlates(banner, stage)         -> { chips, mult } rects left and right of the banner, nil when they do not fit
+	sideText(chips, mult)             -> "126 Chips", "x 4 Mult"
+	overkillRect(name, stage, handName, size) -> { x, y, w, h } or nil: a small plate right of the banner, nil when it does not fit
 ]]
 
 local M = {}
@@ -97,9 +100,35 @@ local function textWidth(name, size)
 	return math.floor(#tostring(name) * size * 0.58)
 end
 
+M.BANNER_PAD = 22 -- dark banner: clear air each side of the name
+M.SIDE_W, M.SIDE_H, M.SIDE_GAP = 104, 28, 8 -- the Chips and Mult plates beside the banner
+
+-- the dark ornate banner behind the name: as wide as the name plus BANNER_PAD each side (never wider than the stage), as tall as the row
+function M.bannerRect(name, stage, handName, size)
+	if not name or not size then return nil end
+	local w = math.min(stage.w, textWidth(handName, size) + 2 * M.BANNER_PAD)
+	return { x = math.floor(stage.x + (stage.w - w) / 2), y = name.y, w = w, h = name.h }
+end
+
+-- the Chips plate left of the banner and the Mult plate right of it, on the banner's row; nil when both do not fit inside the stage
+function M.sidePlates(banner, stage)
+	if not banner then return nil end
+	local h = math.min(M.SIDE_H, banner.h)
+	local y = banner.y + math.floor((banner.h - h) / 2)
+	local lx = banner.x - M.SIDE_GAP - M.SIDE_W
+	local rx = banner.x + banner.w + M.SIDE_GAP
+	if lx < stage.x or rx + M.SIDE_W > stage.x + stage.w then return nil end
+	return { chips = { x = lx, y = y, w = M.SIDE_W, h = h }, mult = { x = rx, y = y, w = M.SIDE_W, h = h } }
+end
+
+-- the words on the two plates ("126 Chips", "x 4 Mult"), whole numbers
+function M.sideText(chips, mult)
+	return string.format("%d Chips", math.floor((tonumber(chips) or 0) + 0.5)), string.format("x %d Mult", math.floor((tonumber(mult) or 0) + 0.5))
+end
+
 function M.overkillRect(name, stage, handName, size)
 	if not name or not size then return nil end
-	local tw = textWidth(handName, size)
+	local tw = textWidth(handName, size) + 2 * M.BANNER_PAD
 	local free = (stage.w - tw) / 2 - 8
 	if free < M.PLATE_W then return nil end
 	return { x = stage.x + stage.w / 2 + tw / 2 + 8 + (free - M.PLATE_W) / 2, y = name.y + math.floor((name.h - M.PLATE_H) / 2), w = M.PLATE_W, h = M.PLATE_H }
