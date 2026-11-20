@@ -30416,6 +30416,21 @@ table.insert(tests, { name = "Counter summary plate: top right under the corner 
 	assert(not read("src/Client/ShopSummaryPlate.lua"):find("TweenService", 1, true), "no tweens")
 end })
 
+table.insert(tests, { name = "Counter after a win: summary plate clear of the gear and Tips pill at every size, Rank and Suit chips hidden outside the table", fn = function()
+	local S = require(script.Parent.Parent.Engine.ShopSummary)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 844, 390 } }) do
+		local r = S.rect(sz[1], sz[2])
+		-- gear: about 75 px from the right edge at the top; the Tips pill ends at y 50 (ShopPurse 44 tall at y 6)
+		assert(r.x + r.w <= sz[1] - 75, "plate ends left of the gear at " .. sz[1])
+		assert(r.y >= 50 + 8, "plate starts under the Tips pill at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local g = read("src/Client/Gameplay2.lua")
+	assert(g:find('half:FindFirstChild(kn); if kc then kc.Visible = false', 1, true), "restore hides the Rank and Suit icon and word")
+	assert(read("src/Client/ShopPurse.lua"):find('"wh_target"', 1, true) and read("src/Client/ShopPurse.lua"):find('"bulb"', 1, true), "Tips pill is the painted table plate with the bulb")
+end })
+
 table.insert(tests, { name = "Gameplay v2 played lane: cards land under the centre score block and above the hand at every size, one scoring display", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local Lane = require(script.Parent.Parent.Engine.PlayedLane)

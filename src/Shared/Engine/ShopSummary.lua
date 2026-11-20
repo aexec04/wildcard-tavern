@@ -17,11 +17,12 @@ M.HEIGHT = 112 -- the painted wood plate has a 14 px carved border, text keeps 8
 M.BORDER = 14
 M.PAD = 8
 M.TOAST_GAP = 8
+M.GEAR_CLEAR = 76 -- the gear sits at the top right edge (about 50 px wide, 25 px in); the plate ends left of it so it never covers the gear
 
 function M.rect(w, h)
 	local W = math.max(1, tonumber(w) or 1920)
 	local width = math.min(M.WIDTH_MAX, math.floor(W * 0.30))
-	return { x = W - M.EDGE - width, y = M.TOP, w = width, h = M.HEIGHT }
+	return { x = W - M.EDGE - M.GEAR_CLEAR - width, y = M.TOP, w = width, h = M.HEIGHT }
 end
 
 -- The three text rows inside a plate of width pw, relative to the plate: 8 px clear of the carved border on every side, none overlapping.

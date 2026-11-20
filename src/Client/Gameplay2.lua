@@ -216,6 +216,7 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
+				for _, kn in ipairs({ "KitIcon", "KitLabel" }) do local kc = b:FindFirstChild(kn); if kc then kc.Visible = true end end
 				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "wh_btn_sq"); Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2) end) end
 			end
 		end
@@ -284,6 +285,8 @@ function M.install(deps)
 					for _, nm in ipairs({ "SortRank", "SortSuit" }) do -- back to the two halves of the shared track
 						local half = k:FindFirstChild(nm)
 						if half then
+							-- the icon and word belong to the table plate: out of the table phase they would float as stray chips (Counter, Nov 19)
+							for _, kn in ipairs({ "KitIcon", "KitLabel" }) do local kc = half:FindFirstChild(kn); if kc then kc.Visible = false end end
 							half.Size = UDim2.new(0.5, -5, 1, -6)
 							half.Position = UDim2.new(nm == "SortRank" and 0 or 0.5, nm == "SortRank" and 3 or 2, 0, 3)
 						end

@@ -1,7 +1,8 @@
 --[[
 	Client/ShopPurse.lua
-	The Counter hides the round sidebar, so the player's Tips stay visible on a small dark plate
-	in the top right corner of the Shop. One call per rebuild: ShopPurse.update(shopFrame, tips).
+	The Counter hides the round sidebar, so the player's Tips stay visible on the same painted Tips plate and bulb as the table
+	(TavernKit pill, `wh_target` picture, `bulb` icon) in the top right corner of the Shop. One call per rebuild:
+	ShopPurse.update(shopFrame, tips). A missing picture keeps the kit pill (wood fill, gold trim).
 ]]
 
 local ShopPurse = {}
@@ -11,31 +12,25 @@ local NAME = "PursePlate"
 function ShopPurse.update(shopFrame, tips)
 	local plate = shopFrame:FindFirstChild(NAME)
 	if not plate then
-		plate = Instance.new("TextLabel")
+		local Kit = require(script.Parent.TavernKit)
+		plate = Kit.pill(shopFrame, "", "wood")
 		plate.Name = NAME
 		plate.AnchorPoint = Vector2.new(1, 0)
-		plate.Size = UDim2.fromOffset(150, 36)
+		plate.Size = UDim2.fromOffset(170, 44)
 		plate.Position = UDim2.new(1, -16, 0, 6)
-		plate.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
-		plate.BackgroundTransparency = 0
-		plate.BorderSizePixel = 0
-		plate.Font = Enum.Font.GothamBold
-		plate.TextSize = 20
-		plate.TextColor3 = Color3.fromRGB(250, 235, 200)
-		plate.TextTransparency = 0
-		plate.TextStrokeTransparency = 1
 		plate.ZIndex = 12
-		plate.Parent = shopFrame
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 8)
-		corner.Parent = plate
-		local stroke = Instance.new("UIStroke")
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(200, 160, 80)
-		stroke.Thickness = 2
-		stroke.Parent = plate
+		local word = plate:FindFirstChild("Word")
+		if word then word.TextSize = 20; word.ZIndex = 14 end
+		pcall(function()
+			Kit.painted(plate, "wh_target")
+			local bulb = Kit.icon(plate, "bulb")
+			if bulb and word and not word:FindFirstChild("KitIconPad") then
+				local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(0.18, 0); up.Parent = word
+			end
+		end)
 	end
-	plate.Text = string.format("Tips  %d", math.floor(tips or 0))
+	local word = plate:FindFirstChild("Word")
+	if word then word.Text = string.format("Tips  %d", math.floor(tips or 0)) end
 	return plate
 end
 

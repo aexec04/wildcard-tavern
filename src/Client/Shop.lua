@@ -1436,8 +1436,8 @@ return function(deps)
 
 		local rerollButton = Instance.new("TextButton")
 		require(script.Parent.TutorialBus).register("reroll", rerollButton) -- TUTORIAL target (rebuilt with the shop)
-		rerollButton.Size = UDim2.new(0, 190, 0, 38)
-		rerollButton.Position = UDim2.new(0, 14, 0, 3)
+		rerollButton.Size = UDim2.new(0, 190, 0, 44) -- as tall as the strip (44 touch target), 20 px in so the painted corner is never cut
+		rerollButton.Position = UDim2.new(0, 20, 0, 0)
 		rerollButton.Font = Enum.Font.GothamBold
 		rerollButton.TextSize = 16
 		rerollButton.Text = ShopRefusal.rerollLabel(state.rerollCost) -- "Reroll 3": the price is on the control
@@ -1453,8 +1453,8 @@ return function(deps)
 		pcall(function() require(script.Parent.TavernKit).paintedButton(rerollButton, "secondary") end) -- painted dark button, flat brown if it does not load
 
 		local tableLabel = Instance.new("TextLabel")
-		tableLabel.Size = UDim2.new(1, -230, 0, 38)
-		tableLabel.Position = UDim2.new(0, 220, 0, 3)
+		tableLabel.Size = UDim2.new(1, -240, 0, 38)
+		tableLabel.Position = UDim2.new(0, 226, 0, 3)
 		tableLabel.BackgroundTransparency = 1
 		tableLabel.Font = Enum.Font.GothamBold
 		tableLabel.TextSize = 15
