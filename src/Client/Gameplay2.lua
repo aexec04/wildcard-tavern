@@ -405,7 +405,7 @@ function M.install(deps)
 		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 4
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
-		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 4
+		scoreProgress.Position = UDim2.fromOffset(0, N.below and N.progressY or (N.lineY + 4)); scoreProgress.ZIndex = 4 -- idle: the line stands 12 px under the plate
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
 			scorePlate.Position = UDim2.fromOffset(live.plate.x, live.plate.y)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
@@ -427,8 +427,8 @@ function M.install(deps)
 			end
 			arrow.ZIndex = 4
 			local half = math.floor(math.max(24, math.min(scoreProgress.TextBounds.X, 160)) / 2) -- snug: 12 px gap from the "o of N" text, arrow 52 wide
-			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, N.lineY + 4 + math.floor(progH / 2))
-			arrow.Visible = scoreProgress.Visible and (half + 12 + 52) * 2 <= live.inner.w -- a flourish that would cross the carved border is dropped
+			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, (N.below and N.progressY or (N.lineY + 4)) + math.floor(progH / 2))
+			arrow.Visible = scoreProgress.Visible and (half + 12 + 52) * 2 <= (N.below and live.box.w or live.inner.w) -- a flourish that would cross the carved border is dropped
 		end
 		if self.previewText and not self.playing and stripShown then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))

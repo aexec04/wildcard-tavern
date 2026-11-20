@@ -32565,6 +32565,26 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 	end
 end })
 
+table.insert(tests, { name = "Score plate (reference): idle plate holds the caption and a 48 px numeral, the 'o of N' line stands 12 px under the plate inside the stage, at three sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local P, L, HS = require(E.Gameplay2ScorePlate), require(E.Gameplay2Layout), require(E.HandSizing)
+	local CT = require(E.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local hf = HS.frameFor(w, CT.handFor(r.hand, w, 5), 8)
+		local lv = P.live(P.idleStage(r.stage, hf.y), w, 26, 22, false)
+		local tag = w .. "x" .. h
+		print(string.format("[ScoreRects] %s plate=%d,%d,%d,%d numeral=%d progress=%s", tag, lv.plate.x, lv.plate.y, lv.plate.w, lv.plate.h, lv.N.textSize, lv.progress and (lv.progress.y .. "+" .. lv.progress.h) or "none"))
+		-- 48 px where the stage allows it (1920 wide); a short stage (the live 1506 x 751) shrinks the numeral, never under the idle minimum
+		expectTrue(lv.N.below and lv.N.textSize >= P.IDLE_MIN_FONT and (h < 900 or lv.N.textSize == 48), tag .. ": numeral 48 px (or shrunk on a short stage), got " .. tostring(lv.N.textSize))
+		expectTrue(lv.progress ~= nil and lv.progress.y - (lv.plate.y + lv.plate.h) == P.PROGRESS_GAP, tag .. ": line 12 px under the plate")
+		local clear = h < 900 and 0 or (P.PICK_LIFT + P.HAND_GAP - 1) -- a short stage is held at MIN_H and may use the lift room; it never reaches the hand
+		expectTrue(lv.progress.y + lv.progress.h <= hf.y - clear and lv.progress.y + lv.progress.h <= r.stage.y + math.max(r.stage.h, P.MIN_H), tag .. ": line stays clear of the hand")
+		expectTrue(lv.contentBottom <= lv.plate.y + lv.plate.h - P.PAD + 1, tag .. ": caption and numeral inside the plate")
+	end
+end })
+
 table.insert(tests, { name = "Score plate: caption, numeral and progress line stand 8 px inside the carved border, a long total shrinks to fit", fn = function()
 	local P = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

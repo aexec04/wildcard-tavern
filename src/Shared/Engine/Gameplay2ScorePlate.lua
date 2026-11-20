@@ -56,20 +56,35 @@ M.MIN_FONT = 14
 M.HAND_GAP = 10
 M.PICK_LIFT = 28 -- a picked card rises this far above the card tops: the idle plate ends HAND_GAP above the highest picked card
 M.IDLE_MIN_FONT = 18 -- idle numeral minimum: the caption and the "o of N" line stay even on a short stage
-M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + 26 + 2 + 4 + 22 + 4 -- caption 26, line, progress 22: the smallest stage that holds the whole stack
+M.MIN_H = 2 * M.PAD + M.IDLE_MIN_FONT + 26 + 12 + 22 -- caption 26, numeral, 12 px gap, progress 22: the smallest stage that holds the whole stack
 function M.idleStage(stage, handTop)
 	if not handTop then return stage end
 	local h = math.max(M.MIN_H, math.min(stage.h, handTop - M.PICK_LIFT - M.HAND_GAP - stage.y))
 	return { x = stage.x, y = stage.y, w = stage.w, h = h }
 end
 
+-- Idle plate like the reference: the plate holds the caption and a 48 px numeral only; the "o of N" line (with its arrow flourishes) stands
+-- BELOW the plate, PROGRESS_GAP under its border. N.progressY is where that line starts, in the score box's own coordinates.
+M.NUMERAL = 48
+M.PROGRESS_GAP = 12
+local function idleStack(ih, capH, progH)
+	local numH = math.min(M.NUMERAL, ih - M.PROGRESS_GAP - progH - capH)
+	if numH >= M.IDLE_MIN_FONT then
+		local content = capH + numH
+		local py = content + M.PAD + M.PROGRESS_GAP -- plate bottom is PAD under the numeral, then the gap
+		return { roomy = true, numTop = capH, numH = numH, textSize = numH, lineY = content - 2, progressY = py, bottom = py + progH, below = true }
+	end
+	local N = Layout.scoreStack(ih, capH, progH, false, M.IDLE_MIN_FONT)
+	return N -- a stage too short for the whole stack keeps the older shape (progress inside or dropped)
+end
+
 function M.live(stage, sw, capH, progH, compact)
 	local pad = M.PAD
 	local ih = math.max(1, stage.h - 2 * pad)
-	local N = Layout.scoreStack(ih, capH, progH, compact, not compact and M.IDLE_MIN_FONT or nil)
+	local N = compact and Layout.scoreStack(ih, capH, progH, true, nil) or idleStack(ih, capH, progH)
 	local pw = math.min(stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
 	local shows = N.roomy and not N.noProgress -- the progress line only shows on a roomy stage
-	local content = shows and N.bottom or (N.numTop + N.numH)
+	local content = (shows and not N.below) and N.bottom or (N.numTop + N.numH)
 	local ph = math.min(stage.h, math.max(40, content + 2 * pad))
 	local plate = { x = stage.x + math.floor((stage.w - pw) / 2), y = stage.y, w = pw, h = ph }
 	return {
@@ -78,6 +93,7 @@ function M.live(stage, sw, capH, progH, compact)
 		inner = { x = plate.x + pad, y = plate.y + pad, w = plate.w - 2 * pad, h = plate.h - 2 * pad },
 		N = N,
 		contentBottom = stage.y + pad + content,
+		progress = shows and N.below and { x = plate.x, y = stage.y + pad + N.progressY, w = plate.w, h = progH } or nil, -- the line under the plate (idle)
 	}
 end
 
