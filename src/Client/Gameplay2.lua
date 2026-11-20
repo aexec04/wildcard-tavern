@@ -147,7 +147,7 @@ function M.install(deps)
 		return t
 	end
 	local cream = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
-	local scoreNum = scoreText("ScoreNumber", Enum.Font[Style.FONTS.title], cream, 0.5)
+	local scoreNum = scoreText("ScoreNumeral", Enum.Font[Style.FONTS.title], cream, 0.5)
 	local scorePlate = Instance.new("Frame") -- ornate plate behind the caption, numeral and gold line (the progress line stays under it)
 	scorePlate.Name = "ScorePlate"; scorePlate.BackgroundTransparency = 1; scorePlate.BorderSizePixel = 0; scorePlate.Active = false
 	scorePlate.ZIndex = 3; scorePlate.Parent = layer
@@ -569,6 +569,37 @@ function M.install(deps)
 		end
 	end
 
+	-- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number.
+	-- Also called when the round has ended (phase not playing): the total that arrives then must still be written.
+	function self.writeNumeral()
+		local nowScore = math.floor(lastState.roundScore or 0)
+		local function put(n)
+			scoreNum.Text = string.format("%d", math.floor(n))
+			local fit = self.scoreFit
+			if fit then -- a long total shrinks to stay inside the plate's border
+				pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
+			end
+		end
+		local SN = require(Engine:WaitForChild("ScoreNumeral"))
+		local act = SN.action(self.lastScore, nowScore, lastState.phase)
+		if act == "count" then
+			local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
+			if not ok then put(nowScore); act = "count failed, set" end
+		elseif act == "set" then
+			put(nowScore)
+		end
+		local gold = SN.cleared(nowScore, lastState.targetScore)
+		if gold ~= self.numeralGold then
+			self.numeralGold = gold
+			local c = Style.rgb(gold and "gold" or "cream")
+			scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
+		end
+		if game:GetService("RunService"):IsStudio() and act ~= "keep" then
+			print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(lastState.phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
+		end
+		self.lastScore = nowScore
+	end
+
 	function self.update(state)
 		lastState = state or lastState
 		local size = root.AbsoluteSize
@@ -577,6 +608,7 @@ function M.install(deps)
 		if deps.deckWidget then deps.deckWidget.Visible = Layout.deckWidgetShown(lastState and lastState.phase) end
 		shell(on)
 		if not on then
+			if lastState and lastState.roundScore ~= nil and lastState.phase ~= "playing" then pcall(self.writeNumeral) end
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
 				self.prev = nil
@@ -617,34 +649,7 @@ function M.install(deps)
 				roundLabel.TextSize = baseSize
 			end
 		end
-		do -- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number
-			local nowScore = math.floor(lastState.roundScore or 0)
-			local function put(n)
-				scoreNum.Text = string.format("%d", math.floor(n))
-				local fit = self.scoreFit
-				if fit then -- a long total shrinks to stay inside the plate's border
-					pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
-				end
-			end
-			local SN = require(Engine:WaitForChild("ScoreNumeral"))
-			local act = SN.action(self.lastScore, nowScore, lastState.phase)
-			if act == "count" then
-				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
-				if not ok then put(nowScore); act = "count failed, set" end
-			elseif act == "set" then
-				put(nowScore)
-			end
-			local gold = SN.cleared(nowScore, lastState.targetScore)
-			if gold ~= self.numeralGold then
-				self.numeralGold = gold
-				local c = Style.rgb(gold and "gold" or "cream")
-				scoreNum.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
-			end
-			if game:GetService("RunService"):IsStudio() and act ~= "keep" then
-				print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(lastState.phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
-			end
-			self.lastScore = nowScore
-		end
+		self.writeNumeral()
 		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
 		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
 		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))

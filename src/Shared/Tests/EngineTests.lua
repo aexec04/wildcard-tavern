@@ -32839,6 +32839,18 @@ table.insert(tests, { name = "ScoreNumeral: a total that arrives in the cleared 
 	expectTrue(not SN.cleared(64, 65) and not SN.cleared(0, 0), "under the Target or no Target is not cleared")
 end })
 
+table.insert(tests, { name = "ScoreNumeral: Gameplay2.update writes the numeral before its early return, and the visible label is named ScoreNumeral", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if not f then return end
+	local src = f:read("a"); f:close()
+	expectTrue(src:find('scoreText("ScoreNumeral"', 1, true) ~= nil, "visible numeral label is named ScoreNumeral")
+	local upd = src:find("function self.update(state)", 1, true)
+	local early = src:find("if not on then", upd, true)
+	local w = src:find("pcall(self.writeNumeral)", upd, true)
+	expectTrue(upd and early and w and w > early and w < src:find("return\n", early, true), "writeNumeral runs inside the not-playing branch before it returns")
+end })
+
 table.insert(tests, { name = "Picked cards: the highest lifted card (28 px) stays 10 px under the idle Score plate and its text, 8 to 10 cards, four sizes", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HandSizing)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
