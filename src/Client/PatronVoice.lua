@@ -145,11 +145,25 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 		end
 	end)
 	if noRoom then bubble.Visible = false; return true end -- scoring, and no clear spot beside the Score plate: stay silent
-	if bubbleV2 then -- the painted parchment plate (TavernKit.painted keeps the flat look if the picture fails); the label keeps 8 px padding
-		pcall(function() require(script.Parent.TavernKit).painted(bubble, "parchment") end)
+	local bStroke = bubble:FindFirstChildOfClass("UIStroke")
+	local tail0 = bubble:FindFirstChild("Tail")
+	local tStroke = tail0 and tail0:FindFirstChildOfClass("UIStroke")
+	local FILL, GOLD = Color3.fromRGB(40, 24, 14), Color3.fromRGB(232, 190, 90)
+	if bubbleV2 then -- one dark parchment pill drawn by the bubble itself (no sibling picture that can load late and leave bare words)
+		pcall(function() local old = bubble.Parent and bubble.Parent:FindFirstChild("PatronVoiceBubblePaint"); if old then old:Destroy() end end)
+		bubble.BackgroundColor3, bubble.BackgroundTransparency = FILL, 0.1
+		if bStroke then bStroke.Color, bStroke.Thickness, bStroke.Transparency, bStroke.Enabled = GOLD, 2, 0, true end
+		if tail0 then tail0.BackgroundColor3, tail0.BackgroundTransparency = FILL, 0.1 end
+		if tStroke then tStroke.Color, tStroke.Thickness, tStroke.Transparency, tStroke.Enabled = GOLD, 2, 0, true end
+		bubbleLabel.TextColor3 = PARCHMENT
 		bubbleLabel.Position = UDim2.fromOffset(8, 0)
 		bubbleLabel.Size = UDim2.new(1, -16, 1, 0)
 		bubbleLabel.TextSize = 18
+	else
+		bubble.BackgroundColor3, bubble.BackgroundTransparency = PARCHMENT, 0
+		if bStroke then bStroke.Color, bStroke.Thickness, bStroke.Transparency = Color3.fromRGB(96, 64, 36), 1.5, 0 end
+		if tail0 then tail0.BackgroundColor3, tail0.BackgroundTransparency = PARCHMENT, 0 end
+		bubbleLabel.TextColor3 = INK
 	end
 	bubbleLabel.TextTransparency, bubbleLabel.TextStrokeTransparency = 0, 1 -- the words and the plate always appear and go together, never bare text
 	local tail = bubble:FindFirstChild("Tail")
@@ -161,16 +175,28 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 			tail.Position = UDim2.new(0, PVL.tailX({ x = bx, w = bw }, pos.X + size.X / 2), 0, 0)
 		end
 	end
+	bubbleLabel.Visible = not (bubbleV2 and bubble.BackgroundTransparency > 0.9) -- never bare words without their plate
 	bubble.Visible = true
-	if bubbleV2 and game:GetService("RunService"):IsStudio() then -- Studio only: where the quote stands 1.4 s after Play Hand
+	if bubbleV2 and game:GetService("RunService"):IsStudio() then
+		task.delay(1.0, function() -- Studio only: bubble, stroke and label transparencies at 1.0 s
+			if mine == bubbleToken and bubble then print(string.format("[QuoteCheck] 1.0 s: bubble=%.2f stroke=%.2f label=%.2f labelVisible=%s", bubble.BackgroundTransparency, bStroke and bStroke.Transparency or -1, bubbleLabel.TextTransparency, tostring(bubbleLabel.Visible))) end
+		end) -- Studio only: where the quote stands 1.4 s after Play Hand
 		task.delay(1.4, function()
 			if mine == bubbleToken and bubble then
 				print(string.format("[QuoteCheck] 1.4 s: visible=%s abs=%d,%d %dx%d textTransparency=%.2f bgTransparency=%.2f paint=%s", tostring(bubble.Visible), bubble.AbsolutePosition.X, bubble.AbsolutePosition.Y, bubble.AbsoluteSize.X, bubble.AbsoluteSize.Y, bubbleLabel.TextTransparency, bubble.BackgroundTransparency, tostring(bubble.Parent and bubble.Parent:FindFirstChild("PatronVoiceBubblePaint") ~= nil)))
 			end
 		end)
 	end
-	task.delay(bubbleV2 and QUOTE_SECONDS or SHOW_SECONDS, function() -- v2: the plate and the words stay at least 1.2 s, then both go in one step
-		if mine == bubbleToken and bubble then bubble.Visible = false end
+	task.delay(bubbleV2 and QUOTE_SECONDS or SHOW_SECONDS, function() -- v2: plate, stroke, tail and words fade in one tween group
+		if mine ~= bubbleToken or not bubble then return end
+		if not bubbleV2 then bubble.Visible = false; return end
+		local info = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(bubble, info, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(bubbleLabel, info, { TextTransparency = 1 }):Play()
+		if bStroke then TweenService:Create(bStroke, info, { Transparency = 1 }):Play() end
+		if tail0 then TweenService:Create(tail0, info, { BackgroundTransparency = 1 }):Play() end
+		if tStroke then TweenService:Create(tStroke, info, { Transparency = 1 }):Play() end
+		task.delay(0.22, function() if mine == bubbleToken and bubble then bubble.Visible = false end end)
 	end)
 	return true
 end
