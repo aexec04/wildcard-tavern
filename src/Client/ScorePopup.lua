@@ -667,6 +667,20 @@ return function(deps)
 			if not (sr and sr.name) then return end
 			local nm = sr.name
 			scorePopup.Size = UDim2.new(0, math.min(360, nm.w), 0, POPUP_H)
+			do -- the bar is as wide as its text plus 40 px, centred in the popup
+				local EngineF = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+				local function fit()
+					local w = require(EngineF:WaitForChild("Gameplay2Flair")).triggerBarWidth(scorePopupEventLabel.TextBounds.X, scorePopup.Size.X.Offset)
+					scorePopupEventLabel.AnchorPoint = Vector2.new(0.5, 0)
+					scorePopupEventLabel.Position = UDim2.new(0.5, 0, 0, 0)
+					scorePopupEventLabel.Size = UDim2.new(0, w, 0, 24)
+				end
+				fit()
+				if not scorePopupEventLabel:GetAttribute("BarFit") then
+					scorePopupEventLabel:SetAttribute("BarFit", true)
+					scorePopupEventLabel:GetPropertyChangedSignal("TextBounds"):Connect(fit)
+				end
+			end
 			scorePopup.Position = UDim2.fromOffset(nm.x + nm.w / 2, nm.y + math.max(0, (nm.h - 24) / 2))
 			scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.05
 			scorePopupEventLabel.Visible = scorePopupEventLabel.Text ~= ""

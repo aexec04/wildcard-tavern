@@ -549,7 +549,10 @@ function M.install(deps)
 		local ch, mu = require(Engine:WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
 		local row = Layout.scoringRows(r, math.max(20, PreviewRules.H)).name -- under the Score plate, above the played cards, 12 px each side
 		self.scoringText = ("%d x %d"):format(math.floor((ch or 0) + 0.5), math.floor((mu or 0) + 0.5)) -- Chips x Mult live in the Score plate caption, not in side pills next to the one trigger line
-		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, nil, nil, row)
+		local sw = root.AbsoluteSize.X
+		local sp = require(Engine:WaitForChild("Gameplay2ScorePlate")).live(r.stage, sw, math.max(20, PreviewRules.H), 22).plate
+		local pill = over and require(Engine:WaitForChild("Gameplay2Flair")).overkillPill(sp, sw) or nil
+		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over, nil, nil, row, pill)
 	end
 
 	function self.rects()

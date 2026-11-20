@@ -51,7 +51,7 @@ local function stop()
 	live = nil
 end
 
-function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
+function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row, pillRect)
 	stop()
 	if not layer or not layer.Parent or not handName or handName == "" then return end
 	local size = row and math.min(Flair.FONT, row.h - 4) or Flair.fontSize(stage, avoidBottom) -- a given row (below the Score plate) sets the size
@@ -96,18 +96,18 @@ function M.show(layer, stage, avoidBottom, handName, over, chips, mult, row)
 	label.ZIndex = Z + 1
 	label.Parent = root
 	local plate
-	local pr = spec.overkill and Flair.overkillRect(rect, stage, handName, size)
+	local pr = spec.overkill and pillRect
 	if pr then
 		plate = frame(layer, "Overkill")
 		plate.Position = UDim2.fromOffset(pr.x, pr.y)
 		plate.Size = UDim2.fromOffset(pr.w, pr.h)
 		plate.BackgroundTransparency = 0.05
 		plate.BackgroundColor3 = Color3.fromRGB(120, 36, 30)
-		corner(plate, 12)
+		corner(plate, math.floor(pr.h / 2))
 		local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 2; ps.Parent = plate
 		local pt = Instance.new("TextLabel")
 		pt.BackgroundTransparency = 1; pt.Size = UDim2.fromScale(1, 1)
-		pt.Font = Enum.Font.Merriweather; pt.TextSize = 16; pt.TextColor3 = CREAM
+		pt.Font = Enum.Font.Merriweather; pt.TextSize = 20; pt.TextColor3 = CREAM
 		pt.TextStrokeColor3 = DARK; pt.TextStrokeTransparency = 0.3; pt.Text = "OVERKILL"; pt.ZIndex = Z + 2
 		pt.Parent = plate
 		fades[#fades + 1] = { plate, "frame" }

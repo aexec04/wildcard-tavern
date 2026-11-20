@@ -18,7 +18,8 @@
 	bannerRect(name, stage, handName, size) -> { x, y, w, h } the dark banner behind the name
 	sidePlates(banner, stage)         -> { chips, mult } rects left and right of the banner, nil when they do not fit
 	sideText(chips, mult)             -> "126 Chips", "x 4 Mult"
-	overkillRect(name, stage, handName, size) -> { x, y, w, h } or nil: a small plate right of the banner, nil when it does not fit
+	overkillPill(plate, screenW) -> { x, y, w, h } or nil: the OVERKILL pill right of the Score plate
+	triggerBarWidth(textW, maxW) -> text width plus 40, the trigger line bar
 ]]
 
 local M = {}
@@ -126,12 +127,21 @@ function M.sideText(chips, mult)
 	return string.format("%d Chips", math.floor((tonumber(chips) or 0) + 0.5)), string.format("x %d Mult", math.floor((tonumber(mult) or 0) + 0.5))
 end
 
-function M.overkillRect(name, stage, handName, size)
-	if not name or not size then return nil end
-	local tw = textWidth(handName, size) + 2 * M.BANNER_PAD
-	local free = (stage.w - tw) / 2 - 8
-	if free < M.PLATE_W then return nil end
-	return { x = stage.x + stage.w / 2 + tw / 2 + 8 + (free - M.PLATE_W) / 2, y = name.y + math.floor((name.h - M.PLATE_H) / 2), w = M.PLATE_W, h = M.PLATE_H }
+-- OVERKILL is its own full pill, 150 x 36, right of the Score plate (never inside the trigger bar); nil when it would leave the screen
+-- or when the plate is shorter than the pill. plate = the idle Score plate rect { x, y, w, h }, screenW the screen width.
+M.PILL_W, M.PILL_H, M.PILL_GAP = 150, 36, 8
+function M.overkillPill(plate, screenW)
+	if not plate or not screenW then return nil end
+	local h = math.min(M.PILL_H, plate.h)
+	if h < 24 then return nil end
+	local x = plate.x + plate.w + M.PILL_GAP
+	if x + M.PILL_W > screenW - 8 then return nil end
+	return { x = x, y = plate.y + math.floor((plate.h - h) / 2), w = M.PILL_W, h = h }
+end
+
+-- width of the one trigger line bar: its text plus 40 px, between 80 and maxW
+function M.triggerBarWidth(textW, maxW)
+	return math.max(80, math.min(maxW or 360, math.floor((tonumber(textW) or 0) + 40)))
 end
 
 return M

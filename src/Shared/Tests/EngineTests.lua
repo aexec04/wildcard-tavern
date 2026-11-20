@@ -30635,13 +30635,16 @@ table.insert(tests, { name = "Gameplay2Flair: better hands get more flair, under
 			assert(n.y + n.h <= r.stage.y + F.CAPTION + F.OVERLAP, "name stays above the numeral digits")
 			assert(n.x >= r.stage.x and n.x + n.w <= r.stage.x + r.stage.w, "inside the stage width")
 			assert(n.y + n.h <= r.hand.y and n.y + n.h <= r.play.y, string.format("clear of the hand and Play Hand at %dx%d: name bottom %d, hand %d, play %d, stage %d,%d,%d,%d", sz[1], sz[2], n.y + n.h, r.hand.y, r.play.y, r.stage.x, r.stage.y, r.stage.w, r.stage.h))
-			local pr = F.overkillRect(n, r.stage, "Straight Flush", size)
+			local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+			local plate = SP.live(r.stage, sz[1], 20, 22).plate
+			local pr = F.overkillPill(plate, sz[1])
 			if pr then
-				assert(pr.x >= r.stage.x and pr.x + pr.w <= r.stage.x + r.stage.w and pr.y >= n.y and pr.y + pr.h <= n.y + n.h + 1, "OVERKILL plate inside the name row")
-				assert(pr.x >= r.stage.x + r.stage.w / 2 + #"Straight Flush" * size * 0.58 / 2, "plate right of the name")
+				assert(pr.w == 150 and pr.h <= 36 and pr.x >= plate.x + plate.w and pr.x + pr.w <= sz[1] and pr.y >= plate.y and pr.y + pr.h <= plate.y + plate.h, "OVERKILL pill right of the Score plate, on screen")
 			end
 		end
 	end
+	assert(F.overkillPill({ x = 100, y = 0, w = 200, h = 100 }, 380) == nil and F.overkillPill({ x = 100, y = 10, w = 200, h = 100 }, 800).h == 36, "pill: nil when off screen")
+	assert(F.triggerBarWidth(224, 360) == 264 and F.triggerBarWidth(900, 360) == 360 and F.triggerBarWidth(0, 360) == 80, "trigger bar is text plus 40")
 	assert(F.fontSize({ x = 0, y = 100, w = 400, h = 20 }, 100) == nil, "no room: no flair")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
