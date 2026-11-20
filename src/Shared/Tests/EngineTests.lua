@@ -30587,6 +30587,18 @@ table.insert(tests, { name = "Patron parchment seat: every cut card has a portra
 	assert(not cl:find("TweenService", 1, true) and not cl:lower():find("balatro", 1, true), "static, clean")
 end })
 
+table.insert(tests, { name = "PatronRow: an empty seat hides its cream paper, name ribbon and name text", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronRow.lua", "r")); local src = f:read("a"); f:close()
+	local a = assert(src:find("c.mark.Visible = true", 1, true), "empty branch exists")
+	local b = assert(src:find("c.body.BackgroundColor3 = SLOT", a, true), "empty branch end")
+	local branch = src:sub(a, b)
+	assert(branch:find("PatronParchmentCard", 1, true) and branch:find(").sync(c, nil)", 1, true), "empty seat calls the parchment card with no name")
+	assert(branch:find('c.name.Text = ""', 1, true), "empty seat clears the name text")
+	local g = assert(io.open("src/Client/PatronParchmentCard.lua", "r")); local cl = g:read("a"); g:close()
+	assert(cl:find("ribbon.Visible = false", 1, true) and cl:find("paper.Visible = false", 1, true), "sync with no art hides paper and ribbon")
+end })
+
 table.insert(tests, { name = "PatronJuice: each tier adds an effect, Calm mode keeps only the pill text, order and pill text, one FxLoop job, no per particle tween", fn = function()
 	local J = require(script.Parent.Parent.Engine.PatronJuice)
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)

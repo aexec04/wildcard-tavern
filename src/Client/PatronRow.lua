@@ -444,6 +444,8 @@ local function fillCard(c, i, owned)
 		c.plaque.Visible = false
 		c.valueText = nil
 		c.value.Visible = false
+		c.name.Text = ""
+		pcall(function() require(script.Parent.PatronParchmentCard).sync(c, nil) end) -- no Patron: hide the cream paper and name ribbon (the reference empty seat has none)
 		c.body.BackgroundColor3 = SLOT
 		c.body.BackgroundTransparency = 0.45 -- quiet slot
 		pcall(function() require(script.Parent.PatronSeatFrame).sync(c, true, Z) end) -- painted empty seat frame (the flat slot returns if the picture fails)
