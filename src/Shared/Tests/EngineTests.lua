@@ -32335,12 +32335,22 @@ table.insert(tests, { name = "Notice Board text: Rank on one line with the rewar
 	expectEqual(M.rankLines({ rank = 30, maxed = true }).main, "Rank 30  Max rank", "max rank")
 	expectEqual(M.rankLines({ rank = 4, into = 1, need = 9, nextReward = { kind = "cardBack" } }).reward, "Next: Card back", "non Tips reward")
 	local row = { name = "Harvest Week", blurb = "Daily Challenge dressed for harvest", daysLeft = 4 }
-	expectEqual(M.newsLine(row), "Harvest Week: Daily Challenge dressed for harvest", "the Harvest line fits two lines")
+	expectEqual(M.newsLine(row), "Harvest Week", "the news plate shows the event name only")
 	expectEqual(M.newsTime(row), "4 days left", "days left on its own line")
 	expectEqual(M.newsTime({ daysLeft = 1 }), "Last day", "last day")
 	expectEqual(M.newsTime({ startsIn = 5 }), "Starts in 5 days", "upcoming")
 	local long = M.newsLine({ name = "Moonlit Marathon", blurb = "Every Boss Round this week is dressed for the long harvest night with extra Tips for everyone playing along" })
-	expectTrue(#long <= M.LINE_CHARS * 2, "a long blurb is cut to two lines")
+	expectTrue(#long <= M.LINE_CHARS * 2, "a long name is cut to two lines")
+	do -- the Rank plate outranks the news: when space is short the news goes, never the Rank
+		local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+		for _, size in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+			local l, t, r, b = R.corkRect(size[1], size[2])
+			local fit = R.noteSlots(r - l, b - t, { 120, 86, 70 }, 3, 2)
+			expectTrue(fit.show[2] and fit.show[3], "rank and goal stay at " .. size[1])
+			local three = R.noteSlots(r - l, b - t, { 86, 86, 70 }, 3, 2)
+			expectTrue(three.show[2], "rank shown with three plates at " .. size[1])
+		end
+	end
 	expectTrue(not long:find("%.%.") and not long:find("\226\128\166") and not long:find("[%s%p]$"), "cut at a word, no dots at the end")
 	expectEqual(M.PAD, 12, "12 px padding")
 	if not io then return end

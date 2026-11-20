@@ -338,7 +338,7 @@ function MenuBoard.build(parent)
 			local note = slot:FindFirstChildWhichIsA("GuiObject")
 			if note and note:GetAttribute("KeepOnBoard") == true then keep = i end
 		end
-		local fitted = RoomLayout.noteSlots(r - l, b - t, heights, keep)
+		local fitted = RoomLayout.noteSlots(r - l, b - t, heights, keep, rankAt)
 		scale.Scale = fitted.scale
 		layout.Padding = UDim.new(0, fitted.gap) -- (the rule moves the notes closer before it drops one)
 		listPad.PaddingTop = UDim.new(0, fitted.top)

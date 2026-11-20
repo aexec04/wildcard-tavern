@@ -6,7 +6,7 @@
 	  M.PAD                      12   padding inside a note, every side
 	  M.LINE_CHARS               28   characters on one line at 14 px in the padded width
 	  M.fit(text, lines)         -> text cut at a word boundary to at most `lines` lines of LINE_CHARS, no dots
-	  M.newsLine(row)            -> "Harvest Week: Daily Challenge dressed for harvest" (two lines at most)
+	  M.newsLine(row)            -> "Harvest Week" (the event name, two lines at most)
 	  M.newsTime(row)            -> "4 days left" / "Last day" / "Starts tomorrow"
 	  M.rankLines(view)          -> { main = "Rank 1  71 / 80 XP", reward = "Next: +3 Tips" or nil }
 ]]
@@ -32,9 +32,8 @@ end
 
 function M.newsLine(row)
 	if type(row) ~= "table" then return "" end
-	local name, blurb = tostring(row.name or ""), tostring(row.blurb or "")
-	if blurb == "" then return M.fit(name, M.MAX_NEWS_LINES) end
-	return M.fit(name .. ": " .. blurb, M.MAX_NEWS_LINES)
+	-- the name only (the long sentence stays in the News panel); with the time line the plate is three lines at most
+	return M.fit(tostring(row.name or ""), M.MAX_NEWS_LINES)
 end
 
 function M.newsTime(row)

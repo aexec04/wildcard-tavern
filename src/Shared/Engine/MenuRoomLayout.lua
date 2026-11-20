@@ -137,7 +137,7 @@ end
 -- Notes that do not all fit first move closer together (NOTE_GAP_TIGHT, NOTE_TOP_TIGHT). keep (optional) is the index of
 -- the one note that must stay on the board, the Next goal: if it still has no room, the notes above it come off, the
 -- nearest first, until it has. A goal line that wrapped onto a second row used to push its own note off the board.
-function MenuRoomLayout.noteSlots(corkW, corkH, heights, keep)
+function MenuRoomLayout.noteSlots(corkW, corkH, heights, keep, rank)
 	local M, tilt = MenuRoomLayout.CORK_MARGIN, 10 -- 10 px of slack for a 2 degree tilt
 	local w = MenuRoomLayout.NOTE_W
 	local scale = math.max(0.1, math.min(1, (corkW - 2 * M - tilt) / w))
@@ -161,6 +161,15 @@ function MenuRoomLayout.noteSlots(corkW, corkH, heights, keep)
 	if best.shown < math.min(#heights, MenuRoomLayout.MAX_NOTES) then
 		local tight = fill(MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT)
 		if tight.shown > best.shown then best = tight end
+	end
+	-- the Rank note outranks the notes above it (the news): when it has no room they come off first, never the Rank
+	if rank and heights[rank] and not best.show[rank] then
+		local skip = {}
+		for i = rank - 1, 1, -1 do
+			skip[i] = true
+			local try = fill(MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT, skip)
+			if try.show[rank] then best = try; break end
+		end
 	end
 	if keep and heights[keep] and not best.show[keep] then
 		local skip = {}
