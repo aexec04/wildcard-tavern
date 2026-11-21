@@ -37,6 +37,7 @@ function M.install(deps)
 	local root = deps.root
 	local existing = root:FindFirstChild("GearMenu")
 	if existing then return existing end
+	pcall(function() require(script.Parent.MusicPanel).install(root) end) -- the Music panel the "Music tracks" row opens
 	local host = Instance.new("Frame")
 	host.Name = "GearMenu"
 	host.BackgroundTransparency = 1
@@ -249,6 +250,7 @@ function M.install(deps)
 		end
 		setOpen(false)
 		if id == "settings" then OverlayManager.open("settings")
+		elseif id == "tracks" then OverlayManager.open("music")
 		elseif id == "howTo" then OverlayManager.open("howToPlay")
 		elseif id == "quit" then OverlayManager.open("quitToTavern") end
 	end

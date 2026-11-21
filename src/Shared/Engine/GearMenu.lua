@@ -29,6 +29,7 @@ M.SLIDE = 0.15
 M.ROWS = {
 	{ id = "sound", kind = "toggle", label = "Sound" },
 	{ id = "music", kind = "toggle", label = "Music" },
+	{ id = "tracks", kind = "action", label = "Music tracks" },
 	{ id = "calm", kind = "toggle", label = "Calm mode" },
 	{ id = "reduceMotion", kind = "toggle", label = "Reduce motion" },
 	{ id = "hints", kind = "toggle", label = "Hints" },

@@ -31144,6 +31144,41 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
 end })
 
+table.insert(tests, { name = "MusicPicker: free and Music pack tracks, locked until owned, selected, pass id 0 reads Coming soon", fn = function()
+	local E = script.Parent.Parent.Engine
+	local P, SoundIds, GP, PP = require(E.MusicPicker), require(E.SoundIds), require(E.GamePasses), require(E.PlayerProfile)
+	expectTrue(#P.TRACKS >= 2 and P.TRACKS[1].id == "auto" and not P.TRACKS[1].pack, "the default track is first and free")
+	for _, t in ipairs(P.TRACKS) do
+		expectTrue(t.key == nil or SoundIds.isValidId(SoundIds.Music[t.key]), t.id .. " uses an existing music id only")
+		expectTrue(PP.SETTING_SPECS.musicTrack.choices[t.id] == true, t.id .. " is a valid saved musicTrack")
+	end
+	local locked, free = 0, 0
+	for _, t in ipairs(P.list(false)) do if t.locked then locked = locked + 1; expectTrue(not t.owned, "locked is not owned") else free = free + 1 end end
+	expectTrue(locked >= 1 and free >= 2, "some tracks are Music pack, some are free")
+	for _, t in ipairs(P.list(true)) do expectTrue(t.owned and not t.locked, t.id .. " unlocked once owned") end
+	expectEqual(P.effective("boss", false), "auto", "a locked track falls back to auto")
+	expectEqual(P.effective("boss", true), "boss", "an owned pack track plays")
+	expectEqual(P.effective("gameplay", false), "gameplay", "a free track plays without the pack")
+	expectEqual(P.effective("nonsense", true), "auto", "an unknown selection is auto")
+	expectEqual(P.assetFor("auto"), nil, "auto has no fixed asset")
+	expectTrue(P.assetFor("gameplay") == SoundIds.Music.gameplay, "a track plays its SoundIds asset")
+	local b0 = P.buyButton(0, false)
+	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "id 0 is disabled, Coming soon")
+	local b1 = P.buyButton(123, false)
+	expectTrue(b1.show and b1.enabled and b1.text == "Get Music pack", "a real id can be bought")
+	expectTrue(not P.buyButton(123, true).show, "owned: no buy button")
+	expectTrue(P.ownsPack({ "fast_forward", "music_pack" }) and not P.ownsPack({ "vip" }) and not P.ownsPack(nil), "ownership from the pass ids")
+	expectEqual(GP.MUSIC_PACK, 0, "the pass id starts at 0")
+	local found = false
+	for _, d in ipairs(GP.Definitions) do if d.id == "music_pack" then found = true end end
+	expectTrue(found, "the pass is in the catalog (server ownership check covers it)")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local c = read("src/Client/MusicPanel.lua")
+	assert(c:find("PromptGamePassPurchase", 1, true) and c:find("MUSIC_PACK game pass id not set", 1, true) and c:find("setCustomTrack", 1, true), "panel wired")
+	assert(read("src/Client/GearMenu.lua"):find('OverlayManager.open("music")', 1, true), "the gear menu row opens it")
+end })
+
 table.insert(tests, { name = "Tips: the Hints toggle and the X on every tip card", fn = function()
 	local P = require(script.Parent.Parent.Engine.PatronPowerPanel)
 	local st = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0 }

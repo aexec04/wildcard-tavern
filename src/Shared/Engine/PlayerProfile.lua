@@ -93,6 +93,7 @@ PlayerProfile.SETTING_SPECS = {
 	holdConfirmSeconds = { default = 1.5, kind = "range", min = 0.5, max = 3 },
 	boardCollapsed = { default = false, kind = "boolean" }, -- the left board is slid away (Client/BoardDrawer)
 	roundHints = { default = true, kind = "boolean" }, -- the three table hint plates of the first rounds (Engine/RoundHints)
+	musicTrack = { default = "auto", kind = "choice", choices = { auto = true, gameplay = true, menu = true, shop = true, boss = true } }, -- Music panel (Engine/MusicPicker)
 	allowSpectators = { default = true, kind = "boolean" }, -- friends in the same server may watch your run (Engine/Spectate.lua)
 }
 

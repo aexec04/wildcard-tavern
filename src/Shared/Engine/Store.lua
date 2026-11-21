@@ -208,7 +208,7 @@ end
 -- changes whether a run is won). Tips, XP, Patron slots, Targets and scoring are never for sale. `Store.audit()` returns a list
 -- of problems (empty when clean); a test runs it, so a pay to win item can not be added quietly.
 Store.CATEGORIES = { cosmetic = true, convenience = true }
-Store.PASS_CATEGORY = { fast_forward = "convenience", vip = "cosmetic", set_golden_gala = "cosmetic" } -- by GamePasses id
+Store.PASS_CATEGORY = { fast_forward = "convenience", vip = "cosmetic", music_pack = "cosmetic", set_golden_gala = "cosmetic" } -- by GamePasses id
 Store.DEV_PRODUCT_CATEGORY = { continue = "convenience" } -- by GamePasses.DeveloperProducts id (a once a day free retry is also given)
 local ALLOWED_CONTENTS = { cardBacks = true, sets = true, titles = true, flair = true }
 

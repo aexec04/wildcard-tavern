@@ -2200,6 +2200,7 @@ end
 local function render(state)
 	state = require(script.PreviewMode).filter(state) -- Card Set Preview is look-only: a sample hand and numbers while it runs
 	latestState = state
+	pcall(function() require(script.MusicPanel).setState(state, SoundModule) end) -- Music pack ownership and the chosen track
 
 	-- INTERACTIVE TUTORIAL: started only from the menu's "Tutorial"
 	-- button now (no auto-start) -- onRender just lets an in-progress
