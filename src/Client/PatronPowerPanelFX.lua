@@ -108,8 +108,8 @@ local function recheckAfterIntro(layer, state, rects, viewW, viewH)
 end
 
 function M.update(layer, state, rects, viewW, viewH)
-	latest = { layer, state, rects, viewW, viewH } -- the recheck
-	if state and state.bossModifier and (state.round or 0) >= 3 then M.hide(); why("hidden: the Boss card replaces it", state); return end after a boss intro uses the newest call, never a stale one
+	latest = { layer, state, rects, viewW, viewH } -- the recheck after a boss intro uses the newest call, never a stale one
+	if state and state.bossModifier and (state.round or 0) >= 3 then M.hide(); why("hidden: the Boss card replaces it", state); return end
 	local hands = tonumber(state and state.handsPlayedTotal) or 0
 	if Rules.newRun(lastHands, hands) then closed = false end
 	lastHands = hands
