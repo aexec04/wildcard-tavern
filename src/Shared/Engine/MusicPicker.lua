@@ -61,6 +61,56 @@ function M.buyButton(passId, ownsPack)
 	return { show = true, enabled = true, text = "Get Music pack" }
 end
 
+-- The Music shop section: PLACEHOLDER tracks. They stay locked and unplayable until a real SoundIds.Music entry exists for their key
+-- (nothing plays from these rows today; the names are stand-ins for the real pack).
+M.SHOP_TITLE = "Music pack"
+M.SHOP_LINE = "More tunes for your tavern"
+M.SHOP_TRACKS = {
+	{ id = "shop_lantern", name = "Lantern Waltz", key = "lantern_waltz", placeholder = true },
+	{ id = "shop_fiddle", name = "Midnight Fiddle", key = "midnight_fiddle", placeholder = true },
+	{ id = "shop_jig", name = "Harvest Jig", key = "harvest_jig", placeholder = true },
+}
+
+-- The three shop rows for this player: { id, name, locked, playable, tag } where tag is the small right-hand word
+-- ("" when playable, "Coming soon" when owned but no real id yet, "Locked" when the pack is not owned).
+function M.shopRows(ownsPack)
+	local out = {}
+	for i, t in ipairs(M.SHOP_TRACKS) do
+		local real = SoundIds.isValidId(SoundIds.Music[t.key])
+		local owned = ownsPack == true
+		local playable = owned and real
+		local tag = "Locked"
+		if playable then tag = "" elseif owned then tag = "Coming soon" end
+		out[i] = { id = t.id, name = t.name, key = t.key, locked = not playable, playable = playable, tag = tag, placeholder = t.placeholder == true }
+	end
+	return out
+end
+
+-- Panel rectangles for a viewport (pure, tested at 1920x957, 1280x720, 1024x768, 800x450). The panel is at most 360 wide and the
+-- viewport height minus a 16 px margin; the body between the title bar and the panel bottom scrolls when it does not fit.
+-- Returns { panel = {x,y,w,h}, closeX = {x,y,w,h} (screen coords), body = {h = visible, content = full height}, contentH }.
+M.ROW_H, M.ROW_GAP, M.TITLE_H = 44, 8, 56
+function M.shopHeight() -- plate pad, title, line, rows (each with its gap), button, pad
+	return 12 + 28 + 2 + 22 + 6 + #M.SHOP_TRACKS * (M.ROW_H - 4 + M.ROW_GAP) + 44 + 12
+end
+function M.contentHeight()
+	return #M.TRACKS * (M.ROW_H + M.ROW_GAP) + M.shopHeight() + 8
+end
+
+function M.layout(vw, vh)
+	local w = math.min(360, vw - 16)
+	local contentH = M.contentHeight()
+	local h = math.min(M.TITLE_H + contentH, vh - 16)
+	local x, y = math.floor((vw - w) / 2), math.floor((vh - h) / 2)
+	local cx = 36 -- X button size
+	return {
+		panel = { x = x, y = y, w = w, h = h },
+		closeX = { x = x + w - cx - 8, y = y + 8, w = cx, h = cx },
+		body = { h = h - M.TITLE_H - 8, content = contentH },
+		contentH = contentH,
+	}
+end
+
 function M.assetFor(trackId)
 	local t = BY_ID[trackId]
 	if not t or not t.key then return nil end

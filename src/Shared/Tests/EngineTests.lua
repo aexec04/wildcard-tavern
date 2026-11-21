@@ -31179,6 +31179,42 @@ table.insert(tests, { name = "MusicPicker: free and Music pack tracks, locked un
 	assert(read("src/Client/GearMenu.lua"):find('OverlayManager.open("music")', 1, true), "the gear menu row opens it")
 end })
 
+table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked), buy states, panel rects at four screen sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local P, GP = require(E.MusicPicker), require(E.GamePasses)
+	expectEqual(#P.SHOP_TRACKS, 3, "three shop rows")
+	expectEqual(P.SHOP_TRACKS[1].name, "Lantern Waltz", "first shop name")
+	expectEqual(P.SHOP_TRACKS[2].name, "Midnight Fiddle", "second shop name")
+	expectEqual(P.SHOP_TRACKS[3].name, "Harvest Jig", "third shop name")
+	for _, r in ipairs(P.shopRows(false)) do
+		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Locked", r.id .. " locked and unplayable without the pack")
+	end
+	for _, r in ipairs(P.shopRows(true)) do
+		expectTrue(r.locked and not r.playable and r.tag == "Coming soon", r.id .. " owned but no real id: Coming soon, still locked")
+	end
+	expectEqual(GP.MUSIC_PACK, 0, "the pass id is 0")
+	local b0 = P.buyButton(GP.MUSIC_PACK, false)
+	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "pass id 0: Coming soon, disabled")
+	local b1 = P.buyButton(4242, false)
+	expectTrue(b1.show and b1.enabled, "a real id can be bought (PromptGamePassPurchase)")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local vw, vh = sz[1], sz[2]
+		local L = P.layout(vw, vh)
+		local p, x = L.panel, L.closeX
+		local tag = vw .. "x" .. vh
+		expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= vw and p.y + p.h <= vh, tag .. " panel fits the screen")
+		expectTrue(x.x >= p.x and x.y >= p.y and x.x + x.w <= p.x + p.w and x.y + x.h <= p.y + p.h, tag .. " X is inside the panel")
+		expectTrue(x.x + x.w <= vw and x.y + x.h <= vh and x.x >= 0 and x.y >= 0, tag .. " X is on screen")
+		expectTrue(L.body.h > 100, tag .. " the body has room to scroll")
+		expectTrue(p.w <= 360, tag .. " panel width capped")
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local g = read("src/Client/GearMenu.lua")
+	assert(g:find("label.Position = UDim2.fromOffset(18, 0)", 1, true), "gear rows have 18 px left padding")
+	assert(g:find("pill.Position = UDim2.new(1, -16, 0.5, 0)", 1, true), "pills clear of the right trim")
+end })
+
 table.insert(tests, { name = "Tips: the Hints toggle and the X on every tip card", fn = function()
 	local P = require(script.Parent.Parent.Engine.PatronPowerPanel)
 	local st = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0 }
