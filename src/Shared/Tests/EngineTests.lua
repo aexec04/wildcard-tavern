@@ -15999,7 +15999,7 @@ table.insert(tests, { name = "Tavern Map backdrop: no flat or sliced layers, eve
 	local view = read("src/Client/JourneyMapView.lua")
 	if view then
 		expectTrue(view:find("seg.ax, seg.ay = x, y", 1, true) ~= nil and view:find("seg.bx, seg.by = nx, ny", 1, true) ~= nil, "each road segment runs from node i to node i + 1")
-		expectTrue(view:find("seg.roadCount = math.max(8", 1, true) ~= nil, "every segment builds road pieces")
+		expectTrue(view:find("seg.roadCount = #dashes", 1, true) ~= nil, "every segment builds its dashes")
 	end
 end })
 
@@ -35027,9 +35027,135 @@ table.insert(tests, { name = "Tavern Map modules: every shared local is declared
 	end
 	local view, compass = read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapCompass.lua")
 	if view and compass then
-		expectTrue(view:find("edge.Visible = false -- applyRoad shows the pieces", 1, true) ~= nil, "road pieces start hidden, so a fogged tail is never drawn")
+		expectTrue(view:find("fill.Visible = false -- applyRoad shows the dashes", 1, true) ~= nil, "road pieces start hidden, so a fogged tail is never drawn")
 		expectTrue(view:find('warn(string.format("[MapFit] canvas', 1, true) ~= nil and view:find("RunService:IsStudio()", 1, true) ~= nil, "Studio prints one [MapFit] line")
 		expectTrue(compass:find("icon.Visible = shown and hasCharges()", 1, true) ~= nil, "the round N compass shows only while the player holds a charge")
+	end
+end })
+
+table.insert(tests, { name = "MapRouteRules: dashes are 14 px with 10 px gaps along one smooth curve, start and end at the node edges, selected curves bend the same way", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapRouteRules)
+	local c = R.curve(100, 300, 500, 340, 1, 0.1)
+	local d, total = R.dashes(c, 60, 60)
+	expectTrue(#d >= 8, "a 400 px road has many dashes (" .. #d .. ")")
+	local firstGap = nil
+	for i = 2, #d do
+		local gap = math.sqrt((d[i].x - d[i - 1].x) ^ 2 + (d[i].y - d[i - 1].y) ^ 2)
+		expectTrue(math.abs(gap - 24) < 1.5, "centres are 24 px apart (14 dash + 10 gap), got " .. gap)
+	end
+	local sx, sy = d[1].x - 100, d[1].y - 300
+	expectTrue(math.sqrt(sx * sx + sy * sy) >= 60 + 7 - 1, "the first dash starts outside the first node")
+	local ex, ey = 500 - d[#d].x, 340 - d[#d].y
+	expectTrue(math.sqrt(ex * ex + ey * ey) >= 60 + 7 - 1, "the last dash ends before the second node")
+	expectEqual(d[1].len, 14, "dash length")
+	local none = R.dashes(R.curve(0, 0, 80, 0, 1, 0.1), 60, 60)
+	expectEqual(#none, 0, "nodes that touch have no dashes")
+	-- a second call gives the same dashes (pure)
+	local again = R.dashes(c, 60, 60)
+	expectEqual(#again, #d, "same input, same dashes")
+end })
+
+table.insert(tests, { name = "MapRouteRules: name plates never pass 180 px and wrap to at most two lines for every Night and stop name", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapRouteRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local WM = require(script.Parent.Parent.Engine.WorldMap)
+	local names = {}
+	for _, n in ipairs(JM.allNodes()) do names[#names + 1] = n.info.name end
+	for _, st in pairs(WM.Stops) do if st.name and st.name ~= "" then names[#names + 1] = st.name end end
+	for _, name in ipairs(names) do
+		local p = R.plate(name, 17, 180)
+		expectTrue(p.w <= 180, name .. " plate is at most 180 px (" .. p.w .. ")")
+		expectTrue(p.lines >= 1 and p.lines <= 2, name .. " is one or two lines")
+	end
+	expectEqual(R.plate("Inn", 17).wrap, false, "a short name stays on one line")
+	expectEqual(R.plate("The Willow Bridge Crossing Road", 17).lines, 2, "a long name wraps to two lines")
+	expectEqual(R.plate("The Willow Bridge Crossing Road", 17).w, 180, "a wrapped plate is exactly 180 wide")
+end })
+
+table.insert(tests, { name = "MapRouteRules: only the road one Night ahead is drawn, far stops are hidden, fog and unrevealed side stops become label-less bubbles", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapRouteRules)
+	expectEqual(R.stopLook(1, 1, { choice = true }), "full", "a pending fork stop is drawn")
+	expectEqual(R.stopLook(5, 1, { lit = true }), "full", "the compass target is drawn")
+	expectEqual(R.stopLook(4, 1, {}), "hidden", "a far stop is hidden")
+	expectEqual(R.stopLook(2, 1, { teaser = true }), "bubble", "a fogged stop in reach is a bubble")
+	expectEqual(R.stopLook(2, 1, {}), "full", "the next Night's stop is drawn")
+	expectEqual(R.sideLook(5, 1, {}), "hidden", "a far side stop is hidden")
+	expectEqual(R.sideLook(1, 1, { stub = true }), "bubble", "an unrevealed side stop here is a bubble")
+	expectEqual(R.sideLook(2, 1, { stub = true }), "hidden", "an unrevealed side stop ahead stays hidden unless it glows")
+	expectEqual(R.sideLook(2, 1, { stub = true, glow = true }), "bubble", "a glowing stub is a bubble")
+	expectEqual(R.sideLook(1, 1, {}), "full", "a revealed side stop keeps its label")
+end })
+
+table.insert(tests, { name = "Tavern Map declutter: name plates at most 180 px, no node, label or boss overlaps another at 1920x957, 1280x720, 1024x768 and 800x450, the boss is always drawn and above the fog, the reward tag is off the labels", fn = function()
+	local Fit = require(script.Parent.Parent.Engine.MapFitRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local res = Fit.layout(sz[1], sz[2], names, JM.NightCap)
+		expectTrue(Fit.clear(res, names, JM.NightCap), "no overlap at " .. tag)
+		local boxes = Fit.boxes(res, names, JM.NightCap)
+		for i = 1, JM.NightCap do
+			local b = boxes[i]
+			expectTrue(b.label.x1 - b.label.x0 <= RR.PLATE_MAX, "label " .. i .. " at most 180 px wide at " .. tag)
+			-- a wrapped second line (plus the type tag) still ends inside the old label box, whose reward row is now free
+			local p = RR.plate(names[i], 17, 180)
+			local need = 10 + p.h + 2 + 20
+			expectTrue(b.label.y1 - (b.circle.y1) >= need, "label " .. i .. " has room for its plate and tag at " .. tag)
+		end
+		-- the dashes between neighbours stay between their circles: the first dash is outside the first circle
+		for i = 1, JM.NightCap - 1 do
+			local a, b = boxes[i], boxes[i + 1]
+			local ra, rb = (a.circle.x1 - a.circle.x0) / 2, (b.circle.x1 - b.circle.x0) / 2
+			local ax, ay = (a.circle.x0 + a.circle.x1) / 2, (a.circle.y0 + a.circle.y1) / 2
+			local bx, by = (b.circle.x0 + b.circle.x1) / 2, (b.circle.y0 + b.circle.y1) / 2
+			local dashes = RR.dashes(RR.curve(ax, ay, bx, by, 1, 0.1), ra + 3, rb + 3)
+			for _, d in ipairs(dashes) do
+				expectTrue((d.x - ax) ^ 2 + (d.y - ay) ^ 2 >= ra ^ 2 and (d.x - bx) ^ 2 + (d.y - by) ^ 2 >= rb ^ 2, "a dash stays out of the node circles at " .. tag)
+			end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = io.open(path, "r") if not f then return nil end local t = f:read("*a") f:close() return t end
+	local view, graph = read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapGraph.lua")
+	if view and graph then
+		expectTrue(view:find('node.ntype == "boss" and data.kind ~= "endless"', 1, true) ~= nil, "the boss node is always shown")
+		expectTrue(view:find("g.ZIndex = g.ZIndex + 14", 1, true) ~= nil, "the boss draws above the fog band")
+		expectTrue(view:find("node.tag.Visible = false", 1, true) ~= nil, "the reward tag is off the name")
+		expectTrue(graph:find("RouteRules.stopLook", 1, true) ~= nil and graph:find("RouteRules.sideLook", 1, true) ~= nil, "the graph draws less through the look rules")
+		expectTrue(graph:find('"???"', 1, true) == nil, "no ??? label plate is drawn")
+		expectTrue(graph:find("local function dotted", 1, true) == nil and graph:find("local function curvedRoad", 1, true) == nil, "the old zigzag road strips are gone")
+	end
+end })
+
+table.insert(tests, { name = "MapSelectRules.targetFor: the current Night shows the table's number for the round being played, any other Night its first round", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local RS = require(script.Parent.Parent.Engine.RunState)
+	local calc = RS.targetScoreFor
+	expectEqual(R.targetFor(1, 1, 1, { 65, 98, 130 }, calc), 65, "Night 1 round 1 is 65")
+	expectEqual(R.targetFor(1, 1, 3, { 65, 98, 130 }, calc), 130, "the live round 3 target")
+	expectEqual(R.targetFor(3, 1, 1, { 65, 98, 130 }, calc), calc(3, 1, 3), "another Night uses its first round")
+	expectEqual(R.targetFor(1, 1, 1, nil, calc), calc(1, 1, 3), "no server numbers: the first round formula")
+	expectEqual(calc(1, 1, 3), 65, "Night 1 first round is 65, not the boss round's 130")
+end })
+
+table.insert(tests, { name = "MapSelectRules.rects: the compact panel keeps a two line description clear of the type row, the Target and the button at 800x450", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local zone = HR.layout(sz[1], sz[2]).panelZone
+		local r = R.rects(zone, "full")
+		local tag = sz[1] .. "x" .. sz[2]
+		expectTrue(r.line.h >= 32, "the description has two lines at " .. tag)
+		expectTrue(r.line.y + r.line.h <= r.button.y, "the description ends above Continue at " .. tag)
+		expectTrue(r.type.y + r.type.h <= r.line.y, "the type row is above the description at " .. tag)
+		if r.target.y >= r.line.y then
+			expectTrue(r.target.y >= r.line.y + r.line.h and r.target.y + r.target.h <= r.button.y, "the Target is clear of the description and Continue at " .. tag)
+		else
+			expectTrue(r.target.x >= r.type.x + r.type.w and r.target.y + r.target.h <= r.line.y, "the Target shares the type row at " .. tag)
+		end
 	end
 end })
 

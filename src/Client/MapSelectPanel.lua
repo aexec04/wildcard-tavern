@@ -52,6 +52,19 @@ function MapSelectPanel.new(deps)
 	panel.ZIndex = 41
 	panel.Visible = false
 	panel.Active = true -- a click on the panel never falls through to the map
+	-- dark carved wood with gold trim, like the header (a lighter wood band across the top, Color only gradient)
+	panel.BackgroundColor3 = Color3.fromRGB(78, 50, 30)
+	panel.BackgroundTransparency = 0
+	do
+		local shade = panel:FindFirstChild("Shade")
+		if shade then shade.Color = ColorSequence.new(Color3.fromRGB(104, 70, 42), Color3.fromRGB(62, 40, 24)) end
+		local trimStroke = panel:FindFirstChildOfClass("UIStroke")
+		if trimStroke then
+			trimStroke.Color = Color3.fromRGB(214, 170, 82)
+			trimStroke.Thickness = 3
+			trimStroke.Transparency = 0
+		end
+	end
 
 	local art = Instance.new("Frame")
 	art.Name = "Art"
@@ -78,7 +91,9 @@ function MapSelectPanel.new(deps)
 	local name = label(panel, "Name", 18, Enum.Font.GothamBlack)
 	local typeRow = label(panel, "Type", 15)
 	local line = label(panel, "Line", 14, Enum.Font.Gotham)
-	line.TextColor3 = Color3.fromRGB(226, 214, 190)
+	line.TextColor3 = Color3.fromRGB(236, 224, 200)
+	line.TextWrapped = true -- the description shows two full lines, never a cut word
+	line.TextYAlignment = Enum.TextYAlignment.Top
 	local target = label(panel, "Target", 16)
 	local go = TavernKit.primaryButton(panel, "Continue")
 	go.Name = "Continue"
@@ -119,7 +134,13 @@ function MapSelectPanel.new(deps)
 		go:SetAttribute("Enabled", d.button.enabled)
 		go.Text = d.button.text
 		go.AutoButtonColor = false
-		go.TextTransparency = d.button.enabled and 0 or 0.4
+		go.TextTransparency = d.button.enabled and 0 or 0.35
+		-- bright green when the node can be entered, a muted brown when it cannot
+		local base = d.button.enabled and Color3.fromRGB(70, 176, 84) or Color3.fromRGB(96, 82, 66)
+		go.BackgroundColor3 = base
+		local goShade = go:FindFirstChild("Shade")
+		if goShade then goShade.Color = ColorSequence.new(base:Lerp(Color3.new(1, 1, 1), 0.12), base:Lerp(Color3.new(0, 0, 0), 0.12)) end
+		go.TextColor3 = Color3.fromRGB(255, 252, 240)
 		name.Text = d.name
 		if mode == "tab" then
 			name.Text = d.name .. "  (tap)"

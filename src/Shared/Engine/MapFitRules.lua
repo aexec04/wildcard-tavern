@@ -24,9 +24,12 @@ M.MARGIN = 10
 
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
+local RouteRules = require(script.Parent.MapRouteRules)
+
+-- the name plate: text plus 24, never wider than 180 px (longer names wrap to two lines, the room is in the hidden reward row)
 local function labelWidth(name, spacing)
-	local cap = clamp(math.floor(spacing * 0.85), 150, 230)
-	return math.min(#name * 9.8 + 24, cap)
+	local cap = clamp(math.floor(spacing * 0.85), 150, RouteRules.PLATE_MAX)
+	return math.min(RouteRules.plate(name, 17, RouteRules.PLATE_MAX).w, cap)
 end
 
 local function positions(count, leftPad, spacing, mid, amp)

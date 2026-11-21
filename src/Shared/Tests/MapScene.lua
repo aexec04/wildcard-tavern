@@ -45,7 +45,7 @@ function MapScene.build(opts)
 	local W, H = opts.canvasW or 4072, opts.canvasH or 734
 	local viewSrc = assert(readFile("src/Client/JourneyMapView.lua"), "JourneyMapView.lua not found (run from the repo root)")
 	local z = {}
-	for key, var in pairs({ plate = "frame", scroll = "scroll", canvas = "canvas", edge = "edge", fill = "fill", dot = "dot" }) do
+	for key, var in pairs({ plate = "frame", scroll = "scroll", canvas = "canvas", edge = "fill", fill = "fill", dot = "dot" }) do
 		z[key] = assert(MapScene.viewZ(viewSrc, var), "JourneyMapView.lua no longer sets " .. var .. ".ZIndex after creating it")
 	end
 
@@ -55,7 +55,7 @@ function MapScene.build(opts)
 		stubs = { MapHover = hoverStub, RoadLock = {}, ClientSettings = { get = function() return false end } },
 	})
 	local mods = {}
-	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules" }) do
+	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules", "MapRouteRules" }) do
 		mods[name] = require(Engine[name])
 	end
 	local JourneyMap = require(Engine.JourneyMap)
