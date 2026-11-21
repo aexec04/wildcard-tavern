@@ -49,17 +49,17 @@ return function(deps)
 	-- Top left, just under the "Find me" button; this is the map's only compass (the old decorative
 	-- compass_rose doodle was removed from JourneyMapScenery).
 	icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)
-	icon.Size = UDim2.fromOffset(52, 52)
+	icon.Size = UDim2.fromOffset(40, 40) -- small and brass, like the header's round X
 	icon.BackgroundColor3 = PARCHMENT
 	icon.Text = "N"
-	icon.TextSize = 28
+	icon.TextSize = 22
 	icon.Font = Enum.Font.GothamBold
 	icon.TextColor3 = INK
 	icon.AutoButtonColor = true
 	icon.ZIndex = 44
 	icon.Visible = false
 	icon.Parent = deps.parent
-	deps.roundCorner(icon, 26)
+	deps.roundCorner(icon, 20)
 	local iconStroke = Instance.new("UIStroke")
 	iconStroke.Color = Color3.fromRGB(110, 80, 45)
 	iconStroke.Thickness = 3
@@ -267,7 +267,7 @@ return function(deps)
 		end,
 		setShown = function(shown)
 			icon.Visible = shown
-			keysPill.Visible = shown
+			keysPill.Visible = false -- the header's Keys is the one counter now (Client/MapHeaderBar)
 			if not shown then
 				panel.Visible = false
 				deps.graph.highlight(nil)

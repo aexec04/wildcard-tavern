@@ -68,7 +68,7 @@ end
 function M.bossRing() return BOSS_RED end
 
 -- Rects relative to the node centre. size = the circle's diameter, labelW = the name plate width.
-M.NAME_H, M.TAG_H, M.GAP = 24, 16, 4
+M.NAME_H, M.TAG_H, M.GAP = 24, 20, 4
 
 function M.parts(size, labelW)
 	local r = size / 2

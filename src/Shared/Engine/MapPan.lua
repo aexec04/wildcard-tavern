@@ -16,7 +16,7 @@
 
 local MapPan = {}
 
-MapPan.WORLD_SCREENS_Y = 2.2
+MapPan.WORLD_SCREENS_Y = 1.0 -- the map is one screen tall: the whole Night route is in view
 MapPan.MAX_BEARING_DIFF = 70
 MapPan.TIE_DIFF = 25
 

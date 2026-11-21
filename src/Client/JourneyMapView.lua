@@ -495,11 +495,27 @@ return function(deps)
 		-- Type tag under the name (SHOP gold, EVENT purple, BOSS red, Encounter green); the Finish Night is the boss.
 		local ntype = MapNodeRules.typeOf(data.kind, nil, data.night == JourneyMap.NightCap)
 		local tagLook = MapNodeRules.tagFor(ntype)
+		-- a small dark pill in the tag colour with cream text, readable on any parchment
+		local tc = tagLook.color
 		local typeTag = text(canvas, {
-			Name = "TypeTag", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(120, MapNodeRules.TAG_H), TextWrapped = false,
-			Font = Enum.Font.GothamBlack, TextSize = 14, Text = tagLook.text, ZIndex = 27,
-			TextColor3 = Color3.fromRGB(tagLook.color[1], tagLook.color[2], tagLook.color[3]), TextStrokeColor3 = Color3.fromRGB(20, 12, 6), TextStrokeTransparency = 0.8,
+			Name = "TypeTag", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(0, MapNodeRules.TAG_H), TextWrapped = false, AutomaticSize = Enum.AutomaticSize.X,
+			Font = Enum.Font.GothamBlack, TextSize = 14, Text = tagLook.text, ZIndex = 27, BackgroundTransparency = 0.05,
+			BackgroundColor3 = Color3.fromRGB(math.floor(tc[1] * 0.35), math.floor(tc[2] * 0.35), math.floor(tc[3] * 0.35)),
+			TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(20, 12, 6), TextStrokeTransparency = 0.8,
 		})
+		do
+			local pc = Instance.new("UICorner")
+			pc.CornerRadius = UDim.new(0, 9)
+			pc.Parent = typeTag
+			local pp = Instance.new("UIPadding")
+			pp.PaddingLeft, pp.PaddingRight = UDim.new(0, 10), UDim.new(0, 10)
+			pp.Parent = typeTag
+			local ps = Instance.new("UIStroke")
+			ps.Color = Color3.fromRGB(tc[1], tc[2], tc[3])
+			ps.Thickness = 1.5
+			ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			ps.Parent = typeTag
+		end
 		if ntype == "boss" then
 			name.BackgroundColor3 = Color3.fromRGB(78, 22, 22)
 			local bossEdge = Instance.new("UIStroke")
@@ -639,9 +655,11 @@ return function(deps)
 	local canvasW, canvasH = 600, 300
 	local viewH = 300 -- visible height; the canvas is MapPan.WORLD_SCREENS_Y times taller
 	local userPannedY = false -- once the player drags vertically, auto-follow stops re-centering the band
-	local MIN_SPACING = 280
-	local LEFT_PAD, RIGHT_PAD = 480, 240 -- room so the first and last node and their labels never clip; the wide left pad gives the road region some sand before Night 1
-	local LABEL_MAX = 230
+	local MapFit = require(Engine:WaitForChild("MapFitRules"))
+	local nodeNames = {}
+	for i = 1, NODE_COUNT do nodeNames[i] = nodeData[i].info.name end
+	local bossSize = 150
+	local routeFits = false -- the whole Night route is on screen at the default zoom (set in layout)
 	local posX, posY = {}, {}
 	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
 	local debugOn = false -- Studio-only coordinate overlay / drag mode (reveals everything while on)
@@ -662,6 +680,7 @@ return function(deps)
 	end
 
 	local function scrollTargetFor(x)
+		if routeFits and x <= (posX[JourneyMap.NightCap] or 0) + 1 then return 0 end -- the Nights all fit: the camera stays at the start
 		-- Early nodes sit about 15 percent from the left edge (no blank beige before Night 1); later ones drift to the centre.
 		local frac = 0.15 + 0.35 * math.clamp(x / math.max(1, canvasW * 0.5), 0, 1)
 		return math.clamp(x - scroll.AbsoluteSize.X * frac, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
@@ -746,28 +765,28 @@ return function(deps)
 			return
 		end
 		lastLayoutKey = key
-		viewH = math.max(260, size.Y - 10)
-		canvasH = MapPan.canvasHeight(viewH)
-		nodeSize = math.floor(math.clamp(viewH * 0.15, 64, 92))
-		canvasW = math.max(size.X * 4, LEFT_PAD + RIGHT_PAD + (NODE_COUNT - 1) * MIN_SPACING) -- five region tiles to cross
-		local spacing = (canvasW - LEFT_PAD - RIGHT_PAD) / (NODE_COUNT - 1)
+		-- the whole Night route fits the frame at the default zoom (Engine/MapFitRules, tested at four sizes)
+		local fit = MapFit.layout(size.X + 2 * MapFit.FRAME_X, size.Y + 2 * MapFit.FRAME_Y, nodeNames, JourneyMap.NightCap)
+		viewH = fit.viewH
+		canvasH = math.max(fit.canvasH, size.Y)
+		nodeSize, bossSize = fit.nodeSize, fit.bossSize
+		canvasW = math.max(fit.canvasW, size.X)
+		local spacing = fit.spacing
+		routeFits = fit.fits
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
 		scroll.CanvasSize = UDim2.fromOffset(canvasW, canvasH)
-		local mid, amp = canvasH * 0.5, viewH * 0.11 -- the road runs through the middle of the taller world
 		local minY, maxY = math.huge, -math.huge
 		for index = 1, NODE_COUNT do
-			local wave = (index % 2 == 0) and -1 or 1
-			posX[index] = LEFT_PAD + (index - 1) * spacing
-			posY[index] = mid + wave * amp * (0.85 + 0.15 * math.sin(index * 1.7))
+			posX[index], posY[index] = fit.posX[index], fit.posY[index]
 			minY, maxY = math.min(minY, posY[index]), math.max(maxY, posY[index])
 		end
-		local labelW = math.floor(math.clamp(spacing * 0.85, 150, LABEL_MAX))
+		local labelW = fit.labelW
 		local LABEL_GAP, TAG_H = 10, 24
 		for index, node in ipairs(nodes) do
 			local x, y = nodePixel(index)
 			local info = node.data.info
 			node.button.Position = UDim2.fromOffset(x, y)
-			local size = node.ntype == "boss" and math.floor(nodeSize * 1.2) or nodeSize -- the boss node is larger
+			local size = node.ntype == "boss" and bossSize or nodeSize -- the boss node is larger
 			node.button.Size = UDim2.fromOffset(size, size)
 			node.icon.TextSize = math.floor(size * 0.45)
 			local fits = #info.name <= 28
@@ -978,9 +997,10 @@ return function(deps)
 			node.icon.TextTransparency = locked and 0.45 or 0
 			node.icon.TextStrokeTransparency = 1
 			if node.art then
-				node.art.ImageColor3 = locked and Color3.fromRGB(110, 110, 110) or Color3.fromRGB(255, 255, 255)
+				node.art.ImageColor3 = Color3.fromRGB(255, 255, 255)
+				node.art.ImageTransparency = locked and 0.45 or 0 -- subdued at 55 percent, never a black disc
 			end
-			node.fog.Visible = locked
+			node.fog.Visible = false
 			node.lockMark.Visible = locked
 			local sealReady = node.seal ~= nil and node.seal.IsLoaded
 			if node.seal then
@@ -1312,7 +1332,8 @@ return function(deps)
 		local nudge = Instance.new("TextButton")
 		nudge.Name = "NudgeToggle"
 		nudge.AnchorPoint = Vector2.new(1, 0)
-		nudge.Position = UDim2.new(1, -14, 0, 8)
+		nudge.Position = UDim2.new(1, -14, 0, 72) -- under the header bar
+		nudge.Visible = false -- hidden by default: press N in Studio while the map is open to show it
 		nudge.Size = UDim2.fromOffset(86, 24)
 		nudge.Font = Enum.Font.GothamBold
 		nudge.TextSize = 11 -- small: Studio-only Nudge button
@@ -1322,6 +1343,11 @@ return function(deps)
 		nudge.ZIndex = 50
 		nudge.Parent = frame
 		deps.roundCorner(nudge, 6)
+		UserInputService.InputBegan:Connect(function(input, processed)
+			if not processed and input.KeyCode == Enum.KeyCode.N and frame.Visible then
+				nudge.Visible = not nudge.Visible
+			end
+		end)
 		nudge.MouseButton1Click:Connect(function()
 			debugOn = not debugOn
 			nudge.Text = debugOn and "Nudge: ON" or "Nudge: off"

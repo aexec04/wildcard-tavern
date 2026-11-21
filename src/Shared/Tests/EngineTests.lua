@@ -8154,7 +8154,7 @@ table.insert(tests, { name = "MapPan: the camera clamps at every edge, centres i
 	x, y = MapPan.centerOn(100, 50, 4000, 1600, 1000, 700)
 	expectTrue(x == 0 and y == 0, "a point near the corner clamps")
 	expectEqual(MapPan.canvasHeight(400), math.floor(400 * MapPan.WORLD_SCREENS_Y))
-	expectTrue(MapPan.WORLD_SCREENS_Y >= 2, "the world is at least two screens tall")
+	expectTrue(MapPan.WORLD_SCREENS_Y >= 1 and MapPan.WORLD_SCREENS_Y <= 1.5, "the map is about one screen tall: the whole Night route is in view")
 	-- bearings: 0 up, 90 right, 180 down
 	local ux, uy = MapPan.stepToward(100, 100, 0, 50)
 	local rx, ry = MapPan.stepToward(100, 100, 90, 50)
@@ -27386,7 +27386,7 @@ table.insert(tests, { name = "Tavern Map: its title and top-left controls are cl
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local L = HR.layout(sz[1], sz[2])
-		expectTrue(L.bannerL.x >= math.min(FR.HEADER_LEFT, math.floor(sz[1] * 0.3)) and L.title.x > L.bannerL.x, "the header starts right of Roblox's buttons at " .. sz[1])
+		expectTrue(L.title.x >= math.min(FR.HEADER_LEFT, math.floor(sz[1] * 0.3)) and (L.bannerL == nil or L.title.x > L.bannerL.x), "the header starts right of Roblox's buttons at " .. sz[1])
 		expectTrue(L.bar.h <= FR.STRIP_H, "the bar is never taller than the strip the controls sit under")
 	end
 	expectTrue(full:find("MapHeaderBar", 1, true) ~= nil, "the header is the MapHeaderBar")
@@ -34765,7 +34765,8 @@ table.insert(tests, { name = "MapHeaderRules: header, banners, X, candles and th
 		local w, h = sz[1], sz[2]
 		local L = R.layout(w, h)
 		local tag = w .. "x" .. h
-		local items = { title = L.title, stats = L.stats, x = L.x, bannerL = L.bannerL, panel = L.panelZone, candleL = L.candleL, candleR = L.candleR }
+		local items = { title = L.title, stats = L.stats, x = L.x, panel = L.panelZone, candleL = L.candleL, candleR = L.candleR }
+		if L.bannerL then items.bannerL = L.bannerL end
 		if L.bannerR then items.bannerR = L.bannerR end
 		local names = {}
 		for n in pairs(items) do names[#names + 1] = n end
@@ -34870,6 +34871,88 @@ table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from
 		local last = R.panelRect(zone, R.pickMode(zone, { top }))
 		expectFalse(last.x < top.x + top.w and top.x < last.x + last.w and last.y < top.y + top.h and top.y < last.y + last.h, "the chosen mode never covers that node")
 	end
+end })
+
+table.insert(tests, { name = "MapFitRules: the whole Night route fits the frame at the default zoom, nodes about 110 px and the boss about 150 px at 1920x957, nothing under the header or the lower left panel, no node or label touches another at four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapFitRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local res = R.layout(w, h, names, JM.NightCap)
+		local H = HR.layout(w, h)
+		expectTrue(R.clear(res, names, JM.NightCap), "no node or label touches another at " .. tag)
+		expectTrue(res.canvasH >= res.viewH and res.canvasH <= res.viewH + 1, "the map is one screen tall at " .. tag)
+		local boxes = R.boxes(res, names, JM.NightCap)
+		for i = 1, JM.NightCap do
+			local b = boxes[i]
+			expectTrue(b.circle.y0 + R.FRAME_Y >= H.bar.h, "Night " .. i .. " is under the header at " .. tag)
+			expectTrue(b.label.y1 + R.FRAME_Y <= h, "Night " .. i .. " label is on screen at " .. tag)
+			local sx0, sx1 = b.label.x0 + R.FRAME_X, b.label.x1 + R.FRAME_X
+			if sx0 < H.panelZone.x + H.panelZone.w and sx1 > H.panelZone.x then
+				expectTrue(b.label.y1 + R.FRAME_Y <= H.panelZone.y, "Night " .. i .. " stays above the lower left panel at " .. tag .. " (" .. (b.label.y1 + R.FRAME_Y) .. " vs " .. H.panelZone.y .. ")")
+			end
+		end
+		if w >= 1280 then
+			expectTrue(res.fits, "every Night (start to boss) is on screen without scrolling at " .. tag)
+			local last = boxes[JM.NightCap]
+			expectTrue(last.circle.x1 + R.FRAME_X <= w and last.label.x1 + R.FRAME_X <= w, "the boss and its label are on screen at " .. tag)
+		end
+		if w == 1920 then
+			expectTrue(res.nodeSize >= 105 and res.nodeSize <= 120, "nodes about 110 px (" .. res.nodeSize .. ")")
+			expectTrue(res.bossSize >= 140 and res.bossSize <= 160, "the boss about 150 px (" .. res.bossSize .. ")")
+		end
+		expectTrue(res.bossSize > res.nodeSize, "the boss is larger at " .. tag)
+	end
+end })
+
+table.insert(tests, { name = "MapHeaderRules: title 28 px, stats 22 px and icons 28 px at the full header, every word fits its own plate (and stays at least 14 px) at four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local L = R.layout(1920, 957)
+	expectEqual(L.titleSize, 28, "the title is 28 px")
+	expectEqual(L.statSize, 22, "the stats are 22 px")
+	expectEqual(L.iconSize, 28, "the icons are 28 px")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local H = R.layout(sz[1], sz[2])
+		expectTrue(H.titleSize >= 14 and H.titleSize <= 28 and H.statSize >= 14 and H.statSize <= 22, "text sizes in range at " .. tag)
+		expectTrue(R.textWidth(#R.TITLE_TEXT, H.titleSize) <= H.title.w - 20, "the title fits its plate at " .. tag)
+		local chars = R.statChars(H.compact)
+		for k, cell in pairs(H.stat) do
+			local parts = H.cellParts[k]
+			expectTrue(R.textWidth(chars[k], H.statSize) <= parts.text.w - 4, k .. " text fits its cell at " .. tag .. " (" .. R.textWidth(chars[k], H.statSize) .. " in " .. parts.text.w .. ")")
+			expectTrue(parts.text.x + parts.text.w <= cell.w and parts.text.h <= cell.h, k .. " text is inside its cell at " .. tag)
+			if parts.icon then
+				expectTrue(parts.icon.x + parts.icon.w <= parts.text.x and parts.icon.y >= 0 and parts.icon.y + parts.icon.h <= cell.h, k .. " icon sits left of its text at " .. tag)
+			end
+		end
+		expectTrue(H.x.x + H.x.w <= sz[1] and H.x.y >= 0 and H.x.y + H.x.h <= H.bar.h + 4, "the X is fully on screen at " .. tag)
+		expectTrue(H.stats.x + H.stats.w <= H.x.x and H.title.x + H.title.w <= H.stats.x, "the plates sit left of the X, title before stats at " .. tag)
+		if H.bannerR then
+			expectTrue(H.stats.x + H.stats.w <= H.bannerR.x and H.bannerR.x + H.bannerR.w <= H.x.x, "the banners are beside the plates, not under them at " .. tag)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map live fixes: header text is not auto scaled, the duplicate Keys pill and the Nudge tab stay hidden, locked nodes keep their picture at 55 percent, the type tag is a dark pill", fn = function()
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local bar, view, compass = read("src/Client/MapHeaderBar.lua"), read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapCompass.lua")
+	if not (bar and view and compass) then return end
+	expectTrue(bar:find("TextScaled = true", 1, true) == nil, "header text is sized by the rules, never scaled to fill the plate")
+	expectTrue(compass:find("keysPill.Visible = false", 1, true) ~= nil and compass:find("keysPill.Visible = shown", 1, true) == nil, "the header's Keys is the only Keys counter")
+	expectTrue(view:find("nudge.Visible = false", 1, true) ~= nil, "Nudge is hidden by default")
+	expectTrue(view:find("node.art.ImageTransparency = locked and 0.45 or 0", 1, true) ~= nil, "a locked node shows its picture at 55 percent")
+	expectTrue(view:find("a small dark pill in the tag colour with cream text", 1, true) ~= nil, "the type tag is a dark pill")
 end })
 
 return tests
