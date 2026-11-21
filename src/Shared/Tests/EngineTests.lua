@@ -35310,5 +35310,15 @@ tests[#tests + 1] = ({ name = "Tavern Map: no local shadows the route drawing fu
 	expectTrue(journey:find("MapErrors", 1, true) ~= nil and view:find("MapErrors", 1, true) ~= nil, "both map error sites report through MapErrors")
 	expectTrue(read("src/Client/MapErrors.lua"):find("[TavernMap]", 1, true) ~= nil, "MapErrors keeps the [TavernMap] warn")
 end })
+table.insert(tests, { name = "Assets: id 203785492 (wrong-type ContentId warning) is not held by any source file", fn = function()
+	if not (io and io.popen) then return end
+	local h = io.popen("grep -rl 203785492 src 2>/dev/null")
+	if not h then return end
+	local out = h:read("*a") or ""
+	h:close()
+	-- The test file itself names the id, so ignore it.
+	out = out:gsub("[^\n]*Tests/EngineTests%.lua\n?", "")
+	expectTrue(out == "", "no source file holds 203785492, found: " .. out)
+end })
 
 return tests
