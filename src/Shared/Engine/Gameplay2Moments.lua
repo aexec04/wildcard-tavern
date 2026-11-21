@@ -160,7 +160,15 @@ function M.ruleChip(r, w, h, name, rule)
 		return false
 	end
 	local guard = 0
-	while touches(rect) and rect.y > 0 and guard < 200 do rect.y = rect.y - 1; guard = guard + 1 end
+	-- the tray (slots, Use, Sell, prompt) sits low on the left: lift the chip until it clears every tray plate by 4 px
+	local function hitsTray(q)
+		for _, k in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
+			local t = r[k]
+			if t and q.x < t.x + t.w + 4 and t.x - 4 < q.x + q.w and q.y < t.y + t.h + 4 and t.y - 4 < q.y + q.h then return true end
+		end
+		return false
+	end
+	while (touches(rect) or hitsTray(rect)) and rect.y > 0 and guard < 400 do rect.y = rect.y - 1; guard = guard + 1 end
 	return { rect = rect, compact = true, text = label, size = size }
 end
 -- the largest size at which `text` fits one line of a scroll plateW wide (0.58 of the size per letter, 90 percent of the width)

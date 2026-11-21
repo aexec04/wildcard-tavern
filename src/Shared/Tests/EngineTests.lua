@@ -34763,7 +34763,7 @@ table.insert(tests, { name = "Boss round at 1024x768 and 1366x768: name, health 
 	local L, BC, GM = require(Eng.Gameplay2Layout), require(Eng.BossCard), require(Eng.Gameplay2Moments)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	local function inside(a, w, h) return a.x >= 0 and a.y >= 0 and a.x + a.w <= w and a.y + a.h <= h end
-	for _, sz in ipairs({ { 1024, 768 }, { 1366, 768 } }) do
+	for _, sz in ipairs({ { 1024, 768 }, { 1366, 768 }, { 1280, 720 }, { 800, 450 } }) do
 		local w, h = sz[1], sz[2]
 		local tag = w .. "x" .. h
 		local r = L.rects(w, h)
@@ -34772,8 +34772,9 @@ table.insert(tests, { name = "Boss round at 1024x768 and 1366x768: name, health 
 		for i, s in ipairs(r.slots) do seats["card" .. i] = s.card; seats["label" .. i] = s.label; seats["pill" .. i] = s.pill; expectTrue(inside(s.card, w, h) and inside(s.pill, w, h), "seat " .. i .. " is on screen at " .. tag) end
 		-- name, health bar and Night line sit inside the boss plate, in order, above the first seat, with text of 11 px or more
 		local tp = BC.topParts(r)
-		expectTrue(tp.plate ~= nil, "the roomy boss plate is used at " .. tag)
 		local p = tp.plate
+		if w >= 1024 and h >= 720 then expectTrue(p ~= nil, "the roomy boss plate is used at " .. tag) end
+		if p then
 		for _, k in ipairs({ "name", "bar", "night" }) do
 			local t = tp[k]
 			expectTrue(t.x >= p.x and t.y >= p.y and t.x + t.w <= p.x + p.w and t.y + t.h <= p.y + p.h, k .. " is inside the boss plate at " .. tag)
@@ -34783,6 +34784,7 @@ table.insert(tests, { name = "Boss round at 1024x768 and 1366x768: name, health 
 		expectTrue(tp.bar.h >= 14 and tp.night.h >= 13 and tp.name.h >= 13, "the bar text has room for 11 px words at " .. tag)
 		expectTrue(p.y + p.h + 8 <= r.slots[1].card.y, "the boss plate stays 8 px above the Patron seats at " .. tag)
 		for k, v in pairs(seats) do expectTrue(not hit(p, v), "the boss plate does not touch " .. k .. " at " .. tag) end
+		end
 		-- the Boss card (when it fits) or the rule chip (when it does not): clear of seats, Score plate, hand, buttons, tray, top bar
 		local card = BC.cardRect(r, w, h)
 		local chip = GM.ruleChip(r, w, h, "One at a Time", "Deals you one fewer card every hand you play after the first this round")
