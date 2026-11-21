@@ -134,7 +134,16 @@ return function(deps)
 	})
 	-- The rest of the branching world (other roads, fork chips, biome reward badges); see JourneyMapGraph.
 	local BiomeRewardsJMV = require(Engine:WaitForChild("BiomeRewards"))
+	local panelRef = {} -- set to the selection panel once it exists (it is built after the graph)
 	local worldGraph = require(script.Parent.JourneyMapGraph)({
+		-- the selection panel in canvas pixels, so side stop names keep 12 px clear of it
+		avoidRect = function()
+			local sp = panelRef.p
+			if not (sp and sp.panel.Visible) then return nil end
+			local r = sp.rect()
+			local fa, ca = frame.AbsolutePosition, canvas.AbsolutePosition
+			return { x = r.x + fa.X - ca.X, y = r.y + fa.Y - ca.Y, w = r.w, h = r.h }
+		end,
 		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
 		confirmParent = frame, -- the "Unlock with a Key?" dialog covers the visible map, not the scrolling canvas
 		nodeArt = function(key) return key and ContentArtJMV.getImageId("map_nodes", key) or nil end,
@@ -378,6 +387,9 @@ return function(deps)
 		haloStroke.Parent = halo
 		local haloScale = Instance.new("UIScale")
 		haloScale.Parent = halo
+		-- soft warm glow behind the current node (child of the halo, so it shows and hides with it)
+		require(script.Parent.SoftGlow).build(halo, { name = "CurrentGlow", color = Color3.fromRGB(255, 196, 96), position = UDim2.fromScale(0.5, 0.5),
+			size = UDim2.fromScale(1.7, 1.7), peak = 0.45, inner = 0.4, zIndex = 24 })
 
 		-- Emoji fallback (shown when the landmark art is missing or fails to load).
 		local icon = text(button, {
@@ -1513,11 +1525,13 @@ return function(deps)
 	-- ===== Selected location panel (lower left; Engine/MapSelectRules, Client/MapSelectPanel) =====
 	local selectPanel = require(script.Parent.MapSelectPanel).new({
 		parent = frame, PatronPlaque = PatronPlaque,
+		frameArt = function() return paintArt("frame_panel") end,
 		onContinue = function() -- Continue closes the map: the run goes on from Round Select / the table (the existing launch path)
 			deps.playClickSfx()
 			if deps.closeMap then deps.closeMap() end
 		end,
 	})
+	panelRef.p = selectPanel
 	local RunStateEngine = require(Engine:WaitForChild("RunState"))
 	local function panelDescription(index)
 		local node = nodes[index]

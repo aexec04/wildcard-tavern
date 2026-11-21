@@ -81,6 +81,27 @@ function MapSelectPanel.new(deps)
 		end
 	end
 
+	-- the painted carved wood frame (map_paint frame_panel), 9-sliced behind everything; the drawn studs and line step aside when it loads
+	do
+		local id = deps.frameArt and deps.frameArt()
+		if id then
+			local fr = Instance.new("ImageLabel")
+			fr.Name = "PanelFrame"
+			fr.BackgroundTransparency = 1
+			fr.Image = id
+			fr.ScaleType = Enum.ScaleType.Slice
+			fr.SliceCenter = Rect.new(170, 170, 854, 854)
+			fr.SliceScale = 0.09 -- 15 px of carved border, inside the 16 px clear padding the content keeps
+			fr.Size = UDim2.fromScale(1, 1)
+			fr.Active = false
+			fr.ZIndex = 47
+			fr.Parent = panel
+			for i = 1, 4 do panel["Stud" .. i].Visible = false end
+			local trimStroke = panel:FindFirstChildOfClass("UIStroke")
+			if trimStroke then trimStroke.Transparency = 1 end
+		end
+	end
+
 	local art = Instance.new("Frame")
 	art.Name = "Art"
 	art.BackgroundColor3 = Color3.fromRGB(70, 52, 34)
@@ -150,7 +171,7 @@ function MapSelectPanel.new(deps)
 		go.Text = d.button.text
 		go.AutoButtonColor = false
 		-- bright green when the node can be entered, a muted brown when it cannot
-		local base = d.button.enabled and Color3.fromRGB(70, 176, 84) or Color3.fromRGB(104, 100, 96)
+		local base = d.button.enabled and Color3.fromRGB(58, 196, 84) or Color3.fromRGB(104, 100, 96)
 		go.BackgroundColor3 = base
 		local goShade = go:FindFirstChild("Shade")
 		if goShade then goShade.Color = ColorSequence.new(base:Lerp(Color3.new(1, 1, 1), 0.12), base:Lerp(Color3.new(0, 0, 0), 0.12)) end
@@ -160,14 +181,15 @@ function MapSelectPanel.new(deps)
 		go.TextSize = ts
 		go.TextColor3 = d.button.enabled and Color3.fromRGB(255, 252, 240) or Color3.fromRGB(205, 200, 190)
 		go.TextTransparency = 0
-		go.TextStrokeTransparency = 0.4
-		go.TextStrokeColor3 = Color3.fromRGB(20, 40, 20)
+		go.TextStrokeTransparency = 0 -- dark outline so the cream word reads on the green plate
+		go.TextStrokeColor3 = Color3.fromRGB(14, 30, 14)
 		local goStroke = go:FindFirstChildOfClass("UIStroke")
 		if goStroke then goStroke.Color = d.button.enabled and Color3.fromRGB(226, 182, 88) or Color3.fromRGB(130, 120, 100) end
 		local kl = go:FindFirstChild("KitLabel")
 		if kl and kl:IsA("TextLabel") then
 			kl.TextColor3, kl.TextSize, kl.Font = go.TextColor3, ts, Enum.Font.GothamBold
-			kl.TextTransparency, kl.TextStrokeTransparency = 0, 0.4
+			kl.TextTransparency, kl.TextStrokeTransparency = 0, 0
+			kl.TextStrokeColor3 = Color3.fromRGB(14, 30, 14)
 		end
 		name.Text = d.name
 		if mode == "tab" then

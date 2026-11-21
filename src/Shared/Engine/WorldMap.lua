@@ -92,7 +92,7 @@ WorldMap.Stops = {
 -- Side stops: optional spurs off a Night stop (never a Night themselves). `side` is "shop", "shrine", "rest"
 -- (step 6) or "minigame" with a `game` (steps 7a/7b). At most MAX_SIDE_PER_REGION per biome (validate checks it).
 -- x/y are offsets from the parent's position for the dotted detour.
-WorldMap.MAX_SIDE_PER_REGION = 2
+WorldMap.MAX_SIDE_PER_REGION = 3
 WorldMap.SideKinds = { shop = true, shrine = true, rest = true, minigame = true }
 local function side(id, parent, kind, name, icon, dx, dy)
 	WorldMap.Stops[id] = { kind = "side", parent = parent, side = kind, name = name, icon = icon,
@@ -118,6 +118,9 @@ side("dice_dock", "lighthouse_cove", "minigame", "The Dice Dock", "*", 0.0, -0.1
 for _, id in ipairs({ "lockpick_cave", "dune_rest", "lantern_hut", "cabin_rest" }) do
 	WorldMap.Stops[id].hidden = true
 end
+-- The Story Scroll hangs above the Meadow while the Picnic Stall hangs below it: the first fork of the road (a shop branch and an event branch)
+side("story_scroll", "wildflower_meadow", "minigame", "The Story Scroll", "*", 0.0, -0.14)
+WorldMap.Stops.story_scroll.game = "trivia"
 WorldMap.Stops.flip_bridge.game = "cardflip"
 WorldMap.Stops.lockpick_cave.game = "lockpick"
 WorldMap.Stops.trivia_cabin.game = "trivia"

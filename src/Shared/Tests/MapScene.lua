@@ -52,7 +52,7 @@ function MapScene.build(opts)
 	local hoverStub = { new = function() return { bind = function() end, hide = function() end } end }
 	local env, state = FakeGui.env({
 		studio = opts.studio,
-		stubs = { MapHover = hoverStub, RoadLock = {}, ClientSettings = { get = function() return false end } },
+		stubs = { MapHover = hoverStub, RoadLock = { keys = function() return 0 end, isLocked = function() return false end, pick = function() end }, ClientSettings = { get = function() return false end } },
 	})
 	local mods = {}
 	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules", "MapRouteRules" }) do
@@ -102,7 +102,7 @@ function MapScene.build(opts)
 	local engineFolder = FakeGui.folder(mods)
 	scene.graph = load("JourneyMapGraph", {
 		canvas = canvas, roundCorner = noop, ReplicatedStorage = state.services.ReplicatedStorage, Engine = engineFolder,
-		confirmParent = plate, rewardText = function() return nil end,
+		confirmParent = plate, rewardText = function() return nil end, avoidRect = opts.avoidRect,
 	})
 	scene.discoveries = load("JourneyMapDiscoveries", {
 		canvas = canvas, scroll = scroll, roundCorner = noop, TweenService = state.services.TweenService, Engine = engineFolder,

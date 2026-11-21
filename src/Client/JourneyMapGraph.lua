@@ -400,6 +400,17 @@ return function(deps)
 			if vis(p.parent) == "revealed" and sideLook ~= "hidden" then
 				local sideSize = sideLook == "bubble" and math.floor(nodeSize * 0.34) or sideSize -- an unrevealed stop is a small "?" bubble
 				route(parent.x, parent.y, p.x, p.y, nodeSize / 2, sideSize / 2, glow, glow and 0.1 or 0.35, 1)
+				-- a fork, not a dead end: the branch rejoins the road at the next stop, so shop and event branches are two loops of one road
+				do
+					local nextId
+					for i, rid in ipairs(routeIds) do
+						if rid == p.parent then nextId = routeIds[i + 1] break end
+					end
+					local nxt = nextId and res.pos[nextId]
+					if nxt and sideLook == "full" then
+						route(p.x, p.y, nxt.x, nxt.y, sideSize / 2, nodeSize / 2, glow, glow and 0.1 or 0.35, -1)
+					end
+				end
 				local btn = remember(Instance.new("TextButton"))
 				btn.Name = "Side_" .. id
 				btn.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -434,10 +445,13 @@ return function(deps)
 					local below = { ax = 0.5, ay = 0, x = p.x, y = p.y + sideSize / 2 + 4, box = { x = p.x - lw / 2, y = p.y + sideSize / 2 + 4, w = lw, h = lh } }
 					local above = { ax = 0.5, ay = 1, x = p.x, y = p.y - sideSize / 2 - 4, box = { x = p.x - lw / 2, y = p.y - sideSize / 2 - 4 - lh, w = lw, h = lh } }
 					local right = { ax = 0, ay = 0.5, x = p.x + sideSize / 2 + 4, y = p.y, box = { x = p.x + sideSize / 2 + 4, y = p.y - lh / 2, w = lw, h = lh } }
-					local order = p.y >= parent.y and { below, above, right } or { above, below, right }
+					-- a node in the lower third puts its name above it; every name stays 12 px clear of the selection panel
+					local order = RouteRules.sideLabelFirst(p.y, parent.y, canvasH) == "below" and { below, above, right } or { above, below, right }
+					local avoid = deps.avoidRect and deps.avoidRect()
+					avoid = avoid and RouteRules.growBox(avoid, RouteRules.PANEL_GAP) or nil
 					local pick = order[1]
 					for _, c in ipairs(order) do
-						local clash = false
+						local clash = avoid ~= nil and RouteRules.boxesOverlap(c.box, avoid)
 						for _, bx in ipairs(placedBoxes) do
 							if RouteRules.boxesOverlap(c.box, bx) then clash = true break end
 						end

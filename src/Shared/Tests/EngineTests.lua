@@ -6544,7 +6544,7 @@ local function runAtStop(night, tips)
 	return state
 end
 
-table.insert(tests, { name = "SideStops: data is valid, at most 2 per region, and found by parent", fn = function()
+table.insert(tests, { name = "SideStops: data is valid, at most 3 per region, and found by parent", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local ok, errors = WorldMap.validate()
 	expectTrue(ok, table.concat(errors, "; "))
@@ -6557,18 +6557,18 @@ table.insert(tests, { name = "SideStops: data is valid, at most 2 per region, an
 		end
 	end
 	for r, n in pairs(perRegion) do
-		expectTrue(n <= 2, r .. " has " .. n .. " side stops")
+		expectTrue(n <= WorldMap.MAX_SIDE_PER_REGION, r .. " has " .. n .. " side stops")
 	end
 	expectEqual(WorldMap.sideStopsAt("wildflower_meadow")[1], "picnic_stall")
 	expectEqual(#WorldMap.sideStopsAt("dusty_road"), 0)
-	-- three side stops in one region is rejected
+	-- four side stops in one region is rejected
 	local night = function(region, nxt) return { kind = "night", region = region, art = "a", name = "n", x = 0.5, y = 0.5, next = nxt } end
 	local g = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
-	for i = 1, 3 do
+	for i = 1, 4 do
 		g["x" .. i] = { kind = "side", parent = "m", side = "shop" }
 	end
 	expectFalse(WorldMap.validate(g, "s", "f", 3))
-	g.x3 = nil
+	g.x4 = nil
 	expectTrue(WorldMap.validate(g, "s", "f", 3))
 	g.x2.side = "bogus"
 	expectFalse(WorldMap.validate(g, "s", "f", 3))
@@ -7424,7 +7424,7 @@ table.insert(tests, { name = "WorldMapLayout: every side stop sits beside its pa
 				end
 			end
 		end
-		expectEqual(sides, 15)
+		expectEqual(sides, 16)
 	end
 end })
 
@@ -35319,6 +35319,61 @@ table.insert(tests, { name = "Assets: id 203785492 (wrong-type ContentId warning
 	-- The test file itself names the id, so ignore it.
 	out = out:gsub("[^\n]*Tests/EngineTests%.lua\n?", "")
 	expectTrue(out == "", "no source file holds 203785492, found: " .. out)
+end })
+
+table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch below and an Event branch above, side names go above in the lower third and stay 12 px off the panel", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	local ids = WorldMap.sideStopsAt("wildflower_meadow")
+	expectEqual(ids[1], "picnic_stall")
+	expectEqual(ids[2], "story_scroll")
+	expectTrue(WorldMap.Stops.picnic_stall.dy > 0 and WorldMap.Stops.story_scroll.dy < 0, "one branch hangs below the road, the other above")
+	expectEqual(WorldMap.Stops.story_scroll.side, "minigame")
+	expectTrue(WorldMap.Stops.story_scroll.game ~= nil, "the Event stop plays a game")
+	expectTrue(WorldMap.validate(), "the world still validates")
+	expectEqual(RR.sideLabelFirst(800, 400, 957), "above", "lower third: name above")
+	expectEqual(RR.sideLabelFirst(500, 400, 957), "below", "below the road, mid height: name below")
+	expectEqual(RR.sideLabelFirst(200, 400, 957), "above", "above the road: name above")
+	local g = RR.growBox({ x = 10, y = 20, w = 100, h = 50 }, 12)
+	expectEqual(g.x, -2); expectEqual(g.y, 8); expectEqual(g.w, 124); expectEqual(g.h, 74)
+	local art = require(script.Parent.Parent.Engine.MapPaintArt)
+	expectTrue(type(art.frame_panel) == "string" and art.frame_panel:find("^rbxassetid://%d+$") ~= nil, "the carved wood panel frame is registered in map_paint")
+	if not (io and io.open and load) then return end
+	local function src(p) local fh = io.open(p, "r"); if not fh then return "" end; local t = fh:read("*a"); fh:close(); return t end
+	local panelSrc, graphSrc = src("src/Client/MapSelectPanel.lua"), src("src/Client/JourneyMapGraph.lua")
+	expectTrue(panelSrc:find("PanelFrame", 1, true) and panelSrc:find("Enum.ScaleType.Slice", 1, true), "the panel draws the sliced painted frame")
+	expectTrue(panelSrc:find("go.TextStrokeTransparency = 0 ", 1, true), "Continue has a solid dark outline")
+	expectTrue(graphSrc:find("RouteRules.growBox(avoid, RouteRules.PANEL_GAP)", 1, true), "side names keep 12 px clear of the panel")
+	expectTrue(graphSrc:find("rejoins the road", 1, true), "each branch reconnects to the next stop")
+	-- live graph on the fake Roblox: both Meadow branches are drawn as nodes, with dashes joining them back to the road
+	local f = io.open("src/Client/JourneyMapGraph.lua", "r")
+	if not f then return end
+	f:close()
+	local MapScene = require(script.Parent.MapScene)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local zone = HR.layout(w, h).panelZone
+		local avoid = { x = zone.x, y = zone.y, w = zone.w, h = zone.h }
+		local scene = MapScene.build({ W = w, H = h, avoidRect = function() return avoid end })
+		scene.graph.setShown(true)
+		scene.graph.layout(w, h, math.floor(h * 0.14), function(d) return 120 + d * math.floor(w * 0.1), h * 0.45 end)
+		scene.graph.refresh({ night = 2, round = 1, worldRoute = nil })
+		local sides = {}
+		for _, c in ipairs(scene.graphRoot:GetChildren()) do
+			if c.Name:find("^Side_") then sides[c.Name] = c end
+		end
+		expectTrue(sides.Side_picnic_stall ~= nil and sides.Side_story_scroll ~= nil, "both Meadow branches are drawn at " .. w .. "x" .. h)
+		local below, above = sides.Side_picnic_stall.Position.Y.Offset, sides.Side_story_scroll.Position.Y.Offset
+		local px, py = scene.graph.positionOf("wildflower_meadow")
+		local where = " at " .. w .. "x" .. h .. " (event y " .. tostring(above) .. ", shop y " .. tostring(below) .. ", meadow y " .. tostring(py) .. ")"
+		local ax, bx = sides.Side_story_scroll.Position.X.Offset, sides.Side_picnic_stall.Position.X.Offset
+		local nodePx = math.floor(math.floor(h * 0.14) * 0.69)
+		expectTrue(math.abs(ax - bx) >= nodePx or math.abs(above - below) >= nodePx, "the two branch nodes do not overlap" .. where)
+		if w >= 1024 then -- the small canvases are too crowded to promise a clean fork, they only promise no overlap
+			expectTrue(px ~= nil and (above - py) * (below - py) < 0, "the two branches fork to opposite sides of the road" .. where)
+		end
+	end
 end })
 
 return tests

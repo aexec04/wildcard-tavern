@@ -9,6 +9,7 @@ return {
 	["boss_emblem"] = "rbxassetid://139751390142249",
 	["frame_banner"] = "rbxassetid://128381381102557",
 	["frame_candle"] = "rbxassetid://85307072896128",
+	["frame_panel"] = "rbxassetid://128488211922915",
 	["node_encounter"] = "rbxassetid://103179633194720",
 	["node_event"] = "rbxassetid://112671095487285",
 	["node_rest"] = "rbxassetid://115383494323382",

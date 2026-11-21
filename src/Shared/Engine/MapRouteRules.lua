@@ -9,6 +9,9 @@
 	stopLook(depth, night, flags)    -> "full" | "bubble" | "hidden" for a stop that is off the player's road
 	sideLook(parentDepth, night, flags) -> "full" | "bubble" | "hidden" for a side stop
 	boxesOverlap(a, b)               -> true when two { x, y, w, h } rects overlap
+	sideLabelFirst(py, parentY, canvasH) -> "below" | "above": which side of a side stop its name goes on first (above when the node is in the
+	                                    lower third of the canvas, else away from the road)
+	growBox(box, gap)                -> the rect grown by gap on every side (the 12 px keep-clear ring round the selection panel)
 ]]
 
 local M = {}
@@ -111,6 +114,17 @@ end
 
 function M.boxesOverlap(a, b)
 	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+end
+
+M.PANEL_GAP = 12 -- every side stop name stays this far from the selection panel
+
+function M.sideLabelFirst(py, parentY, canvasH)
+	if canvasH and canvasH > 0 and py > canvasH * 2 / 3 then return "above" end
+	return py >= parentY and "below" or "above"
+end
+
+function M.growBox(b, gap)
+	return { x = b.x - gap, y = b.y - gap, w = b.w + 2 * gap, h = b.h + 2 * gap }
 end
 
 return M
