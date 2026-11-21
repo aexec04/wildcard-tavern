@@ -8405,6 +8405,24 @@ table.insert(tests, { name = "GearMenu: the speaker shows its state, the ambienc
 	expectTrue(a:find('key == "muted"', 1, true), "ambience listens for the mute")
 end })
 
+table.insert(tests, { name = "CardFace: the Mystery card has its own card back, a gold border, a corner and a centre question mark and the word Mystery", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/CardFace.lua", "r")); local c = f:read("a"); f:close()
+	local a = c:find("if hiddenWildcard then", 1, true)
+	local b = c:find("builtFaces[button] = { rankText", a, true)
+	local blk = c:sub(a, b)
+	expectTrue(blk:find("MysteryBase", 1, true) and blk:find("BackgroundColor3 = MYSTERY_BACK", 1, true) and blk:find("UICorner", 1, true) and blk:find("UIStroke", 1, true), "fill, corner and gold border")
+	expectTrue(blk:find('"CornerRank", "?"', 1, true) and blk:find('"CenterQuestion", "?"', 1, true) and blk:find('"Mystery"', 1, true), "both question marks and the word")
+	expectTrue(not blk:find("rankText", 1, true) and not blk:find("suitText", 1, true), "never reveals rank or suit")
+	-- ink contrast on the back, 4.5:1 or better
+	local function lum(r, g, bl)
+		local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(bl)
+	end
+	local l1, l2 = lum(226, 212, 244), lum(50, 20, 90)
+	expectTrue((l1 + 0.05) / (l2 + 0.05) >= 4.5, "contrast at least 4.5")
+end })
+
 table.insert(tests, { name = "ButtonFeel: a button whose Position is set after creation rests where the layout put it after hover", fn = function()
 	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
 	local button = { Position = 0 } -- created at 0,0

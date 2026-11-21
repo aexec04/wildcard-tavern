@@ -32,6 +32,8 @@ local SERIF = "rbxasset://fonts/families/Merriweather.json"
 local RED_INK = Color3.fromRGB(140, 34, 30) -- muted brick red
 local BLACK_INK = Color3.fromRGB(60, 40, 22) -- warm ink, same family as the parchment board
 local WILDCARD_INK = Color3.fromRGB(150, 110, 230)
+local MYSTERY_BACK = Color3.fromRGB(226, 212, 244) -- lavender card back
+local MYSTERY_INK = Color3.fromRGB(50, 20, 90) -- dark purple, about 10:1 on the back
 local GOLD = Color3.fromRGB(205, 170, 95)
 
 -- Settings > Display > Colorblind Suits: one ink per suit (keyed by the
@@ -275,8 +277,35 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	face.Parent = button
 
 	if hiddenWildcard then
-		makeLabel(face, "CornerRank", "?",WILDCARD_INK, UDim2.fromScale(0.26, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex)
-		makeLabel(face, "CenterSuit", "Mystery",WILDCARD_INK, UDim2.fromScale(0.6, 0.3), UDim2.fromScale(0.5, 0.52), Vector2.new(0.5, 0.5), nil, zIndex)
+		-- A full card of its own (the hand shows only this): lavender back, gold border, purple diamond pattern, dark purple ink
+		-- (about 10:1 on the back). It never shows the rank or suit.
+		local base = Instance.new("Frame")
+		base.Name = "MysteryBase"
+		base.Size = UDim2.fromScale(1, 1)
+		base.BackgroundColor3 = MYSTERY_BACK
+		base.BorderSizePixel = 0
+		base.ZIndex = zIndex
+		base.Active = false
+		base.Parent = face
+		local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0.08, 0); bc.Parent = base
+		local bs = Instance.new("UIStroke"); bs.Name = "MysteryBorder"; bs.Color = Color3.fromRGB(214, 170, 70); bs.Thickness = 2; bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; bs.Parent = base
+		for i, at in ipairs({ { 0.5, 0.52 }, { 0.5, 0.52 } }) do -- two nested diamonds
+			local d = Instance.new("Frame")
+			d.Name = "MysteryDiamond" .. i
+			d.AnchorPoint = Vector2.new(0.5, 0.5)
+			d.Position = UDim2.fromScale(at[1], at[2])
+			local side = i == 1 and 0.62 or 0.46
+			d.Size = UDim2.fromScale(side, side * 0.7)
+			d.Rotation = 45
+			d.BackgroundTransparency = 1
+			d.ZIndex = zIndex
+			d.Active = false
+			d.Parent = base
+			local ds = Instance.new("UIStroke"); ds.Color = Color3.fromRGB(150, 110, 200); ds.Thickness = 1; ds.Parent = d
+		end
+		makeLabel(face, "CornerRank", "?", MYSTERY_INK, UDim2.fromScale(0.26, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex + 1)
+		makeLabel(face, "CenterQuestion", "?", MYSTERY_INK, UDim2.fromScale(0.5, 0.34), UDim2.fromScale(0.5, 0.42), Vector2.new(0.5, 0.5), nil, zIndex + 1)
+		makeLabel(face, "CenterSuit", "Mystery", MYSTERY_INK, UDim2.fromScale(0.72, 0.16), UDim2.fromScale(0.5, 0.72), Vector2.new(0.5, 0.5), nil, zIndex + 1)
 		return face
 	end
 
