@@ -56,7 +56,7 @@ local function buildCard(layer)
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = f
 	local st = Instance.new("UIStroke"); st.Name = "Glow"; st.Color = GOLD; st.Thickness = 3; st.Parent = f
 	-- soft outer glow: three 8 px rings that together reach 24 px past each edge, fading outward (no picture needed); parented to the card so it follows it
-	for i, d in ipairs({ 0, 8, 16 }) do
+	for i, d in ipairs({ 0, 10, 20 }) do
 		local ring = Instance.new("Frame")
 		ring.Name = "OuterGlow" .. i
 		ring.BackgroundTransparency = 1
@@ -68,6 +68,7 @@ local function buildCard(layer)
 		ring.Parent = f
 		local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10 + d); rc.Parent = ring
 		local rs = Instance.new("UIStroke"); rs.Name = "Ring"; rs.Color = GOLD; rs.Thickness = 8; rs.Transparency = 0.5; rs.Parent = ring
+			ring:SetAttribute("Step", d)
 	end
 	local pf = Instance.new("Frame"); pf.Name = "Portrait"; pf.BackgroundColor3 = Color3.fromRGB(60, 22, 18); pf.BorderSizePixel = 0; pf.Active = false; pf.ZIndex = 29; pf.Parent = f
 	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pf
@@ -95,7 +96,7 @@ local function buildTop(layer)
 	f.Parent = layer
 	local plate = Instance.new("Frame") -- the taller boss plate behind the rows (hidden when the scroll itself carries them)
 	plate.Name = "Plate"
-	plate.BackgroundColor3 = Color3.fromRGB(226, 205, 160)
+	plate.BackgroundColor3 = Color3.fromRGB(62, 38, 22) -- dark carved wood like the other top plates
 	plate.BorderSizePixel = 0
 	plate.Active = false
 	plate.ZIndex = 8
@@ -103,7 +104,8 @@ local function buildTop(layer)
 	plate.Parent = f
 	local pcn = Instance.new("UICorner"); pcn.CornerRadius = UDim.new(0, 10); pcn.Parent = plate
 	local pst = Instance.new("UIStroke"); pst.Color = GOLD; pst.Thickness = 2; pst.Parent = plate
-	local nm = label(f, "Title", Enum.Font.Merriweather, Color3.fromRGB(60, 24, 14), 9)
+	local pg = Instance.new("UIGradient"); pg.Color = ColorSequence.new(Color3.fromRGB(84, 54, 32), Color3.fromRGB(46, 28, 16)); pg.Rotation = 90; pg.Parent = plate -- Color stops only
+	local nm = label(f, "Title", Enum.Font.Merriweather, CREAM, 9)
 	nm.TextTruncate = Enum.TextTruncate.AtEnd
 	local bar = Instance.new("Frame"); bar.Name = "Bar"; bar.BackgroundColor3 = Color3.fromRGB(52, 14, 14); bar.BorderSizePixel = 0; bar.Active = false; bar.ZIndex = 9; bar.Parent = f
 	local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 6); bc.Parent = bar
@@ -112,7 +114,7 @@ local function buildTop(layer)
 	local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0, 6); fc.Parent = fill
 	local num = label(bar, "Num", Enum.Font.GothamBold, CREAM, 11)
 	num.Size = UDim2.fromScale(1, 1); num.TextStrokeTransparency = 0.4; num.TextStrokeColor3 = Color3.fromRGB(30, 8, 8)
-	local night = label(f, "Night", Enum.Font.Gotham, Color3.fromRGB(70, 44, 24), 9)
+	local night = label(f, "Night", Enum.Font.Gotham, Color3.fromRGB(226, 205, 160), 9)
 	return f
 end
 
@@ -152,6 +154,21 @@ local function applySeatGlow(layer, rects, owned)
 			g.Size = UDim2.fromOffset(s.card.w + 4, s.card.h + 4)
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
 			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
+			local gl = Rules.glow(true)
+			for k = 1, 2 do -- soft halo: two 7 px rings, 14 px in all, fading outward (static, so Calm mode and Reduce motion need nothing)
+				local hr = Instance.new("Frame")
+				hr.Name = "Halo" .. k
+				hr.BackgroundTransparency = 1
+				hr.BorderSizePixel = 0
+				hr.Active = false
+				hr.ZIndex = 11
+				local d = (k - 1) * gl.seatHalo / 2
+				hr.Position = UDim2.fromOffset(-d - 2, -d - 2) -- the 2 px edge stroke sits just outside g
+				hr.Size = UDim2.new(1, 2 * d + 4, 1, 2 * d + 4)
+				local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(0, 8 + d); hc.Parent = hr
+				local hs = Instance.new("UIStroke"); hs.Color = GOLD; hs.Thickness = gl.seatHalo / 2; hs.Transparency = gl.seatHaloT + 0.2 * (k - 1); hs.Parent = hr
+				hr.Parent = g
+			end
 			g.Parent = layer
 			glowFrames[#glowFrames + 1] = g
 		end
@@ -193,6 +210,15 @@ function M.update(layer, state, rects, viewW, viewH)
 			if okA and art then art.ScaleType = Enum.ScaleType.Crop end
 			card.Portrait.Face.Visible = not (okA and art)
 			card.Portrait.Face.Text = Moments.bossIcon(boss and boss.rules)
+		end
+		local reach = math.max(0, math.min(glow.outer, spot.x - 2)) -- the halo stays on screen: it never reaches past the left edge
+		local thick = math.max(1, math.min(8, reach))
+		for i = 1, 3 do
+			local ring = card["OuterGlow" .. i]
+			local d = (i - 1) * math.max(0, reach - thick) / 2
+			ring.Position = UDim2.fromOffset(-d, -d); ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
+			ring.Ring.Thickness = thick
+			ring.Visible = reach >= 1
 		end
 		card.Glow.Thickness = glow.stroke
 		card.Glow.Transparency = 0

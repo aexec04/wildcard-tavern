@@ -20,6 +20,8 @@ M.PULSE_SECONDS = 0.9
 M.TWEEN_SECONDS = 0.3
 M.NIGHT_MIN_H = 60 -- the plate or scroll must be at least this tall for the small Night line
 M.PLATE_H = 96 -- the boss plate height on a roomy screen
+M.EDGE = 12 -- the Boss card stands at least this far from the left screen edge
+M.PLATE_AIR = 10 -- clear space between the plate and the Patron row (never less than 8)
 
 function M.health(target, score)
 	local t = math.max(0, math.floor(tonumber(target) or 0))
@@ -38,7 +40,10 @@ end
 
 function M.cardRect(r, viewW, viewH)
 	local spot = PatronPowerPanel.place(r, viewW, viewH, {})
-	return spot and spot.plate or nil
+	local pl = spot and spot.plate
+	if not pl then return nil end
+	if pl.x < M.EDGE then return { x = M.EDGE, y = pl.y, w = pl.w - (M.EDGE - pl.x), h = pl.h } end -- 12 px from the screen edge, the right side stays put
+	return pl
 end
 
 function M.cardParts(rect)
@@ -50,14 +55,14 @@ function M.cardParts(rect)
 end
 
 function M.plateRect(r)
-	-- the boss plate: up to PLATE_H tall, from just above the scroll down to 4 px clear of the first Patron seat; nil when there is no extra room
+	-- the boss plate: up to PLATE_H tall, from just above the scroll down to PLATE_AIR px clear of the first Patron seat; nil when there is no extra room
 	local R = r.round
 	local seatTop = math.huge
 	for _, s in ipairs(r.slots or {}) do
 		if s.card then seatTop = math.min(seatTop, s.card.y) end
 	end
 	local y = math.max(2, R.y - 4)
-	local h = seatTop < math.huge and math.min(M.PLATE_H, seatTop - 4 - y) or R.h
+	local h = seatTop < math.huge and math.min(M.PLATE_H, seatTop - M.PLATE_AIR - y) or R.h
 	if h <= R.h + 8 then return nil end
 	return { x = R.x, y = y, w = R.w, h = h }
 end
@@ -101,10 +106,10 @@ function M.topParts(r)
 	}
 end
 
--- stroke = 3 px gold on the Boss card, outer = soft rings reaching 24 px past each edge that pulse between lo and hi transparency,
--- seatStroke = the steady 2 px gold edge on the other Patron cards
+-- stroke = 3 px gold on the Boss card, outer = soft rings reaching 28 px past each edge that pulse between lo and hi transparency,
+-- seatStroke = the steady 2 px gold edge on the other Patron cards, seatHalo = their soft 14 px halo at seatHaloT transparency
 function M.glow(calm)
-	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 24, lo = 0.35, hi = 0.7 }
+	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 28, lo = 0.35, hi = 0.65, seatHalo = 14, seatHaloT = 0.55 }
 end
 
 return M

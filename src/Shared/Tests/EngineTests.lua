@@ -34615,7 +34615,7 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	local g = B.glow(false)
-	expectTrue(g.stroke == 3 and g.outer == 24 and g.lo == 0.35 and g.hi == 0.7 and g.seatStroke == 2, "glow numbers: 3 px stroke, 24 px outer, pulse 0.35 to 0.7, 2 px seat edge")
+	expectTrue(g.stroke == 3 and g.outer == 28 and g.lo == 0.35 and g.hi == 0.65 and g.seatStroke == 2 and g.seatHalo == 14 and g.seatHaloT == 0.55, "glow numbers: 3 px stroke, 28 px outer, pulse 0.35 to 0.65, 2 px seat edge, 14 px seat halo at 0.55")
 	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
 	expectTrue(B.plateRect(L.rects(1920, 957)) ~= nil and B.plateRect(L.rects(1920, 957)).h >= 90, "the plate is about 96 px tall at 1920x957")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
@@ -34629,7 +34629,10 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 		end
 		if tp.plate then
 			expectTrue(tp.plate.h <= 96, "plate at most 96 px at " .. w)
-			for _, s in ipairs(r.slots) do expectTrue(not hit(tp.plate, s.card) and not hit(tp.plate, s.label), "plate clear of the Patron row at " .. w .. "x" .. h) end
+			for _, s in ipairs(r.slots) do
+					expectTrue(not hit(tp.plate, s.card) and not hit(tp.plate, s.label), "plate clear of the Patron row at " .. w .. "x" .. h)
+					expectTrue(s.card.y - (tp.plate.y + tp.plate.h) >= 8, "at least 8 px of air between the plate and the Patron row at " .. w .. "x" .. h)
+				end
 			for _, k in ipairs({ "target", "tips", "gear" }) do if r[k] then expectTrue(not hit(tp.plate, r[k]), "plate clear of " .. k .. " at " .. w .. "x" .. h) end end
 			if tp.plate.h >= 90 then
 				expectTrue(tp.name.h >= 26 and tp.bar.h == 22 and tp.night and tp.night.h >= 14, "26 px name, 22 px bar and 14 px Night line fit at " .. w)
@@ -34664,6 +34667,11 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	local fx = read("src/Client/BossCardFX.lua")
 	expectTrue(fx:find("BossPresenceFX", 1, true) and fx:find("BossPresencePlate", 1, true), "BossCardFX clears the Concept T red plate")
 	expectTrue(fx:find("OuterGlow", 1, true) and fx:find("stopPulse()", 1, true), "the outer glow rings are built and stop in Calm mode")
+	expectTrue(fx:find('"Halo" .. k', 1, true) and fx:find("spot.x - 2", 1, true), "every Patron card has a halo and the Boss card halo is clamped inside the screen")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local c = require(script.Parent.Parent.Engine.BossCard).cardRect(require(script.Parent.Parent.Engine.Gameplay2Layout).rects(sz[1], sz[2]), sz[1], sz[2])
+		if c then expectTrue(c.x >= 12, "the Boss card is 12 px or more from the left edge at " .. sz[1]) end
+	end
 	local mo = read("src/Client/Gameplay2MomentsFX.lua")
 	expectTrue(mo:find('require(Engine:WaitForChild("BossCard")).cardRect', 1, true), "the rule strip is hidden whenever the Boss card fits")
 end })
