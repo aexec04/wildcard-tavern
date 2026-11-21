@@ -34918,7 +34918,7 @@ table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from
 	end
 end })
 
-table.insert(tests, { name = "MapFitRules: the whole Night route fits the frame at the default zoom, nodes about 110 px and the boss about 150 px at 1920x957, nothing under the header or the lower left panel, no node or label touches another at four sizes", fn = function()
+table.insert(tests, { name = "MapFitRules: the whole Night route fits the frame at the default zoom, nodes about 130 px, the boss about 190 px and a gentle S route at 1920x957, nothing under the header or the lower left panel, no node or label touches another at four sizes", fn = function()
 	local R = require(script.Parent.Parent.Engine.MapFitRules)
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
 	local JM = require(script.Parent.Parent.Engine.JourneyMap)
@@ -34947,8 +34947,11 @@ table.insert(tests, { name = "MapFitRules: the whole Night route fits the frame 
 			expectTrue(last.circle.x1 + R.FRAME_X <= w and last.label.x1 + R.FRAME_X <= w, "the boss and its label are on screen at " .. tag)
 		end
 		if w == 1920 then
-			expectTrue(res.nodeSize >= 105 and res.nodeSize <= 120, "nodes about 110 px (" .. res.nodeSize .. ")")
-			expectTrue(res.bossSize >= 140 and res.bossSize <= 160, "the boss about 150 px (" .. res.bossSize .. ")")
+			expectTrue(res.nodeSize >= 125 and res.nodeSize <= 140, "nodes about 130 px (" .. res.nodeSize .. ")")
+			expectTrue(res.bossSize >= 180 and res.bossSize <= 200, "the boss about 190 px (" .. res.bossSize .. ")")
+			local maxStep = 0
+			for i = 2, JM.NightCap do maxStep = math.max(maxStep, math.abs(res.posY[i] - res.posY[i - 1])) end
+			expectTrue(maxStep <= 90, "the route is a gentle S, neighbours differ by at most 90 px (" .. maxStep .. ")")
 		end
 		expectTrue(res.bossSize > res.nodeSize, "the boss is larger at " .. tag)
 	end
@@ -35214,6 +35217,32 @@ table.insert(tests, { name = "Tavern Map full screen is the only layout: it goes
 	expectTrue(at(view, 'mode = "dim"') ~= nil and at(view, 'seg.mode == "dim"') ~= nil, "the unrevealed stretch up to the boss is a dim dashed path")
 	expectTrue(at(graph, "plate.h + 24") == nil, "the graph name plate has no empty second line")
 	expectTrue(at(view, "hintX = canvasW / 2 - 40, hintY = HINT_Y") ~= nil, "the fog chip sits top centre under the header")
+end })
+
+table.insert(tests, { name = "MapHeaderRules: banners hang below the header bar and clear the plates and the X at four sizes; map_paint has the candle and banner art", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local Art = require(script.Parent.Parent.Engine.MapPaintArt)
+	expectTrue(type(Art.frame_candle) == "string" and type(Art.frame_banner) == "string", "candle and banner ids exist")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local H = R.layout(sz[1], sz[2])
+		local tag = sz[1] .. "x" .. sz[2]
+		for _, b in ipairs({ H.bannerL, H.bannerR }) do
+			expectTrue(b.h > H.bar.h, "the banner hangs below the bar at " .. tag)
+			expectTrue(not R.overlaps(b, H.title) and not R.overlaps(b, H.stats) and not R.overlaps(b, H.x), "the banner clears plates and X at " .. tag)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map panel and header: the lower left panel opens with a node selected (with a retry), plates use the carved plate art, banners and candles are painted", fn = function()
+	local function read(path) local f = io and io.open(path, "r") if not f then return nil end local t = f:read("*a") f:close() return t end
+	local view, bar, panel = read("src/Client/JourneyMapView.lua"), read("src/Client/MapHeaderBar.lua"), read("src/Client/MapSelectPanel.lua")
+	if not view then return end
+	local function at(t, needle) return t:find(needle, 1, true) end
+	expectTrue(at(view, 'openPanel("open")') ~= nil and at(view, 'openPanel("retry")') ~= nil, "the panel opens, and is retried once the layout has settled")
+	expectTrue(at(view, "never an empty panel") ~= nil, "a node is always selected on open")
+	expectTrue(at(bar, 'TavernKit.painted(titlePlate, "orn_target")') ~= nil and at(bar, 'TavernKit.painted(statsPlate, "orn_target")') ~= nil, "header plates use the carved plate art")
+	expectTrue(at(bar, "frame_banner") ~= nil and at(bar, "frame_candle") ~= nil, "banners and candles use the painted art")
+	expectTrue(at(panel, 'TavernKit.painted(panel, "orn_wide")') ~= nil, "the selection panel uses the carved plate art")
 end })
 
 return tests

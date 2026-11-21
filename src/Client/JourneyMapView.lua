@@ -789,6 +789,7 @@ return function(deps)
 		viewH = fit.viewH
 		canvasH = math.max(fit.canvasH, size.Y)
 		nodeSize, bossSize = fit.nodeSize, fit.bossSize
+		marker.Size = UDim2.fromOffset(math.floor(nodeSize * 0.62), math.floor(nodeSize * 0.92)) -- the figure stands about 120 px tall on a 131 px node
 		canvasW = math.max(fit.canvasW, size.X)
 		local spacing = fit.spacing
 		routeFits = fit.fits
@@ -2166,8 +2167,31 @@ return function(deps)
 			local startIdx = currentIndexFor(view)
 			local startNode = startIdx and nodes[startIdx]
 			selectedIndex = (startNode and startNode.state and MapSelectRules.canSelect(startNode.state)) and startIdx or nil
-			refreshPanel()
-			if selectedIndex then render(view, view.cleared, false) end
+			if not selectedIndex then -- never an empty panel: the first node the player can enter
+				for i, n in ipairs(nodes) do
+					if n.state and n.state ~= "locked" and n.button.Visible then selectedIndex = i break end
+				end
+			end
+			local function openPanel(tag)
+				local ok, err = xpcall(function()
+					refreshPanel()
+					if selectedIndex then render(view, view.cleared, false) end
+				end, debug.traceback)
+				if not ok then warn("[TavernMap] panel " .. tag .. " failed: " .. tostring(err)) end
+				if RunService:IsStudio() then
+					local pp, ps = selectPanel.panel.AbsolutePosition, selectPanel.panel.AbsoluteSize
+					warn(string.format("[MapPanel] %s selected=%s visible=%s mode=%s pos %d,%d size %dx%d", tag, tostring(selectedIndex),
+						tostring(selectPanel.panel.Visible), selectPanel.mode(), pp.X, pp.Y, ps.X, ps.Y))
+				end
+			end
+			openPanel("open")
+			-- once the layout has settled (sizes of a just-shown overlay can still be zero), make sure the panel is up and placed
+			local myOpen = playing
+			task.delay(0.6, function()
+				if frame.Visible and playing == myOpen then
+					if selectedIndex and not selectPanel.panel.Visible then openPanel("retry") else layoutPanel() end
+				end
+			end)
 		end,
 		applyHeader = applyHeader,
 	}
