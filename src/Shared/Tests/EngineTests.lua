@@ -35336,6 +35336,8 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 	expectEqual(RR.sideLabelFirst(200, 400, 957), "above", "above the road: name above")
 	local g = RR.growBox({ x = 10, y = 20, w = 100, h = 50 }, 12)
 	expectEqual(g.x, -2); expectEqual(g.y, 8); expectEqual(g.w, 124); expectEqual(g.h, 74)
+	local SR = require(script.Parent.Parent.Engine.MapSelectRules)
+	expectTrue(SR.contrast(SR.CONTINUE.text, SR.CONTINUE.fill) >= 4.5, "Continue word and plate keep 4.5:1 contrast")
 	local art = require(script.Parent.Parent.Engine.MapPaintArt)
 	expectTrue(type(art.frame_panel) == "string" and art.frame_panel:find("^rbxassetid://%d+$") ~= nil, "the carved wood panel frame is registered in map_paint")
 	if not (io and io.open and load) then return end
@@ -35370,7 +35372,27 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 		local ax, bx = sides.Side_story_scroll.Position.X.Offset, sides.Side_picnic_stall.Position.X.Offset
 		local nodePx = math.floor(math.floor(h * 0.14) * 0.69)
 		expectTrue(math.abs(ax - bx) >= nodePx or math.abs(above - below) >= nodePx, "the two branch nodes do not overlap" .. where)
-		if w >= 1024 then -- the small canvases are too crowded to promise a clean fork, they only promise no overlap
+		-- rects: 24 px between the two branch nodes, the lowest node 20 px above the panel, no name plate on a node, a plate or the panel
+		local function rectOf(o)
+			local ap, an = o.AnchorPoint or Vector2.new(0, 0), o.Size
+			local ww, hh = an.X.Offset, an.Y.Offset
+			return { x = o.Position.X.Offset - ap.X * ww, y = o.Position.Y.Offset - ap.Y * hh, w = ww, h = hh }
+		end
+		local rs, re = rectOf(sides.Side_picnic_stall), rectOf(sides.Side_story_scroll)
+		local gapX = math.max(rs.x - (re.x + re.w), re.x - (rs.x + rs.w))
+		local gapY = math.max(rs.y - (re.y + re.h), re.y - (rs.y + rs.h))
+		expectTrue(math.max(gapX, gapY) >= 24, "the two branch nodes keep 24 px apart" .. where .. " gap " .. math.max(gapX, gapY))
+		expectTrue(math.max(rs.y + rs.h, re.y + re.h) <= avoid.y - 20, "the lowest branch node ends 20 px above the panel" .. where)
+		local plates = {}
+		for _, c in ipairs(scene.graphRoot:GetChildren()) do
+			if c:IsA("TextLabel") and (c.Text == "The Picnic Stall" or c.Text == "The Story Scroll") then plates[#plates + 1] = rectOf(c) end
+		end
+		for _, pl in ipairs(plates) do
+			local pr = { x = pl.x, y = pl.y, w = pl.w, h = pl.h }
+			expectFalse(RR.boxesOverlap(pr, rs) or RR.boxesOverlap(pr, re), "a name plate sits on no branch node" .. where)
+			expectFalse(RR.boxesOverlap(pr, RR.growBox(avoid, 12)), "a name plate keeps 12 px clear of the panel" .. where)
+		end
+		if w >= 1920 then -- smaller canvases are too crowded (the panel keeps the Shop out of the lower band) to promise opposite sides, they promise the rect checks above
 			expectTrue(px ~= nil and (above - py) * (below - py) < 0, "the two branches fork to opposite sides of the road" .. where)
 		end
 	end

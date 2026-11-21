@@ -68,15 +68,15 @@ function MapSelectPanel.new(deps)
 		stud.Parent = panel
 	end
 	-- dark carved wood with gold trim, like the header (a lighter wood band across the top, Color only gradient)
-	panel.BackgroundColor3 = Color3.fromRGB(78, 50, 30)
+	panel.BackgroundColor3 = Color3.fromRGB(150, 104, 62) -- the lighter wood outer frame, 10 px wide round the dark inset
 	panel.BackgroundTransparency = 0
 	do
 		local shade = panel:FindFirstChild("Shade")
-		if shade then shade.Color = ColorSequence.new(Color3.fromRGB(104, 70, 42), Color3.fromRGB(62, 40, 24)) end
+		if shade then shade.Color = ColorSequence.new(Color3.fromRGB(172, 124, 76), Color3.fromRGB(128, 88, 52)) end
 		local trimStroke = panel:FindFirstChildOfClass("UIStroke")
 		if trimStroke then
-			trimStroke.Color = Color3.fromRGB(214, 170, 82)
-			trimStroke.Thickness = 3
+			trimStroke.Color = Color3.fromRGB(52, 34, 20)
+			trimStroke.Thickness = 2
 			trimStroke.Transparency = 0
 		end
 	end
@@ -96,10 +96,24 @@ function MapSelectPanel.new(deps)
 			fr.Active = false
 			fr.ZIndex = 47
 			fr.Parent = panel
-			for i = 1, 4 do panel["Stud" .. i].Visible = false end
-			local trimStroke = panel:FindFirstChildOfClass("UIStroke")
-			if trimStroke then trimStroke.Transparency = 1 end
 		end
+	end
+	-- dark brown wood fill (never black) inside the 10 px lighter frame, with a 3 px warm gold inner line; the corner studs stay on top
+	do
+		local inset = Instance.new("Frame")
+		inset.Name = "Inset"
+		inset.Position = UDim2.fromOffset(10, 10)
+		inset.Size = UDim2.new(1, -20, 1, -20)
+		inset.BackgroundColor3 = Color3.fromRGB(88, 58, 34)
+		inset.BorderSizePixel = 0
+		inset.Active = false
+		inset.ZIndex = 47
+		inset.Parent = panel
+		local s = Instance.new("UIStroke")
+		s.Color = Color3.fromRGB(226, 182, 88)
+		s.Thickness = 3
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		s.Parent = inset
 	end
 
 	local art = Instance.new("Frame")
@@ -171,7 +185,9 @@ function MapSelectPanel.new(deps)
 		go.Text = d.button.text
 		go.AutoButtonColor = false
 		-- bright green when the node can be entered, a muted brown when it cannot
-		local base = d.button.enabled and Color3.fromRGB(58, 196, 84) or Color3.fromRGB(104, 100, 96)
+		local cc = Rules.CONTINUE
+		local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+		local base = d.button.enabled and rgb(cc.fill) or rgb(cc.offFill)
 		go.BackgroundColor3 = base
 		local goShade = go:FindFirstChild("Shade")
 		if goShade then goShade.Color = ColorSequence.new(base:Lerp(Color3.new(1, 1, 1), 0.12), base:Lerp(Color3.new(0, 0, 0), 0.12)) end
@@ -179,17 +195,18 @@ function MapSelectPanel.new(deps)
 		go.Font = Enum.Font.GothamBold
 		local ts = r.button and math.min(24, r.button.h - 8) or 24
 		go.TextSize = ts
-		go.TextColor3 = d.button.enabled and Color3.fromRGB(255, 252, 240) or Color3.fromRGB(205, 200, 190)
+		go.TextColor3 = d.button.enabled and rgb(cc.text) or rgb(cc.offText)
 		go.TextTransparency = 0
 		go.TextStrokeTransparency = 0 -- dark outline so the cream word reads on the green plate
-		go.TextStrokeColor3 = Color3.fromRGB(14, 30, 14)
+		go.TextStrokeColor3 = rgb(cc.stroke)
 		local goStroke = go:FindFirstChildOfClass("UIStroke")
-		if goStroke then goStroke.Color = d.button.enabled and Color3.fromRGB(226, 182, 88) or Color3.fromRGB(130, 120, 100) end
+		if goStroke then goStroke.Thickness = 2 end
+		if goStroke then goStroke.Color = d.button.enabled and rgb(cc.edge) or Color3.fromRGB(130, 120, 100) end
 		local kl = go:FindFirstChild("KitLabel")
 		if kl and kl:IsA("TextLabel") then
 			kl.TextColor3, kl.TextSize, kl.Font = go.TextColor3, ts, Enum.Font.GothamBold
 			kl.TextTransparency, kl.TextStrokeTransparency = 0, 0
-			kl.TextStrokeColor3 = Color3.fromRGB(14, 30, 14)
+			kl.TextStrokeColor3 = rgb(cc.stroke)
 		end
 		name.Text = d.name
 		if mode == "tab" then

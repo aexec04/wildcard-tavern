@@ -173,7 +173,8 @@ return function(deps)
 			nightX[d], routeY[d] = nightPixel(d)
 		end
 		local res = Layout.compute({ nightX = nightX, routeY = routeY, height = canvasH, route = routeIds,
-			minGap = math.floor(nodeSize * 1.5), nodeSize = nodeSize })
+			minGap = math.floor(nodeSize * 1.5), nodeSize = nodeSize,
+			maxY = (function() local a = deps.avoidRect and deps.avoidRect() return a and a.y or nil end)() })
 		local onRoute = {}
 		for i, id in ipairs(routeIds) do
 			onRoute[id] = i
@@ -446,7 +447,8 @@ return function(deps)
 					local above = { ax = 0.5, ay = 1, x = p.x, y = p.y - sideSize / 2 - 4, box = { x = p.x - lw / 2, y = p.y - sideSize / 2 - 4 - lh, w = lw, h = lh } }
 					local right = { ax = 0, ay = 0.5, x = p.x + sideSize / 2 + 4, y = p.y, box = { x = p.x + sideSize / 2 + 4, y = p.y - lh / 2, w = lw, h = lh } }
 					-- a node in the lower third puts its name above it; every name stays 12 px clear of the selection panel
-					local order = RouteRules.sideLabelFirst(p.y, parent.y, canvasH) == "below" and { below, above, right } or { above, below, right }
+					-- the name goes on the side away from the road (the other branch hangs the other way), then beside the node, then toward the road
+					local order = p.y >= parent.y and { below, right, above } or { above, right, below }
 					local avoid = deps.avoidRect and deps.avoidRect()
 					avoid = avoid and RouteRules.growBox(avoid, RouteRules.PANEL_GAP) or nil
 					local pick = order[1]

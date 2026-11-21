@@ -139,8 +139,9 @@ return function(deps)
 		-- the selection panel in canvas pixels, so side stop names keep 12 px clear of it
 		avoidRect = function()
 			local sp = panelRef.p
-			if not (sp and sp.panel.Visible) then return nil end
-			local r = sp.rect()
+			if not sp then return nil end
+			local okR, r = pcall(sp.rect)
+			if not (okR and r) then return nil end
 			local fa, ca = frame.AbsolutePosition, canvas.AbsolutePosition
 			return { x = r.x + fa.X - ca.X, y = r.y + fa.Y - ca.Y, w = r.w, h = r.h }
 		end,

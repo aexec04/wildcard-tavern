@@ -207,6 +207,7 @@ function WorldMapLayout.compute(opts)
 		local pp = pos[stop.parent]
 		local want = ((stop.dy or 0.14) < 0) and -1 or 1
 		local lo, hi = 30, H - 30
+		if opts.maxY then hi = math.min(hi, opts.maxY - math.floor(nodeSize * 0.69 / 2) - 21) end -- the lowest side node ends 20 px above the selection panel
 		local placedX, placedY
 		-- preferred side first, then the other side, scanning outward in small steps; then further across.
 		-- If the full node + label box fits nowhere (a crowded small canvas), place the node alone and mark it
@@ -214,9 +215,9 @@ function WorldMapLayout.compute(opts)
 		local compact = false
 		for pass = 1, 2 do
 			compact = pass == 2
-			for _, fx in ipairs({ 0.45, 0.32, 0.58, 0.7, 0.85, 1.0, 0.2 }) do
+			for _, fx in ipairs({ 0.5, 0.4, 0.6, 0.7, 0.85, 1.0, 0.3 }) do
 				local x = pp.x + math.floor(spacing * fx)
-				local off = math.floor(step * 0.7)
+				local off = math.max(math.floor(step * 0.7), math.floor(sideSize * 1.15)) -- a branch node sits at least one node width off the road: two branches keep 24 px or more between them
 				while not placedY and off <= H do
 					for _, dir in ipairs({ want, -want }) do
 						local y = pp.y + dir * off
@@ -232,7 +233,7 @@ function WorldMapLayout.compute(opts)
 			if placedY then break end
 		end
 		if not placedY then -- no free spot: take the preferred one (the layout test flags this case)
-			placedX, placedY = pp.x + math.floor(spacing * 0.45), math.max(lo, math.min(hi, pp.y + want * step))
+			placedX, placedY = pp.x + math.floor(spacing * 0.5), math.max(lo, math.min(hi, pp.y + want * step))
 		end
 		side[id] = { x = placedX, y = placedY, parent = stop.parent, compact = compact or nil }
 		boxes[#boxes + 1] = WorldMapLayout.box("side", placedX, placedY, nodeSize, nil, compact)

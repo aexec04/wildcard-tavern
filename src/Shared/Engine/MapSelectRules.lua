@@ -166,4 +166,18 @@ end
 
 M.typeOf = TypeRules.typeOf
 
+-- Continue plate: cream word on a green plate with a gold edge; text and plate must keep 4.5:1 contrast
+M.CONTINUE = { fill = { 40, 120, 40 }, text = { 245, 235, 205 }, edge = { 226, 182, 88 }, stroke = { 20, 24, 14 },
+	offFill = { 104, 100, 96 }, offText = { 235, 230, 220 } }
+
+local function lum(c)
+	local function ch(v) v = v / 255 return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+	return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+end
+function M.contrast(a, b)
+	local la, lb = lum(a), lum(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+
 return M
