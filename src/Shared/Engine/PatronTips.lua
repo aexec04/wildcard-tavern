@@ -109,6 +109,25 @@ function M.place(card, tip, avoid, screen, gap, margin)
 		if not bestScore or score < bestScore then best, bestScore = { x, y }, score end
 		if score == 0 then break end
 	end
+	if bestScore and bestScore > 0 then
+		-- compact screens: slide the plate beside or over the card row, in 8 px steps, to the nearest spot that touches nothing
+		local bestD
+		for _, c in ipairs(candidates) do
+			local y = margin
+			while y + tip.Y <= screen.Y - margin do
+				local x, yy = clamp(c[1], y, tip, screen, margin)
+				local free = not hits(x, yy, tip.X, tip.Y, card)
+				for _, r in ipairs(avoid or {}) do
+					if hits(x, yy, tip.X, tip.Y, r) then free = false break end
+				end
+				if free then
+					local d = math.abs(yy - c[2]) + math.abs(x - c[1])
+					if not bestD or d < bestD then best, bestD = { x, yy }, d end
+				end
+				y = y + 8
+			end
+		end
+	end
 	return best[1], best[2]
 end
 

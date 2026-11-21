@@ -15,7 +15,6 @@ local PatronTips = require(Engine:WaitForChild("PatronTips"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local Tip = require(Engine:WaitForChild("Gameplay2Tip"))
-local TierStyle = require(Engine:WaitForChild("PatronTierStyle"))
 local CutCards = require(Engine:WaitForChild("ConceptTPatronArt"))
 
 local M = {}
@@ -23,6 +22,8 @@ local M = {}
 local CREAM = Color3.fromRGB(245, 232, 200)
 local GOLD = Color3.fromRGB(246, 196, 70)
 local PLATE = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill
+-- one opaque layer above every Patron seat, badge, glow and halo (the seat pieces end near 46, callouts 80); under toasts (140)
+local Z = 120
 local plate, highlights = nil, {}
 local token = 0 -- a newer show or a hide cancels a plate that is still waiting its delay
 
@@ -41,7 +42,7 @@ local function label(parent, text, size, font, color, y, h, order)
 	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.TextYAlignment = Enum.TextYAlignment.Top
 	t.Text = text
-	t.ZIndex = 61
+	t.ZIndex = Z + 1
 	t.Active = false
 	t.LayoutOrder = order or 0
 	t.Parent = parent
@@ -117,7 +118,7 @@ function render(root, cards, index, info, calm, v2)
 	local nameH = height(content.name, 20, Enum.Font.Merriweather) + 2
 	local effH = height(content.body or content.effect, 16, Enum.Font.GothamMedium) + 2
 	local tagText = ""
-	for i, t in ipairs(content.tags) do tagText = tagText .. (i > 1 and "   " or "") .. t.icon .. " " .. t.word end
+	for i, t in ipairs(content.tags) do tagText = tagText .. (i > 1 and "   " or "") .. t.word -- words only, no emoji icon end
 	local setText = PatronTips.setLine(ownedIds, index)
 	local rows = nameH + 22 + effH + (tagText ~= "" and 22 or 0) + (setText ~= "" and 24 or 0)
 	local h = math.floor(rows + padY * 2 + 8)
@@ -128,8 +129,8 @@ function render(root, cards, index, info, calm, v2)
 	frame.BackgroundColor3 = PLATE
 	frame.BackgroundTransparency = 0.04
 	frame.BorderSizePixel = 0
-	frame.ZIndex = 60
-	frame.Active = false
+	frame.ZIndex = Z
+	frame.Active = true -- sinks clicks so nothing behind the plate reacts
 	local cr = Instance.new("UICorner")
 	cr.CornerRadius = UDim.new(0, 8)
 	cr.Parent = frame
@@ -141,7 +142,7 @@ function render(root, cards, index, info, calm, v2)
 	body.BackgroundTransparency = 1
 	body.Size = UDim2.new(1, -padX * 2, 1, -padY * 2)
 	body.Position = UDim2.fromOffset(padX, padY)
-	body.ZIndex = 61
+	body.ZIndex = Z + 1
 	body.Parent = frame
 	if v2 then -- the cut card grown large on the left, with its power disc, the text on the right
 		local pad = Tip.PAD
@@ -156,34 +157,9 @@ function render(root, cards, index, info, calm, v2)
 		pic.Image = CutCards["ctp_" .. info.id] or ""
 		pic.Size = UDim2.fromOffset(portrait.w, portrait.h)
 		pic.Position = UDim2.fromOffset(pad, pad)
-		pic.ZIndex = 61
+		pic.ZIndex = Z + 1
 		pic.Parent = frame
-		local numeral = TierStyle.numeral(info.value or "")
-		if numeral ~= "" then
-			local D = math.max(30, math.floor(portrait.w * 0.4))
-			local disc = Instance.new("Frame")
-			disc.Name = "TipDisc"
-			disc.Size = UDim2.fromOffset(D, D)
-			disc.Position = UDim2.fromOffset(pad + portrait.w - math.floor(D * 0.6), pad + portrait.h - math.floor(D * 0.6))
-			disc.BackgroundColor3 = Color3.fromRGB(table.unpack(TierStyle.DISC.fill))
-			disc.BorderSizePixel = 0
-			disc.Active = false
-			disc.ZIndex = 63
-			local dc = Instance.new("UICorner"); dc.CornerRadius = UDim.new(1, 0); dc.Parent = disc
-			local ds = Instance.new("UIStroke"); ds.Color = Color3.fromRGB(table.unpack(TierStyle.DISC.ring)); ds.Thickness = 2; ds.Parent = disc
-			local num = Instance.new("TextLabel")
-			num.BackgroundTransparency = 1
-			num.Size = UDim2.fromScale(1, 1)
-			num.Font = Enum.Font.Merriweather
-			num.TextSize = 16
-			num.Text = numeral
-			num.TextColor3 = Color3.fromRGB(table.unpack(TierStyle.DISC.text))
-			num.TextStrokeTransparency = 0.4
-			num.ZIndex = 64
-			num.Active = false
-			num.Parent = disc
-			disc.Parent = frame
-		end
+		-- the card picture carries its own power badge: no second disc here
 	end
 	local y = 0
 	label(body, content.name, 20, Enum.Font.Merriweather, v2 and GOLD or CREAM, y, nameH)
@@ -201,7 +177,7 @@ function render(root, cards, index, info, calm, v2)
 	pill.TextTransparency = 0
 	pill.TextStrokeTransparency = 1
 	pill.Text = content.rarity
-	pill.ZIndex = 62
+	pill.ZIndex = Z + 2
 	pill.Active = false
 	local pc = Instance.new("UICorner")
 	pc.CornerRadius = UDim.new(0, 10)
@@ -242,6 +218,9 @@ function render(root, cards, index, info, calm, v2)
 	frame.Position = UDim2.fromOffset(math.floor(x), math.floor(py))
 	frame.Parent = root
 	plate = frame
+	if game:GetService("RunService"):IsStudio() then
+		print(("[PatronTip] seat %d plate x=%d y=%d w=%d h=%d ZIndex=%d, highest Patron row piece 46, screen %dx%d"):format(index, x, py, w, h, frame.ZIndex, rs.X, rs.Y))
+	end
 end
 
 return M

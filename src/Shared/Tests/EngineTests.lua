@@ -35526,4 +35526,34 @@ table.insert(tests, { name = "Night clear: a normal Night is one toast line with
 	expectTrue(src:find("Moments.nightPopup(lines)", 1, true) ~= nil and src:find("CornerToast", 1, true) ~= nil, "Gameplay2 routes a normal clear to the toast")
 end })
 
+table.insert(tests, { name = "Patron tip plate: on screen and clear of the HUD for every seat at four sizes, picture and text never overlap, no emoji or badge, one layer above the seats", fn = function()
+	local Tip = require(script.Parent.Parent.Engine.Gameplay2Tip)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local tw = Tip.width(w)
+		local por = Tip.portrait(tw)
+		expectTrue(por.w + Tip.PAD * 3 + Tip.textWidth(tw) == tw, "picture column and text column tile the plate at " .. w)
+		local th = Tip.height(tw, 150)
+		for seat = 1, 5 do
+			local x, y = Tip.place(r, w, h, seat, tw, th)
+			local rect = { x = x, y = y, w = tw, h = th }
+			expectTrue(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, ("plate on screen, seat %d at %dx%d"):format(seat, w, h))
+			for _, a in ipairs(Tip.avoid(r)) do
+				expectTrue(not hit(rect, a), ("plate clear of the HUD, seat %d at %dx%d"):format(seat, w, h))
+			end
+			local s = r.slots[seat]
+			expectTrue(not hit(rect, s.card), ("plate clear of its own card, seat %d at %dx%d"):format(seat, w, h))
+		end
+	end
+	if not io then return end
+	local f = io.open("src/Client/PatronTipFX.lua", "r"); local src = f and f:read("*a") or ""; if f then f:close() end
+	expectTrue(src:find("TipDisc", 1, true) == nil and src:find("t.icon", 1, true) == nil, "no badge in the picture, no emoji icon on the tag line")
+	local z = tonumber(src:match("local Z = (%d+)")) or 0
+	expectTrue(z >= 100 and z < 140 and src:find("ZIndex = 6%d") == nil, "the plate sits above every seat piece and below toasts")
+	expectTrue(src:find("frame.Active = true", 1, true) ~= nil and src:find("[PatronTip]", 1, true) ~= nil, "plate sinks input and prints in Studio")
+end })
+
 return tests
