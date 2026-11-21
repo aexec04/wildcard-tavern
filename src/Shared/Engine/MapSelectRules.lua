@@ -1,0 +1,129 @@
+--[[
+	Shared/Engine/MapSelectRules.lua
+	Pure rules for the Tavern Map's selected-location panel (lower left, Client/MapSelectPanel draws it) and for the dashed routes. No Roblox types.
+
+	canSelect(state)                    -> false for a locked node (locked nodes cannot be selected)
+	describe(node)                      -> { name, typeId, typeText, typeIcon, line, target (nil when it does not apply), button = { text, enabled, visible }, status }
+	                                       node = { name, description, typeId, state, target, final }
+	rects(zone, mode)                   -> { art, name, type, line, target, button, w, h } inside zone = { x, y, w, h } (relative to the zone's top left)
+	                                       mode "full" | "compact" | "tab"; rects never overlap each other
+	pickMode(zone, boxes)               -> the first mode ("full", "compact", "tab") whose panel does not overlap any box (screen rects)
+	panelRect(zone, mode)               -> the screen rect the panel takes in that mode (a bottom aligned part of the zone)
+	dashOn(k, on, off)                  -> true when piece k (1 based) of a dashed route is drawn
+	routeLook(selectedInto, filled)     -> { color, edge, thickness } of a dashed route piece
+]]
+
+local TypeRules = require(script.Parent.MapNodeRules)
+
+local M = {}
+
+M.TYPE_ICON = { encounter = "\u{2694}", shop = "\u{1FA99}", event = "?", boss = "\u{1F451}" }
+M.TYPE_WORD = { encounter = "Encounter", shop = "Shop", event = "Event", boss = "Boss" }
+M.PAD = 8
+
+function M.canSelect(state)
+	return state ~= "locked"
+end
+
+function M.describe(node)
+	local typeId = node.typeId or "encounter"
+	local out = {
+		name = node.name or "",
+		typeId = typeId,
+		typeText = M.TYPE_WORD[typeId] or "Encounter",
+		typeIcon = M.TYPE_ICON[typeId] or M.TYPE_ICON.encounter,
+		line = node.description or "",
+		target = nil,
+		button = { text = "Continue", enabled = true, visible = true },
+		status = nil,
+	}
+	if typeId == "encounter" or typeId == "boss" then
+		out.target = node.target -- only fights have a Target score
+	end
+	if node.state == "completed" then
+		out.button = { text = "Continue", enabled = false, visible = false }
+		out.status = "Completed"
+	elseif node.state == "locked" then
+		out.button = { text = "Locked", enabled = false, visible = true }
+		out.status = "Locked"
+	end
+	return out
+end
+
+local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
+
+-- Heights of the three modes: full = the whole zone, compact = name + Continue only, tab = one small plate with the name.
+M.COMPACT_H, M.TAB_H = 56, 36
+
+function M.panelRect(zone, mode)
+	local h = zone.h
+	if mode == "compact" then h = math.min(zone.h, M.COMPACT_H) end
+	if mode == "tab" then h = math.min(zone.h, M.TAB_H) end
+	local w = mode == "tab" and math.min(zone.w, 200) or zone.w
+	return { x = zone.x, y = zone.y + zone.h - h, w = w, h = h }
+end
+
+function M.rects(zone, mode)
+	mode = mode or "full"
+	local pad = M.PAD
+	local r = M.panelRect(zone, mode)
+	local out = { w = r.w, h = r.h }
+	if mode == "tab" then
+		out.name = { x = pad, y = 0, w = r.w - pad * 2, h = r.h }
+		return out
+	end
+	if mode == "compact" then
+		local bw = clamp(math.floor(r.w * 0.34), 96, 150)
+		out.name = { x = pad, y = pad, w = r.w - bw - pad * 3, h = r.h - pad * 2 }
+		out.button = { x = r.w - bw - pad, y = pad, w = bw, h = r.h - pad * 2 }
+		return out
+	end
+	local compact = r.h < 170
+	local art = math.min(r.h - pad * 2, math.floor(r.w * 0.34))
+	out.art = { x = pad, y = pad, w = art, h = art }
+	local tx = pad * 2 + art
+	local tw = r.w - tx - pad
+	local nameH, typeH, lineH, targetH, buttonH = 24, 20, compact and 18 or 36, 20, compact and 28 or 36
+	local y = pad
+	out.name = { x = tx, y = y, w = tw, h = nameH }
+	y = y + nameH
+	out.type = { x = tx, y = y, w = tw, h = typeH }
+	y = y + typeH
+	out.line = { x = tx, y = y, w = tw, h = lineH }
+	y = y + lineH
+	out.target = { x = tx, y = y, w = tw, h = targetH }
+	out.button = { x = tx, y = r.h - pad - buttonH, w = math.min(tw, 190), h = buttonH }
+	return out
+end
+
+local function overlaps(a, b)
+	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+end
+
+function M.pickMode(zone, boxes)
+	for _, mode in ipairs({ "full", "compact", "tab" }) do
+		local r = M.panelRect(zone, mode)
+		local clear = true
+		for _, b in ipairs(boxes or {}) do
+			if overlaps(r, b) then clear = false break end
+		end
+		if clear then return mode end
+	end
+	return "tab"
+end
+
+function M.dashOn(k, on, off)
+	on, off = on or 4, off or 3
+	return ((k - 1) % (on + off)) < on
+end
+
+-- cream dashes; the route into the selected node is warmer and thicker; a travelled route is brighter
+function M.routeLook(selectedInto, filled)
+	if selectedInto then return { color = { 255, 214, 120 }, edge = { 150, 100, 30 }, thickness = 14 } end
+	if filled then return { color = { 255, 246, 220 }, edge = { 110, 78, 40 }, thickness = 12 } end
+	return { color = { 244, 230, 196 }, edge = { 110, 78, 40 }, thickness = 10 }
+end
+
+M.typeOf = TypeRules.typeOf
+
+return M

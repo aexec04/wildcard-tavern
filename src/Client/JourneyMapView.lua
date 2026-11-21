@@ -222,9 +222,9 @@ return function(deps)
 	-- Overlapping round pieces every ~7px along the same Bezier: a dark edge piece under a
 	-- sandy fill piece (outline first, fills on top, both below the dots at ZIndex 24).
 	-- Light sandy road (~32px) with a dark edge so it stands out against any biome art.
-	local ROAD_EDGE = Color3.fromRGB(78, 52, 28)
-	local ROAD_FILL = Color3.fromRGB(240, 220, 168)
-	local ROAD_STEP, ROAD_W = 8, 32
+	local ROAD_EDGE = Color3.fromRGB(110, 78, 40)
+	local ROAD_FILL = Color3.fromRGB(244, 230, 196)
+	local ROAD_STEP, ROAD_W = 8, 12 -- a slim cream path drawn as dashes (MapSelectRules.dashOn)
 	local function makeRoadPiece(seg)
 		-- Two separate canvas children so every fill sits above every edge (no dark ridges
 		-- where pieces overlap): edge ZIndex 22, fill 23, dots 24.
@@ -249,11 +249,16 @@ return function(deps)
 	-- Show the road with its segment: hidden in the fog, thinning out toward a teaser node.
 	local function applyRoad(seg)
 		if not seg.road then return end
+		local look = MapSelectRules.routeLook(selectedIndex ~= nil and seg.into == selectedIndex, seg.filled)
 		for k, piece in ipairs(seg.road) do
-			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none"
+			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none" and MapSelectRules.dashOn(k, 4, 3)
 			piece.edge.Visible = shown
 			piece.fill.Visible = shown
 			if shown then
+				piece.edge.Size = UDim2.fromOffset(look.thickness + 4, look.thickness + 4)
+				piece.fill.Size = UDim2.fromOffset(look.thickness, look.thickness)
+				piece.edge.BackgroundColor3 = Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3])
+				piece.fill.BackgroundColor3 = Color3.fromRGB(look.color[1], look.color[2], look.color[3])
 				local tr = 0
 				if seg.mode == "fade" then
 					tr = math.min(0.95, 0.15 + 0.8 * ((k - 1) / math.max((seg.roadCount or 1) - 1, 1)))
@@ -299,8 +304,8 @@ return function(deps)
 	local function setDot(seg, k, animate, duration, delay)
 		local dot = seg.dots[k]
 		local tgt = dotTargets(seg, k)
-		dot.frame.Visible = k <= seg.count and seg.mode ~= "none"
-		dot.foot.Visible = seg.filled and seg.mode == "full" and k % 4 == 0 and k <= seg.count
+		dot.frame.Visible = false -- the cream dashed path is the route now; the ink dots stay built so the walk and unlock code keep working
+		dot.foot.Visible = false
 		if animate then
 			dot.frame.BackgroundTransparency = 1
 			dot.foot.TextTransparency = 1
@@ -319,7 +324,9 @@ return function(deps)
 	-- ===== Nodes =====
 	local nodeHover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = calm })
 	local MapNodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, state, tag and badge rules (the new node look)
-	local selectedIndex = nil -- the node whose detail card is open: drawn with the selected look
+	local MapSelectRules = require(Engine:WaitForChild("MapSelectRules")) -- dashed routes and the lower left selection panel
+	local selectedIndex = nil -- the selected node (lower left panel): drawn with the selected look
+	local selectNode -- defined after the panel exists
 	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
@@ -1005,6 +1012,7 @@ return function(deps)
 				filled = cleared[data.night] == true
 			end
 			seg.filled = filled
+			seg.into = index + 1 -- the node this road leads to
 			local endState = states[index + 1]
 			local mode = (states[index] == "revealed" and endState == "revealed") and "full"
 				or ((states[index] == "revealed" and endState == "teaser") and "fade" or "none")
@@ -1033,8 +1041,8 @@ return function(deps)
 	-- ===== Detail card =====
 	local card = Instance.new("Frame")
 	card.Name = "NodeDetail"
-	card.AnchorPoint = Vector2.new(0.5, 1)
-	card.Position = UDim2.new(0.5, 0, 1, -14)
+	card.AnchorPoint = Vector2.new(1, 1) -- lower right, above the candle: the lower left is the selection panel
+	card.Position = UDim2.new(1, -14, 1, -90)
 	card.Size = UDim2.new(0, 400, 0, 176)
 	card.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 	card.Visible = false
@@ -1198,10 +1206,6 @@ return function(deps)
 	end
 	local function closeDetail()
 		openIndex = nil
-		if selectedIndex then
-			selectedIndex = nil
-			if requestRender then requestRender() end
-		end
 		card.Visible = false
 	end
 
@@ -1227,8 +1231,11 @@ return function(deps)
 			deps.playClickSfx()
 			if openIndex == index then
 				closeDetail()
+			elseif selectedIndex == index then
+				openCard(index) -- a second click on the selected node opens its rewards card
 			else
-				openCard(index)
+				closeDetail()
+				selectNode(index)
 			end
 		end)
 	end
@@ -1409,9 +1416,9 @@ return function(deps)
 		toast.TextStrokeTransparency = 1
 		toast.Visible = true
 		local rise = calm() and 0 or 14
-		toast.Position = UDim2.new(0.5, 0, 0, 10 + rise)
+		toast.Position = UDim2.new(0.5, 0, 0, 72 + rise) -- under the header bar
 		TweenService:Create(toast, TweenInfo.new(0.25 / pace(), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Position = UDim2.new(0.5, 0, 0, 10) }):Play()
+			{ Position = UDim2.new(0.5, 0, 0, 72) }):Play()
 		task.delay(2.6 / pace(), function()
 			if playing ~= token then
 				return
@@ -1425,6 +1432,69 @@ return function(deps)
 			end
 		end)
 	end
+
+	-- ===== Selected location panel (lower left; Engine/MapSelectRules, Client/MapSelectPanel) =====
+	local selectPanel = require(script.Parent.MapSelectPanel).new({
+		parent = frame, PatronPlaque = PatronPlaque,
+		onContinue = function() -- Continue closes the map: the run goes on from Round Select / the table (the existing launch path)
+			deps.playClickSfx()
+			if deps.closeMap then deps.closeMap() end
+		end,
+	})
+	local RunStateEngine = require(Engine:WaitForChild("RunState"))
+	local function panelDescription(index)
+		local node = nodes[index]
+		local data, info = node.data, node.data.info
+		local target = nil
+		if data.night and data.kind ~= "endless" then
+			target = RunStateEngine.targetScoreFor(data.night, 3, 3) -- the Night's boss round
+		end
+		return MapSelectRules.describe({ name = node.name.Text, -- the chosen road's stop name when the road is picked
+			description = info.description, typeId = node.ntype, state = node.state, target = target }),
+			mapArt(info.art), info.icon
+	end
+	-- the panel steps down to a strip, then to a tab, when it would cover a node or label (MapSelectRules.pickMode)
+	local function fitPanel()
+		if not selectPanel.panel.Visible then return end
+		local fp = frame.AbsolutePosition
+		local boxes = {}
+		for _, node in ipairs(nodes) do
+			if node.button.Visible then
+				for _, g in ipairs({ node.button, node.name, node.typeTag }) do
+					local ap, sz = g.AbsolutePosition, g.AbsoluteSize
+					boxes[#boxes + 1] = { x = ap.X - fp.X, y = ap.Y - fp.Y, w = sz.X, h = sz.Y }
+				end
+			end
+		end
+		selectPanel.setMode(MapSelectRules.pickMode(selectPanel.zone(), boxes))
+	end
+	local function layoutPanel()
+		local size = frame.AbsoluteSize
+		if size.X > 0 and size.Y > 0 then selectPanel.layout(size.X, size.Y) end
+		fitPanel()
+	end
+	local function refreshPanel()
+		if selectedIndex and nodes[selectedIndex] then
+			local desc, artId, iconText = panelDescription(selectedIndex)
+			selectPanel.show(desc, artId, iconText)
+			layoutPanel()
+		else
+			selectPanel.hide()
+		end
+	end
+	selectNode = function(index)
+		local node = nodes[index]
+		if not node then return end
+		if not MapSelectRules.canSelect(node.state) then
+			showToast("Locked. Clear the earlier Nights first.", playing, Color3.fromRGB(110, 70, 62))
+			return
+		end
+		selectedIndex = index
+		refreshPanel()
+		if requestRender then requestRender() end
+	end
+	scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(fitPanel)
+	frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutPanel)
 
 	local function popNode(node)
 		if calm() then
@@ -1869,6 +1939,9 @@ return function(deps)
 		if openIndex then
 			fillCard()
 		end
+		if selectedIndex then
+			refreshPanel()
+		end
 		-- Anything cleared while the map is already open is not an "unlock moment".
 		if frame.Visible and view.state then
 			seen = copySet(view.cleared)
@@ -1932,6 +2005,8 @@ return function(deps)
 				fogAnimate = false
 				toast.Visible = false
 				closeDetail()
+				selectedIndex = nil
+				selectPanel.hide()
 				for _, node in ipairs(nodes) do
 					setPulse(node, false)
 					-- undo any half-finished reveal fade
@@ -1999,6 +2074,12 @@ return function(deps)
 						{ CanvasPosition = Vector2.new(target, scrollTargetY(nodeBandY)) }):Play()
 				end)
 			end
+			-- the current Night starts selected, so the panel is never empty on open (like the reference)
+			local startIdx = currentIndexFor(view)
+			local startNode = startIdx and nodes[startIdx]
+			selectedIndex = (startNode and startNode.state and MapSelectRules.canSelect(startNode.state)) and startIdx or nil
+			refreshPanel()
+			if selectedIndex then render(view, view.cleared, false) end
 		end,
 		applyHeader = applyHeader,
 	}

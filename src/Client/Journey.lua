@@ -918,6 +918,7 @@ return function(deps)
 			StateUpdatedRemote = deps.StateUpdatedRemote,
 			playClickSfx = playClickSfx,
 			polishButton = polishButton,
+			closeMap = function() journeyBackdrop.Visible = false end, -- the selection panel's Continue
 		})
 	end
 	-- The Tavern Map holds thousands of instances, so it is built on first open (a stub until then;

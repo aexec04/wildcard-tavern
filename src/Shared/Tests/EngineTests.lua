@@ -34788,4 +34788,88 @@ table.insert(tests, { name = "MapHeaderRules: header, banners, X, candles and th
 	end
 end })
 
+table.insert(tests, { name = "MapSelectRules: locked nodes cannot be selected, the panel text follows the node, Target only for fights, completed keeps its mark", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	expectFalse(R.canSelect("locked"), "locked nodes cannot be selected")
+	expectTrue(R.canSelect("available") and R.canSelect("current") and R.canSelect("completed"), "every other state can")
+	local d = R.describe({ name = "The Dusty Road", description = "A familiar path.", typeId = "encounter", state = "current", target = 65 })
+	expectEqual(d.name, "The Dusty Road")
+	expectEqual(d.typeText, "Encounter")
+	expectEqual(d.target, 65)
+	expectTrue(d.button.visible and d.button.enabled and d.button.text == "Continue", "the current node can Continue")
+	expectEqual(R.describe({ name = "Stall", typeId = "shop", state = "available", target = 9 }).target, nil, "a shop has no Target")
+	expectEqual(R.describe({ name = "Garden", typeId = "event", state = "available", target = 9 }).target, nil, "an event has no Target")
+	expectEqual(R.describe({ name = "Keeper", typeId = "boss", state = "available", target = 900 }).target, 900, "a boss has a Target")
+	local done = R.describe({ name = "Meadow", typeId = "encounter", state = "completed", target = 70 })
+	expectEqual(done.status, "Completed")
+	expectFalse(done.button.visible, "a completed node has no Continue")
+	local locked = R.describe({ name = "Hall", typeId = "encounter", state = "locked" })
+	expectFalse(locked.button.enabled, "a locked node cannot Continue")
+end })
+
+table.insert(tests, { name = "MapSelectRules: dashed routes alternate, the route into the selected node is warmer and thicker", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local on, off = 0, 0
+	for k = 1, 14 do
+		if R.dashOn(k, 4, 3) then on = on + 1 else off = off + 1 end
+	end
+	expectEqual(on, 8, "four on, three off, twice")
+	expectEqual(off, 6)
+	expectTrue(R.dashOn(1, 4, 3) and R.dashOn(4, 4, 3) and not R.dashOn(5, 4, 3) and not R.dashOn(7, 4, 3) and R.dashOn(8, 4, 3), "the pattern repeats every seven pieces")
+	local plain, travelled, picked = R.routeLook(false, false), R.routeLook(false, true), R.routeLook(true, true)
+	expectTrue(picked.thickness > travelled.thickness and travelled.thickness > plain.thickness, "selected > travelled > plain")
+	expectTrue(plain.color[1] >= 240 and plain.color[2] >= 220 and plain.color[3] >= 180, "the path is cream")
+end })
+
+table.insert(tests, { name = "MapSelectPanel layout: parts stay inside the panel and clear of each other, the panel clears the header, at 1920x957, 1280x720, 1024x768 and 800x450 in every mode", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local L = HR.layout(w, h)
+		for _, mode in ipairs({ "full", "compact", "tab" }) do
+			local tag = w .. "x" .. h .. " " .. mode
+			local pr = R.panelRect(L.panelZone, mode)
+			expectTrue(pr.x >= 0 and pr.y >= L.bar.h and pr.x + pr.w <= w and pr.y + pr.h <= h, "the panel is on screen under the header at " .. tag)
+			expectTrue(pr.y + pr.h == L.panelZone.y + L.panelZone.h, "the panel sits on the bottom of its zone at " .. tag)
+			expectFalse(HR.overlaps(pr, L.candleL) or HR.overlaps(pr, L.candleR) or HR.overlaps(pr, L.title) or HR.overlaps(pr, L.stats), "the panel clears the candles and the header at " .. tag)
+			local parts = R.rects(L.panelZone, mode)
+			local names = {}
+			for n, r in pairs(parts) do
+				if type(r) == "table" then names[#names + 1] = n end
+			end
+			table.sort(names)
+			for i = 1, #names do
+				local r = parts[names[i]]
+				expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= parts.w and r.y + r.h <= parts.h, names[i] .. " is inside the panel at " .. tag)
+				expectTrue(r.w > 0 and r.h > 0, names[i] .. " has a size at " .. tag)
+				for j = i + 1, #names do
+					expectFalse(HR.overlaps(r, parts[names[j]]), names[i] .. " and " .. names[j] .. " overlap at " .. tag)
+				end
+			end
+			if mode == "full" then
+				expectTrue(parts.button.h >= 28 and parts.button.w >= 96, "Continue is big enough to press at " .. tag)
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from full to compact to a tab when a node or label would sit under it", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local zone = HR.layout(sz[1], sz[2]).panelZone
+		expectEqual(R.pickMode(zone, {}), "full", "nothing under it: full")
+		local farAway = { x = zone.x + zone.w + 50, y = zone.y, w = 40, h = 40 }
+		expectEqual(R.pickMode(zone, { farAway }), "full", "a node beside it does not shrink it")
+		local top = { x = zone.x + 10, y = zone.y + 4, w = 40, h = 20 } -- only in the top part of the zone
+		local m = R.pickMode(zone, { top })
+		expectTrue(m == "compact" or m == "tab", "a node over the top of the zone shrinks the panel (" .. m .. ")")
+		local bottom = { x = zone.x + 10, y = zone.y + zone.h - 10, w = 40, h = 8 }
+		expectEqual(R.pickMode(zone, { bottom }), "tab", "a node at the very bottom leaves only the tab, which is its own spot")
+		local last = R.panelRect(zone, R.pickMode(zone, { top }))
+		expectFalse(last.x < top.x + top.w and top.x < last.x + last.w and last.y < top.y + top.h and top.y < last.y + last.h, "the chosen mode never covers that node")
+	end
+end })
+
 return tests
