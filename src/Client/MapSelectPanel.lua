@@ -1,0 +1,179 @@
+--[[
+	Client/MapSelectPanel.lua
+	The selected-location panel at the lower left of the Tavern Map (dark wood and gold): the location picture on the left, its name, its type
+	with an icon, one line of description, the Target score when it is a fight, and a green Continue. Rules and rects: Engine/MapSelectRules.
+
+	MapSelectPanel.new{ parent, PatronPlaque, onContinue } -> { show(desc, artId, icon), hide(), layout(frame size), setMode(mode), mode(), panel }
+	  show(desc, ...)   desc from MapSelectRules.describe; the panel updates in place
+	  layout(w, h)      places the panel in the lower left zone (MapHeaderRules.panelZone) in its current mode
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local Rules = require(Engine:WaitForChild("MapSelectRules"))
+local HeaderRules = require(Engine:WaitForChild("MapHeaderRules"))
+local NodeRules = require(Engine:WaitForChild("MapNodeRules"))
+local TavernKit = require(script.Parent.TavernKit)
+
+local MapSelectPanel = {}
+
+local CREAM = Color3.fromRGB(250, 240, 220)
+local GOLD_TXT = Color3.fromRGB(255, 205, 90)
+
+local function put(inst, r)
+	inst.Position = UDim2.fromOffset(r.x, r.y)
+	inst.Size = UDim2.fromOffset(r.w, r.h)
+end
+
+local function label(parent, name, size, font)
+	local l = Instance.new("TextLabel")
+	l.Name = name
+	l.BackgroundTransparency = 1
+	l.Font = font or Enum.Font.GothamBold
+	l.TextSize = size
+	l.TextColor3 = CREAM
+	l.TextTransparency = 0
+	l.TextStrokeTransparency = 0.8
+	l.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.TextYAlignment = Enum.TextYAlignment.Center
+	l.TextWrapped = false
+	l.TextTruncate = Enum.TextTruncate.AtEnd
+	l.RichText = true
+	l.Active = false
+	l.ZIndex = 43
+	l.Parent = parent
+	return l
+end
+
+function MapSelectPanel.new(deps)
+	local panel = TavernKit.plate(deps.parent, UDim2.fromOffset(320, 130))
+	panel.Name = "SelectPanel"
+	panel.ZIndex = 41
+	panel.Visible = false
+	panel.Active = true -- a click on the panel never falls through to the map
+
+	local art = Instance.new("Frame")
+	art.Name = "Art"
+	art.BackgroundColor3 = Color3.fromRGB(70, 52, 34)
+	art.BorderSizePixel = 0
+	art.Active = false
+	art.ZIndex = 42
+	art.Parent = panel
+	do
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 8)
+		c.Parent = art
+		local s = Instance.new("UIStroke")
+		s.Color = Color3.fromRGB(176, 138, 66)
+		s.Thickness = 2
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		s.Parent = art
+	end
+	local icon = label(art, "Icon", 30, Enum.Font.GothamBold)
+	icon.Size = UDim2.fromScale(1, 1)
+	icon.TextXAlignment = Enum.TextXAlignment.Center
+	icon.RichText = false
+
+	local name = label(panel, "Name", 18, Enum.Font.GothamBlack)
+	local typeRow = label(panel, "Type", 15)
+	local line = label(panel, "Line", 14, Enum.Font.Gotham)
+	line.TextColor3 = Color3.fromRGB(226, 214, 190)
+	local target = label(panel, "Target", 16)
+	local go = TavernKit.primaryButton(panel, "Continue")
+	go.Name = "Continue"
+	go.ZIndex = 43
+	go.Activated:Connect(function()
+		if go:GetAttribute("Enabled") and deps.onContinue then deps.onContinue() end
+	end)
+	local tabToggle = Instance.new("TextButton") -- in tab mode a click opens the panel again
+	tabToggle.Name = "TabToggle"
+	tabToggle.BackgroundTransparency = 1
+	tabToggle.Text = ""
+	tabToggle.Size = UDim2.fromScale(1, 1)
+	tabToggle.ZIndex = 44
+	tabToggle.Visible = false
+	tabToggle.Parent = panel
+
+	local self = { panel = panel }
+	local current = nil -- { desc, artId, iconText }
+	local mode = "full"
+	local zone = { x = 12, y = 300, w = 320, h = 130 }
+	local artImage
+
+	local function apply()
+		if not current then return end
+		local r = Rules.rects(zone, mode)
+		local pr = Rules.panelRect(zone, mode)
+		panel.Position = UDim2.fromOffset(pr.x, pr.y)
+		panel.Size = UDim2.fromOffset(pr.w, pr.h)
+		local d = current.desc
+		local tag = NodeRules.tagFor(d.typeId)
+		local tc = Color3.fromRGB(tag.color[1], tag.color[2], tag.color[3])
+		art.Visible = mode == "full"
+		typeRow.Visible, line.Visible = mode == "full", mode == "full"
+		target.Visible = mode == "full" and d.target ~= nil
+		tabToggle.Visible = mode == "tab"
+		go.Visible = mode ~= "tab" and d.button.visible
+		go.Active = d.button.enabled
+		go:SetAttribute("Enabled", d.button.enabled)
+		go.Text = d.button.text
+		go.AutoButtonColor = false
+		go.TextTransparency = d.button.enabled and 0 or 0.4
+		name.Text = d.name
+		if mode == "tab" then
+			name.Text = d.name .. "  (tap)"
+		end
+		put(name, r.name)
+		name.TextSize = mode == "tab" and 14 or 18
+		if mode == "full" then
+			put(art, r.art)
+			put(typeRow, r.type)
+			put(line, r.line)
+			put(target, r.target)
+			typeRow.TextColor3 = tc
+			typeRow.Text = d.typeIcon .. " " .. (d.status and (d.typeText .. "  |  " .. d.status) or d.typeText)
+			line.Text = d.line
+			if d.target then
+				target.Text = string.format('Target: <font color="#ffcd5a">%d</font>', math.floor(d.target))
+			end
+			icon.Text = current.iconText or ""
+			icon.Visible = artImage == nil
+		end
+		if mode ~= "tab" and d.button.visible then put(go, r.button) end
+	end
+
+	function self.show(desc, artId, iconText)
+		current = { desc = desc, artId = artId, iconText = iconText }
+		if artImage then artImage:Destroy() artImage = nil end
+		if deps.PatronPlaque and artId then
+			artImage = deps.PatronPlaque.applyById(art, artId, { emojiLabel = icon, zIndex = 43, cornerRadius = 8 })
+		end
+		panel.Visible = true
+		apply()
+	end
+
+	function self.hide()
+		panel.Visible = false
+		current = nil
+	end
+
+	function self.layout(sw, sh)
+		zone = HeaderRules.layout(sw, sh).panelZone
+		apply()
+	end
+
+	function self.zone() return zone end
+	function self.mode() return mode end
+	function self.setMode(m)
+		if m == mode then return end
+		mode = m
+		apply()
+	end
+	function self.rect() return Rules.panelRect(zone, mode) end
+	tabToggle.Activated:Connect(function() self.setMode("full") end)
+
+	return self
+end
+
+return MapSelectPanel

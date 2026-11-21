@@ -104,23 +104,24 @@ function MapHeaderBar.attach(panel, onClose)
 	local titleText = label(titlePlate, "Title", 42)
 	titleText.Size = UDim2.fromScale(1, 1)
 	titleText.Font = Enum.Font.GothamBlack
-	titleText.Text = "The Tavern Map"
-	titleText.TextScaled = true
-	local tCap = Instance.new("UITextSizeConstraint")
-	tCap.MinTextSize = Rules.MIN_TEXT
-	tCap.Parent = titleText
+	titleText.Text = Rules.TITLE_TEXT
+	titleText.TextSize = Rules.MIN_TEXT -- set to the real size by relayout (Rules.sized)
 
 	local statsPlate = TavernKit.plate(kit, UDim2.fromOffset(300, 40))
 	statsPlate.Name = "StatsPlate"
 	statsPlate.ZIndex = 41
-	local cells = {}
+	local cells, icons = {}, {}
+	local ICON = { night = "\u{1F451}", journey = "\u{1F9ED}", keys = "\u{1F511}" }
 	for _, k in ipairs({ "night", "journey", "keys" }) do
 		local cell = label(statsPlate, k, 42)
-		cell.TextScaled = true
-		local cap = Instance.new("UITextSizeConstraint")
-		cap.MinTextSize = Rules.MIN_TEXT
-		cap.Parent = cell
+		cell.TextXAlignment = Enum.TextXAlignment.Left
+		cell.TextSize = Rules.MIN_TEXT
 		cells[k] = cell
+		local ic = label(statsPlate, k .. "Icon", 42)
+		ic.Text = ICON[k]
+		ic.TextSize = Rules.MIN_TEXT
+		ic.TextStrokeTransparency = 1
+		icons[k] = ic
 	end
 	local seps = {}
 	for i = 1, 2 do
@@ -176,7 +177,7 @@ function MapHeaderBar.attach(panel, onClose)
 		local size = panel.AbsoluteSize
 		local sw, sh = math.max(size.X, 320), math.max(size.Y, 240)
 		local L = Rules.layout(sw, sh)
-		compact = L.stats.w < 400
+		compact = L.compact
 		place(bar, L.bar)
 		barLine.Position = UDim2.new(0, 0, 1, -2)
 		barLine.Size = UDim2.new(1, 0, 0, 2)
@@ -186,19 +187,28 @@ function MapHeaderBar.attach(panel, onClose)
 		rails.RailB.Position, rails.RailB.Size = UDim2.new(0, 0, 1, -rail), UDim2.new(1, 0, 0, rail)
 		place(titlePlate, L.title)
 		place(statsPlate, L.stats)
-		titleText.TextSize = L.textSize + 2
+		titleText.TextSize = L.titleSize
 		local px = L.stats
 		for k, cell in pairs(cells) do
-			local r = L.stat[k]
-			cell.Position = UDim2.fromOffset(r.x - px.x, 0)
-			cell.Size = UDim2.fromOffset(r.w, r.h)
-			cell.TextSize = L.textSize
+			local r, parts = L.stat[k], L.cellParts[k]
+			local t = parts.text
+			cell.Position = UDim2.fromOffset(r.x - px.x + t.x, t.y)
+			cell.Size = UDim2.fromOffset(t.w, t.h)
+			cell.TextSize = L.statSize
+			local ic = icons[k]
+			ic.Visible = parts.icon ~= nil
+			if parts.icon then
+				ic.Position = UDim2.fromOffset(r.x - px.x + parts.icon.x, parts.icon.y)
+				ic.Size = UDim2.fromOffset(parts.icon.w, parts.icon.h)
+				ic.TextSize = L.iconSize
+			end
 		end
 		for i, sep in ipairs(seps) do
 			sep.Position = UDim2.fromOffset(L.stat[i == 1 and "journey" or "keys"].x - px.x, 8)
 			sep.Size = UDim2.fromOffset(1, px.h - 16)
 		end
-		place(banners.BannerL, L.bannerL)
+		banners.BannerL.Visible = L.bannerL ~= nil
+		if L.bannerL then place(banners.BannerL, L.bannerL) end
 		banners.BannerR.Visible = L.bannerR ~= nil
 		if L.bannerR then place(banners.BannerR, L.bannerR) end
 		place(candles.CandleL, L.candleL)
@@ -208,9 +218,9 @@ function MapHeaderBar.attach(panel, onClose)
 
 	local function refresh()
 		local sl = compact and "/" or " / "
-		cells.night.Text = string.format("\u{1F451} Night %d%s%d", math.floor(stats.night), sl, math.floor(stats.nights))
-		cells.journey.Text = string.format("\u{1F9ED} Journey %d%s%d", math.floor(stats.done), sl, math.floor(stats.total))
-		cells.keys.Text = string.format("\u{1F511} Keys %d", math.floor(stats.keys))
+		cells.night.Text = string.format("Night %d%s%d", math.floor(stats.night), sl, math.floor(stats.nights))
+		cells.journey.Text = string.format("Journey %d%s%d", math.floor(stats.done), sl, math.floor(stats.total))
+		cells.keys.Text = string.format("Keys %d", math.floor(stats.keys))
 	end
 
 	local function both() relayout() view.refresh() end

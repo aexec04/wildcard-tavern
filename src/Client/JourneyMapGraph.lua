@@ -105,9 +105,9 @@ return function(deps)
 		local strip = remember(Instance.new("Frame"))
 		strip.AnchorPoint = Vector2.new(0.5, 0.5)
 		strip.Position = UDim2.fromOffset((ax + bx) / 2, (ay + by) / 2)
-		strip.Size = UDim2.fromOffset(len, lit and 10 or 8)
+		strip.Size = UDim2.fromOffset(len, lit and 10 or 7)
 		strip.Rotation = math.deg(math.atan2(dy, dx))
-		strip.BackgroundColor3 = lit and GOLD or Color3.fromRGB(196, 170, 120)
+		strip.BackgroundColor3 = lit and GOLD or Color3.fromRGB(244, 230, 196) -- cream
 		strip.BackgroundTransparency = transparency
 		strip.BorderSizePixel = 0
 		strip.Active = false
@@ -130,7 +130,8 @@ return function(deps)
 			local t = k / segs
 			local e = t * t * (3 - 2 * t)
 			local x, y = ax + (bx - ax) * t, ay + (by - ay) * e
-			road(px, py, x, y, lit, transparency)
+			-- a dash: the middle of each piece, so the road reads as a dashed cream path (gaps at the joins)
+			road(px + (x - px) * 0.12, py + (y - py) * 0.12, px + (x - px) * 0.8, py + (y - py) * 0.8, lit, transparency)
 			px, py = x, y
 		end
 	end
@@ -394,7 +395,7 @@ return function(deps)
 			if vis(p.parent) == "revealed" then
 				local stub = stop.hidden and not revealed[id]
 				local glow = usable[id] == true or revealable[id] == true
-				dotted(parent.x, parent.y, p.x, p.y, glow and GOLD or Color3.fromRGB(110, 90, 62), glow and 0.1 or 0.45)
+				dotted(parent.x, parent.y, p.x, p.y, glow and GOLD or Color3.fromRGB(244, 230, 196), glow and 0.1 or 0.35)
 				local btn = remember(Instance.new("TextButton"))
 				btn.Name = "Side_" .. id
 				btn.AnchorPoint = Vector2.new(0.5, 0.5)
