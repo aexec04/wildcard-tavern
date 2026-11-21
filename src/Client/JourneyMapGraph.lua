@@ -365,12 +365,12 @@ return function(deps)
 				end
 				if not isBubble and v ~= "teaser" and stop.name and stop.name ~= "" then -- no label plate for a "?" bubble or an empty name
 					local plate = RouteRules.plate(stop.name, 16, RouteRules.PLATE_MAX)
-					local lab = textLabel(stop.name, p.x, p.y + size / 2 + 6, plate.w, plate.h + 24, 16, 26)
-					lab.TextYAlignment = Enum.TextYAlignment.Top
+					local lab = textLabel(stop.name, p.x, p.y + size / 2 + 6, plate.w, plate.h, 16, 26)
+					lab.TextYAlignment = Enum.TextYAlignment.Center -- sized to its text: no empty line under the name
 					if plate.wrap then
 						lab.AutomaticSize = Enum.AutomaticSize.None
 						lab.TextWrapped = true
-						lab.Size = UDim2.fromOffset(plate.w, plate.h + 24)
+						lab.Size = UDim2.fromOffset(plate.w, plate.h)
 					end
 					tagged(lab, NodeRules.typeOf("night"), 99)
 				end

@@ -268,9 +268,12 @@ return function(deps)
 				local tr = 0
 				if seg.mode == "fade" then
 					tr = math.min(0.95, 0.15 + 0.8 * ((k - 1) / math.max((seg.roadCount or 1) - 1, 1)))
+				elseif seg.mode == "dim" then
+					tr = 0.5 -- the not yet revealed stretch: a dimmer dashed path that carries on to the boss
 				end
 				piece.fill.BackgroundTransparency = tr
 				piece.edge.Transparency = tr
+				piece.fill.ZIndex = seg.mode == "dim" and 36 or 23 -- the dim stretch rides above the fog band (35) so it stays visible
 			end
 		end
 	end
@@ -292,7 +295,7 @@ return function(deps)
 
 	-- Visual target of a dot: cleared = solid ink (every 4th a tiny footprint), upcoming = faint.
 	local function dotTargets(seg, k)
-		if seg.mode == "none" then
+		if seg.mode == "none" or seg.mode == "dim" then
 			return { frame = 1, foot = 1, size = 5 }
 		elseif seg.mode == "fade" then
 			local t = (k - 1) / math.max(seg.count - 1, 1)
@@ -739,6 +742,7 @@ return function(deps)
 	-- Fog edge: the first node that is not fully revealed. A teaser sits right on
 	-- the edge (half inside the fog); with no teaser the edge sits past the last
 	-- revealed node.
+	local HINT_Y = require(Engine:WaitForChild("FullScreenRules")).STRIP_H + 22 -- canvas y of the fog chip: just under the header strip
 	local function updateFog(animate)
 		local states = reveal.states
 		local first
@@ -758,15 +762,14 @@ return function(deps)
 			-- The tag (centred 40px right of hintX, about 290x36) must not sit on any graph node or label.
 			-- Beside the glowing node (right side, 14px gap), level with it, so it never reaches the node
 			-- below. FogBand places the tag's centre at hintX + 40, so hintX is shifted back by 40.
-			local tagCx = fx + nodeSize / 2 + 14 + 145
-			local _, hy = worldGraph.freeSpot(tagCx, fy, 290, 36)
-			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = tagCx - 40, hintY = hy,
+			-- the fog chip is small and sits top centre, under the header, never over the painted scenery or a node
+			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = canvasW / 2 - 40, hintY = HINT_Y,
 				animate = animate })
 			scenery.setFogEdge(fx)
 		else
 			local px = nodePixel(first - 1)
 			local edge = px + (fx - px) * 0.7
-			fogBand.update({ edgeX = edge, hintX = edge + 90, hintY = canvasH * 0.5, animate = animate })
+			fogBand.update({ edgeX = edge, hintX = canvasW / 2 - 40, hintY = HINT_Y, animate = animate })
 			scenery.setFogEdge(edge)
 		end
 	end
@@ -834,7 +837,7 @@ return function(deps)
 			end
 			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
 			node.name.AnchorPoint = Vector2.new(0.5, 0)
-			node.name.TextYAlignment = Enum.TextYAlignment.Top
+			node.name.TextYAlignment = Enum.TextYAlignment.Center
 			node.name.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP)
 			node.typeTag.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP + labelH + 2)
 			node.tag.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP + labelH + 2 + MapNodeRules.TAG_H + 8)
@@ -1068,6 +1071,11 @@ return function(deps)
 			local endState = states[index + 1]
 			local mode = (states[index] == "revealed" and endState == "revealed") and "full"
 				or ((states[index] == "revealed" and endState == "teaser") and "fade" or "none")
+			-- everything between the last revealed stop and the boss is a dimmer dashed path, so the route always reaches the destination
+			if mode == "none" and data.kind ~= "endless" and nodeData[index + 1] and nodeData[index + 1].kind ~= "endless"
+				and nodeData[index + 1].night and nodeData[index + 1].night <= JourneyMap.NightCap then
+				mode = "dim"
+			end
 			seg.modeChanged = seg.mode ~= mode
 			seg.mode = mode
 			applyRoad(seg)
@@ -1418,7 +1426,7 @@ return function(deps)
 	findMe.Name = "FindMe"
 	-- (below the header strip: at y 8 it sat under Roblox's own top-left buttons and could not be pressed)
 	findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)
-	findMe.Size = UDim2.fromOffset(104, 28)
+	findMe.Size = UDim2.fromOffset(80, 24) -- small, at the left just under the header
 	findMe.Font = Enum.Font.GothamBold
 	findMe.TextSize = 14
 	findMe.TextColor3 = CREAM
