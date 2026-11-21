@@ -92,7 +92,7 @@ function MapSelectPanel.new(deps)
 			fr.Image = id
 			fr.ScaleType = Enum.ScaleType.Slice
 			fr.SliceCenter = Rect.new(170, 170, 854, 854)
-			fr.SliceScale = 0.09 -- 15 px of carved border, inside the 16 px clear padding the content keeps
+			fr.SliceScale = 0.1 -- 17 px of carved border, drawn above the Inset so all of it shows
 			fr.Size = UDim2.fromScale(1, 1)
 			fr.Active = false
 			fr.ZIndex = 47

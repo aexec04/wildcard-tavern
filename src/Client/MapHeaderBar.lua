@@ -71,6 +71,25 @@ local function label(parent, name, z)
 	return l
 end
 
+
+-- the carved ornate frame (map_paint frame_ornate) 9-sliced over a plate, under its text; the plate art stays as the fallback
+local function ornate(plate, id)
+	if not id then return nil end
+	local fr = Instance.new("ImageLabel")
+	fr.Name = "OrnateFrame"
+	fr.BackgroundTransparency = 1
+	fr.Image = id
+	fr.ImageTransparency = 0
+	fr.ScaleType = Enum.ScaleType.Slice
+	fr.SliceCenter = Rect.new(170, 170, 854, 854)
+	fr.SliceScale = 0.06 -- about 10 px of carved border on a 40 px plate
+	fr.Size = UDim2.fromScale(1, 1)
+	fr.Active = false
+	fr.ZIndex = 41
+	fr.Parent = plate
+	return fr
+end
+
 function MapHeaderBar.setStats(s)
 	for k, v in pairs(s or {}) do stats[k] = v end
 	if view then view.refresh() end
@@ -98,10 +117,16 @@ function MapHeaderBar.attach(panel, onClose)
 	local barSheen = rect(bar, "Sheen", WOOD_LIGHT, 40) -- a lighter wood band across the top half
 	barSheen.Size = UDim2.new(1, 0, 0.45, 0)
 
+	local PaintArt = (function()
+		local ok, art = pcall(function() return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MapPaintArt")) end)
+		return ok and art or {}
+	end)()
+	local PaintArtIds = PaintArt
 	local titlePlate = TavernKit.plate(kit, UDim2.fromOffset(200, 40))
 	titlePlate.Name = "TitlePlate"
 	titlePlate.ZIndex = 41
 	TavernKit.painted(titlePlate, "orn_target") -- the carved dark wood plate with gold corners the table Target plate uses
+	ornate(titlePlate, PaintArtIds.frame_ornate)
 	local titleText = label(titlePlate, "Title", 42)
 	titleText.Size = UDim2.fromScale(1, 1)
 	titleText.Font = Enum.Font.GothamBlack
@@ -112,6 +137,7 @@ function MapHeaderBar.attach(panel, onClose)
 	statsPlate.Name = "StatsPlate"
 	statsPlate.ZIndex = 41
 	TavernKit.painted(statsPlate, "orn_target")
+	ornate(statsPlate, PaintArtIds.frame_ornate)
 	local cells, icons = {}, {}
 	local ICON = { night = "\u{1F451}", journey = "\u{1F9ED}", keys = "\u{1F511}" }
 	for _, k in ipairs({ "night", "journey", "keys" }) do
@@ -131,10 +157,6 @@ function MapHeaderBar.attach(panel, onClose)
 	end
 
 	local banners = {}
-	local PaintArt = (function()
-		local ok, art = pcall(function() return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MapPaintArt")) end)
-		return ok and art or {}
-	end)()
 	for _, n in ipairs({ "BannerL", "BannerR" }) do
 		local b = rect(kit, n, PURPLE, 41)
 		local crown = label(b, "Crown", 42)
