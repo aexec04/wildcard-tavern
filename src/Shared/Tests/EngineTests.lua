@@ -34615,7 +34615,27 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	local g = B.glow(false)
-	expectTrue(g.stroke == 3 and g.outer == 28 and g.lo == 0.35 and g.hi == 0.65 and g.seatStroke == 2 and g.seatHalo == 14 and g.seatHaloT == 0.55, "glow numbers: 3 px stroke, 28 px outer, pulse 0.35 to 0.65, 2 px seat edge, 14 px seat halo at 0.55")
+	expectTrue(g.stroke == 3 and g.outer == 30 and g.lo == 0.2 and g.hi == 0.5 and g.seatStroke == 2 and g.seatHalo == 30 and g.seatHaloT == 0.35, "glow numbers: 3 px stroke, 30 px boss halo pulsing 0.2 to 0.5, 2 px seat edge, 30 px seat halo at 0.35")
+	expectTrue(g.lo < g.seatHaloT + 0.2, "the boss halo is brighter than the Patron halos")
+	-- the Boss card takes the middle seat: Patrons 1 2 keep seats 1 2, 3 4 move to 4 5, a fifth is out of the row
+	expectTrue(B.seatFor(1, true) == 1 and B.seatFor(2, true) == 2 and B.seatFor(3, true) == 4 and B.seatFor(4, true) == 5 and B.seatFor(5, true) == nil, "boss round seat map")
+	for i = 1, 5 do expectEqual(B.seatFor(i, false), i, "no boss round: seat " .. i .. " is unchanged") end
+	for i = 1, 8 do expectTrue(B.seatFor(i, true) ~= B.BOSS_SEAT, "no Patron stands in the Boss seat") end
+	expectTrue(B.active({ phase = "playing", round = 3, bossModifier = { id = "x" } }) and not B.active({ phase = "playing", round = 2, bossModifier = { id = "x" } }) and not B.active({ phase = "shop", round = 3, bossModifier = { id = "x" } }) and not B.active({ phase = "playing", round = 3 }), "active only in a playing boss round")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local seat = B.seatRect(r)
+		expectTrue(seat ~= nil and seat.w == r.slots[3].card.w and seat.h == r.slots[3].card.h, "the Boss card is Patron card sized in the middle seat at " .. sz[1])
+		local c = B.cardRect(r, sz[1], sz[2])
+		if c then
+			expectTrue(not hit(c, seat), "left panel clear of the Boss seat at " .. sz[1])
+			expectTrue(c.x >= 12, "left panel 12 px from the edge at " .. sz[1])
+			local pp = B.cardParts(c)
+			expectTrue(pp.portrait.w <= 120 and pp.portrait.w == math.min(120, c.h - 16), "portrait is 120 px or the panel height at " .. sz[1])
+		end
+	end
+	local big = B.cardRect(L.rects(1920, 957), 1920, 957)
+	expectTrue(big and big.h >= 180 and B.cardParts(big).portrait.w == 120, "1920x957: a 190 px panel with a 120 px portrait")
 	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
 	expectTrue(B.plateRect(L.rects(1920, 957)) ~= nil and B.plateRect(L.rects(1920, 957)).h >= 90, "the plate is about 96 px tall at 1920x957")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
@@ -34667,7 +34687,11 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	local fx = read("src/Client/BossCardFX.lua")
 	expectTrue(fx:find("BossPresenceFX", 1, true) and fx:find("BossPresencePlate", 1, true), "BossCardFX clears the Concept T red plate")
 	expectTrue(fx:find("OuterGlow", 1, true) and fx:find("stopPulse()", 1, true), "the outer glow rings are built and stop in Calm mode")
-	expectTrue(fx:find('"Halo" .. k', 1, true) and fx:find("spot.x - 2", 1, true), "every Patron card has a halo and the Boss card halo is clamped inside the screen")
+	expectTrue(fx:find('"Halo" .. k', 1, true) and fx:find("Rules.seatFor(i, true)", 1, true), "every seated Patron card has a halo, placed by the boss seat map")
+	expectTrue(fx:find("BossSeatCard", 1, true) and fx:find("Rules.seatRect(rects)", 1, true) and fx:find('"BOSS"', 1, true), "the Boss card is built in the middle seat with a BOSS tag")
+	expectTrue(fx:find('painted(top.Plate, "wh_target")', 1, true), "the top plate uses the Target and Tips plate picture")
+	local prow = read("src/Client/PatronRow.lua")
+	expectTrue(prow:find("BossCardRules.seatFor(i, true)", 1, true), "PatronRow moves the Patrons round the Boss seat")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local c = require(script.Parent.Parent.Engine.BossCard).cardRect(require(script.Parent.Parent.Engine.Gameplay2Layout).rects(sz[1], sz[2]), sz[1], sz[2])
 		if c then expectTrue(c.x >= 12, "the Boss card is 12 px or more from the left edge at " .. sz[1]) end

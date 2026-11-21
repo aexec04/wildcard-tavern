@@ -934,7 +934,9 @@ function M.install(deps)
 			round = lastState.round, night = lastState.night, nightCap = lastState.nightCap, endless = lastState.endless, bossModifier = lastState.bossModifier }
 		pcall(function() -- a thin gold thread between neighbouring Patrons that share a theme (Client/Gameplay2SynergyFX)
 			local ids = {}
-			for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end
+			if not require(Engine:WaitForChild("BossCard")).active(lastState) then -- a boss round: the Boss card splits the row, no threads
+				for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end
+			end
 			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids)
 		end)
 		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)

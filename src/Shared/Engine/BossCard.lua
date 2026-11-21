@@ -38,17 +38,64 @@ function M.fraction(cur, total)
 	return math.max(0, math.min(1, (tonumber(cur) or 0) / total))
 end
 
+local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+
+-- The Boss round row: the boss takes the middle seat (BOSS_SEAT), so the first two Patrons keep seats 1 and 2, the next two move to seats 4 and 5
+-- and a fifth Patron stays out of the row for the round (it is still in the My Patrons list and still scores).
+M.BOSS_SEAT = 3
+function M.active(state)
+	return type(state) == "table" and state.phase == "playing" and state.bossModifier ~= nil and (tonumber(state.round) or 0) >= 3
+end
+
+-- seat (1..5) that owned Patron i stands in, or nil when it is out of the row; outside a boss round every Patron keeps its own seat
+function M.seatFor(i, boss)
+	if not boss then return i end
+	if i <= 2 then return i end
+	if i <= 4 then return i + 1 end
+	return nil
+end
+
+-- the Boss card stands in the middle seat: the same rect as a Patron card
+function M.seatRect(r)
+	local s = r and r.slots and r.slots[M.BOSS_SEAT]
+	return s and s.card or nil
+end
+
+-- the left panel: just under the top row, level with the Patron row, about 190 px tall on the 957 px screen (reference y 185 to 375, x 20 to 380)
+M.PANEL_Y = 0.193
+M.PANEL_H = 0.199
+M.PORTRAIT = 120
+
 function M.cardRect(r, viewW, viewH)
 	local spot = PatronPowerPanel.place(r, viewW, viewH, {})
 	local pl = spot and spot.plate
 	if not pl then return nil end
-	if pl.x < M.EDGE then return { x = M.EDGE, y = pl.y, w = pl.w - (M.EDGE - pl.x), h = pl.h } end -- 12 px from the screen edge, the right side stays put
-	return pl
+	local x, w = pl.x, pl.w
+	if x < M.EDGE then x = M.EDGE; w = pl.w - (M.EDGE - pl.x) end -- 12 px from the screen edge, the right side stays put
+	local top = math.floor(M.PANEL_Y * viewH + 0.5)
+	for _, key in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
+		local t = r[key]
+		if t then top = math.max(top, t.y + t.h + 6) end
+	end
+	local bottom = pl.y + pl.h
+	local h = math.min(math.floor(M.PANEL_H * viewH + 0.5), bottom - top)
+	if h > pl.h then
+		local try = { x = x, y = top, w = w, h = h }
+		local ok = true
+		for name, rect in pairs(r) do
+			if name ~= "slots" and name ~= "bar" and type(rect) == "table" and rect.x and hit(try, rect) then ok = false end
+		end
+		for _, s in ipairs(r.slots or {}) do
+			for _, part in ipairs({ s.card, s.label, s.pill }) do if part and hit(try, part) then ok = false end end
+		end
+		if ok then return try end
+	end
+	return { x = x, y = pl.y, w = w, h = pl.h }
 end
 
 function M.cardParts(rect)
 	local pad = 8
-	local side = math.max(24, rect.h - 2 * pad)
+	local side = math.max(24, math.min(M.PORTRAIT, rect.h - 2 * pad))
 	local portrait = { x = pad, y = pad, w = side, h = side }
 	local tx = portrait.x + side + pad
 	return { portrait = portrait, text = { x = tx, y = pad, w = math.max(20, rect.w - tx - pad), h = rect.h - 2 * pad } }
@@ -109,7 +156,7 @@ end
 -- stroke = 3 px gold on the Boss card, outer = soft rings reaching 28 px past each edge that pulse between lo and hi transparency,
 -- seatStroke = the steady 2 px gold edge on the other Patron cards, seatHalo = their soft 14 px halo at seatHaloT transparency
 function M.glow(calm)
-	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 28, lo = 0.35, hi = 0.65, seatHalo = 14, seatHaloT = 0.55 }
+	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 30, lo = 0.2, hi = 0.5, seatHalo = 30, seatHaloT = 0.35, bossHaloT = 0.2 }
 end
 
 return M

@@ -20,7 +20,7 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local M = {}
 local GOLD = Color3.fromRGB(246, 196, 70)
 local CREAM = Color3.fromRGB(250, 240, 220)
-local card, top, glowFrames, lastFill, lastBossId, pulseTweens
+local card, seatCard, top, glowFrames, lastFill, lastBossId, seatBossId, pulseTweens
 
 local function calm() return ClientSettings.get("reduceShake") == true end
 
@@ -48,40 +48,70 @@ local function place(f, r) f.Position = UDim2.fromOffset(r.x, r.y); f.Size = UDi
 local function buildCard(layer)
 	local f = Instance.new("Frame")
 	f.Name = "BossCard"
-	f.BackgroundColor3 = Color3.fromRGB(226, 205, 160) -- parchment
+	f.BackgroundColor3 = Color3.fromRGB(62, 38, 22) -- dark carved wood like the top plates
 	f.BorderSizePixel = 0
 	f.Active = false
 	f.ZIndex = 28
 	f.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = f
 	local st = Instance.new("UIStroke"); st.Name = "Glow"; st.Color = GOLD; st.Thickness = 3; st.Parent = f
-	-- soft outer glow: three 8 px rings that together reach 24 px past each edge, fading outward (no picture needed); parented to the card so it follows it
-	for i, d in ipairs({ 0, 10, 20 }) do
-		local ring = Instance.new("Frame")
-		ring.Name = "OuterGlow" .. i
-		ring.BackgroundTransparency = 1
-		ring.BorderSizePixel = 0
-		ring.Active = false
-		ring.ZIndex = 27
-		ring.Position = UDim2.fromOffset(-d, -d)
-		ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
-		ring.Parent = f
-		local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10 + d); rc.Parent = ring
-		local rs = Instance.new("UIStroke"); rs.Name = "Ring"; rs.Color = GOLD; rs.Thickness = 8; rs.Transparency = 0.5; rs.Parent = ring
-			ring:SetAttribute("Step", d)
-	end
 	local pf = Instance.new("Frame"); pf.Name = "Portrait"; pf.BackgroundColor3 = Color3.fromRGB(60, 22, 18); pf.BorderSizePixel = 0; pf.Active = false; pf.ZIndex = 29; pf.Parent = f
 	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pf
 	local ps = Instance.new("UIStroke"); ps.Color = Color3.fromRGB(150, 38, 30); ps.Thickness = 2; ps.Parent = pf
 	local face = label(pf, "Face", Enum.Font.GothamBold, CREAM, 30)
 	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"
-	local nm = label(f, "Title", Enum.Font.Merriweather, Color3.fromRGB(70, 28, 16), 29)
+	local nm = label(f, "Title", Enum.Font.GothamBold, GOLD, 29) -- the name is small and gold above the rule text
 	nm.TextXAlignment = Enum.TextXAlignment.Left; nm.TextYAlignment = Enum.TextYAlignment.Top; nm.TextTruncate = Enum.TextTruncate.AtEnd
-	local rl = label(f, "Rule", Enum.Font.Gotham, Color3.fromRGB(50, 34, 20), 29)
+	local rl = label(f, "Rule", Enum.Font.Gotham, CREAM, 29)
 	rl.TextXAlignment = Enum.TextXAlignment.Left; rl.TextYAlignment = Enum.TextYAlignment.Top; rl.TextWrapped = true
-	-- crown above the card
-	local crown = label(f, "Crown", Enum.Font.GothamBold, GOLD, 31)
-	crown.AnchorPoint = Vector2.new(0.5, 1); crown.Position = UDim2.new(0.5, 0, 0, 4); crown.Size = UDim2.fromOffset(40, 24)
+	return f
+end
+
+-- soft candlelight: `n` stacked UIStroke rings, each `step` px thick, fading outward; parented to the card so they follow it (no picture needed)
+local function addRings(f, n, step, radius, z)
+	for i = 1, n do
+		local d = (i - 1) * step
+		local ring = Instance.new("Frame")
+		ring.Name = "OuterGlow" .. i
+		ring.BackgroundTransparency = 1
+		ring.BorderSizePixel = 0
+		ring.Active = false
+		ring.ZIndex = z
+		ring.Position = UDim2.fromOffset(-d, -d)
+		ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
+		ring.Parent = f
+		local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, radius + d); rc.Parent = ring
+		local rs = Instance.new("UIStroke"); rs.Name = "Ring"; rs.Color = GOLD; rs.Thickness = step; rs.Transparency = 0.5; rs.Parent = ring
+	end
+end
+
+-- the Boss's own card in the middle Patron seat: portrait filling it, a red BOSS tag where the rarity letter goes, the name on a strip, a crown above
+local function buildSeatCard(layer)
+	local f = Instance.new("Frame")
+	f.Name = "BossSeatCard"
+	f.BackgroundColor3 = Color3.fromRGB(60, 22, 18)
+	f.BorderSizePixel = 0
+	f.Active = false
+	f.ZIndex = 28
+	f.Parent = layer
+	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = f
+	local st = Instance.new("UIStroke"); st.Name = "Glow"; st.Color = GOLD; st.Thickness = 3; st.Parent = f
+	addRings(f, 3, 10, 8, 27)
+	local art = Instance.new("Frame"); art.Name = "Art"; art.BackgroundTransparency = 1; art.BorderSizePixel = 0; art.Active = false
+	art.Size = UDim2.fromScale(1, 1); art.ZIndex = 29; art.ClipsDescendants = true; art.Parent = f
+	local face = label(art, "Face", Enum.Font.GothamBold, CREAM, 30)
+	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"
+	local strip = label(f, "Title", Enum.Font.GothamBold, CREAM, 32)
+	strip.BackgroundTransparency = 0.2; strip.BackgroundColor3 = Color3.fromRGB(34, 16, 12)
+	strip.AnchorPoint = Vector2.new(0, 1); strip.Position = UDim2.fromScale(0, 1); strip.Size = UDim2.new(1, 0, 0, 24)
+	strip.TextScaled = true; strip.TextTruncate = Enum.TextTruncate.AtEnd
+	local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, 6); sc.Parent = strip
+	local tag = label(f, "Tag", Enum.Font.GothamBold, CREAM, 33)
+	tag.BackgroundTransparency = 0; tag.BackgroundColor3 = Color3.fromRGB(205, 40, 36)
+	tag.Position = UDim2.fromOffset(6, 6); tag.Size = UDim2.fromOffset(46, 18); tag.Text = "BOSS"; tag.TextScaled = true
+	local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 4); tc.Parent = tag
+	local crown = label(f, "Crown", Enum.Font.GothamBold, GOLD, 34)
+	crown.AnchorPoint = Vector2.new(0.5, 1); crown.Position = UDim2.new(0.5, 0, 0, 10); crown.Size = UDim2.fromOffset(34, 24)
 	crown.Text = "\u{1F451}"; crown.TextScaled = true
 	return f
 end
@@ -125,6 +155,8 @@ end
 
 function M.hide()
 	if card then card.Visible = false end
+	if seatCard then seatCard.Visible = false end
+	seatBossId = nil
 	if top then top.Visible = false end
 	clearGlow()
 	stopPulse()
@@ -142,7 +174,8 @@ local function applySeatGlow(layer, rects, owned)
 	clearGlow()
 	glowFrames = {}
 	for i = 1, owned do
-		local s = rects.slots and rects.slots[i]
+		local seat = Rules.seatFor(i, true) -- the Boss card holds the middle seat: Patrons 3 and 4 stand in seats 4 and 5, a fifth is out of the row
+		local s = seat and rects.slots and rects.slots[seat]
 		if s and s.card then
 			local g = Instance.new("Frame")
 			g.Name = "BossSeatGlow"
@@ -155,18 +188,18 @@ local function applySeatGlow(layer, rects, owned)
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
 			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
 			local gl = Rules.glow(true)
-			for k = 1, 2 do -- soft halo: two 7 px rings, 14 px in all, fading outward (static, so Calm mode and Reduce motion need nothing)
+			for k = 1, 3 do -- candlelight halo: three 10 px rings, 30 px in all, fading outward (static, so Calm mode and Reduce motion need nothing)
 				local hr = Instance.new("Frame")
 				hr.Name = "Halo" .. k
 				hr.BackgroundTransparency = 1
 				hr.BorderSizePixel = 0
 				hr.Active = false
 				hr.ZIndex = 11
-				local d = (k - 1) * gl.seatHalo / 2
+				local d = (k - 1) * gl.seatHalo / 3
 				hr.Position = UDim2.fromOffset(-d - 2, -d - 2) -- the 2 px edge stroke sits just outside g
 				hr.Size = UDim2.new(1, 2 * d + 4, 1, 2 * d + 4)
 				local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(0, 8 + d); hc.Parent = hr
-				local hs = Instance.new("UIStroke"); hs.Color = GOLD; hs.Thickness = gl.seatHalo / 2; hs.Transparency = gl.seatHaloT + 0.2 * (k - 1); hs.Parent = hr
+				local hs = Instance.new("UIStroke"); hs.Color = GOLD; hs.Thickness = gl.seatHalo / 3; hs.Transparency = gl.seatHaloT + 0.15 * (k - 1); hs.Parent = hr
 				hr.Parent = g
 			end
 			g.Parent = layer
@@ -188,6 +221,13 @@ function M.update(layer, state, rects, viewW, viewH)
 	end)
 	if not card or card.Parent ~= layer then card = buildCard(layer) end
 	if not top or top.Parent ~= layer then top = buildTop(layer) end
+	if not seatCard or seatCard.Parent ~= layer then seatCard = buildSeatCard(layer); seatBossId = nil end
+	pcall(function() -- the same ornate plate picture the Target and Tips plates use (colour stops of the flat plate go transparent under it)
+		if not top.Plate:GetAttribute("Painted") then
+			top.Plate:SetAttribute("Painted", true)
+			require(script.Parent.TavernKit).painted(top.Plate, "wh_target")
+		end
+	end)
 	local glow = Rules.glow(calm())
 	local boss = state.bossModifier
 	-- left Boss card (the Patron Power tip card is replaced by it on a boss round)
@@ -211,32 +251,43 @@ function M.update(layer, state, rects, viewW, viewH)
 			card.Portrait.Face.Visible = not (okA and art)
 			card.Portrait.Face.Text = Moments.bossIcon(boss and boss.rules)
 		end
-		local reach = math.max(0, math.min(glow.outer, spot.x - 2)) -- the halo stays on screen: it never reaches past the left edge
-		local thick = math.max(1, math.min(8, reach))
-		for i = 1, 3 do
-			local ring = card["OuterGlow" .. i]
-			local d = (i - 1) * math.max(0, reach - thick) / 2
-			ring.Position = UDim2.fromOffset(-d, -d); ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
-			ring.Ring.Thickness = thick
-			ring.Visible = reach >= 1
-		end
-		card.Glow.Thickness = glow.stroke
 		card.Glow.Transparency = 0
+	else
+		card.Visible = false
+	end
+	-- the Boss's own card in the middle Patron seat: same size as a Patron card, crown above, the strongest glow
+	local seat = Rules.seatRect(rects)
+	if seat then
+		seatCard.Visible = true
+		place(seatCard, seat)
+		seatCard.Title.Text = name
+		seatCard.Title.Size = UDim2.new(1, 0, 0, math.max(16, math.min(26, math.floor(seat.h * 0.16))))
+		seatCard.Tag.Size = UDim2.fromOffset(math.max(34, math.min(52, math.floor(seat.w * 0.4))), math.max(14, math.min(20, math.floor(seat.h * 0.1))))
+		if seatBossId ~= (boss and boss.id) then
+			seatBossId = boss and boss.id
+			local old = seatCard.Art:FindFirstChild("ContentArt"); if old then old:Destroy() end
+			local artId = boss and boss.id and ContentArt.getImageId("boss_rounds", boss.id) or nil
+			local okA, art = pcall(function() return require(script.Parent.PatronPlaque).applyById(seatCard.Art, artId, { size = UDim2.fromScale(1, 1), zIndex = 30, cornerRadius = 8 }) end)
+			if okA and art then art.ScaleType = Enum.ScaleType.Crop end
+			seatCard.Art.Face.Visible = not (okA and art)
+			seatCard.Art.Face.Text = Moments.bossIcon(boss and boss.rules)
+		end
+		seatCard.Glow.Thickness = glow.stroke
 		if not pulseTweens and glow.pulse then
 			pulseTweens = {}
-			for i = 1, 3 do -- ring i pulses from lo + 0.15 (i - 1) up to hi + 0.1 (i - 1): the inner ring is the strongest
-				local ring = card["OuterGlow" .. i].Ring
+			for i = 1, 3 do -- ring i pulses from lo + 0.15 (i - 1) up to hi + 0.15 (i - 1): the inner ring is the strongest
+				local ring = seatCard["OuterGlow" .. i].Ring
 				ring.Transparency = glow.lo + 0.15 * (i - 1)
-				local tw = TweenService:Create(ring, TweenInfo.new(glow.pulse, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = glow.hi + 0.1 * (i - 1) })
+				local tw = TweenService:Create(ring, TweenInfo.new(glow.pulse, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = glow.hi + 0.15 * (i - 1) })
 				tw:Play()
 				pulseTweens[i] = tw
 			end
 		elseif not glow.pulse then
 			stopPulse()
-			for i = 1, 3 do card["OuterGlow" .. i].Ring.Transparency = 0.5 + 0.15 * (i - 1) end -- static in Calm mode and Reduce motion
+			for i = 1, 3 do seatCard["OuterGlow" .. i].Ring.Transparency = glow.lo + 0.15 * (i - 1) end -- static in Calm mode and Reduce motion
 		end
 	else
-		card.Visible = false
+		seatCard.Visible = false
 	end
 	-- top: the name large, the red health bar under it, Night and Round small
 	local tp = Rules.topParts(rects)

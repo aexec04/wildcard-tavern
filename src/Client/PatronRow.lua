@@ -23,6 +23,7 @@ local Layout = require(Engine:WaitForChild("PatronRowLayout"))
 local PlayBudget = require(Engine:WaitForChild("PlayBudget"))
 local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local Rules = require(Engine:WaitForChild("PatronRowRules"))
+local BossCardRules = require(Engine:WaitForChild("BossCard"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local NameFit = require(Engine:WaitForChild("PatronNameFit"))
@@ -794,13 +795,15 @@ local function place(state)
 		end
 	end
 	local ctOn = false
+	local bossRow = false
 	if show then pcall(function() ctOn = require(script.Parent.ConceptTPlay).isActive() end) end
 	ctPlace = ctOn
 	if show and ctOn then
 		-- Concept T play screen: five cards on the painted rug, no panel, nook or Mult panel (rects: Engine/ConceptTLayout.patronRow)
 		local v2 = false
 		pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
-		local row = v2 and require(Engine:WaitForChild("Gameplay2Layout")).patronRow(rootSize.X, rootSize.Y, limit) or CTLayout.patronRow(rootSize.X, rootSize.Y, limit)
+		bossRow = v2 and BossCardRules.active(state) -- the Boss card holds the middle seat: Patrons 3 and 4 move to seats 4 and 5, a fifth is out of the row
+		local row = v2 and require(Engine:WaitForChild("Gameplay2Layout")).patronRow(rootSize.X, rootSize.Y, bossRow and 5 or limit) or CTLayout.patronRow(rootSize.X, rootSize.Y, limit)
 		lay = { cards = row.cards, plaqueH = 20 }
 	elseif show then
 		-- the Patron display first (card slots under a heading); the painted strip and the code nook are the fallbacks for roots it declines
@@ -828,7 +831,7 @@ local function place(state)
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end
 		if c then
-			local r = lay and lay.cards[i]
+			local r = lay and lay.cards[bossRow and BossCardRules.seatFor(i, true) or i]
 			if r then
 				c.slot.Visible = true
 				c.slot.Position = UDim2.fromOffset(r.x, r.y)
