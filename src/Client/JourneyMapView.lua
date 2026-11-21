@@ -137,6 +137,8 @@ return function(deps)
 	local worldGraph = require(script.Parent.JourneyMapGraph)({
 		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
 		confirmParent = frame, -- the "Unlock with a Key?" dialog covers the visible map, not the scrolling canvas
+		nodeArt = function(key) return key and ContentArtJMV.getImageId("map_nodes", key) or nil end,
+		paintArt = function(key) return key and ContentArtJMV.getImageId("map_paint", key) or nil end,
 		rewardText = function(region)
 			local row = BiomeRewardsJMV.Rows[region]
 			local reward = row and row.reward and row.reward[1]
@@ -200,9 +202,17 @@ return function(deps)
 	local function mapArt(key)
 		return key and ContentArtJMV.getImageId("map_nodes", key) or nil
 	end
+	-- the painted Tavern Map pieces (parchment, round node paintings, boss emblem); nil until their ids exist, then the old art stays in use
+	local function paintArt(key)
+		return key and ContentArtJMV.getImageId("map_paint", key) or nil
+	end
 
 	local unlocking = false -- true while the clear moment runs (refresh leaves the picture alone)
 	local requestRender -- set once refresh() exists (art that loads late re-renders)
+	-- declared up here: applyRoad and render use these, and a local declared further down is a nil global to them
+	local MapSelectRules = require(Engine:WaitForChild("MapSelectRules")) -- dashed routes and the lower left selection panel
+	local selectedIndex = nil -- the selected node (lower left panel): drawn with the selected look
+	local selectNode -- defined after the panel exists
 
 	-- ===== Trail: dotted ink path along a Bezier (segment i joins node i to i + 1) =====
 	local segments = {}
@@ -233,6 +243,7 @@ return function(deps)
 		edge.Size = UDim2.fromOffset(ROAD_W + 8, ROAD_W + 8)
 		edge.BackgroundColor3 = ROAD_EDGE
 		edge.BorderSizePixel = 0
+		edge.Visible = false -- applyRoad shows the pieces that belong to a revealed road
 		edge.ZIndex = 22
 		edge.Parent = canvas
 		deps.roundCorner(edge, (ROAD_W + 8) / 2)
@@ -241,6 +252,7 @@ return function(deps)
 		fill.Size = UDim2.fromOffset(ROAD_W, ROAD_W)
 		fill.BackgroundColor3 = ROAD_FILL
 		fill.BorderSizePixel = 0
+		fill.Visible = false
 		fill.ZIndex = 23
 		fill.Parent = canvas
 		deps.roundCorner(fill, ROAD_W / 2)
@@ -324,9 +336,6 @@ return function(deps)
 	-- ===== Nodes =====
 	local nodeHover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = calm })
 	local MapNodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, state, tag and badge rules (the new node look)
-	local MapSelectRules = require(Engine:WaitForChild("MapSelectRules")) -- dashed routes and the lower left selection panel
-	local selectedIndex = nil -- the selected node (lower left panel): drawn with the selected look
-	local selectNode -- defined after the panel exists
 	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
@@ -379,7 +388,13 @@ return function(deps)
 			TextSize = 36, Text = info.icon, TextWrapped = false, ZIndex = 27,
 		})
 		local art
-		local artId = mapArt(info.art)
+		local isBossNode = data.kind ~= "endless" and data.night == JourneyMap.NightCap
+		-- the boss node wears the crowned skull emblem on a crimson disc; every other node keeps its own place painting,
+		-- with the encounter painting when that is missing
+		local artId = (isBossNode and paintArt("boss_emblem")) or mapArt(info.art) or paintArt("node_encounter")
+		if isBossNode and paintArt("boss_emblem") then
+			button.BackgroundColor3 = Color3.fromRGB(78, 22, 22)
+		end
 		if artId then
 			art = PatronPlaque.applyById(button, artId, {
 				emojiLabel = icon, zIndex = 27, cornerRadius = 60,
@@ -660,6 +675,7 @@ return function(deps)
 	for i = 1, NODE_COUNT do nodeNames[i] = nodeData[i].info.name end
 	local bossSize = 150
 	local routeFits = false -- the whole Night route is on screen at the default zoom (set in layout)
+	local mapFitLogged = nil -- the view size the [MapFit] Studio line was last printed for
 	local posX, posY = {}, {}
 	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
 	local debugOn = false -- Studio-only coordinate overlay / drag mode (reveals everything while on)
@@ -773,6 +789,14 @@ return function(deps)
 		canvasW = math.max(fit.canvasW, size.X)
 		local spacing = fit.spacing
 		routeFits = fit.fits
+		if RunService:IsStudio() then
+			local key = size.X .. "x" .. size.Y
+			if mapFitLogged ~= key then
+				mapFitLogged = key
+				warn(string.format("[MapFit] canvas %dx%d view %dx%d nodeSize %d boss %d nodes %d spacing %d fits=%s",
+					canvasW, canvasH, size.X, size.Y, fit.nodeSize, fit.bossSize, NODE_COUNT, math.floor(fit.spacing), tostring(fit.fits)))
+			end
+		end
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
 		scroll.CanvasSize = UDim2.fromOffset(canvasW, canvasH)
 		local minY, maxY = math.huge, -math.huge
@@ -861,7 +885,7 @@ return function(deps)
 		for index = 1, NODE_COUNT do
 			nodeXs[index] = (nodePixel(index))
 		end
-		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs)
+		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs, size.X)
 		fogBand.layout(canvasW, canvasH)
 		worldGraph.layout(canvasW, canvasH, nodeSize, nodePixel)
 		worldDiscoveries.layout(canvasW, canvasH, nodeSize)

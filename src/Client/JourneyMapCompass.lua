@@ -222,6 +222,11 @@ return function(deps)
 		return table.find(choices, pointed) ~= nil and not RoadLock.isLocked(state, pointed)
 	end
 
+	local shownNow = false
+	local function hasCharges() -- no charge, no round N button: nothing to offer on the map
+		return (state and state.compassCharges or 0) > 0
+	end
+
 	local function updateButtons()
 		local charges = state and state.compassCharges or 0
 		keysPill.Text = "Keys " .. RoadLock.keys(state)
@@ -264,9 +269,11 @@ return function(deps)
 			end
 			wheel.setIcons(icons)
 			updateButtons()
+			icon.Visible = shownNow and hasCharges()
 		end,
 		setShown = function(shown)
-			icon.Visible = shown
+			shownNow = shown
+			icon.Visible = shown and hasCharges()
 			keysPill.Visible = false -- the header's Keys is the one counter now (Client/MapHeaderBar)
 			if not shown then
 				panel.Visible = false

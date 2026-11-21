@@ -57,6 +57,27 @@ return function(deps)
 		label.Text = string.format('%s\n<font color="#%02x%02x%02x"><b>%s</b></font>', label.Text, c[1], c[2], c[3], NodeRules.tagFor(typeId).text)
 	end
 
+	-- a round painting inside a node button (the button's own text is dropped)
+	local SIDE_ART = { shop = "node_shop", shrine = "node_shrine", rest = "node_rest", minigame = "node_event" }
+	local function paintNode(btn, artId)
+		btn.Text = ""
+		local img = Instance.new("ImageLabel")
+		img.Name = "NodePainting"
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.Position = UDim2.fromScale(0.5, 0.5)
+		img.Size = UDim2.new(1, -6, 1, -6)
+		img.BackgroundTransparency = 1
+		img.BorderSizePixel = 0
+		img.Image = artId
+		img.ScaleType = Enum.ScaleType.Crop
+		img.Active = false
+		img.ZIndex = btn.ZIndex + 1
+		img.Parent = btn
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.5, 0)
+		c.Parent = img
+	end
+
 	local function remember(inst)
 		items[#items + 1] = inst
 		return inst
@@ -328,6 +349,8 @@ return function(deps)
 				btn.ZIndex = 26
 				btn.Parent = root
 				deps.roundCorner(btn, size)
+				local stopArt = v ~= "teaser" and ((deps.nodeArt and deps.nodeArt(stop.art)) or (deps.paintArt and deps.paintArt("node_encounter"))) or nil
+				if stopArt then paintNode(btn, stopArt) end
 				local st = Instance.new("UIStroke")
 				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
 				st.Thickness = id == highlighted and 5 or (choices[id] and 3 or 2)
@@ -411,6 +434,8 @@ return function(deps)
 				btn.ZIndex = 27
 				btn.Parent = root
 				deps.roundCorner(btn, sideSize)
+				local sideArt = (not stub) and deps.paintArt and deps.paintArt(SIDE_ART[stop.side]) or nil
+				if sideArt then paintNode(btn, sideArt) end
 				local st = Instance.new("UIStroke")
 				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
 				st.Thickness = glow and 3 or 2

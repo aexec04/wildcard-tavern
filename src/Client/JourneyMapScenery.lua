@@ -212,7 +212,33 @@ return function(deps)
 		return img
 	end
 
-	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs)
+	-- The painted parchment countryside (map_paint parchment_map) covers the first screen, where the eight Nights are; it melts into the
+	-- region paintings after it. Without the picture nothing here changes. Props are not drawn on top of it (it has its own scenery).
+	local parchmentHolder = nil
+	local parchmentW = 0
+	local function layoutParchment(canvasW, canvasH, viewW)
+		local id = ContentArt.getImageId("map_paint", "parchment_map")
+		if not parchmentHolder then
+			parchmentHolder = Instance.new("Frame")
+			parchmentHolder.Name = "ParchmentPainting"
+			parchmentHolder.BackgroundTransparency = 1
+			parchmentHolder.BorderSizePixel = 0
+			parchmentHolder.Active = false
+			parchmentHolder.ZIndex = Z_PAINTING -- created after the region holders, so it draws above them; below the roads and nodes
+			parchmentHolder.Parent = layer
+		end
+		parchmentHolder:ClearAllChildren()
+		parchmentW = 0
+		if not id then return end
+		local w = math.floor(math.min(canvasW, math.max(viewW or 0, 1)))
+		parchmentW = w
+		parchmentHolder.Position, parchmentHolder.Size = UDim2.fromOffset(0, 0), UDim2.fromOffset(w, canvasH)
+		local melt = w < canvasW and math.floor(math.min(w * 0.12, 240)) or 0
+		local img = paintTile(parchmentHolder, "Parchment", id, 0, w, canvasH, Z_PAINTING, 0, melt)
+		img.ScaleType = Enum.ScaleType.Stretch -- the whole picture across the first screen, nothing cropped
+	end
+
+	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs, viewW)
 		local edges = regionEdges(canvasW, nodeXs)
 		local joinW = {} -- joinW[i] = width of the cross-fade zone between region i-1 and i, centred on edges[i]
 		for i = 2, #REGIONS do
@@ -256,6 +282,7 @@ return function(deps)
 			end
 		end
 
+		layoutParchment(canvasW, canvasH, viewW)
 		decorLayer:ClearAllChildren()
 		local size = math.floor(math.clamp(canvasH * 0.13, 64, 112))
 		local topRoom = topLimit - size - 12
@@ -277,6 +304,7 @@ return function(deps)
 				if id and room >= 0 then
 					local jitterX = (((i * 7919) % 101) - 50) / 50 * 40
 					local x = edges[r] + (j - 0.5) * rw / count + jitterX
+					if x < parchmentW + size then id = nil end -- the parchment painting has its own trees and buildings
 					local t = ((i * 37) % 100) / 100
 					local y = onTop and (12 + room * t) or (bottomLimit + room * t)
 					local img = Instance.new("ImageLabel")
@@ -298,7 +326,7 @@ return function(deps)
 		for i = 2, #REGIONS do
 			local key = (i % 2 == 0) and "signpost" or "lantern_post"
 			local id = PropRules.isDrawable(key) and ContentArt.getImageId("map_decor", key) or nil
-			if id and bottomLimit + 6 + size <= propFloor then
+			if id and edges[i] >= parchmentW + size and bottomLimit + 6 + size <= propFloor then
 				local img = Instance.new("ImageLabel")
 				img.Name = "Seam_" .. key
 				img.AnchorPoint = Vector2.new(0.5, 0)

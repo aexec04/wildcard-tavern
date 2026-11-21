@@ -30,6 +30,7 @@ local ContentArt = {
 	menu_icons   = require(Engine:WaitForChild("MenuIconArt")),
 	map_regions  = require(Engine:WaitForChild("MapRegionArt")),
 	map_decor    = require(Engine:WaitForChild("MapDecorArt")),
+	map_paint    = require(Engine:WaitForChild("MapPaintArt")),       -- parchment_map, node_* round paintings, boss_emblem (Tavern Map redesign)
 	card_backs   = require(Engine:WaitForChild("CardBackArt")),
 	fx           = require(Engine:WaitForChild("FxArt")),
 	scenes       = require(Engine:WaitForChild("SceneArt")),
@@ -102,7 +103,7 @@ ContentArt.PreloadPlan = {
 }
 -- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
 -- (Journey map), rooms. They load on demand through ContentArt.preload.
-ContentArt.LazyCategories = { "scenes", "map_nodes", "map_regions", "map_decor", "fx", "rooms", "biome_backdrops", "set_backdrops", "badges" }
+ContentArt.LazyCategories = { "scenes", "map_nodes", "map_regions", "map_decor", "map_paint", "fx", "rooms", "biome_backdrops", "set_backdrops", "badges" }
 
 -- Urls for a list of items, skipping missing/zero ids. Pure (tested).
 function ContentArt.collectUrls(items)
