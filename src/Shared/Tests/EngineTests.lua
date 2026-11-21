@@ -34955,4 +34955,32 @@ table.insert(tests, { name = "Tavern Map live fixes: header text is not auto sca
 	expectTrue(view:find("a small dark pill in the tag colour with cream text", 1, true) ~= nil, "the type tag is a dark pill")
 end })
 
+table.insert(tests, { name = "Tavern Map painted art: the eight map_paint ids are recorded and registered, the parchment, node paintings and boss emblem are wired with the old art as fallback", fn = function()
+	local Art = require(script.Parent.Parent.Engine.MapPaintArt)
+	local CA = require(script.Parent.Parent.Engine.ContentArt)
+	for _, key in ipairs({ "parchment_map", "node_encounter", "node_shop", "node_event", "node_shrine", "node_rest", "node_treasure", "boss_emblem" }) do
+		expectTrue(type(Art[key]) == "string" and Art[key]:match("^rbxassetid://%d+$") ~= nil, key .. " has an asset id")
+		expectEqual(CA.map_paint[key], Art[key], key .. " is registered in ContentArt")
+	end
+	local lazy = false
+	for _, c in ipairs(CA.LazyCategories) do if c == "map_paint" then lazy = true end end
+	expectTrue(lazy, "map_paint loads on demand with the map")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local view, graph, scenery, journey = read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapGraph.lua"), read("src/Client/JourneyMapScenery.lua"), read("src/Client/Journey.lua")
+	if not (view and graph and scenery and journey) then return end
+	expectTrue(view:find('(isBossNode and paintArt("boss_emblem")) or mapArt(info.art) or paintArt("node_encounter")', 1, true) ~= nil, "the boss emblem, then the node's own painting, then the encounter painting")
+	expectTrue(graph:find('SIDE_ART = { shop = "node_shop", shrine = "node_shrine", rest = "node_rest", minigame = "node_event" }', 1, true) ~= nil, "side stops wear their type painting")
+	expectTrue(graph:find("deps.paintArt and deps.paintArt(SIDE_ART[stop.side])", 1, true) ~= nil, "a missing id leaves the old node as it was")
+	expectTrue(scenery:find('getImageId("map_paint", "parchment_map")', 1, true) ~= nil and scenery:find("if not id then return end", 1, true) ~= nil, "no parchment id: the region paintings stay")
+	expectTrue(scenery:find("Z_PAINTING -- created after the region holders", 1, true) ~= nil, "the parchment draws under the roads and nodes")
+	expectTrue(journey:find('{ "map_paint" }', 1, true) ~= nil, "the paintings are preloaded when the map opens")
+end })
+
 return tests

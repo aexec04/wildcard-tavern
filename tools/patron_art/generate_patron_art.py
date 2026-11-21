@@ -54,6 +54,7 @@ CATEGORIES = {
     "menu_icons": ("menu_icon_subjects", "menu_icons", "MenuIconArt.lua", "Menu Icon"),
     "map_regions": ("map_region_subjects", "map_regions", "MapRegionArt.lua", "Map Region"),
     "map_decor": ("map_decor_subjects", "map_decor", "MapDecorArt.lua", "Map Decor"),
+    "map_paint": ("map_paint_subjects", "map_paint", "MapPaintArt.lua", "Map Paint"),
     "card_backs": ("card_back_subjects", "card_backs", "CardBackArt.lua", "Card Back"),
     "scenes": ("scene_subjects", "scenes", "SceneArt.lua", "Scene"),
     "packs": ("pack_subjects", "packs", "PackArt.lua", "Pack"),
@@ -121,6 +122,10 @@ CATEGORY_OPTS = {
             "sizes": {"sidebar_board": "1024x1536", "flourish_divider": "1536x1024"}},
     "map_regions": {"size": "1536x1024", "quality": "low", "style_key": "style_map_region"},
     "map_decor": {"quality": "low", "style_key": "style_map_decor"},
+    # Tavern Map redesign: one wide parchment countryside, six round node paintings (square, full bleed, cropped to a circle in the UI), a boss emblem cut from magenta
+    "map_paint": {"quality": "medium", "style_key": "style_map_paint", "transparent": True,
+                  "opaque": ["parchment_map", "node_encounter", "node_shop", "node_event", "node_shrine", "node_rest", "node_treasure"],
+                  "sizes": {"parchment_map": "1536x1024"}},
     "card_backs": {"size": "1024x1536", "quality": "medium", "style_key": "house_style"},
     "scenes": {"size": "1536x1024", "quality": "low", "style_key": "house_style", "transparent_ids": ["loading_bar_frame"]},
     "packs": {"quality": "low", "style_key": "house_style"},

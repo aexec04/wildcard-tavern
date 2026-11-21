@@ -137,6 +137,8 @@ return function(deps)
 	local worldGraph = require(script.Parent.JourneyMapGraph)({
 		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
 		confirmParent = frame, -- the "Unlock with a Key?" dialog covers the visible map, not the scrolling canvas
+		nodeArt = function(key) return key and ContentArtJMV.getImageId("map_nodes", key) or nil end,
+		paintArt = function(key) return key and ContentArtJMV.getImageId("map_paint", key) or nil end,
 		rewardText = function(region)
 			local row = BiomeRewardsJMV.Rows[region]
 			local reward = row and row.reward and row.reward[1]
@@ -199,6 +201,10 @@ return function(deps)
 
 	local function mapArt(key)
 		return key and ContentArtJMV.getImageId("map_nodes", key) or nil
+	end
+	-- the painted Tavern Map pieces (parchment, round node paintings, boss emblem); nil until their ids exist, then the old art stays in use
+	local function paintArt(key)
+		return key and ContentArtJMV.getImageId("map_paint", key) or nil
 	end
 
 	local unlocking = false -- true while the clear moment runs (refresh leaves the picture alone)
@@ -379,7 +385,13 @@ return function(deps)
 			TextSize = 36, Text = info.icon, TextWrapped = false, ZIndex = 27,
 		})
 		local art
-		local artId = mapArt(info.art)
+		local isBossNode = data.kind ~= "endless" and data.night == JourneyMap.NightCap
+		-- the boss node wears the crowned skull emblem on a crimson disc; every other node keeps its own place painting,
+		-- with the encounter painting when that is missing
+		local artId = (isBossNode and paintArt("boss_emblem")) or mapArt(info.art) or paintArt("node_encounter")
+		if isBossNode and paintArt("boss_emblem") then
+			button.BackgroundColor3 = Color3.fromRGB(78, 22, 22)
+		end
 		if artId then
 			art = PatronPlaque.applyById(button, artId, {
 				emojiLabel = icon, zIndex = 27, cornerRadius = 60,
@@ -861,7 +873,7 @@ return function(deps)
 		for index = 1, NODE_COUNT do
 			nodeXs[index] = (nodePixel(index))
 		end
-		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs)
+		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs, size.X)
 		fogBand.layout(canvasW, canvasH)
 		worldGraph.layout(canvasW, canvasH, nodeSize, nodePixel)
 		worldDiscoveries.layout(canvasW, canvasH, nodeSize)

@@ -1172,7 +1172,7 @@ return function(deps)
 		OverlayManager.closeAllExcept("journey")
 		-- Map art loads on demand (it is not in the background plan).
 		task.spawn(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).preload,
-			{ { "map_regions" }, { "map_nodes" }, { "map_decor" }, { "fx" } }, "journey map")
+			{ { "map_regions" }, { "map_nodes" }, { "map_decor" }, { "map_paint" }, { "fx" } }, "journey map")
 		ensureMapView()
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
