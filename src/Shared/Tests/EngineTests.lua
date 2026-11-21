@@ -34758,6 +34758,52 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	expectTrue(mo:find('require(Engine:WaitForChild("BossCard")).cardRect', 1, true), "the rule strip is hidden whenever the Boss card fits")
 end })
 
+table.insert(tests, { name = "Boss round at 1024x768 and 1366x768: name, health bar, seats, Boss card or rule chip, Score plate, hand and buttons stay clear and on screen", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, BC, GM = require(Eng.Gameplay2Layout), require(Eng.BossCard), require(Eng.Gameplay2Moments)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, w, h) return a.x >= 0 and a.y >= 0 and a.x + a.w <= w and a.y + a.h <= h end
+	for _, sz in ipairs({ { 1024, 768 }, { 1366, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		local others = { stage = r.stage, hand = r.hand, play = r.play, discard = r.discard, sortRank = r.sortRank, sortSuit = r.sortSuit, deck = r.deck, traySlot1 = r.traySlot1, traySlot2 = r.traySlot2, trayUse = r.trayUse, traySell = r.traySell }
+		local seats = {}
+		for i, s in ipairs(r.slots) do seats["card" .. i] = s.card; seats["label" .. i] = s.label; seats["pill" .. i] = s.pill; expectTrue(inside(s.card, w, h) and inside(s.pill, w, h), "seat " .. i .. " is on screen at " .. tag) end
+		-- name, health bar and Night line sit inside the boss plate, in order, above the first seat, with text of 11 px or more
+		local tp = BC.topParts(r)
+		expectTrue(tp.plate ~= nil, "the roomy boss plate is used at " .. tag)
+		local p = tp.plate
+		for _, k in ipairs({ "name", "bar", "night" }) do
+			local t = tp[k]
+			expectTrue(t.x >= p.x and t.y >= p.y and t.x + t.w <= p.x + p.w and t.y + t.h <= p.y + p.h, k .. " is inside the boss plate at " .. tag)
+			expectTrue(inside(t, w, h), k .. " is on screen at " .. tag)
+		end
+		expectTrue(tp.name.y + tp.name.h <= tp.bar.y and tp.bar.y + tp.bar.h <= tp.night.y, "name, bar, Night do not overlap at " .. tag)
+		expectTrue(tp.bar.h >= 14 and tp.night.h >= 13 and tp.name.h >= 13, "the bar text has room for 11 px words at " .. tag)
+		expectTrue(p.y + p.h + 8 <= r.slots[1].card.y, "the boss plate stays 8 px above the Patron seats at " .. tag)
+		for k, v in pairs(seats) do expectTrue(not hit(p, v), "the boss plate does not touch " .. k .. " at " .. tag) end
+		-- the Boss card (when it fits) or the rule chip (when it does not): clear of seats, Score plate, hand, buttons, tray, top bar
+		local card = BC.cardRect(r, w, h)
+		local chip = GM.ruleChip(r, w, h, "One at a Time", "Deals you one fewer card every hand you play after the first this round")
+		local piece = card or (chip and chip.rect)
+		expectTrue(piece ~= nil, "the rule has a home (Boss card or chip) at " .. tag)
+		if piece then
+			expectTrue(inside(piece, w, h), "the rule piece is on screen at " .. tag)
+			expectTrue(not hit(piece, r.bar), "the rule piece clears the top bar at " .. tag)
+			for k, v in pairs(others) do expectTrue(not hit(piece, v), "the rule piece does not cover " .. k .. " at " .. tag) end
+			for k, v in pairs(seats) do expectTrue(not hit(piece, v), "the rule piece does not cover " .. k .. " at " .. tag) end
+			if chip and not card then expectTrue(chip.size >= 11, "the chip text is 11 px or more at " .. tag) end
+		end
+		-- the Score plate, hand and buttons stay off the seats and on screen
+		for _, k in ipairs({ "stage", "hand", "play", "discard", "sortRank", "sortSuit" }) do
+			expectTrue(inside(r[k], w, h), k .. " is on screen at " .. tag)
+			for sk, sv in pairs(seats) do expectTrue(not hit(r[k], sv), k .. " does not cover " .. sk .. " at " .. tag) end
+		end
+		expectTrue(not hit(r.stage, r.hand) and not hit(r.hand, r.play) and not hit(r.hand, r.discard), "Score plate, hand and buttons are stacked, not overlapping, at " .. tag)
+	end
+end })
+
 table.insert(tests, { name = "DebugGotoRules: map and map:night=N parse to the Tavern Map jump, bad nights are nil", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(R.parse("map").kind, "map")

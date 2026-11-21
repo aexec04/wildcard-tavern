@@ -302,10 +302,10 @@ function M.update(layer, state, rects, viewW, viewH)
 	local nm, bar, night = top.Title, top.Bar, top.Night
 	if tp.plate then place(top.Plate, tp.plate); top.Plate.Visible = true else top.Plate.Visible = false end
 	place(nm, tp.name); nm.Size = UDim2.fromOffset(tp.name.w, tp.name.h)
-	nm.TextSize = math.max(10, math.min(26, tp.name.h - 2)); nm.Text = name
+	nm.TextSize = math.max(11, math.min(26, tp.name.h - 2)); nm.Text = name
 	place(bar, tp.bar)
 	local cur, total = Rules.health(state.targetScore, state.roundScore)
-	bar.Num.TextSize = math.max(9, math.min(16, tp.bar.h - 3))
+	bar.Num.TextSize = math.max(11, math.min(16, tp.bar.h - 3))
 	bar.Num.Text = Rules.healthText(cur, total)
 	local want = Rules.fraction(cur, total)
 	if calm() or lastFill == nil then
@@ -317,7 +317,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	if tp.night then
 		night.Visible = true
 		place(night, tp.night)
-		night.TextSize = math.max(9, math.min(14, tp.night.h - 2))
+		night.TextSize = math.max(11, math.min(14, tp.night.h - 2))
 		night.Text = string.format("Night %d, Round %d", math.floor(state.night or 1), math.floor(state.round or 1))
 	else
 		night.Visible = false
