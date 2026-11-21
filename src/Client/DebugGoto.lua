@@ -344,7 +344,12 @@ function DebugGoto.init(deps)
 				OverlayManager.closeAllExcept("")
 				showMenu()
 				if not DebugGoto.openMap then error("the Tavern Map opener is not registered yet") end
+				local MapErrors = require(script.Parent.MapErrors)
+				local before = MapErrors.total
 				DebugGoto.openMap()
+				task.delay(3, function() -- the panel opens a moment after the map; say ok only when no [TavernMap] error came since the jump
+					if MapErrors.total == before then print("[DebugGoto] map ok") else warn("[DebugGoto] map had " .. (MapErrors.total - before) .. " [TavernMap] error(s)") end
+				end)
 				if target.night then
 					warn("[DebugGoto] map:night=" .. target.night .. " is parsed but the map always opens on the live Night")
 				end

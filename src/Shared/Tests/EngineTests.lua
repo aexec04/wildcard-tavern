@@ -35284,4 +35284,15 @@ table.insert(tests, { name = "Tavern Map panel and header: the lower left panel 
 	expectTrue(at(panel, 'TavernKit.painted(panel, "orn_wide")') ~= nil, "the selection panel uses the carved plate art")
 end })
 
+tests[#tests + 1] = ({ name = "Tavern Map: no local shadows the route drawing function, and errors are counted for DebugGoto map", fn = function()
+	local function read(path) local f = io and io.open(path, "r") if not f then return nil end local t = f:read("*a") f:close() return t end
+	local graph = read("src/Client/JourneyMapGraph.lua")
+	if not graph then return end
+	expectTrue(graph:find("local function route(", 1, true) ~= nil and graph:find("\n%s*local route%s*=") == nil, "route stays the dash function (a table named route broke every map open)")
+	local goto_, journey, view = read("src/Client/DebugGoto.lua"), read("src/Client/Journey.lua"), read("src/Client/JourneyMapView.lua")
+	expectTrue(goto_:find("[DebugGoto] map ok", 1, true) ~= nil and goto_:find("MapErrors.total == before", 1, true) ~= nil, "map ok prints only when no [TavernMap] error came since the jump")
+	expectTrue(journey:find("MapErrors", 1, true) ~= nil and view:find("MapErrors", 1, true) ~= nil, "both map error sites report through MapErrors")
+	expectTrue(read("src/Client/MapErrors.lua"):find("[TavernMap]", 1, true) ~= nil, "MapErrors keeps the [TavernMap] warn")
+end })
+
 return tests

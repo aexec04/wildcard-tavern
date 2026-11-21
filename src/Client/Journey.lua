@@ -964,7 +964,7 @@ return function(deps)
 		-- the old framed panel (title, text lines, dark band) on screen. Errors are reported, not swallowed.
 		local function guarded(label, fn)
 			local ok, err = xpcall(fn, debug.traceback)
-			if not ok then warn("[TavernMap] " .. label .. " failed: " .. tostring(err)) end
+			if not ok then require(script.Parent.MapErrors).report(label, err) end
 		end
 		guarded("full screen", function()
 			require(script.Parent.MapFullScreen).apply({ -- the Tavern Map is a full-screen scene with the corner dock hidden
