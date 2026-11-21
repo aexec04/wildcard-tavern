@@ -209,6 +209,10 @@ return function(deps)
 
 	local unlocking = false -- true while the clear moment runs (refresh leaves the picture alone)
 	local requestRender -- set once refresh() exists (art that loads late re-renders)
+	-- declared up here: applyRoad and render use these, and a local declared further down is a nil global to them
+	local MapSelectRules = require(Engine:WaitForChild("MapSelectRules")) -- dashed routes and the lower left selection panel
+	local selectedIndex = nil -- the selected node (lower left panel): drawn with the selected look
+	local selectNode -- defined after the panel exists
 
 	-- ===== Trail: dotted ink path along a Bezier (segment i joins node i to i + 1) =====
 	local segments = {}
@@ -239,6 +243,7 @@ return function(deps)
 		edge.Size = UDim2.fromOffset(ROAD_W + 8, ROAD_W + 8)
 		edge.BackgroundColor3 = ROAD_EDGE
 		edge.BorderSizePixel = 0
+		edge.Visible = false -- applyRoad shows the pieces that belong to a revealed road
 		edge.ZIndex = 22
 		edge.Parent = canvas
 		deps.roundCorner(edge, (ROAD_W + 8) / 2)
@@ -247,6 +252,7 @@ return function(deps)
 		fill.Size = UDim2.fromOffset(ROAD_W, ROAD_W)
 		fill.BackgroundColor3 = ROAD_FILL
 		fill.BorderSizePixel = 0
+		fill.Visible = false
 		fill.ZIndex = 23
 		fill.Parent = canvas
 		deps.roundCorner(fill, ROAD_W / 2)
@@ -330,9 +336,6 @@ return function(deps)
 	-- ===== Nodes =====
 	local nodeHover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = calm })
 	local MapNodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, state, tag and badge rules (the new node look)
-	local MapSelectRules = require(Engine:WaitForChild("MapSelectRules")) -- dashed routes and the lower left selection panel
-	local selectedIndex = nil -- the selected node (lower left panel): drawn with the selected look
-	local selectNode -- defined after the panel exists
 	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
@@ -672,6 +675,7 @@ return function(deps)
 	for i = 1, NODE_COUNT do nodeNames[i] = nodeData[i].info.name end
 	local bossSize = 150
 	local routeFits = false -- the whole Night route is on screen at the default zoom (set in layout)
+	local mapFitLogged = nil -- the view size the [MapFit] Studio line was last printed for
 	local posX, posY = {}, {}
 	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
 	local debugOn = false -- Studio-only coordinate overlay / drag mode (reveals everything while on)
@@ -785,6 +789,14 @@ return function(deps)
 		canvasW = math.max(fit.canvasW, size.X)
 		local spacing = fit.spacing
 		routeFits = fit.fits
+		if RunService:IsStudio() then
+			local key = size.X .. "x" .. size.Y
+			if mapFitLogged ~= key then
+				mapFitLogged = key
+				warn(string.format("[MapFit] canvas %dx%d view %dx%d nodeSize %d boss %d nodes %d spacing %d fits=%s",
+					canvasW, canvasH, size.X, size.Y, fit.nodeSize, fit.bossSize, NODE_COUNT, math.floor(fit.spacing), tostring(fit.fits)))
+			end
+		end
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
 		scroll.CanvasSize = UDim2.fromOffset(canvasW, canvasH)
 		local minY, maxY = math.huge, -math.huge

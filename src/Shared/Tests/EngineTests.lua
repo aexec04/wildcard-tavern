@@ -34983,4 +34983,45 @@ table.insert(tests, { name = "Tavern Map painted art: the eight map_paint ids ar
 	expectTrue(journey:find('{ "map_paint" }', 1, true) ~= nil, "the paintings are preloaded when the map opens")
 end })
 
+table.insert(tests, { name = "Tavern Map modules: every shared local is declared above its first use (a local declared further down is a nil global to the functions above it and aborts the map), road pieces start hidden, the compass shows only with a charge, a Studio MapFit line is printed", fn = function()
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local checks = {
+		["src/Client/JourneyMapView.lua"] = { "MapSelectRules", "selectedIndex", "selectNode", "MapNodeRules", "MapFit", "routeFits", "bossSize", "mapArt",
+			"mapFitLogged", "requestRender", "nodes", "nodeSize", "panelDescription", "fitPanel", "layoutPanel", "refreshPanel", "selectPanel", "showToast", "playing" },
+		["src/Client/JourneyMapGraph.lua"] = { "NodeRules", "tagged", "paintNode", "SIDE_ART", "remember" },
+		["src/Client/JourneyMapCompass.lua"] = { "hasCharges", "shownNow", "updateButtons", "keysPill" },
+		["src/Client/JourneyMapScenery.lua"] = { "layoutParchment", "parchmentHolder", "parchmentW", "paintTile", "maskSequence" },
+		["src/Client/MapHeaderBar.lua"] = { "stats", "compact", "relayout", "both" },
+		["src/Client/MapSelectPanel.lua"] = { "apply", "current", "mode", "zone" },
+	}
+	for path, names in pairs(checks) do
+		local src = read(path)
+		if src then
+			local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+			for _, name in ipairs(names) do
+				local first = code:find("%f[%w_]" .. name .. "%f[^%w_]")
+				if first then
+					local lineStart = code:sub(1, first):match(".*\n()") or 1
+					local line = code:sub(lineStart, first + #name)
+					expectTrue(line:find("local%s+function%s+" .. name .. "%f[^%w_]") ~= nil or line:find("local%s+" .. name .. "%f[^%w_]") ~= nil or line:find("local%s+[%w_,%s]*%f[%w_]" .. name .. "%f[^%w_]") ~= nil or line:find("function%s+[%w_.]*%f[%w_]" .. name .. "%f[^%w_]%(") ~= nil,
+						path .. ": " .. name .. " is first used before its local declaration (" .. line:gsub("%s+", " ") .. ")")
+				end
+			end
+		end
+	end
+	local view, compass = read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapCompass.lua")
+	if view and compass then
+		expectTrue(view:find("edge.Visible = false -- applyRoad shows the pieces", 1, true) ~= nil, "road pieces start hidden, so a fogged tail is never drawn")
+		expectTrue(view:find('warn(string.format("[MapFit] canvas', 1, true) ~= nil and view:find("RunService:IsStudio()", 1, true) ~= nil, "Studio prints one [MapFit] line")
+		expectTrue(compass:find("icon.Visible = shown and hasCharges()", 1, true) ~= nil, "the round N compass shows only while the player holds a charge")
+	end
+end })
+
 return tests
