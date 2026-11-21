@@ -166,19 +166,19 @@ return function(deps)
 			return
 		end
 		local state = lastState or {}
-		local route = Layout.displayRoute(state.worldRoute)
+		local routeIds = Layout.displayRoute(state.worldRoute) -- not "route": that name is the dash drawing function
 		local nightX, routeY = {}, {}
 		for d = 1, WorldMap.NIGHTS do
 			nightX[d], routeY[d] = nightPixel(d)
 		end
-		local res = Layout.compute({ nightX = nightX, routeY = routeY, height = canvasH, route = route,
+		local res = Layout.compute({ nightX = nightX, routeY = routeY, height = canvasH, route = routeIds,
 			minGap = math.floor(nodeSize * 1.5), nodeSize = nodeSize })
 		local onRoute = {}
-		for i, id in ipairs(route) do
+		for i, id in ipairs(routeIds) do
 			onRoute[id] = i
 		end
 		lastPos = res.pos
-		lastBoxes = Layout.boxesOf(res, nodeSize, route)
+		lastBoxes = Layout.boxesOf(res, nodeSize, routeIds)
 		local night = math.floor(state.night or 1)
 		local seen = {}
 		for _, id in ipairs(state.worldSeenStopIds or {}) do
@@ -206,7 +206,7 @@ return function(deps)
 		-- Default chip: the next branch end ahead on the player's own road. Any other stop shows its chip
 		-- only while focused (tapped or hovered), so the map is not covered in reward text.
 		local nextEnd = nil
-		for d, id in ipairs(route) do
+		for d, id in ipairs(routeIds) do
 			if ends[id] and d >= night then nextEnd = id break end
 		end
 

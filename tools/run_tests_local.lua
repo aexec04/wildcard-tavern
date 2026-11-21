@@ -168,6 +168,13 @@ if stripOk and stripFails and stripFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: a map local that shadows a local function (call a table value).
+local shOk, shFails = pcall(dofile, "tools/lint_shadow_calls.lua")
+if shOk and shFails and shFails > 0 then
+	print("FAILED: " .. shFails .. " map local(s) shadow a local function")
+	os.exit(1)
+end
+
 -- Source lint: top level local counts of the two hub scripts (200 limit guard).
 local locOk, locFails = pcall(dofile, "tools/check_locals.lua")
 if locOk and locFails and locFails > 0 then

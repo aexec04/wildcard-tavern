@@ -2187,7 +2187,7 @@ return function(deps)
 					refreshPanel()
 					if selectedIndex then render(view, view.cleared, false) end
 				end, debug.traceback)
-				if not ok then warn("[TavernMap] panel " .. tag .. " failed: " .. tostring(err)) end
+				if not ok then require(script.Parent.MapErrors).report("panel " .. tag, err) end
 				if RunService:IsStudio() then
 					local p = selectPanel.panel
 					local pp, ps = p.AbsolutePosition, p.AbsoluteSize
