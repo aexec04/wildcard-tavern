@@ -20,7 +20,7 @@ local M = {}
 
 M.TYPE_ICON = { encounter = "\u{2694}", shop = "\u{1FA99}", event = "?", boss = "\u{1F451}" }
 M.TYPE_WORD = { encounter = "Encounter", shop = "Shop", event = "Event", boss = "Boss" }
-M.PAD = 8
+M.PAD = 16 -- clear inner padding: text never reaches the gold trim
 
 function M.canSelect(state)
 	return state ~= "locked"
@@ -83,6 +83,7 @@ function M.rects(zone, mode)
 	mode = mode or "full"
 	local pad = M.PAD
 	local r = M.panelRect(zone, mode)
+	local py = r.h < 170 and 8 or pad -- sides keep the full clear padding; a short panel trades vertical padding for the two line description
 	local out = { w = r.w, h = r.h }
 	if mode == "tab" then
 		out.name = { x = pad, y = 0, w = r.w - pad * 2, h = r.h }
@@ -90,17 +91,17 @@ function M.rects(zone, mode)
 	end
 	if mode == "compact" then
 		local bw = clamp(math.floor(r.w * 0.34), 96, 150)
-		out.name = { x = pad, y = pad, w = r.w - bw - pad * 3, h = r.h - pad * 2 }
-		out.button = { x = r.w - bw - pad, y = pad, w = bw, h = r.h - pad * 2 }
+		out.name = { x = pad, y = py, w = r.w - bw - pad * 3, h = r.h - py * 2 }
+		out.button = { x = r.w - bw - pad, y = py, w = bw, h = r.h - py * 2 }
 		return out
 	end
 	local compact = r.h < 170
-	local art = math.min(r.h - pad * 2, math.floor(r.w * 0.34))
-	out.art = { x = pad, y = pad, w = art, h = art }
+	local art = math.min(r.h - py * 2, math.floor(r.w * 0.34))
+	out.art = { x = pad, y = py, w = art, h = art }
 	local tx = pad * 2 + art
 	local tw = r.w - tx - pad
 	local nameH, typeH, lineH, targetH, buttonH = 24, 20, compact and 32 or 36, 20, compact and 28 or 36
-	local y = pad
+	local y = py
 	if compact then
 		-- short panel: the type and the Target share one row, so the description keeps two full lines
 		nameH, typeH = 22, 18
@@ -111,7 +112,7 @@ function M.rects(zone, mode)
 		out.target = { x = tx + half, y = y, w = tw - half, h = typeH }
 		y = y + typeH
 		out.line = { x = tx, y = y, w = tw, h = lineH }
-		out.button = { x = tx, y = r.h - pad - buttonH, w = math.min(tw, 190), h = buttonH }
+		out.button = { x = tx, y = r.h - py - buttonH, w = math.min(tw, 190), h = buttonH }
 		return out
 	end
 	out.name = { x = tx, y = y, w = tw, h = nameH }
@@ -121,7 +122,7 @@ function M.rects(zone, mode)
 	out.line = { x = tx, y = y, w = tw, h = lineH }
 	y = y + lineH
 	out.target = { x = tx, y = y, w = tw, h = targetH }
-	out.button = { x = tx, y = r.h - pad - buttonH, w = math.min(tw, 190), h = buttonH }
+	out.button = { x = tx, y = r.h - py - buttonH, w = math.min(tw, 190), h = buttonH }
 	return out
 end
 

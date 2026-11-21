@@ -718,13 +718,9 @@ return function(deps)
 	-- Where the hero's feet rest at node `index`: on the trail just before it
 	-- (beside the medallion, clear of its label), or left of the first node.
 	local function standPoint(index)
+		-- the figure stands ON the node: centred, feet on the ring (callers add 6 px), so it is never beside the node or clipped by the frame
 		local x, y = nodePixel(index)
-		local back = nodeSize / 2 + 34
-		local seg = segments[index - 1]
-		if seg and seg.length > back * 2 and not nudged[index] and not nudged[index - 1] then
-			return bezier(seg, 1 - back / seg.length)
-		end
-		return x - back, y
+		return x, y + math.floor(nodeSize * 0.26) - 6
 	end
 
 	local function placeMarker()

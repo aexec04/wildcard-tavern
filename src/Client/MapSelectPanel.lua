@@ -52,7 +52,21 @@ function MapSelectPanel.new(deps)
 	panel.ZIndex = 47 -- above every map layer (decor 40, compass 44 to 47), under the hover card (60)
 	panel.Visible = false
 	panel.Active = true -- a click on the panel never falls through to the map
-	TavernKit.painted(panel, "orn_wide") -- carved dark wood with gold corners, the same plate art as the table plates
+	-- A plain carved wood panel: the 9-sliced ornate art put its swirl on one end and the text over it, so the trim is a 3 px gold line
+	-- plus four small gold corner studs, and every part sits inside a clear padded inner rect (MapSelectRules.PAD)
+	for i, c in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+		local stud = Instance.new("Frame")
+		stud.Name = "Stud" .. i
+		stud.AnchorPoint = Vector2.new(0.5, 0.5)
+		stud.Position = UDim2.new(c[1], c[1] == 0 and 7 or -7, c[2], c[2] == 0 and 7 or -7)
+		stud.Size = UDim2.fromOffset(9, 9)
+		stud.Rotation = 45
+		stud.BackgroundColor3 = Color3.fromRGB(226, 182, 88)
+		stud.BorderSizePixel = 0
+		stud.Active = false
+		stud.ZIndex = 48
+		stud.Parent = panel
+	end
 	-- dark carved wood with gold trim, like the header (a lighter wood band across the top, Color only gradient)
 	panel.BackgroundColor3 = Color3.fromRGB(78, 50, 30)
 	panel.BackgroundTransparency = 0
@@ -135,13 +149,26 @@ function MapSelectPanel.new(deps)
 		go:SetAttribute("Enabled", d.button.enabled)
 		go.Text = d.button.text
 		go.AutoButtonColor = false
-		go.TextTransparency = d.button.enabled and 0 or 0.35
 		-- bright green when the node can be entered, a muted brown when it cannot
-		local base = d.button.enabled and Color3.fromRGB(70, 176, 84) or Color3.fromRGB(96, 82, 66)
+		local base = d.button.enabled and Color3.fromRGB(70, 176, 84) or Color3.fromRGB(104, 100, 96)
 		go.BackgroundColor3 = base
 		local goShade = go:FindFirstChild("Shade")
 		if goShade then goShade.Color = ColorSequence.new(base:Lerp(Color3.new(1, 1, 1), 0.12), base:Lerp(Color3.new(0, 0, 0), 0.12)) end
-		go.TextColor3 = Color3.fromRGB(255, 252, 240)
+		-- cream 24 px bold word on the plate, gold trim; the same green family as the table Play Hand button, grey when it cannot be entered
+		go.Font = Enum.Font.GothamBold
+		local ts = r.button and math.min(24, r.button.h - 8) or 24
+		go.TextSize = ts
+		go.TextColor3 = d.button.enabled and Color3.fromRGB(255, 252, 240) or Color3.fromRGB(205, 200, 190)
+		go.TextTransparency = 0
+		go.TextStrokeTransparency = 0.4
+		go.TextStrokeColor3 = Color3.fromRGB(20, 40, 20)
+		local goStroke = go:FindFirstChildOfClass("UIStroke")
+		if goStroke then goStroke.Color = d.button.enabled and Color3.fromRGB(226, 182, 88) or Color3.fromRGB(130, 120, 100) end
+		local kl = go:FindFirstChild("KitLabel")
+		if kl and kl:IsA("TextLabel") then
+			kl.TextColor3, kl.TextSize, kl.Font = go.TextColor3, ts, Enum.Font.GothamBold
+			kl.TextTransparency, kl.TextStrokeTransparency = 0, 0.4
+		end
 		name.Text = d.name
 		if mode == "tab" then
 			name.Text = d.name .. "  (tap)"
