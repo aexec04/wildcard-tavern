@@ -118,6 +118,8 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 		local seen = {}
 		for id in pairs(type(state.hintsSeen) == "table" and state.hintsSeen or {}) do seen[id] = true end
 		for id in pairs(localSeen) do seen[id] = true end
+		local okP, panel = pcall(function() return require(script.Parent.PatronPowerPanelFX).liveRect() end)
+		opts.panelShowing = okP and panel ~= nil
 		entry = Rules.next(state, seen, opts)
 		if not entry or Rules.satisfied(entry.id, selectedCount) then return M.hide() end
 	end

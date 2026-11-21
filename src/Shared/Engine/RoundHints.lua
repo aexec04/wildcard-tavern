@@ -1,13 +1,13 @@
 --[[
 	Shared/Engine/RoundHints.lua
 	The hint layer for the first three rounds of Night 1 (after the guided first hand). Three short plates, one at a time, each
-	dismissible and shown once per profile (profile.hintsSeen, ids registered in Engine/Hints): pick cards, Patron power tiers,
-	what Target means. Pure Lua, no Roblox APIs. Display only: it never changes a run.
+	dismissible and shown once per profile (profile.hintsSeen, ids registered in Engine/Hints): pick cards, Patron power tiers
+	(the Target is printed in the top bar, so it has no card). At most one tip card is on screen: while the Patron Power panel shows, next() gives nothing. Pure Lua, no Roblox APIs. Display only: it never changes a run.
 
 	RoundHints.ORDER                      list of { id, title, body }
 	RoundHints.enabledFor(state, opts)    -> bool   the whole layer is on for this state (Night 1, rounds 1 to 3, playing, not Calm,
 	                                      Hints toggle on, Night 1 not cleared before, tutorial and guided first hand excluded)
-	RoundHints.next(state, seen, opts)    -> nil | entry   first unseen entry whose own condition holds; opts = { enabled, calm }
+	RoundHints.next(state, seen, opts)    -> nil | entry   first unseen entry whose own condition holds; opts = { enabled, calm, panelShowing }
 	RoundHints.expired(id, state) -> bool    the plate is spent for good (pick cards: any hand was played); it hides and is marked seen
 	RoundHints.satisfied(id, selectedCount) -> bool   the plate has done its job (pick cards: one card is selected)
 	RoundHints.place(r, viewW, viewH)     -> nil | { plate, button }   root pixel rects in the open middle beside the score stage,
@@ -20,7 +20,6 @@ local ScorePlate = require(script.Parent.Gameplay2ScorePlate)
 M.ORDER = {
 	{ id = "round_hint_select", title = "Pick your cards", body = "Pick up to 5 cards, then Play Hand." },
 	{ id = "round_hint_tiers", title = "Patron Power", body = "Wood frames are Common, gold are Legendary." },
-	{ id = "round_hint_target", title = "What is Target?", body = "Score the Target before your hands run out." },
 }
 
 M.MAX_NIGHT = 1
@@ -66,6 +65,7 @@ end
 
 function M.next(state, seen, opts)
 	if not M.enabledFor(state, opts) then return nil end
+	if opts and opts.panelShowing then return nil end -- at most one tip card on screen: the Patron Power panel is the permanent one
 	seen = type(seen) == "table" and seen or {}
 	local round = tonumber(state.round) or 1
 	for _, e in ipairs(M.ORDER) do
@@ -73,7 +73,7 @@ function M.next(state, seen, opts)
 			local ok = true
 			if e.id == "round_hint_select" then ok = round == 1 and not M.expired(e.id, state)
 			elseif e.id == "round_hint_tiers" then ok = owned(state) >= 1 and not (opts and opts.panelOwnsTiers) -- the left panel shows it
-			elseif e.id == "round_hint_target" then ok = round >= 2 end
+			end
 			if ok then return e end
 			-- an unseen entry that is not due yet does not block the ones after it, but only the first due one shows
 		end
