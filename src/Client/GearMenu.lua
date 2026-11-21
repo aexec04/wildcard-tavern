@@ -119,14 +119,14 @@ function M.install(deps)
 		pcall(Kit.paintedButton, b, "secondary") -- same ornate dark plate as every other screen (flat brown if the picture does not load)
 		local label = ButtonLabelTop.own(b, def.label, Style.TEXT.button, Z + 4, rgb("cream"))
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Size = UDim2.new(1, -78, 1, 0)
-		label.Position = UDim2.fromOffset(12, 0)
+		label.Size = UDim2.new(1, -100, 1, 0) -- 18 px clear of the left trim; the pills sit 16 px clear of the right trim
+		label.Position = UDim2.fromOffset(18, 0)
 		local pill
 		if def.kind == "toggle" then
 			pill = Instance.new("Frame")
 			pill.Name = "StatePill"
 			pill.AnchorPoint = Vector2.new(1, 0.5)
-			pill.Position = UDim2.new(1, -8, 0.5, 0)
+			pill.Position = UDim2.new(1, -16, 0.5, 0)
 			pill.Size = UDim2.fromOffset(56, 26)
 			pill.BorderSizePixel = 0
 			pill.ZIndex = Z + 3
