@@ -145,6 +145,12 @@ return function(deps)
 			local fa, ca = frame.AbsolutePosition, canvas.AbsolutePosition
 			return { x = r.x + fa.X - ca.X, y = r.y + fa.Y - ca.Y, w = r.w, h = r.h }
 		end,
+		-- canvas y of the header bar's bottom edge: fork stops stay below it
+		bandTop = function()
+			local a = scroll.AbsoluteSize
+			local okH, H = pcall(function() return require(Engine:WaitForChild("MapHeaderRules")).layout(a.X + 16, a.Y + 12) end)
+			return okH and H and (H.bar.h - 6) or nil
+		end,
 		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
 		confirmParent = frame, -- the "Unlock with a Key?" dialog covers the visible map, not the scrolling canvas
 		nodeArt = function(key) return key and ContentArtJMV.getImageId("map_nodes", key) or nil end,

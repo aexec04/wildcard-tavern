@@ -102,7 +102,7 @@ function MapScene.build(opts)
 	local engineFolder = FakeGui.folder(mods)
 	scene.graph = load("JourneyMapGraph", {
 		canvas = canvas, roundCorner = noop, ReplicatedStorage = state.services.ReplicatedStorage, Engine = engineFolder,
-		confirmParent = plate, rewardText = function() return nil end, avoidRect = opts.avoidRect,
+		confirmParent = plate, rewardText = function() return nil end, avoidRect = opts.avoidRect, bandTop = opts.bandTop,
 	})
 	scene.discoveries = load("JourneyMapDiscoveries", {
 		canvas = canvas, scroll = scroll, roundCorner = noop, TweenService = state.services.TweenService, Engine = engineFolder,

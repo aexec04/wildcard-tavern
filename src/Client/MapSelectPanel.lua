@@ -204,9 +204,15 @@ function MapSelectPanel.new(deps)
 		if goStroke then goStroke.Color = d.button.enabled and rgb(cc.edge) or Color3.fromRGB(130, 120, 100) end
 		local kl = go:FindFirstChild("KitLabel")
 		if kl and kl:IsA("TextLabel") then
+			-- the Continue word is OWNED by this label: the kit's mirror (button properties copied onto the label after every write)
+			-- can no longer repaint it, so the cream colour and the solid dark outline are what is drawn
+			kl:SetAttribute("OwnLabel", true)
+			kl.Text = d.button.text
 			kl.TextColor3, kl.TextSize, kl.Font = go.TextColor3, ts, Enum.Font.GothamBold
 			kl.TextTransparency, kl.TextStrokeTransparency = 0, 0
 			kl.TextStrokeColor3 = rgb(cc.stroke)
+			kl.Visible = true
+			go.TextTransparency, go.TextStrokeTransparency = 1, 1 -- the button keeps its Text as the hit box; the label draws the word once
 		end
 		name.Text = d.name
 		if mode == "tab" then

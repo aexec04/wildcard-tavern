@@ -195,9 +195,18 @@ function WorldMapLayout.compute(opts)
 	for id, p in pairs(pos) do
 		boxes[#boxes + 1] = WorldMapLayout.box("night", p.x, p.y, nodeSize, onRoute[id] ~= nil)
 	end
+	local drawn = math.floor(nodeSize * 0.69) -- the size the view draws a branch node at
+	local sideBoxes = {} -- placed branch nodes: a new one keeps 24 px from each (the fork's two stops never touch)
 	local function clash(b)
 		for _, other in ipairs(boxes) do
 			if WorldMapLayout.overlaps(b, other) then return true end
+		end
+		for _, other in ipairs(sideBoxes) do
+			local g = { x0 = other.x0 - 24, x1 = other.x1 + 24, y0 = other.y0 - 24, y1 = other.y1 + 24 }
+			local cy = (b.y0 + b.y1) / 2
+			local cx = b.x0 + math.floor(nodeSize * 0.56) / 2
+			local nodeOnly = { x0 = cx - drawn / 2, x1 = cx + drawn / 2, y0 = cy - drawn / 2, y1 = cy + drawn / 2 } -- the node is the left part of its box
+			if WorldMapLayout.overlaps(nodeOnly, g) then return true end
 		end
 		return false
 	end
@@ -207,7 +216,10 @@ function WorldMapLayout.compute(opts)
 		local pp = pos[stop.parent]
 		local want = ((stop.dy or 0.14) < 0) and -1 or 1
 		local lo, hi = 30, H - 30
-		if opts.maxY then hi = math.min(hi, opts.maxY - math.floor(nodeSize * 0.69 / 2) - 21) end -- the lowest side node ends 20 px above the selection panel
+		local half = math.floor(nodeSize * 0.69 / 2)
+		-- both fork stops sit fully inside the nodes band: 24 px in from the header (minY) and from the selection panel (maxY)
+		if opts.maxY then hi = math.min(hi, opts.maxY - half - 24) end
+		if opts.minY then lo = math.max(lo, opts.minY + half + 24) end
 		local placedX, placedY
 		-- preferred side first, then the other side, scanning outward in small steps; then further across.
 		-- If the full node + label box fits nowhere (a crowded small canvas), place the node alone and mark it
@@ -237,6 +249,7 @@ function WorldMapLayout.compute(opts)
 		end
 		side[id] = { x = placedX, y = placedY, parent = stop.parent, compact = compact or nil }
 		boxes[#boxes + 1] = WorldMapLayout.box("side", placedX, placedY, nodeSize, nil, compact)
+		sideBoxes[#sideBoxes + 1] = { x0 = placedX - drawn / 2, x1 = placedX + drawn / 2, y0 = placedY - drawn / 2, y1 = placedY + drawn / 2 }
 	end
 	return { pos = pos, edges = edges, depthOf = depthOf, side = side }
 end

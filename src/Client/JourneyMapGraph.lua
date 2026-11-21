@@ -174,6 +174,7 @@ return function(deps)
 		end
 		local res = Layout.compute({ nightX = nightX, routeY = routeY, height = canvasH, route = routeIds,
 			minGap = math.floor(nodeSize * 1.5), nodeSize = nodeSize,
+			minY = deps.bandTop and deps.bandTop() or nil,
 			maxY = (function() local a = deps.avoidRect and deps.avoidRect() return a and a.y or nil end)() })
 		local onRoute = {}
 		for i, id in ipairs(routeIds) do
@@ -448,14 +449,15 @@ return function(deps)
 					local right = { ax = 0, ay = 0.5, x = p.x + sideSize / 2 + 4, y = p.y, box = { x = p.x + sideSize / 2 + 4, y = p.y - lh / 2, w = lw, h = lh } }
 					-- a node in the lower third puts its name above it; every name stays 12 px clear of the selection panel
 					-- the name goes on the side away from the road (the other branch hangs the other way), then beside the node, then toward the road
-					local order = p.y >= parent.y and { below, right, above } or { above, right, below }
+					local order = p.y >= parent.y and { below, above, right } or { above, below, right }
 					local avoid = deps.avoidRect and deps.avoidRect()
 					avoid = avoid and RouteRules.growBox(avoid, RouteRules.PANEL_GAP) or nil
 					local pick = order[1]
 					for _, c in ipairs(order) do
 						local clash = avoid ~= nil and RouteRules.boxesOverlap(c.box, avoid)
+						if deps.bandTop and c.box.y < deps.bandTop() then clash = true end -- never under the header bar
 						for _, bx in ipairs(placedBoxes) do
-							if RouteRules.boxesOverlap(c.box, bx) then clash = true break end
+							if RouteRules.boxesOverlap(RouteRules.growBox(c.box, 12), bx) then clash = true break end -- 12 px to every other label, tag and node
 						end
 						if not clash then pick = c break end
 					end

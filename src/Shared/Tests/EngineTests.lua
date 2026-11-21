@@ -35345,6 +35345,7 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 	local panelSrc, graphSrc = src("src/Client/MapSelectPanel.lua"), src("src/Client/JourneyMapGraph.lua")
 	expectTrue(panelSrc:find("PanelFrame", 1, true) and panelSrc:find("Enum.ScaleType.Slice", 1, true), "the panel draws the sliced painted frame")
 	expectTrue(panelSrc:find("go.TextStrokeTransparency = 0 ", 1, true), "Continue has a solid dark outline")
+	expectTrue(panelSrc:find('kl:SetAttribute("OwnLabel", true)', 1, true), "the Continue word is an owned label the kit mirror cannot repaint")
 	expectTrue(graphSrc:find("RouteRules.growBox(avoid, RouteRules.PANEL_GAP)", 1, true), "side names keep 12 px clear of the panel")
 	expectTrue(graphSrc:find("rejoins the road", 1, true), "each branch reconnects to the next stop")
 	-- live graph on the fake Roblox: both Meadow branches are drawn as nodes, with dashes joining them back to the road
@@ -35357,9 +35358,15 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 		local w, h = sz[1], sz[2]
 		local zone = HR.layout(w, h).panelZone
 		local avoid = { x = zone.x, y = zone.y, w = zone.w, h = zone.h }
-		local scene = MapScene.build({ W = w, H = h, avoidRect = function() return avoid end })
+		local MF = require(script.Parent.Parent.Engine.MapFitRules)
+		local JM = require(script.Parent.Parent.Engine.JourneyMap)
+		local names = {}
+		for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+		local fit = MF.layout(w, h, names, JM.NightCap, nil) -- the real positions the View uses
+		local bandTop = HR.layout(w, h).bar.h - MF.FRAME_Y
+		local scene = MapScene.build({ W = w, H = h, avoidRect = function() return avoid end, bandTop = function() return bandTop end })
 		scene.graph.setShown(true)
-		scene.graph.layout(w, h, math.floor(h * 0.14), function(d) return 120 + d * math.floor(w * 0.1), h * 0.45 end)
+		scene.graph.layout(fit.canvasW, fit.canvasH, fit.nodeSize, function(d) return fit.posX[d], fit.posY[d] end)
 		scene.graph.refresh({ night = 2, round = 1, worldRoute = nil })
 		local sides = {}
 		for _, c in ipairs(scene.graphRoot:GetChildren()) do
@@ -35383,6 +35390,21 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 		local gapY = math.max(rs.y - (re.y + re.h), re.y - (rs.y + rs.h))
 		expectTrue(math.max(gapX, gapY) >= 24, "the two branch nodes keep 24 px apart" .. where .. " gap " .. math.max(gapX, gapY))
 		expectTrue(math.max(rs.y + rs.h, re.y + re.h) <= avoid.y - 20, "the lowest branch node ends 20 px above the panel" .. where)
+		expectTrue(math.min(rs.y, re.y) >= bandTop + 24, "both fork stops sit fully below the header, 24 px in" .. where .. " top " .. math.min(rs.y, re.y) .. " band " .. bandTop)
+		expectTrue(math.max(rs.y + rs.h, re.y + re.h) <= avoid.y - 24, "both fork stops end 24 px above the panel" .. where)
+		local others = {}
+		for _, c in ipairs(scene.graphRoot:GetChildren()) do
+			if c:IsA("TextLabel") and c.Visible ~= false and c.Text ~= "The Picnic Stall" and c.Text ~= "The Story Scroll" and c.Text ~= "" and c.Text ~= " " and not c.Text:find("^%$?%??$") then others[#others + 1] = rectOf(c) end
+		end
+		for _, c in ipairs(scene.graphRoot:GetChildren()) do
+			if c:IsA("TextLabel") and (c.Text == "The Picnic Stall" or c.Text == "The Story Scroll") then
+				local pl = rectOf(c)
+				expectTrue(pl.y >= bandTop, "a fork name is not under the header" .. where)
+				for _, o in ipairs(others) do
+					expectFalse(RR.boxesOverlap(RR.growBox(pl, 12), o), "fork name " .. c.Text .. " keeps 12 px from every other label" .. where)
+				end
+			end
+		end
 		local plates = {}
 		for _, c in ipairs(scene.graphRoot:GetChildren()) do
 			if c:IsA("TextLabel") and (c.Text == "The Picnic Stall" or c.Text == "The Story Scroll") then plates[#plates + 1] = rectOf(c) end
