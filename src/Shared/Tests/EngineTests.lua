@@ -31144,20 +31144,27 @@ end })
 
 table.insert(tests, { name = "Counter summary plate: top right under the corner buttons, inside the screen, quest toasts start 8 px under it, wired once", fn = function()
 	local S = require(script.Parent.Parent.Engine.ShopSummary)
-	local T = require(script.Parent.Parent.Engine.CornerToastRules)
-	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 } }) do
-		local r = S.rect(sz[1], sz[2])
-		assert(r.x >= 0 and r.x + r.w <= sz[1] - S.EDGE + 0.5 and r.y >= 66 and r.w <= 300, "plate inside the corner at " .. sz[1])
-		local plan = T.plan("shop")
-		T.below(plan, sz[1], S.keepOut(sz[1], sz[2]))
-		assert(T.slot(sz[1], sz[2], plan, 1).y >= r.y + r.h + S.TOAST_GAP, "toasts start under the plate at " .. sz[1])
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local r = S.rect(W, H)
+		assert(r.w <= 260 and r.w >= 200 and r.h == 64, "half size plate at " .. W)
+		assert(r.x >= 0 and r.x + r.w <= W and r.y + r.h <= H, "plate on screen at " .. W)
+		local shop = SL.rects(W, H)
+		for _, key in ipairs({ "tabs", "nextBoss", "leave" }) do assert(not hit(r, shop[key]), "plate clear of " .. key .. " at " .. W) end
+		local zone = SL.tabZone(W, H)
+		assert(r.y >= zone.y + zone.h, "plate below the tab lists (Patron seats, House Passes) at " .. W)
+		assert(shop.bubble == nil or not hit(r, shop.bubble), "plate clear of the speech strip at " .. W)
+		assert(S.keepOut(W, H) == nil, "the toast column has nothing to dodge")
 	end
+	assert(S.SHOW_SECONDS == 6, "fades after 6 seconds")
 	local l = S.lines({ title = "Target cleared", score = "Score 900 of 600", tips = "Tips +7" })
 	assert(l.score == "Score 900 of 600" and l.tips == "Tips +7" and S.lines(nil) == nil)
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	assert(read("src/Client/Gameplay2.lua"):find("ShopSummaryPlate", 1, true) and read("src/Client/Shop.lua"):find("ShopSummaryPlate", 1, true), "wired")
-	assert(not read("src/Client/ShopSummaryPlate.lua"):find("TweenService", 1, true), "no tweens")
+	assert(read("src/Client/ShopSummaryPlate.lua"):find("CloseX", 1, true), "the plate has an X")
 end })
 
 table.insert(tests, { name = "Counter after a win: summary plate clear of the gear and Tips pill at every size, Rank and Suit chips hidden outside the table", fn = function()
@@ -32975,9 +32982,9 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
 		local W, H = sz[1], sz[2]
 		local r = Sum.rect(W, H)
-		assert(r.x >= 0 and r.x + r.w <= W - Sum.GEAR_CLEAR, "summary plate clear of the gear at " .. W)
+		assert(r.x >= 0 and r.x + r.w <= W, "summary plate on screen at " .. W)
 		local rows = Sum.rows(r.w)
-		assert(rows.tips.y + rows.tips.h <= Sum.HEIGHT - Sum.BORDER, "summary text inside the border at " .. W)
+		assert(rows.score.y + rows.score.h <= Sum.HEIGHT - Sum.BORDER, "summary text inside the border at " .. W)
 		assert(rows.title.x >= Sum.BORDER and rows.title.x + rows.title.w <= r.w - Sum.BORDER, "summary text inside side border at " .. W)
 		assert(rows.score.size >= 15, "summary text size at " .. W)
 		-- picture aspect: the sliced picture (both corner columns and its scaled height) fits the rect, so all four corners show
@@ -33177,11 +33184,11 @@ table.insert(tests, { name = "Plate audit: painted plates keep text 8 px inside 
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	-- the summary rows: 22 px (14 border plus 8 air) from every edge, stacked, none overlapping, text 15 px or more
-	for _, pw in ipairs({ 300, 253 }) do
+	for _, pw in ipairs({ 260, 240 }) do
 		local rows = S.rows(pw)
-		local order = { rows.title, rows.score, rows.tips }
+		local order = { rows.title, rows.score }
 		for i, rw in ipairs(order) do
-			assert(rw.x >= S.BORDER + S.PAD and rw.x + rw.w <= pw - S.BORDER - S.PAD, "row " .. i .. " 8 px inside the border at width " .. pw)
+			assert(rw.x >= S.BORDER + S.PAD and rw.x + rw.w <= pw - S.BORDER - S.PAD, "row " .. i .. " inside the border at width " .. pw)
 			assert(rw.y >= S.BORDER + S.PAD and rw.y + rw.h <= S.HEIGHT - S.BORDER - S.PAD, "row " .. i .. " inside vertically")
 			assert(rw.size >= 15 and rw.size + 2 <= rw.h, "row " .. i .. " text fits its row")
 			if i > 1 then assert(rw.y >= order[i - 1].y + order[i - 1].h, "rows do not overlap") end

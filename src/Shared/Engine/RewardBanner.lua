@@ -74,7 +74,7 @@ function RewardBanner.place(screenW, summary)
 	local w = math.max(1, tonumber(screenW) or 1920)
 	local pw = math.min(RewardBanner.PLATE_W, math.floor(w * 0.30))
 	local x = math.floor((w - pw) / 2)
-	if summary and x + pw > summary.x - RewardBanner.SUMMARY_GAP then x = summary.x - RewardBanner.SUMMARY_GAP - pw end
+	if summary and summary.y < RewardBanner.PLATE_TOP + RewardBanner.PLATE_H and x + pw > summary.x - RewardBanner.SUMMARY_GAP then x = summary.x - RewardBanner.SUMMARY_GAP - pw end
 	return { x = math.max(0, x), y = RewardBanner.PLATE_TOP, w = pw, h = RewardBanner.PLATE_H }
 end
 
