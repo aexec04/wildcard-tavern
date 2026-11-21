@@ -188,20 +188,13 @@ local function applySeatGlow(layer, rects, owned)
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
 			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
 			local gl = Rules.glow(true)
-			for k = 1, 3 do -- candlelight halo: three 10 px rings, 30 px in all, fading outward (static, so Calm mode and Reduce motion need nothing)
-				local hr = Instance.new("Frame")
-				hr.Name = "Halo" .. k
-				hr.BackgroundTransparency = 1
-				hr.BorderSizePixel = 0
-				hr.Active = false
-				hr.ZIndex = 11
-				local d = (k - 1) * gl.seatHalo / 3
-				hr.Position = UDim2.fromOffset(-d - 2, -d - 2) -- the 2 px edge stroke sits just outside g
-				hr.Size = UDim2.new(1, 2 * d + 4, 1, 2 * d + 4)
-				local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(0, 8 + d); hc.Parent = hr
-				local hs = Instance.new("UIStroke"); hs.Color = GOLD; hs.Thickness = gl.seatHalo / 3; hs.Transparency = gl.seatHaloT + 0.15 * (k - 1); hs.Parent = hr
-				hr.Parent = g
-			end
+			pcall(function() -- candlelight: the shared feathered radial glow (no ring edges, no seams), about 30 px past the card, static in Calm mode and Reduce motion
+				local pad = gl.seatHalo
+				require(script.Parent.SoftGlow).build(g, {
+					name = "Halo", color = GOLD, peak = 0.4, zIndex = 11,
+					position = UDim2.new(0.5, 0, 0.5, 0), size = UDim2.new(1, 2 * pad, 1, 2 * pad),
+				})
+			end)
 			g.Parent = layer
 			glowFrames[#glowFrames + 1] = g
 		end
@@ -261,6 +254,14 @@ function M.update(layer, state, rects, viewW, viewH)
 		seatCard.Visible = true
 		place(seatCard, seat)
 		seatCard.Title.Text = name
+		seatCard.Title.TextScaled = false -- shrink to fit: 6 px side padding, never under 12 px
+		do
+			local tw, ts = math.max(10, seat.w - 12), math.max(12, math.min(18, math.floor(seat.h * 0.1)))
+			local function width(s) local ok, b = pcall(function() return game:GetService("TextService"):GetTextSize(name, s, Enum.Font.GothamBold, Vector2.new(10000, 100)) end); return ok and b.X or 0 end
+			while width(ts) > tw and ts > 12 do ts = ts - 1 end
+			seatCard.Title.TextSize = ts
+			seatCard.Title.TextTruncate = Enum.TextTruncate.AtEnd
+		end
 		seatCard.Title.Size = UDim2.new(1, 0, 0, math.max(16, math.min(26, math.floor(seat.h * 0.16))))
 		seatCard.Tag.Size = UDim2.fromOffset(math.max(34, math.min(52, math.floor(seat.w * 0.4))), math.max(14, math.min(20, math.floor(seat.h * 0.1))))
 		if seatBossId ~= (boss and boss.id) then

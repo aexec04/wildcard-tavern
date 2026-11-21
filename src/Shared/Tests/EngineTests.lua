@@ -34687,11 +34687,20 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	local fx = read("src/Client/BossCardFX.lua")
 	expectTrue(fx:find("BossPresenceFX", 1, true) and fx:find("BossPresencePlate", 1, true), "BossCardFX clears the Concept T red plate")
 	expectTrue(fx:find("OuterGlow", 1, true) and fx:find("stopPulse()", 1, true), "the outer glow rings are built and stop in Calm mode")
-	expectTrue(fx:find('"Halo" .. k', 1, true) and fx:find("Rules.seatFor(i, true)", 1, true), "every seated Patron card has a halo, placed by the boss seat map")
+	expectTrue(fx:find("SoftGlow", 1, true) and fx:find("Rules.seatFor(i, true)", 1, true), "every seated Patron card has a feathered SoftGlow halo, placed by the boss seat map")
+	expectTrue(fx:find("seat.w - 12", 1, true), "the Boss card name shrinks to fit with 6 px side padding")
 	expectTrue(fx:find("BossSeatCard", 1, true) and fx:find("Rules.seatRect(rects)", 1, true) and fx:find('"BOSS"', 1, true), "the Boss card is built in the middle seat with a BOSS tag")
 	expectTrue(fx:find('painted(top.Plate, "wh_target")', 1, true), "the top plate uses the Target and Tips plate picture")
 	local prow = read("src/Client/PatronRow.lua")
 	expectTrue(prow:find("BossCardRules.seatFor(i, true)", 1, true), "PatronRow moves the Patrons round the Boss seat")
+	expectTrue(not prow:find("seatFor(i, true) or i", 1, true), "a fifth Patron has no seat in a boss round (no 'or i' fallback)")
+	local BC = require(script.Parent.Parent.Engine.BossCard)
+	local seats, shown = {}, 0
+	for i = 1, 5 do
+		local s = BC.seatFor(i, true)
+		if s then shown = shown + 1; expectTrue(not seats[s] and s ~= BC.BOSS_SEAT, "no two cards share a seat"); seats[s] = true end
+	end
+	expectTrue(shown == 4 and BC.seatFor(5, true) == nil, "a boss round row holds 4 Patrons plus the Boss: exactly 5 cards, no overlaps")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local c = require(script.Parent.Parent.Engine.BossCard).cardRect(require(script.Parent.Parent.Engine.Gameplay2Layout).rects(sz[1], sz[2]), sz[1], sz[2])
 		if c then expectTrue(c.x >= 12, "the Boss card is 12 px or more from the left edge at " .. sz[1]) end

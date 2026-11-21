@@ -831,7 +831,9 @@ local function place(state)
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end
 		if c then
-			local r = lay and lay.cards[bossRow and BossCardRules.seatFor(i, true) or i]
+			local seatIdx = i
+			if bossRow then seatIdx = BossCardRules.seatFor(i, true) end -- nil: a fifth Patron is out of the row (an `or i` fallback would stack it on seat 5)
+			local r = lay and seatIdx and lay.cards[seatIdx]
 			if r then
 				c.slot.Visible = true
 				c.slot.Position = UDim2.fromOffset(r.x, r.y)
