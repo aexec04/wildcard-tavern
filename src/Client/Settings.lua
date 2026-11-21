@@ -492,6 +492,13 @@ return function(deps)
 	settingsDailyButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
 	settingsDailyButton.LayoutOrder = order()
 
+	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
+	local settingsMapButton = makeAccountButton("Tavern Map", 5, nil)
+	settingsMapButton.Name = "TavernMap"
+	settingsMapButton.Parent = scroll
+	settingsMapButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
+	settingsMapButton.LayoutOrder = order()
+
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
 		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
@@ -533,6 +540,13 @@ return function(deps)
 		playClickSfx()
 		popOut(settingsBackdrop, settingsPanel, nil, function()
 			pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
+		end)
+	end)
+
+	settingsMapButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		popOut(settingsBackdrop, settingsPanel, nil, function()
+			OverlayManager.open("journey")
 		end)
 	end)
 

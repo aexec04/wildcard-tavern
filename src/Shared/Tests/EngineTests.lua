@@ -35484,4 +35484,27 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 	end
 end })
 
+table.insert(tests, { name = "Boss round: the unplayed hand hides and returns whether or not the v2 table reports active; the Tavern Map is in the gear menu and Settings", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local row
+	for i, r in ipairs(G.ROWS) do if r.id == "map" then row = r; expectTrue(G.ROWS[i - 1].id == "howTo", "Tavern Map sits right after How to play") end end
+	expectTrue(row ~= nil and row.kind == "action" and row.label == "Tavern Map", "gear menu has a Tavern Map action row")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local m = G.menuRect(sz[1], sz[2])
+		expectTrue(m.x >= 0 and m.x + m.w <= sz[1] and m.y + m.h <= sz[2], "gear menu on screen at " .. sz[1])
+		for _, rr in ipairs(G.rowRects(m)) do expectTrue(rr.h >= 44 and rr.x + rr.w <= m.w, "row " .. rr.id .. " is 44 px and inside the menu at " .. sz[1]) end
+	end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return "" end local d = f:read("*a"); f:close(); return d end
+	local g2 = read("src/Client/Gameplay2.lua")
+	local setp = g2:match("function M%.setPlaying%(on%).-\nend\n") or ""
+	expectTrue(setp:find("current.hideHand, v", 1, true) ~= nil and setp:find("isActive() or not v", 1, true) == nil, "setPlaying hides and restores without isActive()")
+	local band = g2:match("function M%.playedBand%(%).-\nend\n") or ""
+	local hidePos, actPos = band:find("hideHand", 1, true), band:find("isActive()", 1, true)
+	expectTrue(hidePos ~= nil and actPos ~= nil and hidePos < actPos, "playedBand hides the hand before the isActive check")
+	expectTrue(read("src/Client/GearMenu.lua"):find('OverlayManager.open("journey")', 1, true) ~= nil, "gear row opens the map")
+	expectTrue(read("src/Client/Settings.lua"):find('OverlayManager.open("journey")', 1, true) ~= nil, "Settings button opens the map")
+	expectTrue(read("src/Client/Journey.lua"):find('registerOpener("journey", openJourney)', 1, true) ~= nil, "the map registers its opener")
+end })
+
 return tests

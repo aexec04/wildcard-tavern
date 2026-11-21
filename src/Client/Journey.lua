@@ -1188,6 +1188,7 @@ return function(deps)
 		showMap()
 	end
 
+	OverlayManager.registerOpener("journey", openJourney) -- the gear menu and Settings open the Tavern Map through the same path
 	require(script.Parent.DebugGoto).openMap = openJourney -- Studio-only DebugGoto "map" opens the Tavern Map through the same path
 	journeyButton.MouseButton1Click:Connect(openJourney)
 	menuJourneyButton.MouseButton1Click:Connect(openJourney)

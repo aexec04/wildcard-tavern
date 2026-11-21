@@ -252,6 +252,7 @@ function M.install(deps)
 		if id == "settings" then OverlayManager.open("settings")
 		elseif id == "tracks" then OverlayManager.open("music")
 		elseif id == "howTo" then OverlayManager.open("howToPlay")
+		elseif id == "map" then OverlayManager.open("journey")
 		elseif id == "quit" then OverlayManager.open("quitToTavern") end
 	end
 	for id, r in pairs(rows) do

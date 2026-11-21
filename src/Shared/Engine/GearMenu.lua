@@ -35,6 +35,7 @@ M.ROWS = {
 	{ id = "hints", kind = "toggle", label = "Hints" },
 	{ id = "settings", kind = "action", label = "Settings" },
 	{ id = "howTo", kind = "action", label = "How to play" },
+	{ id = "map", kind = "action", label = "Tavern Map" },
 	{ id = "quit", kind = "action", label = "Quit to Tavern" },
 }
 

@@ -683,6 +683,12 @@ function M.install(deps)
 			for c in pairs(hiddenHand) do if c.Parent then c.Visible = true end end
 			hiddenHand = {}
 		end
+		pcall(function() -- Studio only: visible hand children after each hide or restore (boss and normal rounds)
+			if not game:GetService("RunService"):IsStudio() then return end
+			local n, v = 0, 0
+			for _, c in ipairs(deps.handFrame:GetChildren()) do if c:IsA("GuiObject") then n = n + 1; if c.Visible then v = v + 1 end end end
+			print(("[HandHide] %s: %d of %d hand objects visible, table active=%s"):format(on and "during" or "after", v, n, tostring(active)))
+		end)
 	end
 
 	function self.shake(which)
@@ -1025,7 +1031,7 @@ function M.setPlaying(on)
 	if current.playing == v then return end
 	current.playing = v
 	if not v then current.scoringText = nil end
-	if current.hideHand and (current.isActive() or not v) then pcall(current.hideHand, v) end
+	if current.hideHand then pcall(current.hideHand, v) end -- never gated on isActive(): a boss round can score with the v2 table inactive
 	if current.isActive() then pcall(current.refresh) end
 end
 
@@ -1055,9 +1061,10 @@ function M.selectedLift(want, restTop)
 end
 
 function M.playedBand()
-	if not (current and current.isActive()) then return nil end
+	if not current then return nil end
 	current.playing = true
-	if current.hideHand then pcall(current.hideHand, true) end
+	if current.hideHand then pcall(current.hideHand, true) end -- the unplayed cards step aside even when the v2 table is not active
+	if not current.isActive() then return nil end
 	pcall(current.refresh)
 	local r = current.rects()
 	return require(Engine:WaitForChild("Gameplay2Layout")).playedBand(r, math.max(20, PreviewRules.H), 22)
