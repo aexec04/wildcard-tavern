@@ -22,6 +22,7 @@ return function(deps)
 	deps.TweenService = deps.TweenService or game:GetService("TweenService")
 	local WorldMap = require(Engine:WaitForChild("WorldMap"))
 	local Layout = require(Engine:WaitForChild("WorldMapLayout"))
+	local NodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, tag and badge (same look as the road nodes)
 	local RoadLock = require(script.Parent.RoadLock) -- locked roads: padlock + "Unlock with a Key?" confirm
 
 	local CREAM = Color3.fromRGB(250, 235, 200)
@@ -47,6 +48,14 @@ return function(deps)
 	local focusId = nil -- stop whose biome reward chip is shown (tap or hover); nil = only the next branch end
 	local lastPos = {} -- stopId -> {x, y} from the last build (route stops included)
 	local lastBoxes = {} -- stopId -> node + label box from the last build (WorldMapLayout.boxesOf)
+
+	-- "Name" over a coloured type tag line (SHOP gold, EVENT purple, BOSS red, Encounter green); long names keep the plain name
+	local function tagged(label, typeId, maxChars)
+		if #label.Text > maxChars then return end
+		local c = NodeRules.tagFor(typeId).color
+		label.RichText = true
+		label.Text = string.format('%s\n<font color="#%02x%02x%02x"><b>%s</b></font>', label.Text, c[1], c[2], c[3], NodeRules.tagFor(typeId).text)
+	end
 
 	local function remember(inst)
 		items[#items + 1] = inst
@@ -364,6 +373,7 @@ return function(deps)
 				if not choices[id] then
 					lab.TextTransparency = 0
 				end
+				if v ~= "teaser" then tagged(lab, NodeRules.typeOf("night"), 24) end
 			end
 		end
 
@@ -410,6 +420,27 @@ return function(deps)
 				lab.AnchorPoint = Vector2.new(0, 0.5)
 				lab.TextXAlignment = Enum.TextXAlignment.Left
 				lab.TextYAlignment = Enum.TextYAlignment.Center
+				local stype = NodeRules.typeOf("side", stop.side)
+				if not stub then
+					tagged(lab, stype, 16)
+					local badgeKind = NodeRules.badgeFor(stype, visited[id] and "completed" or "available")
+					if badgeKind then -- coin for a shop, ? for an event, a check once visited
+						local bsz = math.max(18, math.floor(sideSize * 0.42))
+						local b = textLabel(badgeKind == "check" and "OK" or (badgeKind == "coin" and "$" or "?"), p.x + sideSize * 0.35, p.y - sideSize * 0.35 - bsz / 2, bsz, bsz, 15, 29)
+						b.Name = "Badge_" .. id
+						b.AutomaticSize = Enum.AutomaticSize.None
+						b.Size = UDim2.fromOffset(bsz, bsz)
+						b.BackgroundColor3 = badgeKind == "coin" and Color3.fromRGB(222, 182, 60) or (badgeKind == "check" and Color3.fromRGB(90, 160, 80) or Color3.fromRGB(110, 60, 160))
+						b.BackgroundTransparency = 0
+						b.TextXAlignment = Enum.TextXAlignment.Center
+						b.TextYAlignment = Enum.TextYAlignment.Center
+						local bp = b:FindFirstChildOfClass("UIPadding")
+						if bp then bp:Destroy() end
+						b.TextWrapped = false
+						local bc = b:FindFirstChildOfClass("UICorner")
+						if bc then bc.CornerRadius = UDim.new(0.5, 0) end
+					end
+				end
 				if p.compact then -- crowded spot (WorldMapLayout): the name shows while hovering
 					lab.Visible = false
 					btn.MouseEnter:Connect(function() lab.Visible = true end)

@@ -318,6 +318,8 @@ return function(deps)
 
 	-- ===== Nodes =====
 	local nodeHover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = calm })
+	local MapNodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, state, tag and badge rules (the new node look)
+	local selectedIndex = nil -- the node whose detail card is open: drawn with the selected look
 	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
@@ -402,7 +404,7 @@ return function(deps)
 		if data.kind == "night" or data.kind == "milestone" then
 			local tierInfo = JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)]
 			bossBadge = text(button, {
-				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.1), Size = UDim2.fromOffset(26, 26),
+				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.1, 0.1), Size = UDim2.fromOffset(26, 26),
 				TextSize = 16, TextWrapped = false, Text = tierInfo.icon, BackgroundTransparency = 0,
 				BackgroundColor3 = Color3.fromRGB(110, 40, 40), ZIndex = 30,
 			})
@@ -411,7 +413,7 @@ return function(deps)
 
 		-- Cleared: gold wax seal (OK badge when the seal art is unavailable).
 		local check = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.86), Size = UDim2.fromOffset(26, 26),
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.88, 0.12), Size = UDim2.fromOffset(26, 26),
 			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "OK", BackgroundTransparency = 0,
 			BackgroundColor3 = GOLD, TextColor3 = INK, Visible = false, ZIndex = 31,
 		})
@@ -422,7 +424,7 @@ return function(deps)
 			seal = Instance.new("ImageLabel")
 			seal.Name = "Seal"
 			seal.AnchorPoint = Vector2.new(0.5, 0.5)
-			seal.Position = UDim2.fromScale(0.9, 0.86)
+			seal.Position = UDim2.fromScale(0.88, 0.12)
 			seal.Size = UDim2.fromOffset(38, 38)
 			seal.BackgroundTransparency = 1
 			seal.Image = sealId
@@ -450,8 +452,8 @@ return function(deps)
 
 		-- Locked: small "?".
 		local lockMark = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.86), Size = UDim2.fromOffset(24, 24),
-			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "?", BackgroundTransparency = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.88, 0.12), Size = UDim2.fromOffset(24, 24),
+			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "\u{1F512}", BackgroundTransparency = 0,
 			BackgroundColor3 = PARCHMENT, TextColor3 = LABEL_INK, Visible = false, ZIndex = 31,
 		})
 		deps.roundCorner(lockMark, 12)
@@ -482,6 +484,21 @@ return function(deps)
 			local plateCorner = Instance.new("UICorner")
 			plateCorner.CornerRadius = UDim.new(0, 6)
 			plateCorner.Parent = name
+		end
+		-- Type tag under the name (SHOP gold, EVENT purple, BOSS red, Encounter green); the Finish Night is the boss.
+		local ntype = MapNodeRules.typeOf(data.kind, nil, data.night == JourneyMap.NightCap)
+		local tagLook = MapNodeRules.tagFor(ntype)
+		local typeTag = text(canvas, {
+			Name = "TypeTag", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(120, MapNodeRules.TAG_H), TextWrapped = false,
+			Font = Enum.Font.GothamBlack, TextSize = 14, Text = tagLook.text, ZIndex = 27,
+			TextColor3 = Color3.fromRGB(tagLook.color[1], tagLook.color[2], tagLook.color[3]), TextStrokeColor3 = Color3.fromRGB(20, 12, 6), TextStrokeTransparency = 0.8,
+		})
+		if ntype == "boss" then
+			name.BackgroundColor3 = Color3.fromRGB(78, 22, 22)
+			local bossEdge = Instance.new("UIStroke")
+			bossEdge.Color = Color3.fromRGB(200, 60, 50)
+			bossEdge.Thickness = 2
+			bossEdge.Parent = name
 		end
 		-- Reward on a small hanging tag.
 		local tag = Instance.new("Frame")
@@ -522,6 +539,7 @@ return function(deps)
 			icon = icon, art = art, fog = fog, ribbon = ribbon, bossBadge = bossBadge, check = check, seal = seal,
 			sealScale = sealScale, lockMark = lockMark, spin = spin, name = name, tag = tag, preview = preview,
 			pulse = pulse, pulseScale = pulseScale, pulsing = false, data = data, isEndless = isEndless, tagStroke = tagStroke,
+			typeTag = typeTag, ntype = ntype,
 		}
 	end
 
@@ -742,8 +760,9 @@ return function(deps)
 			local x, y = nodePixel(index)
 			local info = node.data.info
 			node.button.Position = UDim2.fromOffset(x, y)
-			node.button.Size = UDim2.fromOffset(nodeSize, nodeSize)
-			node.icon.TextSize = math.floor(nodeSize * 0.45)
+			local size = node.ntype == "boss" and math.floor(nodeSize * 1.2) or nodeSize -- the boss node is larger
+			node.button.Size = UDim2.fromOffset(size, size)
+			node.icon.TextSize = math.floor(size * 0.45)
 			local fits = #info.name <= 28
 			local lines = fits and 1 or math.ceil(#info.name * 9.8 / labelW)
 			local labelH = lines * 21 + 2
@@ -763,8 +782,9 @@ return function(deps)
 			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
 			node.name.AnchorPoint = Vector2.new(0.5, 0)
 			node.name.TextYAlignment = Enum.TextYAlignment.Top
-			node.name.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP)
-			node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP + labelH + 8)
+			node.name.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP)
+			node.typeTag.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP + labelH + 2)
+			node.tag.Position = UDim2.fromOffset(x, y + size / 2 + LABEL_GAP + labelH + 2 + MapNodeRules.TAG_H + 8)
 			local nextData = nodeData[index + 1]
 			if nextData then
 				local nx, ny = nodePixel(index + 1)
@@ -937,9 +957,16 @@ return function(deps)
 			local shownNode = states[index] == "revealed"
 			node.button.Visible = shownNode
 			node.name.Visible = shownNode
+			node.typeTag.Visible = shownNode
 
-			node.stroke.Color = isCleared and GOLD_DARK or (isCurrent and accentHere) or (locked and Color3.fromRGB(110, 92, 72)) or Color3.fromRGB(90, 60, 30)
-			node.stroke.Thickness = isCleared and 4 or 3
+			local nstate = MapNodeRules.stateOf({ completed = isCleared, locked = locked, current = isCurrent })
+			local look = MapNodeRules.look(nstate, selectedIndex == index and shownNode, false)
+			local ring = look.ring
+			if node.ntype == "boss" and (nstate == "available" or nstate == "locked") then ring = MapNodeRules.bossRing() end -- crimson ring on the boss
+			node.stroke.Color = Color3.fromRGB(ring[1], ring[2], ring[3])
+			if nstate == "current" then node.stroke.Color = accentHere end
+			node.stroke.Thickness = look.thickness
+			node.state = nstate
 			node.button.BackgroundColor3 = PARCHMENT
 			node.icon.TextTransparency = locked and 0.45 or 0
 			node.icon.TextStrokeTransparency = 1
@@ -964,8 +991,8 @@ return function(deps)
 			node.preview.Text = pv
 			node.preview.TextColor3 = LABEL_INK -- on the parchment tag, dark ink in both states
 			node.tag.Visible = shownNode and pv:match("%S") ~= nil
-			node.haloStroke.Color = accentHere
-			setPulse(node, isCurrent and shownNode and frame.Visible)
+			node.haloStroke.Color = (selectedIndex == index and not isCurrent) and Color3.fromRGB(255, 205, 90) or accentHere
+			setPulse(node, (isCurrent or look.glow) and shownNode and frame.Visible)
 		end
 
 		local endlessEntered = view.reached > JourneyMap.NightCap
@@ -1164,11 +1191,17 @@ return function(deps)
 
 	local function openCard(index)
 		openIndex = index
+		selectedIndex = index
+		if requestRender then requestRender() end
 		card.Visible = true
 		fillCard()
 	end
 	local function closeDetail()
 		openIndex = nil
+		if selectedIndex then
+			selectedIndex = nil
+			if requestRender then requestRender() end
+		end
 		card.Visible = false
 	end
 
@@ -1660,6 +1693,8 @@ return function(deps)
 		node.name.TextTransparency, node.name.TextStrokeTransparency = 1, 1
 		TweenService:Create(node.name, info, { TextTransparency = 0, TextStrokeTransparency = 0.8 }):Play()
 		node.preview.TextTransparency = 1
+		node.typeTag.TextTransparency = 1
+		TweenService:Create(node.typeTag, info, { TextTransparency = 0 }):Play()
 		node.tag.BackgroundTransparency = 1
 		node.tagStroke.Transparency = 1
 		TweenService:Create(node.preview, info, { TextTransparency = 0 }):Play()
@@ -1848,6 +1883,8 @@ return function(deps)
 		local view = currentView()
 		local done, total, percent = JourneyMap.completion(view.cleared)
 		local nextNode = JourneyMap.nextReward(view.cleared)
+		require(script.Parent.MapHeaderBar).setStats({ night = math.min(math.max(math.floor(view.night), 1), 8), nights = 8, done = done, total = total,
+			keys = require(script.Parent.RoadLock).keys(view.state) })
 		local hint
 		if nextNode then
 			local label = string.format("Night %d, %s, %s", nextNode.night, nextNode.info.name,
@@ -1901,6 +1938,8 @@ return function(deps)
 					node.name.TextTransparency = 0
 					node.name.TextStrokeTransparency = 0.8
 					node.preview.TextTransparency = 0
+					node.typeTag.TextTransparency = 0
+					node.typeTag.TextStrokeTransparency = 0.8
 					node.tag.BackgroundTransparency, node.tagStroke.Transparency = 0, 0
 					node.scale.Scale = 1
 				end

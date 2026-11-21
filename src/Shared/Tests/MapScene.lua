@@ -55,7 +55,7 @@ function MapScene.build(opts)
 		stubs = { MapHover = hoverStub, RoadLock = {}, ClientSettings = { get = function() return false end } },
 	})
 	local mods = {}
-	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries" }) do
+	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules" }) do
 		mods[name] = require(Engine[name])
 	end
 	local JourneyMap = require(Engine.JourneyMap)
