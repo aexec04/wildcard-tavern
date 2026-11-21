@@ -35,6 +35,9 @@ end
 
 function M.start()
 	if started then return end
+	ClientSettings.onChanged(function(key) -- Sound on or off takes effect at once, not on the next one second tick
+		if key == "muted" or key == "sfxVolume" then pcall(M.step) end
+	end)
 	local id = SoundIds.Ambience and SoundIds.Ambience.tavern and SoundIds.Ambience.tavern.id or ""
 	if not SoundIds.isValidId(id) then return end -- no id picked yet: stay silent
 	started = true

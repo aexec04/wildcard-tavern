@@ -8381,6 +8381,30 @@ table.insert(tests, { name = "GearMenu: the Pause row is called Settings and ope
 	expectTrue(src:find('"ct_hud_gear", "Settings"', 1, true) and not src:find("pk_w_icon_pause", 1, true), "round button is a gear with the word Settings as fallback")
 end })
 
+table.insert(tests, { name = "GearMenu: Sound off mutes the master (music and ambience too), on restores the saved volumes and the speaker state follows", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local s = { sfxVolume = 0.6, musicVolume = 0.35, muted = false }
+	expectTrue(G.view(s).sound.on and G.view(s).music.on, "starts on")
+	local w = G.writes("sound", s)
+	expectTrue(w.muted == true and w.sfxVolume == nil and w.musicVolume == nil, "off touches only the mute flag")
+	for k, v in pairs(w) do s[k] = v end
+	expectTrue(not G.view(s).sound.on and not G.view(s).music.on, "music reads off while muted")
+	w = G.writes("sound", s)
+	for k, v in pairs(w) do s[k] = v end
+	expectTrue(s.muted == false and s.sfxVolume == 0.6 and s.musicVolume == 0.35, "back on restores the saved mix")
+	s.sfxVolume = 0; s.muted = false
+	expectTrue(not G.view(s).sound.on, "a zero effects slider reads off")
+	expectEqual(G.writes("sound", s).sfxVolume, 1, "turning on from a zero slider gives full effects")
+end })
+
+table.insert(tests, { name = "GearMenu: the speaker shows its state, the ambience bed reacts to the mute at once, SoundCheck warns in Studio", fn = function()
+	if not io then return end
+	local function rd(p) local f = assert(io.open(p, "r")); local c = f:read("a"); f:close(); return c end
+	local g, a = rd("src/Client/GearMenu.lua"), rd("src/Client/AmbienceFX.lua")
+	expectTrue(g:find("MuteSlash", 1, true) and g:find("ImageTransparency", 1, true) and g:find("[SoundCheck]", 1, true), "speaker slash, dim and SoundCheck")
+	expectTrue(a:find('key == "muted"', 1, true), "ambience listens for the mute")
+end })
+
 table.insert(tests, { name = "ButtonFeel: a button whose Position is set after creation rests where the layout put it after hover", fn = function()
 	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
 	local button = { Position = 0 } -- created at 0,0
@@ -30611,8 +30635,8 @@ table.insert(tests, { name = "Gear toggles: Calm, Reduce motion, Sound, Music an
 	expectTrue(A.calm(prof.settings) and G.view(prof.settings).reduceMotion.state == "On", "Reduce motion alone also reads as calm for every loop")
 	apply("reduceMotion")
 	expectTrue(not A.calm(prof.settings), "Reduce motion off: back")
-	apply("sound"); expectTrue(prof.settings.sfxVolume == 0 and not G.view(prof.settings).sound.on, "Sound off writes sfxVolume 0")
-	apply("sound"); expectTrue(prof.settings.sfxVolume == 1 and G.view(prof.settings).sound.on, "Sound on writes 1")
+	apply("sound"); expectTrue(prof.settings.muted == true and not G.view(prof.settings).sound.on, "Sound off sets the master mute")
+	apply("sound"); expectTrue(prof.settings.muted == false and prof.settings.sfxVolume > 0 and G.view(prof.settings).sound.on, "Sound on clears the mute and keeps a volume")
 	apply("music"); expectTrue(prof.settings.musicVolume == 0 and not G.view(prof.settings).music.on, "Music off writes musicVolume 0")
 	apply("music"); expectTrue(prof.settings.musicVolume == G.MUSIC_DEFAULT, "Music on restores the default")
 	apply("hints"); expectTrue(prof.settings.roundHints == false, "Hints off")
@@ -30656,7 +30680,7 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	local v = G.view(s)
 	expectTrue(v.sound.state == "On" and v.music.state == "On" and v.calm.state == "Off" and v.reduceMotion.state == "Off" and v.hints.state == "On", "defaults read as words")
 	local function apply(id) for k, val in pairs(G.writes(id, s)) do expectTrue(P.SETTING_SPECS[k] ~= nil, k .. " is a real setting"); s[k] = val end end
-	apply("sound"); expectTrue(G.view(s).sound.state == "Off" and s.sfxVolume == 0, "Sound off"); apply("sound"); expectTrue(G.view(s).sound.on and s.sfxVolume == 1, "Sound back on")
+	apply("sound"); expectTrue(G.view(s).sound.state == "Off" and s.muted == true, "Sound off"); apply("sound"); expectTrue(G.view(s).sound.on and s.muted == false and s.sfxVolume > 0, "Sound back on")
 	apply("music"); expectTrue(G.view(s).music.state == "Off" and s.musicVolume == 0, "Music off"); apply("music"); expectTrue(G.view(s).music.on and s.musicVolume > 0, "Music back on")
 	apply("calm"); expectTrue(G.view(s).calm.on and s.reduceMotion and s.reduceFlashing and s.reduceShake, "Calm flips the three together"); apply("calm"); expectTrue(not G.view(s).calm.on and not s.reduceMotion, "and back")
 	apply("reduceMotion"); expectTrue(s.reduceMotion == true and G.view(s).reduceMotion.state == "On", "Reduce motion"); apply("reduceMotion")

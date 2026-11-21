@@ -122,8 +122,11 @@ end
 function M.writes(id, settings)
 	settings = settings or {}
 	if id == "sound" then
+		-- Sound is the master switch: the mute flag silences effects, music and the ambience bed together (Client/Sound, MusicMixFX,
+		-- AmbienceFX all read it); the saved volumes stay so turning it back on restores the mix
 		local want = not M.soundOn(settings)
-		return { sfxVolume = want and 1 or 0, muted = false }
+		if want then return { muted = false, sfxVolume = (tonumber(settings.sfxVolume) or 0) > 0 and settings.sfxVolume or 1 } end
+		return { muted = true }
 	elseif id == "music" then
 		local want = not (M.musicOn(settings) and not isOn(settings.muted))
 		return { musicVolume = want and M.MUSIC_DEFAULT or 0, muted = false }

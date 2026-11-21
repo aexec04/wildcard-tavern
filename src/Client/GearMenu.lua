@@ -174,7 +174,29 @@ function M.install(deps)
 	local isOpen = false
 	local size = Vector2.new(1280, 720)
 
+	local function paintSpeaker() -- the speaker shows the master Sound state: dimmed with a slash across it while sound is off
+		local on = G.view(settingsNow()).sound.on
+		local ic = quick.speaker:FindFirstChild("Icon")
+		if ic then ic.ImageTransparency = on and 0 or 0.5 end
+		local slash = quick.speaker:FindFirstChild("MuteSlash")
+		if not slash then
+			slash = Instance.new("Frame")
+			slash.Name = "MuteSlash"
+			slash.AnchorPoint = Vector2.new(0.5, 0.5)
+			slash.Position = UDim2.fromScale(0.5, 0.5)
+			slash.Size = UDim2.new(0.78, 0, 0, 3)
+			slash.Rotation = -45
+			slash.BackgroundColor3 = rgb("cream")
+			slash.BorderSizePixel = 0
+			slash.ZIndex = Z + 3
+			slash.Parent = quick.speaker
+		end
+		slash.Visible = not on
+		if game:GetService("RunService"):IsStudio() then warn(string.format("[SoundCheck] sound=%s muted=%s sfx=%s music=%s", tostring(on), tostring(ClientSettings.getRaw("muted")), tostring(ClientSettings.getRaw("sfxVolume")), tostring(ClientSettings.getRaw("musicVolume")))) end
+	end
+
 	local function paint()
+		pcall(paintSpeaker)
 		local v = G.view(settingsNow())
 		for id, r in pairs(rows) do
 			local s = v[id]
@@ -266,7 +288,8 @@ function M.install(deps)
 	for id, r in pairs(rows) do
 		r.button.MouseButton1Click:Connect(function() act(id) end)
 	end
-	ClientSettings.onChanged(function() if isOpen then pcall(paint) end end)
+	ClientSettings.onChanged(function() if isOpen then pcall(paint) else pcall(paintSpeaker) end end)
+	pcall(paintSpeaker)
 
 	-- shown on the table, the Counter and the Night map only; a popup above it hides it (and closes the menu)
 	local function visibleNow()
