@@ -21866,7 +21866,7 @@ table.insert(tests, { name = "Round Complete: one merged painted plate, centred,
 	expectTrue(io == nil or not io.open or (function()
 		local f = io.open("src/Client/Gameplay2.lua", "r"); if not f then return true end
 		local t = f:read("*a"); f:close()
-		return t:find("if lines.night then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) end", 1, true) ~= nil and t:find("rememberScore", 1, true) ~= nil
+		return t:find("if Moments.nightPopup(lines) then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end)", 1, true) ~= nil and t:find("rememberScore", 1, true) ~= nil
 	end)(), "an ordinary clear draws no second Target cleared popup and hands the Score line to the Round Complete plate")
 end })
 
@@ -35505,6 +35505,25 @@ table.insert(tests, { name = "Boss round: the unplayed hand hides and returns wh
 	expectTrue(read("src/Client/GearMenu.lua"):find('OverlayManager.open("journey")', 1, true) ~= nil, "gear row opens the map")
 	expectTrue(read("src/Client/Settings.lua"):find('OverlayManager.open("journey")', 1, true) ~= nil, "Settings button opens the map")
 	expectTrue(read("src/Client/Journey.lua"):find('registerOpener("journey", openJourney)', 1, true) ~= nil, "the map registers its opener")
+end })
+
+table.insert(tests, { name = "Night clear: a normal Night is one toast line with no popup, only the final Night keeps the plate", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local prev = { phase = "playing", targetScore = 130, roundScore = 100, tips = 3, round = 3, night = 1, nightCap = 8, bossModifier = { id = "x" } }
+	local now = { phase = "shop", roundScore = 176, tips = 11 }
+	local lines = M.clearLines(prev, now)
+	expectTrue(lines ~= nil and lines.night ~= nil and lines.night.title == "Night cleared", "nightLines kept")
+	expectTrue(not M.nightPopup(lines), "no popup on a normal Night")
+	expectEqual(M.nightToast(lines), "Night 1 cleared  +8 Tips", "toast text with the Tips paid")
+	expectTrue(not M.nightToast(lines):find("--", 1, true), "no double dashes in the toast")
+	prev.night = 8
+	local last = M.clearLines(prev, now)
+	expectTrue(M.nightPopup(last) and last.night.runComplete and M.nightToast(last) == nil, "popup on the final Night, no toast")
+	prev.night, now.tips = 2, 3
+	expectEqual(M.nightToast(M.clearLines(prev, now)), "Night 2 cleared", "no Tips, no suffix")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f and f:read("*a") or ""; if f then f:close() end
+	expectTrue(src:find("Moments.nightPopup(lines)", 1, true) ~= nil and src:find("CornerToast", 1, true) ~= nil, "Gameplay2 routes a normal clear to the toast")
 end })
 
 return tests

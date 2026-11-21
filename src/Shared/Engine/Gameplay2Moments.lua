@@ -70,6 +70,20 @@ function M.nightLines(prev)
 	}
 end
 
+-- a normal Night clear is one short CornerToast line, never a plate; only Run complete (the final Night) keeps the plate
+function M.nightPopup(lines)
+	return lines ~= nil and lines.night ~= nil and lines.night.runComplete == true
+end
+
+function M.nightToast(lines)
+	if not lines or not lines.night or lines.night.runComplete then return nil end
+	local n = floor(lines.night.sub and tonumber(string.match(lines.night.sub, "%d+")) or 0)
+	local tips = floor(lines.tipsEarned)
+	local head = n > 0 and string.format("Night %d cleared", n) or "Night cleared"
+	if tips > 0 then return string.format("%s  +%d Tips", head, tips) end
+	return head
+end
+
 function M.nightPlate(w, h, runComplete)
 	local pw = math.min(runComplete and 560 or 480, math.max(280, math.floor(w * (runComplete and 0.5 or 0.44))))
 	local ph = math.min(runComplete and 300 or 260, math.max(runComplete and 262 or 214, math.floor(h * (runComplete and 0.40 or 0.36))))

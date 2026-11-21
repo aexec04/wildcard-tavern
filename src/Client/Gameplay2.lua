@@ -890,7 +890,10 @@ function M.install(deps)
 					pcall(function() require(script.Parent.ShopSummaryPlate).remember(lines) end) -- stays on the Counter
 					-- one popup: an ordinary clear is the Round Complete plate (RoundRewardBanner, it takes the Score line from here); only the Night plate stays
 					pcall(function() require(script.Parent.RoundRewardBanner).rememberScore(lines.score) end)
-					if lines.night then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) end
+					if Moments.nightPopup(lines) then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) -- Run complete only
+					elseif Moments.nightToast(lines) then -- a normal Night clear: one self-fading corner line, straight to the Counter
+						pcall(function() require(script.Parent.CornerToast).show({ id = "night-cleared", text = Moments.nightToast(lines), group = "night" }) end)
+					end
 				end
 			end
 			pcall(function() require(script.Parent.NightIntroFX).reset(layer) end) -- the next round shows its intro again
