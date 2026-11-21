@@ -1,7 +1,7 @@
 --[[
 	Shared/Engine/DebugGotoRules.lua
 	Pure parser for the Studio-only DebugGoto jump hook (Client/DebugGoto.lua). parse(value) returns
-	{ kind = "menu" | "tome" | "news" | "round1" | "shop" | "spectate" | "sweep", page?, sub? } or nil, reason.
+	{ kind = "menu" | "tome" | "news" | "round1" | "shop" | "spectate" | "sweep" | "map", page?, sub? } or nil, reason.
 	Unknown values return nil so the client warns and does nothing.
 ]]
 
@@ -177,6 +177,15 @@ function DebugGotoRules.parse(value)
 	local text = value:lower():gsub("%s+", "")
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
+	end
+	if text == "map" then -- the real Tavern Map overlay (the same opener as the Journey corner button)
+		return { kind = "map" }
+	end
+	local mapNight = text:match("^map:night=(%d+)$")
+	if mapNight then
+		local n = tonumber(mapNight)
+		if n < 1 or n > 8 then return nil, "map night must be 1 to 8" end
+		return { kind = "map", night = n }
 	end
 	if text == "store" then -- the Tavern Store panel, opened from the Menu like the Tome pages
 		return { kind = "tome", page = "store" }

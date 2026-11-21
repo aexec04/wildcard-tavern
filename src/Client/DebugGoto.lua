@@ -8,6 +8,7 @@
 	player, so it only warns. scale:<w>x<h> shrinks GameUI to that viewport, scale:off restores it. Parsing is in Engine/DebugGotoRules.lua.
 	Screens that are hard to reach (each goes through round1 first, then shows a changed copy of the real state):
 	  haggle, haggle:good, haggle:bad   the Counter with a Wandering Stranger on offer (bad: the long curse picks the second scroll)
+	  map, map:night=N                  opens the real Tavern Map overlay (the night part is only parsed)
 	  road                              Choose your road with three sample stops
 	  runover, runover:win              the merged Run Over screen with a loss or a win sample, every field filled
 	  boss1, boss1:<bossId>             the play screen in a Boss Round: the first one, or the one with that id (boss1:hearts_are_out)
@@ -337,6 +338,15 @@ function DebugGoto.init(deps)
 				if not OverlayManager.open(target.page) then error("no opener for " .. target.page) end
 				if target.sub then
 					warn("[DebugGoto] sub-tab " .. target.sub .. " cannot be clicked from script; panel opened on its first tab")
+				end
+			elseif target.kind == "map" then
+				-- the real Tavern Map: Client/Journey registers its opener (the corner button's path) on this module
+				OverlayManager.closeAllExcept("")
+				showMenu()
+				if not DebugGoto.openMap then error("the Tavern Map opener is not registered yet") end
+				DebugGoto.openMap()
+				if target.night then
+					warn("[DebugGoto] map:night=" .. target.night .. " is parsed but the map always opens on the live Night")
 				end
 			elseif target.kind == "news" then
 				OverlayManager.closeAllExcept("")

@@ -23834,7 +23834,7 @@ table.insert(tests, { name = "CloseX: the round X is a 44 px hit area with a 40 
 	expectTrue(d.x + d.w <= R.HIT and d.y + d.h <= R.HIT and d.x >= 0, "disc inside the hit area")
 	-- source guard (skipped when the files are not reachable from the working directory)
 	local files = { "Journey", "StorePanel", "Settings", "SeasonPanel", "StatsPanel", "CollectionRewardsPanel", "BadgesPanel", "VolumePanel",
-		"LegendPanel", "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel", "CosmeticSetsPanel", "FlairPanel", "NewsPanel", "Collection", "DeckTracker", "MapFullScreen", "PokerHandsReference" }
+		"LegendPanel", "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel", "CosmeticSetsPanel", "FlairPanel", "NewsPanel", "Collection", "DeckTracker", "MapHeaderBar", "PokerHandsReference" }
 	for _, name in ipairs(files) do
 		local f = io and io.open and io.open("src/Client/" .. name .. ".lua", "r") -- io is nil in Studio
 		if f then
@@ -27383,9 +27383,13 @@ table.insert(tests, { name = "Tavern Map: its title and top-left controls are cl
 	end
 	local full, view, compass, popup = read("src/Client/MapFullScreen.lua"), read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapCompass.lua"), read("src/Client/ScorePopup.lua")
 	if not (full and view and compass and popup) then return end
-	expectTrue(full:find("p.title.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 3)", 1, true) ~= nil)
-	expectTrue(full:find("p.subtitle.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 28)", 1, true) ~= nil)
-	expectTrue(full:find("UDim2.fromOffset(Rules.MARGIN, 3)", 1, true) == nil, "not under Roblox's buttons")
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = HR.layout(sz[1], sz[2])
+		expectTrue(L.bannerL.x >= math.min(FR.HEADER_LEFT, math.floor(sz[1] * 0.3)) and L.title.x > L.bannerL.x, "the header starts right of Roblox's buttons at " .. sz[1])
+		expectTrue(L.bar.h <= FR.STRIP_H, "the bar is never taller than the strip the controls sit under")
+	end
+	expectTrue(full:find("MapHeaderBar", 1, true) ~= nil, "the header is the MapHeaderBar")
 	expectTrue(view:find('findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)', 1, true) ~= nil)
 	expectTrue(view:find("findMe.Position = UDim2.fromOffset(14, 8)", 1, true) == nil)
 	expectTrue(compass:find("icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)", 1, true) ~= nil, "the compass keeps its place under Find me")
@@ -34707,6 +34711,81 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	end
 	local mo = read("src/Client/Gameplay2MomentsFX.lua")
 	expectTrue(mo:find('require(Engine:WaitForChild("BossCard")).cardRect', 1, true), "the rule strip is hidden whenever the Boss card fits")
+end })
+
+table.insert(tests, { name = "DebugGotoRules: map and map:night=N parse to the Tavern Map jump, bad nights are nil", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectEqual(R.parse("map").kind, "map")
+	expectEqual(R.parse(" Map ").kind, "map", "case and spaces are ignored")
+	local t = R.parse("map:night=3")
+	expectTrue(t and t.kind == "map" and t.night == 3, "map:night=3")
+	expectTrue(R.parse("map:night=0") == nil and R.parse("map:night=9") == nil and R.parse("map:night=x") == nil, "nights outside 1 to 8 are rejected")
+end })
+
+table.insert(tests, { name = "MapNodeRules: type, state, tag and badge selection, and the node parts never overlap their label", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapNodeRules)
+	expectEqual(R.typeOf("night"), "encounter")
+	expectEqual(R.typeOf("night", nil, true), "boss", "the Finish stop is the boss")
+	expectEqual(R.typeOf("milestone"), "boss")
+	expectEqual(R.typeOf("side", "shop"), "shop")
+	expectEqual(R.typeOf("side", "shrine"), "event")
+	expectEqual(R.typeOf("side", "minigame"), "event")
+	expectEqual(R.typeOf("endless"), "event")
+	expectEqual(R.stateOf({ completed = true, current = true, locked = true }), "completed", "completed wins")
+	expectEqual(R.stateOf({ locked = true, current = true }), "locked")
+	expectEqual(R.stateOf({ current = true }), "current")
+	expectEqual(R.stateOf({}), "available")
+	expectEqual(R.tagFor("shop").text, "SHOP")
+	expectEqual(R.tagFor("event").text, "EVENT")
+	expectEqual(R.tagFor("boss").text, "BOSS")
+	expectEqual(R.tagFor("encounter").text, "Encounter")
+	expectEqual(R.tagFor("nonsense").text, "Encounter", "unknown types fall back to Encounter")
+	expectEqual(R.badgeFor("shop", "available"), "coin")
+	expectEqual(R.badgeFor("event", "current"), "question")
+	expectEqual(R.badgeFor("shop", "completed"), "check", "a check replaces the coin once done")
+	expectEqual(R.badgeFor("boss", "locked"), "lock")
+	expectEqual(R.badgeFor("encounter", "available"), nil)
+	expectTrue(R.look("current").glow and not R.look("available").glow, "only the current node glows")
+	expectTrue(R.look("locked").dim and R.look("locked", false, true).scale == 1, "locked nodes are subdued and do not lift on hover")
+	expectTrue(R.look("available", false, true).scale > 1, "hover lifts")
+	expectTrue(R.look("available", true).glow and R.look("available", true).thickness > R.look("available").thickness, "selected glows and thickens")
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, size in ipairs({ 72, 56, 96 }) do
+		local p = R.parts(size, 150)
+		expectTrue(p.name.y >= p.ring.y + p.ring.h, "the name plate is under the ring")
+		expectTrue(p.tag.y >= p.name.y + p.name.h, "the tag is under the name")
+		expectFalse(HR.overlaps(p.badge, p.name) or HR.overlaps(p.badge, p.tag), "the badge clears the label")
+		expectTrue(p.badge.x + p.badge.w / 2 > 0 and p.badge.y + p.badge.h / 2 < 0, "the badge sits top right")
+	end
+end })
+
+table.insert(tests, { name = "MapHeaderRules: header, banners, X, candles and the selection panel zone do not overlap at four sizes, the nodes band clears the header", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local L = R.layout(w, h)
+		local tag = w .. "x" .. h
+		local items = { title = L.title, stats = L.stats, x = L.x, bannerL = L.bannerL, panel = L.panelZone, candleL = L.candleL, candleR = L.candleR }
+		if L.bannerR then items.bannerR = L.bannerR end
+		local names = {}
+		for n in pairs(items) do names[#names + 1] = n end
+		table.sort(names)
+		for i = 1, #names do
+			local r = items[names[i]]
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, names[i] .. " is on screen at " .. tag)
+			for j = i + 1, #names do
+				expectFalse(R.overlaps(r, items[names[j]]), names[i] .. " and " .. names[j] .. " overlap at " .. tag)
+			end
+		end
+		expectTrue(L.title.h > 0 and L.stats.w >= 3 * 60, "the stats plate has room for three entries at " .. tag .. " (" .. L.stats.w .. ")")
+		local cells = L.stat
+		expectTrue(cells.night.x + cells.night.w <= cells.journey.x and cells.journey.x + cells.journey.w <= cells.keys.x, "the three stats sit in order at " .. tag)
+		expectTrue(cells.keys.x + cells.keys.w <= L.stats.x + L.stats.w, "the stats stay inside their plate at " .. tag)
+		expectTrue(L.panelZone.w <= w * 0.5 and L.panelZone.h <= h * 0.45, "the selection panel zone is a lower left corner, not most of the map at " .. tag)
+		expectTrue(L.band.y >= L.bar.h, "the node band starts under the header at " .. tag)
+		expectTrue(L.bar.h + R.NODE_BAND_H < L.panelZone.y or L.bar.h + R.NODE_BAND_H < h, "one node stack fits between header and bottom at " .. tag)
+		expectTrue(L.textSize >= 14, "header text is at least 14 px at " .. tag)
+	end
 end })
 
 return tests

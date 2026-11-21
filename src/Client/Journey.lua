@@ -1179,6 +1179,7 @@ return function(deps)
 		showMap()
 	end
 
+	require(script.Parent.DebugGoto).openMap = openJourney -- Studio-only DebugGoto "map" opens the Tavern Map through the same path
 	journeyButton.MouseButton1Click:Connect(openJourney)
 	menuJourneyButton.MouseButton1Click:Connect(openJourney)
 
