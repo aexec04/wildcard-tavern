@@ -307,7 +307,7 @@ function M.boss(layer, rects, state, w, h)
 	local chip = Rules.ruleChip(rects, w, h, name, rule)
 	local pr = chip and chip.rect
 	local bossCard = layer:FindFirstChild("BossCard")
-	if bossCard and bossCard.Visible then pr = nil end -- the Boss card carries the rule: no second chip
+	if (bossCard and bossCard.Visible) or require(Engine:WaitForChild("BossCard")).cardRect(rects, w, h) then pr = nil end -- the Boss card carries the rule: no second chip, even on the frame before the card is built
 	local nameSlot = layer:FindFirstChild("RoundName")
 	if not pr or rule == "" or (nameSlot and nameSlot:GetAttribute("RuleInScroll") == true) then -- the scroll carries the rule: one rule element only
 		if rulePlate then rulePlate.Visible = false end

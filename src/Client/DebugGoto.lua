@@ -74,6 +74,8 @@ function DebugGoto.init(deps)
 			end
 			table.sort(data.roads)
 			while #data.roads > 3 do table.remove(data.roads) end
+		elseif which == "boss1" then
+			data.allPatrons = require(Engine.Patrons).Definitions
 		elseif which == "packroom" then
 			data.allPatrons = require(Engine.Patrons).Definitions
 		elseif which == "rarity" then

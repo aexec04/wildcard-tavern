@@ -20,9 +20,14 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local M = {}
 local GOLD = Color3.fromRGB(246, 196, 70)
 local CREAM = Color3.fromRGB(250, 240, 220)
-local card, top, glowFrames, lastFill, lastBossId, pulseTween
+local card, top, glowFrames, lastFill, lastBossId, pulseTweens
 
 local function calm() return ClientSettings.get("reduceShake") == true end
+
+local function stopPulse()
+	for _, tw in ipairs(pulseTweens or {}) do tw:Cancel() end
+	pulseTweens = nil
+end
 
 local function label(parent, name, font, color, z)
 	local t = Instance.new("TextLabel")
@@ -50,6 +55,20 @@ local function buildCard(layer)
 	f.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = f
 	local st = Instance.new("UIStroke"); st.Name = "Glow"; st.Color = GOLD; st.Thickness = 3; st.Parent = f
+	-- soft outer glow: three 8 px rings that together reach 24 px past each edge, fading outward (no picture needed); parented to the card so it follows it
+	for i, d in ipairs({ 0, 8, 16 }) do
+		local ring = Instance.new("Frame")
+		ring.Name = "OuterGlow" .. i
+		ring.BackgroundTransparency = 1
+		ring.BorderSizePixel = 0
+		ring.Active = false
+		ring.ZIndex = 27
+		ring.Position = UDim2.fromOffset(-d, -d)
+		ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
+		ring.Parent = f
+		local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 10 + d); rc.Parent = ring
+		local rs = Instance.new("UIStroke"); rs.Name = "Ring"; rs.Color = GOLD; rs.Thickness = 8; rs.Transparency = 0.5; rs.Parent = ring
+	end
 	local pf = Instance.new("Frame"); pf.Name = "Portrait"; pf.BackgroundColor3 = Color3.fromRGB(60, 22, 18); pf.BorderSizePixel = 0; pf.Active = false; pf.ZIndex = 29; pf.Parent = f
 	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pf
 	local ps = Instance.new("UIStroke"); ps.Color = Color3.fromRGB(150, 38, 30); ps.Thickness = 2; ps.Parent = pf
@@ -74,6 +93,16 @@ local function buildTop(layer)
 	f.Active = false
 	f.ZIndex = 8
 	f.Parent = layer
+	local plate = Instance.new("Frame") -- the taller boss plate behind the rows (hidden when the scroll itself carries them)
+	plate.Name = "Plate"
+	plate.BackgroundColor3 = Color3.fromRGB(226, 205, 160)
+	plate.BorderSizePixel = 0
+	plate.Active = false
+	plate.ZIndex = 8
+	plate.Visible = false
+	plate.Parent = f
+	local pcn = Instance.new("UICorner"); pcn.CornerRadius = UDim.new(0, 10); pcn.Parent = plate
+	local pst = Instance.new("UIStroke"); pst.Color = GOLD; pst.Thickness = 2; pst.Parent = plate
 	local nm = label(f, "Title", Enum.Font.Merriweather, Color3.fromRGB(60, 24, 14), 9)
 	nm.TextTruncate = Enum.TextTruncate.AtEnd
 	local bar = Instance.new("Frame"); bar.Name = "Bar"; bar.BackgroundColor3 = Color3.fromRGB(52, 14, 14); bar.BorderSizePixel = 0; bar.Active = false; bar.ZIndex = 9; bar.Parent = f
@@ -96,7 +125,7 @@ function M.hide()
 	if card then card.Visible = false end
 	if top then top.Visible = false end
 	clearGlow()
-	if pulseTween then pulseTween:Cancel(); pulseTween = nil end
+	stopPulse()
 	lastFill, lastBossId = nil, nil
 end
 
@@ -118,11 +147,11 @@ local function applySeatGlow(layer, rects, owned)
 			g.BackgroundTransparency = 1
 			g.BorderSizePixel = 0
 			g.Active = false
-			g.ZIndex = 6
+			g.ZIndex = 12 -- above the seat shadow and plaque frames so the gold edge is not hidden
 			g.Position = UDim2.fromOffset(s.card.x - 2, s.card.y - 2)
 			g.Size = UDim2.fromOffset(s.card.w + 4, s.card.h + 4)
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
-			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).softStroke; st.Transparency = 0.35; st.Parent = g
+			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
 			g.Parent = layer
 			glowFrames[#glowFrames + 1] = g
 		end
@@ -133,6 +162,13 @@ function M.update(layer, state, rects, viewW, viewH)
 	local name, rule = Moments.bossText(state)
 	if not name or state.phase ~= "playing" or layer:FindFirstChild("BossIntro") then M.hide(); return end
 	local spot = Rules.cardRect(rects, viewW, viewH)
+	pcall(function() -- a red Concept T plate or old rule strip left behind the Boss card: gone before the card shows
+		require(script.Parent.BossPresenceFX).hide()
+		for _, n in ipairs({ "BossPresencePlate", "BossBanner" }) do
+			local old = layer:FindFirstChild(n) or (layer.Parent and layer.Parent:FindFirstChild(n))
+			if old then old:Destroy() end
+		end
+	end)
 	if not card or card.Parent ~= layer then card = buildCard(layer) end
 	if not top or top.Parent ~= layer then top = buildTop(layer) end
 	local glow = Rules.glow(calm())
@@ -159,12 +195,19 @@ function M.update(layer, state, rects, viewW, viewH)
 			card.Portrait.Face.Text = Moments.bossIcon(boss and boss.rules)
 		end
 		card.Glow.Thickness = glow.stroke
-		if not pulseTween and glow.pulse then
-			pulseTween = TweenService:Create(card.Glow, TweenInfo.new(glow.pulse, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.7 })
-			pulseTween:Play()
+		card.Glow.Transparency = 0
+		if not pulseTweens and glow.pulse then
+			pulseTweens = {}
+			for i = 1, 3 do -- ring i pulses from lo + 0.15 (i - 1) up to hi + 0.1 (i - 1): the inner ring is the strongest
+				local ring = card["OuterGlow" .. i].Ring
+				ring.Transparency = glow.lo + 0.15 * (i - 1)
+				local tw = TweenService:Create(ring, TweenInfo.new(glow.pulse, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = glow.hi + 0.1 * (i - 1) })
+				tw:Play()
+				pulseTweens[i] = tw
+			end
 		elseif not glow.pulse then
-			if pulseTween then pulseTween:Cancel(); pulseTween = nil end
-			card.Glow.Transparency = 0
+			stopPulse()
+			for i = 1, 3 do card["OuterGlow" .. i].Ring.Transparency = 0.5 + 0.15 * (i - 1) end -- static in Calm mode and Reduce motion
 		end
 	else
 		card.Visible = false
@@ -174,6 +217,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	top.Visible = true
 	top.Position = UDim2.fromOffset(0, 0); top.Size = UDim2.fromOffset(viewW, viewH)
 	local nm, bar, night = top.Title, top.Bar, top.Night
+	if tp.plate then place(top.Plate, tp.plate); top.Plate.Visible = true else top.Plate.Visible = false end
 	place(nm, tp.name); nm.Size = UDim2.fromOffset(tp.name.w, tp.name.h)
 	nm.TextSize = math.max(10, math.min(26, tp.name.h - 2)); nm.Text = name
 	place(bar, tp.bar)

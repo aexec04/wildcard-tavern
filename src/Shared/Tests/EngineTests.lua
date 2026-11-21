@@ -34614,14 +34614,26 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	expectEqual(B.fraction(150, 300), 0.5, "half bar"); expectEqual(B.fraction(0, 0), 0, "empty total")
 	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local g = B.glow(false)
+	expectTrue(g.stroke == 3 and g.outer == 24 and g.lo == 0.35 and g.hi == 0.7 and g.seatStroke == 2, "glow numbers: 3 px stroke, 24 px outer, pulse 0.35 to 0.7, 2 px seat edge")
+	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
+	expectTrue(B.plateRect(L.rects(1920, 957)) ~= nil and B.plateRect(L.rects(1920, 957)).h >= 90, "the plate is about 96 px tall at 1920x957")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local w, h = sz[1], sz[2]
 		local r = L.rects(w, h)
 		local tp = B.topParts(r)
-		local R = r.round
+		local R = tp.plate or r.round
 		for k, p in pairs(tp) do
-			expectTrue(p.x >= R.x and p.y >= R.y and p.x + p.w <= R.x + R.w and p.y + p.h <= R.y + R.h, k .. " row inside the top scroll at " .. w .. "x" .. h)
+			expectTrue(p.x >= R.x and p.y >= R.y and p.x + p.w <= R.x + R.w and p.y + p.h <= R.y + R.h, k .. " row inside the boss plate at " .. w .. "x" .. h)
 			expectTrue(p.h >= 8, k .. " row tall enough at " .. w .. "x" .. h)
+		end
+		if tp.plate then
+			expectTrue(tp.plate.h <= 96, "plate at most 96 px at " .. w)
+			for _, s in ipairs(r.slots) do expectTrue(not hit(tp.plate, s.card) and not hit(tp.plate, s.label), "plate clear of the Patron row at " .. w .. "x" .. h) end
+			for _, k in ipairs({ "target", "tips", "gear" }) do if r[k] then expectTrue(not hit(tp.plate, r[k]), "plate clear of " .. k .. " at " .. w .. "x" .. h) end end
+			if tp.plate.h >= 90 then
+				expectTrue(tp.name.h >= 26 and tp.bar.h == 22 and tp.night and tp.night.h >= 14, "26 px name, 22 px bar and 14 px Night line fit at " .. w)
+			end
 		end
 		expectTrue(not hit(tp.name, tp.bar), "name and bar do not overlap at " .. w)
 		for _, k in ipairs({ "target", "tips" }) do expectTrue(not hit(tp.bar, r[k]), "bar clear of " .. k .. " at " .. w) end
@@ -34636,6 +34648,24 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 			expectTrue(false, "the Boss card must fit at " .. w .. "x" .. h)
 		end
 	end
+end })
+
+table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Patrons, the stale red plate and rule strip are cleared, the glow is built and static in Calm mode", fn = function()
+	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local boss = require(script.Parent.Parent.Engine.BossRounds).Definitions[1]
+	local s = D.synth("boss1", { phase = "playing", hand = {}, ownedPatrons = {}, round = 1 }, { boss = boss, patrons = {}, allPatrons = P.Definitions })
+	expectTrue(#s.ownedPatrons == 5, "the boss round row has 5 seated Patrons, not empty seats")
+	for _, o in ipairs(s.ownedPatrons) do expectTrue(o.id ~= nil and o.name ~= nil, "each seated Patron has an id and name") end
+	local keep = D.synth("boss1", { phase = "playing", hand = {}, ownedPatrons = { { id = "x", name = "X" } }, round = 1 }, { boss = boss, patrons = {}, allPatrons = P.Definitions })
+	expectTrue(#keep.ownedPatrons == 1 and keep.ownedPatrons[1].id == "x", "a live run keeps its own Patrons")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/BossCardFX.lua")
+	expectTrue(fx:find("BossPresenceFX", 1, true) and fx:find("BossPresencePlate", 1, true), "BossCardFX clears the Concept T red plate")
+	expectTrue(fx:find("OuterGlow", 1, true) and fx:find("stopPulse()", 1, true), "the outer glow rings are built and stop in Calm mode")
+	local mo = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(mo:find('require(Engine:WaitForChild("BossCard")).cardRect', 1, true), "the rule strip is hidden whenever the Boss card fits")
 end })
 
 return tests

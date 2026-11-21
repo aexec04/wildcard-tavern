@@ -124,6 +124,13 @@ function DebugGotoRules.synth(which, state, data)
 			for i = 1, math.min(keep, #s.hand) do trimmed[i] = s.hand[i] end
 			s.hand = trimmed -- a copy: the synthetic state is shallow, the live hand stays untouched
 		end
+		if #(s.ownedPatrons or {}) == 0 then -- round1 has no Patrons yet: seat up to 5 so the row shows faces, not empty seats
+			s.ownedPatrons = {}
+			for _, p in ipairs(data.allPatrons or data.patrons or {}) do
+				if #s.ownedPatrons >= 5 then break end
+				s.ownedPatrons[#s.ownedPatrons + 1] = { id = p.id, name = p.name, description = p.description }
+			end
+		end
 		s.isBossRound = true
 		s.round = 3 -- the boss is the last round of a Night: the stage, portrait and plate only act from there
 		s.phase = "playing"
