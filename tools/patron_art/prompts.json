@@ -1977,6 +1977,8 @@
     "node_shrine": "a full-bleed square painting of a small mossy stone shrine with a candle and flowers among trees, soft light rays",
     "node_rest": "a full-bleed square painting of a cozy campfire beside a little tent under a starry blue evening sky",
     "node_treasure": "a full-bleed square painting of an open wooden treasure chest overflowing with gold coins and gems, glowing, on grass",
-    "boss_emblem": "a friendly cartoon crowned white skull wearing a golden crown, inside a round dark crimson medallion with a gold rim, flanked by two red banners on poles, single isolated emblem centered with generous margin, cute rather than scary, on a plain pure magenta #FF00FF background with no gradient and no shadow"
+    "boss_emblem": "a friendly cartoon crowned white skull wearing a golden crown, inside a round dark crimson medallion with a gold rim, flanked by two red banners on poles, single isolated emblem centered with generous margin, cute rather than scary, on a plain pure magenta #FF00FF background with no gradient and no shadow",
+    "frame_candle": "a single tall cream wax candle with a bright warm flame standing on a small ornate brass holder with a round dish, soft warm glow, isolated centered with generous margin, on a plain pure magenta #FF00FF background with no gradient and no shadow",
+    "frame_banner": "a hanging purple fabric banner with a pointed swallow-tail bottom edge, gold trim and gold tassel at the top, a golden crown emblem in the middle, subtle cloth folds, isolated centered vertical shape with generous margin, on a plain pure magenta #FF00FF background with no gradient and no shadow"
   }
 }

@@ -14,9 +14,9 @@ local HeaderRules = require(script.Parent.MapHeaderRules)
 
 local M = {}
 
-M.NODE_FRACTION = 0.12 -- node diameter as a share of the view height (112 px at 1920x957)
-M.NODE_MIN, M.NODE_MAX = 64, 120
-M.BOSS_SCALE = 1.35 -- 150 px beside a 112 px node
+M.NODE_FRACTION = 0.14 -- node diameter as a share of the view height (131 px at 1920x957, like the reference)
+M.NODE_MIN, M.NODE_MAX = 64, 140
+M.BOSS_SCALE = 1.42 -- 186 px beside a 131 px node
 M.LABEL_GAP, M.NAME_H, M.TYPE_H, M.REWARD_H = 10, 23, 20, 24
 M.BELOW = M.LABEL_GAP + M.NAME_H + 2 + M.TYPE_H + 8 + M.REWARD_H -- from a node's lower edge to the bottom of its reward tag
 M.FRAME_X, M.FRAME_Y = 8, 6
@@ -35,9 +35,9 @@ end
 local function positions(count, leftPad, spacing, mid, amp)
 	local xs, ys = {}, {}
 	for i = 1, count do
-		local wave = (i % 2 == 0) and -1 or 1
+		-- a gentle S: one slow sine along the route (neighbours differ by well under the spacing), not an up and down zigzag
 		xs[i] = leftPad + (i - 1) * spacing
-		ys[i] = mid + wave * amp * (0.85 + 0.15 * math.sin(i * 1.7))
+		ys[i] = mid + amp * math.sin((i - 1) * 1.05)
 	end
 	return xs, ys
 end
@@ -84,12 +84,12 @@ function M.layout(sw, sh, names, nightCap)
 	local mid, amp
 	if yMax > yMin then
 		mid = (yMin + yMax) / 2
-		amp = math.min(viewH * 0.11, (yMax - yMin) / 2)
+		amp = math.min(viewH * 0.07, (yMax - yMin) / 2) -- about 66 px each way: a 130 px swing over the route
 	else
 		mid, amp = yMin, 0
 	end
-	local leftPad = math.max(64, math.floor(sw * 0.12))
-	local rightPad = math.max(math.floor(sw * 0.07), math.floor(bossSize / 2) + 24)
+	local leftPad = math.max(64, math.floor(sw * 0.085))
+	local rightPad = math.max(math.floor(sw * 0.05), math.floor(bossSize / 2) + 20)
 	local first = math.max(1, nightCap - 1)
 	local spacing = (viewW - leftPad - rightPad) / first
 	local res = { nodeSize = nodeSize, bossSize = bossSize, leftPad = leftPad, rightPad = rightPad, mid = mid, amp = amp, viewH = viewH }

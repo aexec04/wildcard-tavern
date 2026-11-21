@@ -52,6 +52,7 @@ function MapSelectPanel.new(deps)
 	panel.ZIndex = 41
 	panel.Visible = false
 	panel.Active = true -- a click on the panel never falls through to the map
+	TavernKit.painted(panel, "orn_wide") -- carved dark wood with gold corners, the same plate art as the table plates
 	-- dark carved wood with gold trim, like the header (a lighter wood band across the top, Color only gradient)
 	panel.BackgroundColor3 = Color3.fromRGB(78, 50, 30)
 	panel.BackgroundTransparency = 0

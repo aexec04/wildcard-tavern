@@ -22,7 +22,7 @@ function M.layout(sw, sh)
 	local barH = clamp(math.floor(sh * 0.085), 44, FullScreen.STRIP_H) -- never taller than the strip the Find me controls sit under
 	local xs = 40 -- Client/CloseX draws a 40 px disc
 	local xr = { x = sw - m - xs, y = math.floor((barH - xs) / 2), w = xs, h = xs }
-	local bw, bh = clamp(math.floor(sw * 0.026), 30, 46), barH + clamp(math.floor(sh * 0.04), 12, 30)
+	local bw, bh = clamp(math.floor(sw * 0.034), 34, 66), barH + clamp(math.floor(sh * 0.07), 20, 64) -- hangs below the bar with a pointed bottom
 	local left = math.min(FullScreen.HEADER_LEFT, math.floor(sw * 0.3))
 	local wide = sw >= 1100 -- the banners need room: under 1100 px the plates take it
 	local bannerL = wide and { x = left, y = 0, w = bw, h = bh } or nil

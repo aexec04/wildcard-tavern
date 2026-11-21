@@ -101,6 +101,7 @@ function MapHeaderBar.attach(panel, onClose)
 	local titlePlate = TavernKit.plate(kit, UDim2.fromOffset(200, 40))
 	titlePlate.Name = "TitlePlate"
 	titlePlate.ZIndex = 41
+	TavernKit.painted(titlePlate, "orn_target") -- the carved dark wood plate with gold corners the table Target plate uses
 	local titleText = label(titlePlate, "Title", 42)
 	titleText.Size = UDim2.fromScale(1, 1)
 	titleText.Font = Enum.Font.GothamBlack
@@ -110,6 +111,7 @@ function MapHeaderBar.attach(panel, onClose)
 	local statsPlate = TavernKit.plate(kit, UDim2.fromOffset(300, 40))
 	statsPlate.Name = "StatsPlate"
 	statsPlate.ZIndex = 41
+	TavernKit.painted(statsPlate, "orn_target")
 	local cells, icons = {}, {}
 	local ICON = { night = "\u{1F451}", journey = "\u{1F9ED}", keys = "\u{1F511}" }
 	for _, k in ipairs({ "night", "journey", "keys" }) do
@@ -129,14 +131,33 @@ function MapHeaderBar.attach(panel, onClose)
 	end
 
 	local banners = {}
+	local PaintArt = (function()
+		local ok, art = pcall(function() return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MapPaintArt")) end)
+		return ok and art or {}
+	end)()
 	for _, n in ipairs({ "BannerL", "BannerR" }) do
 		local b = rect(kit, n, PURPLE, 41)
-		trim(b, GOLD, 2)
 		local crown = label(b, "Crown", 42)
-		crown.Size = UDim2.new(1, 0, 0, 30)
-		crown.Position = UDim2.fromOffset(0, 8)
-		crown.Text = "\u{1F451}"
-		crown.TextSize = 18
+		if PaintArt.frame_banner then
+			-- the painted purple fabric banner: gold crown, pointed bottom (map_paint frame_banner)
+			b.BackgroundTransparency = 1
+			local img = Instance.new("ImageLabel")
+			img.Name = "Fabric"
+			img.BackgroundTransparency = 1
+			img.Image = PaintArt.frame_banner
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Size = UDim2.fromScale(1, 1)
+			img.ZIndex = 41
+			img.Active = false
+			img.Parent = b
+			crown.Visible = false
+		else
+			trim(b, GOLD, 2)
+			crown.Size = UDim2.new(1, 0, 0, 30)
+			crown.Position = UDim2.fromOffset(0, 8)
+			crown.Text = "\u{1F451}"
+			crown.TextSize = 18
+		end
 		banners[n] = b
 	end
 
@@ -154,16 +175,28 @@ function MapHeaderBar.attach(panel, onClose)
 		glow.Size = UDim2.fromScale(1.1, 1.1)
 		glow.BackgroundTransparency = 0.85
 		round(glow, 100)
-		local body = rect(c, "Body", Color3.fromRGB(240, 226, 190), 42)
-		body.AnchorPoint = Vector2.new(0.5, 1)
-		body.Position = UDim2.fromScale(0.5, 1)
-		body.Size = UDim2.fromScale(0.34, 0.6)
-		round(body, 4)
-		local flame = rect(c, "Flame", Color3.fromRGB(255, 190, 70), 43)
-		flame.AnchorPoint = Vector2.new(0.5, 1)
-		flame.Position = UDim2.fromScale(0.5, 0.4)
-		flame.Size = UDim2.fromScale(0.16, 0.26)
-		round(flame, 100)
+		if PaintArt.frame_candle then
+			local img = Instance.new("ImageLabel")
+			img.Name = "Painted"
+			img.BackgroundTransparency = 1
+			img.Image = PaintArt.frame_candle
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Size = UDim2.fromScale(1, 1)
+			img.ZIndex = 43
+			img.Active = false
+			img.Parent = c
+		else
+			local body = rect(c, "Body", Color3.fromRGB(240, 226, 190), 42)
+			body.AnchorPoint = Vector2.new(0.5, 1)
+			body.Position = UDim2.fromScale(0.5, 1)
+			body.Size = UDim2.fromScale(0.34, 0.6)
+			round(body, 4)
+			local flame = rect(c, "Flame", Color3.fromRGB(255, 190, 70), 43)
+			flame.AnchorPoint = Vector2.new(0.5, 1)
+			flame.Position = UDim2.fromScale(0.5, 0.4)
+			flame.Size = UDim2.fromScale(0.16, 0.26)
+			round(flame, 100)
+		end
 		if not TavernKit.still() then
 			TweenService:Create(glow, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.92 }):Play()
 		end
