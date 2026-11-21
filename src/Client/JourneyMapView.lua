@@ -234,49 +234,43 @@ return function(deps)
 	-- Light sandy road (~32px) with a dark edge so it stands out against any biome art.
 	local ROAD_EDGE = Color3.fromRGB(110, 78, 40)
 	local ROAD_FILL = Color3.fromRGB(244, 230, 196)
-	local ROAD_STEP, ROAD_W = 8, 12 -- a slim cream path drawn as dashes (MapSelectRules.dashOn)
+	local RouteRules = require(Engine:WaitForChild("MapRouteRules")) -- dash layout along one smooth curve per connection
 	local function makeRoadPiece(seg)
-		-- Two separate canvas children so every fill sits above every edge (no dark ridges
-		-- where pieces overlap): edge ZIndex 22, fill 23, dots 24.
-		local edge = Instance.new("Frame")
-		edge.AnchorPoint = Vector2.new(0.5, 0.5)
-		edge.Size = UDim2.fromOffset(ROAD_W + 8, ROAD_W + 8)
-		edge.BackgroundColor3 = ROAD_EDGE
-		edge.BorderSizePixel = 0
-		edge.Visible = false -- applyRoad shows the pieces that belong to a revealed road
-		edge.ZIndex = 22
-		edge.Parent = canvas
-		deps.roundCorner(edge, (ROAD_W + 8) / 2)
+		-- one rounded dash (14 x 8 px at rest) with a thin darker edge, drawn under the nodes
 		local fill = Instance.new("Frame")
 		fill.AnchorPoint = Vector2.new(0.5, 0.5)
-		fill.Size = UDim2.fromOffset(ROAD_W, ROAD_W)
+		fill.Size = UDim2.fromOffset(RouteRules.DASH, 8)
 		fill.BackgroundColor3 = ROAD_FILL
 		fill.BorderSizePixel = 0
-		fill.Visible = false
+		fill.Visible = false -- applyRoad shows the dashes that belong to a revealed road
 		fill.ZIndex = 23
 		fill.Parent = canvas
-		deps.roundCorner(fill, ROAD_W / 2)
-		return { edge = edge, fill = fill }
+		deps.roundCorner(fill, 4)
+		local edge = Instance.new("UIStroke")
+		edge.Color = ROAD_EDGE
+		edge.Thickness = 1
+		edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		edge.Parent = fill
+		return { fill = fill, edge = edge }
 	end
 	-- Show the road with its segment: hidden in the fog, thinning out toward a teaser node.
 	local function applyRoad(seg)
 		if not seg.road then return end
 		local look = MapSelectRules.routeLook(selectedIndex ~= nil and seg.into == selectedIndex, seg.filled)
+		local thick = math.max(6, look.thickness - 4)
 		for k, piece in ipairs(seg.road) do
-			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none" and MapSelectRules.dashOn(k, 4, 3)
-			piece.edge.Visible = shown
+			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none"
 			piece.fill.Visible = shown
 			if shown then
-				piece.edge.Size = UDim2.fromOffset(look.thickness + 4, look.thickness + 4)
-				piece.fill.Size = UDim2.fromOffset(look.thickness, look.thickness)
-				piece.edge.BackgroundColor3 = Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3])
+				piece.fill.Size = UDim2.fromOffset(RouteRules.DASH, thick)
+				piece.edge.Color = Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3])
 				piece.fill.BackgroundColor3 = Color3.fromRGB(look.color[1], look.color[2], look.color[3])
 				local tr = 0
 				if seg.mode == "fade" then
 					tr = math.min(0.95, 0.15 + 0.8 * ((k - 1) / math.max((seg.roadCount or 1) - 1, 1)))
 				end
-				piece.edge.BackgroundTransparency = tr
 				piece.fill.BackgroundTransparency = tr
+				piece.edge.Transparency = tr
 			end
 		end
 	end
@@ -572,6 +566,12 @@ return function(deps)
 		local pulse = TweenService:Create(haloStroke, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.85 })
 		local pulseScale = TweenService:Create(haloScale, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.12 })
 
+		if isBossNode then -- the destination draws above the fog band (35) so it never disappears into the mist
+			for _, g in ipairs({ button, table.unpack(button:GetDescendants()) }) do
+				if g:IsA("GuiObject") then g.ZIndex = g.ZIndex + 14 end
+			end
+			name.ZIndex, typeTag.ZIndex, tag.ZIndex = name.ZIndex + 14, typeTag.ZIndex + 14, tag.ZIndex + 14
+		end
 		nodes[index] = {
 			button = button, stroke = stroke, scale = scale, halo = halo, haloStroke = haloStroke, haloScale = haloScale,
 			icon = icon, art = art, fog = fog, ribbon = ribbon, bossBadge = bossBadge, check = check, seal = seal,
@@ -813,9 +813,9 @@ return function(deps)
 			local size = node.ntype == "boss" and bossSize or nodeSize -- the boss node is larger
 			node.button.Size = UDim2.fromOffset(size, size)
 			node.icon.TextSize = math.floor(size * 0.45)
-			local fits = #info.name <= 28
-			local lines = fits and 1 or math.ceil(#info.name * 9.8 / labelW)
-			local labelH = lines * 21 + 2
+			local plate = RouteRules.plate(info.name, node.name.TextSize, RouteRules.PLATE_MAX) -- never wider than 180 px, two lines at most
+			local fits = not plate.wrap
+			local labelH = plate.h
 			if fits then -- plate = text plus 12 px each side, sized by the engine (AutomaticSize), centred
 				node.name.TextWrapped = false
 				node.name.TextXAlignment = Enum.TextXAlignment.Center
@@ -827,7 +827,10 @@ return function(deps)
 					pad.Parent = node.name
 				end
 			else
-				node.name.Size = UDim2.fromOffset(labelW, labelH)
+				node.name.AutomaticSize = Enum.AutomaticSize.None
+				node.name.TextWrapped = true
+				node.name.TextXAlignment = Enum.TextXAlignment.Center
+				node.name.Size = UDim2.fromOffset(plate.w, labelH)
 			end
 			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
 			node.name.AnchorPoint = Vector2.new(0.5, 0)
@@ -843,7 +846,7 @@ return function(deps)
 				seg.bx, seg.by = nx, ny
 				local dx, dy = seg.bx - seg.ax, seg.by - seg.ay
 				seg.length = math.sqrt(dx * dx + dy * dy)
-				-- Winding: control point pushed sideways, alternating per segment.
+				-- Winding: control point pushed sideways, alternating per segment (the walk and the dots use the same curve).
 				local px, py = -dy / math.max(seg.length, 1), dx / math.max(seg.length, 1)
 				seg.cx = (seg.ax + seg.bx) / 2 + px * seg.length * 0.1 * seg.sign
 				seg.cy = (seg.ay + seg.by) / 2 + py * seg.length * 0.1 * seg.sign
@@ -851,15 +854,19 @@ return function(deps)
 				while #seg.dots < seg.count do
 					table.insert(seg.dots, makeDot(seg))
 				end
+				-- one smooth curve per connection: 14 px dashes, 10 px gaps, from the edge of one node to the edge of the next
+				local nextNode = nodes[index + 1]
+				local r1 = size / 2 + 3
+				local r2 = ((nextNode and nextNode.ntype == "boss") and bossSize or nodeSize) / 2 + 3
+				local dashes = RouteRules.dashes({ ax = seg.ax, ay = seg.ay, bx = seg.bx, by = seg.by, cx = seg.cx, cy = seg.cy }, r1, r2)
 				seg.road = seg.road or {}
-				seg.roadCount = math.max(8, math.floor(seg.length * 1.1 / ROAD_STEP))
+				seg.roadCount = #dashes
 				while #seg.road < seg.roadCount do
 					table.insert(seg.road, makeRoadPiece(seg))
 				end
-				for k = 1, seg.roadCount do
-					local rx, ry = bezier(seg, (k - 1) / (seg.roadCount - 1))
-					seg.road[k].edge.Position = UDim2.fromOffset(rx, ry)
-					seg.road[k].fill.Position = UDim2.fromOffset(rx, ry)
+				for k, d in ipairs(dashes) do
+					seg.road[k].fill.Position = UDim2.fromOffset(d.x, d.y)
+					seg.road[k].fill.Rotation = d.angle
 				end
 				for k = 1, #seg.dots do
 					local dot = seg.dots[k]
@@ -1004,7 +1011,8 @@ return function(deps)
 			local isCleared = data.kind ~= "endless" and cleared[data.night] == true
 			local locked = isNodeLocked(view, cleared, index)
 			local isCurrent = currentIndex == index and not isCleared
-			local shownNode = states[index] == "revealed"
+			-- the Night's boss is the destination: always drawn (fog or not), drawn above the fog, subdued while it is far
+			local shownNode = states[index] == "revealed" or (node.ntype == "boss" and data.kind ~= "endless")
 			node.button.Visible = shownNode
 			node.name.Visible = shownNode
 			node.typeTag.Visible = shownNode
@@ -1041,7 +1049,7 @@ return function(deps)
 			local pv = previewText(index)
 			node.preview.Text = pv
 			node.preview.TextColor3 = LABEL_INK -- on the parchment tag, dark ink in both states
-			node.tag.Visible = shownNode and pv:match("%S") ~= nil
+			node.tag.Visible = false -- the reward leaves the name: it shows in the lower left panel only, so no chip sits on a label
 			node.haloStroke.Color = (selectedIndex == index and not isCurrent) and Color3.fromRGB(255, 205, 90) or accentHere
 			setPulse(node, (isCurrent or look.glow) and shownNode and frame.Visible)
 		end
@@ -1497,13 +1505,16 @@ return function(deps)
 		local data, info = node.data, node.data.info
 		local target = nil
 		if data.night and data.kind ~= "endless" then
-			target = RunStateEngine.targetScoreFor(data.night, 3, 3) -- the Night's boss round
+			local st = deps.getLatestState()
+			-- the same number the table shows: the live round's target on the current Night, the first round's on any other
+			target = MapSelectRules.targetFor(data.night, st and st.night or 1, st and st.round, st and st.roundTargets, RunStateEngine.targetScoreFor)
 		end
 		return MapSelectRules.describe({ name = node.name.Text, -- the chosen road's stop name when the road is picked
 			description = info.description, typeId = node.ntype, state = node.state, target = target }),
 			mapArt(info.art), info.icon
 	end
 	-- the panel steps down to a strip, then to a tab, when it would cover a node or label (MapSelectRules.pickMode)
+	local panelShifting = false
 	local function fitPanel()
 		if not selectPanel.panel.Visible then return end
 		local fp = frame.AbsolutePosition
@@ -1516,7 +1527,26 @@ return function(deps)
 				end
 			end
 		end
-		selectPanel.setMode(MapSelectRules.pickMode(selectPanel.zone(), boxes))
+		local zone = selectPanel.zone()
+		selectPanel.setMode(MapSelectRules.pickMode(zone, boxes))
+		-- a node that would still be hidden under the full panel (the panel stepped down for it): shift the view so it stays visible
+		if panelShifting or selectPanel.mode() == "full" then return end
+		local full = MapSelectRules.panelRect(zone, "full")
+		local sel = nodes[selectedIndex or markerIndex or 0]
+		if not (sel and sel.button.Visible) then return end
+		local ap, sz = sel.button.AbsolutePosition, sel.button.AbsoluteSize
+		local box = { x = ap.X - fp.X, y = ap.Y - fp.Y, w = sz.X, h = sz.Y }
+		if not (box.x < full.x + full.w and full.x < box.x + box.w and box.y < full.y + full.h and full.y < box.y + box.h) then return end
+		local cp = scroll.CanvasPosition
+		local maxY = math.max(0, scroll.CanvasSize.Y.Offset - scroll.AbsoluteSize.Y)
+		local up = box.y + box.h + 12 - full.y -- scroll the canvas up by this much to lift the node over the panel
+		panelShifting = true
+		if cp.Y + up <= maxY then
+			scroll.CanvasPosition = Vector2.new(cp.X, cp.Y + up)
+		else
+			scroll.CanvasPosition = Vector2.new(math.max(0, cp.X - (full.x + full.w + 12 - box.x)), cp.Y) -- else push it right of the panel
+		end
+		panelShifting = false
 	end
 	local function layoutPanel()
 		local size = frame.AbsoluteSize

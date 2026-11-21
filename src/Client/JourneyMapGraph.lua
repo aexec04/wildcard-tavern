@@ -23,12 +23,12 @@ return function(deps)
 	local WorldMap = require(Engine:WaitForChild("WorldMap"))
 	local Layout = require(Engine:WaitForChild("WorldMapLayout"))
 	local NodeRules = require(Engine:WaitForChild("MapNodeRules")) -- node type, tag and badge (same look as the road nodes)
+	local RouteRules = require(Engine:WaitForChild("MapRouteRules")) -- one clean route: dashes, name plates, what is drawn
 	local RoadLock = require(script.Parent.RoadLock) -- locked roads: padlock + "Unlock with a Key?" confirm
 
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local GOLD = Color3.fromRGB(222, 182, 104)
 	local INK = Color3.fromRGB(60, 40, 22)
-	local DOT_STEP = 16
 
 	local root = Instance.new("Frame")
 	root.Name = "WorldGraph"
@@ -98,62 +98,28 @@ return function(deps)
 		end
 	end
 
-	local function dotted(ax, ay, bx, by, color, transparency)
-		local dx, dy = bx - ax, by - ay
-		local len = math.sqrt(dx * dx + dy * dy)
-		local n = math.max(2, math.floor(len / DOT_STEP))
-		for k = 1, n - 1 do
-			local t = k / n
-			local dot = remember(Instance.new("Frame"))
-			dot.Size = UDim2.fromOffset(7, 7)
-			dot.AnchorPoint = Vector2.new(0.5, 0.5)
-			dot.Position = UDim2.fromOffset(ax + dx * t, ay + dy * t)
-			dot.BackgroundColor3 = color
-			dot.BackgroundTransparency = transparency
-			dot.BorderSizePixel = 0
-			dot.Active = false
-			dot.ZIndex = 23
-			dot.Parent = root
-			deps.roundCorner(dot, 4)
-		end
-	end
-
-	-- An unvisited road: one continuous strip (rotated frame) with a darker edge, so it reads as a road
-	-- and not as scattered dots. lit = the road a fork offers or the compass points at.
-	local function road(ax, ay, bx, by, lit, transparency)
-		local dx, dy = bx - ax, by - ay
-		local len = math.sqrt(dx * dx + dy * dy)
-		local strip = remember(Instance.new("Frame"))
-		strip.AnchorPoint = Vector2.new(0.5, 0.5)
-		strip.Position = UDim2.fromOffset((ax + bx) / 2, (ay + by) / 2)
-		strip.Size = UDim2.fromOffset(len, lit and 10 or 7)
-		strip.Rotation = math.deg(math.atan2(dy, dx))
-		strip.BackgroundColor3 = lit and GOLD or Color3.fromRGB(244, 230, 196) -- cream
-		strip.BackgroundTransparency = transparency
-		strip.BorderSizePixel = 0
-		strip.Active = false
-		strip.ZIndex = 23
-		strip.Parent = root
-		deps.roundCorner(strip, 5)
-		local edge = Instance.new("UIStroke")
-		edge.Color = Color3.fromRGB(110, 84, 50)
-		edge.Thickness = 1.5
-		edge.Transparency = math.min(1, transparency + 0.1)
-		edge.Parent = strip
-	end
-
-	-- A far road drawn as a gentle S-curve (eased y between the two nodes) from short strips, so roads that
-	-- leave and join a column read as clean paths instead of straight lines crossing the map.
-	local function curvedRoad(ax, ay, bx, by, lit, transparency)
-		local segs = math.max(4, math.min(10, math.floor(math.abs(bx - ax) / 40)))
-		local px, py = ax, ay
-		for k = 1, segs do
-			local t = k / segs
-			local e = t * t * (3 - 2 * t)
-			local x, y = ax + (bx - ax) * t, ay + (by - ay) * e
-			-- a dash: the middle of each piece, so the road reads as a dashed cream path (gaps at the joins)
-			road(px + (x - px) * 0.12, py + (y - py) * 0.12, px + (x - px) * 0.8, py + (y - py) * 0.8, lit, transparency)
-			px, py = x, y
+	-- One smooth dashed route (14 px dashes, 10 px gaps) from the edge of one node to the edge of the next (Engine/MapRouteRules).
+	-- lit = a road a fork offers or the compass points at. r1 and r2 are the two node radii.
+	local function route(ax, ay, bx, by, r1, r2, lit, transparency, sign)
+		local curve = RouteRules.curve(ax, ay, bx, by, sign or 1, 0.08)
+		for _, d in ipairs(RouteRules.dashes(curve, r1 + 3, r2 + 3)) do
+			local dash = remember(Instance.new("Frame"))
+			dash.AnchorPoint = Vector2.new(0.5, 0.5)
+			dash.Position = UDim2.fromOffset(d.x, d.y)
+			dash.Size = UDim2.fromOffset(d.len, lit and 9 or 7)
+			dash.Rotation = d.angle
+			dash.BackgroundColor3 = lit and GOLD or Color3.fromRGB(244, 230, 196) -- cream
+			dash.BackgroundTransparency = transparency
+			dash.BorderSizePixel = 0
+			dash.Active = false
+			dash.ZIndex = 23
+			dash.Parent = root
+			deps.roundCorner(dash, 4)
+			local edge = Instance.new("UIStroke")
+			edge.Color = Color3.fromRGB(110, 84, 50)
+			edge.Thickness = 1
+			edge.Transparency = math.min(1, transparency + 0.1)
+			edge.Parent = dash
 		end
 	end
 
@@ -251,27 +217,31 @@ return function(deps)
 			return Layout.visibility(res.pos[id].depth, night, seen[id] == true)
 		end
 
-		-- Roads: the picked road is the existing trail; every other road is dim and dotted.
-		for _, e in ipairs(res.edges) do
-			if not e.onRoute then
+		-- what is drawn for a stop: "full" node with its label, a small "?" bubble with no label, or nothing (one clean route)
+		local function lookOf(id)
+			if onRoute[id] then return "full" end
+			local v = vis(id)
+			if v == "hidden" then return "hidden" end
+			return RouteRules.stopLook(res.pos[id].depth, night, { choice = choices[id], lit = id == highlighted, teaser = v == "teaser" })
+		end
+		local size = math.floor(nodeSize * 0.78)
+		local bubble = math.floor(nodeSize * 0.4)
+		local function radiusOf(id)
+			if onRoute[id] then return nodeSize / 2 end
+			return (lookOf(id) == "bubble" and bubble or size) / 2
+		end
+
+		-- Roads: the picked road is the existing trail; every other road is a dim dashed curve between two drawn stops.
+		for ei, e in ipairs(res.edges) do
+			if not e.onRoute and lookOf(e.from) ~= "hidden" and lookOf(e.to) ~= "hidden" then
 				local a, b = res.pos[e.from], res.pos[e.to]
-				local va, vb = vis(e.from), vis(e.to)
-				if va ~= "hidden" and vb ~= "hidden" then
-					local lit = (choices[e.to] == true and onRoute[e.from] ~= nil) or e.to == highlighted
-					-- Only roads that touch the player's road, a lit road, or are within one Night of the
-					-- player are drawn; the rest of the far web stays out of sight (it was a tangle).
-					local near = onRoute[e.from] ~= nil or onRoute[e.to] ~= nil or lit
-						or math.min(a.depth, b.depth) <= night + 1
-					if near then
-						curvedRoad(a.x, a.y, b.x, b.y, lit, lit and 0.1 or 0.45)
-					end
-				end
+				local lit = (choices[e.to] == true and onRoute[e.from] ~= nil) or e.to == highlighted
+				route(a.x, a.y, b.x, b.y, radiusOf(e.from), radiusOf(e.to), lit, lit and 0.1 or 0.45, (ei % 2 == 0) and 1 or -1)
 			end
 		end
 
-		local size = math.floor(nodeSize * 0.78)
 		for id, p in pairs(res.pos) do
-			local v = vis(id)
+			local v = lookOf(id) == "hidden" and "hidden" or vis(id)
 			local stop = WorldMap.Stops[id]
 			local region = WorldMap.Regions[stop.region]
 			local tint = region and region.tint or { 200, 190, 150 }
@@ -286,7 +256,7 @@ return function(deps)
 				badge = textLabel(text .. mark, p.x, top - 24, 230, 22, 15, 27)
 					badge.TextColor3 = Color3.fromRGB(255, 226, 150)
 					badge.Name = "RewardChip_" .. id
-					badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
+					badge.Visible = focusId == id
 					top = top - 24
 				end
 			end
@@ -333,6 +303,8 @@ return function(deps)
 				end)
 			end
 			if not onRoute[id] and v ~= "hidden" then
+				local isBubble = lookOf(id) == "bubble"
+				local size = isBubble and bubble or size -- a "?" bubble is small and has no label
 				local btn = remember(Instance.new("TextButton"))
 				btn.Name = "Stop_" .. id
 				btn.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -371,7 +343,7 @@ return function(deps)
 				if badge then
 					btn.MouseEnter:Connect(function() badge.Visible = true end)
 					btn.MouseLeave:Connect(function()
-						badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
+						badge.Visible = focusId == id
 					end)
 				end
 				if lockedRoad[id] and v ~= "teaser" then -- every locked road keeps a padlock, pending or not
@@ -391,13 +363,17 @@ return function(deps)
 						end)
 					end
 				end
-				local name = v == "teaser" and "???" or stop.name
-				local lab = textLabel(name, p.x, p.y + size / 2 + 6, 190, 44, 16, 26)
-				lab.TextYAlignment = Enum.TextYAlignment.Top
-				if not choices[id] then
-					lab.TextTransparency = 0
+				if not isBubble and v ~= "teaser" and stop.name and stop.name ~= "" then -- no label plate for a "?" bubble or an empty name
+					local plate = RouteRules.plate(stop.name, 16, RouteRules.PLATE_MAX)
+					local lab = textLabel(stop.name, p.x, p.y + size / 2 + 6, plate.w, plate.h + 24, 16, 26)
+					lab.TextYAlignment = Enum.TextYAlignment.Top
+					if plate.wrap then
+						lab.AutomaticSize = Enum.AutomaticSize.None
+						lab.TextWrapped = true
+						lab.Size = UDim2.fromOffset(plate.w, plate.h + 24)
+					end
+					tagged(lab, NodeRules.typeOf("night"), 99)
 				end
-				if v ~= "teaser" then tagged(lab, NodeRules.typeOf("night"), 24) end
 			end
 		end
 
@@ -415,10 +391,12 @@ return function(deps)
 		for _, id in ipairs(sideIds) do
 			local p, stop = res.side[id], WorldMap.Stops[id]
 			local parent = res.pos[p.parent]
-			if vis(p.parent) == "revealed" then
-				local stub = stop.hidden and not revealed[id]
-				local glow = usable[id] == true or revealable[id] == true
-				dotted(parent.x, parent.y, p.x, p.y, glow and GOLD or Color3.fromRGB(244, 230, 196), glow and 0.1 or 0.35)
+			local stub = stop.hidden and not revealed[id]
+			local glow = usable[id] == true or revealable[id] == true
+			local sideLook = RouteRules.sideLook(res.pos[p.parent].depth, night, { stub = stub, glow = glow })
+			if vis(p.parent) == "revealed" and sideLook ~= "hidden" then
+				local sideSize = sideLook == "bubble" and math.floor(nodeSize * 0.34) or sideSize -- an unrevealed stop is a small "?" bubble
+				route(parent.x, parent.y, p.x, p.y, nodeSize / 2, sideSize / 2, glow, glow and 0.1 or 0.35, 1)
 				local btn = remember(Instance.new("TextButton"))
 				btn.Name = "Side_" .. id
 				btn.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -441,7 +419,8 @@ return function(deps)
 				st.Thickness = glow and 3 or 2
 				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				st.Parent = btn
-				local lab = textLabel(stub and "???" or (stop.name .. (visited[id] and " (done)" or "")), p.x + sideSize / 2 + 4, p.y, 150, 40, 15, 27)
+				local lab = textLabel(stub and " " or (stop.name .. (visited[id] and " (done)" or "")), p.x + sideSize / 2 + 4, p.y, 150, 40, 15, 27)
+				lab.Visible = not stub -- no label bar under or beside a "?" bubble
 				-- label sits to the right of the node (WorldMapLayout.box "side")
 				lab.AnchorPoint = Vector2.new(0, 0.5)
 				lab.TextXAlignment = Enum.TextXAlignment.Left
@@ -467,7 +446,7 @@ return function(deps)
 						if bc then bc.CornerRadius = UDim.new(0.5, 0) end
 					end
 				end
-				if p.compact then -- crowded spot (WorldMapLayout): the name shows while hovering
+				if p.compact and not stub then -- crowded spot (WorldMapLayout): the name shows while hovering
 					lab.Visible = false
 					btn.MouseEnter:Connect(function() lab.Visible = true end)
 					btn.MouseLeave:Connect(function() lab.Visible = false end)

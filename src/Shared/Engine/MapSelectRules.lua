@@ -9,6 +9,7 @@
 	                                       mode "full" | "compact" | "tab"; rects never overlap each other
 	pickMode(zone, boxes)               -> the first mode ("full", "compact", "tab") whose panel does not overlap any box (screen rects)
 	panelRect(zone, mode)               -> the screen rect the panel takes in that mode (a bottom aligned part of the zone)
+	targetFor(night, currentNight, round, roundTargets, calc) -> the Target the panel shows for a Night node
 	dashOn(k, on, off)                  -> true when piece k (1 based) of a dashed route is drawn
 	routeLook(selectedInto, filled)     -> { color, edge, thickness } of a dashed route piece
 ]]
@@ -83,8 +84,21 @@ function M.rects(zone, mode)
 	out.art = { x = pad, y = pad, w = art, h = art }
 	local tx = pad * 2 + art
 	local tw = r.w - tx - pad
-	local nameH, typeH, lineH, targetH, buttonH = 24, 20, compact and 18 or 36, 20, compact and 28 or 36
+	local nameH, typeH, lineH, targetH, buttonH = 24, 20, compact and 32 or 36, 20, compact and 28 or 36
 	local y = pad
+	if compact then
+		-- short panel: the type and the Target share one row, so the description keeps two full lines
+		nameH, typeH = 22, 18
+		out.name = { x = tx, y = y, w = tw, h = nameH }
+		y = y + nameH
+		local half = math.floor(tw / 2)
+		out.type = { x = tx, y = y, w = half, h = typeH }
+		out.target = { x = tx + half, y = y, w = tw - half, h = typeH }
+		y = y + typeH
+		out.line = { x = tx, y = y, w = tw, h = lineH }
+		out.button = { x = tx, y = r.h - pad - buttonH, w = math.min(tw, 190), h = buttonH }
+		return out
+	end
 	out.name = { x = tx, y = y, w = tw, h = nameH }
 	y = y + nameH
 	out.type = { x = tx, y = y, w = tw, h = typeH }
@@ -110,6 +124,16 @@ function M.pickMode(zone, boxes)
 		if clear then return mode end
 	end
 	return "tab"
+end
+
+-- The Target a Night's panel shows: the current Night uses the server's number for the round being played (the table's own),
+-- any other Night its first round (a Night is entered at round 1). calc(night, round) is RunState.targetScoreFor.
+function M.targetFor(night, currentNight, round, roundTargets, calc)
+	if night == currentNight and type(roundTargets) == "table" then
+		local t = tonumber(roundTargets[round or 1])
+		if t then return math.floor(t) end
+	end
+	return calc(night, 1, 3)
 end
 
 function M.dashOn(k, on, off)
