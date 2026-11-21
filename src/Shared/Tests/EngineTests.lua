@@ -35297,7 +35297,7 @@ table.insert(tests, { name = "Tavern Map panel and header: the lower left panel 
 	expectTrue(at(panel, "Enum.Font.GothamBold") ~= nil and at(panel, "math.min(24, r.button.h - 8)") ~= nil, "Continue is a cream bold word, 24 px when the plate allows")
 	local graph = read("src/Client/JourneyMapGraph.lua")
 	expectTrue(graph ~= nil and at(graph, "nodeSize * 0.69") ~= nil and at(graph, "placedBoxes") ~= nil, "side stops are about 90 px and their labels move off colliding plates")
-	expectTrue(at(view, "nodeSize * 0.26") ~= nil, "the hero stands on the current node, centred, feet on the ring")
+	expectTrue(at(view, "currentSize * 0.26") ~= nil, "the hero stands on the current node, centred, feet on the ring")
 end })
 
 tests[#tests + 1] = ({ name = "Tavern Map: no local shadows the route drawing function, and errors are counted for DebugGoto map", fn = function()
@@ -35340,6 +35340,20 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 	expectTrue(SR.contrast(SR.CONTINUE.text, SR.CONTINUE.fill) >= 4.5, "Continue word and plate keep 4.5:1 contrast")
 	local art = require(script.Parent.Parent.Engine.MapPaintArt)
 	expectTrue(type(art.frame_panel) == "string" and art.frame_panel:find("^rbxassetid://%d+$") ~= nil, "the carved wood panel frame is registered in map_paint")
+	expectTrue(type(art.frame_ornate) == "string" and art.frame_ornate:find("^rbxassetid://%d+$") ~= nil, "the ornate carved frame is registered in map_paint")
+	do -- the current node is drawn about 170 px at 1920x957 and everything stays clear of it at four sizes
+		local MF = require(script.Parent.Parent.Engine.MapFitRules)
+		local names = {}
+		for i = 1, 12 do names[i] = "Stop " .. i end
+		for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+			local r = MF.layout(sz[1], sz[2], names, 8, nil, 3)
+			expectEqual(r.currentSize, math.floor(r.nodeSize * MF.CURRENT_SCALE), "current node size at " .. sz[1])
+			expectEqual(MF.sizeOf(r, 3, 8), r.currentSize)
+			expectTrue(MF.clear(r, names, 8), "current node and labels clear of neighbours at " .. sz[1] .. "x" .. sz[2])
+		end
+		local r = MF.layout(1920, 957, names, 8, nil, 3)
+		expectTrue(r.currentSize >= 165 and r.currentSize <= 180, "current node about 170 px at 1920x957, got " .. r.currentSize)
+	end
 	if not (io and io.open and load) then return end
 	local function src(p) local fh = io.open(p, "r"); if not fh then return "" end; local t = fh:read("*a"); fh:close(); return t end
 	local panelSrc, graphSrc = src("src/Client/MapSelectPanel.lua"), src("src/Client/JourneyMapGraph.lua")

@@ -352,6 +352,7 @@ return function(deps)
 	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
+	local currentSize, currentNode = 110, nil -- the current node is drawn larger (Engine/MapFitRules CURRENT_SCALE)
 	local markerIndex = nil
 
 	local function buildNode(index)
@@ -394,6 +395,23 @@ return function(deps)
 		haloStroke.Parent = halo
 		local haloScale = Instance.new("UIScale")
 		haloScale.Parent = halo
+		-- second gold ring just outside the medallion (a double ring); child of the halo so it shows and hides with it
+		do
+			local ring = Instance.new("Frame")
+			ring.Name = "InnerRing"
+			ring.AnchorPoint = Vector2.new(0.5, 0.5)
+			ring.Position = UDim2.fromScale(0.5, 0.5)
+			ring.Size = UDim2.fromScale(0.83, 0.83)
+			ring.BackgroundTransparency = 1
+			ring.ZIndex = 25
+			ring.Parent = halo
+			deps.roundCorner(ring, 70)
+			local rs = Instance.new("UIStroke")
+			rs.Color = Color3.fromRGB(240, 196, 98)
+			rs.Thickness = 3
+			rs.Transparency = 0.1
+			rs.Parent = ring
+		end
 		-- soft warm glow behind the current node (child of the halo, so it shows and hides with it)
 		require(script.Parent.SoftGlow).build(halo, { name = "CurrentGlow", color = Color3.fromRGB(255, 196, 96), position = UDim2.fromScale(0.5, 0.5),
 			size = UDim2.fromScale(1.7, 1.7), peak = 0.45, inner = 0.4, zIndex = 24 })
@@ -739,7 +757,7 @@ return function(deps)
 	local function standPoint(index)
 		-- the figure stands ON the node: centred, feet on the ring (callers add 6 px), so it is never beside the node or clipped by the frame
 		local x, y = nodePixel(index)
-		return x, y + math.floor(nodeSize * 0.26) - 6
+		return x, y + math.floor(currentSize * 0.26) - 6
 	end
 
 	local function placeMarker()
@@ -801,11 +819,11 @@ return function(deps)
 		end
 		lastLayoutKey = key
 		-- the whole Night route fits the frame at the default zoom (Engine/MapFitRules, tested at four sizes)
-		local fit = MapFit.layout(size.X + 2 * MapFit.FRAME_X, size.Y + 2 * MapFit.FRAME_Y, nodeNames, JourneyMap.NightCap, shownFlags)
+		local fit = MapFit.layout(size.X + 2 * MapFit.FRAME_X, size.Y + 2 * MapFit.FRAME_Y, nodeNames, JourneyMap.NightCap, shownFlags, currentNode)
 		viewH = fit.viewH
 		canvasH = math.max(fit.canvasH, size.Y)
-		nodeSize, bossSize = fit.nodeSize, fit.bossSize
-		marker.Size = UDim2.fromOffset(math.floor(nodeSize * 0.62), math.floor(nodeSize * 0.92)) -- the figure stands about 120 px tall on a 131 px node
+		nodeSize, bossSize, currentSize = fit.nodeSize, fit.bossSize, fit.currentSize
+		marker.Size = UDim2.fromOffset(math.floor(currentSize * 0.62), math.floor(currentSize * 0.82)) -- the figure stands about 140 px tall on the 170 px current node
 		canvasW = math.max(fit.canvasW, size.X)
 		local spacing = fit.spacing
 		routeFits = fit.fits
@@ -830,7 +848,7 @@ return function(deps)
 			local x, y = nodePixel(index)
 			local info = node.data.info
 			node.button.Position = UDim2.fromOffset(x, y)
-			local size = node.ntype == "boss" and bossSize or nodeSize -- the boss node is larger
+			local size = node.ntype == "boss" and bossSize or (index == currentNode and currentSize or nodeSize) -- the boss node is larger, the current one next
 			node.button.Size = UDim2.fromOffset(size, size)
 			node.icon.TextSize = math.floor(size * 0.45)
 			local plate = RouteRules.plate(info.name, node.name.TextSize, RouteRules.PLATE_MAX) -- never wider than 180 px, two lines at most
@@ -877,7 +895,7 @@ return function(deps)
 				-- one smooth curve per connection: 14 px dashes, 10 px gaps, from the edge of one node to the edge of the next
 				local nextNode = nodes[index + 1]
 				local r1 = size / 2 + 3
-				local r2 = ((nextNode and nextNode.ntype == "boss") and bossSize or nodeSize) / 2 + 3
+				local r2 = ((nextNode and nextNode.ntype == "boss") and bossSize or (index + 1 == currentNode and currentSize or nodeSize)) / 2 + 3
 				local dashes = RouteRules.dashes({ ax = seg.ax, ay = seg.ay, bx = seg.bx, by = seg.by, cx = seg.cx, cy = seg.cy }, r1, r2)
 				seg.road = seg.road or {}
 				seg.roadCount = #dashes
@@ -1008,6 +1026,10 @@ return function(deps)
 	-- the trail alone (the unlock moment animates it itself).
 	local function render(view, cleared, animating)
 		local currentIndex = currentIndexFor(view)
+		if currentIndex ~= currentNode then
+			currentNode = currentIndex
+			layout(true)
+		end
 		local endlessSeen = cleared[JourneyMap.NightCap] == true or (not unlocking and view.endlessOpen)
 		local states
 		if debugOn then
@@ -1532,7 +1554,7 @@ return function(deps)
 	-- ===== Selected location panel (lower left; Engine/MapSelectRules, Client/MapSelectPanel) =====
 	local selectPanel = require(script.Parent.MapSelectPanel).new({
 		parent = frame, PatronPlaque = PatronPlaque,
-		frameArt = function() return paintArt("frame_panel") end,
+		frameArt = function() return paintArt("frame_ornate") or paintArt("frame_panel") end,
 		onContinue = function() -- Continue closes the map: the run goes on from Round Select / the table (the existing launch path)
 			deps.playClickSfx()
 			if deps.closeMap then deps.closeMap() end

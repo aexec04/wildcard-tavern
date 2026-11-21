@@ -17,6 +17,7 @@ local M = {}
 M.NODE_FRACTION = 0.14 -- node diameter as a share of the view height (131 px at 1920x957, like the reference)
 M.NODE_MIN, M.NODE_MAX = 64, 140
 M.BOSS_SCALE = 1.42 -- 186 px beside a 131 px node
+M.CURRENT_SCALE = 1.3 -- the node the hero stands on: 170 px beside a 131 px node
 M.LABEL_GAP, M.NAME_H, M.TYPE_H, M.REWARD_H = 10, 23, 20, 24
 M.BELOW = M.LABEL_GAP + M.NAME_H + 2 + M.TYPE_H + 8 + M.REWARD_H -- from a node's lower edge to the bottom of its reward tag
 M.FRAME_X, M.FRAME_Y = 8, 6
@@ -58,10 +59,17 @@ local function positions(count, leftPad, spacing, mid, amp, slots)
 	return xs, ys
 end
 
+-- drawn diameter of node i: the boss is largest, the current node (res.current) next, the rest nodeSize
+function M.sizeOf(res, i, nightCap)
+	if i == nightCap then return res.bossSize end
+	if i == res.current then return res.currentSize end
+	return res.nodeSize
+end
+
 function M.boxes(res, names, nightCap)
 	local out = {}
 	for i = 1, #names do
-		local size = (i == nightCap) and res.bossSize or res.nodeSize
+		local size = M.sizeOf(res, i, nightCap)
 		local x, y = res.posX[i], res.posY[i]
 		local w = labelWidth(names[i], res.spacing)
 		out[i] = {
@@ -88,16 +96,17 @@ function M.clear(res, names, nightCap)
 	return true
 end
 
-function M.layout(sw, sh, names, nightCap, shown)
+function M.layout(sw, sh, names, nightCap, shown, current)
 	nightCap = nightCap or 8
 	local count = #names
 	local viewW, viewH = math.max(10, sw - 2 * M.FRAME_X), math.max(260, sh - 2 * M.FRAME_Y - 4)
 	local nodeSize = clamp(math.floor(viewH * M.NODE_FRACTION), M.NODE_MIN, M.NODE_MAX)
 	local bossSize = math.floor(nodeSize * M.BOSS_SCALE)
+	local currentSize = math.floor(nodeSize * M.CURRENT_SCALE)
 	local H = HeaderRules.layout(sw, sh)
 	-- vertical room for a node stack: under the header, above the lower left panel (canvas y = screen y - FRAME_Y)
 	local yMin = H.bar.h + M.MARGIN + math.floor(bossSize / 2) - M.FRAME_Y
-	local yMax = H.panelZone.y - M.MARGIN - math.floor(nodeSize / 2) - M.BELOW - M.FRAME_Y
+	local yMax = H.panelZone.y - M.MARGIN - math.floor(currentSize / 2) - M.BELOW - M.FRAME_Y
 	local mid, amp
 	if yMax > yMin then
 		mid = (yMin + yMax) / 2
@@ -110,9 +119,9 @@ function M.layout(sw, sh, names, nightCap, shown)
 	local slots, _ = M.slots(count, nightCap, shown)
 	local first = math.max(1, (slots[math.min(nightCap, count)] or (nightCap - 1))) -- gaps from the start to the boss: the drawn nodes spread over the width
 	local spacing = (viewW - leftPad - rightPad) / first
-	local res = { shown = shown, nodeSize = nodeSize, bossSize = bossSize, leftPad = leftPad, rightPad = rightPad, mid = mid, amp = amp, viewH = viewH }
+	local res = { shown = shown, current = current, currentSize = currentSize, nodeSize = nodeSize, bossSize = bossSize, leftPad = leftPad, rightPad = rightPad, mid = mid, amp = amp, viewH = viewH }
 	-- widen the spacing until neighbours do not touch (long names on small screens may need to scroll a little)
-	local s = math.max(spacing, nodeSize + 8)
+	local s = math.max(spacing, currentSize + 8)
 	while true do
 		res.spacing = s
 		res.posX, res.posY = positions(count, leftPad, s, mid, amp, slots)
