@@ -34619,8 +34619,8 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	local g = B.glow(false)
-	expectTrue(g.stroke == 3 and g.outer == 30 and g.lo == 0.2 and g.hi == 0.5 and g.seatStroke == 2 and g.seatHalo == 30 and g.seatHaloT == 0.35, "glow numbers: 3 px stroke, 30 px boss halo pulsing 0.2 to 0.5, 2 px seat edge, 30 px seat halo at 0.35")
-	expectTrue(g.lo < g.seatHaloT + 0.2, "the boss halo is brighter than the Patron halos")
+	expectTrue(g.stroke == 3 and g.outer == 30 and g.lo == 0.2 and g.hi == 0.5 and g.seatStroke == 2 and g.seatHalo == 24 and g.seatHaloT == 0.5, "glow numbers: 3 px stroke, 30 px boss halo pulsing 0.2 to 0.5, 2 px seat edge, 24 px steady seat halo at 0.5")
+	expectTrue(g.lo < g.seatHaloT - 0.2, "the boss halo is brighter than the Patron halos")
 	-- the Boss card takes the middle seat: Patrons 1 2 keep seats 1 2, 3 4 move to 4 5, a fifth is out of the row
 	expectTrue(B.seatFor(1, true) == 1 and B.seatFor(2, true) == 2 and B.seatFor(3, true) == 4 and B.seatFor(4, true) == 5 and B.seatFor(5, true) == nil, "boss round seat map")
 	for i = 1, 5 do expectEqual(B.seatFor(i, false), i, "no boss round: seat " .. i .. " is unchanged") end
@@ -34675,6 +34675,15 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 			expectTrue(false, "the Boss card must fit at " .. w .. "x" .. h)
 		end
 	end
+end })
+
+table.insert(tests, { name = "GlowCurve: an inner plateau holds the peak out to the card edge, then eases to nothing", fn = function()
+	local GC = require(script.Parent.Parent.Engine.GlowCurve)
+	local plain, held = GC.cumulative(GC.rings(32, 0.5)), GC.cumulative(GC.rings(32, 0.5, 0.8))
+	local function at(c, size) return c[math.floor((1 - size) * 32 + 1.5)] end
+	expectTrue(at(held, 0.8) > at(plain, 0.8) + 0.2, "at the card edge the plateau glow is much stronger")
+	expectTrue(math.abs(at(held, 0.8) - 0.5) < 0.06, "the plateau holds the peak at the edge")
+	expectTrue(at(held, 1) < 0.02, "nothing at the outer rim")
 end })
 
 table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Patrons, the stale red plate and rule strip are cleared, the glow is built and static in Calm mode", fn = function()

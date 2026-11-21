@@ -190,9 +190,14 @@ local function applySeatGlow(layer, rects, owned)
 			local gl = Rules.glow(true)
 			pcall(function() -- candlelight: the shared feathered radial glow (no ring edges, no seams), about 30 px past the card, static in Calm mode and Reduce motion
 				local pad = gl.seatHalo
+				local cw, ch = s.card.w + 4, s.card.h + 4
+				local plateBottom = (top and top.Plate.Visible) and (top.Plate.Position.Y.Offset + top.Plate.Size.Y.Offset) or 0
+				local padT = math.max(0, math.min(pad, (s.card.y - 2) - plateBottom)) -- the halo stops under the top plate
+				local hh = ch + padT + pad
+				local inner = math.min(cw / (cw + 2 * pad), ch / hh) -- the card edge sits where the halo is strongest, so it reads as candlelight
 				require(script.Parent.SoftGlow).build(g, {
-					name = "Halo", color = GOLD, peak = 0.4, zIndex = 11,
-					position = UDim2.new(0.5, 0, 0.5, 0), size = UDim2.new(1, 2 * pad, 1, 2 * pad),
+					name = "Halo", color = GOLD, peak = 1 - gl.seatHaloT, inner = inner, zIndex = 11,
+					position = UDim2.new(0.5, 0, 0.5, (pad - padT) / 2), size = UDim2.new(1, 2 * pad, 0, hh),
 				})
 			end)
 			g.Parent = layer

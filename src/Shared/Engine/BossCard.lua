@@ -154,9 +154,9 @@ function M.topParts(r)
 end
 
 -- stroke = 3 px gold on the Boss card, outer = soft rings reaching 28 px past each edge that pulse between lo and hi transparency,
--- seatStroke = the steady 2 px gold edge on the other Patron cards, seatHalo = their soft 14 px halo at seatHaloT transparency
+-- seatStroke = the steady 2 px gold edge on the other Patron cards, seatHalo = their steady soft 24 px halo at seatHaloT transparency
 function M.glow(calm)
-	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 30, lo = 0.2, hi = 0.5, seatHalo = 30, seatHaloT = 0.35, bossHaloT = 0.2 }
+	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 30, lo = 0.2, hi = 0.5, seatHalo = 24, seatHaloT = 0.5, bossHaloT = 0.2 }
 end
 
 return M

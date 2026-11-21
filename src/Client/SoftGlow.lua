@@ -3,7 +3,7 @@
 	The one soft radial glow helper (fire, lanterns, candles, light pools). Stacked discs with a smoothstep falloff
 	from Engine/GlowCurve (32 steps), so no ring edge shows. This is the only file that stacks discs.
 
-	build(parent, { name, color, position = UDim2, size = UDim2, peak = 0.2, zIndex }) -> { root, rings, setPeak(peak) }
+	build(parent, { name, color, position = UDim2, size = UDim2, peak = 0.2, inner = 0..0.9, zIndex }) -> { root, rings, setPeak(peak) }
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,8 +11,8 @@ local GlowCurve = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 
 local SoftGlow = {}
 
-local function apply(rings, peak)
-	local spec = GlowCurve.rings(#rings, peak)
+local function apply(rings, peak, inner)
+	local spec = GlowCurve.rings(#rings, peak, inner)
 	for i, ring in ipairs(rings) do ring.BackgroundTransparency = spec[i].transparency end
 end
 
@@ -28,7 +28,7 @@ function SoftGlow.build(parent, opts)
 	root.ClipsDescendants = false
 	root.ZIndex = opts.zIndex or 1
 	root.Parent = parent
-	local spec = GlowCurve.rings(GlowCurve.DEFAULT_STEPS, opts.peak)
+	local spec = GlowCurve.rings(GlowCurve.DEFAULT_STEPS, opts.peak, opts.inner)
 	local rings = {}
 	for i, s in ipairs(spec) do
 		local d = Instance.new("Frame")
@@ -47,7 +47,7 @@ function SoftGlow.build(parent, opts)
 		d.Parent = root
 		rings[i] = d
 	end
-	return { root = root, rings = rings, setPeak = function(peak) apply(rings, peak) end }
+	return { root = root, rings = rings, setPeak = function(peak) apply(rings, peak, opts.inner) end }
 end
 
 return SoftGlow
