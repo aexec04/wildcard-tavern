@@ -441,6 +441,7 @@ return function(deps)
 				-- hangs above) and moves to the next free spot when it would land on a node or another name plate
 				lab.TextXAlignment = Enum.TextXAlignment.Center
 				lab.TextYAlignment = Enum.TextYAlignment.Center
+				local labelClear = false -- true when the name found a spot 12 px clear of every node, plate, the header and the panel
 				do
 					local lw = math.max(80, RouteRules.textWidth(stop.name, 16) + 24)
 					local lh = 50
@@ -453,13 +454,14 @@ return function(deps)
 					local avoid = deps.avoidRect and deps.avoidRect()
 					avoid = avoid and RouteRules.growBox(avoid, RouteRules.PANEL_GAP) or nil
 					local pick = order[1]
+					labelClear = false
 					for _, c in ipairs(order) do
 						local clash = avoid ~= nil and RouteRules.boxesOverlap(c.box, avoid)
 						if deps.bandTop and c.box.y < deps.bandTop() then clash = true end -- never under the header bar
 						for _, bx in ipairs(placedBoxes) do
 							if RouteRules.boxesOverlap(RouteRules.growBox(c.box, 12), bx) then clash = true break end -- 12 px to every other label, tag and node
 						end
-						if not clash then pick = c break end
+						if not clash then pick = c labelClear = true break end
 					end
 					lab.AnchorPoint = Vector2.new(pick.ax, pick.ay)
 					lab.Position = UDim2.fromOffset(pick.x, pick.y)
@@ -488,7 +490,7 @@ return function(deps)
 						if bc then bc.CornerRadius = UDim.new(0.5, 0) end
 					end
 				end
-				if p.compact and not stub then -- crowded spot (WorldMapLayout): the name shows while hovering
+				if p.compact and not stub and not labelClear then -- crowded spot with no clear place for the name: it shows while hovering
 					lab.Visible = false
 					btn.MouseEnter:Connect(function() lab.Visible = true end)
 					btn.MouseLeave:Connect(function() lab.Visible = false end)

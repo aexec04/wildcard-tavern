@@ -14,6 +14,7 @@ local Rules = require(Engine:WaitForChild("MapSelectRules"))
 local HeaderRules = require(Engine:WaitForChild("MapHeaderRules"))
 local NodeRules = require(Engine:WaitForChild("MapNodeRules"))
 local TavernKit = require(script.Parent.TavernKit)
+local ButtonLabelTop = require(script.Parent.ButtonLabelTop)
 
 local MapSelectPanel = {}
 
@@ -202,7 +203,14 @@ function MapSelectPanel.new(deps)
 		local goStroke = go:FindFirstChildOfClass("UIStroke")
 		if goStroke then goStroke.Thickness = 2 end
 		if goStroke then goStroke.Color = d.button.enabled and rgb(cc.edge) or Color3.fromRGB(130, 120, 100) end
+		-- The kit's Shade UIGradient sits on the button and MULTIPLIES the button's own text colour, so a cream word drawn by the button
+		-- itself reads dark green while its TextColor3 still says cream (Nov 21 live check). A child label is not tinted by its parent's
+		-- gradient, so the word is always drawn by an owned KitLabel, created here when the sweep never made one.
 		local kl = go:FindFirstChild("KitLabel")
+		if not (kl and kl:IsA("TextLabel")) then
+			kl = ButtonLabelTop.own(go, d.button.text, ts, go.ZIndex + 3, go.TextColor3)
+			go.Text = d.button.text -- own() blanks the button text; the hit box keeps the word for code that reads it
+		end
 		if kl and kl:IsA("TextLabel") then
 			-- the Continue word is OWNED by this label: the kit's mirror (button properties copied onto the label after every write)
 			-- can no longer repaint it, so the cream colour and the solid dark outline are what is drawn

@@ -35348,6 +35348,8 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 	expectTrue(panelSrc:find('kl:SetAttribute("OwnLabel", true)', 1, true), "the Continue word is an owned label the kit mirror cannot repaint")
 	expectTrue(graphSrc:find("RouteRules.growBox(avoid, RouteRules.PANEL_GAP)", 1, true), "side names keep 12 px clear of the panel")
 	expectTrue(graphSrc:find("rejoins the road", 1, true), "each branch reconnects to the next stop")
+	expectTrue(panelSrc:find("ButtonLabelTop.own(go,", 1, true), "Continue always owns a child label: the kit Shade UIGradient tints a button's own text green")
+	expectTrue(graphSrc:find("not labelClear", 1, true), "a compact fork stop keeps its name plate whenever a clear spot exists")
 	-- live graph on the fake Roblox: both Meadow branches are drawn as nodes, with dashes joining them back to the road
 	local f = io.open("src/Client/JourneyMapGraph.lua", "r")
 	if not f then return end
