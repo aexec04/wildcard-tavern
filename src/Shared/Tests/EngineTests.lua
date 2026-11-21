@@ -31142,6 +31142,23 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
 end })
 
+table.insert(tests, { name = "Tips: the Hints toggle and the X on every tip card", fn = function()
+	local P = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	local st = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0 }
+	expectEqual(P.reason(st, { enabled = true }), nil, "the panel is due")
+	expectTrue(P.reason(st, { enabled = false }) ~= nil, "Hints off hides the panel")
+	expectTrue(P.reason(st, { enabled = true, closedByX = true }) ~= nil, "closed with its X hides the panel")
+	expectTrue(P.newRun(5, 0) and not P.newRun(0, 3) and not P.newRun(2, 2), "a new run forgets the X")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	for _, f in ipairs({ "PatronPowerPanelFX", "RoundHintsFX", "FirstTimeHints" }) do
+		local t = read("src/Client/" .. f .. ".lua")
+		assert(t:find("CloseX", 1, true), f .. " has an X")
+		assert(t:find('onChanged', 1, true) and t:find('"roundHints"', 1, true), f .. " reacts to the Hints toggle at once")
+	end
+	assert(read("src/Shared/Engine/SettingsLayout.lua"):find('"roundHints"', 1, true), "the Settings screen has the Hints toggle")
+end })
+
 table.insert(tests, { name = "Counter summary plate: top right under the corner buttons, inside the screen, quest toasts start 8 px under it, wired once", fn = function()
 	local S = require(script.Parent.Parent.Engine.ShopSummary)
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)

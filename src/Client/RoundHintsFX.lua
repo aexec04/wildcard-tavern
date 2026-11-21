@@ -80,6 +80,12 @@ local function build(layer)
 		button.MouseLeave:Connect(function() button.BackgroundColor3 = base end)
 	end
 	button.Parent = layer
+	pcall(function() -- a small X on the plate corner: dismisses this tip for the rest of the run, the Hints setting stays as it is
+		require(script.Parent.CloseX).attach(plate, function()
+			if current then localSeen[current] = true end
+			M.hide()
+		end, { inset = -10, top = -16, z = 40 })
+	end)
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
 		pcall(function()
@@ -188,5 +194,10 @@ function M.replay()
 	localSeen = {}
 	M.hide()
 end
+
+-- the Hints toggle hides the card at once
+pcall(function()
+	ClientSettings.onChanged(function(key, value) if key == "roundHints" and value == false then M.hide() end end)
+end)
 
 return M

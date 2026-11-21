@@ -130,6 +130,9 @@ local function build()
 	arrow.Parent = bubble
 
 	bubble.MouseButton1Click:Connect(hide)
+	pcall(function() -- a small X on the corner, the same as every tip card
+		require(script.Parent.CloseX).attach(bubble, hide, { inset = -10, top = -16, z = 40 })
+	end)
 end
 
 local function show(hint)
@@ -184,6 +187,10 @@ function FirstTimeHints.update(state)
 	if not gui or type(state) ~= "table" then
 		return
 	end
+	if ClientSettings.get("roundHints") == false then
+		if shownId then hide() end -- the Hints toggle is off: no tip of any kind
+		return
+	end
 	if shownId then
 		return -- one bubble at a time
 	end
@@ -207,5 +214,9 @@ function FirstTimeHints.replay()
 	localSeen = {}
 	hide()
 end
+
+pcall(function()
+	ClientSettings.onChanged(function(key, value) if key == "roundHints" and value == false and shownId then hide() end end)
+end)
 
 return FirstTimeHints

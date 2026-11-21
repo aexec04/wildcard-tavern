@@ -31,6 +31,7 @@ local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.
 function M.reason(state, opts)
 	opts = opts or {}
 	if opts.enabled == false then return "hints off in Settings" end
+	if opts.closedByX == true then return "closed with its X for this run" end
 	if type(state) ~= "table" then return "no state" end
 	if state.phase ~= "playing" then return "phase " .. tostring(state.phase) end
 	if state.isTutorial == true then return "tutorial" end
@@ -40,6 +41,11 @@ function M.reason(state, opts)
 	local early = (tonumber(state.night) or 1) == 1 and (tonumber(state.round) or 1) <= M.MAX_ROUND
 	if not (early or state.isBossRound == true) then return ("night %s round %s is not early and not a boss round"):format(tostring(state.night), tostring(state.round)) end
 	return nil
+end
+
+-- A new run began when the hands played drop below what was last seen: an X pressed in the old run is forgotten.
+function M.newRun(prevHands, hands)
+	return (tonumber(hands) or 0) < (tonumber(prevHands) or 0)
 end
 
 function M.enabledFor(state, opts)

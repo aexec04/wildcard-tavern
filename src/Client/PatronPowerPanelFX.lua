@@ -19,6 +19,8 @@ local M = {}
 local plate, title, body, tap
 local roundKey, handsAtStart -- the round the panel was last due in, and the hands played when it began
 
+local closed, lastHands = false, 0 -- closed with its X: stays shut for the rest of the run
+
 local function build(layer)
 	plate = Instance.new("Frame")
 	plate.Name = "PatronPowerPanel"
@@ -61,6 +63,9 @@ local function build(layer)
 	tap.Size = UDim2.fromScale(1, 1)
 	tap.ZIndex = 31
 	tap.Parent = plate
+	pcall(function() -- a small X on the corner: shuts the panel for the rest of the run, the Hints setting stays as it is
+		require(script.Parent.CloseX).attach(plate, function() closed = true; M.hide() end, { inset = -10, top = -16, z = 40 })
+	end)
 end
 
 function M.hide()
@@ -102,7 +107,10 @@ end
 
 function M.update(layer, state, rects, viewW, viewH)
 	latest = { layer, state, rects, viewW, viewH } -- the recheck after a boss intro uses the newest call, never a stale one
-	local opts = { enabled = ClientSettings.get("roundHints") ~= false }
+	local hands = tonumber(state and state.handsPlayedTotal) or 0
+	if Rules.newRun(lastHands, hands) then closed = false end
+	lastHands = hands
+	local opts = { enabled = ClientSettings.get("roundHints") ~= false, closedByX = closed }
 	local off = Rules.reason(state, opts)
 	if off then M.hide(); why("hidden: " .. off, state); return end
 	if yielded then M.hide(); why("hidden: the round hint holds the spot", state); return end
@@ -133,5 +141,10 @@ function M.update(layer, state, rects, viewW, viewH)
 		print(("[PowerPanel] %s plate=%d,%d,%d,%d"):format(spot.kind, spot.plate.x, spot.plate.y, spot.plate.w, spot.plate.h))
 	end
 end
+
+-- the Hints toggle turns the panel off at once
+pcall(function()
+	ClientSettings.onChanged(function(key, value) if key == "roundHints" and value == false then M.hide() end end)
+end)
 
 return M
