@@ -687,6 +687,7 @@ return function(deps)
 	local revealOverride = nil -- Night used for the fog while the clear moment replays
 	local fogAnimate = false -- true while the fog band rolls back
 	local lastLayoutKey = nil
+	local shownFlags, shownKey = nil, nil -- which nodes are drawn: the layout spreads exactly those evenly from the start to the boss
 	local heroWalking = false -- true while the hero walks the trail
 	local followHero = false -- the camera tracks the hero while it walks
 
@@ -785,7 +786,7 @@ return function(deps)
 		end
 		lastLayoutKey = key
 		-- the whole Night route fits the frame at the default zoom (Engine/MapFitRules, tested at four sizes)
-		local fit = MapFit.layout(size.X + 2 * MapFit.FRAME_X, size.Y + 2 * MapFit.FRAME_Y, nodeNames, JourneyMap.NightCap)
+		local fit = MapFit.layout(size.X + 2 * MapFit.FRAME_X, size.Y + 2 * MapFit.FRAME_Y, nodeNames, JourneyMap.NightCap, shownFlags)
 		viewH = fit.viewH
 		canvasH = math.max(fit.canvasH, size.Y)
 		nodeSize, bossSize = fit.nodeSize, fit.bossSize
@@ -1009,6 +1010,19 @@ return function(deps)
 			end
 		end
 		reveal.states, reveal.newly = states, newly
+		do -- the drawn nodes decide the spacing: when that set changes the route is laid out again so it spans the width
+			local flags, bits = {}, {}
+			for i = 1, NODE_COUNT do
+				local d = nodeData[i]
+				flags[i] = states[i] == "revealed" or (d and d.kind ~= "endless" and nodes[i] and nodes[i].ntype == "boss") or false
+				bits[i] = flags[i] and "1" or "0"
+			end
+			local key = table.concat(bits)
+			if key ~= shownKey then
+				shownKey, shownFlags = key, flags
+				if frame.Visible then layout(true) end
+			end
+		end
 		local accentHere = view.inEndless and PURPLE or Color3.fromRGB(255, 190, 90)
 		for index, node in ipairs(nodes) do
 			local data = node.data
@@ -2165,13 +2179,9 @@ return function(deps)
 			end
 			-- the current Night starts selected, so the panel is never empty on open (like the reference)
 			local startIdx = currentIndexFor(view)
-			local startNode = startIdx and nodes[startIdx]
-			selectedIndex = (startNode and startNode.state and MapSelectRules.canSelect(startNode.state)) and startIdx or nil
-			if not selectedIndex then -- never an empty panel: the first node the player can enter
-				for i, n in ipairs(nodes) do
-					if n.state and n.state ~= "locked" and n.button.Visible then selectedIndex = i break end
-				end
-			end
+			local states = {}
+			for i, n in ipairs(nodes) do states[i] = n.state or "locked" end
+			selectedIndex = MapSelectRules.openSelection(startIdx, states) -- never nil while the map has nodes
 			local function openPanel(tag)
 				local ok, err = xpcall(function()
 					refreshPanel()
@@ -2179,9 +2189,18 @@ return function(deps)
 				end, debug.traceback)
 				if not ok then warn("[TavernMap] panel " .. tag .. " failed: " .. tostring(err)) end
 				if RunService:IsStudio() then
-					local pp, ps = selectPanel.panel.AbsolutePosition, selectPanel.panel.AbsoluteSize
-					warn(string.format("[MapPanel] %s selected=%s visible=%s mode=%s pos %d,%d size %dx%d", tag, tostring(selectedIndex),
-						tostring(selectPanel.panel.Visible), selectPanel.mode(), pp.X, pp.Y, ps.X, ps.Y))
+					local p = selectPanel.panel
+					local pp, ps = p.AbsolutePosition, p.AbsoluteSize
+					-- the first hidden ancestor tells what hides the panel
+					local hider = "none"
+					local anc = p.Parent
+					while anc and anc:IsA("GuiObject") do
+						if not anc.Visible then hider = anc:GetFullName() .. " Visible=false" break end
+						anc = anc.Parent
+					end
+					warn(string.format("[MapPanel] %s selected=%s visible=%s mode=%s pos %d,%d size %dx%d parent=%s z=%d hiddenBy=%s",
+						tag, tostring(selectedIndex), tostring(p.Visible), selectPanel.mode(), pp.X, pp.Y, ps.X, ps.Y,
+						p.Parent and p.Parent:GetFullName() or "nil", p.ZIndex, hider))
 				end
 			end
 			openPanel("open")
@@ -2191,6 +2210,9 @@ return function(deps)
 				if frame.Visible and playing == myOpen then
 					if selectedIndex and not selectPanel.panel.Visible then openPanel("retry") else layoutPanel() end
 				end
+			end)
+			task.delay(1, function()
+				if frame.Visible and playing == myOpen then openPanel("1s") end
 			end)
 		end,
 		applyHeader = applyHeader,

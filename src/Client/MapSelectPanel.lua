@@ -41,7 +41,7 @@ local function label(parent, name, size, font)
 	l.TextTruncate = Enum.TextTruncate.AtEnd
 	l.RichText = true
 	l.Active = false
-	l.ZIndex = 43
+	l.ZIndex = 49
 	l.Parent = parent
 	return l
 end
@@ -49,7 +49,7 @@ end
 function MapSelectPanel.new(deps)
 	local panel = TavernKit.plate(deps.parent, UDim2.fromOffset(320, 130))
 	panel.Name = "SelectPanel"
-	panel.ZIndex = 41
+	panel.ZIndex = 47 -- above every map layer (decor 40, compass 44 to 47), under the hover card (60)
 	panel.Visible = false
 	panel.Active = true -- a click on the panel never falls through to the map
 	TavernKit.painted(panel, "orn_wide") -- carved dark wood with gold corners, the same plate art as the table plates
@@ -72,7 +72,7 @@ function MapSelectPanel.new(deps)
 	art.BackgroundColor3 = Color3.fromRGB(70, 52, 34)
 	art.BorderSizePixel = 0
 	art.Active = false
-	art.ZIndex = 42
+	art.ZIndex = 48
 	art.Parent = panel
 	do
 		local c = Instance.new("UICorner")
@@ -98,7 +98,7 @@ function MapSelectPanel.new(deps)
 	local target = label(panel, "Target", 16)
 	local go = TavernKit.primaryButton(panel, "Continue")
 	go.Name = "Continue"
-	go.ZIndex = 43
+	go.ZIndex = 49
 	go.Activated:Connect(function()
 		if go:GetAttribute("Enabled") and deps.onContinue then deps.onContinue() end
 	end)
@@ -107,7 +107,7 @@ function MapSelectPanel.new(deps)
 	tabToggle.BackgroundTransparency = 1
 	tabToggle.Text = ""
 	tabToggle.Size = UDim2.fromScale(1, 1)
-	tabToggle.ZIndex = 44
+	tabToggle.ZIndex = 50
 	tabToggle.Visible = false
 	tabToggle.Parent = panel
 
@@ -169,7 +169,7 @@ function MapSelectPanel.new(deps)
 		current = { desc = desc, artId = artId, iconText = iconText }
 		if artImage then artImage:Destroy() artImage = nil end
 		if deps.PatronPlaque and artId then
-			artImage = deps.PatronPlaque.applyById(art, artId, { emojiLabel = icon, zIndex = 43, cornerRadius = 8 })
+			artImage = deps.PatronPlaque.applyById(art, artId, { emojiLabel = icon, zIndex = 49, cornerRadius = 8 })
 		end
 		panel.Visible = true
 		apply()
