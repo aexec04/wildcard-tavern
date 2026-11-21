@@ -83,10 +83,10 @@ function M.install(deps)
 		word.Size = UDim2.fromScale(1, 1)
 	end
 
-	-- speaker (Sound toggle) and Pause round buttons left of the gear: the same actions as the menu rows
+	-- speaker (Sound toggle) and Settings round buttons left of the gear: the same actions as the menu rows
 	local PaintedArt = require(Engine:WaitForChild("PaintedKitArt"))
 	local quick = {}
-	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "pk_w_icon_pause", "Pause" } }) do
+	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "ct_hud_gear", "Settings" } }) do
 		local b = Instance.new("TextButton")
 		b.Name = "Quick_" .. q[1]
 		b.AutoButtonColor = false
@@ -104,7 +104,7 @@ function M.install(deps)
 		qi.Size = UDim2.fromScale(0.62, 0.62)
 		qi.Position = UDim2.fromScale(0.19, 0.19)
 		qi.ScaleType = Enum.ScaleType.Fit
-		qi.Image = PaintedArt[q[2]] or ""
+		qi.Image = PaintedArt[q[2]] or Art[q[2]] or ""
 		qi.ZIndex = Z + 2
 		qi.Parent = b
 		if qi.Image == "" then -- no art id: the word stands in (ASCII only)
@@ -248,7 +248,7 @@ function M.install(deps)
 	quick.pause.MouseButton1Click:Connect(function()
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		setOpen(false)
-		OverlayManager.open("settings") -- the same call as the menu's Pause row
+		OverlayManager.open("settings") -- the same call as the menu's Settings row
 	end)
 
 	local function act(id)
@@ -259,7 +259,7 @@ function M.install(deps)
 			return
 		end
 		setOpen(false)
-		if id == "pause" then OverlayManager.open("settings")
+		if id == "settings" then OverlayManager.open("settings")
 		elseif id == "howTo" then OverlayManager.open("howToPlay")
 		elseif id == "quit" then OverlayManager.open("quitToTavern") end
 	end

@@ -32,7 +32,7 @@ M.ROWS = {
 	{ id = "calm", kind = "toggle", label = "Calm mode" },
 	{ id = "reduceMotion", kind = "toggle", label = "Reduce motion" },
 	{ id = "hints", kind = "toggle", label = "Hints" },
-	{ id = "pause", kind = "action", label = "Pause" },
+	{ id = "settings", kind = "action", label = "Settings" },
 	{ id = "howTo", kind = "action", label = "How to play" },
 	{ id = "quit", kind = "action", label = "Quit to Tavern" },
 }

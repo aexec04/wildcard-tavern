@@ -8370,6 +8370,17 @@ table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for ev
 	end
 end })
 
+table.insert(tests, { name = "GearMenu: the Pause row is called Settings and opens Settings", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local ids = {}
+	for _, r in ipairs(G.ROWS) do ids[r.id] = r.label end
+	expectEqual(ids.settings, "Settings")
+	expectTrue(ids.pause == nil and ids.quit ~= nil, "no Pause row, Quit stays")
+	if not io then return end
+	local f = assert(io.open("src/Client/GearMenu.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find('"ct_hud_gear", "Settings"', 1, true) and not src:find("pk_w_icon_pause", 1, true), "round button is a gear with the word Settings as fallback")
+end })
+
 table.insert(tests, { name = "ButtonFeel: a button whose Position is set after creation rests where the layout put it after hover", fn = function()
 	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
 	local button = { Position = 0 } -- created at 0,0
@@ -30640,7 +30651,7 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	local ids = {}
 	for _, row in ipairs(G.ROWS) do ids[row.id] = row.kind end
 	expectTrue(ids.sound == "toggle" and ids.music == "toggle" and ids.calm == "toggle" and ids.reduceMotion == "toggle" and ids.hints == "toggle", "five toggles")
-	expectTrue(ids.pause == "action" and ids.howTo == "action" and ids.quit == "action", "three actions")
+	expectTrue(ids.settings == "action" and ids.howTo == "action" and ids.quit == "action", "three actions")
 	local s = P.defaultSettings()
 	local v = G.view(s)
 	expectTrue(v.sound.state == "On" and v.music.state == "On" and v.calm.state == "Off" and v.reduceMotion.state == "Off" and v.hints.state == "On", "defaults read as words")
@@ -30650,7 +30661,7 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	apply("calm"); expectTrue(G.view(s).calm.on and s.reduceMotion and s.reduceFlashing and s.reduceShake, "Calm flips the three together"); apply("calm"); expectTrue(not G.view(s).calm.on and not s.reduceMotion, "and back")
 	apply("reduceMotion"); expectTrue(s.reduceMotion == true and G.view(s).reduceMotion.state == "On", "Reduce motion"); apply("reduceMotion")
 	apply("hints"); expectTrue(s.roundHints == false and G.view(s).hints.state == "Off", "Hints off"); apply("hints"); expectTrue(s.roundHints == true, "Hints on")
-	expectTrue(next(G.writes("pause", s)) == nil and next(G.writes("quit", s)) == nil, "actions write no setting")
+	expectTrue(next(G.writes("settings", s)) == nil and next(G.writes("quit", s)) == nil, "actions write no setting")
 	expectTrue(G.duration(true) == 0 and G.duration(false) == 0.15, "Calm mode and Reduce motion slide in at once")
 	expectTrue(G.visibleOn({ root = true, table = true }) and G.visibleOn({ root = true, counter = true }) and G.visibleOn({ root = true, map = true }), "table, Counter and Night map show the gear")
 	expectTrue(not G.visibleOn({ root = false, table = true }) and not G.visibleOn({ root = true }) and not G.visibleOn({ root = true, table = true, popup = true }), "never on the Menu, a bare root or under a popup")
@@ -30734,7 +30745,7 @@ table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at 
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/GearMenu.lua", "r")); local c = f:read("a"); f:close()
-	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("pk_w_icon_pause", 1, true) and c:find('G.writes("sound"', 1, true), "speaker toggles Sound, both use the painted icons")
+	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("ct_hud_gear", 1, true) and c:find('G.writes("sound"', 1, true), "speaker toggles Sound, the second button is a gear")
 end })
 
 table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
