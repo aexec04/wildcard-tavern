@@ -58,32 +58,7 @@ function M.install(deps)
 	catcher.Visible = false
 	catcher.Parent = host
 
-	local gear = Instance.new("TextButton")
-	gear.Name = "GearButton"
-	gear.AutoButtonColor = false
-	gear.Text = ""
-	gear.BackgroundColor3 = rgb("brown")
-	gear.BorderSizePixel = 0
-	gear.ZIndex = Z + 1
-	gear.Parent = host
-	local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0.5, 0); gc.Parent = gear
-	local gs = Instance.new("UIStroke"); gs.Color = rgb("goldTrim"); gs.Thickness = 2; gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gear
-	pcall(function() Kit.painted(gear, "icon_round") end) -- the painted round frame (the flat gold ringed disc stays if it is missing)
-	local icon = Instance.new("ImageLabel")
-	icon.Name = "GearIcon"
-	icon.BackgroundTransparency = 1
-	icon.Size = UDim2.fromScale(0.72, 0.72)
-	icon.Position = UDim2.fromScale(0.14, 0.14)
-	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Image = Art.ct_hud_gear or ""
-	icon.ZIndex = Z + 2
-	icon.Parent = gear
-	if icon.Image == "" then -- no art id: the word stands in (ASCII only)
-		local word = ButtonLabelTop.own(gear, "Menu", 14, Z + 2, rgb("cream"))
-		word.Size = UDim2.fromScale(1, 1)
-	end
-
-	-- speaker (Sound toggle) and Settings round buttons left of the gear: the same actions as the menu rows
+	-- speaker (Sound toggle) and Settings round buttons at the top left: the same actions as the menu rows
 	local PaintedArt = require(Engine:WaitForChild("PaintedKitArt"))
 	local quick = {}
 	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "ct_hud_gear", "Settings" } }) do
@@ -209,9 +184,6 @@ function M.install(deps)
 
 	local function layout()
 		size = host.AbsoluteSize
-		local gr = G.gearRect(size.X, size.Y)
-		gear.Position = UDim2.fromOffset(gr.x, gr.y)
-		gear.Size = UDim2.fromOffset(gr.w, gr.h)
 		local qr = G.quickRects(size.X, size.Y)
 		for k, b in pairs(quick) do
 			b.Position = UDim2.fromOffset(qr[k].x, qr[k].y)
@@ -252,7 +224,7 @@ function M.install(deps)
 	end
 	M.setOpen = setOpen
 
-	gear.MouseButton1Click:Connect(function()
+	quick.pause.MouseButton1Click:Connect(function() -- the ONE settings button: the round gear top left opens the dropdown (its Settings row opens the full screen)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		OverlayManager.closeAllExcept("gear-menu")
 		setOpen(not isOpen)
@@ -266,11 +238,6 @@ function M.install(deps)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		for k, val in pairs(G.writes("sound", settingsNow())) do ClientSettings.set(k, val) end
 		if isOpen then paint() end
-	end)
-	quick.pause.MouseButton1Click:Connect(function()
-		pcall(function() require(script.Parent.Cue).play("button_click") end)
-		setOpen(false)
-		OverlayManager.open("settings") -- the same call as the menu's Settings row
 	end)
 
 	local function act(id)
@@ -304,7 +271,7 @@ function M.install(deps)
 	task.spawn(function()
 		while host.Parent do
 			local want = visibleNow()
-			if gear.Visible ~= want then gear.Visible = want; for _, b in pairs(quick) do b.Visible = want end end
+			if quick.pause.Visible ~= want then for _, b in pairs(quick) do b.Visible = want end end
 			if not want and isOpen then setOpen(false) end
 			if want then
 				local abs = host.AbsoluteSize
@@ -313,7 +280,6 @@ function M.install(deps)
 			task.wait(0.25)
 		end
 	end)
-	gear.Visible = false
 	for _, b in pairs(quick) do b.Visible = false end
 	return host
 end

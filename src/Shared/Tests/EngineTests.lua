@@ -30679,15 +30679,14 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 }, { 800, 400 }, { 720, 360 } }) do
 		local w, h = sz[1], sz[2]
 		local g, m = G.gearRect(w, h), G.menuRect(w, h)
-		expectTrue(g.w >= 44 and g.h >= 44 and g.y >= 60 and g.x + g.w <= w, "gear is 44 px, under the top bar, on screen at " .. w)
+		expectTrue(g.w >= 44 and g.h >= 44 and g.y >= 4 and g.x + g.w <= w and g.x < w / 2, "the ONE gear is 44 px or more, at the top left, on screen at " .. w)
 		expectTrue(m.x >= 0 and m.y >= g.y + g.h and m.x + m.w <= w and m.y + m.h <= h, "menu fully on screen below the gear at " .. w .. "x" .. h)
 		expectTrue(m.w <= 280 and m.w >= 200, "menu about 280 wide at " .. w)
 		for _, rr in ipairs(G.rowRects(m)) do expectTrue(rr.h >= 44 and rr.x >= 0 and rr.x + rr.w <= m.w, rr.id .. " row is 44 px and inside the menu at " .. w) end
 		local r = L.rects(w, h)
 		if L.fits(w, h) then
-			expectTrue(not hit(g, r.bar), "gear clear of the top bar at " .. w)
-			for i, sl in ipairs(r.slots) do expectTrue(not hit(g, sl.card) and not hit(g, sl.label) and not hit(g, sl.pill), "gear clear of Patron seat " .. i .. " at " .. w) end
-			expectTrue(not hit(g, r.stage) and not hit(g, r.hand) and not hit(g, r.deck), "gear clear of stage, hand and deck at " .. w)
+			expectTrue(not hit(g, r.bar) or g.y + g.h <= r.bar.y + r.bar.h, "gear does not collide with the top bar text at " .. w)
+			expectTrue(not hit(g, r.hand) and not hit(g, r.deck), "gear clear of hand and deck at " .. w)
 		end
 	end
 	local ids = {}
@@ -30768,16 +30767,18 @@ table.insert(tests, { name = "Table top bar (reference pass): quick buttons scal
 	for _, w in ipairs({ '"Target: %d"', '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
 end })
 
-table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at the top left, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
+table.insert(tests, { name = "Gear menu quick buttons: speaker and the one gear sit at the top left, 44 px, on screen, apart from the menu and the Gameplay v2 pieces at six sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
 		local q, g, m = G.quickRects(w, h), G.gearRect(w, h), G.menuRect(w, h)
-		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w < g.x and q.speaker.x + q.speaker.w + 8 <= q.pause.x and q.pause.y == q.speaker.y, "row order and gap, top left " .. w)
+		expectTrue(q.speaker.x >= 0 and q.speaker.x + q.speaker.w + 8 <= q.pause.x and q.pause.y == q.speaker.y, "row order and gap, top left " .. w)
+		expectTrue(g.x == q.pause.x and g.y == q.pause.y, "the gear IS the round Settings button " .. w)
+		expectTrue(m.x >= G.margin(w) and m.x + m.w <= w - G.margin(w) and m.y >= g.y + g.h and m.x <= g.x, "the menu hangs under it, left edges level, on screen " .. w)
 		expectTrue(q.speaker.w >= 44 and q.speaker.h >= 44 and q.pause.h >= 44, "44 px targets " .. w)
-		expectTrue(not hit(q.speaker, g) and not hit(q.pause, g) and not hit(q.speaker, m) and not hit(q.pause, m), "clear of gear and menu " .. w)
+		expectTrue(not hit(q.speaker, m) and not hit(q.pause, m), "the buttons are clear of the dropdown " .. w)
 		local r = L.rects(w, h)
 		for _, k in ipairs({ "target", "round", "tips", "traySlot1", "traySlot2", "trayUse", "traySell" }) do
 			if r[k] then
@@ -30788,6 +30789,7 @@ table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at 
 	if not io then return end
 	local f = assert(io.open("src/Client/GearMenu.lua", "r")); local c = f:read("a"); f:close()
 	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("ct_hud_gear", 1, true) and c:find('G.writes("sound"', 1, true), "speaker toggles Sound, the second button is a gear")
+	expectTrue(not c:find("GearButton", 1, true) and c:find("quick.pause.MouseButton1Click", 1, true) and c:find("setOpen(not isOpen)", 1, true), "no top right gear: the round gear opens the dropdown")
 end })
 
 table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()

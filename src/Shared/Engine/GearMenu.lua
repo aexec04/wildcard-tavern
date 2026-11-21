@@ -1,10 +1,10 @@
 --[[
 	Engine/GearMenu.lua
-	The ONE Settings icon at the top right of the table, the Counter and the Night map, and the toggle menu it drops down. Pure and
+	The ONE Settings icon (the round gear at the top left, right of the speaker) on the table, the Counter and the Night map, and the toggle menu it drops down. Pure and
 	tested; Client/GearMenu.lua draws it with TavernKit and calls the real settings and pause backends (nothing is duplicated).
 
-	gearRect(w, h)            -> { x, y, w, h }   44 px round button in the top right corner, under Roblox's own top bar
-	menuRect(w, h)            -> { x, y, w, h, scroll }   about 280 px wide, hangs under the gear, always fully on screen (scrolls when short)
+	gearRect(w, h)            -> { x, y, w, h }   the round gear at the top left, right of the speaker, under Roblox's own top bar
+	menuRect(w, h)            -> { x, y, w, h, scroll }   about 280 px wide, hangs under the gear at the top left, always fully on screen (scrolls when short)
 	rowRects(menu)            -> list of { id, x, y, w, h }   44 px tall rows inside the menu, relative to the menu
 	ROWS                      -> { { id, kind = "toggle" | "action", label } ... } in display order
 	view(settings)            -> { [id] = { label, on, state } }   state is the word "On" or "Off" for a toggle, so colour is never the only signal
@@ -41,10 +41,12 @@ local function round(n) return math.floor(n + 0.5) end
 
 function M.margin(w) return math.max(8, round(0.012 * w)) end
 
+-- the table's quick strip floor under Roblox's top bar
+local function topY(w) return math.max(Responsive.TOPBAR_H, M.margin(w)) end
+
+-- The ONE settings button is the round gear at the top left, right of the speaker; the menu drops down from it. There is no gear top right.
 function M.gearRect(w, h)
-	local m = M.margin(w)
-	local y = math.max(Responsive.TOPBAR_H, m) -- the table's quick strip used the same floor under Roblox's top bar
-	return { x = w - m - M.SIZE, y = y, w = M.SIZE, h = M.SIZE }
+	return M.quickRects(w, h).pause
 end
 
 -- the speaker (Sound toggle) and Pause round buttons sit in a row at the TOP LEFT (the reference puts them left of the Target plate), same size
@@ -57,7 +59,7 @@ function M.quickSize(w)
 	return math.max(M.SIZE, math.min(M.QUICK_REF, round((tonumber(w) or M.QUICK_REF_W) * M.QUICK_REF / M.QUICK_REF_W)))
 end
 function M.quickRects(w, h)
-	local g = M.gearRect(w, h)
+	local gy = topY(w)
 	local q = M.quickSize(w)
 	if q > M.SIZE then
 		-- reference (1672 x 941, x 1.148): centres x 115 and 245 and the top of the top bar (y about 15 at 957), so they never sit over the candle
@@ -67,8 +69,8 @@ function M.quickRects(w, h)
 		return { speaker = { x = x0, y = y, w = q, h = q }, pause = { x = x0 + q + gap, y = y, w = q, h = q } }
 	end
 	local x0 = M.margin(w)
-	local speaker = { x = x0, y = g.y, w = q, h = q }
-	local pause = { x = x0 + q + M.QUICK_GAP, y = g.y, w = q, h = q }
+	local speaker = { x = x0, y = gy, w = q, h = q }
+	local pause = { x = x0 + q + M.QUICK_GAP, y = gy, w = q, h = q }
 	return { speaker = speaker, pause = pause }
 end
 
@@ -83,7 +85,8 @@ function M.menuRect(w, h)
 	local y = g.y + g.h + 4
 	local full = M.contentHeight()
 	local mh = math.min(full, h - y - M.margin(w))
-	return { x = w - M.margin(w) - mw, y = y, w = mw, h = math.max(M.ROW_H + 2 * M.PAD, mh), scroll = mh < full, contentH = full }
+	local x = math.max(M.margin(w), math.min(g.x, w - M.margin(w) - mw)) -- hangs under the gear, left edges level, always on screen
+	return { x = x, y = y, w = mw, h = math.max(M.ROW_H + 2 * M.PAD, mh), scroll = mh < full, contentH = full }
 end
 
 function M.rowRects(menu)
