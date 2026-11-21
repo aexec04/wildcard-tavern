@@ -958,14 +958,22 @@ return function(deps)
 	local function showMap()
 		ensureMapView()
 		journeyPanel.Size = UDim2.fromScale(0.92, 0.92)
-		mapView.setShown(true)
 		journeyMapScroll.Visible = false
 		journeyInfoBar.Visible = false
-		mapView.applyHeader(true)
-		require(script.Parent.MapFullScreen).apply({ -- the Tavern Map is a full-screen scene with the corner dock hidden
-			screenGui = screenGui, backdrop = journeyBackdrop, panel = journeyPanel, title = journeyTitle, subtitle = journeySubtitle,
-			mapFrame = mapView.frame, closeButton = journeyCloseButton, sizeConstraint = journeyPanelMinSize,
-		})
+		-- The full screen layout is the only layout: it goes on FIRST, so an error while the map lays itself out can never leave
+		-- the old framed panel (title, text lines, dark band) on screen. Errors are reported, not swallowed.
+		local function guarded(label, fn)
+			local ok, err = xpcall(fn, debug.traceback)
+			if not ok then warn("[TavernMap] " .. label .. " failed: " .. tostring(err)) end
+		end
+		guarded("full screen", function()
+			require(script.Parent.MapFullScreen).apply({ -- the Tavern Map is a full-screen scene with the corner dock hidden
+				screenGui = screenGui, backdrop = journeyBackdrop, panel = journeyPanel, title = journeyTitle, subtitle = journeySubtitle,
+				mapFrame = mapView.frame, closeButton = journeyCloseButton, sizeConstraint = journeyPanelMinSize,
+			})
+		end)
+		guarded("setShown", function() mapView.setShown(true) end)
+		guarded("header", function() mapView.applyHeader(true) end)
 	end
 
 	-- Closing the overlay by any route (Close, another overlay) stops the map's drifting fog and ambience.

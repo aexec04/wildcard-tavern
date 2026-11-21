@@ -35195,4 +35195,25 @@ table.insert(tests, { name = "MapSelectRules.rects: the compact panel keeps a tw
 	end
 end })
 
+table.insert(tests, { name = "Tavern Map full screen is the only layout: it goes on before the map lays out, the old title and lines stay hidden, the route reaches the boss, plates are sized to their text", fn = function()
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	for _, sz in ipairs({ 14, 16, 17 }) do
+		local one, two = RR.plate("Inn", sz, 180), RR.plate("The Willow Bridge Crossing Road", sz, 180)
+		expectEqual(one.h, sz + 2 + 12, "one line plate is the text line plus 6 px above and below at " .. sz)
+		expectEqual(two.h, 2 * (sz + 2) + 12, "two line plate is two text lines plus 6 px above and below at " .. sz)
+	end
+	if not io then return end
+	local function read(path) local f = io.open(path, "r") if not f then return nil end local t = f:read("*a") f:close() return t end
+	local journey, view, full, graph = read("src/Client/Journey.lua"), read("src/Client/JourneyMapView.lua"), read("src/Client/MapFullScreen.lua"), read("src/Client/JourneyMapGraph.lua")
+	if not (journey and view and full and graph) then return end
+	local function at(s, needle) return s:find(needle, 1, true) end
+	local apply, shown = at(journey, "require(script.Parent.MapFullScreen).apply({"), at(journey, "mapView.setShown(true)")
+	expectTrue(apply and shown and apply < shown, "MapFullScreen.apply runs before the map lays itself out")
+	expectTrue(at(journey, "xpcall(fn, debug.traceback)") ~= nil, "a map error is reported (warn with traceback), not left to skip the full screen layout")
+	expectTrue(at(full, "MapHiddenForGood") ~= nil, "the old title and text lines stay hidden even if something shows them again")
+	expectTrue(at(view, 'mode = "dim"') ~= nil and at(view, 'seg.mode == "dim"') ~= nil, "the unrevealed stretch up to the boss is a dim dashed path")
+	expectTrue(at(graph, "plate.h + 24") == nil, "the graph name plate has no empty second line")
+	expectTrue(at(view, "hintX = canvasW / 2 - 40, hintY = HINT_Y") ~= nil, "the fog chip sits top centre under the header")
+end })
+
 return tests

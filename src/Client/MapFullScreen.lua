@@ -43,8 +43,19 @@ function MapFullScreen.apply(p)
 
 	-- the dark carved wood header, banners, rails, candles and the round X (Client/MapHeaderBar; the title and stats are its plates)
 	require(script.Parent.MapHeaderBar).attach(panel, function() p.backdrop.Visible = false end)
-	p.title.Visible, p.subtitle.Visible = false, false
+	-- the old framed title and its text lines (Journey / Discovered / Places seen, Next reward) stay hidden for good: the header plates carry them
+	for _, old in ipairs({ p.title, p.subtitle }) do
+		old.Visible = false
+		if not old:GetAttribute("MapHiddenForGood") then
+			old:SetAttribute("MapHiddenForGood", true)
+			old:GetPropertyChangedSignal("Visible"):Connect(function()
+				if old.Visible then old.Visible = false end
+			end)
+		end
+	end
 	require(script.Parent.CloseX).retire(p.closeButton) -- the round X is the close button now
+	local oldX = panel:FindFirstChild("CloseX") -- the panel's own X (Journey.lua) would sit beside the header's round X
+	if oldX then require(script.Parent.CloseX).retire(oldX) end
 
 	FullScreenHud.enter(root, "tavernMap")
 	pcall(function() require(script.Parent.CornerDock).register(p.backdrop) end) -- the dock hides while the map backdrop is visible

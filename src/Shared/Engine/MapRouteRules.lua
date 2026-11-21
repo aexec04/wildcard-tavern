@@ -16,7 +16,7 @@ local M = {}
 -- Luau has math.atan2; plain Lua 5.3 and later take two arguments in math.atan
 local ATAN2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
-M.DASH, M.GAP, M.PLATE_MAX, M.PLATE_PAD = 14, 10, 180, 24
+M.DASH, M.GAP, M.PLATE_MAX, M.PLATE_PAD, M.PLATE_PAD_Y = 14, 10, 180, 24, 6
 
 function M.curve(ax, ay, bx, by, sign, bend)
 	local dx, dy = bx - ax, by - ay
@@ -81,13 +81,13 @@ end
 function M.plate(name, textSize, maxW)
 	maxW = maxW or M.PLATE_MAX
 	local tw = M.textWidth(name, textSize)
-	local lineH = textSize + 4
+	local lineH = textSize + 2 -- the plate is its text lines plus 6 px above and below, nothing more (no empty second line)
 	if tw + M.PLATE_PAD <= maxW then
-		return { w = tw + M.PLATE_PAD, h = lineH + 2, lines = 1, wrap = false }
+		return { w = tw + M.PLATE_PAD, h = lineH + 2 * M.PLATE_PAD_Y, lines = 1, wrap = false }
 	end
 	local inner = maxW - M.PLATE_PAD
 	local lines = math.min(2, math.ceil(tw / inner))
-	return { w = maxW, h = lines * lineH + 2, lines = lines, wrap = true }
+	return { w = maxW, h = lines * lineH + 2 * M.PLATE_PAD_Y, lines = lines, wrap = true }
 end
 
 -- A stop that is not on the player's road. flags: choice (a pending fork offers it), lit (the compass points at it), seen, teaser (fog says "?").
