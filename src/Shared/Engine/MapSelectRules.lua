@@ -51,6 +51,21 @@ function M.describe(node)
 	return out
 end
 
+-- The node the panel shows when the map opens: the current one when it can be selected, else the first enterable one, else the
+-- first node at all (never nil while the map has nodes, so the panel is never empty). states = list of node states by index.
+function M.openSelection(currentIndex, states)
+	if currentIndex and states[currentIndex] and M.canSelect(states[currentIndex]) then return currentIndex end
+	for i = 1, #states do
+		if states[i] ~= "locked" then return i end
+	end
+	return #states > 0 and 1 or nil
+end
+
+-- True when a rect is fully on screen with a real size (the panel must pass this after it opens).
+function M.onScreen(r, sw, sh)
+	return r.w > 0 and r.h > 0 and r.x >= 0 and r.y >= 0 and r.x + r.w <= sw and r.y + r.h <= sh
+end
+
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
 -- Heights of the three modes: full = the whole zone, compact = name + Continue only, tab = one small plate with the name.

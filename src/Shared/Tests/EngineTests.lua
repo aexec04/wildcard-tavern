@@ -34918,6 +34918,45 @@ table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from
 	end
 end })
 
+table.insert(tests, { name = "MapSelectRules.openSelection and onScreen: the panel always has a node on open and its rect is on screen at four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	expectEqual(R.openSelection(2, { "completed", "current", "locked" }), 2, "the current node")
+	expectEqual(R.openSelection(nil, { "locked", "available", "locked" }), 2, "no current: the first enterable")
+	expectEqual(R.openSelection(1, { "locked", "available" }), 2, "a locked current is skipped")
+	expectEqual(R.openSelection(nil, { "locked", "locked" }), 1, "all locked: still a node, never an empty panel")
+	expectEqual(R.openSelection(nil, {}), nil, "no nodes: nothing")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local zone = HR.layout(sz[1], sz[2]).panelZone
+		for _, mode in ipairs({ "full", "compact", "tab" }) do
+			expectTrue(R.onScreen(R.panelRect(zone, mode), sz[1], sz[2]), "panel " .. mode .. " on screen at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+	expectFalse(R.onScreen({ x = 0, y = 0, w = 0, h = 10 }, 100, 100), "a zero size rect is not visible")
+end })
+
+table.insert(tests, { name = "MapFitRules.layout with a drawn set: the drawn nodes are spread evenly from the start to the boss, none overlap, at four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapFitRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	local shown = {}
+	for i = 1, #names do shown[i] = (i <= 4) end -- Night 1 view: four Nights drawn, the rest hidden, the boss always drawn
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local res = R.layout(sz[1], sz[2], names, JM.NightCap, shown)
+		local tag = sz[1] .. "x" .. sz[2]
+		local ids = { 1, 2, 3, 4, JM.NightCap }
+		local gap = res.posX[2] - res.posX[1]
+		for k = 2, #ids do
+			local g = res.posX[ids[k]] - res.posX[ids[k - 1]]
+			expectTrue(math.abs(g - gap) < 1, "equal spacing at " .. tag)
+		end
+		expectTrue(R.clear(res, names, JM.NightCap), "no drawn node or label overlaps at " .. tag)
+		expectTrue(res.fits, "the boss is inside the frame at " .. tag)
+		expectTrue(res.posX[JM.NightCap] > sz[1] * 0.7, "the boss sits at the far right at " .. tag)
+	end
+end })
+
 table.insert(tests, { name = "MapFitRules: the whole Night route fits the frame at the default zoom, nodes about 130 px, the boss about 190 px and a gentle S route at 1920x957, nothing under the header or the lower left panel, no node or label touches another at four sizes", fn = function()
 	local R = require(script.Parent.Parent.Engine.MapFitRules)
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
@@ -35239,7 +35278,7 @@ table.insert(tests, { name = "Tavern Map panel and header: the lower left panel 
 	if not view then return end
 	local function at(t, needle) return t:find(needle, 1, true) end
 	expectTrue(at(view, 'openPanel("open")') ~= nil and at(view, 'openPanel("retry")') ~= nil, "the panel opens, and is retried once the layout has settled")
-	expectTrue(at(view, "never an empty panel") ~= nil, "a node is always selected on open")
+	expectTrue(at(view, "MapSelectRules.openSelection(startIdx, states)") ~= nil, "a node is always selected on open")
 	expectTrue(at(bar, 'TavernKit.painted(titlePlate, "orn_target")') ~= nil and at(bar, 'TavernKit.painted(statsPlate, "orn_target")') ~= nil, "header plates use the carved plate art")
 	expectTrue(at(bar, "frame_banner") ~= nil and at(bar, "frame_candle") ~= nil, "banners and candles use the painted art")
 	expectTrue(at(panel, 'TavernKit.painted(panel, "orn_wide")') ~= nil, "the selection panel uses the carved plate art")
