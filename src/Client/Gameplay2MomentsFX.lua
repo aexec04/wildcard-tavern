@@ -306,6 +306,8 @@ function M.boss(layer, rects, state, w, h)
 	-- one line rule plate under the Patron row, tinted by the boss rule family (static, no tween)
 	local chip = Rules.ruleChip(rects, w, h, name, rule)
 	local pr = chip and chip.rect
+	local bossCard = layer:FindFirstChild("BossCard")
+	if bossCard and bossCard.Visible then pr = nil end -- the Boss card carries the rule: no second chip
 	local nameSlot = layer:FindFirstChild("RoundName")
 	if not pr or rule == "" or (nameSlot and nameSlot:GetAttribute("RuleInScroll") == true) then -- the scroll carries the rule: one rule element only
 		if rulePlate then rulePlate.Visible = false end

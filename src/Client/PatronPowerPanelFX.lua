@@ -74,6 +74,8 @@ end
 
 -- the live rect of the panel while it is on screen (the round hint places itself clear of it), else nil
 function M.liveRect()
+	local okB, br = pcall(function() return require(script.Parent.BossCardFX).liveRect() end)
+	if okB and br then return br end -- on a boss round the Boss card holds the panel's spot
 	if plate and plate.Visible and plate.Parent then
 		return { x = plate.Position.X.Offset, y = plate.Position.Y.Offset, w = plate.Size.X.Offset, h = plate.Size.Y.Offset }
 	end
@@ -106,7 +108,8 @@ local function recheckAfterIntro(layer, state, rects, viewW, viewH)
 end
 
 function M.update(layer, state, rects, viewW, viewH)
-	latest = { layer, state, rects, viewW, viewH } -- the recheck after a boss intro uses the newest call, never a stale one
+	latest = { layer, state, rects, viewW, viewH } -- the recheck
+	if state and state.bossModifier and (state.round or 0) >= 3 then M.hide(); why("hidden: the Boss card replaces it", state); return end after a boss intro uses the newest call, never a stale one
 	local hands = tonumber(state and state.handsPlayedTotal) or 0
 	if Rules.newRun(lastHands, hands) then closed = false end
 	lastHands = hands

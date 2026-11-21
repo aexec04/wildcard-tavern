@@ -800,6 +800,12 @@ function M.install(deps)
 			roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
 			do -- a Boss round adds its rule as a second line in the scroll (two lines at most, one line when the bar is too short for two)
 				local bname, brule = Moments.bossText(lastState)
+				if bname ~= nil then -- the BossCardFX name, health bar and Night line sit in the scroll: no second text here
+					roundLabel:SetAttribute("RuleInScroll", false)
+					roundLabel.RichText = false
+					roundLabel.Text = ""
+					return
+				end
 				local baseSize = Style.TEXT.subtitle
 				local ih = roundLabel.AbsoluteSize.Y
 				pcall(function() ih = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.h end) -- ask the layout, not the label: after a root rescale the label still holds its old size
@@ -869,6 +875,7 @@ function M.install(deps)
 		if deps.deckWidget then deps.deckWidget.Visible = Layout.deckWidgetShown(lastState and lastState.phase) end
 		shell(on)
 		if not on then
+			pcall(function() require(script.Parent.BossCardFX).hide() end)
 			if lastState and lastState.roundScore ~= nil and lastState.phase ~= "playing" then pcall(self.writeNumeral); self.handOff() end
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
@@ -943,6 +950,9 @@ function M.install(deps)
 			pcall(function() -- the Patron Power panel at the left of the table (Engine/PatronPowerPanel)
 				require(script.Parent.PatronPowerPanelFX).update(layer, lastState, Layout.rects(size.X, size.Y), size.X, size.Y)
 			end)
+			pcall(function() -- boss round: the Boss card, health bar and glow (Engine/BossCard)
+				require(script.Parent.BossCardFX).update(layer, lastState, Layout.rects(size.X, size.Y), size.X, size.Y)
+			end)
 			pcall(function() -- the three hint plates of the first rounds (Engine/RoundHints), beside the score stage
 				require(script.Parent.RoundHintsFX).update(layer, lastState, deps.selectedCount(), Layout.rects(size.X, size.Y), size.X, size.Y)
 			end)
@@ -955,6 +965,7 @@ function M.install(deps)
 		local size = root.AbsoluteSize
 		pcall(fitBanner) -- the Night and Round text follows the new scroll size
 		pcall(function() require(script.Parent.PatronPowerPanelFX).update(layer, lastState, Layout.rects(size.X, size.Y), size.X, size.Y) end) -- the Patron Power panel is re-placed (or hidden when nothing fits) at the new size
+		pcall(function() require(script.Parent.BossCardFX).update(layer, lastState, Layout.rects(size.X, size.Y), size.X, size.Y) end)
 		pcall(function() require(script.Parent.RoundHintsFX).update(layer, lastState, deps.selectedCount(), Layout.rects(size.X, size.Y), size.X, size.Y) end)
 	end
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply(); replaceHint() end end)

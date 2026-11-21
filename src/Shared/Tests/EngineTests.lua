@@ -34603,4 +34603,39 @@ table.insert(tests, { name = "Rank and Suit labels keep 4 px clear on each side 
 	end
 end })
 
+table.insert(tests, { name = "Boss round card: health is max(0, Target - Score), card and health rows clear of the table at four sizes", fn = function()
+	local B = require(script.Parent.Parent.Engine.BossCard)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local cur, total = B.health(300, 0); expectEqual(cur, 300, "full health"); expectEqual(total, 300, "total is the Target")
+	cur = B.health(300, 120); expectEqual(cur, 180, "health drains with the score")
+	cur = B.health(300, 450); expectEqual(cur, 0, "health floors at 0")
+	cur = B.health(nil, nil); expectEqual(cur, 0, "no numbers give 0")
+	expectEqual(B.healthText(300, 300), "300 / 300", "health text")
+	expectEqual(B.fraction(150, 300), 0.5, "half bar"); expectEqual(B.fraction(0, 0), 0, "empty total")
+	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local tp = B.topParts(r)
+		local R = r.round
+		for k, p in pairs(tp) do
+			expectTrue(p.x >= R.x and p.y >= R.y and p.x + p.w <= R.x + R.w and p.y + p.h <= R.y + R.h, k .. " row inside the top scroll at " .. w .. "x" .. h)
+			expectTrue(p.h >= 8, k .. " row tall enough at " .. w .. "x" .. h)
+		end
+		expectTrue(not hit(tp.name, tp.bar), "name and bar do not overlap at " .. w)
+		for _, k in ipairs({ "target", "tips" }) do expectTrue(not hit(tp.bar, r[k]), "bar clear of " .. k .. " at " .. w) end
+		local c = B.cardRect(r, w, h)
+		if c then
+			expectTrue(c.w >= 200 and c.h >= 60, "card has room at " .. w .. "x" .. h)
+			for _, s in ipairs(r.slots) do expectTrue(not hit(c, s.card) and not hit(c, s.label) and not hit(c, s.pill), "card clear of Patron row at " .. w) end
+			for _, k in ipairs({ "bar", "round", "target", "tips", "hand", "stage" }) do if r[k] then expectTrue(not hit(c, r[k]), "card clear of " .. k .. " at " .. w .. "x" .. h) end end
+			local parts = B.cardParts(c)
+			expectTrue(parts.portrait.x + parts.portrait.w < parts.text.x and parts.text.x + parts.text.w <= c.w, "portrait left of the text inside the card at " .. w)
+		elseif w >= 1280 then
+			expectTrue(false, "the Boss card must fit at " .. w .. "x" .. h)
+		end
+	end
+end })
+
 return tests
