@@ -68,6 +68,7 @@ CATEGORIES = {
     "rank_medals": ("rank_medal_subjects", "rank_medals", "RankMedalArt.lua", "Rank Medal"),
     "store_bundles": ("store_subjects", "store_bundles", "StoreBundleArt.lua", "Store Bundle"),
     "events": ("event_subjects", "events", "EventArt.lua", "Event"),
+    "option_icons": ("option_icon_subjects", "option_icons", "OptionArt.lua", "Option Icon"),
     "discoveries": ("discovery_subjects", "discoveries", "DiscoveryArt.lua", "Discovery"),
     "challenges": ("challenge_subjects", "challenges", "ChallengeArt.lua", "Challenge"),
     "endless_rules": ("endless_rule_subjects", "endless_rules", "EndlessRuleArt.lua", "Endless Rule"),
@@ -195,6 +196,7 @@ CATEGORY_OPTS = {
                     "references": {"flair_room_a": "art-wip/menu_room/menu_room_wall.png",
                                    "flair_room_b": "art-wip/menu_room/menu_room_wall.png"}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
+    "option_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,
                 "additive": ["ambient_firefly"],

@@ -178,10 +178,13 @@ local function buildCard(choice, option, order)
 		if artId then
 			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
 		end
-	elseif choice.kind == "event" and not isDecline then
-		local artId = ContentArt.getImageId("events", choice.eventId)
+	elseif choice.kind == "event" then
+		-- one painted icon per option kind (decline included), else the event's own art; the emoji is only the last fallback
+		local artId = (option.kind and ContentArt.getImageId("option_icons", option.kind)) or (not isDecline and ContentArt.getImageId("events", choice.eventId)) or nil
 		if artId then
 			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+		elseif game:GetService("RunService"):IsStudio() then
+			print(("[EmojiLeft] event %s option %s is drawn from the emoji %s"):format(tostring(choice.eventId), tostring(option.id), tostring(option.icon)))
 		end
 	end
 

@@ -60,6 +60,7 @@ local ContentArt = {
 	table_scene  = require(Engine:WaitForChild("TableSceneArt")),     -- table_play, table_boss, table_counter, table_runover (candlelit scenes, decal ids until chat Claude records the Image ids)
 	ambient      = require(Engine:WaitForChild("AmbientArt")),       -- ambient_butterfly_*, ambient_cloud_*, leaves, petals, snow, fireflies, ... (living backdrops, empty until Image ids are recorded)
 	bonds        = require(Engine:WaitForChild("BondArt")),           -- keyed by Bonds id plus bond_locked (Collection Bonds tab, Bond threads)
+	option_icons = require(Engine:WaitForChild("OptionArt")),         -- keyed by event option kind (RunEvents.OPTION_KINDS)
 	blessing_icons = require(Engine:WaitForChild("BlessingIconArt")), -- keyed by RunModifiers id (Choice cards, Blessing chip)
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
 	menu_bayou   = require(Engine:WaitForChild("BayouArt")),          -- bayou_sky ... bayou_willow_fg (Menu bayou backdrop, empty until Image ids are recorded)

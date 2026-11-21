@@ -156,7 +156,7 @@ end
 local function eventChoice(event)
 	local options = {}
 	for _, o in ipairs(event.options) do
-		options[#options + 1] = { id = o.id, name = o.label, icon = o.id == "decline" and "✋" or event.icon, line1 = o.detail or "", line2 = "" }
+		options[#options + 1] = { id = o.id, name = o.label, icon = o.id == "decline" and "✋" or event.icon, kind = RunEvents.OPTION_KINDS[o.id], line1 = o.detail or "", line2 = "" }
 	end
 	return { kind = "event", eventId = event.id, title = event.name, text = event.text, icon = event.icon, options = options }
 end

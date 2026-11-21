@@ -35556,4 +35556,23 @@ table.insert(tests, { name = "Patron tip plate: on screen and clear of the HUD f
 	expectTrue(src:find("frame.Active = true", 1, true) ~= nil and src:find("[PatronTip]", 1, true) ~= nil, "plate sinks input and prints in Studio")
 end })
 
+table.insert(tests, { name = "Event art: every event and every event option shown in a normal run has a painted id, the emoji is only a fallback", fn = function()
+	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
+	local EventArt = require(script.Parent.Parent.Engine.EventArt)
+	local OptionArt = require(script.Parent.Parent.Engine.OptionArt)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	for _, ev in ipairs(RunEvents.Definitions) do
+		expectTrue(EventArt[ev.id] ~= nil, "event " .. ev.id .. " has a painted id")
+		for _, o in ipairs(ev.options) do
+			local kind = RunEvents.OPTION_KINDS[o.id]
+			expectTrue(kind ~= nil and OptionArt[kind] ~= nil, "option " .. o.id .. " of " .. ev.id .. " has a painted option icon")
+		end
+		local choice = RunChoice.forceEvent(ev.id)
+		for _, o in ipairs(choice.options) do expectTrue(o.kind ~= nil, "choice option " .. o.id .. " carries its kind") end
+	end
+	if not io then return end
+	local f = io.open("src/Client/ChoicePanel.lua", "r"); local src = f and f:read("*a") or ""; if f then f:close() end
+	expectTrue(src:find("[EmojiLeft]", 1, true) ~= nil and src:find('"option_icons"', 1, true) ~= nil, "the panel draws option icons and prints [EmojiLeft] for any emoji fallback in Studio")
+end })
+
 return tests

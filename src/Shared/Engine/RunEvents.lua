@@ -197,6 +197,13 @@ RunEvents.Definitions = {
 	},
 }
 
+-- one painted icon per option KIND (OptionArt), not per event; the event's art and then its emoji are the fallbacks
+RunEvents.OPTION_KINDS = {
+	decline = "decline", bet = "bet", trade = "recipe", swap = "swap", accept = "gain",
+	buy = "hand", buy_hand = "hand", trade_hand = "hand",
+	sell_discard = "discard", mend = "discard", shoo = "discard", share = "supper",
+}
+
 function RunEvents.getById(id)
 	for _, e in ipairs(RunEvents.Definitions) do
 		if e.id == id then return e end

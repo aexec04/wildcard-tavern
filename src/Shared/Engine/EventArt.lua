@@ -6,6 +6,8 @@
 ]]
 
 return {
+	["cellar_cat"] = "rbxassetid://103644246735874",
+	["gamblers_table"] = "rbxassetid://99898028969928",
 	["hungry_cook"] = "rbxassetid://90533102190614",
 	["kind_donation"] = "rbxassetid://129558851480004",
 	["lantern_stall"] = "rbxassetid://118703943762200",
@@ -14,4 +16,5 @@ return {
 	["news_lantern_weekend"] = "rbxassetid://83194069914526",
 	["stranger_wager"] = "rbxassetid://130983566176969",
 	["traveling_patron"] = "rbxassetid://72554368402777",
+	["wandering_tailor"] = "rbxassetid://96527214995555",
 }
