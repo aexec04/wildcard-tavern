@@ -35174,6 +35174,18 @@ table.insert(tests, { name = "MapSelectRules.targetFor: the current Night shows 
 	expectEqual(calc(1, 1, 3), 65, "Night 1 first round is 65, not the boss round's 130")
 end })
 
+table.insert(tests, { name = "MapSelectRules.rects: art, name, type, description and Continue keep 16 px clear of the panel sides at the four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = R.rects(HR.layout(sz[1], sz[2]).panelZone, "full")
+		for _, k in ipairs({ "art", "name", "type", "line", "button" }) do
+			local b = r[k]
+			expectTrue(b == nil or (b.x >= 16 and b.x + b.w <= r.w - 16), k .. " keeps 16 px side padding at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+end })
+
 table.insert(tests, { name = "MapSelectRules.rects: the compact panel keeps a two line description clear of the type row, the Target and the button at 800x450", fn = function()
 	local R = require(script.Parent.Parent.Engine.MapSelectRules)
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
@@ -35236,7 +35248,11 @@ table.insert(tests, { name = "Tavern Map panel and header: the lower left panel 
 	expectTrue(at(view, "MapSelectRules.openSelection(startIdx, states)") ~= nil, "a node is always selected on open")
 	expectTrue(at(bar, 'TavernKit.painted(titlePlate, "orn_target")') ~= nil and at(bar, 'TavernKit.painted(statsPlate, "orn_target")') ~= nil, "header plates use the carved plate art")
 	expectTrue(at(bar, "frame_banner") ~= nil and at(bar, "frame_candle") ~= nil, "banners and candles use the painted art")
-	expectTrue(at(panel, 'TavernKit.painted(panel, "orn_wide")') ~= nil, "the selection panel uses the carved plate art")
+	expectTrue(at(panel, 'TavernKit.painted(panel, "orn_wide")') == nil and at(panel, '"Stud" .. i') ~= nil, "the selection panel is plain carved wood with a gold line and corner studs, not the one sided 9-slice")
+	expectTrue(at(panel, "Enum.Font.GothamBold") ~= nil and at(panel, "math.min(24, r.button.h - 8)") ~= nil, "Continue is a cream bold word, 24 px when the plate allows")
+	local graph = read("src/Client/JourneyMapGraph.lua")
+	expectTrue(graph ~= nil and at(graph, "nodeSize * 0.69") ~= nil and at(graph, "placedBoxes") ~= nil, "side stops are about 90 px and their labels move off colliding plates")
+	expectTrue(at(view, "nodeSize * 0.26") ~= nil, "the hero stands on the current node, centred, feet on the ring")
 end })
 
 tests[#tests + 1] = ({ name = "Tavern Map: no local shadows the route drawing function, and errors are counted for DebugGoto map", fn = function()

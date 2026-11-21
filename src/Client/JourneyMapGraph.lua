@@ -168,6 +168,7 @@ return function(deps)
 		local state = lastState or {}
 		local routeIds = Layout.displayRoute(state.worldRoute) -- not "route": that name is the dash drawing function
 		local nightX, routeY = {}, {}
+		local placedBoxes = {} -- node discs and name plates already drawn: a side stop label that would land on one is moved
 		for d = 1, WorldMap.NIGHTS do
 			nightX[d], routeY[d] = nightPixel(d)
 		end
@@ -305,6 +306,7 @@ return function(deps)
 			if not onRoute[id] and v ~= "hidden" then
 				local isBubble = lookOf(id) == "bubble"
 				local size = isBubble and bubble or size -- a "?" bubble is small and has no label
+				placedBoxes[#placedBoxes + 1] = { x = p.x - size / 2, y = p.y - size / 2, w = size, h = size }
 				local btn = remember(Instance.new("TextButton"))
 				btn.Name = "Stop_" .. id
 				btn.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -347,7 +349,7 @@ return function(deps)
 					end)
 				end
 				if lockedRoad[id] and v ~= "teaser" then -- every locked road keeps a padlock, pending or not
-					local pad = textLabel("Lock", p.x + size / 2 - 2, p.y - size / 2 - 10, 30, 28, 22, 29)
+					local pad = textLabel("Lock", p.x + size * 0.354 - 4, p.y - size * 0.354 - 12, 30, 28, 22, 29) -- centred on the ring corner (45 degrees), fully on the ring
 					pad.Name = "Padlock_" .. id
 					-- Keys cost, shown while the stop is focused (tap) or hovered
 					local cost = textLabel(keys > 0 and "Costs 1 Key" or "Needs a Key", p.x, p.y - size / 2 - 34, 130, 22, 15, 41)
@@ -373,6 +375,7 @@ return function(deps)
 						lab.Size = UDim2.fromOffset(plate.w, plate.h)
 					end
 					tagged(lab, NodeRules.typeOf("night"), 99)
+					placedBoxes[#placedBoxes + 1] = { x = p.x - plate.w / 2, y = p.y + size / 2 + 6, w = plate.w, h = plate.h + 22 }
 				end
 			end
 		end
@@ -384,7 +387,7 @@ return function(deps)
 		for _, id in ipairs(state.sideHidden or {}) do revealable[id] = true end
 		for _, id in ipairs(state.sideRevealed or {}) do revealed[id] = true end
 		for _, id in ipairs(state.sideVisited or {}) do visited[id] = true end
-		local sideSize = math.floor(nodeSize * 0.56)
+		local sideSize = math.floor(nodeSize * 0.69) -- side stops are about 90 px at 1920x957
 		local sideIds = {}
 		for id in pairs(res.side) do sideIds[#sideIds + 1] = id end
 		table.sort(sideIds)
@@ -421,10 +424,31 @@ return function(deps)
 				st.Parent = btn
 				local lab = textLabel(stub and " " or (stop.name .. (visited[id] and " (done)" or "")), p.x + sideSize / 2 + 4, p.y, 150, 40, 15, 27)
 				lab.Visible = not stub -- no label bar under or beside a "?" bubble
-				-- label sits to the right of the node (WorldMapLayout.box "side")
-				lab.AnchorPoint = Vector2.new(0, 0.5)
-				lab.TextXAlignment = Enum.TextXAlignment.Left
+				-- the label sits on the side of the node away from the main route (below a stop that hangs below its parent, above one that
+				-- hangs above) and moves to the next free spot when it would land on a node or another name plate
+				lab.TextXAlignment = Enum.TextXAlignment.Center
 				lab.TextYAlignment = Enum.TextYAlignment.Center
+				do
+					local lw = math.max(80, RouteRules.textWidth(stop.name, 16) + 24)
+					local lh = 50
+					local below = { ax = 0.5, ay = 0, x = p.x, y = p.y + sideSize / 2 + 4, box = { x = p.x - lw / 2, y = p.y + sideSize / 2 + 4, w = lw, h = lh } }
+					local above = { ax = 0.5, ay = 1, x = p.x, y = p.y - sideSize / 2 - 4, box = { x = p.x - lw / 2, y = p.y - sideSize / 2 - 4 - lh, w = lw, h = lh } }
+					local right = { ax = 0, ay = 0.5, x = p.x + sideSize / 2 + 4, y = p.y, box = { x = p.x + sideSize / 2 + 4, y = p.y - lh / 2, w = lw, h = lh } }
+					local order = p.y >= parent.y and { below, above, right } or { above, below, right }
+					local pick = order[1]
+					for _, c in ipairs(order) do
+						local clash = false
+						for _, bx in ipairs(placedBoxes) do
+							if RouteRules.boxesOverlap(c.box, bx) then clash = true break end
+						end
+						if not clash then pick = c break end
+					end
+					lab.AnchorPoint = Vector2.new(pick.ax, pick.ay)
+					lab.Position = UDim2.fromOffset(pick.x, pick.y)
+					if pick == right then lab.TextXAlignment = Enum.TextXAlignment.Left end
+					placedBoxes[#placedBoxes + 1] = pick.box
+				end
+				placedBoxes[#placedBoxes + 1] = { x = p.x - sideSize / 2, y = p.y - sideSize / 2, w = sideSize, h = sideSize }
 				local stype = NodeRules.typeOf("side", stop.side)
 				if not stub then
 					tagged(lab, stype, 16)
