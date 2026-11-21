@@ -82,17 +82,33 @@ function TavernKit.feel(button)
 		scale.Name = "PressScale"
 		scale.Parent = button
 	end
-	local base = button.Position
+	local ButtonFeel = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ButtonFeel"))
 	local TweenService = game:GetService("TweenService")
 	local info = TweenInfo.new(f.seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local hovering, restPos, posTween = false, nil, nil
+	local function settle() -- stop the hover tween and snap to the rest spot (hidden button, layout moved it)
+		if posTween then posTween:Cancel() posTween = nil end
+		if hovering and restPos then button.Position = restPos end
+		hovering = false
+	end
 	button.MouseEnter:Connect(function()
 		if still() then return end
-		TweenService:Create(button, info, { Position = base - UDim2.fromOffset(0, f.lift) }):Play()
+		restPos = ButtonFeel.restFor(hovering, restPos, button.Position)
+		hovering = true
+		posTween = TweenService:Create(button, info, { Position = restPos - UDim2.fromOffset(0, f.lift) })
+		posTween:Play()
 	end)
 	button.MouseLeave:Connect(function()
 		if still() then return end
-		TweenService:Create(button, info, { Position = base }):Play()
+		if hovering and restPos then
+			posTween = TweenService:Create(button, info, { Position = restPos })
+			posTween:Play()
+		end
+		hovering = false
 		TweenService:Create(scale, info, { Scale = 1 }):Play()
+	end)
+	button:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not button.Visible then settle() end
 	end)
 	button.MouseButton1Down:Connect(function()
 		if still() then return end

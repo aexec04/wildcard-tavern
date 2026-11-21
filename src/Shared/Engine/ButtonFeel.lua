@@ -20,6 +20,14 @@ function ButtonFeel.scaleFor(hover, pressed)
 	return 1
 end
 
+-- Rest position of a hovering button. The rest spot is read when the hover starts (never when the button is created),
+-- so a row whose Position is set later by a layout rests where the layout put it. While a hover is active the stored
+-- spot is kept. Returns the rest spot to use.
+function ButtonFeel.restFor(hovering, storedRest, currentPos)
+	if hovering and storedRest ~= nil then return storedRest end
+	return currentPos
+end
+
 function ButtonFeel.playReady(selectedCount)
 	return type(selectedCount) == "number" and selectedCount >= 1 and selectedCount <= 5
 end

@@ -8370,6 +8370,20 @@ table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for ev
 	end
 end })
 
+table.insert(tests, { name = "ButtonFeel: a button whose Position is set after creation rests where the layout put it after hover", fn = function()
+	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
+	local button = { Position = 0 } -- created at 0,0
+	button.Position = 100 -- layout() sets the real spot later
+	local hovering, rest = false, nil
+	rest = ButtonFeel.restFor(hovering, rest, button.Position) -- MouseEnter
+	hovering = true
+	button.Position = rest - 4 -- hover lift
+	rest = ButtonFeel.restFor(hovering, rest, button.Position) -- a second enter while hovering keeps the spot
+	expectEqual(rest, 100, "rest spot read at hover time, not creation time")
+	button.Position = rest -- MouseLeave
+	expectEqual(button.Position, 100, "ends where the layout put it")
+end })
+
 table.insert(tests, { name = "ButtonFeel: hover swells, press squashes 6 percent, Play lights up with 1 to 5 cards", fn = function()
 	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
 	expectEqual(ButtonFeel.scaleFor(false, false), 1)
