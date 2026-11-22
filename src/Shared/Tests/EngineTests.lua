@@ -30493,6 +30493,26 @@ table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, 
 	expectTrue(CS.contrastRatio(CS.RED_INK, FA.FLAT_IVORY) >= 4.5, "red ink on ivory")
 	expectTrue(CS.contrastRatio(CS.BLACK_INK, FA.FLAT_IVORY) >= 4.5, "black ink on ivory")
 end })
+table.insert(tests, { name = "Accessibility: Colorblind Suits inks read at 4.5:1 on every Card Set paper and stay unique, glyph and letter cues need no colour", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local count = 0
+	for _, set in ipairs(CS.Definitions) do
+		count = count + 1
+		local paper = CS.cardLook(set).paper
+		local plate = CS.indexStyle(set, false).plate
+		local seen = {}
+		for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
+			local m = A.SuitMarks[n]
+			local ink = CS.colorblindInkOf(set, m.ink)
+			expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			expectTrue(CS.contrastRatio(ink, plate) >= 4.5, set.id .. " " .. n .. " ink on index plate")
+			expectTrue(not seen[m.glyph .. m.letter], set.id .. " " .. n .. " cue is unique")
+			seen[m.glyph .. m.letter] = true
+		end
+	end
+	expectTrue(count >= 14, "all sets checked")
+end })
 table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Settings, then the first Display rows)", fn = function()
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r"))

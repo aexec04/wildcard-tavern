@@ -943,6 +943,20 @@ function CosmeticSets.indexStyle(set, isRed)
 	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
 end
 
+-- Colorblind Suits ink for one suit mark ({r,g,b}) on a set's card: darkened toward black until it reads at the set's
+-- minimum contrast on both the face paper and the index plate. Returns {r,g,b}.
+function CosmeticSets.colorblindInkOf(set, markInk)
+	local paper = CosmeticSets.cardLook(set).paper
+	local plate = CosmeticSets.indexStyle(set, false).plate
+	local need = math.max(4.5, CosmeticSets.minContrastOf(set))
+	local ink, steps = markInk, 0
+	while (CosmeticSets.contrastRatio(ink, paper) < need or CosmeticSets.contrastRatio(ink, plate) < need) and steps < 12 do
+		ink = mix(ink, CosmeticSets.BLACK_INK, 0.2)
+		steps = steps + 1
+	end
+	return ink
+end
+
 -- Text colour for a button whose plate fill is `fill` ({r,g,b}): cream or near-black, whichever reads better (4.5:1 or more
 -- for every fill the sets use; the larger of the two is returned when neither reaches it).
 function CosmeticSets.buttonTextColor(fill)
