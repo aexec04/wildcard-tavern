@@ -19,6 +19,8 @@
 		rounds    rounds cleared                     state.roundsCleared
 		boonsPicked  Night boons picked              state.boonsPicked
 		deckRounds / deckBosses  rounds / Boss Rounds cleared with the Lucky or Slim Deck (state.startingDeckId is not classic)
+		marksBought  Marks bought for a card         state.marksBought
+		slimRounds   rounds cleared with the Slim Deck (state.startingDeckId is "slim")
 	Daily, Weekly and Seed runs count too.
 
 	Profile: quests = { day, ids = { questId x3 }, progress = { [questId] = n }, done = { [questId] = true } },
@@ -65,8 +67,13 @@ Quests.Definitions = {
 	{ id = "boon_3", name = "Boon Collector", icon = "🎁", desc = "Pick 3 Night boons.", counter = "boonsPicked", goal = 3, xp = 70, tips = 3 },
 	{ id = "deck_rounds", name = "Deck Explorer", icon = "🃏", desc = "Clear 3 rounds with the Lucky or Slim Deck.", counter = "deckRounds", goal = 3, xp = 70, tips = 3 },
 	{ id = "deck_boss", name = "Deck Boss Beater", icon = "🏆", desc = "Win a Boss Round with the Lucky or Slim Deck.", counter = "deckBosses", goal = 1, xp = 80, tips = 4 },
+	-- Marks (bought at the Counter from Night 2, Tips only) and the Slim Deck (open at Night 5)
+	{ id = "mark_1", name = "Mark Maker", icon = "🔖", desc = "Buy a Mark for one of your cards.", counter = "marksBought", goal = 1, xp = 50, tips = 2 },
+	{ id = "mark_2", name = "Mark Collector", icon = "🏷️", desc = "Buy 2 Marks for your cards.", counter = "marksBought", goal = 2, xp = 70, tips = 3 },
+	{ id = "slim_rounds", name = "Slim Sprint", icon = "✂️", desc = "Clear 3 rounds with the Slim Deck.", counter = "slimRounds", goal = 3, xp = 80, tips = 4 },
 }
-Quests.DECK_COUNTERS = { deckRounds = true, deckBosses = true } -- these need the Lucky or Slim deck, which open at Night 3 and 5
+Quests.DECK_COUNTERS = { deckRounds = true, deckBosses = true, slimRounds = true } -- these need the Lucky or Slim deck, which open at Night 3 and 5
+Quests.SLIM_ONLY = { slimRounds = true } -- this one needs the Slim deck itself
 
 function Quests.getById(id)
 	for _, q in ipairs(Quests.Definitions) do
@@ -127,19 +134,28 @@ end
 -- are swapped for the first spare quest (not in this week's plan, not on a counter already in the day), so nothing offered is impossible.
 function Quests.idsFor(profile, day)
 	local ids = Quests.rollFor(day)
+	if profile == nil then return ids end
 	local StartingDecks = require(script.Parent.StartingDecks)
-	if profile == nil or StartingDecks.isUnlocked(profile, "lucky") then return ids end
+	local luckyOpen, slimOpen = StartingDecks.isUnlocked(profile, "lucky"), StartingDecks.isUnlocked(profile, "slim")
+	local function locked(def) -- a deck quest whose deck is still shut
+		if not def or not Quests.DECK_COUNTERS[def.counter] then return false end
+		return not luckyOpen or (Quests.SLIM_ONLY[def.counter] == true and not slimOpen)
+	end
+	local any = false
+	for _, id in ipairs(ids) do
+		if locked(Quests.getById(id)) then any = true end
+	end
+	if not any then return ids end
 	local inWeek, counters = {}, {}
 	for _, list in pairs(Quests.weekPlan(math.floor(day) // 7)) do
 		for _, id in ipairs(list) do inWeek[id] = true end
 	end
 	for _, id in ipairs(ids) do
 		local def = Quests.getById(id)
-		if def and not Quests.DECK_COUNTERS[def.counter] then counters[def.counter] = true end
+		if def and not locked(def) then counters[def.counter] = true end
 	end
 	for i, id in ipairs(ids) do
-		local def = Quests.getById(id)
-		if def and Quests.DECK_COUNTERS[def.counter] then
+		if locked(Quests.getById(id)) then
 			for _, q in ipairs(Quests.Definitions) do
 				if not inWeek[q.id] and not Quests.DECK_COUNTERS[q.counter] and not counters[q.counter] then
 					ids[i] = q.id
@@ -270,6 +286,8 @@ function Quests.countersOf(state)
 		boonsPicked = state.boonsPicked or 0,
 		deckRounds = (state.startingDeckId and state.startingDeckId ~= "classic") and (state.roundsCleared or 0) or 0,
 		deckBosses = (state.startingDeckId and state.startingDeckId ~= "classic") and (state.bossesCleared or 0) or 0,
+		marksBought = state.marksBought or 0,
+		slimRounds = state.startingDeckId == "slim" and (state.roundsCleared or 0) or 0,
 	}
 end
 

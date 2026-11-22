@@ -9855,8 +9855,8 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
-	-- 28 quest types, unique ids, never two quests on one counter in a day, deterministic
-	expectEqual(#Quests.Definitions, 28, "28 quest types")
+	-- 31 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 31, "31 quest types")
 	do -- variety: 12+ distinct counters, and no quest repeats inside a UTC week (3 a day, 21 different)
 		local kinds, kindCount = {}, 0
 		for _, def in ipairs(Quests.Definitions) do
@@ -9971,6 +9971,7 @@ table.insert(tests, { name = "AccountProgress: counters become XP and quest prog
 	state.handStats = { Pair = 20, Straight = 20, ["Full House"] = 20, ["Three of a Kind"] = 20 }
 	state.bigHands, state.richClears, state.quickClears, state.housePassesBought = 5, 5, 5, 5
 	state.recipesUsed, state.cardsDiscarded, state.night, state.roundsCleared = 5, 40, 5, 40
+	state.boonsPicked, state.marksBought, state.startingDeckId = 5, 5, "slim" -- the boon, Mark and deck quests too
 	local r3 = AccountProgress.sync(profile, snap, state, 20000, false)
 	for _, id in ipairs(ids) do
 		expectTrue(profile.quests.done[id], id .. " completes once its counter is high enough")
@@ -20581,8 +20582,9 @@ table.insert(tests, { name = "Collection opens on the gallery room: six hotspots
 		if c.ClassName == "TextButton" then plates[#plates + 1] = c end
 	end
 	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
-	expectEqual(#plates, 8, "a Gallery plate, one per section and the Boons page plate")
-	expectEqual(plates[8].Text, "Boons", "the last plate opens the Boons page")
+	expectEqual(#plates, 9, "a Gallery plate, one per section, the Boons page plate and the Marks page plate")
+	expectEqual(plates[8].Text, "Boons", "the next to last plate opens the Boons page")
+	expectEqual(plates[9].Text, "Marks", "the last plate opens the Marks page")
 	expectEqual(plates[1].Text, "< Gallery")
 	for i, tab in ipairs(CB.Tabs) do -- each tab plate carries its count pill: "Name  found / total"
 		local counts = CB.tabCounts(col.view and col.view.sets or {})[tab.id]
@@ -45018,6 +45020,35 @@ table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Pat
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('quietPlate("Marks"', 1, true) ~= nil, "the Collection has a Marks plate")
 	end
+end })
+
+table.insert(tests, { name = "Mark and Slim quests: counters read the run, Slim Sprint is swapped out until the Slim Deck is open, rewards stay in the 2 to 4 Tips range, the model run finishes each in 2 runs or fewer", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local c = Quests.countersOf({ marksBought = 2, startingDeckId = "slim", roundsCleared = 4 })
+	expectEqual(c.marksBought, 2)
+	expectEqual(c.slimRounds, 4)
+	expectEqual(Quests.countersOf({ marksBought = 2, startingDeckId = "lucky", roundsCleared = 4 }).slimRounds, 0, "only the Slim Deck counts")
+	for _, id in ipairs({ "mark_1", "mark_2", "slim_rounds" }) do
+		local def = Quests.getById(id)
+		expectTrue(def ~= nil and #def.desc <= 60 and def.tips >= 2 and def.tips <= 4 and def.xp >= 40 and def.xp <= 80, id .. " is a short fair quest")
+	end
+	local rows = {}
+	for _, r in ipairs(EconomySim.questReport()) do rows[r.id] = r end
+	for _, id in ipairs({ "mark_1", "mark_2", "slim_rounds" }) do
+		expectTrue(rows[id] and rows[id].runs and rows[id].runs <= 2, id .. " finishes in 2 runs or fewer")
+	end
+	-- a profile with Lucky open but not Slim never sees Slim Sprint; a profile with both may
+	local lucky = PlayerProfile.new()
+	lucky.stats.bestNightReached = 3
+	local both = PlayerProfile.new()
+	both.stats.bestNightReached = 5
+	local seenBoth = false
+	for day = 20000, 20200 do
+		for _, id in ipairs(Quests.idsFor(lucky, day)) do expectTrue(id ~= "slim_rounds", "Slim Sprint is never offered before the Slim Deck opens") end
+		for _, id in ipairs(Quests.idsFor(both, day)) do if id == "slim_rounds" then seenBoth = true end end
+	end
+	expectTrue(seenBoth, "a player with the Slim Deck open does get Slim Sprint some days")
 end })
 
 return tests

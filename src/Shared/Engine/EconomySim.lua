@@ -25,6 +25,7 @@ EconomySim.RunModel = {
 	discardsUsedTotal = 5, cardsDiscarded = 10, flushClears = 0, packsBought = 1, bossesCleared = 1,
 	bigHands = 0, richClears = 1, quickClears = 0, housePassesBought = 1, recipesUsed = 1,
 	night = 3, roundsCleared = 4, boonsPicked = 2, -- Night 2 and Night 3 each open with a boon pick
+	marksBought = 2, -- the Counter offers one Mark pack a visit from Night 2
 }
 EconomySim.RunsPerSession = 2
 
@@ -139,6 +140,7 @@ function EconomySim.questReport()
 	local model = copyRun()
 	model.startingDeckId = "lucky" -- deck quests are only offered once a deck besides Classic is open, so model a run on one
 	local perRun = Quests.countersOf(model)
+	perRun.slimRounds = model.roundsCleared -- a model run on the Slim Deck clears the same rounds
 	local rows = {}
 	for _, def in ipairs(Quests.Definitions) do
 		local per = perRun[def.counter] or 0
