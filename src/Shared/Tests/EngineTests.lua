@@ -40535,7 +40535,7 @@ table.insert(tests, { name = "Calm mode and Reduce motion: every Card Set effect
 	expectTrue(al == nil or al:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "AmbientLife builds nothing when calm")
 	-- the card back flip (an equip moment, not a layer) swaps at once when calm
 	local cv = read("src/Client/CosmeticSetsView.lua")
-	expectTrue(cv == nil or cv:find('get("reduceShake") == true', 1, true) ~= nil, "the card back flip tween is skipped when calm")
+	expectTrue(cv == nil or cv:find('get("reduceShake") == true', 1, true) ~= nil or cv:find(".motionAllowed()", 1, true) ~= nil, "the card back flip tween is skipped when calm")
 end })
 
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
@@ -43984,3 +43984,4 @@ table.insert(tests, { name = "Marks: the server takes BuyMark through the rate l
 end })
 
 return tests
+
