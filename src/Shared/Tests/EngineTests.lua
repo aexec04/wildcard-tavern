@@ -15795,7 +15795,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
-	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true,
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true, shop_room_gala = true,
 		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
@@ -37474,12 +37474,30 @@ table.insert(tests, { name = "ThemeScenes: only winter_evening swaps the boss ta
 	local E = script.Parent.Parent.Engine
 	local TS = require(E.ThemeScenes)
 	for _, id in ipairs(TS.ORDER) do
-		if id ~= "winter_evening" then
+		if id ~= "winter_evening" and id ~= "golden_gala" then
 			expectTrue(TS.themeImageId(id, "bossTableBackground") == nil, id .. " keeps its own boss table")
 			expectTrue(TS.themeImageId(id, "mapBackdrop") == nil, id .. " keeps the parchment map ground")
 		end
 	end
+	expectTrue(TS.themeImageId("golden_gala", "mapBackdrop") == nil, "golden_gala keeps the parchment map ground")
 	expectTrue(TS.themeImageId(nil, "mapBackdrop") == nil, "no set means classic")
+end })
+
+table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed id in every slot (room, front, menu, boss table, shop) and classic still falls back", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS = require(E.ThemeScenes)
+	local TSA, SSA, PSA = require(E.TableSceneArt), require(E.ShopSceneArt), require(E.PlaySceneArt)
+	local function good(id) return type(id) == "string" and string.match(id, "^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0" end
+	local PRA = require(E.PlayRoomArt)
+	local k = PRA.keys("golden_gala")
+	expectTrue(good(PSA[k.bg]) and good(PSA[k.front]), "golden_gala play room bg and front ids")
+	expectEqual(PRA.roomArt("golden_gala", PSA).room, "golden_gala", "the palace room is used")
+	expectTrue(good(TS.themeImageId("golden_gala", "menuBackdrop")) and TS.themeImageId("golden_gala", "menuBackdrop") == TSA.theme_gala_menu, "menu wall id")
+	expectTrue(good(TS.themeImageId("golden_gala", "bossTableBackground")) and TS.themeImageId("golden_gala", "bossTableBackground") == TSA.theme_gala_boss, "boss table id")
+	expectTrue(good(TS.themeImageId("golden_gala", "shopBackdrop")) and TS.themeImageId("golden_gala", "shopBackdrop") == SSA.shop_room_gala, "shop room id")
+	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop" }) do
+		expectTrue(TS.themeImageId("classic_tavern", slot) == nil, "classic falls back for " .. slot)
+	end
 end })
 
 -- Phone and tablet pass: Settings, Tome and Menu rects from the live layout functions at 800x450, 1024x768 and 1366x768.

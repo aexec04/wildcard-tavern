@@ -27,7 +27,7 @@ PlayRoomArt.SETS = {
 	winter_evening = { dy = -1, felt = { x = 120, y = 470, w = 1300, h = 215 } },
 	festival_night = { dy = 0 },
 	closing_time = { dy = -2 },
-	golden_gala = { dy = 18, felt = { x = 140, y = 520, w = 1260, h = 175 } },
+	golden_gala = { dy = -26, felt = { x = 140, y = 480, w = 1260, h = 205 } },
 	meadow_picnic = { dy = 16 },
 	riverside_evening = { dy = 0 },
 	summit_camp = { dy = 0 },

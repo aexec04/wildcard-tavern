@@ -63,6 +63,7 @@ local LAYER_OF = { snow = "snow", ember = "sparks", dust = "dust", mote = "dust"
 -- boss and map ids are registered; their screens (Gameplay2, Tavern Map) read the art key when those lanes wire it.
 local THEME_ART = {
 	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map" },
+	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", shopBackdrop = "shop_scene:shop_room_gala" },
 }
 
 local function setArt(setId)

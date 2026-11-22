@@ -16,6 +16,7 @@ return {
 	["shop_offer_scroll_a"] = "rbxassetid://130489069975538",
 	["shop_offer_scroll_b"] = "rbxassetid://104583801741108",
 	["shop_room_a"] = "rbxassetid://91484997579906",
+	["shop_room_gala"] = "rbxassetid://110814119782477",
 	["shop_table"] = "rbxassetid://74414987897069",
 	["shop_wall"] = "rbxassetid://126299265758911",
 }
