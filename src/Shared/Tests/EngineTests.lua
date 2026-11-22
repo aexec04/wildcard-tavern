@@ -18616,7 +18616,7 @@ table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, t
 end })
 
 -- ===== Small notices are a corner toast, the big plate is only for the daily reward and Round Complete (2026-11-10) =====
-table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of at most three (newest on top, unlocks merge, 4 seconds)", fn = function()
+table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of at most two (2.5 s minimum) (newest on top, unlocks merge, 4 seconds)", fn = function()
 	local R = require(script.Parent.Parent.Engine.CornerToastRules)
 	-- style: a plate only when asked
 	expectEqual(R.styleOf({ text = "x" }), "toast")
@@ -18651,7 +18651,7 @@ table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of 
 		end
 		local compact = R.plan("roundSelect")
 		expectTrue(R.slot(w, h, compact, 1).y + compact.height <= R.CARDS_TOP, "Round Select's one compact line ends above its cards")
-		expectEqual(R.plan("table").maxVisible, 3)
+		expectEqual(R.plan("table").maxVisible, 2)
 		expectEqual(compact.maxVisible, 1)
 	end
 
@@ -18660,16 +18660,17 @@ table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of 
 	for i = 1, 5 do expectTrue(st:push({ id = "n" .. i, text = "Quest " .. i }, 0), "notice " .. i .. " is taken") end
 	expectFalse(st:push({ id = "n1", text = "again" }, 0), "the same id is not shown twice in a round")
 	expectFalse(st:push({ id = "empty" }, 0), "a notice with no words is dropped")
-	st:tick(0, 3)
-	expectEqual(#st.visible, 3, "never more than three stacked")
-	expectEqual(st.visible[1].text, "Quest 3", "the newest one in is on top")
-	expectEqual(#st.pending, 2, "the others wait")
-	st:tick(R.AUTO_SECONDS - 0.1, 3)
-	expectEqual(#st.visible, 3, "they stay about 4 seconds")
-	st:tick(R.AUTO_SECONDS + 0.1, 3)
-	expectEqual(st.visible[1].text, "Quest 5", "when they go, the waiting ones come in")
+	st:tick(0, R.MAX_STACK)
+	expectEqual(#st.visible, 2, "never more than two stacked")
+	expectEqual(st.visible[1].text, "Quest 2", "the newest one in is on top")
+	expectEqual(#st.pending, 3, "the others wait")
+	st:tick(R.AUTO_SECONDS - 0.1, R.MAX_STACK)
+	expectEqual(#st.visible, 2, "they stay about 4 seconds")
+	st:tick(R.AUTO_SECONDS + 0.1, R.MAX_STACK)
+	expectEqual(st.visible[1].text, "Quest 4", "when they go, the waiting ones come in")
 	expectEqual(#st.visible, 2)
-	st:tick(2 * R.AUTO_SECONDS + 1, 3)
+	st:tick(2 * R.AUTO_SECONDS + 1, R.MAX_STACK)
+	st:tick(3 * R.AUTO_SECONDS + 2, R.MAX_STACK)
 	expectTrue(st:isEmpty(), "and then the stack is empty")
 	-- unlocks merge into one toast, and a repeat restarts its time
 	st = R.new()
@@ -18683,18 +18684,28 @@ table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of 
 	expectEqual(#st.visible, 1, "the merge gave it a fresh 4 seconds")
 	-- a tap closes one; a smaller slot (Round Select) sends the oldest back to wait and they return when there is room
 	st = R.new()
-	for i = 1, 3 do st:push({ id = "q" .. i, text = "Quest " .. i }, 0) st:tick(0, 3) end
-	expectEqual(#st.visible, 3)
+	for i = 1, 2 do st:push({ id = "q" .. i, text = "Quest " .. i }, 0) st:tick(0, 2) end
+	expectEqual(#st.visible, 2)
 	local top = st.visible[1].order
-	expectTrue(st:dismiss(top) and #st.visible == 2, "a tap closes that toast")
+	expectTrue(st:dismiss(top) and #st.visible == 1, "a tap closes that toast")
 	st:push({ id = "q4", text = "Quest 4" }, 1)
-	st:tick(1, 1)
-	expectEqual(#st.visible, 1, "Round Select shows one")
-	expectEqual(st.visible[1].text, "Quest 2", "the newest of the ones already up stays; the new notice waits for room")
-	expectEqual(#st.pending, 2, "the rest wait for room")
-	st:tick(1 + R.AUTO_SECONDS + 1, 1)
-	expectEqual(st.visible[1].text, "Quest 1", "and when it goes the oldest waiting one comes back first")
+	st:tick(1, 2)
+	expectEqual(#st.visible, 2, "the freed room takes the waiting notice")
+	st:push({ id = "q5", text = "Quest 5" }, 1)
+	st:tick(1.5, 1)
+	expectEqual(#st.visible, 2, "a smaller slot does not cut a toast shown for under 2.5 s")
+	st:tick(R.MIN_SHOW + 1.1, 1)
+	expectEqual(#st.visible, 1, "once they have been readable long enough Round Select shows one")
+	expectTrue(#st.pending >= 1, "the rest wait for room")
 	expectFalse(st:dismiss(99999), "an unknown toast is not closed")
+	-- no toast ever leaves before 2.5 s, even with a short hold
+	st = R.new()
+	st:push({ id = "short", text = "Quick", hold = 0.5 }, 10)
+	st:tick(10, 2)
+	st:tick(12.4, 2)
+	expectEqual(#st.visible, 1, "a 0.5 s hold is raised to the 2.5 s minimum")
+	st:tick(12.6, 2)
+	expectEqual(#st.visible, 0)
 	-- a new round may show the same notice again
 	st = R.new()
 	expectTrue(st:push({ id = "same", text = "x" }, 0))
@@ -18795,10 +18806,10 @@ table.insert(tests, { name = "OverlayQueue sends small notices to the corner toa
 	local rows = s.Toast.rows()
 	local shown = {}
 	for _, row in ipairs(rows) do if row.frame.Visible then shown[#shown + 1] = row end end
-	expectEqual(#shown, 3, "three toasts at most are stacked (stack: " .. #s.Toast.stack().visible .. " visible, " .. #s.Toast.stack().pending .. " waiting)")
-	expectEqual(rows[1].label.Text, "Rank 5! Title: Table Regular", "the newest of the first three is on top (the next two wait for room)")
-	expectEqual(rows[3].label.Text, "Unlocked: Straight Shooter", "the oldest is at the bottom, with no emoji and no effect text")
-	expectEqual(#s.Toast.stack().pending, 2, "the blessing and the last notice wait")
+	expectEqual(#shown, 2, "two toasts at most are stacked (stack: " .. #s.Toast.stack().visible .. " visible, " .. #s.Toast.stack().pending .. " waiting)")
+	expectEqual(rows[1].label.Text, "Quest done: Pair Up +40 XP", "the newest of the first two is on top (the rest wait for room)")
+	expectEqual(rows[2].label.Text, "Unlocked: Straight Shooter", "the oldest is at the bottom, with no emoji and no effect text")
+	expectEqual(#s.Toast.stack().pending, 3, "the rank, the blessing and the last notice wait")
 	expectFalse(s.Queue.isBusy(), "a toast never keeps the queue busy (nothing waits on it)")
 	expectTrue(s.gui:FindFirstChild("OverlayQueueBackdrop") == nil, "no plate was built for them")
 	FakeGui.layout(s.gui, 1920, 1080)
@@ -18809,7 +18820,7 @@ table.insert(tests, { name = "OverlayQueue sends small notices to the corner toa
 	rows[1].frame.MouseButton1Click:Fire()
 	local count = 0
 	for _, row in ipairs(rows) do if row.frame.Visible and row.order then count = count + 1 end end
-	expectEqual(count, 3, "a tap closes one and the waiting notice takes its place")
+	expectEqual(count, 2, "a tap closes one and the waiting notice takes its place")
 	expectFalse(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "the same notice is not shown twice in a round")
 	s.Queue.newRound()
 	expectTrue(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "a new round may show it again")
@@ -29428,10 +29439,10 @@ table.insert(tests, { name = "BossPresence: plate clear of Round banner and Patr
 	assert(B.fanfare(true, false) == nil and B.fanfare(false, false).pieces == 56 and B.fanfare(false, true).pieces == 28)
 end })
 
-table.insert(tests, { name = "ProgressionFeel: rank toast rises 16 px and holds 1.8 s with a cue, none of it in calm mode, unlock list line, Daily line with streak, toast hold carried through the stack", fn = function()
+table.insert(tests, { name = "ProgressionFeel: rank toast rises 16 px and holds 2.5 s with a cue, none of it in calm mode, unlock list line, Daily line with streak, toast hold carried through the stack", fn = function()
 	local P = require(script.Parent.Parent.Engine.ProgressionFeel)
 	local t = P.toast("rank", false)
-	assert(t.rise == 16 and t.hold == 1.8 and t.cue == "shop_buy")
+	assert(t.rise == 16 and t.hold == 2.5 and t.cue == "shop_buy")
 	assert(P.toast("rank", true).rise == 0 and P.toast("quest", false) == nil)
 	assert(P.unlockLine({}) == nil and P.unlockLine({ "A" }) == "New: A")
 	assert(P.unlockLine({ "A", "B", "C" }) == "New: A, B, C")
@@ -29439,11 +29450,11 @@ table.insert(tests, { name = "ProgressionFeel: rank toast rises 16 px and holds 
 	assert(P.dailyLine("+40 Tips", 3) == "Daily Challenge: +40 Tips  Streak 3" and P.dailyLine("", 0) == "Daily Challenge")
 	local Rules = require(script.Parent.Parent.Engine.CornerToastRules)
 	local st = Rules.new()
-	assert(st:push({ id = "rank:5", text = "Rank 5!", hold = 1.8, rise = 16 }, 100))
-	st:tick(100, 3)
-	assert(#st.visible == 1 and st.visible[1].expiresAt == 101.8 and st.visible[1].rise == 16)
+	assert(st:push({ id = "rank:5", text = "Rank 5!", hold = 2.5, rise = 16 }, 100))
+	st:tick(100, 2)
+	assert(#st.visible == 1 and st.visible[1].expiresAt == 102.5 and st.visible[1].rise == 16)
 	assert(st:push({ id = "q", text = "Quest done" }, 100))
-	st:tick(100, 3)
+	st:tick(100, 2)
 	assert(st.visible[1].expiresAt == 100 + Rules.AUTO_SECONDS)
 end })
 

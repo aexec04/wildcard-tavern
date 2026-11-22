@@ -3,7 +3,7 @@
 	Pure numbers and words (tested) for how progress feels: the rank-up toast, the unlock list on the Run Over screen and the
 	Daily Challenge line. Client/CornerToast, Client/UnlockToast and Client/GameOver use it.
 
-	  ProgressionFeel.toast(kind, calm) -> { hold, rise, cue }   rank toasts rise 16 px and hold 1.8 s; calm mode: no rise
+	  ProgressionFeel.toast(kind, calm) -> { hold, rise, cue }   rank toasts rise 16 px and hold 2.5 s; calm mode: no rise
 	  ProgressionFeel.unlockLine(names) -> "New: A, B and 2 more" (nil when there is nothing new)
 	  ProgressionFeel.dailyLine(rewardText, streak) -> "Daily Challenge: <reward>  Streak 3"
 ]]
@@ -11,7 +11,7 @@
 local M = {}
 
 M.RISE = 16
-M.HOLD = 1.8
+M.HOLD = 2.5
 M.CUE = "shop_buy"
 M.MAX_NAMES = 3
 

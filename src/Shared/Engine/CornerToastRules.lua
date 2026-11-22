@@ -13,7 +13,7 @@
 
 	Where it sits: the right edge, 8 px under the top-right corner buttons (they end at y 66), 12 px from the edge, at most 300
 	wide. On Round Select the cards start at y 104, so the slot there is ONE compact line between the buttons and the cards; every
-	other screen has room for three two-line toasts clear of the left HUD, the hand, Play Hand, Discard, the deck widget, the Counter
+	other screen has room for two two-line toasts clear of the left HUD, the hand, Play Hand, Discard, the deck widget, the Counter
 	offers and the Choose buttons.
 ]]
 
@@ -25,7 +25,8 @@ M.TOP = 74 -- the corner buttons end at y 66; 8 px under them
 M.GAP = 6
 M.AUTO_SECONDS = 4
 M.FADE = 0.2
-M.MAX_STACK = 3
+M.MAX_STACK = 2 -- never more than two toasts on screen
+M.MIN_SHOW = 2.5 -- every toast stays readable at least this long, even when a smaller slot or a tap-free queue wants the room
 M.CARDS_TOP = 104 -- Round Select's cards start here (RoundSelect.lua panelRow)
 M.LINE_HEIGHT = 17
 
@@ -77,7 +78,7 @@ function M.plan(screen)
 		-- its Tips chip ends at y 52 and its cards start at y 104: one compact line fits between them (y 68 to 100)
 		return { maxVisible = 1, lines = 1, height = 32, top = 68 }
 	end
-	-- three 48 px toasts and two gaps end at y 230: the Counter's offer cards start at y 241 at 1280x720 (and bob 5 px higher)
+	-- two 48 px toasts and a gap end at y 178 (three would end at y 230: the Counter's offer cards start at y 241 at 1280x720, and bob 5 px higher)
 	return { maxVisible = M.MAX_STACK, lines = 2, height = 48, top = M.TOP }
 end
 
@@ -134,7 +135,7 @@ function Stack:push(item, now)
 		if into then
 			for _, n in ipairs(names) do into.names[#into.names + 1] = n end
 			into.text = M.mergeNames(into.names)
-			if into.expiresAt then into.expiresAt = now + M.AUTO_SECONDS end
+			if into.expiresAt then into.expiresAt = now + M.AUTO_SECONDS end -- (a merge restarts the clock)
 			into.changed = true
 			return true
 		end
@@ -161,14 +162,22 @@ function Stack:tick(now, max)
 	end
 	-- a smaller slot (Round Select): the oldest go back to waiting, in order, and come again when there is room
 	while #self.visible > max do
-		local e = table.remove(self.visible)
+		-- one still inside its minimum reading time stays; the extra toast waits instead
+		local idx
+		for i = #self.visible, 1, -1 do
+			local v = self.visible[i]
+			if v.shownAt and now - v.shownAt >= M.MIN_SHOW then idx = i break end
+		end
+		if not idx then break end
+		local e = table.remove(self.visible, idx)
 		e.expiresAt = nil
 		table.insert(self.pending, 1, e)
 		changed = true
 	end
 	while #self.visible < max and #self.pending > 0 do
 		local e = table.remove(self.pending, 1)
-		e.expiresAt = now + (e.hold or M.AUTO_SECONDS)
+		e.shownAt = now
+		e.expiresAt = now + math.max(e.hold or M.AUTO_SECONDS, M.MIN_SHOW)
 		table.insert(self.visible, 1, e) -- newest on top
 		changed = true
 	end
