@@ -316,6 +316,10 @@ return function(deps)
 		local lines = {}
 		local function add(text, props) lines[#lines + 1] = { text = text, props = props or {} } end
 		local best = summary and summary.bestHand or bestHand
+		do -- one line: this run's best hand and the Night it reached
+			local okR, runLine = pcall(function() return require(Engine:WaitForChild("BestLine")).runLine(best and best.name, state.night) end)
+			if okR and runLine then add(runLine, { TextSize = 16, tone = "gold" }) end
+		end
 		if best then add(string.format("Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
 		do
 			local ST = require(Engine:WaitForChild("ScoreText"))

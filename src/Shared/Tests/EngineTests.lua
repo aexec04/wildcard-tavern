@@ -1490,7 +1490,9 @@ table.insert(tests, { name = "Night 2 and 3 targets are lifted modestly, Night 1
 	expectEqual(RunState.nightBaseScoreFor(1), plain(1))
 	expectTrue(RunState.nightBaseScoreFor(2) > plain(2) and RunState.nightBaseScoreFor(2) <= plain(2) * 1.25, "Night 2 lift")
 	expectTrue(RunState.nightBaseScoreFor(3) > plain(3) and RunState.nightBaseScoreFor(3) <= plain(3) * 1.25, "Night 3 lift")
-	expectEqual(RunState.nightBaseScoreFor(4), plain(4))
+	expectEqual(RunState.nightBaseScoreFor(4), plain(4) * 1.1)
+	expectEqual(RunState.nightBaseScoreFor(5), plain(5) * 1.1)
+	expectEqual(RunState.nightBaseScoreFor(6), plain(6))
 	for n = 2, 10 do
 		expectTrue(RunState.nightBaseScoreFor(n) > RunState.nightBaseScoreFor(n - 1), "targets climb at Night " .. n)
 	end
@@ -39754,6 +39756,23 @@ table.insert(tests, { name = "BestLine: best Night and best hand line, nil when 
 	local huge = BL.text({ bestNightReached = 999999, bestHandScore = 1e300 })
 	expectTrue(#huge <= BL.MAX_CHARS and not huge:lower():find("balatro") and not huge:find("nan"))
 	expectTrue(BL.text({ bestNightReached = 0 / 0, bestHandScore = -5 }) == nil)
+end })
+
+table.insert(tests, { name = "BestLine.runLine: Best hand and Night on one 16 px line, fits the Run Over layout at 800x450 to 1920x1080", fn = function()
+	local BL = require(script.Parent.Parent.Engine.BestLine)
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectEqual(BL.runLine("Flush", 3), "Best hand: Flush, Night 3")
+	expectEqual(BL.runLine("Pair", 0), "Best hand: Pair")
+	expectTrue(BL.runLine(nil, 3) == nil and BL.runLine("", 3) == nil)
+	expectTrue(#BL.runLine("Royal Flush With Many Extra Words In The Name", 99999) <= BL.MAX_CHARS)
+	expectFalse(BL.runLine("Flush", 3):lower():find("balatro"))
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 1080 } }) do
+		local C = L.columns(sz[1])
+		local factsH = (L.estimateLines(BL.runLine("Straight Flush", 8), C.leftW, 16) + 6) * 24
+		local r = L.compute(sz[1], sz[2], { factsH = factsH, patrons = 5, primary = 2, more = 5 })
+		for _, rc in ipairs(r.primary) do expectTrue(rc.h >= 44, "buttons stay 44 px at " .. sz[1]) end
+		expectTrue(r.panel.w * r.scale <= sz[1] + 0.01 and r.panel.h * r.scale <= sz[2] + 0.01, "fits at " .. sz[1])
+	end
 end })
 
 table.insert(tests, { name = "Economy fairness: cheapest Patron is affordable from the first round win and the reroll is never free", fn = function()

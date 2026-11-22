@@ -34,4 +34,13 @@ function BestLine.text(stats)
 	return text
 end
 
+-- This run's best hand and the Night it ended on: "Best hand: Flush, Night 3". nil without a hand name.
+function BestLine.runLine(handName, night)
+	if type(handName) ~= "string" or handName == "" then return nil end
+	local n = whole(night)
+	local text = n > 0 and string.format("Best hand: %s, Night %d", handName, n) or ("Best hand: " .. handName)
+	if #text > BestLine.MAX_CHARS then text = text:sub(1, BestLine.MAX_CHARS) end
+	return text
+end
+
 return BestLine
