@@ -39089,4 +39089,19 @@ table.insert(tests, { name = "Boss intro and Night clear: rule text fits two lin
 	expectTrue(read("src/Client/NightVictory.lua"):find('"night_clear"', 1, true) ~= nil, "Night clear plays its existing cue")
 end })
 
+table.insert(tests, { name = "Score pop-ups: floating numbers are at least 16 px with a dark outline; discard ghosts fade; calm mode skips the deal flip", fn = function()
+	if not io then return end
+	local function read(f) local h = io.open(f, "r"); local t = h:read("*a"); h:close(); return t end
+	local pop = read("src/Client/ScorePopup.lua")
+	local a, b = pop:find("local function flyNumberToBox", 1, true), pop:find("local function floatTipsText", 1, true)
+	expectTrue(a and b, "both pop-up builders exist")
+	local seg = pop:sub(a, b + 900)
+	for size in seg:gmatch("label%.TextSize = (%d+)") do expectTrue(tonumber(size) >= 16, "pop-up text is 16 px or more") end
+	expectTrue(not seg:find("TextStrokeTransparency = 0.4", 1, true), "outline is the strong one")
+	local cf = read("src/Client/CardFlights.lua")
+	expectTrue(cf:find("TextTransparency", 1, true) ~= nil and cf:find("ImageTransparency", 1, true) ~= nil and cf:find("calm or fast", 1, true) ~= nil, "discard ghosts fade and calm mode makes none")
+	local df = read("src/Client/DealFlip.lua")
+	expectTrue(df:find('ClientSettings.get("reduceShake")', 1, true) ~= nil, "deal flip skipped in calm mode")
+end })
+
 return tests
