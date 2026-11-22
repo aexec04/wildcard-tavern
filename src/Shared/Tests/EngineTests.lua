@@ -38657,6 +38657,34 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "File size watch: no big file grows more than 10 percent past its budget, and no new file starts above 1100 lines", fn = function()
+	if not (io and io.open and io.popen) then return end
+	-- budgets are the line counts of 2026-11-22; a file may grow 10 percent before this fails (split it or raise the budget on purpose)
+	local budget = {
+		["src/Server/init.server.lua"] = 4177, ["src/Client/init.client.lua"] = 2906, ["src/Client/JourneyMapView.lua"] = 2299,
+		["src/Client/Shop.lua"] = 2047, ["src/Client/ScorePopup.lua"] = 1788, ["src/Client/Collection.lua"] = 1486,
+		["src/Client/PatronRow.lua"] = 1312, ["src/Client/Journey.lua"] = 1201, ["src/Client/Gameplay2.lua"] = 1126,
+		["src/Client/BossFight.lua"] = 1099, ["src/Client/Sound.lua"] = 1044, ["src/Client/RoundSelect.lua"] = 1033,
+		["src/Client/MenuHotspots.lua"] = 1028,
+		["src/Shared/Engine/RunState.lua"] = 2010, ["src/Shared/Engine/Patrons.lua"] = 1261, ["src/Shared/Engine/Recipes.lua"] = 1218,
+	}
+	local NEW_FILE_LIMIT, GROWTH = 1100, 1.10
+	local p = io.popen("ls src/Client/*.lua src/Server/*.lua src/Shared/Engine/*.lua")
+	if not p then return end
+	local seen = 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local lines = 0
+		for _ in f:lines() do lines = lines + 1 end
+		f:close()
+		seen = seen + 1
+		local limit = budget[path] and math.floor(budget[path] * GROWTH) or NEW_FILE_LIMIT
+		expectTrue(lines <= limit, path .. " has " .. lines .. " lines, over its limit of " .. limit .. (budget[path] and " (budget " .. budget[path] .. " plus 10 percent)" or ""))
+	end
+	p:close()
+	expectTrue(seen > 400, "the watch read the source tree: " .. seen .. " files")
+end })
+
 table.insert(tests, { name = "Datastore failure handling: retries wait longer each time, a flaky store recovers on the retry, a dead one leaves the saved profile untouched, and the blank fallback can never be saved", fn = function()
 	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
 	local d = SaveLock.RETRY_DELAYS
