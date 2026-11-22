@@ -39983,5 +39983,31 @@ table.insert(tests, { name = "Card set identity: the ten biome and seasonal sets
 	end
 end })
 
+table.insert(tests, { name = "Counter chrome per Card Set: tabs take the set plate, Tips, Next boss and round buttons take the set hue, classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(Style.setTint(nil, { 140, 185, 230 }), nil, "no set, no tint")
+	expectEqual(Style.setTint("classic_tavern", { 140, 185, 230 }), nil, "classic is never tinted")
+	expectEqual(Style.setTint("no_such_set", { 140, 185, 230 }), nil, "unknown set is never tinted")
+	expectEqual(Style.setPiece("wh_btn_dark", nil), "wh_btn_dark", "tabs stay classic without a set")
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		local accent = CS.accentOf(CS.getById(setId))
+		expectTrue(type(accent) == "table", setId .. " has an accent")
+		local t = Style.setTint(setId, accent)
+		expectTrue(t ~= nil and #t == 3, setId .. " has a tint")
+		for i = 1, 3 do expectTrue(t[i] >= 120 and t[i] <= 255, setId .. " tint keeps the trim readable") end
+		expectEqual(Style.setPiece("wh_btn_dark", setId), map.wh_btn_dark, setId .. " inactive tab plate")
+		expectEqual(Style.setPiece("wh_btn_green", setId), map.wh_btn_green, setId .. " active tab plate")
+		for _, p in ipairs({ "wh_target", "orn_target", "icon_round" }) do
+			expectEqual(Style.setPiece(p, setId), p, setId .. " " .. p .. " keeps the classic picture (tinted instead)")
+		end
+	end
+	expectEqual(n, 14, "all 14 sets have a plate family")
+	expectTrue(Style.isSetPiece("frost_wh_btn_dark") and not Style.isSetPiece("wh_btn_dark"), "a set plate is never tinted again")
+end })
+
 return tests
+
 

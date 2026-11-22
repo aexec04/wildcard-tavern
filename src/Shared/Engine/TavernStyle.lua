@@ -245,6 +245,22 @@ M.SET_PLATES = {
 	riverside_evening = { wh_btn_dark = "river_wh_btn_dark", wh_btn_green = "river_wh_btn_green" },
 	summit_camp = { wh_btn_dark = "summit_wh_btn_dark", wh_btn_green = "summit_wh_btn_green" },
 }
+-- A set's hue for a classic plate picture it has no own art for (Tips, Next boss, round buttons): white pulled toward the set accent
+-- and multiplied over the picture. nil for classic or an unknown set, so classic is untouched. Light enough to keep gold trim readable.
+function M.isSetPiece(piece)
+	for _, map in pairs(M.SET_PLATES) do
+		for _, mine in pairs(map) do if mine == piece then return true end end
+	end
+	return false
+end
+
+function M.setTint(setId, accent)
+	if not (setId and M.SET_PLATES[setId] and type(accent) == "table" and #accent >= 3) then return nil end
+	local out = {}
+	for i = 1, 3 do out[i] = math.floor(255 + (accent[i] - 255) * 0.55 + 0.5) end
+	return out
+end
+
 function M.setPiece(piece, setId)
 	local map = setId and M.SET_PLATES[setId]
 	return (map and map[piece]) or piece
