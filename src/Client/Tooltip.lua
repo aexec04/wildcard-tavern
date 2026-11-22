@@ -215,6 +215,7 @@ function Tooltip.new(screenGui)
 			end)
 			if not intent then leaveConn = button.MouseLeave:Connect(function() T.hide() end) end
 		end
+		require(script.Parent.TouchHelp).bind(button, onEnter, T.hide) -- touch only: a tap shows the same tip for 3 seconds
 		if not intent then
 			button.MouseEnter:Connect(onEnter)
 			return

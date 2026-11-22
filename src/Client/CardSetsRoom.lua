@@ -480,9 +480,9 @@ function CardSetsRoom.new(ctx)
 			local key = pw .. "x" .. ph .. (room.on and "on" or "off")
 			if key ~= lastKey then
 				lastKey = key
-				local shownH = room.on and ph or math.floor(screen.Y * 0.84) -- the plain panel is 84 percent of the height
-				local fit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fit(screen.Y, shownH)
-				print(string.format("[PanelFit] cardsets screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, room.on and pw or math.floor(screen.X * 0.64), shownH, fit.top, fit.bottom, tostring(fit.fits)))
+				local shownH = ph -- a full screen page: the panel is the screen height below the strip in both modes
+				local fit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fitFullScreen(screen.Y, shownH)
+				print(string.format("[PanelFit] cardsets screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, pw, shownH, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[CardSetsRoom] %s slots=%d (plates %d, frames %d, plaques %d) panel %dx%d", room.on and "painted" or "plain",
 					room.on and p.perPage or 0, 0, room.on and p.cols or 0, room.on and p.rows or 0, pw, ph))
 			end

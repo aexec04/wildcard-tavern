@@ -12339,6 +12339,34 @@ table.insert(tests, { name = "FlairFX preview passes zIndex and big particles to
 	expectTrue(tg:find('SetAttribute("Expanded"', 1, true) ~= nil)
 end })
 
+table.insert(tests, { name = "PanelLayout: every full screen Tome page fits the window (bottom on screen, top below the strip) at 5 sizes", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = PL.fullScreenRect(sz[1], sz[2])
+		local fit = PL.fitFullScreen(sz[2], r.h)
+		expectTrue(fit.fits, sz[1] .. "x" .. sz[2] .. " fits")
+		expectTrue(fit.bottom <= sz[2] and fit.top >= PL.STRIP_BOTTOM, sz[1] .. "x" .. sz[2] .. " bottom " .. fit.bottom)
+		expectTrue(not PL.fitFullScreen(sz[2], r.h + 7).fits, "a panel 7 px too tall is flagged")
+	end
+end })
+
+table.insert(tests, { name = "TouchHint: first tap shows, second tap on the same thing acts, timeout and other taps reset", fn = function()
+	local TH = require(script.Parent.Parent.Engine.TouchHint)
+	local h = TH.new(3)
+	expectEqual(h:tap("a", 0), "show", "first tap shows the hint")
+	expectEqual(h:active(1), "a", "hint is up at 1 s")
+	expectEqual(h:tap("a", 1.5), "act", "second tap on the same thing acts")
+	expectEqual(h:active(1.6), nil, "hint cleared after acting")
+	expectEqual(h:tap("a", 2), "show", "next tap shows again")
+	expectEqual(h:tap("b", 2.5), "show", "tapping another thing shows its hint, not an action")
+	expectEqual(h:tap("a", 3), "show", "back to a: show, b was in between")
+	expectEqual(h:active(6.1), nil, "hint times out after 3 s")
+	expectEqual(h:tap("a", 7), "show", "tap after timeout shows again")
+	h:tapElsewhere()
+	expectEqual(h:tap("a", 7.5), "show", "a tap elsewhere resets")
+	expectEqual(TH.DURATION, 3, "default 3 seconds")
+end })
+
 table.insert(tests, { name = "PanelLayout: the Expand button never sits under the tab strip, collapsed or expanded, at desktop and phone sizes", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 360, 640 } }) do
@@ -16852,7 +16880,7 @@ table.insert(tests, { name = "ShopTips.packPlacer: reads the live rows and contr
 			if name == "RunService" then return runService end
 			return (name == "ReplicatedStorage") and rs or {}
 		end },
-		script = { Parent = { ModalStage = { __module = { blocks = function() return false end } } } },
+		script = { Parent = { ModalStage = { __module = { blocks = function() return false end } }, TouchHelp = { __module = { bind = function() end } } } },
 		require = function(m) return m.__module end,
 		Instance = { new = function(class) return setmetatable({ ClassName = class, Visible = true }, instMT) end },
 		Vector2 = { new = vec, zero = vec(0, 0) },

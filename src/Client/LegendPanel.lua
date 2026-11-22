@@ -396,8 +396,8 @@ function LegendPanel.init(deps)
 			local key = pw .. "x" .. ph .. (sceneOn and "on" or "off")
 			if key ~= LegendPanel._lastKey then
 				LegendPanel._lastKey = key
-				local shownH = sceneOn and ph or math.min(math.floor(screen.Y * 0.88), 640) -- the plain panel is 88 percent of the height, max 640
-				local fit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fit(screen.Y, shownH)
+				local shownH = ph -- a full screen page
+				local fit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fitFullScreen(screen.Y, shownH)
 				print(string.format("[PanelFit] legend screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, pw, shownH, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[LegendRoom] %s slots=%d (alcove 1, plaques %d, shelves %d) panel %dx%d", sceneOn and "painted" or "plain",
 					sceneOn and (1 + #placed.plaques + #placed.shelves) or 0, sceneOn and #placed.plaques or 0, sceneOn and #placed.shelves or 0, pw, ph))

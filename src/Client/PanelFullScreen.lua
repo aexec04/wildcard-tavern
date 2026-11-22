@@ -81,6 +81,14 @@ local function audit(name, backdrop, panel)
 			warn(string.format("[FullScreen] mismatch %s %s %dx%d vs %dx%d", name, child, got.X, got.Y, expect.X, expect.Y))
 		end
 		if off(panel.AbsoluteSize, want) then report("panel", panel.AbsoluteSize, want) end
+		local gui = backdrop:FindFirstAncestorOfClass("ScreenGui")
+		if gui then -- the measured rectangle of every full screen page, so Collection, Flair, Badges and the rest report like Card Sets
+			local H = gui.AbsoluteSize.Y
+			local topY = panel.AbsolutePosition.Y - gui.AbsolutePosition.Y
+			local bottom = topY + panel.AbsoluteSize.Y
+			print(string.format("[PanelFit] %s screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", name, math.floor(gui.AbsoluteSize.X), math.floor(H),
+				math.floor(panel.AbsoluteSize.X), math.floor(panel.AbsoluteSize.Y), math.floor(topY), math.floor(bottom), tostring(bottom <= H + 1 and topY >= PanelLayout.STRIP_BOTTOM)))
+		end
 		for _, c in ipairs(panel:GetChildren()) do
 			if c:IsA("GuiObject") then
 				if DECOR[c.Name] and c.Visible then warn("[FullScreen] decor visible " .. name .. " " .. c.Name) end

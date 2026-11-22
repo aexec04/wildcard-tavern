@@ -31,6 +31,14 @@ function PanelLayout.fit(screenH, panelH, nudged)
 	return { top = top, bottom = bottom, fits = top >= PanelLayout.STRIP_BOTTOM - PanelLayout.STRIP_NUDGE and bottom <= screenH }
 end
 
+-- Same report for a FULL_SCREEN page: it is not centered or nudged, it sits at y STRIP_BOTTOM + 2 and is (screen height - that) tall, so its
+-- bottom edge lands exactly on the bottom of the window. fits = on screen and below the strip.
+function PanelLayout.fitFullScreen(screenH, panelH)
+	local top = PanelLayout.STRIP_BOTTOM + 2
+	local bottom = top + (panelH or (screenH - top))
+	return { top = top, bottom = bottom, fits = bottom <= screenH and top >= PanelLayout.STRIP_BOTTOM }
+end
+
 -- True when a control with the given top edge and height overlaps the tab strip band (y 3 to 63).
 function PanelLayout.hitsStrip(y, h)
 	return y < PanelLayout.STRIP_BOTTOM and (y + h) > 3

@@ -179,7 +179,7 @@ function StatsRoom.new(ctx)
 			local key = rect.w .. "x" .. rect.h .. (room.on and "on" or "off")
 			if key ~= lastKey then
 				lastKey = key
-				local fit = require(Engine:WaitForChild("PanelLayout")).fit(vp.Y, rect.h)
+				local fit = require(Engine:WaitForChild("PanelLayout")).fitFullScreen(vp.Y, rect.h)
 				print(string.format("[PanelFit] stats screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", vp.X, vp.Y, rect.w, rect.h, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[StatsRoom] %s slots=%d (plaques %d, pages %d, shelves %d) panel %dx%d", room.on and "painted" or "plain",
 					room.on and (#p.plaques + #p.pages + #p.shelves) or 0, room.on and #p.plaques or 0, room.on and #p.pages or 0, room.on and #p.shelves or 0, rect.w, rect.h))
