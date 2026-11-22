@@ -40990,6 +40990,44 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
+table.insert(tests, { name = "StuckHint: shows only with no Discards, one or two hands left and a pace that will miss the Target, once per round, never in the guided hand, kind safe text", fn = function()
+	local SH = require(script.Parent.Parent.Engine.StuckHint)
+	local base = { handsRemaining = 1, discardsRemaining = 0, roundScore = 100, targetScore = 600, roundStartHands = 4, night = 2, round = 3 }
+	local function with(over)
+		local s = {}
+		for k, v in pairs(base) do s[k] = v end
+		for k, v in pairs(over) do s[k] = v end
+		return s
+	end
+	local hint = SH.check(base)
+	expectTrue(hint ~= nil and hint.key == "2-3", "stuck: 100 over 3 hands, one hand left, 600 needed")
+	expectEqual(SH.check(with({ discardsRemaining = 1 })), nil, "a Discard left means not stuck")
+	expectEqual(SH.check(with({ handsRemaining = 3 })), nil, "more than two hands left")
+	expectEqual(SH.check(with({ handsRemaining = 0 })), nil, "no hands left, the round is over")
+	expectEqual(SH.check(with({ roundScore = 580 })), nil, "on pace to clear")
+	expectEqual(SH.check(with({ roundScore = 700 })), nil, "already cleared")
+	expectEqual(SH.check(with({ handsRemaining = 4, roundStartHands = 4 })), nil, "no hand played yet, no pace to judge")
+	expectEqual(SH.check(with({ guidedFirstHand = true })), nil, "never during the guided first hand")
+	expectEqual(SH.check(with({ tutorial = true })), nil, "never in the tutorial")
+	expectEqual(SH.check(nil), nil); expectEqual(SH.check({}), nil)
+	expectTrue(SH.shouldShow(nil, hint), "the first time shows")
+	expectFalse(SH.shouldShow(hint.key, hint), "once per round")
+	expectTrue(SH.shouldShow(hint.key, SH.check(with({ round = 4 }))), "the next round may show again")
+	for _, w in ipairs({ hint.line1, hint.line2 }) do
+		expectTrue(#w <= 60 and not w:find("\226\128\148") and not w:find("%-%-") and not w:find("-", 1, true) and not w:lower():find("balatro"), "kind short text: " .. w)
+		expectTrue(not w:lower():find("lose") and not w:lower():find("fail") and not w:lower():find("can't"), "no scolding: " .. w)
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/StuckHintPlate.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(not src:find("TweenService", 1, true) and not src:find("FxLoop", 1, true), "no tween or loop, so Calm mode is identical")
+		expectTrue(src:find("Active = false", 1, true) ~= nil, "display only, takes no clicks")
+		local g = assert(io.open("src/Client/ConceptTPlay.lua", "r"))
+		expectTrue(g:read("*a"):find("StuckHintPlate", 1, true) ~= nil, "the table draws it")
+		g:close()
+	end
+end })
+
 table.insert(tests, { name = "DailyStamps: one stamp per ladder day in the set accent with a readable check, today pulses only while claimable and never in Calm mode, a missed day gets a kind line", fn = function()
 	local DS = require(script.Parent.Parent.Engine.DailyStamps)
 	local LS = require(script.Parent.Parent.Engine.LoginStreak)
