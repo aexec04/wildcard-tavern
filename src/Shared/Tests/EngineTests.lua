@@ -38982,6 +38982,7 @@ table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, 
 		expectTrue(art[p.id] and art[p.id] ~= "rbxassetid://0", p.id .. " has its own portrait")
 		expectTrue(cards["ctp_" .. p.id], p.id .. " has its own cut card")
 		expectTrue(crops[p.id], p.id .. " has a card crop")
+	end
 end })
 
 table.insert(tests, { name = "About: Settings About lines show name, version and a short kind thanks, no links, no em dash", fn = function()
