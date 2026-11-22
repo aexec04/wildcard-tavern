@@ -35404,6 +35404,33 @@ table.insert(tests, { name = "Settings Account: five plates from the live layout
 	expectTrue(src:find("[SettingsAccount]", 1, true) ~= nil and src:find('d.Name == "TavernMap"', 1, true) ~= nil, "Studio rect warn and the duplicate Tavern Map sweep exist")
 end })
 
+table.insert(tests, { name = "Settings Account: rows have no list layout (painted sibling pictures would take slots) and plate Positions match accountRects", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local A = SL.ACCOUNT
+	-- slot i of n sits at x = i/n * W + i*gap/n (Client/Settings.lua), which must equal accountRects' x for any width
+	for _, W in ipairs({ 705, 713, 520, 380 }) do
+		local rects = SL.accountRects(W)
+		local idx = 0
+		for _, n in ipairs({ A.perRow, A.secondRow }) do
+			for i = 0, n - 1 do
+				idx = idx + 1
+				local w = math.floor((W - A.gap * (n - 1)) / n)
+				local x = i / n * W + i * A.gap / n
+				expectTrue(math.abs(x - rects[idx].x) <= n, "plate " .. idx .. " x matches the layout function at " .. W)
+				expectTrue(x + w <= W + 1, "plate " .. idx .. " ends inside the scroll width at " .. W)
+			end
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	local at = src:find("local function makeAccountRow", 1, true)
+	local to = src:find("local accountRow = makeAccountRow()", 1, true)
+	expectTrue(at and to and src:sub(at, to):find("UIListLayout", 1, true) == nil, "Account rows use no UIListLayout")
+	expectTrue(src:find("button.Position = UDim2.new((layoutOrder - 1) / perRow", 1, true) ~= nil, "each plate is positioned by slot")
+	expectTrue(src:find("OUTSIDE the scroll", 1, true) ~= nil, "Studio check compares real AbsolutePosition with the scroll")
+	expectTrue(src:find('if not isSwitch then pcall(require(script.Parent.TavernKit).paintedButton', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
+end })
+
 table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	expectEqual(ST.BUTTON_H, 44)
