@@ -30634,6 +30634,26 @@ table.insert(tests, { name = "PackReveal: a card can be kept only once face up, 
 	assert(R.markWord(true) == "Owned" and R.markWord(false) == "New", "face-up cards read Owned or New")
 	assert(R.isStrong("epic") and R.isStrong("mythical") and not R.isStrong("uncommon") and not R.isStrong(nil), "Rare and above are strong")
 end })
+table.insert(tests, { name = "PackReveal.look: every set gets an accent edge at 3:1, Rare and above glow, Common and Calm never glow, wording has no Robux or odds claim", fn = function()
+	local R = require(script.Parent.Parent.Engine.PackReveal)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		for _, rarity in ipairs({ "common", "rare", "epic", "legendary", "mythical" }) do
+			local look = R.look(set.id, rarity, false)
+			expectTrue(CS.contrastRatio(look.edge, CS.FOCUS_RING_BACKING) >= 3, set.id .. " edge reads on the dark wood")
+			expectEqual(look.glow ~= nil, R.isStrong(rarity), set.id .. " " .. rarity .. " glow only when strong")
+			expectEqual(R.look(set.id, rarity, true).glow, nil, set.id .. " " .. rarity .. " has no glow in Calm mode")
+		end
+	end
+	for _, w in ipairs({ R.TAP_WORD, R.SKIP_WORD, R.REVEAL_WORD, R.markWord(true), R.markWord(false), R.keepWord("patron", false), R.keepWord("patron", true) }) do
+		expectTrue(not w:find("Robux") and not w:find("%%") and not w:find("\226\128\148"), "kid safe wording: " .. w)
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/PackRevealFX.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PackReveal.look", 1, true) ~= nil and src:find("plateSetId", 1, true) ~= nil, "the reveal asks for the set look")
+	end
+end })
 table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, owns no loop, and every plate text is ASCII", fn = function()
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/PackRevealFX.lua", "r"))

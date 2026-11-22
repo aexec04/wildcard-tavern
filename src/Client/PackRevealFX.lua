@@ -22,6 +22,11 @@ local CREAM = Color3.fromRGB(255, 240, 205)
 local DARK = Color3.fromRGB(28, 18, 12)
 local BACK = Color3.fromRGB(70, 40, 110)
 
+local function setEdge(setId, rarity, isCalm)
+	local look = PackReveal.look(setId, rarity, isCalm)
+	return Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3]), look.glow
+end
+
 local function calm() return ClientSettings.get("reduceShake") == true end
 
 local function corner(o, r)
@@ -42,7 +47,7 @@ local function cue(name)
 	pcall(function() require(script.Parent.Cue).play(name) end)
 end
 
-local function pill(parent, name, text, size, pos, z)
+local function pill(parent, name, text, size, pos, z, edge)
 	local b = Instance.new("TextButton")
 	b.Name = name
 	b.Size = size
@@ -60,7 +65,7 @@ local function pill(parent, name, text, size, pos, z)
 	b.ZIndex = z
 	b.Parent = parent
 	corner(b, 8)
-	stroke(b, GOLD, 1)
+	stroke(b, edge or GOLD, 1)
 	return b
 end
 
@@ -70,6 +75,9 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	local state = PackReveal.new(#items, isCalm)
 	local plan = PackReveal.plan(rarities, isCalm)
 	local z = opts.z or (panel.ZIndex + 20)
+	local setId = nil
+	pcall(function() setId = require(script.Parent.TavernKit).plateSetId() end)
+	local edge = setEdge(setId, nil, isCalm)
 	local ctl = {}
 	local covers, pills, marks = {}, {}, {}
 	local overlay
@@ -104,7 +112,7 @@ function M.attach(panel, row, cards, items, rarities, opts)
 
 	for i, card in ipairs(cards) do
 		-- the Seat or Keep pill: a second, clear way to pick the card, shown once it is face up
-		local p = pill(card.slot, "KeepPill", "", UDim2.fromOffset(110, 34), UDim2.new(0.5, 0, 1, 4), z + 2)
+		local p = pill(card.slot, "KeepPill", "", UDim2.fromOffset(110, 34), UDim2.new(0.5, 0, 1, 4), z + 2, edge)
 		p.Visible = state.isRevealed(i)
 		p.MouseButton1Click:Connect(function()
 			if state.canKeep(i) then opts.onPick(i) end
@@ -139,13 +147,13 @@ function M.attach(panel, row, cards, items, rarities, opts)
 			cover.ZIndex = z
 			cover.Parent = card.slot
 			corner(cover, 10)
-			stroke(cover, GOLD, 3)
+			stroke(cover, edge, 3)
 			local crest = Instance.new("TextLabel")
 			crest.Size = UDim2.fromScale(1, 1)
 			crest.BackgroundTransparency = 1
 			crest.Font = Enum.Font.GothamBold
 			crest.TextSize = 22
-			crest.TextColor3 = GOLD
+			crest.TextColor3 = edge
 			crest.TextStrokeColor3 = DARK
 			crest.TextStrokeTransparency = 0.4
 			crest.Text = "PATRON"
@@ -183,9 +191,9 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	tap.ZIndex = z + 6
 	tap.Parent = overlay
 	corner(tap, 12)
-	stroke(tap, GOLD, 2)
+	stroke(tap, edge, 2)
 	local takeWord = PackReveal.takeAllWord(opts.pickCount, #items)
-	local skip = pill(overlay, "TakeAll", takeWord, UDim2.fromOffset(160, PackReveal.TAKE_ALL_HEIGHT), UDim2.new(0.5, 0, 0.5, 48), z + 6)
+	local skip = pill(overlay, "TakeAll", takeWord, UDim2.fromOffset(160, PackReveal.TAKE_ALL_HEIGHT), UDim2.new(0.5, 0, 0.5, 48), z + 6, edge)
 
 	local started = false
 	local function open()
