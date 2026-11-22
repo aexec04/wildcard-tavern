@@ -35431,6 +35431,20 @@ table.insert(tests, { name = "Settings Account: rows have no list layout (painte
 	expectTrue(src:find('if not isSwitch then pcall(require(script.Parent.TavernKit).paintedButton', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
 end })
 
+table.insert(tests, { name = "Set backdrop layers never draw in a button or popup: host lookup skips GuiButtons, Settings plates take no set overlay", fn = function()
+	if not io then return end
+	local function read(p) local f = assert(io.open(p, "r")); local s = f:read("a"); f:close(); return s end
+	local view = read("src/Client/CosmeticSetsView.lua")
+	expectTrue(view:find('not d:IsA("GuiButton")', 1, true) ~= nil, "backdrop host lookup skips buttons (Settings Tavern Map bunting leak)")
+	local settings = read("src/Client/Settings.lua")
+	expectTrue(select(2, settings:gsub('SetAttribute%("FlatFace", true%)', "")) >= 2, "Account and choice buttons are FlatFace: the brass kit plate fills")
+	-- the hosts the view dresses are scene frames, each by name; none is a popup root
+	local bs = read("src/Client/BackdropStyles.lua")
+	expectTrue(bs:find("fx.ZIndex = host.ZIndex", 1, true) ~= nil and bs:find("fx.Parent = host", 1, true) ~= nil, "layers are a child of the scene host at its own ZIndex")
+	local tl = read("src/Client/TableLook.lua")
+	expectTrue(tl:find("ZIndex = 0", 1, true) ~= nil, "table look sits at ZIndex 0, under every popup")
+end })
+
 table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	expectEqual(ST.BUTTON_H, 44)
