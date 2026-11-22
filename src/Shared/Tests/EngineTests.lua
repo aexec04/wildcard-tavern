@@ -2660,6 +2660,101 @@ table.insert(tests, { name = "Save safety: 8 old profile shapes (no sets, season
 	end
 end })
 
+table.insert(tests, { name = "Remote safety: every server remote argument is checked or handed to an engine function that rejects junk without error or change", fn = function()
+	-- 1. Static: the only handlers whose argument has no type check in the handler itself are these eight, and each passes it
+	--    straight to the engine function fuzzed below. A new unchecked remote argument fails here.
+	if io then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local lines = {}
+			for l in f:lines() do lines[#lines + 1] = l end
+			f:close()
+			local allowed = { MovePatron = "dir", MarkSeenNew = "keys", ChooseRoad = "stopId", UnlockRoad = "stopId", Minigame = "arg",
+				UseCompass = "target", HintSeen = "hintId", Choice = "optionId" }
+			local checks = { "type%(%s*", "typeof%(%s*", "tonumber%(%s*", "tostring%(%s*", "math%.type%(%s*", "Guard%.[%w]+%(%s*", "[Vv]alid%w*%(%s*", "[Ss]anitize%w*%(%s*", "[Cc]lean%w*%(%s*" }
+			for i, l in ipairs(lines) do
+				local name, params = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect%(function%(player,?%s*([^)]*)%)")
+				if name and not name:find("^Debug") then
+					local body = {}
+					for j = i + 1, #lines do
+						if lines[j]:match("^end%)") then break end
+						body[#body + 1] = lines[j]
+					end
+					local text = table.concat(body, "\n")
+					for argName in params:gmatch("[%w_]+") do
+						local checked = false
+						for _, c in ipairs(checks) do
+							if text:find(c .. argName) then checked = true end
+						end
+						if not checked and not (text:find(argName .. "%s*[=~]=") or text:find("[=~]=%s*" .. argName) or text:find("%[" .. argName .. "%]")) then
+							expectEqual(allowed[name], argName, name .. " argument " .. argName .. " has no check in its handler: validate it or add it to the fuzzed list")
+						end
+					end
+				end
+			end
+		end
+	end
+	-- 2. Dynamic: junk into each engine function behind those eight remotes
+	local huge = {}
+	for i = 1, 5000 do huge[i] = { i } end
+	local junk = { nil, 0 / 0, math.huge, -math.huge, -1, 0, 1.5, 1e300, "", "x", "1", string.rep("a", 5000), true, false, {}, { 1, 2, 3 }, { [-1] = true }, { x = {} }, huge, function() end }
+	local function dump(v, seen)
+		if type(v) ~= "table" then return type(v) == "function" and "fn" or tostring(v) end
+		seen = seen or {}
+		if seen[v] then return "cycle" end
+		seen[v] = true
+		local keys = {}
+		for k in pairs(v) do keys[#keys + 1] = k end
+		table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+		local out = {}
+		for _, k in ipairs(keys) do out[#out + 1] = tostring(k) .. "=" .. dump(v[k], seen) end
+		return "{" .. table.concat(out, ",") .. "}"
+	end
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local Keys = require(script.Parent.Parent.Engine.Keys)
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local Hints = require(script.Parent.Parent.Engine.Hints)
+	local NewItems = require(script.Parent.Parent.Engine.NewItems)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local function fresh()
+		local profile = PlayerProfile.new()
+		local state = RunState.new(nil, SeededRng.new(5))
+		return profile, state
+	end
+	local function check(label, fn)
+		for i = 1, 20 do
+			local profile, state = fresh()
+			local before = dump(profile) .. dump(state)
+			local ok, err = pcall(fn, profile, state, junk[i])
+			expectTrue(ok, label .. " errored on junk #" .. i .. ": " .. tostring(err))
+			expectEqual(dump(profile) .. dump(state), before, label .. " changed state on junk #" .. i)
+		end
+	end
+	check("MarkSeenNew", function(profile, _, v) NewItems.markSeen(profile, v) end)
+	check("HintSeen", function(profile, _, v) Hints.markSeen(profile, v) end)
+	check("ChooseRoad", function(profile, state, v) WorldMap.chooseRoad(state, v, "playing", function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("UnlockRoad", function(profile, state, v) Keys.unlock(profile, state, v, "playing") end)
+	check("UseCompass", function(profile, state, v) BiomeRewards.useCompass(profile, state, "playing", v, function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("Choice", function(_, _, v) RunChoice.canAnswer("playing", nil, v) end)
+	check("Choice with a live choice", function(_, state, v)
+		local choice = { kind = "event", options = { { id = "a" }, { id = "b" } } }
+		RunChoice.canAnswer("choice", choice, v)
+	end)
+	check("MovePatron", function(_, state, v) RunState.movePatron(state, v, 1) end)
+	-- the Minigame arg: every game, junk action and junk arg, never an error
+	for _, game in ipairs({ "dice", "cardflip", "lockpick", "trivia" }) do
+		for i = 1, 20 do
+			for _, action in ipairs({ "roll", "flip", "pick", "answer", "stop", "x" }) do
+				local rng = Minigames.newRng(11)
+				local g = Minigames.new(game, rng, 0)
+				local ok, err = pcall(Minigames.act, g, action, junk[i], 1)
+				expectTrue(ok, game .. " " .. action .. " errored on junk #" .. i .. ": " .. tostring(err))
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Save audit: the profile DataStore is only touched inside pcall and autosave only writes dirty profiles", fn = function()
 	if not io then return end
 	local f = io.open("src/Server/init.server.lua", "r")
