@@ -2,7 +2,7 @@
 	Engine/ShopBuyUX.lua
 	The Counter's Buy plate and its "not enough Tips" answer, pure and tested. Client/ShopCards draws it.
 
-	plateText(actionText, price, tips)   -> "Buy" when the player can pay, "Need N" (N = Tips still missing) when not
+	plateText(actionText, price, tips)   -> "Buy" when the player can pay, "Need N more" (N = Tips still missing) when not
 	shortBy(price, tips)                 -> Tips still missing, never negative
 	shake(calm, fast)                    -> { offsets = {px...}, step = seconds } a small sideways shake, nil in Calm mode and on Fast
 ]]
@@ -18,8 +18,17 @@ end
 function M.plateText(actionText, price, tips)
 	if price == nil or tips == nil then return actionText or "Buy" end
 	local need = M.shortBy(price, tips)
-	if need > 0 then return string.format("Need %d", need) end
+	if need > 0 then return string.format("Need %d more", need) end
 	return actionText or "Buy"
+end
+
+-- The Reroll button: "Reroll 3" when affordable, "Reroll 3, 2 short" when the player is 2 Tips short.
+function M.rerollText(cost, tips)
+	local c = num(cost)
+	if tips == nil then return string.format("Reroll %d", c) end
+	local need = M.shortBy(c, tips)
+	if need > 0 then return string.format("Reroll %d, %d short", c, need) end
+	return string.format("Reroll %d", c)
 end
 
 function M.shake(calm, fast)

@@ -543,7 +543,7 @@ function ShopCards.new(deps)
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16
 			button.AutoButtonColor = false
-			button.Text = enabled and ((spec.shortBy or 0) > 0 and ("Need " .. math.floor(spec.shortBy)) or (spec.actionText or "Buy")) or (spec.disabledText or "Full")
+			button.Text = enabled and ((spec.shortBy or 0) > 0 and string.format("Need %d more", math.floor(spec.shortBy)) or (spec.actionText or "Buy")) or (spec.disabledText or "Full")
 			button.TextColor3 = enabled and CREAM or Color3.fromRGB(180, 170, 160)
 			button.BackgroundColor3 = enabled and Color3.fromRGB(70, 130, 60) or Color3.fromRGB(70, 60, 55)
 			button.ZIndex = Z + 4

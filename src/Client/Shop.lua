@@ -1277,7 +1277,7 @@ return function(deps)
 			return "nil"
 		end
 		local parts = { buildOfferSignature(state) }
-		table.insert(parts, "reroll:" .. tostring(state.rerollCost or 0))
+		table.insert(parts, "reroll:" .. tostring(state.rerollCost or 0) .. ":" .. tostring(math.max(0, (state.rerollCost or 0) - (state.tips or 0))))
 		local ownedCount = (state.ownedPatrons and #state.ownedPatrons) or 0
 		local slotLimit = state.patronSlotLimit or ownedCount
 		table.insert(parts, string.format("table:%d/%d", ownedCount, slotLimit))
@@ -1440,7 +1440,7 @@ return function(deps)
 		rerollButton.Position = UDim2.new(0, 20, 0, 0)
 		rerollButton.Font = Enum.Font.GothamBold
 		rerollButton.TextSize = 16
-		rerollButton.Text = ShopRefusal.rerollLabel(state.rerollCost) -- "Reroll 3": the price is on the control
+		rerollButton.Text = require(Engine:WaitForChild("ShopBuyUX")).rerollText(state.rerollCost, state.tips) -- "Reroll 3" or "Reroll 3, 2 short": the price is on the control
 		rerollButton.Name = "Reroll"
 		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
 		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)

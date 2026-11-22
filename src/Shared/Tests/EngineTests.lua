@@ -18219,7 +18219,7 @@ table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, t
 	expectTrue(server:find("shopNotice = session.shopNotice", 1, true) ~= nil, "the notice reaches the client in the state")
 	-- client: the notice is shown once per seq, the words are the shared ones, every click is traced
 	expectTrue(shop:find("state.shopNotice.seq ~= lastNoticeSeq", 1, true) ~= nil and shop:find("showWarning(state.shopNotice.text)", 1, true) ~= nil, "the Counter shows a server notice once")
-	expectTrue(shop:find("ShopRefusal.rerollLabel(state.rerollCost)", 1, true) ~= nil, "the Reroll button shows its cost")
+	expectTrue(shop:find("rerollText(state.rerollCost, state.tips)", 1, true) ~= nil, "the Reroll button shows its cost and what is short")
 	expectTrue(shop:find('ShopTrace.log("Reroll clicked")', 1, true) ~= nil and shop:find("Reroll sent to the server", 1, true) ~= nil, "the Reroll click is traced")
 	expectTrue(haggle:find('ShopTrace.log("Haggle clicked', 1, true) ~= nil and haggle:find("ShopRefusal.haggleDenied", 1, true) ~= nil, "the Haggle click is traced and refused out loud")
 	-- the tags are part of the hit area, not labels beside it
@@ -30187,7 +30187,8 @@ end })
 table.insert(tests, { name = "Shop buy UX: Buy plate says Need N when Tips are short, the shake is small and absent in Calm mode and on Fast", fn = function()
 	local M = require(script.Parent.Parent.Engine.ShopBuyUX)
 	assert(M.shortBy(8, 5) == 3 and M.shortBy(5, 8) == 0 and M.shortBy(nil, nil) == 0)
-	assert(M.plateText("Buy", 8, 5) == "Need 3" and M.plateText("Buy", 8, 8) == "Buy" and M.plateText("Buy") == "Buy")
+	assert(M.plateText("Buy", 8, 5) == "Need 3 more" and M.plateText("Buy", 8, 8) == "Buy" and M.plateText("Buy") == "Buy")
+	assert(M.rerollText(3, 5) == "Reroll 3" and M.rerollText(3, 1) == "Reroll 3, 2 short" and M.rerollText(3) == "Reroll 3")
 	local plan = M.shake(false, false)
 	assert(plan and plan.step == 0.05 and plan.offsets[#plan.offsets] == 0, "ends back at rest")
 	for _, dx in ipairs(plan.offsets) do assert(math.abs(dx) <= 6, "small") end
