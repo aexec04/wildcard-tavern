@@ -11760,7 +11760,7 @@ table.insert(tests, { name = "Tavern Events: the new trade events offer three ch
 		local f = io.open("src/Client/ChoicePanel.lua", "r")
 		if f then
 			local src = f:read("*a"); f:close()
-			expectTrue(src:find('button.Size = UDim2.new(1, -40, 0, 44)', 1, true) ~= nil, "Pick plate is 44 px tall")
+			expectTrue(src:find('button.Size = UDim2.new(1, -40, 0, btnH)', 1, true) ~= nil and src:find('BoonPickLook.buttonHeight', 1, true) ~= nil, "Pick plate is 44 px tall on screen (BoonPickLook.buttonHeight)")
 		end
 	end
 end })
@@ -18927,7 +18927,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
 				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
-				ResponsiveLayout = require(Engine.ResponsiveLayout),
+				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
 	end }
@@ -25127,7 +25127,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
 				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
-				ResponsiveLayout = require(Engine.ResponsiveLayout),
+				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
 	end }
@@ -44701,6 +44701,39 @@ table.insert(tests, { name = "Victory celebration: Best Night, boons and deck ro
 	local lines = Moments.clearLines(prev, now)
 	expectTrue(lines and lines.night and lines.night.runComplete, "the final Night is Run complete")
 	expectEqual(lines.summary.bestNight, 9); expectEqual(lines.summary.boons, 4); expectEqual(lines.summary.deckSize, 2); expectEqual(lines.summary.marked, 1)
+end })
+
+table.insert(tests, { name = "Night boon picker: Choose plate is 44 px on screen at four sizes, the row fits, a pick reads Chosen while the others dim, Escape cannot skip it, card ink keeps 7:1 on the paper of all 14 sets", fn = function()
+	local Look = require(script.Parent.Parent.Engine.BoonPickLook)
+	local Dismiss = require(script.Parent.Parent.Engine.PopupDismissRules)
+	local Layout = require(script.Parent.Parent.Engine.ChoiceSceneLayout)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local scale = Look.scale(size[1], size[2])
+		local h = Look.buttonHeight(scale)
+		expectTrue(h * scale >= 43.5, size[1] .. "x" .. size[2] .. " Choose plate is " .. h * scale .. " px on screen")
+		expectTrue(h <= Look.BUTTON_MAX, "the plate keeps clear of the rule text")
+		expectTrue(Look.rowFits(size[1], size[2]), size[1] .. "x" .. size[2] .. " the three boon cards fit")
+	end
+	expectEqual(Look.chosen(nil, "a"), "none")
+	expectEqual(Look.chosen("a", "a"), "chosen")
+	expectEqual(Look.chosen("a", "b"), "dimmed")
+	expectEqual(Dismiss.canAbandonChoice("boon"), false, "Escape and a click outside cannot skip a boon pick")
+	local draft = NB.draft({ night = 3, rng = function() return 1 end }, true)
+	expectEqual(#draft.options, 3)
+	for _, option in ipairs(draft.options) do
+		expectTrue(#option.line1 <= 60 and option.name ~= "" and option.icon ~= "", option.id .. " has a short line, a name and an icon")
+	end
+	local ink = Layout.PALETTE.ink
+	local count = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		count = count + 1
+		local style = CosmeticSets.popupStyleOf(set.id)
+		if style then
+			expectTrue(CosmeticSets.contrastRatio(ink, style.paper.top) >= 7 and CosmeticSets.contrastRatio(ink, style.paper.bottom) >= 7, set.id .. " boon ink is 7:1 on the set paper")
+		end
+	end
+	expectTrue(count >= 14, "every Card Set was checked: " .. count)
 end })
 
 return tests

@@ -334,8 +334,10 @@ local function buildCard(choice, option, order)
 
 	local button = Instance.new("TextButton")
 	button.Name = "Pick"
-	button.Size = UDim2.new(1, -40, 0, 44)
-	button.Position = UDim2.new(0, 20, 1, -54)
+	local BoonPickLook = require(Engine:WaitForChild("BoonPickLook"))
+	local btnH = BoonPickLook.buttonHeight(ui.baseScale or 1) -- 44 px on screen at every window size
+	button.Size = UDim2.new(1, -40, 0, btnH)
+	button.Position = UDim2.new(0, 20, 1, -(btnH + 10))
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 17
 	button.Text = isDecline and "No, thanks" or "Choose"
@@ -356,6 +358,19 @@ local function buildCard(choice, option, order)
 		clickLocked = true
 		task.delay(0.4, function() clickLocked = false end)
 		ui.playClickSfx()
+		if choice.kind == "boon" then -- clear chosen state: this card says Chosen with a thick set edge, the others dim (no tween, so Calm is the same)
+			for _, other in ipairs(ui.row:GetChildren()) do
+				local otherId = other.Name:match("^Slot_(.+)$")
+				local otherCard = otherId and other:FindFirstChild("Option_" .. otherId)
+				local state = otherCard and BoonPickLook.chosen(option.id, otherId)
+				if state == "chosen" then
+					stroke.Thickness = BoonPickLook.CHOSEN_EDGE
+					button.Text = BoonPickLook.CHOSEN_TEXT
+				elseif state == "dimmed" then
+					otherCard.BackgroundTransparency = BoonPickLook.DIM_TRANSPARENCY
+				end
+			end
+		end
 		ui.choiceRemote:FireServer(option.id)
 	end)
 	-- hover: the card rises a little (skipped in calm mode)
