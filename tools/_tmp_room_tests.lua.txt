@@ -1,0 +1,91 @@
+table.insert(tests, { name = "MenuRoomLayout: one painted picture, hotspots map through the crop, stay on screen, 44 px, no overlaps, strip fallback", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, action in ipairs(ML.Actions) do
+		local owner = ML.hotspotOf(action.id)
+		expectTrue(owner ~= nil and RL.pic[owner.id] ~= nil, "every action has a hotspot with a picture rect: " .. action.id)
+	end
+	for _, id in ipairs({ "play", "tome", "questscroll", "maptable", "coinjar", "rulebook", "jukebox", "noticeboard" }) do
+		expectTrue(RL.pic[id] ~= nil, "picture rect for " .. id)
+	end
+	expectEqual(ML.hotspotOf("play").id, "play", "Deal Me In is the card table")
+	expectEqual(ML.hotspotOf("road").id, "maptable", "Road Ahead is the wall map")
+	expectEqual(ML.hotspotOf("collection").id, "tome", "The Tome is the lectern book")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 390, 844 } }) do
+		local W, H = size[1], size[2]
+		local pw, ph, ox, oy = RL.cover(W, H)
+		expectTrue(pw >= W - 1e-6 and ph >= H - 1e-6, "the picture covers the screen at " .. W)
+		expectTrue(math.abs(pw / ph - RL.ASPECT) < 1e-6, "never stretched at " .. W)
+		expectTrue(math.abs(ox - (W - pw) / 2) < 1e-6 and math.abs(oy - (H - ph) / 2) < 1e-6, "centred at " .. W)
+		local rects = RL.rects(W, H)
+		expectEqual(#rects, #RL.stripOrder, "every hotspot has a rect at " .. W)
+		for i, a in ipairs(rects) do
+			expectTrue(a[1] >= 0 and a[3] <= W and a[2] >= 0 and a[4] <= H, a.id .. " inside the screen at " .. W .. "x" .. H)
+			expectTrue(a[3] - a[1] >= RL.minTouch - 1e-6 and a[4] - a[2] >= RL.minTouch - 1e-6, "touch target 44 px or more: " .. a.id .. " " .. W)
+			if W >= 800 and a.kind == "prop" then
+				for j = i + 1, #rects do
+					local b = rects[j]
+					if b.kind == "prop" then
+						expectTrue(ML.overlapFraction(a, b) <= 0.08, "overlap under 8 percent: " .. a.id .. " vs " .. b.id .. " at " .. W)
+					end
+				end
+			end
+		end
+	end
+	for _, r in ipairs(RL.rects(1920, 1080)) do expectEqual(r.kind, "prop", "no strip plate on desktop: " .. r.id) end
+	local strips = 0
+	for _, r in ipairs(RL.rects(390, 844)) do if r.kind == "strip" then strips = strips + 1 end end
+	expectTrue(strips >= 2, "a phone crop moves cropped hotspots into the bottom strip")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local W, H = size[1], size[2]
+		local pw, ph, ox, oy = RL.cover(W, H)
+		local r = RL.layout(W, H).play
+		local p = RL.pic.play
+		expectTrue(math.abs(r.l - (ox + p.l * pw)) < 1 and math.abs(r.b - (oy + p.b * ph)) < 1, "the table keeps its picture position at " .. W)
+	end
+	expectTrue(RL.ambientKinds <= RL.MAX_AMBIENT, "at most 8 ambient kinds")
+	local known = {}
+	for _, key in ipairs(RL.artKeys) do known[key] = true end
+	expectTrue(known[RL.SCENE_KEY], "the scene key is a known art key")
+	for id in pairs(require(script.Parent.Parent.Engine.MenuRoomArt)) do expectTrue(known[id], "MenuRoomArt only holds known keys: " .. id) end
+end })
+
+table.insert(tests, { name = "MenuRoomLayout: apply sets picture rects, flicker and glint stay inside their budgets, calm mode has no tweens, fallback builds without the art", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local fake = { Hotspots = { { id = "tome", x = 0, y = 0, s = 1, asp = 2 }, { id = "other", x = 7, y = 7, s = 1, asp = 1 } } }
+	expectEqual(RL.apply(fake), 1, "only hotspots with a picture rect are set")
+	expectTrue(fake.Hotspots[1].pic == RL.pic.tome and fake.Hotspots[2].pic == nil, "picture rect set on the tome only")
+	expectTrue(fake.world == true and fake.room == true, "world and room flags set")
+	expectTrue(next(fake.WorldArt) == nil, "the old per-prop pieces are not drawn")
+	local ml, mt, mr, mb = fake.picRect(fake.Hotspots[1], 1920, 1080)
+	expectTrue(mr > ml and mb > mt, "picRect maps the hotspot through the crop")
+	for tt = 0, 60, 0.37 do
+		expectTrue(math.abs(RL.flickerAt(tt)) <= RL.flicker + 1e-9, "flicker stays at 3 percent")
+		local g = RL.glintAt(tt)
+		expectTrue(g >= 0 and g <= 1, "glint phase is 0 to 1")
+		for i = 1, RL.motes do
+			local x, y, a = RL.moteAt(i, tt)
+			expectTrue(x > 0 and x < 1 and y > 0 and y < 1 and a >= 0 and a <= 1, "motes stay on the picture")
+		end
+	end
+	expectEqual(RL.glintAt(RL.glint.length + 1), 0, "coins glint only once in a while")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a"); f:close()
+		return text
+	end
+	local room, menu, hot = read("src/Client/MenuRoom.lua"), read("src/Client/Menu.lua"), read("src/Client/MenuHotspots.lua")
+	if not (room and menu and hot) then return end
+	expectTrue(room:find("Transparency = ColorSequence", 1, true) == nil, "no gradient Transparency")
+	expectTrue(room:find("if calm then", 1, true) ~= nil, "room life honours calm mode")
+	expectTrue(room:find("TweenService", 1, true) == nil, "the room's life is driven by one update, no tweens, so calm mode has none")
+	expectTrue(room:find("drawFallback", 1, true) ~= nil and room:find("if sceneArt then", 1, true) ~= nil, "without the scene art a code-drawn room builds")
+	for _, old in ipairs({ "menu_room_cardtable", "menu_room_scroll", "menu_room_map", "menu_room_tome", "menu_room_rulebook", "menu_room_coinjar", "menu_room_jukebox", "menu_room_lantern", "menu_room_sign" }) do
+		expectTrue(room:find(old, 1, true) == nil, "MenuRoom no longer references " .. old)
+	end
+	expectTrue(room:find("ScaleType.Crop", 1, true) == nil and room:find("RL.cover", 1, true) ~= nil, "the picture is cover-cropped by the layout, not stretched")
+	expectTrue(menu:find('"MenuRoomLayout"', 1, true) ~= nil and menu:find("MenuRoom).build", 1, true) ~= nil, "the Menu builds the Tavern Room")
+	expectTrue(hot:find('Layout.WorldArtCategory or "menu_world"', 1, true) ~= nil, "props pick their art category from the layout")
+end })
+
