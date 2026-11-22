@@ -43977,7 +43977,7 @@ table.insert(tests, { name = "Name and title display: a 20 character name clips 
 	expectTrue(NF.maxChars(0, 14) == NF.MIN_CHARS and NF.maxChars(nil, nil) == NF.MIN_CHARS)
 	local LBT = require(script.Parent.Parent.Engine.LeaderboardText)
 	local lay = LBT.layout(800, 450)
-	local nameW = lay.scroll.w - 220 -- the name label's width in DailyLeaderboard
+	local nameW = LBT.rowParts(lay.scroll.w - 6, "#10", LBT.stats(false, 12, 5)).name.w -- the name label's width in DailyLeaderboard
 	expectTrue(NF.maxChars(nameW, 14) >= 20 + #" (you)", "a 20 character name and (you) fit a row at 800x450")
 	-- titles
 	expectEqual(NF.withTitle("Sam", "Regular", 30), "Sam  |  Regular")
@@ -45314,6 +45314,59 @@ table.insert(tests, { name = "Share line variety: win, loss, daily and endless e
 	expectTrue(#require(script.Parent.Parent.Engine.EndlessScreen).shareLine(14, 16) <= 80)
 	-- a seeded run still carries its code
 	expectTrue(SR.line({ night = 6 }, "ABC234"):find("ABC234", 1, true) ~= nil)
+end })
+
+table.insert(tests, { name = "Leaderboard row plates: rank, name and stats never overlap with the biggest scores at four sizes, text is 14 px, ink reads 4.5:1 on the classic rows and the row plate of every Card Set", fn = function()
+	local LBT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local CS = CosmeticSets
+	local ratio = CS.contrastRatio
+	expectEqual(LBT.ROW_TEXT, 14)
+	expectTrue(LBT.ROW_H >= 44)
+	local ranks = { "#1", "#10", "#1,000", "#99,999" }
+	local statsList = {
+		LBT.stats(false, 1, 0), LBT.stats(false, 99999, 99999), LBT.stats(true, 12, 480), LBT.stats(true, 99999, 9999999),
+	}
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local lay = LBT.layout(sz[1], sz[2])
+		local rowW = lay.scroll.w - 6 -- the scroll bar
+		for _, rank in ipairs(ranks) do
+			for _, stats in ipairs(statsList) do
+				local label = sz[1] .. "x" .. sz[2] .. " " .. rank .. " " .. stats
+				local p = LBT.rowParts(rowW, rank, stats)
+				local order = { p.rank, p.name, p.stats }
+				for i, r in ipairs(order) do
+					expectTrue(r.x >= LBT.ROW_PAD and r.w > 0 and r.h == LBT.ROW_H and r.x + r.w <= rowW - LBT.ROW_PAD + 0.5, label .. " part " .. i .. " is inside the row")
+					if i > 1 then
+						expectTrue(r.x >= order[i - 1].x + order[i - 1].w + LBT.ROW_PAD - 0.5, label .. " part " .. i .. " clears part " .. (i - 1))
+					end
+				end
+				expectTrue(p.name.w >= LBT.NAME_MIN_W, label .. " the name keeps " .. p.name.w .. " px")
+				expectTrue(p.stats.w >= LBT.textWidth(stats, false), label .. " the stats line fits whole: " .. p.stats.w)
+				expectTrue(p.rank.w >= LBT.textWidth(rank, true), label .. " the rank fits whole")
+			end
+		end
+	end
+	-- the classic rows (brown plate, you row, cream name, soft stats, gold rank) read 4.5:1
+	local classicRow, classicYou = { 50, 42, 34 }, { 80, 60, 32 }
+	for _, bg in ipairs({ classicRow, classicYou }) do
+		for _, ink in ipairs({ { 250, 240, 220 }, { 200, 185, 165 }, { 255, 214, 130 } }) do
+			expectTrue(ratio(ink, bg) >= 4.5, "classic row ink " .. table.concat(ink, ",") .. " on " .. table.concat(bg, ",") .. " is " .. ratio(ink, bg))
+		end
+	end
+	-- every Card Set's row plate: name, stats on the plain and the you row, and the rank badge ink on its badge
+	local checked = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = CS.rowStyleOf(set.id)
+		if st then
+			checked = checked + 1
+			for _, bg in ipairs({ st.row, st.hot }) do
+				expectTrue(ratio(st.ink, bg) >= 4.5, set.id .. " name ink 4.5:1")
+				expectTrue(ratio(st.sub, bg) >= 4.5, set.id .. " stats ink 4.5:1")
+			end
+			expectTrue(ratio(st.badgeInk, st.badge) >= 4.5, set.id .. " rank badge ink 4.5:1")
+		end
+	end
+	expectTrue(checked >= 13, "every themed Card Set checked: " .. checked)
 end })
 
 return tests

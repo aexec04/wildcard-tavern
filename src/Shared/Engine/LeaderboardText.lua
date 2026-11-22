@@ -69,6 +69,33 @@ function LeaderboardText.panelSize(vw, vh)
 		math.max(LeaderboardText.MIN_PANEL_H, math.floor(vh * 0.65))
 end
 
+-- ROW PARTS: rank badge, name and stats of one board row, in row pixels, never overlapping. Text is 14 px; widths come from the real strings
+-- (0.6 em per glyph for bold, 0.56 for regular, a cautious estimate), so a big score like "Night 99,999  |  Best hand 9,999,999" gets the room
+-- it needs and the name takes what is left (it truncates with "..." if it must). 8 px padding at the edges and between the parts.
+LeaderboardText.ROW_PAD = 8
+LeaderboardText.ROW_TEXT = 14
+LeaderboardText.NAME_MIN_W = 80
+function LeaderboardText.textWidth(text, bold)
+	return math.ceil(#tostring(text or "") * LeaderboardText.ROW_TEXT * (bold and 0.6 or 0.56))
+end
+function LeaderboardText.rowParts(rowW, rankText, statsText)
+	local pad, h = LeaderboardText.ROW_PAD, LeaderboardText.ROW_H
+	local rankW = math.max(40, LeaderboardText.textWidth(rankText, true) + 14)
+	local statsW = math.max(160, LeaderboardText.textWidth(statsText, false) + 8)
+	statsW = math.min(statsW, math.max(160, math.floor(rowW * 0.6))) -- on a very narrow row the stats stop growing, the name keeps its minimum
+	local nameX = pad + rankW + pad
+	local nameW = rowW - nameX - pad - statsW - pad
+	if nameW < LeaderboardText.NAME_MIN_W then
+		statsW = math.max(0, statsW - (LeaderboardText.NAME_MIN_W - nameW))
+		nameW = LeaderboardText.NAME_MIN_W
+	end
+	return {
+		rank = { x = pad, y = 0, w = rankW, h = h },
+		name = { x = nameX, y = 0, w = nameW, h = h },
+		stats = { x = nameX + nameW + pad, y = 0, w = statsW, h = h },
+	}
+end
+
 -- Rects (x, y, w, h) inside the panel, matching DailyLeaderboard's layout.
 function LeaderboardText.layout(vw, vh)
 	local w, h = LeaderboardText.panelSize(vw, vh)

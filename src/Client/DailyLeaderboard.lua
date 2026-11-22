@@ -232,9 +232,12 @@ return function(deps)
 		row.Parent = leaderboardScroll
 		polishPanel(row, 8)
 
+		local statsText = LBText.stats(endlessBoard, depth, tips)
+		local rowW = math.max(1, leaderboardScroll.AbsoluteSize.X > 0 and (leaderboardScroll.AbsoluteSize.X - leaderboardScroll.ScrollBarThickness) or LBText.layout(1920, 1080).scroll.w)
+		local parts = LBText.rowParts(rowW, rankText, statsText) -- rank, name and stats never overlap, whatever the numbers
 		local rankLabel = Instance.new("TextLabel")
-		rankLabel.Size = UDim2.new(0, 40, 1, 0)
-		rankLabel.Position = UDim2.new(0, 8, 0, 0)
+		rankLabel.Size = UDim2.new(0, parts.rank.w, 1, 0)
+		rankLabel.Position = UDim2.new(0, parts.rank.x, 0, 0)
 		rankLabel.BackgroundTransparency = 1
 		rankLabel.Font = Enum.Font.GothamBold
 		rankLabel.TextSize = 14
@@ -242,8 +245,8 @@ return function(deps)
 		rankLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		rankLabel.Text = rankText
 		if skin then -- an accent rank badge with ink at 4.5:1
-			rankLabel.Size = UDim2.new(0, 36, 0, 22)
-			rankLabel.Position = UDim2.new(0, 8, 0, math.floor((LBText.ROW_H - 22) / 2))
+			rankLabel.Size = UDim2.new(0, parts.rank.w, 0, 22)
+			rankLabel.Position = UDim2.new(0, parts.rank.x, 0, math.floor((LBText.ROW_H - 22) / 2))
 			rankLabel.BackgroundTransparency = 0
 			rankLabel.BackgroundColor3 = skin.badge
 			rankLabel.TextColor3 = skin.badgeInk
@@ -254,8 +257,8 @@ return function(deps)
 		rankLabel.Parent = row
 
 		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -220, 1, 0)
-		nameLabel.Position = UDim2.new(0, 52, 0, 0)
+		nameLabel.Size = UDim2.new(0, parts.name.w, 1, 0)
+		nameLabel.Position = UDim2.new(0, parts.name.x, 0, 0)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.TextSize = 14
@@ -263,20 +266,21 @@ return function(deps)
 		nameLabel.TextColor3 = skin and skin.ink or Color3.fromRGB(250, 240, 220)
 		-- the name keeps its letters; the "(you)" tag and the title are cut first (Engine/NameFit), 14 px in the room left of the stats
 		local shown = NameFit.clip(name, NameFit.MAX_NAME) .. (isYou and " (you)" or "")
-		nameLabel.Text = NameFit.withTitle(shown, flair, NameFit.maxChars(nameLabel.AbsoluteSize.X > 0 and nameLabel.AbsoluteSize.X or 300, 14))
+		nameLabel.Text = NameFit.withTitle(shown, flair, NameFit.maxChars(parts.name.w, 14))
 		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		nameLabel.ZIndex = 21
 		nameLabel.Parent = row
 
 		local statsLabel = Instance.new("TextLabel")
-		statsLabel.Size = UDim2.new(0, 160, 1, 0)
-		statsLabel.Position = UDim2.new(1, -168, 0, 0)
+		statsLabel.Size = UDim2.new(0, parts.stats.w, 1, 0)
+		statsLabel.Position = UDim2.new(0, parts.stats.x, 0, 0)
+		statsLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		statsLabel.BackgroundTransparency = 1
 		statsLabel.Font = Enum.Font.Gotham
 		statsLabel.TextSize = 14
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
 		statsLabel.TextColor3 = skin and skin.sub or Color3.fromRGB(200, 185, 165)
-		statsLabel.Text = LBText.stats(endlessBoard, depth, tips)
+		statsLabel.Text = statsText
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
 	end
