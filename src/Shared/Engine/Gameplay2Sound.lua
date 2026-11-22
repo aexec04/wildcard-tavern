@@ -38,6 +38,22 @@ M.LAYERED = {
 }
 M.SILENT_OK = {}
 
+-- Sound pass: UI and flow moments, each with a call site a test greps for. Every cue here plays through Cue.play, so the SFX slider, Mute and
+-- the SoundDirector (ducking, gaps, voice limits) apply. `layered` cues are built from existing ids in SoundFX.Layers.
+M.UI_MOMENTS = {
+	{ moment = "Season tier claim", cue = "reward_claim", file = "src/Client/SeasonPanel.lua", marker = '"reward_claim"' },
+	{ moment = "Collection reward claim", cue = "reward_claim", file = "src/Client/CollectionRewardsPanel.lua", marker = '"reward_claim"' },
+	{ moment = "login streak claim", cue = "reward_claim", file = "src/Client/LoginStreakUI.lua", marker = '"reward_claim"' },
+	{ moment = "daily chest claim", cue = "reward_claim", file = "src/Client/DailyStrip.lua", marker = '"reward_claim"' },
+	{ moment = "Night cleared", cue = "night_clear", file = "src/Client/NightVictory.lua", marker = '"night_clear"' },
+	{ moment = "pack open", cue = "pack_open", file = "src/Client/PackRevealFX.lua", marker = '"pack_open"' },
+	{ moment = "boss intro", cue = "boss_intro", file = "src/Client/BossFight.lua", marker = '"boss_intro"' },
+	{ moment = "button hover", cue = "hover", file = "src/Client/ActionButtonFX.lua", marker = '"hover"' },
+	{ moment = "menu hover", cue = "hover", file = "src/Client/Menu.lua", marker = '"hover"' },
+	{ moment = "popup open and close", cue = "scroll_open", file = "src/Shared/Engine/PopupRules.lua", marker = '"scroll_open"' },
+	{ moment = "unlock toast", cue = "reward_claim", file = "src/Client/UnlockToast.lua", marker = "Cue" },
+}
+
 M.SLIDER_STEPS = { 0, 0.1, 0.25, 0.5, 0.75, 1 }
 
 function M.effective(cueVolume, scale, sfxVolume, muted)

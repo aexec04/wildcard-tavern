@@ -243,6 +243,7 @@ return function(deps)
 			store.Visible = false
 		end
 		pcall(function() require(script.Parent.ResultGuard).hold(backdrop.Parent) end) -- keeps the Store hidden while this plate is up
+		pcall(function() require(script.Parent.Cue).play("night_clear") end)
 		backdrop.Visible = true
 		if not ClientSettings.get("reduceShake") then
 			-- Pop in (skipped when screen shake is reduced).

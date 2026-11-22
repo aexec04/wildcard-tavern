@@ -176,6 +176,7 @@ function M.update(state)
 			local remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("ClaimLoginReward")
 			if remote and chest:GetAttribute("State") == "ready" and day then
 				chest:SetAttribute("State", "opened") -- one click per day; the server decides the rest
+				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 				remote:FireServer(day)
 			end
 		end)

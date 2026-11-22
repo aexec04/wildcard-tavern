@@ -51,6 +51,9 @@ SoundIds.Cues = {
 	card_deselect = { id = "rbxassetid://9117308777", volume = 0.4, maxLength = 0.3 }, -- a selected hand card is put back (Client/init.client.lua)
 	shop_sell = { id = "rbxassetid://133292918309565", volume = 0.5, maxLength = 0.6 }, -- a Patron is sold (Client/Shop.lua)
 	pack_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.2 }, -- a pack opens and its cards are laid out (Client/PackRevealFX.lua)
+	-- sound pass: two moments that only clicked before. No id of their own; Engine/SoundFX.Layers builds them from the ids above.
+	reward_claim = { id = "", volume = 0.5 }, -- a Season, Collection, login or daily reward is claimed
+	night_clear = { id = "", volume = 0.5 }, -- the Night Cleared plate opens (Client/NightVictory.lua)
 }
 
 -- Quiet looping beds (not cues: Engine/Ambience sets the volume, 0.12 and 0.06 while scoring). Empty id = silent until picked.
@@ -65,7 +68,7 @@ SoundIds.CueOrder = {
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
 	"score_tick", "score_total", "patron_trigger", "round_clear", "defeat",
-	"card_deselect", "shop_sell", "pack_open", "jingle_run", "jingle_boss", "jingle_round",
+	"card_deselect", "shop_sell", "pack_open", "reward_claim", "night_clear", "jingle_run", "jingle_boss", "jingle_round",
 }
 
 -- the eleven cue names the backlog asked for; every one must exist in Cues (an empty id is a safe no-op)

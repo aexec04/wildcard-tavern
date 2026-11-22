@@ -49,6 +49,8 @@ local TABLE = {
 	card_deselect = { "card", 1, 0.3 }, shop_sell = { "coin", 1, 0.6 }, pack_open = { "card", 1, 1.2 },
 	-- ambient
 	shop_enter = { "ambient", 0, 0.8 },
+	-- sound pass: a claim is a coin sound, a cleared Night is a fanfare (so it ducks the music and the small sounds)
+	reward_claim = { "coin", 1, 0.6 }, night_clear = { "fanfare", 4, 1.8 },
 }
 
 function SoundDirector.info(cue)
