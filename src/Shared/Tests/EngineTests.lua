@@ -44663,6 +44663,30 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
 end })
 
+table.insert(tests, { name = "LoadingTips: every Card Set but classic has its own tip (60 characters or less, ASCII, no dashes), classic and junk have none, and the screen shows the set tip first", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local count = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		count = count + 1
+		local line = Tips.setTip(set.id)
+		if set.id == "classic_tavern" then
+			expectTrue(line == nil, "classic has no set tip, the usual shuffle starts")
+		else
+			expectTrue(type(line) == "string" and #line <= Tips.MAX_LENGTH, set.id .. " has a set tip of 60 characters or less")
+			expectTrue(line and not line:find("[^%w%s%.,:'!?]"), set.id .. " tip is plain ASCII with no dashes")
+			expectTrue(line and line:find(set.name, 1, true) == 1, set.id .. " tip leads with the set name")
+		end
+	end
+	expectTrue(count >= 14, "the test walked every Card Set, saw " .. count)
+	expectTrue(Tips.setTip(nil) == nil and Tips.setTip(42) == nil and Tips.setTip("nope") == nil, "junk set ids have no tip")
+	local f = io and io.open and io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("LoadingTips.setTip(setId)", 1, true) ~= nil and src:find("handle.setTipShown", 1, true) ~= nil, "the loading screen leads with the set tip once")
+end })
+
 table.insert(tests, { name = "Boss rule chip: Frozen Hand, Quiet Tavern and Short Table have a drawn icon of shapes at 7:1, inside the square, and one kind line of 60 characters or less", fn = function()
 	local Glyphs = require(script.Parent.Parent.Engine.BossRuleGlyphs)
 	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)

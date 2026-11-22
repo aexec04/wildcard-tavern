@@ -330,6 +330,9 @@ function LoadingScreenUI.show(playerGui, opts)
 
 	-- The equipped Card Set tints the tip plate, Skip plate and bar trim (colours only, no tween, so Calm mode is unchanged). nil restores classic.
 	function handle.setSet(setId)
+		-- the last equipped set's own tip leads the rotation once (classic and unknown sets have none)
+		handle.setTipLine = LoadingTips.setTip(setId)
+		handle.setTipShown = false
 		local style
 		pcall(function()
 			local CS = Engine and Engine:FindFirstChild("CosmeticSets") and require(Engine.CosmeticSets)
@@ -369,8 +372,13 @@ function LoadingScreenUI.show(playerGui, opts)
 	local conn
 
 	local function showTip(now, first)
-		tipIndex = (tipIndex % #order) + 1
-		tip.Text = LoadingTips.TIPS[order[tipIndex]]
+		if handle.setTipLine and not handle.setTipShown then
+			handle.setTipShown = true
+			tip.Text = handle.setTipLine
+		else
+			tipIndex = (tipIndex % #order) + 1
+			tip.Text = LoadingTips.TIPS[order[tipIndex]]
+		end
 		tipAt = now
 		if motion.tipFade and not (first and not motion.firstTipFade) then
 			tip.TextTransparency = 1

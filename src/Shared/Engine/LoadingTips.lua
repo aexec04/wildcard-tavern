@@ -32,6 +32,31 @@ LoadingTips.TIPS = {
 	"Claim your Daily Reward to keep your streak going.",
 }
 
+-- One tip per Card Set (keyed by the CosmeticSets id), shown first when that set was the last one equipped. The classic set and any
+-- unknown id have none, so the usual shuffle starts. Same rules as TIPS: plain ASCII, no dashes, 60 characters or less.
+LoadingTips.SET_TIPS = {
+	winter_evening = "Frosted Garden: the cards sparkle like a snowy morning.",
+	festival_night = "Mountain Festival: the lanterns are lit for your next run.",
+	closing_time = "Closing Time: one more hand before the lamps go low.",
+	golden_gala = "Golden Gala: a grand table for a grand hand.",
+	meadow_picnic = "Meadow Picnic: deal a few hands in the warm sunshine.",
+	riverside_evening = "Riverside Evening: the water is calm, so take your time.",
+	summit_camp = "Summit Camp: the air is crisp, so climb to Night 8.",
+	dune_market = "Dune Market: the stalls are open, so spend your Tips well.",
+	marsh_lanterns = "Marsh Lanterns: follow the glow to a big hand.",
+	snowy_hearth = "Snowy Hearth: the fire is warm and the table is ready.",
+	harbor_lights = "Harbor Lights: the boats are in and the cards are out.",
+	tavern_feast = "Tavern Feast: pull up a chair, there is room for all.",
+	harvest_table = "Harvest Table: a bumper crop of cards awaits.",
+	winter_table = "Winter Welcome Table: come in from the cold and play.",
+}
+
+-- The tip for the last equipped set, or nil (classic, unknown or not a string).
+function LoadingTips.setTip(setId)
+	if type(setId) ~= "string" then return nil end
+	return LoadingTips.SET_TIPS[setId]
+end
+
 function LoadingTips.order(seed)
 	local n = #LoadingTips.TIPS
 	local list = {}
