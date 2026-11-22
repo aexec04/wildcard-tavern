@@ -36451,4 +36451,125 @@ table.insert(tests, { name = "Performance guard: hidden screens idle, loops disc
 	expectEqual(ran, 0, "a paused hub runs nothing")
 end })
 
+table.insert(tests, { name = "Boss variety: every boss has a rule that is enforced, no two bosses share an effect, and each rule changes a sample hand", fn = function()
+	local BossRules = require(script.Parent.Parent.Engine.BossRules)
+	local BC = require(script.Parent.Parent.Engine.BossCounters)
+	local effectKeys = { "handSizeDelta", "discardsDelta", "handsPerRoundOverride", "targetScoreMultiplier", "chipsMultiplier", "multMultiplier",
+		"tipsLostPerCardPlayed", "forcedRandomDiscardsPerHand", "requiredCardsPerHand", "noRepeatHandTypes", "zeroTipsOnMostPlayedHand",
+		"firstHandMultiplier", "tipsLostAtStart", "minHandName", "minCardsPerHand", "noScoreHandTypes", "patronCap", "noScoringTips", "debuff" }
+	-- 1. every boss has at least one enforced effect, a readable rule line, and a signature no other boss on its tier shares
+	local seen = {}
+	for _, boss in ipairs(BossRounds.Definitions) do
+		local parts = {}
+		for _, k in ipairs(effectKeys) do
+			local v = boss[k]
+			if v ~= nil then
+				if type(v) == "table" then
+					local names = {}
+					for name in pairs(v) do table.insert(names, name) end
+					table.sort(names); v = table.concat(names, "+")
+				end
+				table.insert(parts, k .. "=" .. tostring(v))
+			end
+		end
+		expectTrue(#parts >= 1, boss.id .. " has an effect")
+		expectTrue(BC.ruleLine(boss) ~= "", boss.id .. " has a rule line")
+		local sig = boss.minNight .. "|" .. table.concat(parts, ",")
+		expectTrue(seen[sig] == nil, boss.id .. " feels identical to " .. tostring(seen[sig]) .. " on the same tier")
+		seen[sig] = boss.id
+	end
+	-- 2. each rule applied to a fresh round and a sample hand
+	local function start(boss)
+		local s = RunState.new(nil, SeededRng.new(77))
+		s.night, s.round = 1, s.config.roundsPerNight
+		s.nightBossModifier = boss
+		RunState.startRound(s)
+		return s
+	end
+	local none = { id = "none", name = "None", description = "x", minNight = 1 }
+	local function setHand(s, cards)
+		s.hand = {}
+		for _, c in ipairs(cards) do table.insert(s.hand, Card.new(c[1], c[2])) end
+	end
+	local function idx(n) local t = {} for i = 1, n do t[i] = i end return t end
+	local pairA = { { 13, "Hearts" }, { 13, "Spades" }, { 2, "Clubs" }, { 4, "Diamonds" }, { 8, "Clubs" } } -- Hearts, Spades, face and odd bite
+	local pairB = { { 12, "Diamonds" }, { 12, "Clubs" }, { 3, "Hearts" }, { 5, "Spades" }, { 9, "Hearts" } } -- Diamonds, Clubs and face bite
+	local flush = { { 2, "Hearts" }, { 5, "Hearts" }, { 9, "Hearts" }, { 11, "Hearts" }, { 13, "Hearts" } }
+	local high = { { 14, "Hearts" }, { 12, "Spades" }, { 9, "Clubs" }, { 5, "Diamonds" }, { 3, "Clubs" } }
+	local function playScore(boss, cards, count)
+		local s = start(boss)
+		setHand(s, cards)
+		s.tips = 20
+		RunState.playHand(s, idx(count or 5))
+		return s.lastPlay.score, s
+	end
+	for _, boss in ipairs(BossRounds.Definitions) do
+		local base, s = start(none), start(boss)
+		local baseHand = math.max(5, base.config.handSize)
+		if boss.handSizeDelta then expectEqual(#s.hand, math.max(5, #base.hand + boss.handSizeDelta), boss.id .. " hand size") end
+		if boss.discardsDelta then
+			expectEqual(s.discardsRemaining, math.max(boss.minDiscards and 1 or 0, base.discardsRemaining + boss.discardsDelta), boss.id .. " discards")
+		end
+		if boss.handsPerRoundOverride then expectEqual(s.handsRemaining, boss.handsPerRoundOverride, boss.id .. " hands") end
+		if boss.targetScoreMultiplier then
+			expectTrue(math.abs(s.targetScore - base.targetScore * boss.targetScoreMultiplier) <= 1, boss.id .. " target " .. s.targetScore .. " vs " .. base.targetScore)
+		end
+		if boss.tipsLostAtStart then expectTrue(s.tips <= math.max(0, base.tips - boss.tipsLostAtStart) and s.tips < base.tips or base.tips == 0, boss.id .. " starts with fewer Tips") end
+		if boss.chipsMultiplier or boss.multMultiplier or boss.firstHandMultiplier then
+			local with, without = playScore(boss, pairA), playScore(none, pairA)
+			expectTrue(with < without, boss.id .. " lowers the score of a hand: " .. with .. " vs " .. without)
+		end
+		if boss.debuff then
+			local cards = (boss.debuff == "Diamonds" or boss.debuff == "Clubs") and pairB or pairA
+			local with, without = playScore(boss, cards), playScore(none, cards)
+			expectTrue(with < without, boss.id .. " debuff lowers the score: " .. with .. " vs " .. without)
+		end
+		if boss.minHandName then
+			expectEqual(playScore(boss, high), 0, boss.id .. " scores a High Card as nothing")
+			expectTrue(playScore(none, high) > 0)
+			expectTrue(playScore(boss, pairA) > 0, boss.id .. " still scores a Pair")
+		end
+		if boss.noScoreHandTypes then
+			expectEqual(playScore(boss, flush), 0, boss.id .. " scores a Flush as nothing")
+			expectTrue(playScore(none, flush) > 0)
+		end
+		if boss.requiredCardsPerHand then
+			local need = boss.requiredCardsPerHand
+			local ok = pcall(function() local t = start(boss) setHand(t, pairA) RunState.playHand(t, idx(need)) end)
+			expectTrue(ok, boss.id .. " accepts exactly " .. need .. " cards")
+			local wrong = need == 5 and 4 or 5
+			local bad = pcall(function() local t = start(boss) setHand(t, pairA) RunState.playHand(t, idx(wrong)) end)
+			expectFalse(bad, boss.id .. " refuses " .. wrong .. " cards")
+		end
+		if boss.minCardsPerHand then
+			local bad = pcall(function() local t = start(boss) setHand(t, pairA) RunState.playHand(t, idx(boss.minCardsPerHand - 1)) end)
+			expectFalse(bad, boss.id .. " refuses too few cards")
+		end
+		if boss.tipsLostPerCardPlayed then
+			local _, t = playScore(boss, pairA, 2)
+			local _, u = playScore(none, pairA, 2)
+			expectTrue(t.tips <= u.tips - boss.tipsLostPerCardPlayed * 2, boss.id .. " costs Tips per card")
+		end
+		if boss.forcedRandomDiscardsPerHand then
+			local _, t = playScore(boss, pairA, 2)
+			local _, u = playScore(none, pairA, 2)
+			expectEqual(#t.discardPile - #u.discardPile, boss.forcedRandomDiscardsPerHand, boss.id .. " tosses cards after a hand")
+		end
+		if boss.noRepeatHandTypes then
+			local t = start(boss)
+			setHand(t, pairA)
+			RunState.playHand(t, { 1, 2 })
+			local first = t.lastPlay.score
+			setHand(t, pairA)
+			RunState.playHand(t, { 1, 2 })
+			expectTrue(first > 0 and t.lastPlay.score == 0, boss.id .. " scores a repeated hand type as nothing")
+		end
+		if boss.patronCap then
+			local list = {}
+			for i = 1, boss.patronCap + 2 do list[i] = { id = "p" .. i } end
+			expectEqual(#BossRules.scoringPatrons(boss, list), boss.patronCap, boss.id .. " caps Patrons")
+		end
+	end
+end })
+
 return tests
