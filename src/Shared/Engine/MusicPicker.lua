@@ -71,6 +71,15 @@ end
 -- (nothing plays from these rows today; the names are stand-ins for the real pack).
 M.SHOP_TITLE = "Music pack"
 M.SHOP_LINE = "More tunes for your tavern"
+M.PACK_LINE_H = 24 -- the second line under the title: what the pack is and its price or Owned state
+
+-- What you get and what it costs, one short line (no random odds, no power): "Owned" once the pass is owned, "Coming soon" while the pass id
+-- is 0, otherwise the price is read at the Roblox checkout. 36 characters or less so it fits the 360 px panel at 16 px.
+function M.packLine(passId, ownsPack)
+	if ownsPack == true then return "Sound only. Owned, enjoy!" end
+	if (tonumber(passId) or 0) <= 0 then return "Sound only. Coming soon." end
+	return "Sound only. Price at checkout."
+end
 M.SHOP_TRACKS = {} -- empty until the Music pack has real tracks; the section keeps its button for them
 
 -- The three shop rows for this player: { id, name, locked, playable, tag } where tag is the small right-hand word
@@ -93,7 +102,7 @@ end
 -- Returns { panel = {x,y,w,h}, closeX = {x,y,w,h} (screen coords), body = {h = visible, content = full height}, contentH }.
 M.ROW_H, M.ROW_GAP, M.TITLE_H = 44, 8, 84 -- title bar 56 plus a 28 px Now playing line
 function M.shopHeight() -- plate pad, title, line, rows (each with its gap), button, pad
-	return 12 + 28 + 2 + 22 + 6 + #M.SHOP_TRACKS * (M.ROW_H - 4 + M.ROW_GAP) + 44 + 12
+	return 12 + 28 + 2 + 22 + M.PACK_LINE_H + 6 + #M.SHOP_TRACKS * (M.ROW_H - 4 + M.ROW_GAP) + 44 + 12
 end
 function M.contentHeight()
 	return #M.TRACKS * (M.ROW_H + M.ROW_GAP) + M.shopHeight() + 8

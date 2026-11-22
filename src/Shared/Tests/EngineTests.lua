@@ -14287,6 +14287,56 @@ table.insert(tests, { name = "ReplayFlow: one confirm per request, safe kid word
 	end
 end })
 
+table.insert(tests, { name = "Music pack and VIP rows: what you get, a price or Owned line, safe fair wording, 44 px Buy, the panel layout still fits every size", fn = function()
+	local MP = require(script.Parent.Parent.Engine.MusicPicker)
+	local GP = require(script.Parent.Parent.Engine.GamePasses)
+	local ST = require(script.Parent.Parent.Engine.Store)
+	local function safe(w, what)
+		local l = tostring(w):lower()
+		expectTrue(type(w) == "string" and w ~= "" and not w:find("\226\128\148") and not w:find("%-%-") and not l:find("balatro"), "safe words: " .. what)
+		for _, bad in ipairs({ "random", "chance", "odds", "loot", "gamble", "mystery", "win more", "stronger", "pay to win", "boost" }) do
+			expectFalse(l:find(bad, 1, true) ~= nil, what .. " never says " .. bad)
+		end
+	end
+	for _, state in ipairs({ { 0, false }, { 0, true }, { 123456, false }, { 123456, true } }) do
+		local line = MP.packLine(state[1], state[2])
+		safe(line, "packLine " .. state[1] .. " " .. tostring(state[2]))
+		expectTrue(#line <= 36, "the pack line fits the panel: " .. line)
+		expectTrue(line:find("Sound only", 1, true) == 1, "it says what you get: " .. line)
+	end
+	expectTrue(MP.packLine(0, false):find("Coming soon", 1, true) ~= nil, "id 0 says Coming soon")
+	expectTrue(MP.packLine(5, true):find("Owned", 1, true) ~= nil, "owned says Owned")
+	expectTrue(MP.packLine(5, false):find("checkout", 1, true) ~= nil, "a real id points to the checkout price")
+	safe(MP.SHOP_TITLE, "title"); safe(MP.SHOP_LINE, "line")
+	expectEqual(MP.buyButton(0, false).text, "Coming soon", "pass id 0 button")
+	expectFalse(MP.buyButton(0, false).enabled, "disabled while the pass does not exist")
+	expectTrue(MP.buyButton(7, false).enabled and MP.buyButton(7, false).text == "Get Music pack", "a real id can be bought")
+	expectFalse(MP.buyButton(7, true).show, "owned hides the Buy button")
+	for _, def in ipairs(GP.Definitions) do
+		if def.id == "music_pack" or def.id == "vip" then
+			safe(def.name, def.id); safe(def.description, def.id)
+			expectTrue(def.description:lower():find("no gameplay power", 1, true) ~= nil or def.description:lower():find("no power", 1, true) ~= nil, def.id .. " says it has no power")
+		end
+	end
+	local vip = ST.getById("vip")
+	safe(vip.description, "store vip"); expectTrue(vip.description:find("no power", 1, true) ~= nil, "the Store VIP card says no power")
+	for _, perk in ipairs(vip.perks) do safe(perk, "vip perk") end
+	expectEqual(ST.priceLine({ owned = true }, nil), "Owned", "VIP owned state")
+	expectEqual(ST.priceLine({ comingSoon = true }, nil), "Coming soon", "VIP before launch")
+	expectTrue(ST.priceLine({ robloxId = 1 }, { [1] = "R$ 99" }) == "R$ 99", "VIP shows the Robux price once loaded")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = MP.layout(sz[1], sz[2])
+		expectTrue(L.panel.x >= 0 and L.panel.y >= 0 and L.panel.x + L.panel.w <= sz[1] and L.panel.y + L.panel.h <= sz[2], "the panel fits at " .. sz[1])
+		expectTrue(L.closeX.w >= 36 and L.closeX.x + L.closeX.w <= L.panel.x + L.panel.w, "the X stays reachable at " .. sz[1])
+		expectTrue(L.body.content >= MP.shopHeight(), "the scroll body holds the shop plate at " .. sz[1])
+	end
+	if io and io.open then
+		local h = assert(io.open("src/Client/MusicPanel.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find("Size = UDim2.new(1, -24, 0, 44)", 1, true) ~= nil, "the Buy button is 44 px")
+		expectTrue(src:find("packLine", 1, true) ~= nil and src:find("PopupSkin", 1, true) ~= nil, "the pack line is drawn and wears the set ink")
+	end
+end })
+
 table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
 	local TP = require(script.Parent.Parent.Engine.TwistPreview)
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
