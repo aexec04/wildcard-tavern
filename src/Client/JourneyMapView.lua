@@ -275,6 +275,11 @@ return function(deps)
 		if not seg.road then return end
 		local look = MapSelectRules.routeLook(selectedIndex ~= nil and seg.into == selectedIndex, seg.filled)
 		local thick = math.max(6, look.thickness - 4)
+		local setFill, setEdge -- the equipped Card Set tints the road toward its accent (CosmeticSets.mapPathOf); classic keeps the sand
+		pcall(function()
+			local f, e = require(Engine:WaitForChild("CosmeticSets")).mapPathOf(require(script.Parent.TavernKit).plateSetId(), look.color, look.edge)
+			if f then setFill, setEdge = Color3.fromRGB(f[1], f[2], f[3]), Color3.fromRGB(e[1], e[2], e[3]) end
+		end)
 		for k, piece in ipairs(seg.road) do
 			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none"
 			piece.fill.Visible = shown
@@ -282,6 +287,10 @@ return function(deps)
 				piece.fill.Size = UDim2.fromOffset(RouteRules.DASH, thick)
 				piece.edge.Color = Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3])
 				piece.fill.BackgroundColor3 = Color3.fromRGB(look.color[1], look.color[2], look.color[3])
+				if setFill then
+					piece.fill.BackgroundColor3 = setFill
+					piece.edge.Color = setEdge
+				end
 				local tr = 0
 				if seg.mode == "fade" then
 					tr = math.min(0.95, 0.15 + 0.8 * ((k - 1) / math.max((seg.roadCount or 1) - 1, 1)))

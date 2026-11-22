@@ -40898,5 +40898,131 @@ tests[#tests + 1] = ({ name = "Card back per Card Set: every non classic set has
 	expectEqual(count, 14, "14 non classic sets")
 end })
 
+table.insert(tests, { name = "Confirm, Choice, Quit and Restart popups wear the set paper, plate and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its popups")
+	expectEqual(CS.popupStyleOf(nil), nil, "no set keeps its popups")
+	local n, papers = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " cream ink keeps 7:1 on the dark panel")
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " dark ink keeps 7:1 on the paper top")
+				expectTrue(CS.contrastRatio(p.paper.bottom, p.paper.ink) >= 7, set.id .. " dark ink keeps 7:1 on the paper foot")
+				papers[p.paper.top[1] .. "," .. p.paper.top[2] .. "," .. p.paper.top[3] .. "/" .. p.paper.edge[1] .. "," .. p.paper.edge[2]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	expectTrue(next(papers) ~= nil, "paper tints exist")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local ps = read("PopupSkin")
+	if ps then
+		expectTrue(ps:find("CS.popupStyleOf(", 1, true) ~= nil and ps:find("classic.plate", 1, true) ~= nil and ps:find("classic.top", 1, true) ~= nil, "PopupSkin asks the pure rule and restores classic")
+	end
+	for _, name in ipairs({ "ConfirmDialog", "ChoicePanel", "QuitConfirm", "RestartRun" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("PopupSkin", 1, true) ~= nil or src:find("setPlateButton", 1, true) ~= nil, name .. " binds the popup skin") end
+	end
+	for _, name in ipairs({ "ConfirmDialog", "RestartRun" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("setPlateButton", 1, true) ~= nil, name .. " asks for the set plate") end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map header, banners, select panel, Go plate and road wear the set accent at 4.5:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.mapStyleOf("classic_tavern"), nil, "classic keeps the wood and gold map")
+	expectEqual(CS.mapStyleOf(nil), nil, "no set keeps the wood and gold map")
+	expectEqual(CS.mapPathOf("classic_tavern", { 244, 230, 196 }, { 110, 78, 40 }), nil, "classic keeps the sandy road")
+	local n, edges = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local m = CS.mapStyleOf(set.id)
+			expectTrue(m ~= nil, set.id .. " has a map style")
+			if m then
+				n = n + 1
+				expectTrue(CS.contrastRatio(m.ink, m.bar) >= 7, set.id .. " cream title and stats keep 7:1 on the bar")
+				expectTrue(CS.contrastRatio(m.edge, m.bar) >= 4.5, set.id .. " accent line reads 4.5:1 on the bar")
+				expectTrue(CS.contrastRatio(m.edge, m.inset) >= 4.5, set.id .. " accent line reads 4.5:1 on the panel inset")
+				expectTrue(CS.contrastRatio(m.ink, m.inset) >= 7, set.id .. " cream text keeps 7:1 on the panel inset")
+				expectTrue(CS.contrastRatio(m.go, m.goInk) >= 4.5, set.id .. " Go word keeps 4.5:1 on its plate")
+				local f, e = CS.mapPathOf(set.id, { 244, 230, 196 }, { 110, 78, 40 })
+				expectTrue(f ~= nil and CS.contrastRatio(f, e) >= 3, set.id .. " road edge stays 3:1 under its fill")
+				edges[m.bar[1] .. "," .. m.bar[2] .. "," .. m.bar[3] .. "/" .. m.edge[1] .. "," .. m.edge[2] .. "," .. m.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a map style")
+	local count = 0
+	for _ in pairs(edges) do count = count + 1 end
+	expectTrue(count >= 10, "the map looks different across sets")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "MapHeaderBar", "MapSelectPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("CS.mapStyleOf(", 1, true) ~= nil and src:find("onSkin", 1, true) ~= nil, name .. " asks the pure rule and re-dresses on equip") end
+	end
+	local jv = read("JourneyMapView")
+	if jv then expectTrue(jv:find("mapPathOf(", 1, true) ~= nil, "the road asks the pure rule") end
+end })
+
+table.insert(tests, { name = "Tome Flair, Legend and Ledger tabs wear the set plates and ink at 4.5:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.ledgerStyleOf("classic_tavern"), nil, "classic keeps the leather ledger")
+	expectEqual(CS.ledgerStyleOf(nil), nil, "no set keeps the leather ledger")
+	local n, seen = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h, r, l = CS.hintStyleOf(set.id), CS.rowStyleOf(set.id), CS.ledgerStyleOf(set.id)
+			expectTrue(h ~= nil and r ~= nil and l ~= nil, set.id .. " has header, row and ledger styles")
+			if h and r and l then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " Tome header ink keeps 7:1")
+				expectTrue(CS.contrastRatio(r.row, r.ink) >= 7 and CS.contrastRatio(r.hot, r.ink) >= 7, set.id .. " Flair and Legend row ink keeps 7:1")
+				expectTrue(CS.contrastRatio(r.row, r.sub) >= 4.5 and CS.contrastRatio(r.hot, r.sub) >= 4.5, set.id .. " locked marks keep 4.5:1")
+				expectTrue(CS.contrastRatio(r.row, r.badge) >= 4.5 or CS.contrastRatio(r.badge, r.badgeInk) >= 4.5, set.id .. " counters stay readable")
+				expectTrue(CS.contrastRatio(l.tabOn, l.tabInk) >= 4.5 and CS.contrastRatio(l.tabOff, l.tabInk) >= 4.5, set.id .. " ribbon words keep 4.5:1")
+				expectTrue(CS.contrastRatio(l.row, CS.LEDGER_INK) >= 4.5 and CS.contrastRatio(l.rowOpen, CS.LEDGER_INK) >= 4.5, set.id .. " run rows keep ledger ink 4.5:1")
+				seen[l.leather[1] .. "," .. l.leather[2] .. "," .. l.leather[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has the three styles")
+	local count = 0
+	for _ in pairs(seen) do count = count + 1 end
+	expectTrue(count >= 10, "the ledger leather differs across sets")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "FlairDressingRoom", "LegendPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("RowSkin", 1, true) ~= nil, name .. " binds the row skin") end
+	end
+	local th = read("TomeHeaderPlate")
+	if th then expectTrue(th:find("HintSkin", 1, true) ~= nil, "Tome header plates bind the hint skin") end
+	local lb = read("LedgerBook")
+	if lb then expectTrue(lb:find("ledgerStyleOf(", 1, true) ~= nil, "the Ledger asks the pure rule") end
+end })
+
 return tests
+
 

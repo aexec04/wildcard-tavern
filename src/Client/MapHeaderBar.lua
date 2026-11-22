@@ -227,6 +227,37 @@ function MapHeaderBar.attach(panel, onClose)
 
 	local xHit = require(script.Parent.CloseX).attach(kit, onClose, { inset = Rules.MARGIN, top = 0, z = 44 })
 
+	-- the equipped Card Set's bar, rails, gold lines, separators, banners and ink (CosmeticSets.mapStyleOf); classic keeps wood and gold
+	local function skinSet()
+		local st
+		pcall(function()
+			local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			st = CS.mapStyleOf(TavernKit.plateSetId())
+		end)
+		local function rgbOr(t, classic) return t and Color3.fromRGB(t[1], t[2], t[3]) or classic end
+		bar.BackgroundColor3 = rgbOr(st and st.bar, WOOD)
+		barSheen.BackgroundColor3 = rgbOr(st and st.sheen, WOOD_LIGHT)
+		barLine.BackgroundColor3 = rgbOr(st and st.edge, GOLD)
+		for _, r in pairs(rails) do
+			r.BackgroundColor3 = rgbOr(st and st.bar, WOOD)
+			local rs = r:FindFirstChildOfClass("UIStroke")
+			if rs then rs.Color = rgbOr(st and st.edge, GOLD) end
+		end
+		for _, sep in ipairs(seps) do sep.BackgroundColor3 = rgbOr(st and st.edge, GOLD) end
+		for _, b in pairs(banners) do
+			local fabric = b:FindFirstChild("Fabric")
+			if fabric then
+				fabric.ImageColor3 = st and Color3.new(1, 1, 1):Lerp(rgbOr(st.banner), 0.45) or Color3.new(1, 1, 1)
+			else
+				b.BackgroundColor3 = rgbOr(st and st.banner, PURPLE)
+			end
+		end
+		for _, l in pairs(cells) do l.TextColor3 = rgbOr(st and st.ink, CREAM) end
+		titleText.TextColor3 = rgbOr(st and st.ink, CREAM)
+	end
+	skinSet()
+	pcall(function() require(script.Parent.HudTheme).onSkin(function() if kit.Parent then skinSet() end end) end)
+
 	local compact = false -- narrow plate: no spaces round the slash
 	local function relayout()
 		local size = panel.AbsoluteSize

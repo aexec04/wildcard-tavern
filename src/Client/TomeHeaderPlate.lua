@@ -49,6 +49,18 @@ function M.attach(panel, pageId, titleLabel, subLabel, opts)
 		subLabel.TextSize = math.max(subLabel.TextSize, TomeHeader.MIN_TEXT)
 		subLabel.TextXAlignment = Enum.TextXAlignment.Center
 	end
+	-- the equipped Card Set's plate fill, accent edge and cream ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the page colours above
+	pcall(function()
+		local HintSkin = require(script.Parent.HintSkin)
+		local plateFill = Color3.fromRGB(TomeHeader.PLATE[1], TomeHeader.PLATE[2], TomeHeader.PLATE[3])
+		local edge = Color3.fromRGB(176, 132, 48)
+		HintSkin.bind(out.plates.title, out.plates.title:FindFirstChildOfClass("UIStroke"), { titleLabel },
+			{ plate = plateFill, edge = edge, ink = Color3.fromRGB(page.titleInk[1], page.titleInk[2], page.titleInk[3]) })
+		if subLabel then
+			HintSkin.bind(out.plates.sub, out.plates.sub:FindFirstChildOfClass("UIStroke"), { subLabel },
+				{ plate = plateFill, edge = edge, ink = Color3.fromRGB(page.subInk[1], page.subInk[2], page.subInk[3]) })
+		end
+	end)
 	local follow = opts and opts.follow -- the page places the title itself: the plate wraps the label, padded, clamped to the panel
 	function out.relayout()
 		local sz = panel.AbsoluteSize
