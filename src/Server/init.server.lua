@@ -789,6 +789,10 @@ local function serializeState(session, player)
 			view.secondsToNextDay = LoginStreak.secondsToNextDay(os.time())
 			return view
 		end)(),
+		newItems = (function() -- keys of unlocks not looked at yet (Engine/NewItems), for the New ribbons
+			local profile = profiles[player]
+			return profile and require(Engine.NewItems).pending(profile) or {}
+		end)(),
 		-- SEASON banner (display only; nil outside a season). Rewards are granted in syncProfileFromSession.
 		season = (function()
 			local profile = profiles[player]
@@ -2599,6 +2603,17 @@ Rem.ClaimLoginReward.OnServerEvent:Connect(function(player, rewardDay)
 	end
 	local ok = LoginStreak.claim(profile, rewardDay, session.state)
 	if ok then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
+-- NEW ribbons: the client lists the keys it just showed; only keys the profile really owns are marked.
+Rem.MarkSeenNew.OnServerEvent:Connect(function(player, keys)
+	if not RateLimit.allow(player.UserId, "Rem.MarkSeenNew", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile then return end
+	if require(Engine.NewItems).markSeen(profile, keys) > 0 then
 		profileDirty[player] = true
 		pushState(player)
 	end
