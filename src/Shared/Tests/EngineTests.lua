@@ -40826,4 +40826,52 @@ table.insert(tests, { name = "Phone and tablet audit over all 14 sets at 800x450
 	expectTrue(runs >= 14 * 3 * 6, "every set, size and screen was audited")
 end })
 
+table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: every set's backdrop layers and ambient particles are off, no per set effect flashes faster than 3 times a second", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local Scenes = require(Engine.ThemeScenes)
+	local Access = require(Engine.Accessibility)
+	expectTrue(Access.calm({ reduceShake = true }) and Access.calm({ reduceMotion = true }) and Access.calm({ reduceFlashing = true }), "each of the three switches means calm")
+	expectTrue(not Access.calm({}), "nothing set is not calm")
+	local MAX_RAD_PER_SEC = 2 * math.pi * 3 -- a sine at this rate flashes 3 times a second
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		n = n + 1
+		local style = CS.backdropStyleOf(set)
+		if style then
+			expectTrue(CS.validateStyle(style) ~= nil, set.id .. " backdrop style is valid")
+			for _, layer in ipairs(style.layers or {}) do
+				expectTrue((layer.count or 0) <= CS.BackdropLimits.maxParticles, set.id .. " layer " .. tostring(layer.kind) .. " stays under the particle cap")
+			end
+		end
+		expectTrue(Scenes.of(set.id).ambient ~= nil, set.id .. " names its ambient kind (AmbientLife draws none in calm mode)")
+	end
+	expectTrue(n >= 14, "every set was checked")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local bd, ambient, hud, wash, skin = read("BackdropStyles"), read("AmbientLife"), read("HudTheme"), read("ThemeWash"), read("SetSkin")
+	if bd then
+		expectTrue(bd:find("local run = isShown(controller.host) and not calm()", 1, true) ~= nil, "backdrop particles stop in calm mode")
+		expectTrue(bd:find("if calm() then -- Calm mode and Reduce motion: no particle shows", 1, true) ~= nil, "backdrop particles are hidden at build in calm mode")
+		for rate in bd:gmatch("math%.sin%(t %* ([%d%.]+)") do
+			expectTrue(tonumber(rate) <= MAX_RAD_PER_SEC, "backdrop sine rate " .. rate .. " flashes at most 3 times a second")
+		end
+	end
+	if ambient then
+		expectTrue(ambient:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "ambient scene builds no objects in calm mode")
+		for rate in ambient:gmatch("math%.sin%(t %* ([%d%.]+)") do
+			expectTrue(tonumber(rate) <= MAX_RAD_PER_SEC, "ambient sine rate " .. rate .. " flashes at most 3 times a second")
+		end
+	end
+	if hud then expectTrue(hud:find("if calm() then", 1, true) ~= nil, "HudTheme swaps without a tween in calm mode") end
+	for name, src in pairs({ ThemeWash = wash, SetSkin = skin }) do
+		expectTrue(src == nil or src:find("TweenService", 1, true) == nil, name .. " creates no tweens")
+	end
+end })
+
 return tests

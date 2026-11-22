@@ -302,6 +302,11 @@ function M.attach(host, opts)
 			end
 		end
 		if #controller.layers > 0 then
+			if calm() then -- Calm mode and Reduce motion: no particle shows even for the first 0.25 s before the loop's visibility check
+				for _, layer in ipairs(controller.layers) do
+					for _, item in ipairs(layer.items) do item.frame.Visible = false end
+				end
+			end
 			register(controller)
 		end
 	end
