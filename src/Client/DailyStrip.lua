@@ -153,6 +153,22 @@ function M.update(state)
 	chest.Size = UDim2.fromOffset(cr.w, cr.h)
 	chest.Active = v.chest == "ready"
 	chest.AutoButtonColor = false
+	-- claimable: a gold ring that breathes; static (solid ring) in Calm mode, Reduce motion and Fast
+	local ring = chest:FindFirstChild("ReadyRing")
+	if v.pulse then
+		if not ring then
+			ring = Instance.new("UIStroke")
+			ring.Name = "ReadyRing"
+			ring.Color = color("gold")
+			ring.Thickness = 3
+			ring.Parent = chest
+			if not Kit.still() then
+				TweenService:Create(ring, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 1 }):Play()
+			end
+		end
+	elseif ring then
+		ring:Destroy()
+	end
 	if not chest:GetAttribute("Wired") then
 		chest:SetAttribute("Wired", true)
 		chest.MouseButton1Click:Connect(function()

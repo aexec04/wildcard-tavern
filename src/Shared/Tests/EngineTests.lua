@@ -35085,4 +35085,24 @@ table.insert(tests, { name = "Phone and tablet: Counter shop scene fits 1024x768
 	end
 end })
 
+table.insert(tests, { name = "Daily return: claimable chest says Claim reward and pulses, unclaimed and claimed states read clearly, Next goal bar is still in Calm mode", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local ready = D.view({ streak = 3, rewards = { { day = 3, today = true, claimable = true, label = "50 Tips" } } }, nil)
+	expectEqual(ready.chestText, "Claim reward", "ready text")
+	expectTrue(ready.pulse == true and ready.claimDay == 3, "ready pulses and carries the day")
+	local done = D.view({ streak = 3, rewards = { { day = 3, today = true, claimed = true, label = "50 Tips" } } }, nil)
+	expectEqual(done.chestText, "Claimed today", "claimed text")
+	expectTrue(done.pulse == false, "claimed does not pulse")
+	local none = D.view(nil, nil)
+	expectTrue(none.pulse == false and none.chestText ~= "", "no chest: no pulse, a word on the button")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local r = D.rect(sz[1], sz[2]); local c = D.chestRect(r)
+		expectTrue(c.w >= 44 and c.h >= 44 and c.x + c.w <= r.w, "chest fits at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	expectTrue(read("src/Client/DailyStrip.lua"):find("ReadyRing", 1, true) ~= nil, "gold ring on the ready chest")
+	expectTrue(read("src/Client/NextGoalBanner.lua"):find("still()", 1, true) ~= nil, "Next goal bar respects Calm mode")
+end })
+
 return tests
