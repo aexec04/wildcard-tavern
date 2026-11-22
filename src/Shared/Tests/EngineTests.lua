@@ -14240,6 +14240,28 @@ table.insert(tests, { name = "LedgerPages: stats map to story, hall and records 
 	expectEqual(LP.step(1, 1), 2, "next page")
 end })
 
+table.insert(tests, { name = "LedgerPages favourites: most played Patron from the recent runs, stable ties, Card Set line, short labels, two lines fit under three notes", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	local Layout = require(script.Parent.Parent.Engine.LedgerLayout)
+	expectEqual(LP.mostPlayedPatron(nil), nil)
+	expectEqual(LP.mostPlayedPatron({}), nil)
+	expectEqual(LP.mostPlayedPatron({ { patrons = {} } }), nil)
+	local top = LP.mostPlayedPatron({ { patrons = { "b_id", "a_id" } }, { patrons = { "b_id" } }, { patrons = { 7, "a_id" } } })
+	expectEqual(top.id, "a_id", "a tie goes to the alphabetically first id")
+	expectEqual(top.runs, 2)
+	expectEqual(LP.mostPlayedPatron({ { patrons = { "x" } }, { patrons = { "x", "y" } } }).id, "x")
+	local lines = LP.favoriteLines({}, "The Regular", "Winter Evening")
+	expectEqual(#lines, 2)
+	expectEqual(lines[1].value, "The Regular"); expectEqual(lines[2].value, "Winter Evening")
+	expectEqual(LP.favoriteLines({}, nil, nil)[1].value, "None yet")
+	for _, l in ipairs(lines) do
+		expectTrue(#l.label <= 14 and not l.label:find("\226\128\148") and not l.label:find("%-%-"), "short plain label " .. l.label)
+	end
+	-- the Hall of Fame page: three notes use ruled lines 2 to 7, so lines 8 and 9 are free for the two favourites
+	expectEqual(LP.BESTS_SHOWN * 2 + 1, 7)
+	expectTrue(Layout.span("left", 9) ~= nil, "ruled line 9 exists on the left page")
+end })
+
 table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, empty note is friendly", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(LP.fmt(0), "0", "zero")
