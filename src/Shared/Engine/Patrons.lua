@@ -409,7 +409,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "vip_table", name = "VIP Table", icon = "🎩", price = 6,
-		description = "+8 Mult if the hand contains a face card (Jack, Queen, or King) among the scoring cards.",
+		description = "+8 Mult if a scoring card is a Jack, Queen or King.",
 		flavorText = "Has a reserved seat, a reserved cushion and a reserved spoon.",
 		effect = function(handResult, _context)
 			for _, card in ipairs(handResult.scoringCards) do
@@ -466,7 +466,7 @@ Patrons.Definitions = {
 	-- ===== More ECONOMY (only Tip Jar/Penny Pincher existed before) =====
 	{
 		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7,
-		description = "Earn 1 Tip for each Patron at your table, at the end of each round you win.",
+		description = "Win a round: earn 1 Tip for each Patron at your table.",
 		short = "Win a round: 1 Tip per Patron you own",
 		flavorText = "Buys a round of muffins for the whole table.",
 		effect = function() return nil end,
@@ -537,7 +537,7 @@ Patrons.Definitions = {
 	-- ===== here) =====
 	{
 		id = "spare_change", name = "Spare Change", icon = "🧻", price = 6,
-		description = "Earn 1 Tip for every Discard you have remaining at the end of a round you win.",
+		description = "Win a round: earn 1 Tip per Discard you have left.",
 		short = "Win a round: 1 Tip per Discard left",
 		flavorText = "Finds coins under every cushion in the place.",
 		effect = function() return nil end,
@@ -582,7 +582,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "efficient_service", name = "Efficient Service", icon = "🧑‍💼", price = 6,
-		description = "+3 Chips for every Hand or Discard you have remaining this round (combined).",
+		description = "+3 Chips for each Hand or Discard you have left.",
 		flavorText = "Clears the table before you finish saying thank you.",
 		effect = function(_handResult, context)
 			local total = (context.handsRemaining or 0) + (context.discardsRemaining or 0)
@@ -652,7 +652,7 @@ Patrons.Definitions = {
 	-- ===== Hands-side counterpart to Spare Change's Discards-side payout) =====
 	{
 		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
-		description = "Earn 1 Tip for every Hand you have remaining at the end of a round you win.",
+		description = "Win a round: earn 1 Tip per Hand you have left.",
 		short = "Win a round: 1 Tip per Hand left",
 		flavorText = "Keeps an umbrella and a few coins for stormy nights.",
 		effect = function() return nil end,
@@ -731,7 +731,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "tasting_menu", name = "Tasting Menu", icon = "📜", price = 7,
-		description = "+1 Mult for every different poker hand type played this run (up to +9).",
+		description = "+1 Mult per different hand type played this run (max +9).",
 		short = "+1 Mult per hand type played (up to +9)",
 		flavorText = "Wants to try a little bit of everything.",
 		effect = function(_handResult, context)

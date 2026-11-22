@@ -1264,6 +1264,22 @@ table.insert(tests, { name = "Patrons.Definitions has grown well past the origin
 	expectTrue(#Patrons.Definitions >= 15, "expected a much larger Patron pool")
 end })
 
+table.insert(tests, { name = "Patron descriptions: non empty, under 70 chars, no jargon, no duplicates", fn = function()
+	local banned = { "multiplicative", "additive", "stack", "trigger", "proc", "scalar", "modifier", "synergy", "retrigger", "per-hand" }
+	local seen, bad = {}, {}
+	for _, p in ipairs(Patrons.Definitions) do
+		local s = p.description or ""
+		if #s == 0 or #s >= 70 then bad[#bad + 1] = p.id .. " length " .. #s end
+		if seen[s] then bad[#bad + 1] = p.id .. " duplicates " .. seen[s] end
+		seen[s] = p.id
+		local low = string.lower(s)
+		for _, w in ipairs(banned) do
+			if string.find(low, w, 1, true) then bad[#bad + 1] = p.id .. " jargon '" .. w .. "'" end
+		end
+	end
+	expectTrue(#bad == 0, table.concat(bad, "; "))
+end })
+
 table.insert(tests, { name = "'The Understudy' copies the ability of the Patron to its right", fn = function()
 	local understudy = Patrons.getById("the_understudy")
 	local theRegular = Patrons.getById("the_regular") -- +4 flat Mult, no conditions
