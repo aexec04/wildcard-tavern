@@ -250,6 +250,26 @@ function Store.equipSecondBadge(profile, badgeId, isVip, badgeOwned)
 	return true
 end
 
+-- The line under an item's name in the Store: owned, free in Studio, coming soon, a Robux price, or a calm fallback.
+-- `cache` maps a Roblox id to a price text like "R$ 99".
+function Store.priceLine(row, cache)
+	if row.owned then
+		return "Owned"
+	elseif row.listOnly then
+		return "Offered when a run ends"
+	elseif row.studioFree then
+		return "Free in Studio"
+	elseif row.comingSoon then
+		return "Coming soon"
+	end
+	return (cache and cache[row.robloxId]) or "Price shown at checkout"
+end
+
+-- Calm line shown when a purchase prompt closes without a purchase (Cancel, closed, or a failed charge).
+function Store.declinedNotice(name)
+	return "No problem, nothing was charged" .. ((type(name) == "string" and name ~= "") and (" for " .. name) or "") .. "."
+end
+
 -- What the Store panel draws. `inStudio`: a placeholder item can be taken free there.
 -- Items of a section ("flair", "season") as rows, or the main Store items when `section` is nil.
 -- A Flair item also counts as owned when every piece it gives is already yours (earned or bought another way).

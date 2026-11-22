@@ -36895,4 +36895,29 @@ table.insert(tests, { name = "Patron synergy: no Patron is dead, copiers copy, a
 	expectTrue(worst <= 25, "a Patron pair runs away: " .. worstPair .. " x" .. tostring(worst))
 end })
 
+table.insert(tests, { name = "Store wording: items, price lines and declined notice are kid safe, short and fair", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	expectEqual(#Store.audit(), 0, "no pay to win item")
+	for _, item in ipairs(Store.Items) do
+		expectTrue(type(item.name) == "string" and #item.name > 0 and #item.name <= 30, item.id .. " has a short name")
+		expectTrue(#item.description > 0 and #item.description <= 120, item.id .. " says what you get in one short line")
+		expectTrue(#(item.perks or {}) > 0, item.id .. " lists what it holds")
+		local text = (item.description .. " " .. table.concat(item.perks, " ")):lower()
+		for _, bad in ipairs({ "balatro", "random", "chance", "loot", "odds", "win more", "\226\128\148", "--" }) do
+			expectTrue(not text:find(bad, 1, true), item.id .. " avoids '" .. bad .. "'")
+		end
+	end
+	for _, def in ipairs(GamePasses.Definitions) do
+		expectTrue(#def.description <= 140 and not def.description:find("\226\128\148", 1, true), def.id .. " description is short")
+	end
+	expectEqual(Store.priceLine({ owned = true }), "Owned")
+	expectEqual(Store.priceLine({ comingSoon = true }), "Coming soon")
+	expectEqual(Store.priceLine({ studioFree = true }), "Free in Studio")
+	expectEqual(Store.priceLine({ robloxId = 7 }, { [7] = "R$ 99" }), "R$ 99", "a real price shows in Robux")
+	expectEqual(Store.priceLine({ robloxId = 7 }, {}), "Price shown at checkout")
+	expectEqual(Store.declinedNotice("VIP"), "No problem, nothing was charged for VIP.")
+	expectEqual(Store.declinedNotice(nil), "No problem, nothing was charged.")
+	expectTrue(#Store.declinedNotice("Card Set Bundle") < 60, "calm message stays short")
+end })
+
 return tests
