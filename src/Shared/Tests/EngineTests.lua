@@ -13961,7 +13961,7 @@ table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the p
 	expectTrue(src:find("glassW / 4.8", 1, true) ~= nil, "sample number is sized to the mirror glass")
 	expectTrue(src:find("t.name.TextScaled = true", 1, true) ~= nil and src:find("UITextSizeConstraint", 1, true) ~= nil, "tab names scale with a 14 floor")
 	expectTrue(src:find("verticalEdges", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
-	expectTrue(src:find("More soon", 1, true) ~= nil, "spare plates stay intact with a faint mark")
+	expectTrue(src:find("Coming soon", 1, true) ~= nil, "spare plates stay intact with a faint mark")
 	expectTrue(src:find("[FlairRoom]", 1, true) ~= nil and src:find("truncated=%d", 1, true) ~= nil, "the Studio line reports the cover scale and truncated labels")
 end })
 

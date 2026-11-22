@@ -161,7 +161,7 @@ function FlairDressingRoom.build(deps, panel)
 		for i = #drawers + 1, #sceneS.tabs do
 			local t = sceneS.tabs[i]
 			make("TextLabel", sceneMarks, { Name = "SoonPlate" .. i, Position = UDim2.fromOffset(t.x + 14, t.y), Size = UDim2.fromOffset(t.w - 28, t.h),
-				Text = "More soon", TextSize = 14, Font = Enum.Font.GothamMedium, TextTransparency = 0.5, TextColor3 = Color3.fromRGB(226, 208, 170), Active = false })
+				Text = "Coming soon", TextSize = 15, Font = Enum.Font.GothamMedium, TextTransparency = 0.25, TextStrokeTransparency = 0.5, TextColor3 = Color3.fromRGB(226, 208, 170), Active = false })
 		end
 		-- cubbies with no piece stay as the painted empty alcoves: no cover patch is drawn (flat squares looked like stickers on the shelf)
 	end
