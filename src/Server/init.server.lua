@@ -969,6 +969,7 @@ local function serializeState(session, player)
 		isRush = state.rush ~= nil,
 		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
 		nightBoon = require(Engine.NightBoons).view(state), -- this Night's boon (HUD tooltip), nil when none
+		boonsTaken = require(Engine.NightBoons).history(state), -- every boon taken this run (the Run Over chip strip)
 		rewardNotice = rewardNotices[player], -- { seq, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast

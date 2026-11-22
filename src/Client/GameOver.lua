@@ -223,6 +223,7 @@ return function(deps)
 		Size = UDim2.new(1, -24, 1, 0), Position = UDim2.fromOffset(12, 0), Text = "No Patrons this time.", TextSize = 16,
 		Font = Enum.Font.Merriweather, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
 	})
+	local boonStrip = require(script.Parent.RunOverBoonStrip).new(content, 22) -- the Night boons taken (hidden when none)
 	local actionsF = frame("Actions")
 	local moreF = frame("More")
 	-- one ink line on the paper under the content (the free sheet above the seal), only while the scroll is drawn
@@ -443,6 +444,7 @@ return function(deps)
 		local t = TONES[mode]
 		titleLabel.TextColor3 = t.text
 		patronsLabel.TextColor3 = t.gold
+		boonStrip.setTone(t)
 		noPatrons.TextColor3 = t.text
 		shareHint.TextColor3 = t.text
 		local onScroll = mode == "scroll"
@@ -577,13 +579,16 @@ return function(deps)
 		winCardButton.Visible = showWin
 		if showWin then moreList[#moreList + 1] = winCardButton end
 		local patronN = math.min(10, current.summary and #current.summary.patrons or 0)
+		local boonView = nil
+		pcall(function() boonView = require(Engine:WaitForChild("RunOverBoons")).view(current.state and current.state.boonsTaken) end)
+		local boonN = boonView and #boonView.chips or 0
 		-- six secondary cells are always reserved: the free ones hold the share hint once a share line is showing
 		-- the scroll first: it needs the content to fit its measured text-safe rect at (nearly) full size; otherwise the plain wood panel
 		local scrollKey = current.isWin and "b" or "a"
 		local artId = ContentArt.getImageId("shop_scene", "run_over_scroll_" .. scrollKey)
 		local sc = nil
 		if artId then
-			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6,
+			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6, boons = boonN,
 				bigPrimary = true, pills = true, cardSeats = true, textW = textW }, scrollKey)
 		end
 		local factsH
@@ -615,7 +620,7 @@ return function(deps)
 			applyMode("plain")
 			local cols = RunOverLayout.columns(sw)
 			factsH = buildFacts(cols.leftW)
-			r = RunOverLayout.computeTouch(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6,
+			r = RunOverLayout.computeTouch(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6, boons = boonN,
 				bigPrimary = true, pills = true, cardSeats = true, textW = textW })
 			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			fit.Scale = r.scale
@@ -672,6 +677,7 @@ return function(deps)
 			shareHint.Size = UDim2.fromOffset(math.floor(freeLast.x + freeLast.w - free.x + 0.5), math.floor(free.h + 0.5))
 		end
 		buildPatrons(r.patrons)
+		boonStrip.show(boonView, r)
 		current.rects = r
 		-- ZIndex is absolute under Global: lift the whole screen above the play HUD (hand, plates, deck, corner icons) so none of it
 		-- draws over the scroll; the original value is kept in an attribute so a re-layout never lifts twice

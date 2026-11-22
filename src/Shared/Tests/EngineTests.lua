@@ -24026,9 +24026,10 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
+		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
@@ -45020,6 +45021,58 @@ table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Pat
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('quietPlate("Marks"', 1, true) ~= nil, "the Collection has a Marks plate")
 	end
+end })
+
+table.insert(tests, { name = "Run Over Night boons strip: every pick is logged once per Night, the view names each boon with its Night, no strip when none, chips are 44 px in one row where the width allows and never overlap the buttons at four sizes", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local RB = require(script.Parent.Parent.Engine.RunOverBoons)
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	local state = { night = 2, tips = 0 }
+	expectEqual(#NB.history(state), 0)
+	expectTrue(RB.view(NB.history(state)) == nil, "no boons taken shows no strip")
+	expectTrue(RB.view(nil) == nil and RB.view("junk") == nil and RB.view({ { id = "nope", night = 2 } }) == nil, "junk shows no strip")
+	expectTrue((NB.apply(state, "free_reroll")))
+	expectTrue((NB.apply(state, "extra_hand")), "picking again the same Night replaces, never doubles")
+	expectEqual(#NB.history(state), 1)
+	state.night = 3
+	expectTrue((NB.apply(state, "warm_welcome")))
+	local taken = NB.history(state)
+	expectEqual(#taken, 2)
+	expectEqual(taken[1].id, "extra_hand")
+	expectEqual(taken[2].night, 3)
+	local view = RB.view(taken)
+	expectEqual(view.label, "Night boons taken (2)")
+	expectEqual(#view.chips, 2)
+	for _, chip in ipairs(view.chips) do
+		expectTrue(chip.icon ~= "" and chip.name ~= "" and #chip.line <= 90, chip.id .. " chip reads clearly: " .. chip.line)
+		expectTrue(chip.line:find("Night " .. chip.night .. ", " .. chip.name, 1, true) == 1, chip.id .. " line starts with its Night and name")
+	end
+	-- a full run: all 11 boon Nights fit the strip, anything past 12 is dropped
+	local many = {}
+	for i, def in ipairs(NB.Definitions) do many[i] = { id = def.id, night = i + 1 } end
+	for i = 1, 6 do many[#many + 1] = { id = "extra_hand", night = 20 + i } end
+	expectEqual(#RB.view(many).chips, RB.MAX)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 }, { 600, 900 } }) do
+		for _, n in ipairs({ 0, 1, 5, 11 }) do
+			local label = sz[1] .. "x" .. sz[2] .. " with " .. n .. " boons"
+			local spec = { factsH = 300, patrons = 4, primary = 2, more = 6, boons = n, bigPrimary = true, pills = true, cardSeats = true }
+			local r = RL.computeTouch(sz[1], sz[2], spec)
+			if n == 0 then
+				expectTrue(r.boons == nil and r.boonName == nil, label .. " no strip rects")
+			else
+				expectTrue(r.boons.chip >= 44 and r.boons.rows >= 1 and r.boons.cols * r.boons.rows >= n, label .. " every chip has a 44 px cell")
+				expectTrue(r.boons.x >= 0 and r.boons.x + r.boons.w <= r.panel.w and r.boonName.y + r.boonName.h <= r.panel.h, label .. " the strip is inside the panel")
+				expectTrue(r.boonsLabel.y >= r.patrons.y + r.patrons.h and r.boonName.y >= r.boons.y + r.boons.h, label .. " label, chips and name stack under the Patrons")
+				local first = r.primary[1]
+				local overlap = not (r.boonName.y + r.boonName.h <= first.y or first.y + first.h <= r.boonsLabel.y
+					or r.boonName.x + r.boonName.w <= first.x or first.x + first.w <= r.boonsLabel.x)
+				expectFalse(overlap, label .. " the strip never covers the buttons")
+				expectTrue(r.boons.chip * r.scale >= 43.9, label .. " a chip is 44 px on screen after the panel shrinks")
+				if r.columns.mode == "wide" and n <= 9 and r.scale >= 0.999 then expectEqual(r.boons.rows, 1, label .. " one row where the panel is full size") end
+			end
+		end
+	end
+	expectEqual(RL.CHIP, 44, "the layout is restored after computeTouch")
 end })
 
 table.insert(tests, { name = "Settings audit: every saved option has a Settings row or another screen that owns it, saves and reloads (rejoin) from a non default value, Calm mode writes all three keys, flashing, motion, particle and Larger Text rules hold", fn = function()

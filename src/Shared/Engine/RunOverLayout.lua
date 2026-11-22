@@ -34,6 +34,7 @@ RunOverLayout.BIG_H = 56 -- the one big primary button (Play Again) when spec.bi
 RunOverLayout.PILL_H = 52 -- the equal secondary pills when spec.pills is set (the touch minimum)
 RunOverLayout.CARD_W, RunOverLayout.CARD_H = 90, 135 -- a cut Patron card (2:3) when spec.cardSeats is set
 RunOverLayout.CARD_SMALL_W, RunOverLayout.CARD_SMALL_H = 72, 108 -- the same card when more than one row would be needed
+RunOverLayout.CHIP, RunOverLayout.CHIP_GAP, RunOverLayout.CHIP_LINE_H = 44, 4, 44 -- the Night boon chips (spec.boons), and the two line name box under them
 RunOverLayout.TITLE_GAP = 12 -- clear space between the title and anything to its left
 RunOverLayout.PLATE_PAD = 10 -- the dark plate behind the facts column extends this far past the text
 
@@ -157,6 +158,20 @@ function RunOverLayout.compute(sw, sh, spec)
 		return y + RunOverLayout.LABEL_H + 4 + h
 	end
 
+	-- the Night boons strip (spec.boons chips in one row where the width allows), a label above and a two line name box below
+	local function boonBlock(x, y, w)
+		local n = math.max(0, spec.boons or 0)
+		if n == 0 then return y end
+		local chip, gap = RunOverLayout.CHIP, RunOverLayout.CHIP_GAP
+		local cols = math.max(1, math.floor((w + gap) / (chip + gap)))
+		local rows = math.ceil(n / cols)
+		out.boonsLabel = rect(x, y, w, RunOverLayout.LABEL_H)
+		out.boons = rect(x, y + RunOverLayout.LABEL_H + 4, w, rows * (chip + gap) - gap)
+		out.boons.cols, out.boons.rows, out.boons.chip, out.boons.gap = cols, rows, chip, gap
+		out.boonName = rect(x, out.boons.y + out.boons.h + 4, w, RunOverLayout.CHIP_LINE_H)
+		return out.boonName.y + out.boonName.h + G
+	end
+
 	-- the primary buttons: one big first button full width, the rest in one equal row under it
 	local function bigPrimary(x, y, w)
 		local bw = math.min(w, RunOverLayout.BIG_MAX_W)
@@ -173,6 +188,7 @@ function RunOverLayout.compute(sw, sh, spec)
 		out.facts = rect(M, y0, C.leftW, factsH)
 		local rx = M + C.leftW + M
 		local y = patronBlock(rx, y0, C.rightW) + G
+		y = boonBlock(rx, y, C.rightW)
 		if spec.bigPrimary then
 			local cells, bottom = bigPrimary(rx, y, C.rightW)
 			out.primary = cells
@@ -207,6 +223,7 @@ function RunOverLayout.compute(sw, sh, spec)
 		out.facts = rect(M, y0, w, factsH)
 		local y = y0 + factsH + G
 		y = patronBlock(M, y, w) + G
+		y = boonBlock(M, y, w)
 		out.primary = {}
 		if spec.bigPrimary then
 			local cells, bottom = bigPrimary(M, y, w)
@@ -276,7 +293,7 @@ end
 
 -- compute, then on a short window (the panel is shrunk to fit) grow the button heights until each is still 44 px tall after the
 -- shrink: h * scale = 44 is solved by a few passes (a taller panel shrinks a little more). Never changes the module's heights.
-local TOUCH_KEYS = { "BIG_H", "BTN_H", "SMALL_H", "PILL_H" }
+local TOUCH_KEYS = { "BIG_H", "BTN_H", "SMALL_H", "PILL_H", "CHIP" }
 function RunOverLayout.computeTouch(sw, sh, spec)
 	local base = {}
 	for _, k in ipairs(TOUCH_KEYS) do base[k] = RunOverLayout[k] end
