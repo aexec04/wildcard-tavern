@@ -41776,6 +41776,30 @@ table.insert(tests, { name = "DebugGotoRules: equip:<setId> parses, malformed re
 	end
 end })
 
+table.insert(tests, { name = "Draft pick cards: the wood frame wears the set plate and accent (7:1 over every set), rarity colours stay separate, classic unchanged", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if set.id == CS.DefaultId then
+			assert(st == nil, "classic keeps its own look")
+		else
+			n = n + 1
+			assert(st and st.ratio >= 7, set.id .. " accent on plate is 7:1 or more")
+		end
+	end
+	assert(n >= 13, "every non classic set checked")
+	if not io then return end
+	local f = io.open("src/Client/ChoicePanel.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local i = src:find("woodFrame.BackgroundColor3 = ink.plate", 1, true)
+	assert(i, "wood frame takes the set plate")
+	assert(src:sub(i - 300, i):find("SetInk", 1, true), "through SetInk, which follows effectiveSetId")
+	assert(not src:sub(i, i + 100):find("rarity", 1, true), "rarity colours are separate")
+end })
+
 return tests
 
 
