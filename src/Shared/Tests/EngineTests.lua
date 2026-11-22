@@ -38070,4 +38070,66 @@ table.insert(tests, { name = "Patron cue: every kind a Patron can score shows te
 	for size in src:gmatch("TextSize = (%d+)") do expectTrue(tonumber(size) >= 16, "pill text " .. size .. " px") end
 end })
 
+table.insert(tests, { name = "EmptyStates.Screens: every empty or failed screen has a short, safe line, and the Quests panel draws it in the serif", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	for _, k in ipairs({ "quests", "questsLoading", "offlineSave", "loadFailed", "collection", "leaderboard", "friends", "badges", "titles", "season" }) do
+		local t = ES.Screens[k]
+		assert(type(t) == "string" and #t > 0 and #t <= 60, k .. " has a short line")
+		assert(not t:find("\226\128\148") and not t:find("%-%-") and not t:lower():find("balat") and not t:lower():find("beer") and not t:lower():find("ale "), k .. " is plain and safe")
+	end
+	assert(ES.screenLine("nope") == ES.Screens.loadFailed, "unknown keys fall back to the load failed line")
+	assert(ES.FONT == "Merriweather")
+	local f = io and io.open("src/Client/QuestsPanel.lua", "r") -- no io library in Studio
+	if f then
+		local src = f:read("*a")
+		f:close()
+		assert(src:find("screenLine%(key%)") and src:find("Enum.Font.Merriweather", 1, true) and src:find('note("questsLoading")', 1, true) and src:find('note("quests")', 1, true), "Quests draws its empty lines")
+	end
+end })
+
+table.insert(tests, { name = "Phone touch audit: table controls are 44 px, hand cards do not hit neighbours, Patron plates open on tap and close on tap away (800x450, 1024x768)", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local L, HS, TG, TT = require(Engine.Gameplay2Layout), require(Engine.HandSizing), require(Engine.TouchGestures), require(Engine.TipTap)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		assert(L.fits(w, h), tag .. " uses the table layout")
+		local r = L.rects(w, h)
+		for _, k in ipairs({ "play", "discard", "gear", "sortRank", "sortSuit", "traySlot1", "traySlot2", "trayUse", "traySell" }) do
+			local b = r[k]
+			if b then assert(b.w >= 44 and b.h >= 44, tag .. " " .. k .. " is " .. b.w .. "x" .. b.h) end
+		end
+		-- Patron seats are tap targets for the plate
+		local row = L.patronRow(w, h, L.SEATS)
+		for i, c in ipairs(row.cards) do
+			local hw, hh = TG.hitSize(c.w, c.h)
+			assert(hw >= 44 and hh >= 44, tag .. " seat " .. i .. " hit size")
+			if i > 1 then assert(c.x >= row.cards[i - 1].x + row.cards[i - 1].w, tag .. " seats " .. (i - 1) .. " and " .. i .. " overlap") end
+		end
+		-- hand cards: at least 44 wide, and the card pitch lets the nearest-centre pick choose each one
+		for _, n in ipairs({ 5, 8, 9 }) do
+			local fr = HS.frameFor(w, r.hand, n)
+			local cw = HS.cardSize(w, fr.w, fr.h, n)
+			assert(type(cw) == "number" and cw >= 44, tag .. " hand card width at " .. n .. " cards")
+			local pitch = cw + HS.gapFor(w, cw, n, fr.w)
+			assert(pitch >= 44, tag .. " card pitch " .. pitch .. " at " .. n .. " cards")
+			local centers = {}
+			for i = 1, n do centers[i] = (i - 1) * pitch + cw / 2 end
+			for i = 1, n do
+				assert(TG.slotAt(centers[i], centers) == i, tag .. " tap on card " .. i .. " picks a neighbour")
+				assert(TG.slotAt(centers[i] + pitch * 0.45, centers) ~= nil)
+			end
+		end
+	end
+	-- Patron plate: tap opens, tap again closes, tap outside closes, tap on the open card keeps it for tapCard
+	local s = TT.new()
+	assert(TT.tapCard(s, 3) == "open" and s.open == 3)
+	local rect = { x = 100, y = 100, w = 80, h = 110 }
+	assert(TT.tapAway(s, 140, 150, rect) == false and s.open == 3, "a tap on the open card is not an away tap")
+	assert(TT.tapAway(s, 600, 400, rect) == true and s.open == nil, "a tap outside closes")
+	assert(TT.tapAway(s, 600, 400, rect) == false, "nothing to close")
+	assert(TT.tapCard(s, 3) == "open" and TT.tapCard(s, 3) == "close" and s.open == nil)
+	assert(TT.isTap(3, 0.1) and not TT.isTap(40, 0.1), "a drag is not a tap")
+end })
+
 return tests

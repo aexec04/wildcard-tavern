@@ -136,13 +136,22 @@ local function refresh()
 	local state = ui.getLatestState and ui.getLatestState()
 	local view = state and state.dailyQuests
 	for _, child in ipairs(ui.list:GetChildren()) do
-		if child:IsA("Frame") then
+		if child:IsA("Frame") or child.Name == "EmptyNote" then
 			child:Destroy()
 		end
 	end
+	local function note(key) -- a short friendly line in the painted serif instead of a blank list (Engine/EmptyStates)
+		local ES = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("EmptyStates"))
+		label(ui.list, { Name = "EmptyNote", Size = UDim2.new(1, 0, 0, 120), Text = ES.screenLine(key), TextSize = 18, TextWrapped = true,
+			Font = Enum.Font.Merriweather, TextColor3 = CREAM, LayoutOrder = 1 })
+	end
 	if not view then
+		note("questsLoading")
 		ui.footer.Text = "Quests load when you join a run."
 		return
+	end
+	if #view.quests == 0 then
+		note("quests")
 	end
 	for i, row in ipairs(view.quests) do
 		buildCard(ui.list, row, i, ui.roundCorner)
