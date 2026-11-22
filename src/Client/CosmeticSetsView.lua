@@ -78,7 +78,15 @@ local function applyTheme(set)
 	if themedFaceSetId ~= set.id then
 		themedFaceSetId = set.id
 		SetSkin.set(theme.skin) -- before the faces rebuild, so they read the new skin
-		pcall(function() require(script.Parent.CardFace).setStyle(theme.face) end)
+		local face = theme.face
+		if not face.neutral then -- thin-edge ivory card: edge and pips in the set accent, frost or warm motif
+			local look = CosmeticSets.cardLook(set)
+			face = {}
+			for k, v in pairs(theme.face) do face[k] = v end
+			face.border, face.motif = look.edge, look.motif
+			warn(("[SetSkin] cardLook set=%s edge=%s paper=%s motif=%s"):format(tostring(set.id), table.concat(look.edge, ","), table.concat(look.paper, ","), tostring(look.motif)))
+		end
+		pcall(function() require(script.Parent.CardFace).setStyle(face) end)
 	end
 	local accent = theme.accent and Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3]) or nil
 	for _, name in ipairs(SetSkin.HUD_PANELS) do -- side panel, hand tray and draw pile wear the panel skin too

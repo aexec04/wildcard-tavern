@@ -13498,6 +13498,24 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	local distinct = 0
 	for _ in pairs(seenPanel) do distinct = distinct + 1 end
 	expectTrue(distinct >= 5, "sets look different from each other even without art")
+	do -- thin-edge ivory card: every set differs by edge colour and paper tint, ink stays readable
+		local seenEdge, seenPaper = {}, {}
+		for _, set in ipairs(CS.Definitions) do
+			local look = CS.cardLook(set)
+			local ek, pk = table.concat(look.edge, ","), table.concat(look.paper, ",")
+			expectTrue(seenEdge[ek] == nil, set.id .. " edge colour is unique (also " .. tostring(seenEdge[ek]) .. ")")
+			expectTrue(seenPaper[pk] == nil or set.id == "classic_tavern" or seenPaper[pk] == "classic_tavern" or false, set.id .. " paper tint is unique (also " .. tostring(seenPaper[pk]) .. ")")
+			seenEdge[ek], seenPaper[pk] = set.id, set.id
+			expectTrue(CS.contrastRatio(look.ink.red, look.paper) >= 4.5, set.id .. " red ink 4.5:1 on tinted paper")
+			expectTrue(CS.contrastRatio(look.ink.black, look.paper) >= 4.5, set.id .. " black ink 4.5:1 on tinted paper")
+			if set.id ~= "classic_tavern" then
+				local strength = 1 - look.washTransparency
+				expectTrue(strength >= 0.05 and strength <= 0.12, set.id .. " paper tint is 5 to 12 percent")
+			end
+		end
+		expectTrue(CS.cardLook(CS.Definitions[2]).motif == "frost", "winter set has a frost edge")
+		expectTrue(CS.cardLook({ id = "harvest_table", backdropStyle = { tint = { 200, 170, 110 } } }).motif == "warm", "harvest set is warm")
+	end
 	expectTrue(CS.skinOf(nil).neutral, "nil set is neutral")
 	local f = io and io.open and io.open("src/Client/SetSkin.lua", "r")
 	if not f then return end

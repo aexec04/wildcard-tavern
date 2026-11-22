@@ -175,6 +175,7 @@ CosmeticSets.Definitions = {
 			vignette = { color = { 20, 50, 60 }, strength = 0.35 },
 			layers = { { kind = "dust", count = 6, speed = 0.3 } },
 		},
+		face = { paper = { 224, 240, 230 }, border = { 181, 205, 189 }, pip = { 24, 39, 43 } }, -- seafoam paper
 		unlock = { kind = "biome", region = "river" },
 	},
 	{
@@ -205,6 +206,7 @@ CosmeticSets.Definitions = {
 			vignette = { color = { 90, 50, 10 }, strength = 0.3 },
 			layers = { { kind = "dust", count = 14, speed = 0.5 } },
 		},
+		face = { paper = { 240, 212, 164 }, border = { 235, 200, 129 }, pip = { 66, 39, 13 } }, -- sandy paper, distinct from Golden Gala
 		unlock = { kind = "biome", region = "desert" },
 	},
 	{
@@ -250,6 +252,7 @@ CosmeticSets.Definitions = {
 			vignette = { color = { 16, 40, 56 }, strength = 0.4 },
 			layers = { { kind = "sparks", count = 8, speed = 0.5 } },
 		},
+		face = { paper = { 220, 234, 248 }, border = { 140, 183, 200 }, pip = { 22, 33, 41 } }, -- pale harbor blue paper
 		unlock = { kind = "biome", region = "coast" },
 	},
 	{
@@ -265,6 +268,7 @@ CosmeticSets.Definitions = {
 			vignette = { color = { 70, 30, 10 }, strength = 0.3 },
 			layers = { { kind = "sparks", count = 12, speed = 0.7 } },
 		},
+		face = { paper = { 255, 224, 186 }, border = { 255, 183, 106 }, pip = { 54, 27, 13 } }, -- warm feast paper
 		unlock = { kind = "biome", region = "tavern" },
 	},
 	-- SEASON PREMIUM SETS (Engine/SeasonTrack.lua tier 15 of the premium row): granted into ownedSetIds with the pass.
@@ -274,7 +278,7 @@ CosmeticSets.Definitions = {
 		icon = "🌕",
 		description = "A Tavern Season premium reward: a table dressed for the Harvest Moon.",
 		cardBackId = "harvest_premium",
-		face = { paper = { 252, 238, 208 }, border = { 214, 140, 60 }, pip = { 150, 80, 30 } },
+		face = { paper = { 248, 228, 192 }, border = { 214, 140, 60 }, pip = { 150, 80, 30 } },
 		accent = { 220, 150, 70 },
 		backdropImage = SetBackdropArt.harvest_table or "rbxassetid://0",
 		backdropStyle = {
@@ -291,7 +295,7 @@ CosmeticSets.Definitions = {
 		icon = "🧣",
 		description = "A Tavern Season premium reward: a cozy table for the snowy months.",
 		cardBackId = "winter_premium",
-		face = { paper = { 236, 244, 252 }, border = { 120, 160, 215 }, pip = { 50, 80, 140 } },
+		face = { paper = { 214, 232, 250 }, border = { 120, 160, 215 }, pip = { 50, 80, 140 } },
 		accent = { 120, 165, 220 },
 		backdropImage = SetBackdropArt.winter_table or "rbxassetid://0",
 		backdropStyle = {
@@ -700,6 +704,41 @@ function CosmeticSets.indexContrast(set)
 		worst = math.min(worst, CosmeticSets.contrastRatio(st.ink, st.plate))
 	end
 	return worst
+end
+
+-- Card look on the thin-edge ivory card: every set shows on the card itself without the old heavy frame.
+-- { edge, paper, wash, washTransparency, ink = { red, black }, motif = "frost"|"warm"|nil }. Pure.
+--   edge  the 1 px edge stroke and corner pips colour (the set accent; Classic keeps the brass)
+--   wash  the set's paper colour laid over the ivory at 1 - washTransparency (10 percent, within 5 to 12)
+--   paper the resulting face colour the index ink must read on (4.5:1)
+CosmeticSets.IVORY = { 246, 236, 214 }
+CosmeticSets.CLASSIC_EDGE = { 214, 172, 88 }
+CosmeticSets.WASH_STRENGTH = 0.10
+CosmeticSets.CARD_MOTIF = {
+	winter_evening = "frost", snowy_hearth = "frost", winter_table = "frost", summit_camp = "frost",
+	harvest_table = "warm", tavern_feast = "warm", meadow_picnic = "warm",
+}
+
+function CosmeticSets.cardLook(set)
+	local face = CosmeticSets.faceStyleOf(set)
+	if face.neutral then
+		return { edge = CosmeticSets.CLASSIC_EDGE, paper = CosmeticSets.IVORY, wash = CosmeticSets.IVORY, washTransparency = 1, ink = { red = CosmeticSets.RED_INK, black = CosmeticSets.BLACK_INK } }
+	end
+	local edge = CosmeticSets.accentOf(set) or face.border
+	local paper = mix(CosmeticSets.IVORY, face.paper, CosmeticSets.WASH_STRENGTH)
+	local function inkOn(isRed)
+		local ink = mix(isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK, face.pip, isRed and 0.2 or 0.5)
+		local steps = 0
+		while CosmeticSets.contrastRatio(ink, paper) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+			ink = mix(ink, CosmeticSets.BLACK_INK, 0.25)
+			steps = steps + 1
+		end
+		return ink
+	end
+	return {
+		edge = edge, paper = paper, wash = face.paper, washTransparency = 1 - CosmeticSets.WASH_STRENGTH,
+		ink = { red = inkOn(true), black = inkOn(false) }, motif = CosmeticSets.CARD_MOTIF[set and set.id or ""],
+	}
 end
 
 function CosmeticSets.themeOf(set)
