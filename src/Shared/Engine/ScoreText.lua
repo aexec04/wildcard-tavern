@@ -58,4 +58,9 @@ function ScoreText.plate(n)
 	return ScoreText.short(n)
 end
 
+-- The Round Select Target plate: "Target: 12,400", or "Target: 3.4B" once it is too wide. Never inf, NaN or an error, even past Night 60.
+function ScoreText.targetLine(target)
+	return "Target: " .. ScoreText.plate(target)
+end
+
 return ScoreText

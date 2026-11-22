@@ -880,7 +880,7 @@ return function(deps)
 			local target = (type(state.roundTargets) == "table" and tonumber(state.roundTargets[entry.round]))
 				or RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
-			entry.targetLabel.Text = string.format("Target: %d", math.floor(target))
+			entry.targetLabel.Text = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScoreText")).targetLine(target)
 			entry.targetLabel.TextTransparency = 0
 			entry.targetLabel.TextStrokeTransparency = 1
 

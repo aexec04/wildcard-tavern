@@ -39609,6 +39609,29 @@ table.insert(tests, { name = "Endless curve Night 7 to 20: every round target gr
 	end
 end })
 
+table.insert(tests, { name = "Endless target readout to Night 60: finite whole targets that never fall, plate text is short and never inf", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local ST = require(script.Parent.Parent.Engine.ScoreText)
+	for round = 1, 3 do
+		local last = 0
+		for night = 9, 60 do
+			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
+			expectTrue(t == t and t ~= math.huge and t <= ER.TARGET_CAP, "Night " .. night .. " target is finite and capped")
+			expectTrue(t >= last, "Night " .. night .. " round " .. round .. " never falls")
+			expectEqual(t, math.floor(t))
+			local line = ST.targetLine(t)
+			expectTrue(line:sub(1, 8) == "Target: " and #line <= 20, "Night " .. night .. " plate text fits: " .. line)
+			expectTrue(not line:find("inf") and not line:find("nan"), "no inf or nan in " .. line)
+			last = t
+		end
+	end
+	for _, bad in ipairs({ math.huge, -math.huge, 0 / 0, 1e300, -5 }) do
+		local line = ST.targetLine(bad)
+		expectTrue(#line <= 20 and not line:find("inf") and not line:find("nan"), "junk target gives a clean line: " .. line)
+	end
+	expectEqual(ST.targetLine(12400), "Target: 12,400")
+end })
+
 table.insert(tests, { name = "Remote functions: all five (three leaderboards, challenge seed, menu ticker) cap how often one player can call them, and board and scope junk is normalised", fn = function()
 	local LB = require(script.Parent.Parent.Engine.Leaderboards)
 	local junk = { 0 / 0, math.huge, -1, 0, "", "x", "global", {}, { 1 }, true, false, function() end }
