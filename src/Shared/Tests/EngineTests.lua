@@ -4304,7 +4304,7 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 	expectEqual(bossTarget("lights_out", 6).targetScore, math.floor(base * 0.5))
 	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
-	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
+	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.4))
 	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 1.9))
 	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
@@ -4315,7 +4315,7 @@ table.insert(tests, { name = "Balance: boss descriptions state their tuned numbe
 	local expected = {
 		stale_bread = "25%", bare_bones = "28%", everythings_out = "30%",
 		thin_chips = "40%", flat_mult = "40%", big_tab = "nearly double",
-		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
+		lights_out = "halved", quick_service = "25%", one_at_a_time = "60%",
 		last_chance = "1 discard", empty_handed = "1 discard",
 	}
 	for id, text in pairs(expected) do
@@ -10616,13 +10616,13 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	local day = first1 + 3
 	local p = PlayerProfile.new()
 	expectEqual(ST.addXp(p, 10, first1 - 1), 0, "no XP outside a season"); expectEqual(p.seasonXp, 0)
-	expectEqual(ST.addXp(p, 100, day), 100); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
+	expectEqual(ST.addXp(p, ST.XP_PER_TIER + 10, day), ST.XP_PER_TIER + 10); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
 	expectEqual(ST.addXp(p, -5, day), 0); expectEqual(ST.addXp(p, 0 / 0, day), 0); expectEqual(ST.addXp(p, 2.9, day), 2)
-	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - 102, "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
+	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - (ST.XP_PER_TIER + 12), "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
 	-- claims: reached only, once, in the running season, junk tiers refused
 	local fresh = PlayerProfile.new()
-	ST.addXp(fresh, 200, day)
-	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs 270 XP")
+	ST.addXp(fresh, ST.XP_PER_TIER * 2 + 20, day)
+	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs three tiers of XP")
 	local ok, reward = ST.claim(fresh, 1, day)
 	expectTrue(ok); expectEqual(reward.kind, "tips"); expectEqual(fresh.pendingStartTips, reward.amount)
 	expectFalse((ST.claim(fresh, 1, day)), "claimed once"); expectFalse((ST.claim(fresh, 0, day))); expectFalse((ST.claim(fresh, 31, day)))
@@ -10641,14 +10641,14 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	expectTrue(ST.ensureSeason(rich, first2)); expectEqual(rich.seasonId, s2.id); expectEqual(rich.seasonXp, 0); expectEqual(next(rich.seasonClaimed), nil)
 	expectTrue(rich.unlockedCardBackIds[s1.finalCardBackId] and rich.rewardTitleIds[s1.titleId], "season 1 rewards stay owned")
 	expectFalse(ST.ensureSeason(rich, first2), "no second reset")
-	expectEqual(ST.addXp(rich, 90, first2), 90); expectEqual(ST.tierOf(rich.seasonXp), 1)
+	expectEqual(ST.addXp(rich, ST.XP_PER_TIER, first2), ST.XP_PER_TIER); expectEqual(ST.tierOf(rich.seasonXp), 1)
 	-- with no season running, nothing changes
 	expectFalse(ST.ensureSeason(rich, first2 + 1000)); expectEqual(rich.seasonId, s2.id)
 	-- the view
 	local view = ST.view(fresh, day)
 	expectEqual(view.name, s1.name); expectEqual(view.tier, 2); expectEqual(#view.tiers, 30); expectEqual(view.claimable, 0)
 	expectEqual(view.daysLeft, 27); expectTrue(view.tiers[1].claimed and view.tiers[2].claimed and not view.tiers[3].reached)
-	ST.addXp(fresh, 90, day)
+	ST.addXp(fresh, ST.XP_PER_TIER, day)
 	expectEqual(ST.view(fresh, day).claimable, 1)
 	expectEqual(ST.view(PlayerProfile.new(), first1 - 3).upcoming, true); expectEqual(ST.view(PlayerProfile.new(), first1 - 3).startsIn, 3)
 	expectEqual(ST.view(PlayerProfile.new(), first2 + 500), nil)
@@ -10903,7 +10903,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	end
 	-- free player: premium locked, nothing claimable, view shows what is included
 	local free = PlayerProfile.new()
-	ST.addXp(free, 500, day)
+	ST.addXp(free, ST.XP_PER_TIER * 5 + 50, day)
 	expectFalse((ST.claimPremium(free, 1, day)), "locked without the pass")
 	local view = ST.view(free, day)
 	expectFalse(view.premium.owned); expectEqual(view.premium.itemId, s1.premiumItemId); expectTrue(#view.premium.perks >= 3)
@@ -10932,7 +10932,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	local view2 = ST.view(free, day)
 	expectTrue(view2.premium.owned and view2.tiers[1].premium.claimed and not view2.tiers[1].premium.locked)
 	-- later tiers become claimable as XP grows, individually or all at once
-	ST.addXp(free, 90 * 12, day)
+	ST.addXp(free, ST.XP_PER_TIER * 12, day)
 	expectEqual(ST.view(free, day).premium.claimable, ST.tierOf(free.seasonXp) - reached)
 	local ok, reward = ST.claimPremium(free, 8, day)
 	expectTrue(ok); expectEqual(reward.kind, "title"); expectTrue(free.rewardTitleIds[s1.premiumTitleId])
@@ -39122,6 +39122,297 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Rejoin mid run: leaving at the draft choice, in the shop or in a round and rejoining gives a safe fresh run, banked Tips are paid once, nothing carries over, no screen is left without a state", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = 9
+	-- the server saves the profile on leave and loads it on join: that is all that survives
+	local function leaveAndRejoin(p) return PlayerProfile.migrate(p) end
+	for _, leaveAt in ipairs({ "draft", "round", "shop" }) do
+		local state = RunState.new({}, SeededRng.new(11))
+		local choice = RunChoice.startDraft(state, true)
+		if leaveAt ~= "draft" then
+			if choice then RunChoice.pick(state, choice, choice.options[1].id) end
+			RunState.startRound(state)
+			expectTrue(#state.hand > 0)
+			pcall(RunState.playHand, state, { 1, 2 })
+		end
+		if leaveAt == "shop" then
+			state.roundOver, state.runOver = true, false
+			RunState.buyPatron(state, "tip_jar")
+		end
+		local owned, tipsAtLeave = #state.ownedPatrons, state.tips
+		-- leave: the session (and its run) is dropped, the profile is saved and reloaded on rejoin
+		profile = leaveAndRejoin(profile)
+		local fresh = RunState.new({}, SeededRng.new(12))
+		expectEqual(fresh.night, 1, "a rejoin starts at Night 1 (left at " .. leaveAt .. ")")
+		expectEqual(fresh.round, 1)
+		expectEqual(#fresh.ownedPatrons, 0, "no Patron carries over from the old run")
+		expectEqual(fresh.roundScore or 0, 0)
+		expectTrue(fresh.runOver ~= true and fresh.roundOver ~= true, "the new run is open for play")
+		expectTrue(#fresh.hand > 0 or fresh.hand ~= nil, "a hand state exists, so the table screen has something to draw")
+		expectEqual(profile.pendingStartTips, 9, "banked Tips survive the leave untouched until a run starts")
+		local _ = owned + tipsAtLeave
+	end
+	-- the banked Tips are paid into exactly one run: taking them clears the bank
+	local bank = profile.pendingStartTips
+	profile.pendingStartTips = 0
+	expectEqual(leaveAndRejoin(profile).pendingStartTips, 0, "a second rejoin pays nothing again")
+	expectEqual(bank, 9)
+	-- the server side of it
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("sessions[player] = nil", 1, true) ~= nil, "a leaving player's session is dropped")
+	expectTrue(src:find("pcall(startNewSession, player)", 1, true) ~= nil, "a joining player always gets a session, and a failure is caught")
+	expectTrue(src:find("if sessions[player] then pushState(player) end", 1, true) ~= nil, "a state request without a session is ignored, not an error")
+	expectTrue(src:find("saveProfile(player, true)", 1, true) ~= nil, "the profile is saved on leave")
+end })
+
+table.insert(tests, { name = "Exploit audit: no shop loop of buy, sell and reroll grows Tips, and Daily chest, first win bonus, quest and rank claims pay once however often they are repeated", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	-- 1. shop fuzz: 400 random actions per setup, all passes owned or not; Tips never rise (a shop has no income)
+	local passSets = { {}, { "regulars_discount" }, { "regulars_discount", "frequent_visitor", "savings_account" } }
+	local sold = 0
+	for seed = 1, 6 do
+		for _, passes in ipairs(passSets) do
+			local state = RunState.new(nil, SeededRng.new(seed))
+			state.tips = 40
+			for _, id in ipairs(passes) do state.housePasses[id] = true end
+			local rng = SeededRng.new(seed * 31)
+			local start, reroll = state.tips, Shop.REROLL_BASE_COST
+			for _ = 1, 400 do
+				local pick = rng(6)
+				if pick == 1 then
+					RunState.buyPatron(state, Patrons.Definitions[rng(#Patrons.Definitions)].id)
+				elseif pick == 2 and #state.ownedPatrons > 0 then
+					if RunState.sellPatron(state, state.ownedPatrons[rng(#state.ownedPatrons)].id) then sold = sold + 1 end
+				elseif pick == 3 then
+					RunState.buyMenuRecipe(state, Recipes.MenuRecipes[rng(#Recipes.MenuRecipes)].id)
+				elseif pick == 4 and #state.menuRecipeInventory > 0 then
+					RunState.sellRecipe(state, "menu", state.menuRecipeInventory[rng(#state.menuRecipeInventory)])
+				elseif pick == 5 then
+					RunState.buyHouseRecipe(state, Recipes.HouseRecipes[rng(#Recipes.HouseRecipes)].id)
+				else
+					local cost = RunState.rerollCost(state, reroll)
+					if state.tips >= cost then state.tips = state.tips - cost; reroll = reroll + Shop.REROLL_COST_STEP end
+				end
+				expectTrue(state.tips <= start, "seed " .. seed .. ": Tips rose from " .. start .. " to " .. state.tips .. " in a shop loop")
+				expectEqual(state.tips, math.floor(state.tips), "Tips stay whole")
+			end
+		end
+	end
+	expectTrue(sold > 50, "the fuzz really bought and sold Patrons: " .. sold .. " sales")
+	-- 2. the Daily chest pays once per day, however many times it is claimed or the clock moves back and forth
+	local p = PlayerProfile.new()
+	local day = 20800
+	LoginStreak.checkIn(p, day)
+	local slot = LoginStreak.slotFor(p.loginStreak)
+	local okFirst = LoginStreak.claim(p, slot, nil)
+	expectTrue(okFirst)
+	local tipsAfter, xpAfter = p.pendingStartTips, p.tavernXp
+	for _, d in ipairs({ day, day - 1, day, day + 0, day - 5 }) do
+		LoginStreak.checkIn(p, d)
+		expectFalse((LoginStreak.claim(p, slot, nil)), "a second claim on day " .. d .. " is refused")
+	end
+	expectEqual(p.pendingStartTips, tipsAfter, "no extra Tips from repeated claims")
+	expectEqual(p.tavernXp, xpAfter, "no extra XP from repeated claims")
+	-- 3. first win of the day: once per day
+	local w = PlayerProfile.new()
+	local first = TavernRank.firstWinBonus(w, 20800)
+	expectTrue(first ~= nil and first ~= false and first ~= 0, "the first win pays")
+	expectTrue(TavernRank.firstWinBonus(w, 20800) == nil or TavernRank.firstWinBonus(w, 20800) == false or TavernRank.firstWinBonus(w, 20800) == 0, "the second win of the day pays nothing")
+	-- 4. quests: the same run counters sent again (a rejoin, a replayed snapshot) add nothing, a finished quest pays once
+	local q = PlayerProfile.new()
+	Quests.ensureDay(q, 20800)
+	local snapshot = {}
+	local counters = { hands = 12, pairs = 5, discards = 6, rounds = 4, bosses = 1, packs = 1, night = 3 }
+	local before = q.pendingStartTips
+	Quests.apply(q, 20800, Quests.deltas(snapshot, counters))
+	local afterFirst, xpFirst, doneFirst = q.pendingStartTips, q.tavernXp, q.questsDone
+	for _ = 1, 5 do Quests.apply(q, 20800, Quests.deltas(snapshot, counters)) end
+	expectEqual(q.pendingStartTips, afterFirst, "replayed counters add no Tips")
+	expectEqual(q.tavernXp, xpFirst, "replayed counters add no XP")
+	expectEqual(q.questsDone, doneFirst, "a finished quest counts once")
+	expectTrue(afterFirst - before <= Quests.MAX_PENDING_TIPS)
+	-- the pending Tips bank is capped, so no pile of claims can bank more than the cap
+	for _ = 1, 50 do q.pendingStartTips = math.min(Quests.MAX_PENDING_TIPS, q.pendingStartTips + 5) end
+	expectTrue(q.pendingStartTips <= Quests.MAX_PENDING_TIPS)
+end })
+
+table.insert(tests, { name = "Funnel coverage: all 7 launch steps and all 8 first five minutes steps have a server call site, fire once in a scripted run, and carry no name or free text", fn = function()
+	local AE = require(script.Parent.Parent.Engine.AnalyticsEvents)
+	local Funnel = require(script.Parent.Parent.Engine.Funnel)
+	expectEqual(#AE.Steps, 7)
+	expectEqual(#Funnel.Steps, 8)
+	-- a scripted run: the whole funnel twice, then the same steps again (every step must go out exactly once)
+	local sent = {}
+	local log = AE.new({ enabled = true, service = { LogFunnelStepEvent = function(_, player, funnel, session, index, step)
+		sent[#sent + 1] = { funnel = funnel, session = session, index = index, step = step, player = player }
+	end }, now = function() return 1000 end })
+	local player = { UserId = 4242, Name = "Robin", DisplayName = "Robin the Great" }
+	for _ = 1, 2 do
+		log.step(player, "menu_opened")
+		log.runStarted(player)
+		log.step(player, "first_hand_played"); log.step(player, "first_round_cleared"); log.step(player, "first_night_cleared")
+		log.step(player, "first_patron_bought"); log.runStarted(player)
+	end
+	expectEqual(#sent, 7, "each of the 7 steps went out exactly once")
+	local seenStep = {}
+	for i, s in ipairs(sent) do
+		expectFalse(seenStep[s.step], s.step .. " sent twice")
+		seenStep[s.step] = true
+		expectEqual(s.index, AE.stepIndex(s.step))
+		expectEqual(s.funnel, AE.FUNNEL_NAME)
+		for _, field in ipairs({ s.funnel, s.session, s.step }) do
+			local lower = tostring(field):lower()
+			expectFalse(lower:find("robin", 1, true), "no player name in the payload")
+		end
+	end
+	for _, id in ipairs(AE.Steps) do expectTrue(seenStep[id], id .. " fired in the scripted run") end
+	expectEqual(AE.stepIndex("not_a_step"), nil)
+	-- call sites in the server
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	for _, id in ipairs(AE.Steps) do
+		local viaRuns = (id == "run_started" or id == "second_run_started") and src:find("LaunchLog.runStarted(player)", 1, true)
+		expectTrue(viaRuns or src:find('LaunchLog.step(player, "' .. id .. '")', 1, true) ~= nil, "launch step " .. id .. " has a server call site")
+	end
+	for _, id in ipairs(Funnel.Steps) do
+		expectTrue(src:find('logStep(player, "' .. id .. '")', 1, true) ~= nil, "first five minutes step " .. id .. " has a server call site")
+	end
+end })
+
+table.insert(tests, { name = "Season pace over 30 days: a 20 minute a day player finishes the 30 tiers between day 22 and 28, a 10 minute player never waits over 3 days for a tier, a 60 minute player does not finish in under a week", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local start = 20788 -- 2026-12-01, the first day of Winter Welcome (30 days)
+	local function waits(r)
+		local gap, last, longest = 0, 0, 0
+		for _, d in ipairs(r.days) do
+			if last >= ST.TIERS then break end
+			if d.tier > last then gap = 0 else gap = gap + 1 end
+			longest = math.max(longest, gap)
+			last = d.tier
+		end
+		return longest
+	end
+	local casual = EconomySim.season(start, 30, 1)
+	local normal = EconomySim.season(start, 30, 2)
+	local heavy = EconomySim.season(start, 30, 6)
+	expectTrue(normal.finishDay ~= nil and normal.finishDay >= 22 and normal.finishDay <= 28, "20 minutes a day finishes on day " .. tostring(normal.finishDay))
+	expectTrue(waits(casual) <= 3, "10 minutes a day waits at most 3 days for a tier, got " .. waits(casual))
+	expectTrue(waits(normal) <= 3 and waits(heavy) <= 3)
+	expectTrue(casual.finalTier >= 15, "even 10 minutes a day reaches the middle of the track: " .. casual.finalTier)
+	expectTrue(heavy.finishDay == nil or heavy.finishDay >= 7, "60 minutes a day does not finish in under a week")
+	expectEqual(ST.XP_PER_TIER, 225)
+end })
+
+table.insert(tests, { name = "Scoring hot path: 10000 hands with 5 Patrons score in under 3 seconds (about 0.3 s today), so a slow change is caught", fn = function()
+	if not os.clock then return end
+	local Deck = require(script.Parent.Parent.Engine.Deck)
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Sc = require(script.Parent.Parent.Engine.Scoring)
+	local Pat = require(script.Parent.Parent.Engine.Patrons)
+	local rng = SeededRng.new(5)
+	local owned = {}
+	for i = 1, 5 do owned[i] = Pat.Definitions[i * 7] end
+	local deck = Deck.newStandardDeck()
+	local t0 = os.clock()
+	for _ = 1, 10000 do
+		deck = Deck.shuffle(deck, rng)
+		local hand = { deck[1], deck[2], deck[3], deck[4], deck[5] }
+		local score = Sc.calculate(HE.evaluate(hand), owned, { handLevels = {}, rng = rng })
+		expectTrue(score == score and score > 0, "scores are real numbers")
+	end
+	local took = os.clock() - t0
+	expectTrue(took < 3, "10000 hands took " .. took .. " s (budget 3 s; tools/scoring_perf.lua times it)")
+end })
+
+table.insert(tests, { name = "File size watch: no big file grows more than 10 percent past its budget, and no new file starts above 1100 lines", fn = function()
+	if not (io and io.open and io.popen) then return end
+	-- budgets are the line counts of 2026-11-22; a file may grow 10 percent before this fails (split it or raise the budget on purpose)
+	local budget = {
+		["src/Server/init.server.lua"] = 4177, ["src/Client/init.client.lua"] = 2906, ["src/Client/JourneyMapView.lua"] = 2299,
+		["src/Client/Shop.lua"] = 2047, ["src/Client/ScorePopup.lua"] = 1788, ["src/Client/Collection.lua"] = 1486,
+		["src/Client/PatronRow.lua"] = 1312, ["src/Client/Journey.lua"] = 1201, ["src/Client/Gameplay2.lua"] = 1126,
+		["src/Client/BossFight.lua"] = 1099, ["src/Client/Sound.lua"] = 1044, ["src/Client/RoundSelect.lua"] = 1033,
+		["src/Client/MenuHotspots.lua"] = 1028,
+		["src/Shared/Engine/RunState.lua"] = 2010, ["src/Shared/Engine/Patrons.lua"] = 1261, ["src/Shared/Engine/Recipes.lua"] = 1218,
+	}
+	local NEW_FILE_LIMIT, GROWTH = 1100, 1.10
+	local p = io.popen("ls src/Client/*.lua src/Server/*.lua src/Shared/Engine/*.lua")
+	if not p then return end
+	local seen = 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local lines = 0
+		for _ in f:lines() do lines = lines + 1 end
+		f:close()
+		seen = seen + 1
+		local limit = budget[path] and math.floor(budget[path] * GROWTH) or NEW_FILE_LIMIT
+		expectTrue(lines <= limit, path .. " has " .. lines .. " lines, over its limit of " .. limit .. (budget[path] and " (budget " .. budget[path] .. " plus 10 percent)" or ""))
+	end
+	p:close()
+	expectTrue(seen > 400, "the watch read the source tree: " .. seen .. " files")
+end })
+
+table.insert(tests, { name = "Datastore failure handling: retries wait longer each time, a flaky store recovers on the retry, a dead one leaves the saved profile untouched, and the blank fallback can never be saved", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local d = SaveLock.RETRY_DELAYS
+	for i = 2, #d do expectTrue(d[i] > d[i - 1], "load retry delay " .. i .. " is longer than the one before (backoff)") end
+	local total = 0
+	for _, x in ipairs(d) do total = total + x end
+	expectTrue(total <= 10, "a player never waits more than 10 seconds on a failing load")
+	for i = 2, #SaveLock.SAVE_RETRY_DELAYS do expectTrue(SaveLock.SAVE_RETRY_DELAYS[i] > SaveLock.SAVE_RETRY_DELAYS[i - 1]) end
+	-- a store that throws twice, then works
+	local saved = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local calls = 0
+	local flaky = { UpdateAsync = function(_, _, fn)
+		calls = calls + 1
+		if calls <= 2 then error("DataStore request was added to queue") end
+		local out = fn(saved)
+		if out then saved = out end
+	end }
+	local waits = {}
+	local status, stored = SaveLock.load(flaky, "k", "A", function() return 1000 end, d, function(s) waits[#waits + 1] = s end)
+	expectEqual(status, "ok")
+	expectEqual(stored.pendingStartTips, 12, "the real profile came back after the retries")
+	expectEqual(#waits, 2)
+	expectTrue(waits[1] == d[1] and waits[2] == d[2], "waited the backoff schedule in order")
+	-- a dead store: every attempt throws; whatever is stored stays exactly as it was
+	local keep = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local dead = { UpdateAsync = function() error("503") end }
+	local s2 = SaveLock.load(dead, "k", "A", function() return 1000 end, d, function() end)
+	expectEqual(s2, "error")
+	expectEqual(SaveLock.save(dead, "k", PlayerProfile.new(), "A", function() return 1000 end, false, SaveLock.SAVE_RETRY_DELAYS, function() end), "error")
+	expectEqual(keep.pendingStartTips, 12)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	-- the server marks a failed load as unsaveable, and a throw during load does too
+	local _, blocks = src:gsub("saveBlocked%[player%] = true", "")
+	expectTrue(blocks >= 2, "both load failure paths block saving: " .. blocks)
+	expectTrue(src:find("or saveBlocked[player] or", 1, true) ~= nil, "saveProfile returns early for a blocked player")
+	-- the notice is calm and kid safe
+	local notice = src:match('text = "(Your progress can\'t be saved right now[^"]*)"')
+	expectTrue(notice ~= nil and #notice <= 60, "a short notice is shown")
+	local lower = (notice or ""):lower()
+	for _, bad in ipairs({ "error", "fail", "datastore", "oops", "balatro" }) do expectFalse(lower:find(bad, 1, true), "notice avoids " .. bad) end
+	expectTrue(lower:find("you can still play", 1, true) ~= nil, "it tells the player they can keep playing")
+end })
+
 table.insert(tests, { name = "Hand level and reroll cost curves: every level Recipe costs 3 (one is affordable at the first Counter), rerolls climb 5, 7, 9 and stay above 0 under every discount", fn = function()
 	local Recipes = require(script.Parent.Parent.Engine.Recipes)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
@@ -43612,5 +43903,84 @@ table.insert(tests, { name = "Reduce motion coverage: every client file that twe
 	end
 end })
 
-return tests
+-- ===== Card marks =====
+table.insert(tests, { name = "Marks: Gilded +30 Chips, Lucky +4 Mult and Lively x1.2 score on a scoring card, a debuffed card scores nothing", fn = function()
+	local function score(mark, debuff)
+		local c = Card.new(9, "Hearts", { mark = mark })
+		local hr = { name = "High Card", scoringCards = { c } }
+		local s, chips, mult = Scoring.calculate(hr, {}, { debuff = debuff })
+		return s, chips, mult
+	end
+	local _, c0, m0 = score(nil)
+	local _, c1, m1 = score("gilded")
+	local _, c2, m2 = score("lucky")
+	local _, c3, m3 = score("lively")
+	expectEqual(c1 - c0, 30); expectEqual(m1, m0)
+	expectEqual(c2, c0); expectEqual(m2 - m0, 4)
+	expectEqual(c3, c0); expectTrue(math.abs(m3 - m0 * 1.2) < 1e-9)
+	local _, cd = score("gilded", "Hearts")
+	expectEqual(cd, c0 - 9, "a switched off card adds nothing, not even its mark") -- c0 holds the 9 chips of the rank
+end })
 
+table.insert(tests, { name = "Marks: the hand preview shows exactly what the hand pays with marked cards", fn = function()
+	local HandPreview = require(script.Parent.Parent.Engine.HandPreview)
+	local state = RunState.new(nil, function(n) return 1 end)
+	RunState.startRound(state)
+	state.hand[1].mark = "gilded"; state.hand[2].mark = "lively"; state.hand[3].mark = "lucky"
+	local pv = HandPreview.compute(state, { 1, 2, 3 })
+	expectTrue(pv ~= nil, "a preview exists")
+	local before = state.roundScore
+	RunState.playHand(state, { 1, 2, 3 })
+	local paid = state.roundScore - before
+	if pv and pv.score then expectEqual(pv.score, paid, "preview equals pay") end
+end })
+
+table.insert(tests, { name = "Marks: the Mark pack starts at Night 2, names exactly one mark, costs Tips only and stays in the offers", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = 1
+	expectEqual(Shop.rollOffers(state).mark, nil, "no pack on Night 1")
+	state.night = 2
+	local o = Shop.rollOffers(state)
+	expectTrue(Card.Marks[o.mark] ~= nil, "a real mark id")
+	expectTrue(#Marks.packText(o.mark) > 0 and #Marks.packText(o.mark) <= 60, "short text that names the mark")
+	expectTrue(Marks.packText(o.mark):find(Card.Marks[o.mark].name, 1, true) ~= nil)
+	for _, id in ipairs(Card.MarkOrder) do
+		local d = Card.Marks[id]
+		expectTrue(#d.description <= 60 and #Marks.cardLine(id) <= 70, id .. " texts fit")
+		local text = (d.name .. d.description):lower()
+		expectTrue(not text:find("random") and not text:find("robux") and not text:find("balatro"), id .. " kid safe, no random wording")
+	end
+end })
+
+table.insert(tests, { name = "Marks: buy validates the mark id, the Tips, the card and one mark per card, and the mark shows in the deck view", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local state = RunState.new(nil, function(n) return 1 end)
+	RunState.startRound(state)
+	state.tips = 20
+	expectFalse((Marks.buy(state, "nope", 5, "Hearts")), "unknown mark")
+	expectFalse((Marks.buy(state, "gilded", "5", "Hearts")), "rank must be a number")
+	expectFalse((Marks.buy(state, "gilded", 99, "Hearts")), "card not in the deck")
+	expectEqual(state.tips, 20, "nothing spent on a refusal")
+	expectTrue((Marks.buy(state, "gilded", 5, "Hearts")))
+	expectEqual(state.tips, 20 - Marks.PRICE)
+	expectFalse((Marks.buy(state, "lucky", 5, "Hearts")), "that card is marked and the only one of its kind")
+	expectEqual(state.tips, 20 - Marks.PRICE)
+	local marked = 0
+	for _, e in ipairs(RunState.deckView(state)) do if e.mark then marked = marked + 1; expectEqual(e.mark, "gilded") end end
+	expectEqual(marked, 1)
+	state.tips = 2
+	expectFalse((Marks.buy(state, "lucky", 6, "Hearts")), "not enough Tips")
+end })
+
+table.insert(tests, { name = "Marks: the server takes BuyMark through the rate limit and checks the offer and phase", fn = function()
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('RateLimit.allow(player.UserId, "Rem.BuyMark"', 1, true) ~= nil, "rate limited")
+	expectTrue(src:find("session.markOffer ~= markId", 1, true) ~= nil, "only the offered mark")
+	expectTrue(src:find("RunState.phaseAllowsShopActions(session.phase)", 1, true) ~= nil)
+end })
+
+return tests

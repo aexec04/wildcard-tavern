@@ -260,11 +260,11 @@ BossRounds.Definitions = {
 	{
 		id = "one_at_a_time",
 		name = "One at a Time",
-		description = "You must play exactly 1 card every hand this round, but the target score is 65% lower.",
+		description = "You must play exactly 1 card every hand this round, but the target score is 60% lower.",
 		flavorText = "Single file, please. One card per trip.",
 		minNight = 6,
 		requiredCardsPerHand = 1,
-		targetScoreMultiplier = 0.35,
+		targetScoreMultiplier = 0.4,
 	},
 	{
 		id = "big_tab",

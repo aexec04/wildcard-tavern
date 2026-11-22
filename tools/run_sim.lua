@@ -63,12 +63,12 @@ local function parseArgs(argv)
 		["--bank"] = "bank", ["--marks"] = "marks", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
-		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds",
+		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds", ["--boss-from"] = "bossFrom",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--start-decks"] = "startDecks", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--boss-late"] = "bossLate", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -127,6 +127,7 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.forcePatron then
 		table.insert(parts, "--force-patron"); table.insert(parts, run.forcePatron)
 	end
+	if run.bossFrom then table.insert(parts, "--boss-from"); table.insert(parts, run.bossFrom) end
 	if run.dailyTwist then
 		table.insert(parts, "--daily-twist"); table.insert(parts, run.dailyTwist)
 	end
@@ -443,6 +444,38 @@ elseif cfg.offers then
 		end
 	end
 	print(string.format("%-6s %7d %11.1f%% %13.1f%% %8.1f%% %19.1f%% %7.1f%%", "all", total.n, pct(total.same, total.n), pct(total.overlap, total.n), pct(total.owned, total.n), pct(total.broke, total.open), pct(total.poor, total.open)))
+elseif cfg.bossLate then
+	-- Boss fairness Nights 7 to 12: each boss is forced on every boss round from Night 7 up, runs are full and Endless, random Patron buys.
+	-- One pass per boss covers six Nights; a cell counts only the runs that reached that Night's boss. Flag below 15 or over 85 percent (n of 20+).
+	local rows = {}
+	local onlyThese = cfg.bossList and ("," .. cfg.bossList .. ",")
+	for _, def in ipairs(engine.BossRounds.Definitions) do
+		if not onlyThese or onlyThese:find("," .. def.id .. ",", 1, true) then
+			local tries, wins = {}, {}
+			for _, rec in ipairs(collect(runConfig({ forceBoss = def.id, bossFrom = 7, randomPatrons = true, endless = true, maxNight = 12 }))) do
+				for _, boss in ipairs(rec.bosses or {}) do
+					if boss.id == def.id and boss.night >= 7 and boss.night <= 12 then
+						tries[boss.night] = (tries[boss.night] or 0) + 1
+						if boss.cleared then wins[boss.night] = (wins[boss.night] or 0) + 1 end
+					end
+				end
+			end
+			rows[#rows + 1] = { id = def.id, tries = tries, wins = wins }
+		end
+	end
+	print(string.format("Boss rules Night 7 to 12, bot %s, %d runs per boss, random Patron buys. Cell = clear percent (runs that reached it).", cfg.bot, cfg.runs))
+	print(string.format("%-20s %s", "boss", "N7          N8          N9          N10         N11         N12         N7-12 all"))
+	for _, row in ipairs(rows) do
+		local cells, allT, allW, flag = {}, 0, 0, ""
+		for night = 7, 12 do
+			local t, w = row.tries[night] or 0, row.wins[night] or 0
+			allT, allW = allT + t, allW + w
+			cells[#cells + 1] = t > 0 and string.format("%4.0f%% (%3d)", 100 * w / t, t) or "     --    "
+		end
+		local rate = allT > 0 and 100 * allW / allT or nil
+		if rate and allT >= 20 and (rate < 15 or rate > 85) then flag = "  <-- outside" end
+		print(string.format("%-20s %s  %s%s", row.id, table.concat(cells, " "), rate and string.format("%4.0f%% (%d)", rate, allT) or "--", flag))
+	end
 elseif cfg.dailyTwists then
 	-- Daily twists: win rate of every twist against the no twist baseline (same seeds, same bot). Within 15 points is fair.
 	local function winRate(twist)

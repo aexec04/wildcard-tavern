@@ -43,7 +43,7 @@ local function copyRun()
 end
 
 -- Plays one session on `day`. Returns { tips, xp, seasonXp, chest, quests }.
-local function playSession(profile, day)
+local function playSession(profile, day, runs)
 	local before = { xp = profile.tavernXp or 0, season = profile.seasonXp or 0, pending = profile.pendingStartTips or 0 }
 	local row = { chest = nil, quests = 0 }
 	-- the chest
@@ -54,7 +54,7 @@ local function playSession(profile, day)
 		row.chest = reward.label
 	end
 	-- the runs
-	for _ = 1, EconomySim.RunsPerSession do
+	for _ = 1, runs or EconomySim.RunsPerSession do
 		local snap = {}
 		local result = AccountProgress.sync(profile, snap, copyRun(), day, false)
 		row.quests = row.quests + #result.quests
@@ -66,6 +66,26 @@ local function playSession(profile, day)
 	row.xp = (profile.tavernXp or 0) - before.xp
 	row.seasonXp = (profile.seasonXp or 0) - before.season
 	return row
+end
+
+-- A player who plays `runsPerDay` runs every day for `count` days from `startDay` (a season is 30 days). Returns one row per day
+-- { day, seasonXp (running total), tier (reached), newTiers } plus finishDay (first day the whole track is reached, or nil)
+-- and longestGap (most days in a row without a new tier). Season XP only counts inside a running season.
+function EconomySim.season(startDay, count, runsPerDay)
+	local SeasonTrack = require(script.Parent.SeasonTrack)
+	local profile = PlayerProfile.new()
+	profile.hasSeenTutorial = true
+	local rows, lastTier, gap, longestGap, finishDay = {}, 0, 0, 0, nil
+	for i = 0, count - 1 do
+		playSession(profile, startDay + i, runsPerDay)
+		local tier = SeasonTrack.tierOf(profile.seasonXp or 0)
+		if tier > lastTier then gap = 0 else gap = gap + 1 end
+		longestGap = math.max(longestGap, gap)
+		if tier >= SeasonTrack.TIERS and not finishDay then finishDay = i + 1 end
+		rows[#rows + 1] = { day = i + 1, seasonXp = profile.seasonXp or 0, tier = tier, newTiers = tier - lastTier }
+		lastTier = tier
+	end
+	return { days = rows, finishDay = finishDay, longestGap = longestGap, finalTier = lastTier }
 end
 
 -- A week of sessions from `startDay` (a UTC day number). Returns { days = { {day, tips, xp, seasonXp, chest, quests} }, flags = { text } }.

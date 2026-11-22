@@ -1091,7 +1091,7 @@ local function installBossOverride(cfg)
 	local originalPick = E.BossRounds.pick
 	E.BossRounds.pick = function(rng, night)
 		local picked = originalPick(rng, night)
-		if cfg.forceBoss and night == cfg.forceBossNight then
+		if cfg.forceBoss and (night == cfg.forceBossNight or (cfg.bossFrom and night >= cfg.bossFrom)) then
 			return E.BossRounds.getById(cfg.forceBoss)
 		end
 		return picked
