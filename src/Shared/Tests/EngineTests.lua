@@ -37539,7 +37539,7 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	expectEqual(count, 5, "exactly five Account buttons")
 	local _, maps = src:gsub('"Tavern Map", %d', "")
 	expectEqual(maps, 1, "one Tavern Map button")
-	expectTrue(src:find("ConceptTSkin).plateButton(button)", 1, true) == nil and src:find("Kit.paintedButton, button, \"secondary\"", 1, true) ~= nil, "Account buttons use the shared painted plate")
+	expectTrue(src:find("ConceptTSkin).plateButton(button)", 1, true) == nil and src:find("Kit.painted, button, SettingsLayout.PLATE", 1, true) ~= nil, "Account buttons use the shared painted plate")
 	expectTrue(A.plateH >= 44, "Account plates are 44 px or taller")
 end })
 
@@ -37589,7 +37589,7 @@ table.insert(tests, { name = "Settings Account: rows have no list layout (painte
 	expectTrue(at and to and src:sub(at, to):find("UIListLayout", 1, true) == nil, "Account rows use no UIListLayout")
 	expectTrue(src:find("button.Position = UDim2.new((layoutOrder - 1) / perRow", 1, true) ~= nil, "each plate is positioned by slot")
 	expectTrue(src:find("OUTSIDE the scroll", 1, true) ~= nil, "Studio check compares real AbsolutePosition with the scroll")
-	expectTrue(src:find('if not isSwitch then pcall(require(script.Parent.TavernKit).paintedButton', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
+	expectTrue(src:find('if not isSwitch then pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
 end })
 
 table.insert(tests, { name = "Set backdrop layers never draw in a button or popup: host lookup skips GuiButtons, Settings plates take no set overlay", fn = function()
@@ -39333,6 +39333,26 @@ table.insert(tests, { name = "Golden Gala: premium classic card, ink 7:1, other 
 	expectTrue(CFA.ivoryAlone(skin, "rbxassetid://1"), "gala draws no paper tile, court or drape frame")
 	expectFalse(CFA.ivoryAlone(CS.skinOf(CS.getById("winter_evening")), "rbxassetid://1"), "other sets keep their layers")
 	expectTrue(PPP.X_CLEAR >= 52, "Patron Power text keeps clear of the 44 px X plus its 8 px inset")
+end })
+
+table.insert(tests, { name = "Settings plates: every Settings button wears a whole-picture plate that fills at its size, never the collapsing nine-slice", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local def = Style.PAINTED[SL.PLATE]
+	expectTrue(def ~= nil and def.whole == true and def.inset == nil, "the Settings plate is a whole picture with no slice insets")
+	expectTrue(Style.paintedSlice(SL.PLATE, 228, 56) == nil, "no nine-slice numbers at the Account size")
+	-- a nine-slice plate at any Settings button size keeps its corner columns under half the width
+	for _, sz in ipairs({ { 228, 56 }, { 110, 44 }, { 160, 44 } }) do
+		local sl = Style.paintedSlice("orn_btn_dark", sz[1], sz[2])
+		local cols = (sl.left + (1398 - sl.right)) * sl.scale
+		expectTrue(cols <= sz[1] * 0.9 + 1e-6, "slice corners fit at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(not src:find("paintedButton", 1, true), "Settings.lua draws no ornate nine-slice plate")
+	local _, n = src:gsub("Kit%.painted, button, SettingsLayout%.PLATE", "")
+	local _, m = src:gsub("TavernKit%)%.painted, button, SettingsLayout%.PLATE", "")
+	expectEqual(n + m, 2, "Account and Hold to Confirm buttons use SettingsLayout.PLATE")
 end })
 
 return tests
