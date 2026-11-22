@@ -231,16 +231,24 @@ local function saveProfile(player, release)
 	if not profile or saveBlocked[player] then
 		return
 	end
-	local written = false
-	local ok, err = pcall(function()
-		ProfileStore:UpdateAsync(profileKey(player), function(old)
-			if not SaveLock.canClaim(old, game.JobId, os.time()) then
-				return nil -- another live server owns this profile now: never overwrite it
-			end
-			written = true
-			return SaveLock.stamp(profile, game.JobId, os.time(), release == true)
+	local written, ok, err = false, false, nil
+	-- The final save (release) retries a DataStore error a couple of times; the timer save just waits for the next tick.
+	local delays = (release == true and not RunService:IsStudio()) and SaveLock.SAVE_RETRY_DELAYS or {}
+	for attempt = 1, #delays + 1 do
+		ok, err = pcall(function()
+			ProfileStore:UpdateAsync(profileKey(player), function(old)
+				if not SaveLock.canClaim(old, game.JobId, os.time()) then
+					return nil -- another live server owns this profile now: never overwrite it
+				end
+				written = true
+				return SaveLock.stamp(profile, game.JobId, os.time(), release == true)
+			end)
 		end)
-	end)
+		if ok or attempt > #delays then
+			break
+		end
+		task.wait(delays[attempt])
+	end
 	if ok and written then
 		profileDirty[player] = nil
 	else
@@ -1918,6 +1926,7 @@ local function onPlayerAdded(player)
 	else
 		warn("[Startup] loadProfile failed for " .. player.Name .. ": " .. tostring(profileOrErr))
 		profiles[player] = PlayerProfile.new()
+		saveBlocked[player] = true -- a throw mid-load must never let a blank profile overwrite the real save
 	end
 	-- LOGIN STREAK: one check-in per UTC day (a clock error just skips it).
 	local okStreak, streakErr = pcall(function()
@@ -1988,6 +1997,8 @@ Players.PlayerRemoving:Connect(function(player)
 	dailyPending[player] = nil
 	dailyDirty[player] = nil
 	lastLeaderboardRequest[player] = nil
+	lastEndlessRequest[player] = nil
+	endlessDirty[player] = nil
 	weeklyPending[player] = nil
 	weeklyDirty[player] = nil
 	lastWeeklyLeaderboardRequest[player] = nil
@@ -3637,7 +3648,7 @@ Rem._lb.GetEndlessLeaderboard = function(player, board, scope)
 end
 
 -- CHALLENGE A FRIEND: a fresh seed code (the run summary shows it so a friend can enter it in Seed Run).
-local lastSeedRequest = {}
+local lastSeedRequest = setmetatable({}, { __mode = "k" }) -- weak keys: a leaving player's entry is collected
 Rem.MakeChallengeSeed.OnServerInvoke = function(player)
 	local now = os.clock()
 	if lastSeedRequest[player] and now - lastSeedRequest[player] < 1 then

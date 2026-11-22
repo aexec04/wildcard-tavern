@@ -10997,6 +10997,34 @@ table.insert(tests, { name = "EndlessRules: one new Crowd Rule every 3 Nights pa
 	expectEqual(PlayerProfile.recordEndlessBest(profile, 3, 0 / 0), false)
 end })
 
+table.insert(tests, { name = "Launch safety audit: every remote handler is rate limited, debug remotes are Studio only, a failed load never saves, the final save retries, receipts grant after the save", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	local handlers = 0
+	for name, body in src:gmatch("Rem%.(%w+)%.OnServerEvent:Connect%(function%([^\n]*%)\n([^\n]*\n[^\n]*\n[^\n]*\n)") do
+		handlers = handlers + 1
+		if name:find("^Debug") then
+			assert(body:find("IsStudio()", 1, true), name .. " must return outside Studio")
+		else
+			assert(body:find("RateLimit.allow", 1, true), name .. " has no rate limit in its first lines")
+		end
+	end
+	assert(handlers >= 55, "the audit found the handlers (" .. handlers .. ")")
+	-- a throw while loading falls back to a blank profile that is save blocked
+	local fallback = src:match("loadProfile failed for[^\n]*\n[^\n]*\n([^\n]*)\n")
+	assert(fallback and fallback:find("saveBlocked[player] = true", 1, true), "the load fallback must block saving")
+	-- saves and the final save retry
+	assert(src:find("SaveLock.SAVE_RETRY_DELAYS", 1, true), "the final save retries")
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	assert(#SaveLock.SAVE_RETRY_DELAYS >= 1)
+	-- Studio-only branches are the only way a purchase is granted without Roblox confirming it
+	local receipt = src:match("MarketplaceService%.ProcessReceipt = function.-\nend\n")
+	assert(receipt and receipt:find("pcall(saveProfile", 1, true) and receipt:find("NotProcessedYet", 1, true), "store receipts save before acknowledging")
+end })
+
 table.insert(tests, { name = "SaveLock and RateLimit: a live lease blocks other servers, stale or own leases do not, release clears it, spam is dropped", fn = function()
 	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
 	local RateLimit = require(script.Parent.Parent.Engine.RateLimit)

@@ -13,6 +13,7 @@ local SaveLock = {}
 
 SaveLock.LEASE = 300 -- seconds; autosave runs every 120s, so a live server always renews well inside this
 SaveLock.RETRY_DELAYS = { 1, 2, 4 } -- seconds to wait before attempts 2, 3 and 4 of a load
+SaveLock.SAVE_RETRY_DELAYS = { 1, 2 } -- seconds to wait before attempts 2 and 3 of the final save on leave or shutdown
 
 -- May this server read-and-claim the stored profile? `stored` is whatever the DataStore returned (nil for a new player).
 function SaveLock.canClaim(stored, jobId, now)
