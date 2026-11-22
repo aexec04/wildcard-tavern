@@ -40407,6 +40407,35 @@ table.insert(tests, { name = "Counter, My Patrons, Patron popup and Collection p
 	expectEqual(n, 14, "14 non classic sets")
 end })
 
+table.insert(tests, { name = "Boss table and Tavern Map per set: every set resolves its own room, boss picture, banner, plates and deck, none falls back to classic", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, TS, Style, PRA = require(E.CosmeticSets), require(E.ThemeScenes), require(E.TavernStyle), require(E.PlayRoomArt)
+	local art = require(E.PlaySceneArt)
+	local seenBar = {}
+	for _, def in ipairs(CS.Definitions) do
+		local id = def.id
+		if id ~= "classic_tavern" then
+			local src = TS.bossBackdrop(id)
+			expectTrue(src == "own" or src == "room", id .. " boss table is not the classic tavern (" .. tostring(src) .. ")")
+			local room = PRA.roomArt(id, art)
+			expectEqual(room.room, id, id .. " play room recorded")
+			expectTrue(TS.liveTableId(id, true, art) ~= nil, id .. " live boss table picture resolves")
+			expectTrue(TS.liveTableId(id, false, art) ~= nil, id .. " live play table picture resolves")
+			local m = CS.mapStyleOf(id)
+			expectTrue(m ~= nil and m.banner ~= nil and m.bar ~= nil and m.edge ~= nil, id .. " Tavern Map bar, banner and rails")
+			expectTrue(CS.contrastRatio(m.ink, m.bar) >= 4.5, id .. " map ink 4.5:1 on its bar")
+			expectTrue(Style.tabPlate(true, id) ~= nil, id .. " map plates")
+			expectTrue(CS.deckTint(id) ~= nil, id .. " boss table deck")
+			local key = table.concat(m.bar, ",")
+			seenBar[key] = (seenBar[key] or 0) + 1
+		end
+	end
+	local classicRoom = PRA.roomArt("classic_tavern", art)
+	expectTrue(classicRoom.room == nil, "classic keeps the reference tavern")
+	expectEqual(TS.bossBackdrop("classic_tavern"), "classic", "classic boss table unchanged")
+	expectTrue(CS.mapStyleOf("classic_tavern") == nil, "classic map unchanged")
+end })
+
 table.insert(tests, { name = "Preview set switch: every set's pile tint differs from every other set, and the table scene refreshes when the skin lands", fn = function()
 	local E = script.Parent.Parent.Engine
 	local CS = require(E.CosmeticSets)
