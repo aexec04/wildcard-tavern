@@ -173,7 +173,7 @@ return function(deps)
 	rowsLayout.Parent = scroll
 	local scrollPad = Instance.new("UIPadding")
 	scrollPad.PaddingTop = UDim.new(0, 8) -- room for the hover lift
-	scrollPad.PaddingBottom = UDim.new(0, 8)
+	scrollPad.PaddingBottom = UDim.new(0, require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PopupLayers")).SCROLL_BOTTOM_PAD) -- the last row is never clipped
 	scrollPad.Parent = scroll
 
 	local captionLabel = label(panel, {

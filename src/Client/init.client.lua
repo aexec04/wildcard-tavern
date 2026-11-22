@@ -1405,6 +1405,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 			tooltip = screenGui:FindFirstChild("Tooltip"),
 		})
 		require(script.PopupShield).install(screenGui, root) -- popup roots are Active: nothing behind them gets clicks
+		pcall(function() require(script.PopupLayers).install(screenGui) end) -- boss and HUD layers hide while any popup is open
 		require(script.PopupDismiss).install(screenGui, root) -- Escape and a click on the dark area exit every popup; Studio lists the exits
 		local keys = require(script.TableKeys) -- keyboard and gamepad: what each key means is Engine/TableKeyMap; the handlers are wired next to the buttons
 		keys.actions.popupOpen = function() return guardLock:isLocked() or MenuScreen.menuFrame.Visible end
