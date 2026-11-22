@@ -1019,6 +1019,29 @@ function Sim.shopVisit(state, cfg, rng, rec)
 	useHeldRecipes(state, rec)
 	local rerollCost = E.Shop.REROLL_BASE_COST
 	local offers = E.Shop.rollOffers(state)
+	do -- offer audit: the first Patron roll of the visit against the previous visit's
+		local visit = rec.shopVisits[#rec.shopVisits]
+		local ids, owned, cheapest = {}, {}, nil
+		for _, o in ipairs(state.ownedPatrons) do owned[o.id] = true end
+		visit.offerIds, visit.offerOwned = ids, 0
+		for _, patron in ipairs(offers.patrons) do
+			ids[#ids + 1] = patron.id
+			if owned[patron.id] then visit.offerOwned = visit.offerOwned + 1 end
+			local price = E.RunState.patronPrice(state, patron)
+			if not cheapest or price < cheapest then cheapest = price end
+		end
+		visit.cheapest = cheapest or 0
+		-- the cheapest price in the whole pool this Night (a visit with Tips under it cannot be fixed by the picker)
+		local floor
+		for _, patron in ipairs(E.loadEngineModule("Unlocks").filter(state, "patron", E.Patrons.Definitions)) do
+			if not owned[patron.id] and (patron.minNight or 1) <= state.night then
+				local price = E.RunState.patronPrice(state, patron)
+				if not floor or price < floor then floor = price end
+			end
+		end
+		visit.poolFloor = floor or 0
+		visit.seatsFull = #state.ownedPatrons >= E.RunState.patronSlotLimit(state)
+	end
 	for rerolls = 0, MAX_REROLLS_PER_VISIT do
 		buyVoucher(state, offers, cfg, rec)
 		buyPatrons(state, offers, cfg, rng, rec)

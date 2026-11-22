@@ -39788,6 +39788,66 @@ table.insert(tests, { name = "Economy week: a 20 minute session pays every day, 
 	expectTrue(md:find("Week", 1, true) ~= nil and not md:lower():find("balatro"))
 end })
 
+table.insert(tests, { name = "Quests: every daily quest finishes in 3 runs or fewer of a 20 minute session, luck quests keep goal 1", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local rows = EconomySim.questReport()
+	expectEqual(#rows, #Quests.Definitions)
+	local luck = 0
+	for _, r in ipairs(rows) do
+		if r.kind == "luck" then
+			luck = luck + 1
+			expectEqual(r.goal, 1, r.id .. " needs a lucky play, so its goal stays 1")
+		else
+			expectTrue(r.runs ~= nil and r.runs <= 3, r.id .. " must finish in 3 runs or fewer, got " .. tostring(r.runs))
+		end
+	end
+	expectEqual(luck, 4) -- Flush Finish, Full House Party, Big Swing, Swift Win
+	local md = EconomySim.questMarkdown(rows)
+	expectTrue(md:find("boss_streak", 1, true) ~= nil and not md:lower():find("balatro"))
+end })
+
+table.insert(tests, { name = "Shop offers: never a Patron already owned, never a dead pick when a Patron fits the Tips, full seats untouched", fn = function()
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local Shop = require(script.Parent.Parent.Engine.Shop)
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for seed = 1, 150 do
+		for _, tips in ipairs({ 4, 5, 6, 9 }) do
+			local state = RunState.new({}, SeededRng.new(seed))
+			state.night = 1 + seed % 6
+			state.tips = tips
+			local ownedId = Patrons.Definitions[1 + seed % 5].id
+			state.ownedPatrons = { Patrons.getById(ownedId) }
+			local offers = Shop.rollOffers(state).patrons
+			local fits = false
+			for _, p in ipairs(offers) do
+				expectTrue(p.id ~= ownedId, "an owned Patron is never offered")
+				if RunState.patronPrice(state, p) <= tips then fits = true end
+			end
+			local poolFits = false
+			for _, p in ipairs(Patrons.Definitions) do
+				if p.id ~= ownedId and (p.minNight or 1) <= state.night and RunState.patronPrice(state, p) <= tips then poolFits = true end
+			end
+			if poolFits and #offers > 0 then
+				expectTrue(fits, "with " .. tips .. " Tips on Night " .. state.night .. " one offer must be affordable (seed " .. seed .. ")")
+			end
+		end
+	end
+	-- a full table is left alone: nothing to buy, so no swap and the same two offers as a roll with plenty of Tips
+	local full = RunState.new({}, SeededRng.new(7))
+	full.tips = 0
+	full.ownedPatrons = {}
+	for i = 1, RunState.patronSlotLimit(full) do full.ownedPatrons[i] = Patrons.Definitions[i] end
+	local a = Shop.rollOffers(full).patrons
+	local rich = RunState.new({}, SeededRng.new(7))
+	rich.tips = 99
+	rich.ownedPatrons = full.ownedPatrons
+	local b = Shop.rollOffers(rich).patrons
+	expectEqual(#a, #b)
+	for i = 1, #a do expectEqual(a[i].id, b[i].id) end
+end })
+
 table.insert(tests, { name = "BestLine: best Night and best hand line, nil when new, 40 chars or less, kid safe", fn = function()
 	local BL = require(script.Parent.Parent.Engine.BestLine)
 	expectTrue(BL.text(nil) == nil and BL.text({}) == nil and BL.text({ bestNightReached = 0, bestHandScore = 0 }) == nil)

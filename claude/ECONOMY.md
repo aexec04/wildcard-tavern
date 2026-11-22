@@ -134,3 +134,60 @@ Tips on arrival at each Counter visit and Patrons already held on arrival, 200 s
 - Never a dead shop: the lowest average on arrival is 4.0 (the Night 1 start, exactly the cheapest Patron), and every later visit averages 6.8 or more.
 - Patrons by Night 4: the bot holds 5.0 on arrival, above the 2 to 3 target. By Night 8 it holds about 5.3 (the seat limit is 5, extra seats come from a voucher), which is the 4 to 5 target.
 - Why no change: the bot buys every affordable Patron on sight and never keeps Tips back, so it fills the 5 seats by Night 3. A real player picks and saves, and the first visit of a run is exactly 4 Tips with the cheapest Patron at 4, so lowering the round Tips payout or raising rerolls by even one Tip would make the first shops dead or the Night 1 buy impossible. The 5 seat cap, not income, is what bounds Patron count, so nothing here makes later Nights richer. No payout or reroll number changed. If real players show Night 4 with 5 Patrons, the lever is seat count or Patron price, a design call.
+
+## Quests: can a 20 minute session finish each one?
+
+`lua tools/quest_report.lua` (Engine/EconomySim `questReport`, pinned by the test `Quests: every daily quest finishes in 3 runs or fewer`). The session model is two runs of 12 hands, 5 discards, 4 rounds, 1 Boss Round, Night 3, one Pack, one House Pass, one Recipe. A session is 2 runs, so a quest that needs 3 runs or fewer is finishable in one or two sittings.
+
+| Quest | Counter | Goal | Per model run | Runs to finish |
+| --- | --- | --- | --- | --- |
+| pairs_3 | pairs | 3 | 4 | 1 |
+| flush_clear | flushWins | 1 | 0 | by play (goal 1) |
+| buy_pack | packs | 1 | 1 | 1 |
+| discard_5 | discards | 5 | 5 | 1 |
+| boss_win | bosses | 1 | 1 | 1 |
+| hands_10 | hands | 10 | 12 | 1 |
+| straight_play | straights | 1 | 1 | 1 |
+| full_house_play | fullHouses | 1 | 0 | by play (goal 1) |
+| trips_play | trips | 2 | 1 | 2 |
+| big_swing | bigHands | 1 | 0 | by play (goal 1) |
+| tips_left | richClears | 1 | 1 | 1 |
+| quick_win | quickClears | 1 | 0 | by play (goal 1) |
+| buy_pass | housePasses | 1 | 1 | 1 |
+| use_recipe | recipes | 1 | 1 | 1 |
+| discard_cards_10 | cardsDiscarded | 10 | 10 | 1 |
+| boss_streak | bosses | 2 | 1 | 2 |
+| hands_15 | hands | 15 | 12 | 2 |
+| reach_night_3 | night | 3 | 3 | 1 |
+| rounds_5 | rounds | 5 | 4 | 2 |
+| pairs_8 | pairs | 8 | 4 | 2 |
+| discard_8 | discards | 8 | 5 | 2 |
+| straight_2 | straights | 2 | 1 | 2 |
+| packs_2 | packs | 2 | 1 | 2 |
+| rounds_3 | rounds | 3 | 4 | 1 |
+
+Result: no quest needs more than 2 runs, so no goal was lowered and no Tips or XP reward changed. Four quests (Flush Finish, Full House Party, Big Swing, Swift Win) depend on the hand you draw, not on volume. Their goal is already 1 and cannot go lower, so a player gets them by play. The model run earns none of those four, so the table calls them "by play".
+
+## Patron offers: repeats, owned and dead picks
+
+`lua tools/run_sim.lua --offers --runs 200 --jobs 4` (decent bot, first Patron roll of every Counter visit, Night 1 to 8). "same offer" is the exact same Patrons as the previous visit, "any repeated" is at least one Patron seen on the previous visit, "nothing affordable" is a visit where every offer cost more than the Tips on hand although a cheaper Patron existed in the pool (a picker fault). "poor" is a visit where Tips were under the cheapest Patron of the whole pool, which no picker can fix.
+
+Before the fix (one combined count, 4362 visits): repeats 3.2 percent, owned 0.0 percent, nothing affordable 28.2 percent.
+
+After (4262 visits):
+
+| Night | visits | same offer | any repeated | owned | nothing affordable | poor |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 600 | 0.0% | 2.8% | 0.0% | 0.0% | 33.3% |
+| 2 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 17.2% |
+| 3 | 600 | 0.0% | 2.5% | 0.0% | 0.0% | 12.6% |
+| 4 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 9.1% |
+| 5 | 595 | 0.0% | 2.2% | 0.0% | 0.0% | 0.0% |
+| 6 | 562 | 0.0% | 3.7% | 0.0% | 0.0% | 0.0% |
+| 7 | 465 | 0.0% | 3.4% | 0.0% | 0.0% | 0.0% |
+| 8 | 240 | 0.0% | 5.0% | 0.0% | 0.0% | 0.0% |
+| all | 4262 | 0.0% | 3.1% | 0.0% | 0.0% | 23.3% |
+
+- Repeats (3 percent) and owned Patrons (0 percent, the picker already skips them) are under the 10 percent line, so the picker is unchanged for those.
+- Dead picks were the problem: when a seat was free and nothing offered fit the Tips on hand, the shop could still show two Patrons the player could not buy. `Shop.rollOffers` now swaps the last offer for a random Patron that fits when one exists. A full table is left alone. Prices are untouched and nothing is paid for. Pinned by the test `Shop offers: never a Patron already owned, never a dead pick`.
+- The "poor" column is the economy, not the picker: the bot spends everything on sight, so early second and third visits arrive under 4 Tips. See the shop economy section above; no number changed.

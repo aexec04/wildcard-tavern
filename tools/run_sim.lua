@@ -62,12 +62,11 @@ local function parseArgs(argv)
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
-		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount",
-	}
+		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount",	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -135,8 +134,7 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.welcome then table.insert(parts, "--welcome") end
 	if run.lateStart then
 		table.insert(parts, "--late-start"); table.insert(parts, run.lateStart)
-		table.insert(parts, "--late-count"); table.insert(parts, run.lateCount)
-	end
+		table.insert(parts, "--late-count"); table.insert(parts, run.lateCount)	end
 	if run.randomPatrons then table.insert(parts, "--random-patrons") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
 	if run.packOffers then table.insert(parts, "--pack-offers"); table.insert(parts, run.packOffers) end
@@ -385,6 +383,51 @@ elseif cfg.shopEcon then
 		local n, avg = held(night)
 		print(string.format("Patrons held at the first Night %d Counter visit: %.2f (%d runs)", night, avg, n))
 	end
+elseif cfg.offers then
+	-- Patron offer audit, Night 1 to 8 Counter visits: how often the first roll repeats the previous visit's roll,
+	-- offers a Patron already owned, or has nothing the player can afford (seats full visits are counted apart)
+	local records = collect(runConfig({ maxNight = 8 }))
+	local agg = {}
+	for _, rec in ipairs(records) do
+		local prev
+		for _, v in ipairs(rec.shopVisits or {}) do
+			if v.offerIds then
+				local a = agg[v.night] or { n = 0, same = 0, overlap = 0, owned = 0, broke = 0, open = 0, poor = 0 }
+				agg[v.night] = a
+				a.n = a.n + 1
+				if prev then
+					local cnt, same = 0, #v.offerIds == #prev and #prev > 0
+					for _, id in ipairs(v.offerIds) do
+						local found = false
+						for _, pid in ipairs(prev) do if pid == id then found = true end end
+						if found then cnt = cnt + 1 else same = false end
+					end
+					if same then a.same = a.same + 1 end
+					if cnt > 0 then a.overlap = a.overlap + 1 end
+				end
+				if v.offerOwned > 0 then a.owned = a.owned + 1 end
+				if not v.seatsFull then
+					a.open = a.open + 1
+					if v.poolFloor > v.tips then a.poor = a.poor + 1 end -- no Patron in the pool fits: Tips are the limit, not the picker
+					if #v.offerIds > 0 and v.cheapest > v.tips and v.poolFloor <= v.tips then a.broke = a.broke + 1 end
+				end
+				prev = v.offerIds
+			end
+		end
+	end
+	local function pct(x, n) return n > 0 and 100 * x / n or 0 end
+	print(string.format("Patron offers, bot %s, %d seeds, first roll of each Counter visit (visit 1 of a run has no previous roll):", cfg.bot, #records))
+	print("nothing affordable = every offer costs more than the Tips on hand although a cheaper Patron existed (picker fault). Tips under the cheapest Patron in the pool are shown apart as poor.")
+	print(string.format("%-6s %7s %12s %14s %9s %20s %8s", "Night", "visits", "same offer", "any repeated", "owned", "nothing affordable", "poor"))
+	local total = { n = 0, same = 0, overlap = 0, owned = 0, broke = 0, open = 0, poor = 0 }
+	for night = 1, 8 do
+		local a = agg[night]
+		if a then
+			print(string.format("%-6d %7d %11.1f%% %13.1f%% %8.1f%% %19.1f%% %7.1f%%", night, a.n, pct(a.same, a.n), pct(a.overlap, a.n), pct(a.owned, a.n), pct(a.broke, a.open), pct(a.poor, a.open)))
+			for k in pairs(total) do total[k] = total[k] + a[k] end
+		end
+	end
+	print(string.format("%-6s %7d %11.1f%% %13.1f%% %8.1f%% %19.1f%% %7.1f%%", "all", total.n, pct(total.same, total.n), pct(total.overlap, total.n), pct(total.owned, total.n), pct(total.broke, total.open), pct(total.poor, total.open)))
 elseif cfg.patronRates then
 	-- Per Patron clear rate: random 4 Patron builds from Night 4, score = share of Night 4 to 8 rounds cleared by builds holding the Patron
 	local records = collect(runConfig({ lateStart = 4, lateCount = 4, maxNight = 8 }))
@@ -411,6 +454,40 @@ elseif cfg.patronRates then
 	print(string.format("%-22s %7s %9s %8s", "Patron", "builds", "clear", "vs avg"))
 	for _, r in ipairs(rows) do
 		print(string.format("%-22s %7d %8.1f%% %+7.1f%s", r.id, r.s.builds, r.rate, r.rate - avg, math.abs(r.rate - avg) > 15 and "  <-- outlier" or ""))
+	end
+elseif cfg.bossRules then
+	-- Clear rate per boss rule on Nights 3, 6 and 9: random 4 Patron builds start on the Night, the boss is forced on that Night's boss round
+	local nights = { 3, 6, 9 }
+	local onlyThese = cfg.bossList and ("," .. cfg.bossList .. ",")
+	local rows = {}
+	for _, def in ipairs(engine.BossRounds.Definitions) do
+		if not onlyThese or onlyThese:find("," .. def.id .. ",", 1, true) then
+			local row = { id = def.id, minNight = def.minNight, rate = {}, tries = {} }
+			for _, night in ipairs(nights) do
+				local tries, wins = 0, 0
+				for _, rec in ipairs(collect(runConfig({ forceBoss = def.id, bossNight = night, randomPatrons = true, maxNight = night, endless = true }))) do
+					for _, boss in ipairs(rec.bosses or {}) do
+						if boss.id == def.id and boss.night == night then
+							tries = tries + 1
+							if boss.cleared then wins = wins + 1 end
+						end
+					end
+				end
+				row.tries[night], row.rate[night] = tries, tries > 0 and 100 * wins / tries or nil
+			end
+			rows[#rows + 1] = row
+		end
+	end
+	print(string.format("Boss rules, bot %s, %d runs per cell, full runs with random Patron buys, (n) = runs that reached the boss. Outside 40 to 95 percent with n of 20 or more is flagged.", cfg.bot, cfg.runs))
+	print(string.format("%-22s %8s %13s %13s %13s", "boss", "minNight", "Night 3", "Night 6", "Night 9"))
+	for _, row in ipairs(rows) do
+		local cells, flag = {}, ""
+		for _, night in ipairs(nights) do
+			local r = row.rate[night]
+			cells[#cells + 1] = r and string.format("%5.1f%% (%3d)", r, row.tries[night]) or "      --     "
+			if r and row.tries[night] >= 20 and (r < 40 or r > 95) then flag = "  <-- outside band" end
+		end
+		print(string.format("%-22s %8d %s%s", row.id, row.minNight, table.concat(cells, " "), flag))
 	end
 elseif cfg.combos then
 	-- Patron variety audit: random Patron buys, report picks, pairs and any Patron or pair that wins more than 90 percent
