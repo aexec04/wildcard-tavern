@@ -183,6 +183,7 @@ return function(deps)
 		button.Parent = row
 		polishButton(button, 8)
 		addButtonHoverScale(button)
+		if not isSwitch then button:SetAttribute("FlatFace", true) end -- no set plate on top (Hold to Confirm showed two gold corners): the brass plate fills
 		if not isSwitch then pcall(require(script.Parent.TavernKit).paintedButton, button, "secondary") end -- the same brass plate as the Account buttons; the word shows the value
 
 		local function getVal()
@@ -565,6 +566,7 @@ return function(deps)
 		-- button gets exactly one plate and one icon, a flat brown look stays if the art does not load.
 		local Kit = require(script.Parent.TavernKit)
 		button:SetAttribute("AccountButton", true)
+		button:SetAttribute("FlatFace", true) -- SetSkin draws no set plate over it: the brass kit plate always shows, whatever Card Set is equipped
 		pcall(Kit.paintedButton, button, "secondary")
 		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
 		return button
