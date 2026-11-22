@@ -37517,7 +37517,9 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 	expectTrue(good(TS.themeImageId("golden_gala", "menuBackdrop")) and TS.themeImageId("golden_gala", "menuBackdrop") == TSA.theme_gala_menu, "menu wall id")
 	expectTrue(good(TS.themeImageId("golden_gala", "bossTableBackground")) and TS.themeImageId("golden_gala", "bossTableBackground") == TSA.theme_gala_boss, "boss table id")
 	expectTrue(good(TS.themeImageId("golden_gala", "shopBackdrop")) and TS.themeImageId("golden_gala", "shopBackdrop") == SSA.shop_room_gala, "shop room id")
-	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop" }) do
+	expectTrue(good(TS.themeImageId("golden_gala", "tablePlay")) and TS.themeImageId("golden_gala", "tablePlay") == TSA.theme_gala_play, "live play table scene id (Gameplay2 reads this slot)")
+	expectTrue(TS.themeImageId("winter_evening", "tablePlay") == nil, "winter keeps the classic live table")
+	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop", "tablePlay" }) do
 		expectTrue(TS.themeImageId("classic_tavern", slot) == nil, "classic falls back for " .. slot)
 	end
 end })

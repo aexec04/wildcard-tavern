@@ -304,9 +304,10 @@ for _k in ("theme_ice_menu", "theme_ice_boss", "theme_ice_map"):
     CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
     CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
 # Golden Gala palace scenes: menu and boss are text only, the shop room edits the classic shop room
-for _k in ("theme_gala_menu", "theme_gala_boss"):
+for _k in ("theme_gala_menu", "theme_gala_boss", "theme_gala_play"):
     CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
     CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
+CATEGORY_OPTS["table_scene"]["references"]["theme_gala_play"] = "art-wip/table_scene/table_play_ref.png" # same layout and camera as the classic play table
 CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_gala")
 CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_gala"] = "1536x1024"
 CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_gala"] = "art-wip/shop_scene/shop_room_a.png"

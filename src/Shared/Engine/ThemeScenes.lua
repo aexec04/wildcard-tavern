@@ -22,7 +22,7 @@ local ThemeScenes = {}
 
 ThemeScenes.DEFAULT = "classic_tavern"
 ThemeScenes.WASH_TRANSPARENCY = 0.78
-ThemeScenes.SLOTS = { "menuBackdrop", "tableBackground", "tableFront", "bossTableBackground", "mapBackdrop", "shopBackdrop" }
+ThemeScenes.SLOTS = { "menuBackdrop", "tableBackground", "tableFront", "bossTableBackground", "mapBackdrop", "shopBackdrop", "tablePlay" }
 ThemeScenes.ORDER = { "classic_tavern", "winter_evening", "festival_night", "closing_time", "golden_gala", "meadow_picnic", "riverside_evening",
 	"summit_camp", "dune_market", "marsh_lanterns", "snowy_hearth", "harbor_lights", "tavern_feast", "harvest_table", "winter_table" }
 
@@ -32,6 +32,7 @@ local CLASSIC_ART = {
 	tableBackground = PlayRoomArt.CLASSIC.bg,
 	tableFront = PlayRoomArt.CLASSIC.front,
 	bossTableBackground = "table_scene:table_boss_ref",
+	tablePlay = "table_scene:table_play_ref", -- the live table (Client/Gameplay2) scene for a normal round
 	mapBackdrop = "map:journeyMapImage",
 	shopBackdrop = "shop_scene:shop_room_a",
 }
@@ -63,7 +64,7 @@ local LAYER_OF = { snow = "snow", ember = "sparks", dust = "dust", mote = "dust"
 -- boss and map ids are registered; their screens (Gameplay2, Tavern Map) read the art key when those lanes wire it.
 local THEME_ART = {
 	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map" },
-	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", shopBackdrop = "shop_scene:shop_room_gala" },
+	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", tablePlay = "table_scene:theme_gala_play", shopBackdrop = "shop_scene:shop_room_gala" },
 }
 
 local function setArt(setId)

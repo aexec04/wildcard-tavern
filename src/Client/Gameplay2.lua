@@ -482,7 +482,7 @@ function M.install(deps)
 		end
 		do
 			-- the reference tavern paints its own four banners, so the HUD pair only hangs on scenes without them (Boss rounds)
-				local wb = ((TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) or (TableArt.table_boss_ref and scene.Image == TableArt.table_boss_ref)) and nil or Layout.banners(size.X, size.Y)
+				local wb = (scene:GetAttribute("SetArt") or (TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) or (TableArt.table_boss_ref and scene.Image == TableArt.table_boss_ref)) and nil or Layout.banners(size.X, size.Y)
 			for side, img in pairs(wallBanners) do
 				local rc = wb and wb[side]
 				img.Visible = rc ~= nil and img.Image ~= ""
@@ -913,6 +913,16 @@ function M.install(deps)
 		local key = sceneKey(lastState)
 		local bossRef = key == "table_boss" and TableArt.table_boss_ref or nil -- the Boss round draws the painted red-lit reference tavern; the old scene is the fallback
 		local img = bossRef or (key == "table_play" and (TableArt.table_play_ref or TableArt.table_play)) or TableArt[key] or "" -- normal rounds keep the reference tavern
+		do -- a Card Set with its own painted table (Golden Gala) swaps the scene on the live table: normal rounds use its tablePlay, Boss rounds its boss table
+			local okT, setImg = pcall(function()
+				local TS = require(Engine:WaitForChild("ThemeScenes"))
+				local skin = require(script.Parent.HudTheme).skin()
+				return TS.themeImageId(skin and skin.id, key == "table_boss" and "bossTableBackground" or "tablePlay")
+			end)
+			local own = okT and setImg ~= nil and setImg ~= (key == "table_boss" and TableArt.table_boss_ref or TableArt.table_play_ref)
+			scene:SetAttribute("SetArt", own)
+			if own then img = setImg; bossRef = nil end
+		end
 		if scene.Image ~= img then
 			scene.Image = img
 			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] bg=%s %s", key == "table_play" and "table_play_ref" or (bossRef and "table_boss_ref" or key), img)) end
