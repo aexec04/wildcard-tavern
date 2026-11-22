@@ -43069,4 +43069,44 @@ table.insert(tests, { name = "StartingDecks: Slim costs 1 Discard (sim: classic 
 	expectEqual(slim.discardsRemaining, classic.discardsRemaining - 1)
 end })
 
+-- ===== EndlessScreen =====
+table.insert(tests, { name = "EndlessScreen: headline, best Night and share line, only past the Night cap, kind and short", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EndlessScreen)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	local state = { night = 14, stake = 1, config = { nightCap = 8 } }
+	local view = ES.lines(state, { ["1"] = 16 }, 1)
+	expectEqual(view.headline, "Endless Night 14")
+	expectEqual(view.best, "Best Endless Night 16")
+	expectEqual(view.isBest, false)
+	expectEqual(ES.lines(state, { ["1"] = 10 }, 1).best, "Best Endless Night 14", "a new best counts this run")
+	expectEqual(ES.lines(state, { ["1"] = 10 }, 1).isBest, true)
+	expectEqual(ES.lines(state, nil, 1).best, "Best Endless Night 14", "no saved best")
+	expectTrue(ES.lines({ night = 8, config = { nightCap = 8 } }, nil, 1) == nil, "Night 8 of 8 is not Endless")
+	expectTrue(ES.lines(nil, nil, 1) == nil and ES.lines({}, nil, 1) == nil)
+	expectEqual(ES.lines({ night = 14.7, config = { nightCap = 8 } }, nil, 1).headline, "Endless Night 14", "floored")
+	local share = ES.shareLine(14, 16)
+	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and share:find("Can you beat me?", 1, true) ~= nil and #share <= ES.MAX_SHARE)
+	expectTrue(share:find("Night 16", 1, true) ~= nil, "names the best")
+	expectTrue(ES.shareLine(14, 14):find("My best", 1, true) == nil)
+	expectTrue(share:find("Balatro", 1, true) == nil and not share:find("\226\128\148", 1, true))
+	-- one line at the narrowest and the other sizes: the facts column, 16 px text
+	for _, sw in ipairs({ 360, 640, 1280, 1920 }) do
+		local cols = Layout.columns(sw)
+		local width = math.min(cols.leftW, cols.rightW)
+		for _, text in ipairs({ view.headline .. "  (new best)", view.best }) do
+			expectTrue(#text <= ES.MAX_LINE, text)
+			expectEqual(Layout.estimateLines(text, width, 16), 1, text .. " at " .. sw)
+		end
+	end
+end })
+
+table.insert(tests, { name = "EndlessScreen: Run Over shows the lines and the Share button uses the Endless wording", fn = function()
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("EndlessScreen", 1, true) ~= nil and src:find("view.headline", 1, true) ~= nil)
+	expectTrue(src:find("EndlessScreen.shareLine(lastState.night", 1, true) ~= nil)
+end })
+
 return tests
