@@ -32,6 +32,20 @@ Full table in BALANCE-REPORT.md. Bots: random, greedy, decent (legal-hand bots a
 - Change: Night 2 base target x1.12 and Night 3 x1.2 (RunState NIGHT_TUNE). Night 1 (WelcomeEase) and Night 4 on are unchanged.
 - After: greedy clears Night 2 in 85% and Night 3 in 80%; random 15% / 8% / 5% for Nights 1 to 3; decent still clears Nights 1 to 3 every run but with scores 236% and 206% of target (was 263% and 246%). The bots see every hand, so a new player lands lower.
 
+## Night 5 to 8 and Boss Rounds (sim, 100 runs, seeds 1 to 100, `lua tools/balance_nights.lua 100 1`)
+Clear rate of the whole Night (all runs) and of its Boss Round (of those who faced it):
+
+| Night | Random | Greedy | Decent | Boss: greedy | Boss: decent |
+| --- | --- | --- | --- | --- | --- |
+| 5 | 3% | 66% | 97% | 90% | 98% |
+| 6 | 1% | 56% | 83% | 90% | 87% |
+| 7 | 1% | 35% | 69% | 67% | 86% |
+| 8 | 1% | 22% | 45% | 67% | 67% |
+
+- Whole run win rate: random 1%, greedy 22%, decent 45%. Difficulty rises steadily and no Night is trivial or impossible for the greedy and decent bots, so no target changed.
+- Boss Rounds are not the wall: Night 7 and 8 Bosses clear 67% for greedy while the whole Night clears less often, so the plain rounds do most of the damage. Night 5 is the easiest late Night for the decent bot (180% of target).
+- The report now has a Boss Round column per Night (NightTable counts boss rounds).
+
 ## Patron and Counter price fairness (sim, 60 runs, decent and builder bots, `lua tools/_probe_shop_econ.lua`)
 Tips on arrival at each Counter visit (average, min):
 

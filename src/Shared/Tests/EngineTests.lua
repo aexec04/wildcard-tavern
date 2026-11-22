@@ -37599,6 +37599,20 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 	end
 end })
 
+table.insert(tests, { name = "ThemeScenes.effectiveSetId: classic unchanged, a preview swaps menu and shop ids, unknown preview ignored", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	expectEqual(TS.effectiveSetId(nil, nil), "classic_tavern", "no skin, no preview is classic")
+	expectEqual(TS.effectiveSetId("classic_tavern", nil), "classic_tavern", "equipped classic stays classic")
+	expectEqual(TS.effectiveSetId("winter_evening", nil), "winter_evening", "equipped set shows without a preview")
+	expectEqual(TS.effectiveSetId("classic_tavern", "winter_evening"), "winter_evening", "preview wins over the equipped skin")
+	expectEqual(TS.effectiveSetId("winter_evening", "not_a_set"), "winter_evening", "unknown preview id is ignored")
+	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop" }) do
+		local previewed = TS.of(TS.effectiveSetId("classic_tavern", "golden_gala"))
+		expectEqual(previewed.setId, "golden_gala", slot .. " preview resolves the previewed set")
+		expectEqual(TS.of(TS.effectiveSetId("classic_tavern", nil)).art[slot], TS.of("classic_tavern").art[slot], slot .. " classic art key unchanged")
+	end
+end })
+
 -- Phone and tablet pass: Settings, Tome and Menu rects from the live layout functions at 800x450, 1024x768 and 1366x768.
 table.insert(tests, { name = "Phone and tablet: Settings board fits 800x450, 1024x768 and 1366x768 with 44 px controls and a reachable last row", fn = function()
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)

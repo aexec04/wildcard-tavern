@@ -25,7 +25,10 @@ function ThemeWash.attach(host, slot)
 	function out.refresh()
 		if host.Parent == nil then return end -- a screen rebuilt per show (Victory): the old host is gone
 		local skin = HudTheme.skin()
-		local t = ThemeScenes.of(skin and skin.id)
+		local previewId = nil
+		local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+		if okV and view and view.previewSetId then previewId = view.previewSetId() end -- Studio/Card Sets preview only, never saved
+		local t = ThemeScenes.of(ThemeScenes.effectiveSetId(skin and skin.id, previewId))
 		out.current = t.setId
 		if plainImage ~= nil then
 			local ok2, id = pcall(ThemeScenes.themeImageId, t.setId, slot)
@@ -38,6 +41,7 @@ function ThemeWash.attach(host, slot)
 	end
 	function out.setId() return out.current end
 	HudTheme.onSkin(function() out.refresh() end)
+	pcall(function() require(script.Parent.CosmeticSetsView).onPreview(function() out.refresh() end) end)
 	out.refresh()
 	return out
 end
