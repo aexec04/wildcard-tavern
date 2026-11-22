@@ -817,6 +817,47 @@ function CosmeticSets.popupStyleOf(setId)
 	}
 end
 
+-- Tavern Map: the header bar, rails, banners, select panel frame and Go plate take the set. `bar` and `inset` are dark fills, `edge` is the
+-- accent lifted until it reads 4.5:1 on both (gold lines, rails, studs), `ink` stays cream 7:1 on `bar`, `go` is the control accent with white
+-- ink 4.5:1. nil for classic so the map keeps its wood and gold.
+CosmeticSets.MAP_MIN_CONTRAST = 4.5
+function CosmeticSets.mapStyleOf(setId)
+	local band = CosmeticSets.titleBandOf(setId)
+	local control = CosmeticSets.controlAccentOf(setId)
+	if not band or not control then return nil end
+	local bar = band.fill
+	local inset = mix({ 88, 58, 34 }, band.edge, 0.2)
+	local guard = 0
+	while CosmeticSets.contrastRatio(inset, band.ink) < CosmeticSets.TITLE_MIN_CONTRAST and guard < 40 do
+		inset = mix(inset, { 20, 14, 10 }, 0.15)
+		guard = guard + 1
+	end
+	local edge = band.edge
+	guard = 0
+	while (CosmeticSets.contrastRatio(edge, bar) < CosmeticSets.MAP_MIN_CONTRAST or CosmeticSets.contrastRatio(edge, inset) < CosmeticSets.MAP_MIN_CONTRAST) and guard < 40 do
+		edge = mix(edge, { 255, 244, 214 }, 0.15)
+		guard = guard + 1
+	end
+	return {
+		bar = bar, sheen = mix(bar, edge, 0.14), inset = inset, frame = mix({ 150, 104, 62 }, band.edge, 0.3),
+		edge = edge, ink = band.ink, banner = mix({ 92, 46, 130 }, band.edge, 0.5), go = control.onFill, goInk = control.onText,
+	}
+end
+
+-- The Tavern Map road: the sandy dash and its edge tinted toward the set accent, edge kept 3:1 under the fill. nil for classic.
+function CosmeticSets.mapPathOf(setId, fill, edge)
+	local band = CosmeticSets.titleBandOf(setId)
+	if not band then return nil end
+	local f = mix(fill, band.edge, 0.3)
+	local e = mix(edge, band.edge, 0.3)
+	local guard = 0
+	while CosmeticSets.contrastRatio(f, e) < 3 and guard < 40 do
+		e = mix(e, { 20, 14, 10 }, 0.15)
+		guard = guard + 1
+	end
+	return f, e
+end
+
 -- Loading screen: the equipped set's dark plate, accent edge and cream ink (7:1) for the tip plate, Skip plate and bar trim. nil for classic,
 -- an unknown id or no id (a first join has no profile yet), so the screen keeps its painted look.
 function CosmeticSets.loadingStyleOf(setId)

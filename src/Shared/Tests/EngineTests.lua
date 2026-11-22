@@ -40572,4 +40572,46 @@ table.insert(tests, { name = "Confirm, Choice, Quit and Restart popups wear the 
 	end
 end })
 
+table.insert(tests, { name = "Tavern Map header, banners, select panel, Go plate and road wear the set accent at 4.5:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.mapStyleOf("classic_tavern"), nil, "classic keeps the wood and gold map")
+	expectEqual(CS.mapStyleOf(nil), nil, "no set keeps the wood and gold map")
+	expectEqual(CS.mapPathOf("classic_tavern", { 244, 230, 196 }, { 110, 78, 40 }), nil, "classic keeps the sandy road")
+	local n, edges = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local m = CS.mapStyleOf(set.id)
+			expectTrue(m ~= nil, set.id .. " has a map style")
+			if m then
+				n = n + 1
+				expectTrue(CS.contrastRatio(m.ink, m.bar) >= 7, set.id .. " cream title and stats keep 7:1 on the bar")
+				expectTrue(CS.contrastRatio(m.edge, m.bar) >= 4.5, set.id .. " accent line reads 4.5:1 on the bar")
+				expectTrue(CS.contrastRatio(m.edge, m.inset) >= 4.5, set.id .. " accent line reads 4.5:1 on the panel inset")
+				expectTrue(CS.contrastRatio(m.ink, m.inset) >= 7, set.id .. " cream text keeps 7:1 on the panel inset")
+				expectTrue(CS.contrastRatio(m.go, m.goInk) >= 4.5, set.id .. " Go word keeps 4.5:1 on its plate")
+				local f, e = CS.mapPathOf(set.id, { 244, 230, 196 }, { 110, 78, 40 })
+				expectTrue(f ~= nil and CS.contrastRatio(f, e) >= 3, set.id .. " road edge stays 3:1 under its fill")
+				edges[m.bar[1] .. "," .. m.bar[2] .. "," .. m.bar[3] .. "/" .. m.edge[1] .. "," .. m.edge[2] .. "," .. m.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a map style")
+	local count = 0
+	for _ in pairs(edges) do count = count + 1 end
+	expectTrue(count >= 10, "the map looks different across sets")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "MapHeaderBar", "MapSelectPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("CS.mapStyleOf(", 1, true) ~= nil and src:find("onSkin", 1, true) ~= nil, name .. " asks the pure rule and re-dresses on equip") end
+	end
+	local jv = read("JourneyMapView")
+	if jv then expectTrue(jv:find("mapPathOf(", 1, true) ~= nil, "the road asks the pure rule") end
+end })
+
 return tests
