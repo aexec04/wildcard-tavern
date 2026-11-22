@@ -124,6 +124,9 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	text.TextSize = 16
 	text.TextXAlignment = Enum.TextXAlignment.Left
 	text.TextColor3 = CREAM
+	pcall(function() -- equipped Card Set plate, edge and ink at 7:1, classic unchanged
+		require(script.Parent.HintSkin).bind(frame, stroke, { text }, { plate = WOOD, edge = GOLD, ink = CREAM })
+	end)
 	text.TextTransparency = 0
 	text.TextStrokeTransparency = 1
 	text.Text = "Rank 1"

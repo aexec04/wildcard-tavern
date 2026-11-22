@@ -189,7 +189,10 @@ function MenuBoard.build(parent)
 		note.Position = UDim2.new()
 		note.Parent = slot
 		lift(note, Z - note.ZIndex)
-		if pcall(function() return require(script.Parent.TavernKit).painted(note, "wh_target") end) and note.BackgroundTransparency >= 1 then note.Rotation = 0 end -- the same gold framed plate as Target and Tips; a sibling picture cannot tilt, so painted notes stand straight
+		if pcall(function() return require(script.Parent.TavernKit).painted(note, "wh_target") end) and note.BackgroundTransparency >= 1 then note.Rotation = 0 end
+		pcall(function() -- an equipped Card Set re-dresses every note plate at once (painted returns the same picture when the set is unchanged)
+			require(script.Parent.HudTheme).onSkin(function() if note.Parent then require(script.Parent.TavernKit).painted(note, "wh_target") end end)
+		end) -- the same gold framed plate as Target and Tips; a sibling picture cannot tilt, so painted notes stand straight
 		for _, d in ipairs(note:GetDescendants()) do
 			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.None end -- rows wrap onto a second line in place(), nothing ends in an ellipsis
 			if d:IsA("TextLabel") and (d.Name == "Text" or d.Name == "Time") then

@@ -40324,6 +40324,30 @@ table.insert(tests, { name = "Settings sliders and On switches use the set accen
 	end
 end })
 
+table.insert(tests, { name = "Menu news banner, rank bar and board notes follow the set plate path on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps the wood plates")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " banner ink 7:1 on its plate")
+			expectTrue(Style.setPiece("wh_target", set.id) ~= nil, set.id .. " resolves a note plate piece")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 non classic sets covered")
+	if not io then return end
+	for file, needle in pairs({ MenuRank = "HintSkin", NewsPanel = "HintSkin", NextGoalBanner = "HintSkin", MenuBoard = "onSkin" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil, file .. " follows the equipped set")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)

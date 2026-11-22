@@ -117,6 +117,9 @@ function NewsPanel.attach(parent, layoutOrder)
 		Name = "Time", Size = UDim2.new(1, -(68 + 30), 0, 16), Position = UDim2.fromOffset(68, 44), Text = "", TextSize = 14, TextColor3 = GOLD,
 		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11,
 	})
+	pcall(function() -- equipped Card Set plate, edge and ink at 7:1, classic unchanged
+		require(script.Parent.HintSkin).bind(frame, stroke, { text }, { plate = WOOD, edge = GOLD, ink = CREAM })
+	end)
 	banner = { frame = frame, icon = icon, text = text, time = time }
 	frame.MouseButton1Click:Connect(function()
 		if NewsPanel.ensure() then
