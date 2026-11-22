@@ -40106,4 +40106,28 @@ table.insert(tests, { name = "Settings, Store and Card Sets primary buttons wear
 	expectTrue(settings:find("button.ZIndex = 24", 1, true) ~= nil, "Settings Account buttons keep ZIndex 24 over the plate backing")
 end })
 
+table.insert(tests, { name = "Collection and Leaderboards tabs wear the equipped Card Set plates (lit green, others dark), classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		expectEqual(Style.tabPlate(true, setId), map.wh_btn_green, setId .. " lit tab is the set green plate")
+		expectEqual(Style.tabPlate(false, setId), map.wh_btn_dark, setId .. " idle tab is the set dark plate")
+		expectTrue(Style.tabPlate(true, setId) ~= Style.tabPlate(false, setId), setId .. " lit and idle tabs differ")
+	end
+	expectTrue(n >= 14, "every Card Set has tab plates")
+	expectEqual(Style.tabPlate(true, "classic_tavern"), nil, "classic keeps the flat lit tab")
+	expectEqual(Style.tabPlate(false, nil), nil, "no set keeps the flat idle tab")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local col, lb, kit = read("src/Client/Collection.lua"), read("src/Client/DailyLeaderboard.lua"), read("src/Client/TavernKit.lua")
+	if not (col and lb and kit) then return end
+	expectTrue(col:find("setTabPlate(tabButton, lit)", 1, true) ~= nil, "Collection section tabs ask for the set plate")
+	expectTrue(col:find('setTabPlate(tabButtons.room, mode == "room")', 1, true) ~= nil, "Collection Gallery tab asks for the set plate")
+	expectTrue(col:find("RoomLayout.TABS.h - 2)", 1, true) ~= nil and col:find("AutomaticSize.None", 1, true) ~= nil, "a plated Collection tab gets a fixed width and keeps its height")
+	expectTrue(lb:find("Kit.setPlateTab(dailyTabButton", 1, true) ~= nil and lb:find("Kit.setPlateTab(friendsTabButton", 1, true) ~= nil, "Leaderboards tabs ask for the set plate")
+	expectTrue(kit:find("Style.tabPlate(active", 1, true) ~= nil, "setPlateTab asks the pure tab rule")
+	expectTrue(lb:find("CloseX", 1, true) ~= nil, "Leaderboards Close is the round X, not a plate")
+end })
+
 return tests

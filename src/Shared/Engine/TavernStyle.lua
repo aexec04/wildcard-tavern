@@ -252,6 +252,11 @@ function M.resultPlate(kind, w, h, setId)
 	return M.setPiece(kind == "secondary" and "wh_btn_dark" or "wh_btn_green", setId) -- always the finished whole picture: a result button is near 2.7 wide for 1
 end
 
+-- The plate a tab wears: the lit tab is the set's green plate, the others its dark one; nil for classic (tabs keep their flat browns).
+function M.tabPlate(active, setId)
+	return M.resultPlate(active and "primary" or "secondary", 0, 0, setId)
+end
+
 -- A set's hue for a classic plate picture it has no own art for (Tips, Next boss, round buttons): white pulled toward the set accent
 -- and multiplied over the picture. nil for classic or an unknown set, so classic is untouched. Light enough to keep gold trim readable.
 function M.isSetPiece(piece)
