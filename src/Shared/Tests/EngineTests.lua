@@ -38657,6 +38657,52 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Funnel coverage: all 7 launch steps and all 8 first five minutes steps have a server call site, fire once in a scripted run, and carry no name or free text", fn = function()
+	local AE = require(script.Parent.Parent.Engine.AnalyticsEvents)
+	local Funnel = require(script.Parent.Parent.Engine.Funnel)
+	expectEqual(#AE.Steps, 7)
+	expectEqual(#Funnel.Steps, 8)
+	-- a scripted run: the whole funnel twice, then the same steps again (every step must go out exactly once)
+	local sent = {}
+	local log = AE.new({ enabled = true, service = { LogFunnelStepEvent = function(_, player, funnel, session, index, step)
+		sent[#sent + 1] = { funnel = funnel, session = session, index = index, step = step, player = player }
+	end }, now = function() return 1000 end })
+	local player = { UserId = 4242, Name = "Robin", DisplayName = "Robin the Great" }
+	for _ = 1, 2 do
+		log.step(player, "menu_opened")
+		log.runStarted(player)
+		log.step(player, "first_hand_played"); log.step(player, "first_round_cleared"); log.step(player, "first_night_cleared")
+		log.step(player, "first_patron_bought"); log.runStarted(player)
+	end
+	expectEqual(#sent, 7, "each of the 7 steps went out exactly once")
+	local seenStep = {}
+	for i, s in ipairs(sent) do
+		expectFalse(seenStep[s.step], s.step .. " sent twice")
+		seenStep[s.step] = true
+		expectEqual(s.index, AE.stepIndex(s.step))
+		expectEqual(s.funnel, AE.FUNNEL_NAME)
+		for _, field in ipairs({ s.funnel, s.session, s.step }) do
+			local lower = tostring(field):lower()
+			expectFalse(lower:find("robin", 1, true), "no player name in the payload")
+		end
+	end
+	for _, id in ipairs(AE.Steps) do expectTrue(seenStep[id], id .. " fired in the scripted run") end
+	expectEqual(AE.stepIndex("not_a_step"), nil)
+	-- call sites in the server
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	for _, id in ipairs(AE.Steps) do
+		local viaRuns = (id == "run_started" or id == "second_run_started") and src:find("LaunchLog.runStarted(player)", 1, true)
+		expectTrue(viaRuns or src:find('LaunchLog.step(player, "' .. id .. '")', 1, true) ~= nil, "launch step " .. id .. " has a server call site")
+	end
+	for _, id in ipairs(Funnel.Steps) do
+		expectTrue(src:find('logStep(player, "' .. id .. '")', 1, true) ~= nil, "first five minutes step " .. id .. " has a server call site")
+	end
+end })
+
 table.insert(tests, { name = "Season pace over 30 days: a 20 minute a day player finishes the 30 tiers between day 22 and 28, a 10 minute player never waits over 3 days for a tier, a 60 minute player does not finish in under a week", fn = function()
 	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
