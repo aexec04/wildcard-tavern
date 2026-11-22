@@ -384,6 +384,9 @@ function CardSetsRoom.new(ctx)
 		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
 			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.name, ZIndex = 47 })
 		addTip(holder, d.tip)
+		if d.owned and (entry.set or entry.back) and ctx.getState() and ctx.getState().newItems and #ctx.getState().newItems > 0 then -- "New" until hovered or clicked (Engine/NewItems)
+			require(script.Parent.NewRibbon).attach(holder, entry.set and "set" or "back", entry.key, ctx.getState(), 60)
+		end
 		holder.MouseButton1Click:Connect(function()
 			ctx.playClickSfx()
 			view.selected = entry.key

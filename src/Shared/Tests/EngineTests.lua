@@ -35385,6 +35385,44 @@ table.insert(tests, { name = "Phone and tablet: Counter shop scene fits 1024x768
 	end
 end })
 
+table.insert(tests, { name = "New ribbons: unlocks are New until seen, saves are seeded, the mark only accepts owned keys, the profile keeps it", fn = function()
+	local N = require(script.Parent.Parent.Engine.NewItems)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local p = PP.new()
+	expectEqual(#N.pending(p), 0, "a fresh profile has nothing new")
+	p.discoveredPatronIds.the_regular = true
+	p.ownedSetIds.winter_evening = true
+	p.ownedSetIds.classic_tavern = true
+	p.unlockedCardBackIds.some_back = true
+	expectTrue(N.isNew(p, "patron", "the_regular") and N.isNew(p, "set", "winter_evening") and N.isNew(p, "back", "some_back"), "unlocks are new")
+	expectTrue(not N.isNew(p, "set", "classic_tavern"), "the default set is never new")
+	expectTrue(not N.isNew(p, "patron", "not_owned"), "not owned is not new")
+	expectEqual(N.markSeen(p, { "patron:the_regular", "patron:invented", 5, "set:winter_evening" }), 2, "only owned string keys are marked")
+	expectTrue(not N.isNew(p, "patron", "the_regular"), "seen is cleared")
+	expectEqual(#N.pending(p), 1, "one left")
+	expectEqual(N.markSeen(p, "x"), 0, "a bad argument is ignored")
+	local big = {}
+	for i = 1, 200 do big[i] = "patron:p" .. i end
+	expectEqual(N.markSeen(p, big), 0, "a long list of unowned keys marks nothing")
+	-- the save round trip keeps it
+	local back = PP.migrate(p)
+	expectTrue(back.seenNewIds["patron:the_regular"] == true and #N.pending(back) == 1, "migrate keeps seenNewIds")
+	-- an older save without the field is seeded, nothing flashes New
+	local old = { discoveredPatronIds = { the_regular = true }, ownedSetIds = { winter_evening = true } }
+	local m = PP.migrate(old)
+	expectEqual(#N.pending(m), 0, "an old save starts with no ribbons")
+	m.discoveredPatronIds.the_cook = true
+	expectTrue(N.isNew(m, "patron", "the_cook"), "a later unlock is new")
+	if io then
+		local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+		local r = read("src/Client/NewRibbon.lua")
+		expectTrue(r:find("Enum.Font.Merriweather", 1, true) and not r:find("Tween", 1, true), "serif, no tween (Calm mode safe)")
+		expectTrue(read("src/Client/Collection.lua"):find("NewRibbon", 1, true) and read("src/Client/CardSetsRoom.lua"):find("NewRibbon", 1, true), "tiles use the ribbon")
+		local srv = read("src/Server/init.server.lua")
+		expectTrue(srv:find("Rem.MarkSeenNew.OnServerEvent", 1, true) and srv:find('RateLimit.allow(player.UserId, "Rem.MarkSeenNew"', 1, true), "server remote is rate limited")
+	end
+end })
+
 table.insert(tests, { name = "Daily return hook: claimed chest shows the next reward countdown, streak stays on the plate, serif font", fn = function()
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
 	expectEqual(D.countdownText(5 * 3600 + 12 * 60 + 9), "5h 12m")

@@ -947,6 +947,7 @@ return function(deps)
 		tile.BackgroundColor3 = found and Color3.fromRGB(58, 44, 30) or Color3.fromRGB(22, 18, 15)
 		tile.ZIndex = 21
 		tile.Parent = scroll
+		if found and item.tab == "patrons" and view.state and view.state.newItems and #view.state.newItems > 0 then require(script.Parent.NewRibbon).attach(tile, "patron", item.id, view.state, 60) end -- "New" until hovered or clicked
 		local framed = Gallery.framed(item.tab) -- Patrons hang as framed portraits on the Gallery wall
 		local fxKind = Furn.kind(item.tab) -- cork cards, trophy planks, key rails, title rails: furniture drawn from the cells
 		local parts
