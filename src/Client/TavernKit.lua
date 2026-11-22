@@ -305,9 +305,36 @@ function TavernKit.painted(host, piece)
 end
 
 -- The ornate button for any screen: kind "primary" (green) or "secondary" (dark wood); the piece follows the plate's shape (Style.buttonPiece).
+-- The Card Set whose plates are drawn now: the previewed set on the Card Sets screen, else the equipped one (Golden Gala has palace plates).
+local function plateSetId()
+	local ok, sid = pcall(function()
+		local TS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
+		local skin = require(script.Parent.HudTheme).skin()
+		local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+		local previewId = okV and view and view.previewSetId and view.previewSetId() or nil
+		return TS.effectiveSetId(skin and skin.id, previewId)
+	end)
+	return ok and sid or nil
+end
+
+local buttonsHooked = false
+local function restyleButtons()
+	local sid = plateSetId()
+	for host in pairs(paintOf) do
+		local kind = host.Parent and host:GetAttribute("ButtonKind")
+		if kind then TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y, sid)) end
+	end
+end
+
 function TavernKit.paintedButton(host, kind)
 	if not host then return nil end
-	return TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y))
+	host:SetAttribute("ButtonKind", kind)
+	if not buttonsHooked then -- a skin change or a Card Set preview re-dresses every ornate button already on screen
+		buttonsHooked = true
+		pcall(function() require(script.Parent.HudTheme).onSkin(restyleButtons) end)
+		pcall(function() require(script.Parent.CosmeticSetsView).onPreview(restyleButtons) end)
+	end
+	return TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y, plateSetId()))
 end
 
 -- A small painted icon (speaker, pause, bulb, bars, spade, crown: Engine/PaintedKitArt pk_w_icon_<name>) drawn as a CHILD of the plate at its

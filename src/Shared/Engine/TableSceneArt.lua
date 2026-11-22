@@ -15,4 +15,7 @@ return {
 	["theme_ice_boss"] = "rbxassetid://104396665800514",
 	["theme_ice_map"] = "rbxassetid://88459899590320",
 	["theme_ice_menu"] = "rbxassetid://126054630258636",
+	["theme_gala_boss"] = "rbxassetid://131630499344522",
+	["theme_gala_menu"] = "rbxassetid://99539789791801",
+	["theme_gala_play"] = "rbxassetid://139229615806054",
 }

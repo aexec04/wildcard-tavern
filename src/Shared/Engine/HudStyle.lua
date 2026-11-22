@@ -102,6 +102,53 @@ function HudStyle.iconPalette(colors)
 	}
 end
 
+-- The Golden Gala palace velvet family for the secondary table plates (Rank, Suit, Deck count), so they match Play Hand
+-- (palace green, from the "play" palette) and Discard (burgundy-cool, the "discard" palette). nil for every other set:
+-- classic and the rest keep their wood. Fills reach 4.5:1 with their text.
+-- Frosted Garden, Mountain Festival and Closing Time use the same family with LIGHT CREAM labels on a dark plate at 7:1 (the dark
+-- brown on brown Rank and Suit labels were unreadable): VELVET_CREAM_SETS maps the set to the contrast its labels must reach.
+HudStyle.VELVET_SETS = { golden_gala = true, winter_evening = true, festival_night = true, closing_time = true }
+HudStyle.VELVET_CREAM_SETS = { winter_evening = 7, festival_night = 7, closing_time = 7 }
+HudStyle.CREAM = { 250, 244, 226 }
+-- darken `fill` until cream reads on it at `need`:1
+local function creamFill(fill, need)
+	local steps = 0
+	while CosmeticSets.contrastRatio(HudStyle.CREAM, fill) < need and steps < 20 do
+		fill = mix(fill, BLACK, 0.12)
+		steps = steps + 1
+	end
+	return fill
+end
+function HudStyle.velvetPlate(setId, colors)
+	if not (HudStyle.VELVET_SETS[setId] and colors) then return nil end
+	local play = HudStyle.buttonPalette(colors, "play")
+	local discard = HudStyle.buttonPalette(colors, "discard")
+	local deck = HudStyle.deckPalette(colors)
+	local need = HudStyle.VELVET_CREAM_SETS[setId]
+	if need then
+		return {
+			fill = creamFill(discard.fill, need), -- the unlit half
+			lit = creamFill(play.fill, need), -- the picked half
+			edge = play.inner,
+			text = HudStyle.CREAM,
+			litText = HudStyle.CREAM,
+			deck = creamFill(deck.plate, need),
+			deckText = HudStyle.CREAM,
+			deckEdge = deck.plateRing,
+		}
+	end
+	return {
+		fill = discard.fill, -- the unlit half
+		lit = play.fill, -- the picked half
+		edge = play.inner,
+		text = discard.text,
+		litText = play.text,
+		deck = deck.plate,
+		deckText = deck.text,
+		deckEdge = deck.plateRing,
+	}
+end
+
 -- Draw pile: bracket accent, themed count plate and a count colour that reads on it.
 function HudStyle.deckPalette(colors)
 	local accent, base = basics(colors)

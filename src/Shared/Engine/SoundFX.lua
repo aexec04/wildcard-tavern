@@ -127,6 +127,9 @@ SoundFX.Layers = {
 	-- sound pass: a claimed reward is a buy chime with two coins; a cleared Night is the win sting under a low thud
 	reward_claim = { { cue = "buy", volume = 0.8 }, { cue = "coin", delay = 0.1, volume = 0.3, speed = 1.09 }, { cue = "coin", delay = 0.17, volume = 0.25, speed = 1.0 } },
 	night_clear = { { cue = "win", volume = 0.7 }, { cue = "chip_big", delay = 0.05, volume = 0.4, speed = 0.7 } },
+	-- a beaten round target: a soft chime; a missed one: a gentle low note (never harsh)
+	round_clear_soft = { { cue = "win", volume = 0.35, semis = 4, maxLength = 0.9 } },
+	round_fail_soft = { { cue = "lose", volume = 0.2, semis = 2, maxLength = 0.7 } },
 	-- card_play: the snap plus a soft cash rustle 40 ms later
 	card_play = { { cue = "card_play", own = true }, { cue = "coin", delay = 0.04, volume = 0.12, speed = 1.4, maxLength = 0.25 } },
 	-- a Legendary or True Wildcard moment: the win sting up 5 semitones, a low thud and a two note chime (chip tick +12 and +19, 90 ms apart)

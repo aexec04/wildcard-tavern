@@ -33,7 +33,7 @@ local function label(parent, name, size, x, y, w, h, text, align)
 	t.BackgroundTransparency = 1
 	t.Position = UDim2.fromOffset(x, y)
 	t.Size = UDim2.fromOffset(w, h)
-	t.Font = Enum.Font.GothamBold
+	t.Font = Enum.Font.Merriweather
 	t.TextSize = size
 	t.TextColor3 = color("cream")
 	t.TextTransparency = 0
@@ -127,7 +127,7 @@ function M.update(state)
 	if not r then strip.Visible = false; return end -- no clear band under the cards: leave it out rather than cover them
 	strip.Chest:SetAttribute("ClaimDay", v.claimDay) -- always current, so a refused claim can be tried again
 	strip.Chest:SetAttribute("State", v.chest)
-	local key = table.concat({ v.streakText, v.goalText, v.chest, r.x, r.y, r.w, r.h, onMenu and "m" or "n" }, "|")
+	local key = table.concat({ v.streakText, v.chestText, v.goalText, v.chest, r.x, r.y, r.w, r.h, onMenu and "m" or "n" }, "|")
 	if key == lastKey then return end
 	lastKey = key
 

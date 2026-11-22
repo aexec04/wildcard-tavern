@@ -31,7 +31,10 @@ TooltipSpec.Spec = {
 	gap = 8,
 	sideGap = 12, -- Counter pack tooltips: distance from the pack row
 	margin = 6,
-	textSize = 16,
+	textSize = 16, -- never below 16: the painted serif size for every tooltip
+	fontName = "Merriweather", -- Enum.Font name, the same serif as the plates and toggles
+	textColor = { 235, 220, 190 }, -- cream on brown, the shared plate colours
+	backColor = { 60, 42, 26 },
 }
 
 function TooltipSpec.textClear(spec)

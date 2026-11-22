@@ -12,8 +12,13 @@
 local M = {}
 
 M.TITLE = "Patron Power"
-M.BODY = "The frame shows power: Wood is Common, gold is Legendary."
-M.TITLE_SIZE, M.BODY_SIZE = 22, 18
+M.BODY = "Frame colour shows rarity: wood Common, gold Legendary."
+M.TITLE_SIZE, M.BODY_SIZE = 22, 14
+M.BODY_TOP = 52 -- the body box starts under the 44 px close X (inset 8), so it can use the full text column width
+M.BODY_PAD = 4 -- px under the body box kept clear of the plate edge
+M.CHAR_W = 0.55 -- average Gotham glyph width as a share of the text size
+M.LINE_H = 1.2
+M.X_CLEAR = 52 -- px the text columns keep from the right edge so the 44 px close X (inset 8) never covers them
 M.MAX_ROUND = 1 -- Night 1, round 1 only: nobody needs the frame colour tip on every round
 -- reference rect and the Got it plate under the text column
 M.REF = { x = 15 / 1672, w = 320 / 1672, h = 140 / 941 }
@@ -23,6 +28,21 @@ M.BUTTON_COL = 0.31
 M.GAP = 8
 M.HAND_GAP = 8 -- beside the seat column: the panel stays this far left of the first Patron seat
 M.MIN_W = 280
+
+-- Width in px of the body box on a plate of width plateW (0.31 to 0.95 of the plate, minus 8).
+function M.bodyWidth(plateW) return math.floor(0.64 * plateW) - 8 end
+
+-- Lines the body needs at plateW (greedy word wrap with a pessimistic glyph width) and whether they fit a plate of height plateH.
+function M.bodyFits(plateW, plateH)
+	local perLine = math.max(1, math.floor(M.bodyWidth(plateW) / (M.BODY_SIZE * M.CHAR_W)))
+	local lines, cur = 1, 0
+	for word in M.BODY:gmatch("%S+") do
+		local n = #word
+		if cur == 0 then cur = n elseif cur + 1 + n <= perLine then cur = cur + 1 + n else lines = lines + 1; cur = n end
+	end
+	local need = math.ceil(lines * M.BODY_SIZE * M.LINE_H)
+	return need <= plateH - M.BODY_TOP - M.BODY_PAD, lines, need
+end
 
 local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 

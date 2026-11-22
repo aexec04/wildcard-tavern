@@ -18,6 +18,7 @@ local SeasonPanel = {}
 function SeasonPanel.init(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
 	local ArtIcon = require(script.Parent.ArtIcon)
+	local SeasonTrack = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeasonTrack"))
 	local ClaimRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("ClaimSeason")
 
 	local INK = Color3.fromRGB(60, 40, 22)
@@ -26,8 +27,11 @@ function SeasonPanel.init(deps)
 	local WOOD = Color3.fromRGB(86, 58, 34)
 	local PARCH = Color3.fromRGB(222, 198, 150)
 	local GREEN = Color3.fromRGB(86, 140, 80)
-	local TILE_W, TILE_H = 104, 170
-	local PREMIUM_H = 118 -- the premium row under each tier
+	local TILE_W, TILE_H = SeasonTrack.TILE_W, 170 -- 128 px tiles, 12 px gaps: ten full tiles in the track
+	local TILE_GAP = SeasonTrack.TILE_GAP
+	local STEP = TILE_W + TILE_GAP -- the track snaps to whole tiles
+	local PREMIUM_H = 118 -- the premium row under each tier (only when the season has one)
+	local trackH = TILE_H + PREMIUM_H + 26
 
 	local function label(parent, props)
 		local l = Instance.new("TextLabel")
@@ -63,6 +67,8 @@ function SeasonPanel.init(deps)
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "parchment")
 	deps.addSoftShadow(panel, 18)
+	local panelScale = Instance.new("UIScale") -- short screens scale the whole panel (SeasonTrack.fit), never below 0.8
+	panelScale.Parent = panel
 
 	-- wood banner: season name, days left (number + clock)
 	local banner = Instance.new("Frame")
@@ -122,7 +128,7 @@ function SeasonPanel.init(deps)
 
 	-- progress bar to the next tier
 	local barBack = Instance.new("Frame")
-	barBack.Size = UDim2.new(1, -440, 0, 24)
+	barBack.Size = UDim2.new(1, -440, 0, 24) -- vertically centred on the 44 px buttons
 	barBack.Position = UDim2.fromOffset(15, 66)
 	barBack.BackgroundColor3 = Color3.fromRGB(120, 96, 66)
 	barBack.BorderSizePixel = 0
@@ -136,12 +142,17 @@ function SeasonPanel.init(deps)
 	barFill.ZIndex = 43
 	barFill.Parent = barBack
 	deps.roundCorner(barFill, 12)
-	local barText = label(barBack, { Size = UDim2.fromScale(1, 1), ZIndex = 44, TextSize = 15, TextColor3 = INK, Text = "" })
+	-- cream 16 px text on a dark strip (35 percent see-through) so it reads on both the gold fill and the brown track
+	local barText = label(barBack, {
+		Size = UDim2.fromScale(1, 1), ZIndex = 44, TextSize = 16, TextColor3 = CREAM, Text = "",
+		BackgroundTransparency = 0.35, BackgroundColor3 = Color3.fromRGB(30, 20, 12),
+	})
+	deps.roundCorner(barText, 12)
 
 	local claimAll = Instance.new("TextButton")
-	claimAll.Size = UDim2.fromOffset(190, 34)
+	claimAll.Size = UDim2.fromOffset(190, SeasonTrack.BUTTON_H)
 	claimAll.AnchorPoint = Vector2.new(1, 0)
-	claimAll.Position = UDim2.new(1, -15, 0, 61)
+	claimAll.Position = UDim2.new(1, -15, 0, 56)
 	claimAll.Font = Enum.Font.GothamBold
 	claimAll.TextSize = 16
 	claimAll.TextColor3 = CREAM
@@ -155,8 +166,9 @@ function SeasonPanel.init(deps)
 	-- the horizontal track
 	local track = Instance.new("ScrollingFrame")
 	track.Name = "SeasonTrack"
-	track.Size = UDim2.new(1, -30, 0, TILE_H + PREMIUM_H + 26)
-	track.Position = UDim2.fromOffset(15, 104)
+	track.Size = UDim2.new(1, -30, 0, trackH)
+	track.Position = UDim2.new(0.5, 0, 0, 104)
+	track.AnchorPoint = Vector2.new(0.5, 0)
 	track.BackgroundTransparency = 1
 	track.BorderSizePixel = 0
 	track.ScrollingDirection = Enum.ScrollingDirection.X
@@ -170,15 +182,55 @@ function SeasonPanel.init(deps)
 	local trackLayout = Instance.new("UIListLayout")
 	trackLayout.FillDirection = Enum.FillDirection.Horizontal
 	trackLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	trackLayout.Padding = UDim.new(0, 8)
+	trackLayout.Padding = UDim.new(0, TILE_GAP)
 	trackLayout.Parent = track
+	local trackCap = Instance.new("UISizeConstraint") -- never wider than ten whole tiles, so no half tile shows at the edge
+	trackCap.MaxSize = Vector2.new(SeasonTrack.TILES_VISIBLE * TILE_W + (SeasonTrack.TILES_VISIBLE - 1) * TILE_GAP, 10000)
+	trackCap.Parent = track
+	-- soft edge shades (plain frames, no gradient) tell the player there is more to scroll
+	local function edgeShade(name, left)
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.Size = UDim2.new(0, 14, 0, trackH - 12)
+		f.AnchorPoint = Vector2.new(left and 0 or 1, 0)
+		f.Position = UDim2.new(left and 0 or 1, 0, 0, 0)
+		f.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+		f.BackgroundTransparency = 0.7
+		f.BorderSizePixel = 0
+		f.ZIndex = 52
+		f.Visible = false
+		f.Parent = panel
+		return f
+	end
+	local shadeL, shadeR = edgeShade("TrackShadeL", true), edgeShade("TrackShadeR", false)
+	local function placeShades()
+		local ax, aw = track.AbsolutePosition.X - panel.AbsolutePosition.X, track.AbsoluteSize.X
+		shadeL.Position = UDim2.fromOffset(ax, 104)
+		shadeR.Position = UDim2.fromOffset(ax + aw, 104)
+		local maxX = math.max(0, track.AbsoluteCanvasSize.X - track.AbsoluteWindowSize.X)
+		shadeL.Visible = track.CanvasPosition.X > 2
+		shadeR.Visible = track.CanvasPosition.X < maxX - 2
+	end
+	-- snap to whole tiles once scrolling settles (no tween, so Calm mode needs nothing extra)
+	local snapToken = 0
+	track:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		placeShades()
+		snapToken = snapToken + 1
+		local mine = snapToken
+		task.delay(0.2, function()
+			if mine ~= snapToken or not track.Parent then return end
+			local x = track.CanvasPosition.X
+			local snapped = math.floor(x / STEP + 0.5) * STEP
+			if math.abs(snapped - x) > 1 then track.CanvasPosition = Vector2.new(snapped, 0) end
+		end)
+	end)
 
 	local premiumButton = Instance.new("TextButton")
-	premiumButton.Size = UDim2.fromOffset(200, 34)
+	premiumButton.Size = UDim2.fromOffset(200, SeasonTrack.BUTTON_H)
 	premiumButton.AnchorPoint = Vector2.new(1, 0)
-	premiumButton.Position = UDim2.new(1, -215, 0, 61)
+	premiumButton.Position = UDim2.new(1, -215, 0, 56)
 	premiumButton.Font = Enum.Font.GothamBold
-	premiumButton.TextSize = 15
+	premiumButton.TextSize = 16
 	premiumButton.TextColor3 = INK
 	premiumButton.BackgroundColor3 = GOLD
 	premiumButton.Text = "Premium"
@@ -192,6 +244,7 @@ function SeasonPanel.init(deps)
 	local footer = label(panel, {
 		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.new(0, 15, 1, -78), Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "Earn season XP the way you earn Tavern Rank XP. Unclaimed rewards end with the season.",
+		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(110, 34)
@@ -218,17 +271,22 @@ function SeasonPanel.init(deps)
 	-- art category and key of a reward, and its emoji fallback (shared resolver: no reward kind falls back to the X box)
 	local RewardArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RewardArt"))
 	local function rewardArt(reward)
+		if type(reward) == "table" and reward.kind == "tips" then
+			local _, _, emoji = RewardArt.resolve(reward)
+			local category, key = SeasonTrack.tipsArt(reward.amount) -- small pouch, purse, big pouch or chest by size
+			return category, key, emoji
+		end
 		return RewardArt.resolve(reward)
 	end
 
-	local function premiumSection(t, row)
+	local function premiumSection(t, row, prevRow)
 		local prem = row.premium
 		if not prem then return end
 		local box = Instance.new("Frame")
 		box.Name = "Premium"
 		box.Position = UDim2.fromOffset(4, TILE_H + 4)
 		box.Size = UDim2.fromOffset(TILE_W - 8, PREMIUM_H - 6)
-		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or Color3.fromRGB(235, 214, 160)
+		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or (prem.locked and Color3.fromRGB(150, 128, 96) or Color3.fromRGB(235, 214, 160))
 		box.BorderSizePixel = 0
 		box.ZIndex = 43
 		box.Parent = t
@@ -241,7 +299,7 @@ function SeasonPanel.init(deps)
 		local category, key, emoji = rewardArt(prem.reward)
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(40, 40)
-		well.Position = UDim2.fromOffset(28, 20)
+		well.Position = UDim2.fromOffset(math.floor((TILE_W - 8 - 40) / 2), 20)
 		well.BackgroundColor3 = WOOD
 		well.BorderSizePixel = 0
 		well.ZIndex = 44
@@ -252,11 +310,13 @@ function SeasonPanel.init(deps)
 			pcall(ArtIcon.apply, well, category, key, glyph, { cornerRadius = 8, zIndex = 46, dim = prem.locked })
 		end
 		if prem.locked then glyph.TextTransparency = 0.35 end -- dimmed, never black
-		label(box, { Size = UDim2.new(1, -4, 0, 30), Position = UDim2.fromOffset(2, 62), TextSize = 14, TextWrapped = true, Font = Enum.Font.GothamMedium, Text = prem.text or "" })
+		label(box, { Size = UDim2.new(1, -4, 0, 30), Position = UDim2.fromOffset(2, 62), TextSize = 14, TextWrapped = true, Font = Enum.Font.GothamMedium,
+			Text = SeasonTrack.premiumLabelShown(prevRow and prevRow.premium and prevRow.premium.text, prem.text) and prem.text or "" })
 		if prem.claimed then
 			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
 		elseif prem.locked then
-			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 16, Text = "🔒", ZIndex = 48 })
+			label(box, { Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 0), TextSize = 20, Text = "🔒", ZIndex = 48 })
+			label(box, { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -22), TextSize = 16, TextColor3 = CREAM, Text = "Premium only", ZIndex = 48 })
 		end
 		local claimBox = Instance.new("TextButton")
 		claimBox.Size = UDim2.fromScale(1, 1)
@@ -273,7 +333,9 @@ function SeasonPanel.init(deps)
 		end)
 	end
 
-	local function tile(row, seasonSeed)
+	local state_tier -- the player's current tier, set by refresh before the tiles are built
+	local state_next -- the first unclaimed tier number, gets a gold ring and a Next tag
+	local function tile(row, prevRow, hasPremium)
 		local t = Instance.new("TextButton")
 		t.Name = "Tier_" .. row.tier
 		t.LayoutOrder = row.tier
@@ -288,13 +350,30 @@ function SeasonPanel.init(deps)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = (row.reached and not row.claimed) and GOLD or INK
 		stroke.Thickness = (row.reached and not row.claimed) and 3 or 1.5
+		local isNow = state_tier ~= nil and row.tier == state_tier
+		if isNow then
+			stroke.Color = Color3.fromRGB(255, 214, 90)
+			stroke.Thickness = 4
+			t.BackgroundColor3 = Color3.fromRGB(240, 222, 170)
+		end
+		local isNext = state_next ~= nil and row.tier == state_next and not isNow
+		if isNext and not row.reached then
+			stroke.Color = GOLD
+			stroke.Thickness = 3
+		end
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
 		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier) })
+		if isNow then
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Now", ZIndex = 47 })
+		end
+		if isNext then
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, isNow and 25 or 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Next", ZIndex = 47 })
+		end
 		local well = Instance.new("Frame")
-		well.Size = UDim2.fromOffset(76, 76)
-		well.Position = UDim2.fromOffset(14, 32)
+		well.Size = UDim2.fromOffset(92, 92)
+		well.Position = UDim2.fromOffset(math.floor((TILE_W - 92) / 2), 28)
 		well.BackgroundColor3 = WOOD
 		well.BorderSizePixel = 0
 		well.ZIndex = 43
@@ -309,7 +388,7 @@ function SeasonPanel.init(deps)
 			glyph.TextTransparency = 0.35 -- dimmed, never black
 		end
 		label(t, {
-			Size = UDim2.new(1, -6, 0, 40), Position = UDim2.fromOffset(3, 112), TextSize = 14, TextWrapped = true,
+			Size = UDim2.new(1, -6, 0, 32), Position = UDim2.fromOffset(3, 118), TextSize = 14, TextWrapped = true,
 			Font = Enum.Font.GothamMedium, Text = row.text or "",
 		})
 		if row.claimed then
@@ -317,8 +396,8 @@ function SeasonPanel.init(deps)
 		elseif not row.reached then
 			label(t, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, TILE_H - 20), TextSize = 14, Font = Enum.Font.Gotham, Text = row.need .. " XP" })
 		end
-		t.Size = UDim2.fromOffset(TILE_W, TILE_H + PREMIUM_H)
-		premiumSection(t, row)
+		t.Size = UDim2.fromOffset(TILE_W, TILE_H + (hasPremium and PREMIUM_H or 0))
+		if hasPremium then premiumSection(t, row, prevRow) end
 		t.MouseButton1Click:Connect(function()
 			if row.reached and not row.claimed then
 				deps.playClickSfx()
@@ -339,6 +418,7 @@ function SeasonPanel.init(deps)
 			nameLabel.Text = "Tavern Season"
 			daysLabel.Text = ""
 			barText.Text = "No season right now. Play a run and check back soon!"
+			footer.Text = ""
 			barFill.Size = UDim2.fromScale(0, 1)
 			claimAll.Visible = false
 			return
@@ -384,12 +464,28 @@ function SeasonPanel.init(deps)
 			barFill.Size = UDim2.fromScale(math.clamp(view.into / math.max(1, view.xpPerTier), 0, 1), 1)
 			barText.Text = "Tier " .. LBText.fmt(view.tier) .. "   " .. LBText.fmt(view.into) .. " / " .. LBText.fmt(view.xpPerTier) .. " XP to tier " .. LBText.fmt(view.tier + 1)
 		end
-		for _, row in ipairs(view.tiers) do
-			tile(row)
+		local hasPremium = view.premium ~= nil
+		state_tier = (not view.maxed) and view.tier or nil
+		local nextRow = SeasonTrack.nextTier(view)
+		state_next = nextRow and nextRow.tier or nil
+		footer.Text = SeasonTrack.nextLine(view)
+		for i, row in ipairs(view.tiers) do
+			tile(row, view.tiers[i - 1], hasPremium)
 		end
+		-- the panel is exactly as tall as its content: no empty parchment under the track when the season has no Premium row
+		local viewSize = deps.screenGui.AbsoluteSize
+		local fit = SeasonTrack.fit(math.max(1, viewSize.X), math.max(1, viewSize.Y), hasPremium)
+		trackH = fit.trackH
+		trackCap.MaxSize = Vector2.new(fit.trackW, 10000)
+		track.Size = UDim2.new(1, -30, 0, trackH)
+		panel.Size = UDim2.fromOffset(fit.panelW, fit.panelH)
+		panelScale.Scale = fit.scale
+		shadeL.Size = UDim2.new(0, 14, 0, trackH - 12)
+		shadeR.Size = shadeL.Size
 		-- bring the first tile that still needs attention into view
 		local focus = math.max(0, math.min(view.tier, 30) - 2)
-		track.CanvasPosition = Vector2.new(focus * (TILE_W + 8), 0)
+		track.CanvasPosition = Vector2.new(focus * STEP, 0)
+		task.defer(placeShades)
 	end
 
 	premiumButton.MouseButton1Click:Connect(function()

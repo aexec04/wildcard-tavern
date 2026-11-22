@@ -53,6 +53,11 @@ Quests.Definitions = {
 	{ id = "reach_night_3", name = "Third Night", icon = "🌙", desc = "Reach Night 3.", counter = "night", goal = 3, xp = 80, tips = 3 },
 	{ id = "rounds_5", name = "Round Runner", icon = "🔔", desc = "Clear 5 rounds.", counter = "rounds", goal = 5, xp = 60, tips = 3 },
 	{ id = "pairs_8", name = "Pair Parade", icon = "🎎", desc = "Play 8 Pair hands.", counter = "pairs", goal = 8, xp = 60, tips = 3 },
+	-- Third batch: a week needs 21 different quests (3 a day, none repeated), so the pool holds 24.
+	{ id = "discard_8", name = "Fresh Start", icon = "🔄", desc = "Use 8 discards.", counter = "discards", goal = 8, xp = 60, tips = 3 },
+	{ id = "straight_2", name = "Straight Ahead", icon = "🛤️", desc = "Play 2 Straights.", counter = "straights", goal = 2, xp = 70, tips = 3 },
+	{ id = "packs_2", name = "Pack Parade", icon = "🎀", desc = "Buy 2 Packs.", counter = "packs", goal = 2, xp = 60, tips = 3 },
+	{ id = "rounds_3", name = "Warm Up", icon = "🔥", desc = "Clear 3 rounds.", counter = "rounds", goal = 3, xp = 40, tips = 2 },
 }
 
 function Quests.getById(id)
@@ -64,32 +69,50 @@ function Quests.getById(id)
 	return nil
 end
 
--- The three quest ids of a UTC day number: a small LCG seeded from the day, no global state, same everywhere.
-function Quests.rollFor(day)
-	local pool = {}
-	for _, q in ipairs(Quests.Definitions) do
-		pool[#pool + 1] = q.id
-	end
+-- The quest plan of one week (UTC day // 7): a seeded shuffle of the pool dealt out three a day, so no quest shows twice in a
+-- week and no day has two quests on the same counter (Busy Hands + Marathon Hands). Returns { [0..6] = { id, id, id } }.
+function Quests.weekPlan(week)
 	-- Park-Miller generator: every product stays below 2^53, so Lua 5.3 and Luau give the same numbers.
-	local seed = (math.floor(day) * 40503 + 7919) % 2147483647
+	local seed = (math.floor(week) * 40503 + 7919) % 2147483647
 	if seed == 0 then seed = 1 end
 	local function nextInt(n)
 		seed = (seed * 48271) % 2147483647
 		return (math.floor(seed / 256) % n) + 1
 	end
-	local ids = {}
-	for _ = 1, math.min(Quests.PER_DAY, #pool) do
-		local picked = table.remove(pool, nextInt(#pool))
-		ids[#ids + 1] = picked
-		-- never two quests that read the same counter on one day (Busy Hands + Marathon Hands)
-		local counter = Quests.getById(picked).counter
-		for i = #pool, 1, -1 do
-			if Quests.getById(pool[i]).counter == counter then
-				table.remove(pool, i)
+	local pool = {}
+	for _, q in ipairs(Quests.Definitions) do
+		pool[#pool + 1] = q.id
+	end
+	local order = {}
+	while #pool > 0 do
+		order[#order + 1] = table.remove(pool, nextInt(#pool))
+	end
+	local plan, used = {}, {}
+	for d = 0, 6 do
+		local ids, counters = {}, {}
+		for pass = 1, 2 do -- pass 1 honours the counter rule; pass 2 only fills a gap if the pool ran dry
+			for _, id in ipairs(order) do
+				if #ids >= Quests.PER_DAY then break end
+				local counter = Quests.getById(id).counter
+				if not used[id] and (pass == 2 or not counters[counter]) then
+					ids[#ids + 1] = id
+					used[id] = true
+					counters[counter] = true
+				end
 			end
 		end
+		plan[d] = ids
 	end
-	return ids
+	return plan
+end
+
+-- The three quest ids of a UTC day number, the same everywhere (see weekPlan).
+function Quests.rollFor(day)
+	day = math.floor(day)
+	local ids = Quests.weekPlan(day // 7)[day % 7]
+	local out = {}
+	for i, id in ipairs(ids) do out[i] = id end
+	return out
 end
 
 local function freshState(day)

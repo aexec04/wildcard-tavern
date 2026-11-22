@@ -33,6 +33,7 @@ local BossRules = require(script.Parent.BossRules)
 local Challenges = require(script.Parent.Challenges)
 local BossRush = require(script.Parent.BossRush)
 local WelcomeEase = require(script.Parent.WelcomeEase) -- eased Night 1 and 2 targets for a new profile's first runs
+local DailyModifiers = require(script.Parent.DailyModifiers) -- the Daily Run's twist of the day
 local Haggle = require(script.Parent.Haggle) -- one haggle per shop visit moves one price by 1 Tip
 local Strangers = require(script.Parent.Strangers) -- Dealer's Bargains: numeric run effects
 
@@ -319,6 +320,8 @@ function RunState.new(options, rng)
 		BossRush.configure(state)
 	elseif options.challengeId then
 		Challenges.configure(state, options.challengeId)
+	elseif options.dailyModifierId then
+		DailyModifiers.configure(state, options.dailyModifierId) -- the Daily Run's twist of the day (Engine/DailyModifiers.lua)
 	end
 	RunState.startRound(state)
 	return state
@@ -905,7 +908,7 @@ local function playHandNow(state, cardIndices)
 	local blockedByRule = BossRules.blocksHand(handResult.name, bossModifier, state.challenge)
 	if not (blockedRepeatHand or blockedByRule) then
 		score, chips, mult, extra = Scoring.calculate(handResult, BossRules.scoringPatrons(bossModifier, state.ownedPatrons), RunState.addRunCounters({
-			patronPower = state.challenge and state.challenge.patronPower,
+			patronPower = (state.challenge and state.challenge.patronPower) or (state.dailyModifier and state.dailyModifier.patronPower),
 			allPlayedCards = playedCards,
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
 			rng = state.rng, -- a seeded run (Daily, Weekly, Seed) rolls its luck from its own stream, never the shared math.random
@@ -1041,7 +1044,7 @@ local function playHandNow(state, cardIndices)
 		end
 		interestCap = math.max(0, interestCap + endlessField(state, "interestCapDelta")) -- Thin Interest
 		if not (state.stakeRules and state.stakeRules.noInterest) then -- Final Bell stake: no interest
-			local interest = BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
+			local interest = BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge, state.dailyModifier))
 			state.tips = state.tips + interest
 			state.lastInterest = interest -- first time hints: "interest paid" (Engine/Hints.lua)
 			state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, interest)
@@ -1077,7 +1080,7 @@ local function playHandNow(state, cardIndices)
 			reward = reward * 2
 			state.bedtimeBonusActive = false
 		end
-		reward = BossRules.applyPercent(reward, BossRules.tipsPercent(state.challenge)) -- Tight Wallet
+		reward = BossRules.applyPercent(reward, BossRules.tipsPercent(state.challenge, state.dailyModifier)) -- Tight Wallet
 		state.tips = state.tips + reward
 		state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, reward)
 

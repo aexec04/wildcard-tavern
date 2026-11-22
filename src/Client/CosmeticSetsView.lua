@@ -42,7 +42,13 @@ local gui = nil
 
 local function find(name)
 	gui = gui or Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
-	return gui and gui:FindFirstChild(name, true) or nil
+	if not gui then return nil end
+	-- A backdrop host is a scene Frame or ImageLabel, never a button or anything inside a popup: the Settings "Tavern Map" button once matched
+	-- the map host by name and the Golden Gala bunting drew inside it. Scan every descendant with the name, skip GuiButtons.
+	for _, d in ipairs(gui:GetDescendants()) do
+		if d.Name == name and d:IsA("GuiObject") and not d:IsA("GuiButton") then return d end
+	end
+	return nil
 end
 
 local M = {}

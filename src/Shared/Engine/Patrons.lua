@@ -135,7 +135,7 @@ Patrons.Definitions = {
 
 	-- ===== +MULT: rewards a specific hand type =====
 	{
-		id = "regulars_round", name = "Regulars' Round", icon = "🤝", price = 5,
+		id = "regulars_round", name = "Regulars' Round", icon = "💬", price = 5,
 		description = "+8 Mult if the hand contains a Pair.",
 		flavorText = "Two old friends who never sit apart.",
 		effect = function(handResult, _context)
@@ -256,7 +256,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "repeat_customer", name = "Repeat Customer", icon = "🔁", price = 7,
-		description = "x3 Mult if you've already played this poker hand type this round.",
+		description = "x3 Mult if you already played this hand type this round.",
 		flavorText = "Found a favorite and is never changing it.",
 		effect = function(_handResult, context)
 			if context.alreadyPlayedThisHandTypeThisRound then
@@ -424,7 +424,7 @@ Patrons.Definitions = {
 	-- ===== More XMULT (only House Favorite/Repeat Customer existed before) =====
 	{
 		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8,
-		description = "x1.1 Mult for each Hand you have remaining this round after this one.",
+		description = "x1.1 Mult for each Hand you have left after this one.",
 		short = "x1.1 Mult per Hand left after this one",
 		flavorText = "Arrives before the doors open and waits politely.",
 		effect = function(_handResult, context)
@@ -683,7 +683,7 @@ Patrons.Definitions = {
 	-- ===== SCALING (grow over a run; every count lives on the run's state) =====
 	{
 		id = "slow_cooker", name = "Slow Cooker", icon = "🍲", price = 7,
-		description = "x0.025 more Mult for every round cleared this run (up to x2).",
+		description = "x0.025 more Mult per round cleared this run (up to x2).",
 		flavorText = "Good things take time, and this stew takes all night.",
 		effect = function(_handResult, context)
 			local rounds = context.roundsCleared or 0
@@ -759,7 +759,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "pair_bonds", name = "Pair Bonds", icon = "💞", price = 6,
-		description = "+1 Mult for every 4 Pairs or Two Pairs played this run (up to +15).",
+		description = "+1 Mult per 4 Pairs or Two Pairs played this run (max +15).",
 		flavorText = "Introduces everyone to everyone else.",
 		effect = function(_handResult, context)
 			local stats = context.handStatsBefore or {}
@@ -846,7 +846,7 @@ local biomePatrons = {
 	},
 	{
 		id = "marsh_gardener", name = "Marsh Gardener", icon = "🍄", price = 5, rarity = "uncommon", biome = "swamp",
-		description = "+3 Mult if none of the scoring cards is a Heart or a Diamond.",
+		description = "+3 Mult if no scoring card is a Heart or a Diamond.",
 		flavorText = "Grows mushrooms only in the shadiest corners.",
 		effect = function(handResult, _context)
 			local red = countScoring(handResult, function(card)
@@ -1107,6 +1107,52 @@ local depthPatrons = {
 		handsDelta = 1, handSizeDelta = -1,
 		effect = function() return nil end,
 	},
+	-- Roster additions.
+	{
+		id = "lone_wolf", name = "Lone Wolf", icon = "🐺", price = 5, rarity = "common",
+		description = "+15 Mult if the hand is a High Card.",
+		flavorText = "Prefers a quiet corner table.",
+		effect = function(handResult, _context)
+			return handResult.name == "High Card" and { mult = 15 } or nil
+		end,
+	},
+	{
+		id = "even_keel", name = "Even Keel", icon = "⚖️", price = 6, rarity = "common",
+		description = "+3 Mult for each scoring 2, 4, 6, 8 or 10.",
+		flavorText = "Likes everything in pairs and nothing rocky.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 2 or card.rank == 4 or card.rank == 6 or card.rank == 8 or card.rank == 10 then
+					count = count + 1
+				end
+			end
+			return count > 0 and { mult = 3 * count } or nil
+		end,
+	},
+	{
+		id = "odd_duck", name = "Odd Duck", icon = "🦆", price = 6, rarity = "common",
+		description = "+12 Chips for each scoring 3, 5, 7 or 9.",
+		flavorText = "Quacks at the strangest moments.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 3 or card.rank == 5 or card.rank == 7 or card.rank == 9 then
+					count = count + 1
+				end
+			end
+			return count > 0 and { chips = 12 * count } or nil
+		end,
+	},
+	{
+		id = "good_company", name = "Good Company", icon = "🤝", price = 7, rarity = "uncommon",
+		description = "+3 Mult for each other Patron at your table.",
+		flavorText = "Never eats alone.",
+		effect = function(_handResult, context)
+			local others = math.max(0, #(context.ownedPatrons or {}) - 1)
+			return others > 0 and { mult = 3 * others } or nil
+		end,
+	},
 }
 for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
@@ -1137,6 +1183,7 @@ local PATRON_TAGS = {
 	ladder_builder = { "straight" }, royal_road = { "straight" }, savings_club = { "economy" }, bargain_hunter = { "economy" },
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
+	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
 }
 -- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
 local PATRON_COUNTERS = {

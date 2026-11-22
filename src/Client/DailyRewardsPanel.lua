@@ -45,6 +45,8 @@ local function artFor(row)
 	return category, key
 end
 
+DailyRewardsPanel.PANEL_H = 360 -- fits the ladder, next reward and clock; the Close button is retired (the X closes)
+
 function DailyRewardsPanel.countdownText(seconds)
 	return QuestsPanel.timeLeftText(seconds)
 end
@@ -124,11 +126,8 @@ function DailyRewardsPanel.tick()
 	for _, r in ipairs(login.rewards) do
 		if r.claimable then waiting = true end
 	end
-	if waiting then
-		ui.countdown.Text = "Claim today's reward from the gift icon!"
-	else
-		ui.countdown.Text = "Next reward in " .. DailyRewardsPanel.countdownText(secondsLeft())
-	end
+	-- the real clock either way: time left to claim today's reward, or the wait for the next one
+	ui.countdown.Text = (waiting and "Time left today: " or "Next reward in ") .. DailyRewardsPanel.countdownText(secondsLeft())
 end
 
 function DailyRewardsPanel.init(deps)
@@ -147,13 +146,13 @@ function DailyRewardsPanel.init(deps)
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(760, 420)
+	panel.Size = UDim2.fromOffset(760, DailyRewardsPanel.PANEL_H)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 31
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "wood")
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(760, 420)
+	constraint.MaxSize = Vector2.new(760, DailyRewardsPanel.PANEL_H)
 	constraint.Parent = panel
 
 	label(panel, { Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, 8), Text = "Daily Rewards", TextSize = 26 })
@@ -172,8 +171,8 @@ function DailyRewardsPanel.init(deps)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = row
 
-	local nextLabel = label(panel, { Size = UDim2.new(1, -40, 0, 28), Position = UDim2.fromOffset(20, 276), Text = "", TextSize = 20 })
-	local countdown = label(panel, { Size = UDim2.new(1, -40, 0, 26), Position = UDim2.fromOffset(20, 306), Text = "", TextSize = 17, TextColor3 = GOLD })
+	local nextLabel = label(panel, { Size = UDim2.new(1, -40, 0, 28), Position = UDim2.fromOffset(20, 268), Text = "", TextSize = 20 })
+	local countdown = label(panel, { Size = UDim2.new(1, -40, 0, 26), Position = UDim2.fromOffset(20, 298), Text = "", TextSize = 17, TextColor3 = GOLD })
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"

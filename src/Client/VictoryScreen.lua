@@ -175,7 +175,7 @@ end
 
 local function rectsOf(gui)
 	local out = {}
-	for _, name in ipairs({ "Banner", "Hero", "Chest", "Rewards", "Summary", "Card1", "Card2", "Card3", "Continue", "Skip" }) do
+	for _, name in ipairs({ "Banner", "Hero", "Chest", "Rewards", "Summary", "Card1", "Card2", "Card3", "Continue", "Invite", "ShareLine", "Skip" }) do
 		local d = gui:FindFirstChild(name)
 		if d then out[#out + 1] = string.format("%s=%d,%d,%d,%d", name, d.AbsolutePosition.X, d.AbsolutePosition.Y, d.AbsoluteSize.X, d.AbsoluteSize.Y) end
 	end
@@ -233,6 +233,43 @@ function M.show(screenGui, lines)
 	text(gui, "NextStep", Look.NEXT_RUN, Look.fontSize(Look.NEXT_SIZE, s), CREAM, Enum.Font.GothamMedium, zc + 2, L.nextStep.x, L.nextStep.y, L.nextStep.w, L.nextStep.h)
 	local btn = plateButton(gui, "Continue", L.button, "Continue", Look.fontSize(30, s), zc + 2, close)
 	btn.Parent.Name = "Continue"
+	-- Invite a friend (Roblox's own invite sheet only) and a plain text share line to copy
+	local inv = Instance.new("TextButton")
+	inv.Name = "Invite"
+	inv.Position = UDim2.fromOffset(L.invite.x, L.invite.y)
+	inv.Size = UDim2.fromOffset(L.invite.w, L.invite.h)
+	inv.BackgroundColor3 = PURPLE_DARK
+	inv.BorderSizePixel = 0
+	inv.Font = serif()
+	inv.TextSize = Look.fontSize(20, s)
+	inv.TextColor3 = GOLD
+	inv.Text = Look.INVITE_TEXT
+	inv.ZIndex = zc + 2
+	inv.Parent = gui
+	local ic = Instance.new("UICorner"); ic.CornerRadius = UDim.new(0, 10); ic.Parent = inv
+	local ist = Instance.new("UIStroke"); ist.Color = GOLD; ist.Thickness = 2; ist.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ist.Parent = inv
+	pcall(function() require(script.Parent.InvitePrompt).bind(inv) end)
+	local shareBox = Instance.new("TextBox")
+	shareBox.Name = "ShareLine"
+	shareBox.Position = UDim2.fromOffset(L.share.x, L.share.y)
+	shareBox.Size = UDim2.fromOffset(L.share.w, L.share.h)
+	shareBox.BackgroundColor3 = PURPLE_DARK
+	shareBox.BackgroundTransparency = 0.2
+	shareBox.BorderSizePixel = 0
+	shareBox.Font = serif()
+	shareBox.TextSize = Look.fontSize(16, s)
+	shareBox.TextColor3 = GOLD
+	shareBox.TextEditable = false
+	shareBox.ClearTextOnFocus = false
+	shareBox.TextTruncate = Enum.TextTruncate.AtEnd
+	shareBox.Text = Look.shareLine(summary, best)
+	shareBox.ZIndex = zc + 2
+	shareBox.Parent = gui
+	local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, 8); sc.Parent = shareBox
+	shareBox.Focused:Connect(function()
+		shareBox.SelectionStart = 1
+		shareBox.CursorPosition = #shareBox.Text + 1
+	end)
 	pcall(function()
 		require(script.Parent.PopupDismiss).attach(gui, { policy = "button", press = close, button = true })
 	end)

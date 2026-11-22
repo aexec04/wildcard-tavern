@@ -303,6 +303,41 @@ CATEGORY_OPTS["table_scene"]["references"]["table_boss_ref"] = "art-wip/table_sc
 for _k in ("theme_ice_menu", "theme_ice_boss", "theme_ice_map"):
     CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
     CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
+# Golden Gala palace scenes: menu and boss are text only, the shop room edits the classic shop room
+for _k in ("theme_gala_menu", "theme_gala_boss", "theme_gala_play"):
+    CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
+    CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
+CATEGORY_OPTS["table_scene"]["references"]["theme_gala_play"] = "art-wip/table_scene/table_play_ref.png" # same layout and camera as the classic play table
+# Golden Gala palace button plates: edits of the classic plates, same aspect
+for _k, _ref in (("pk_gala_btn_dark", "pk_w_btn_dark"), ("pk_gala_btn_green", "pk_w_btn_green"), ("pk_gala_orn_btn_green", "pk_orn_btn_green")):
+    CATEGORY_OPTS["painted_kit"]["references"][_k] = "art-wip/painted_kit/%s.png" % _ref
+# Golden Gala palace keeper: edits of the classic Marlo pieces (same crop and pose), portrait 3:4
+for _k, _ref in (("shop_marlo_gala_behind", "shop_marlo_behind"), ("shop_marlo_gala_wave", "shop_marlo_wave")):
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})[_k] = "1024x1536"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})[_k] = "art-wip/shop_scene/%s.png" % _ref
+CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_gala")
+CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_gala"] = "1536x1024"
+CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_gala"] = "art-wip/shop_scene/shop_room_a.png"
+# Frosted Garden, Mountain Festival and Closing Time identity: shop room, keeper pieces and two plates per set (edits of the classic pieces)
+for _s in ("frost", "fest", "close"):
+    CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_" + _s)
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_" + _s] = "1536x1024"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_" + _s] = "art-wip/shop_scene/shop_room_a.png"
+    for _p in ("behind", "wave"):
+        CATEGORY_OPTS["shop_scene"]["sizes"]["shop_marlo_%s_%s" % (_s, _p)] = "1024x1536"
+        CATEGORY_OPTS["shop_scene"]["references"]["shop_marlo_%s_%s" % (_s, _p)] = "art-wip/shop_scene/shop_marlo_%s.png" % _p
+    for _p in ("dark", "green"):
+        CATEGORY_OPTS["painted_kit"]["references"]["pk_%s_btn_%s" % (_s, _p)] = "art-wip/painted_kit/pk_w_btn_%s.png" % _p
+# ten more card sets identity: shop room, keeper pieces and two plates per set
+for _s in ("dune", "marsh", "hearth", "harbor", "feast", "harvest", "wtable", "meadow", "river", "summit"):
+    CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_" + _s)
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_" + _s] = "1536x1024"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_" + _s] = "art-wip/shop_scene/shop_room_a.png"
+    for _p in ("behind", "wave"):
+        CATEGORY_OPTS["shop_scene"]["sizes"]["shop_marlo_%s_%s" % (_s, _p)] = "1024x1536"
+        CATEGORY_OPTS["shop_scene"]["references"]["shop_marlo_%s_%s" % (_s, _p)] = "art-wip/shop_scene/shop_marlo_%s.png" % _p
+    for _p in ("dark", "green"):
+        CATEGORY_OPTS["painted_kit"]["references"]["pk_%s_btn_%s" % (_s, _p)] = "art-wip/painted_kit/pk_w_btn_%s.png" % _p
 # deck tray and bottom rail: edits of crops of the table reference (made by _add_table_art_prompts.py)
 CATEGORY_OPTS["concept_t"]["sizes"].update({"ct_deck_tray": "1024x1024", "ct_rail_strip": "1536x1024"})
 CATEGORY_OPTS["concept_t"]["references"].update({"ct_deck_tray": "art-wip/table_art/ref_tray.png", "ct_rail_strip": "art-wip/table_art/ref_rail.png"})
@@ -791,6 +826,9 @@ def cmd_estimate(_args):
     la = data.get("launch_art_subjects", {})
     la_todo = sum(1 for pid in la if not (LAUNCH_DIR / f"{pid}.png").exists())
     print(f"  {'launch_art':12} {len(la):3} prompts, {la_todo:3} to generate (~${la_todo * sp_per:.2f}), separate command, not in TOTAL")
+    lw = data.get("launch_art_warm_subjects", {})
+    lw_todo = sum(1 for pid in lw if not (LAUNCH_DIR / "warm" / f"{pid}.png").exists())
+    print(f"  {'launch_warm':12} {len(lw):3} prompts, {lw_todo:3} to generate (~${lw_todo * sp_per:.2f}), separate command, not in TOTAL")
     print(f"  {'store_page':12} {len(sp):3} prompts, {sp_todo:3} to generate (~${sp_todo * sp_per:.2f}), separate command, not in TOTAL")
 
 
@@ -870,22 +908,23 @@ def cmd_store_page(args):
 LAUNCH_DIR = ROOT / "claude" / "launch-art"
 
 
-def cmd_launch_art(args):
+def cmd_launch_art(args, warm=False):
     """Generate-only: Creator Hub files (5 thumbnails 1920x1080, 2 icons 512x512, 12 pass and product icons 512x512)
     into claude/launch-art/. Raw model output goes to art-wip/launch_art/raw (gitignored). Never uploads."""
     key = need("OPENAI_API_KEY")
     data = load_prompts()
-    subs = data["launch_art_subjects"]
-    style = data["launch_art_style"]
+    subs = data["launch_art_warm_subjects" if warm else "launch_art_subjects"]
+    style = data["launch_art_warm_style" if warm else "launch_art_style"]
     model = os.environ.get("IMAGE_MODEL", "gpt-image-1")
-    raw_dir = ROOT / "art-wip" / "launch_art" / "raw"
+    out_dir = LAUNCH_DIR / "warm" if warm else LAUNCH_DIR  # the warm set sits in claude/launch-art/warm/, the first set stays untouched
+    raw_dir = ROOT / "art-wip" / ("launch_art_warm" if warm else "launch_art") / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    LAUNCH_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     only = set(args.only.split(",")) if args.only else None
     for pid, subject in subs.items():
         if only and pid not in only:
             continue
-        final = LAUNCH_DIR / (pid + ".png")
+        final = out_dir / (pid + ".png")
         if final.exists() and not args.force:
             print(f"skip {pid} (exists)")
             continue
@@ -911,7 +950,7 @@ def cmd_launch_art(args):
 def main():
     load_env()
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate", "store_page", "launch_art"])
+    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate", "store_page", "launch_art", "launch_art_warm"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
     ap.add_argument("--category", "-c", default="patrons", choices=list(CATEGORIES),
@@ -944,6 +983,8 @@ def main():
         cmd_store_page(a)
     elif a.cmd == "launch_art":
         cmd_launch_art(a)
+    elif a.cmd == "launch_art_warm":
+        cmd_launch_art(a, warm=True)
     elif a.cmd == "status":
         cmd_status(a)
     elif a.cmd == "queue":

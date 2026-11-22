@@ -178,15 +178,54 @@ function ShopBackdrop.new(deps)
 	-- Client/PlayScenePaint), so there is no seam between them; it follows a live skin change
 	local gameRoot = deps.shopFrame
 	while gameRoot and gameRoot.Name ~= "GameRoot" and gameRoot.Parent do gameRoot = gameRoot.Parent end
-	local function applyTint()
+	-- A Card Set with its own shop room (Golden Gala) draws that picture on Room and CounterFront and hides the classic wooden strip
+	-- (ShopScene CounterStrip) and the tavern layer (TavernScreens TavernScene); classic and every other set keep shop_room_a.
+	local function applyRoomArt()
+		local okS, id, own, kb, kw = pcall(function()
+			local TS = require(Engine:WaitForChild("ThemeScenes"))
+			local skin = require(script.Parent.HudTheme).skin()
+			local previewId
+			local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+			if okV and view and view.previewSetId then previewId = view.previewSetId() end
+			local sid = TS.effectiveSetId(skin and skin.id, previewId)
+			local rid, rown = TS.shopRoomId(sid)
+			local kb, kw = TS.shopKeeperIds(sid)
+			return rid, rown, kb, kw
+		end)
+		if okS and kb then -- the keeper follows the set too: courtier for golden_gala, Marlo for the rest (ShopScene reads self.marloId on each wave)
+			self.marloId, self.marloWaveId = kb, kw
+			if marlo then marlo.Image = kb end
+		end
+		if not okS or not id then return end
+		if roomImg then roomImg.Image = id end
+		if counterFront then counterFront.Image = id end
+		self.setRoom = own == true
+		for _, d in ipairs(shopFrame:GetDescendants()) do
+			if d.Name == "CounterStrip" or d.Name == "TavernScene" then d.Visible = not self.setRoom end
+		end
+	end
+	local applyTint
+	local function applyRoomAndTint() applyRoomArt(); if applyTint then applyTint() end end
+	applyRoomArt()
+	pcall(function() require(script.Parent.HudTheme).onSkin(applyRoomAndTint) end)
+	pcall(function() require(script.Parent.CosmeticSetsView).onPreview(applyRoomAndTint) end)
+	shopFrame.DescendantAdded:Connect(function(d)
+		if self.setRoom and (d.Name == "CounterStrip" or d.Name == "TavernScene") then d.Visible = false end
+	end)
+	shopFrame:GetPropertyChangedSignal("Visible"):Connect(applyRoomAndTint)
+	function applyTint()
 		local t = gameRoot and gameRoot:GetAttribute("RoomTint") or Color3.new(1, 1, 1)
+		if self.setRoom then -- the palace picture keeps only part of the gold hint so the marble and curtains read
+			local m = require(Engine:WaitForChild("ThemeScenes")).shopRoomTint(true, { t.R * 255, t.G * 255, t.B * 255 })
+			t = Color3.fromRGB(m[1], m[2], m[3])
+		end
 		if roomImg then roomImg.ImageColor3 = t end
 		if counterFront then counterFront.ImageColor3 = t end
 	end
 	applyTint()
 	if gameRoot then gameRoot:GetAttributeChangedSignal("RoomTint"):Connect(applyTint) end
-	self.marloId = marloId
-	self.marloWaveId = ContentArt.getImageId("shop_scene", "shop_marlo_wave")
+	self.marloId = self.marloId or marloId
+	self.marloWaveId = self.marloWaveId or ContentArt.getImageId("shop_scene", "shop_marlo_wave")
 	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")
 	if poolId then
 		light.BackgroundTransparency = 1
@@ -310,8 +349,9 @@ function ShopBackdrop.new(deps)
 		end
 		-- no table on phones: their cards wrap in rows on the counter; in the painted room the table is part of the picture
 		local room = r.room == true and roomImg ~= nil
-		tableTop.Visible = t ~= nil and not room
-		for _, piece in pairs(tablePieces) do piece.Visible = t ~= nil and not room end
+		local showTable = self.setRoom ~= true and t ~= nil and not room -- ThemeScenes.shopTableShown: a set's own painted room never shows the green table
+		tableTop.Visible = showTable
+		for _, piece in pairs(tablePieces) do piece.Visible = showTable end
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end

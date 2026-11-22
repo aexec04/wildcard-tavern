@@ -19,6 +19,11 @@ local GREEN = Color3.fromRGB(86, 140, 80)
 
 local ui
 
+-- Card geometry (tested): the reward plate is 104 wide at 12 px from the right edge; the bar and text stop 12 px before it.
+QuestsPanel.CARD_H, QuestsPanel.REWARD_W, QuestsPanel.REWARD_RIGHT, QuestsPanel.BAR_X = 96, 104, 12, 86
+QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12
+QuestsPanel.PANEL_H = 416
+
 -- "5h 20m", "42m", "less than a minute"
 function QuestsPanel.timeLeftText(seconds)
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -72,6 +77,7 @@ local function buildCard(parent, row, order, roundCorner)
 	ring.Color = GOLD
 	ring.Thickness = 2
 	ring.Parent = well
+	if row.done then well.BackgroundColor3 = GREEN end -- a finished quest: cream check on a green disc
 	local wellIcon = label(well, { Size = UDim2.fromScale(1, 1), Text = row.done and "✔" or row.icon, TextSize = 30, TextColor3 = CREAM, ZIndex = 33 })
 	if not row.done then -- a finished quest keeps its check mark
 		require(script.Parent.ArtIcon).apply(well, "quests", row.id, wellIcon, { zIndex = 34, cornerRadius = 30 })
@@ -82,13 +88,13 @@ local function buildCard(parent, row, order, roundCorner)
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	label(card, {
-		Name = "Desc", Size = UDim2.new(1, -200, 0, 22), Position = UDim2.fromOffset(86, 32), Text = row.desc, TextSize = 15,
+		Name = "Desc", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 22), Position = UDim2.fromOffset(86, 30), Text = row.desc, TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.Size = UDim2.new(1, -200, 0, 14)
-	track.Position = UDim2.fromOffset(86, 62)
+	track.Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 14) -- stops 12 px before the reward plate
+	track.Position = UDim2.fromOffset(86, 70)
 	track.BackgroundColor3 = Color3.fromRGB(120, 96, 66)
 	track.ZIndex = 32
 	track.Parent = card
@@ -102,8 +108,8 @@ local function buildCard(parent, row, order, roundCorner)
 	fill.Parent = track
 	roundCorner(fill, 7)
 	label(card, {
-		Name = "Count", Size = UDim2.fromOffset(70, 20), Position = UDim2.new(1, -190, 0, 59), Text = QuestRules.progressText(row),
-		TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left,
+		Name = "Count", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 18), Position = UDim2.fromOffset(86, 50), Text = QuestRules.progressText(row),
+		TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right, -- above the bar, right aligned
 	})
 
 	local reward = Instance.new("Frame")
@@ -118,6 +124,14 @@ local function buildCard(parent, row, order, roundCorner)
 	rewardStroke.Color = GOLD
 	rewardStroke.Thickness = 1.5
 	rewardStroke.Parent = reward
+	if row.done then -- rewards are paid by the server when the quest completes: a gold "Claimed" plate shows it is in your pocket
+		reward.BackgroundColor3 = GOLD
+		rewardStroke.Color = INK
+		reward.Name = "RewardClaimed"
+		label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "Claimed", TextSize = 18, TextColor3 = INK, ZIndex = 33 })
+		label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = INK, ZIndex = 33 })
+		return card
+	end
 	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "+" .. row.xp .. " XP", TextSize = 16, TextColor3 = CREAM, ZIndex = 33 })
 	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = GOLD, ZIndex = 33 })
 	return card
@@ -172,13 +186,13 @@ function QuestsPanel.init(deps)
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(560, 440)
+	panel.Size = UDim2.fromOffset(560, QuestsPanel.PANEL_H)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 31
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "wood")
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(560, 440)
+	constraint.MaxSize = Vector2.new(560, QuestsPanel.PANEL_H)
 	constraint.Parent = panel
 
 	local header = label(panel, {

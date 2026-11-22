@@ -1,0 +1,8 @@
+
+## Play screen: stop all movement of the table, board and room (2026-11-12)
+- Commit: 72517fb Play screen: switch off the whole-backdrop breath so the room, table and board stay still
+- Tests: 845 passed, 0 failed (added a test that the breath flag is off and `breathe()` checks it).
+- The only source of picture motion found was `AmbientLife.breathe` (scale and drift of the backdrop ImageLabel). It is now gated by `AmbientLayout.BREATH_ENABLED = false`. Table bg/front, rail, felt shade, HUD board and hand tray had no continuous position or size motion; card hover and selection lifts, score pop and banners are untouched.
+- Left as is (your call): the small ambient objects (butterflies, snow, leaves) and the `BackdropStyles` leaf sway still drift behind the cards. They are separate sprites, not the room, table or board. Say so if those should stop too.
+- Not seen in Studio.
+- Art ids: none.

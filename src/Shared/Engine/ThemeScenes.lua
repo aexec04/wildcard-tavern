@@ -22,7 +22,7 @@ local ThemeScenes = {}
 
 ThemeScenes.DEFAULT = "classic_tavern"
 ThemeScenes.WASH_TRANSPARENCY = 0.78
-ThemeScenes.SLOTS = { "menuBackdrop", "tableBackground", "tableFront", "bossTableBackground", "mapBackdrop", "shopBackdrop" }
+ThemeScenes.SLOTS = { "menuBackdrop", "tableBackground", "tableFront", "bossTableBackground", "mapBackdrop", "shopBackdrop", "tablePlay" }
 ThemeScenes.ORDER = { "classic_tavern", "winter_evening", "festival_night", "closing_time", "golden_gala", "meadow_picnic", "riverside_evening",
 	"summit_camp", "dune_market", "marsh_lanterns", "snowy_hearth", "harbor_lights", "tavern_feast", "harvest_table", "winter_table" }
 
@@ -32,6 +32,7 @@ local CLASSIC_ART = {
 	tableBackground = PlayRoomArt.CLASSIC.bg,
 	tableFront = PlayRoomArt.CLASSIC.front,
 	bossTableBackground = "table_scene:table_boss_ref",
+	tablePlay = "table_scene:table_play_ref", -- the live table (Client/Gameplay2) scene for a normal round
 	mapBackdrop = "map:journeyMapImage",
 	shopBackdrop = "shop_scene:shop_room_a",
 }
@@ -62,7 +63,20 @@ local LAYER_OF = { snow = "snow", ember = "sparks", dust = "dust", mote = "dust"
 -- painted per theme scenes (table_scene ids, see claude/THEMES.md): menu, boss table and map ground. The table room itself is the set's PlayRoomArt pair.
 -- boss and map ids are registered; their screens (Gameplay2, Tavern Map) read the art key when those lanes wire it.
 local THEME_ART = {
-	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map" },
+	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map", shopBackdrop = "shop_scene:shop_room_frost" },
+	festival_night = { shopBackdrop = "shop_scene:shop_room_fest" },
+	closing_time = { shopBackdrop = "shop_scene:shop_room_close" },
+	dune_market = { shopBackdrop = "shop_scene:shop_room_dune" },
+	marsh_lanterns = { shopBackdrop = "shop_scene:shop_room_marsh" },
+	snowy_hearth = { shopBackdrop = "shop_scene:shop_room_hearth" },
+	harbor_lights = { shopBackdrop = "shop_scene:shop_room_harbor" },
+	tavern_feast = { shopBackdrop = "shop_scene:shop_room_feast" },
+	harvest_table = { shopBackdrop = "shop_scene:shop_room_harvest" },
+	winter_table = { shopBackdrop = "shop_scene:shop_room_wtable" },
+	meadow_picnic = { shopBackdrop = "shop_scene:shop_room_meadow" },
+	riverside_evening = { shopBackdrop = "shop_scene:shop_room_river" },
+	summit_camp = { shopBackdrop = "shop_scene:shop_room_summit" },
+	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", tablePlay = "table_scene:theme_gala_play", shopBackdrop = "shop_scene:shop_room_gala" },
 }
 
 local function setArt(setId)
@@ -94,6 +108,59 @@ function ThemeScenes.themeImageId(setId, slot)
 	local tab, id = string.match(key, "^(%w+_%w+):(.+)$")
 	if not tab then return nil end
 	return require(script.Parent.ContentArt).getImageId(tab, id)
+end
+
+-- The Counter room picture for a set: its own painted shop room (golden_gala) or the classic shop_room_a.
+-- Returns id, own (own is true only when the set has its own picture; Client/ShopBackdrop then hides the classic strip and tavern layer).
+function ThemeScenes.shopRoomId(setId)
+	local ContentArt = require(script.Parent.ContentArt)
+	local own = ThemeScenes.themeImageId(setId, "shopBackdrop")
+	if own then return own, true end
+	return ContentArt.getImageId("shop_scene", "shop_room_a"), false
+end
+
+-- The keeper pieces for a set: its own painted keeper (golden_gala courtier) or the classic Marlo pieces.
+-- Returns behindId, waveId, own. Classic and every other set get shop_marlo_behind and shop_marlo_wave.
+local KEEPER_OF = {
+	golden_gala = { behind = "shop_marlo_gala_behind", wave = "shop_marlo_gala_wave" },
+	winter_evening = { behind = "shop_marlo_frost_behind", wave = "shop_marlo_frost_wave" },
+	festival_night = { behind = "shop_marlo_fest_behind", wave = "shop_marlo_fest_wave" },
+	closing_time = { behind = "shop_marlo_close_behind", wave = "shop_marlo_close_wave" },
+	dune_market = { behind = "shop_marlo_dune_behind", wave = "shop_marlo_dune_wave" },
+	marsh_lanterns = { behind = "shop_marlo_marsh_behind", wave = "shop_marlo_marsh_wave" },
+	snowy_hearth = { behind = "shop_marlo_hearth_behind", wave = "shop_marlo_hearth_wave" },
+	harbor_lights = { behind = "shop_marlo_harbor_behind", wave = "shop_marlo_harbor_wave" },
+	tavern_feast = { behind = "shop_marlo_feast_behind", wave = "shop_marlo_feast_wave" },
+	harvest_table = { behind = "shop_marlo_harvest_behind", wave = "shop_marlo_harvest_wave" },
+	winter_table = { behind = "shop_marlo_wtable_behind", wave = "shop_marlo_wtable_wave" },
+	meadow_picnic = { behind = "shop_marlo_meadow_behind", wave = "shop_marlo_meadow_wave" },
+	riverside_evening = { behind = "shop_marlo_river_behind", wave = "shop_marlo_river_wave" },
+	summit_camp = { behind = "shop_marlo_summit_behind", wave = "shop_marlo_summit_wave" },
+}
+function ThemeScenes.shopKeeperIds(setId)
+	local ContentArt = require(script.Parent.ContentArt)
+	local k = KEEPER_OF[setId]
+	if k then
+		local b, w = ContentArt.getImageId("shop_scene", k.behind), ContentArt.getImageId("shop_scene", k.wave)
+		if b then return b, w, true end
+	end
+	return ContentArt.getImageId("shop_scene", "shop_marlo_behind"), ContentArt.getImageId("shop_scene", "shop_marlo_wave"), false
+end
+
+-- Share of the Card Set room tint kept on a set's own painted Counter room: 0.3 means the gold wash is 70 percent lighter.
+ThemeScenes.OWN_ROOM_TINT_KEEP = 0.3
+-- tint is {r,g,b} 0..255 (PlayRoomArt.tint); an own room moves each channel 70 percent of the way back to white, others are unchanged.
+function ThemeScenes.shopRoomTint(own, tint)
+	if own ~= true then return tint end
+	local k = ThemeScenes.OWN_ROOM_TINT_KEEP
+	return { math.floor(255 + (tint[1] - 255) * k + 0.5), math.floor(255 + (tint[2] - 255) * k + 0.5), math.floor(255 + (tint[3] - 255) * k + 0.5) }
+end
+
+-- Whether the drawn green round card table is shown on the Counter: never on a set's own painted room (golden_gala), where the marble
+-- floor and shelves read; the classic room and every other set keep the existing rule (hidden only inside the painted classic room).
+function ThemeScenes.shopTableShown(own, hasTable, inPaintedRoom)
+	if own == true then return false end
+	return hasTable == true and inPaintedRoom ~= true
 end
 
 -- Which set a backdrop (menu, shop, map) shows: a Studio/Card Sets preview wins over the equipped skin, never saved.

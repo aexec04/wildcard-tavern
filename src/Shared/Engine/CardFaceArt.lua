@@ -31,7 +31,7 @@ end
 -- True when a set skin should show the ivory face alone: a neutral skin (Classic Tavern or any set without its
 -- own face style) and a recorded face id. Such a skin draws no SetSkinPaper, SetSkinCourt or SetSkinFrame.
 function CardFaceArt.ivoryAlone(skin, faceId)
-	return type(skin) == "table" and skin.neutral == true and type(faceId) == "string" and faceId ~= ""
+	return type(skin) == "table" and (skin.neutral == true or skin.classicFace == true) and type(faceId) == "string" and faceId ~= ""
 end
 
 -- Index layout for the ivory face drawn alone (card fractions). The picture's thin inner border sits about 5 percent in,

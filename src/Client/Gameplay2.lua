@@ -426,7 +426,7 @@ function M.install(deps)
 		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
 		if not painted.buttons then -- the painted frames (Engine/TavernStyle.PAINTED); the flat plate stays if a picture is missing
 			painted.buttons = true
-			pcall(function() Kit.painted(deps.playButton, "wh_btn_green"); Kit.painted(deps.discardButton, "wh_btn_dark") end)
+			pcall(function() Kit.paintedButton(deps.playButton, "primary"); Kit.paintedButton(deps.discardButton, "secondary") end) -- per set plates: follows the equipped or previewed Card Set (Golden Gala velvet)
 		end
 		local function flatOpaque(b) if not (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) then b.BackgroundTransparency = 0 end end
 		flatOpaque(deps.playButton); flatOpaque(deps.discardButton)
@@ -482,7 +482,7 @@ function M.install(deps)
 		end
 		do
 			-- the reference tavern paints its own four banners, so the HUD pair only hangs on scenes without them (Boss rounds)
-				local wb = ((TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) or (TableArt.table_boss_ref and scene.Image == TableArt.table_boss_ref)) and nil or Layout.banners(size.X, size.Y)
+				local wb = (scene:GetAttribute("SetArt") or (TableArt.table_play_ref and scene.Image == TableArt.table_play_ref) or (TableArt.table_boss_ref and scene.Image == TableArt.table_boss_ref)) and nil or Layout.banners(size.X, size.Y)
 			for side, img in pairs(wallBanners) do
 				local rc = wb and wb[side]
 				img.Visible = rc ~= nil and img.Image ~= ""
@@ -886,7 +886,9 @@ function M.install(deps)
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
 				self.prev = nil
+				if not lines and lastState.phase == "gameover" then pcall(function() require(script.Parent.Cue).play("round_fail_soft") end) end -- a gentle note, the Run Over plate says "Try Again"
 				if lines then
+					if not lines.night then pcall(function() require(script.Parent.Cue).play("round_clear_soft") end) end -- soft chime; a Night clear has its own sting
 					pcall(function() require(script.Parent.ShopSummaryPlate).remember(lines) end) -- stays on the Counter
 					-- one popup: an ordinary clear is the Round Complete plate (RoundRewardBanner, it takes the Score line from here); only the Night plate stays
 					pcall(function() require(script.Parent.RoundRewardBanner).rememberScore(lines.score) end)
@@ -911,6 +913,16 @@ function M.install(deps)
 		local key = sceneKey(lastState)
 		local bossRef = key == "table_boss" and TableArt.table_boss_ref or nil -- the Boss round draws the painted red-lit reference tavern; the old scene is the fallback
 		local img = bossRef or (key == "table_play" and (TableArt.table_play_ref or TableArt.table_play)) or TableArt[key] or "" -- normal rounds keep the reference tavern
+		do -- a Card Set with its own painted table (Golden Gala) swaps the scene on the live table: normal rounds use its tablePlay, Boss rounds its boss table
+			local okT, setImg = pcall(function()
+				local TS = require(Engine:WaitForChild("ThemeScenes"))
+				local skin = require(script.Parent.HudTheme).skin()
+				return TS.themeImageId(skin and skin.id, key == "table_boss" and "bossTableBackground" or "tablePlay")
+			end)
+			local own = okT and setImg ~= nil and setImg ~= (key == "table_boss" and TableArt.table_boss_ref or TableArt.table_play_ref)
+			scene:SetAttribute("SetArt", own)
+			if own then img = setImg; bossRef = nil end
+		end
 		if scene.Image ~= img then
 			scene.Image = img
 			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] bg=%s %s", key == "table_play" and "table_play_ref" or (bossRef and "table_boss_ref" or key), img)) end

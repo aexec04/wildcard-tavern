@@ -279,7 +279,8 @@ return function(deps)
 	scorePopupHandName.Font = Enum.Font.GothamBold
 	scorePopupHandName.TextSize = 20
 	scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
-	scorePopupHandName.TextStrokeTransparency = 0.5
+	scorePopupHandName.TextStrokeColor3 = Color3.fromRGB(30, 18, 8) -- dark brown outline: readable over the gold Golden Gala room
+	scorePopupHandName.TextStrokeTransparency = 0.15
 	scorePopupHandName.Text = ""
 	scorePopupHandName.ZIndex = 25
 	scorePopupHandName.Parent = handPill
@@ -932,7 +933,7 @@ return function(deps)
 		label.Font = Enum.Font.GothamBold
 		label.TextSize = 16
 		label.TextColor3 = color
-		label.TextStrokeTransparency = 0.4
+		label.TextStrokeTransparency = 0.2 -- dark outline keeps 4.5:1 against the felt and cards
 		label.Text = formatEntryText(entry)
 		label.ZIndex = 60 -- above the played cards
 		label.Parent = root
@@ -960,14 +961,14 @@ return function(deps)
 	-- "+N Tips" flash that floats up and fades near its source.
 	local function floatTipsText(fromPos, entry)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromOffset(100, 20)
+		label.Size = UDim2.fromOffset(110, 22)
 		label.AnchorPoint = Vector2.new(0.5, 0.5)
 		label.Position = fromPos
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBold
-		label.TextSize = 15
+		label.TextSize = 16 -- phone floor: no pop-up text under 16 px
 		label.TextColor3 = KIND_COLORS.tips
-		label.TextStrokeTransparency = 0.4
+		label.TextStrokeTransparency = 0.2
 		label.Text = formatEntryText(entry)
 		label.ZIndex = 60 -- above the played cards
 		label.Parent = root

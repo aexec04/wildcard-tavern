@@ -293,6 +293,10 @@ return function(deps)
 		layers = parallaxLayers,
 		onStep = function(nx, ny, t, isCalm)
 			logoLayer.base = UDim2.new(0, 0, 0, 20 + life.logoOffset(os.clock())) -- the title climbs 16 px as the menu opens
+			do -- the parallax may lift the title group, never above 12 px from the top (the lettering is clipped there)
+				local lift = Layout.keepWordmarkOnScreen(titleGroup.Position.Y.Offset, logoLayer.base.Y.Offset)
+				if lift > 0 then titleGroup.Position = titleGroup.Position + UDim2.fromOffset(0, lift) end
+			end
 			scene.update(nx, ny, t, isCalm)
 			if mapWorld.active then mapWorld.update(nx, ny, t, isCalm) end
 		end,

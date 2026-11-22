@@ -12,13 +12,13 @@
 	  PatronEvents.tavernNotes(bossRules, isFirstHand, bargainPct) -> { {kind, factor, label} ... }
 	      score changes the table makes AFTER the breakdown (Boss Round chip or mult factors, Sleepy Cook, a Dealer's
 	      Bargain); shown as grey or red pills on the tavern plate, never on a Patron.
-	  PatronEvents.gap(fast, repeats) -> seconds between beats (0.18, quicker on repeats, 0.12 at most in fast mode)
+	  PatronEvents.gap(fast, repeats) -> seconds between beats (0.24, quicker on repeats, never under 0.2)
 ]]
 
 local PatronEvents = {}
 
 local ScorePacing = require(script.Parent.ScorePacing)
-PatronEvents.GAP, PatronEvents.GAP_FAST = ScorePacing.GAP, ScorePacing.FAST_CAP -- 180 ms between beats
+PatronEvents.GAP, PatronEvents.GAP_FAST = ScorePacing.GAP, ScorePacing.FAST_CAP -- 240 ms between beats
 
 local KIND = { chips = "chips", mult = "mult", xmult = "xmult", tips = "money" }
 

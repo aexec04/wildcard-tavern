@@ -72,3 +72,17 @@ Targets for a new player: Night 1 about 80%, Night 2 about 55%, Night 3 about 35
 - Night 3 (goal 35%): random 5%, greedy 80%, decent 100%. Looks too easy for the decent bot.
 
 Bots see every card combination (better than a new player) but do not plan Patron builds (worse than a practiced one). Read the random bot as a floor and the decent bot as a practiced ceiling; a new player should land between them. Targets were not changed.
+
+## Late game: Nights 5 to 12 (Nights 9 and up are Endless)
+
+Run `lua tools/balance_late.lua 100 1` (standard difficulty and deck, endless on, 100 seeded runs per bot). It is a separate script, so regenerating the top of this report leaves it alone; paste its output here.
+
+Greedy bot (runs reaching / clearing / avg score over target): N5 82/74/180%, N6 74/59/159%, N7 59/36/139%, N8 36/22/133%, N9 22/13/125%, N10 13/4/107%, N11 4/0/104%.
+
+Decent bot: N5 99/98/179%, N6 98/91/149%, N7 91/75/136%, N8 75/51/126%, N9 51/29/121%, N10 29/14/120%, N11 14/4/113%, N12 4/1/105%.
+
+Findings, no values changed:
+- Targets rise every Night (base x2.15 per Night; Boss multiplier climbs to 2.5x at Night 8 and holds). Clear rates fall smoothly and the score margin tightens toward 100% by Night 10 to 12, which is the intended Endless wall.
+- Bosses do not repeat inside a run until the pool is used up (BossRounds.pick), so about 96% of Night 6+ bosses are a new rule for that run. 13 tier 3 rules cover Nights 6 to 12 with room to spare.
+- Both bots keep buying and winning on Patrons through Night 12, so rewards keep Patrons relevant. Nothing clearly off, so nothing tuned.
+- Pinned by test "Late game: targets rise every Night from 5 to 12...".

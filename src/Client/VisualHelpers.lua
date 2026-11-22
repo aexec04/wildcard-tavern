@@ -571,8 +571,8 @@ return function(deps)
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(0.35, 0, 1, 0)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Gotham
-		label.TextSize = 15
+		label.Font = Enum.Font.Merriweather
+		label.TextSize = 16
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(240, 230, 215)
 		label.Text = labelText
@@ -580,18 +580,18 @@ return function(deps)
 		label.Parent = row
 
 		local valueLabel = Instance.new("TextLabel")
-		valueLabel.Size = UDim2.new(0, 50, 1, 0)
-		valueLabel.Position = UDim2.new(1, -50, 0, 0)
+		valueLabel.Size = UDim2.new(0, 56, 1, 0)
+		valueLabel.Position = UDim2.new(1, -56, 0, 0)
 		valueLabel.BackgroundTransparency = 1
-		valueLabel.Font = Enum.Font.GothamBold
-		valueLabel.TextSize = 15
+		valueLabel.Font = Enum.Font.Merriweather
+		valueLabel.TextSize = 16
 		valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		valueLabel.TextXAlignment = Enum.TextXAlignment.Right
 		valueLabel.ZIndex = 21
 		valueLabel.Parent = row
 
 		local trackHolder = Instance.new("Frame")
-		trackHolder.Size = UDim2.new(0.65, -60, 1, 0)
+		trackHolder.Size = UDim2.new(0.65, -66, 1, 0)
 		trackHolder.Position = UDim2.new(0.35, 0, 0, 0)
 		trackHolder.BackgroundTransparency = 1
 		trackHolder.ZIndex = 21
@@ -658,6 +658,8 @@ return function(deps)
 		end
 
 		track.InputBegan:Connect(beginDrag)
+
+		trackHolder.InputBegan:Connect(beginDrag) -- the whole 46 px row is a touch target
 		knob.InputBegan:Connect(beginDrag)
 		do -- a 44 px touch target around the small knob (invisible, rides the knob)
 			local hit = Instance.new("Frame")

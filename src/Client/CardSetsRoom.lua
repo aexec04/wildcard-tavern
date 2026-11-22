@@ -384,6 +384,9 @@ function CardSetsRoom.new(ctx)
 		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
 			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.name, ZIndex = 47 })
 		addTip(holder, d.tip)
+		if d.owned and (entry.set or entry.back) and ctx.getState() and ctx.getState().newItems and #ctx.getState().newItems > 0 then -- "New" until hovered or clicked (Engine/NewItems)
+			require(script.Parent.NewRibbon).attach(holder, entry.set and "set" or "back", entry.key, ctx.getState(), 60)
+		end
 		holder.MouseButton1Click:Connect(function()
 			ctx.playClickSfx()
 			view.selected = entry.key
@@ -423,12 +426,19 @@ function CardSetsRoom.new(ctx)
 		local cosmetics = state and state.cosmetics or { equippedSetId = ctx.CosmeticSets.DefaultId, unlockedSetIds = { ctx.CosmeticSets.DefaultId } }
 		local list = entries()
 		local g = Layout.room(placed.areaW, placed.areaH, #list, view.page)
+		if not g.ok then return end -- a size too small for the room (the debug jump can paint before the real size is set)
 		view.page = g.page
-		local top = placed.top
-		local function down(r) return { x = r.x, y = r.y + top, w = r.w, h = r.h } end
+		local top = placed.top or Layout.TOP
+		local function down(r, name)
+			if type(r) ~= "table" or r.y == nil then
+				if RunService:IsStudio() then warn("[CardSetsRoom] part has no rect: " .. tostring(name)) end
+				return { x = 0, y = top, w = 0, h = 0 }
+			end
+			return { x = r.x, y = r.y + top, w = r.w, h = r.h }
+		end
 		local parts = {}
 		for k, v in pairs(g.parts) do
-			if k == "fan" then parts.fan = {}; for i, r in ipairs(v) do parts.fan[i] = down(r) end else parts[k] = down(v) end
+			if k == "fan" then parts.fan = {}; for i, r in ipairs(v) do parts.fan[i] = down(r, "fan" .. i) end else parts[k] = down(v, k) end
 		end
 		local cells = {}
 		for i, c in ipairs(g.cells) do cells[i] = { tile = down(c.tile), pic = down(c.pic), name = down(c.name), board = down(c.board) } end

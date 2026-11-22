@@ -73,7 +73,10 @@ CosmeticSets.Definitions = {
 		icon = "❄",
 		description = "Frost on the garden path and lanterns glowing in the snow.",
 		cardBackId = "winter_frost",
-		face = { paper = { 232, 242, 252 }, border = { 150, 195, 235 }, pip = { 60, 100, 170 } },
+		-- readable card: the painted ivory face stands alone (classicFace, same big indices as Golden Gala), deep navy ink at 7:1 on ivory
+		face = { paper = { 248, 246, 236 }, border = { 150, 195, 235 }, pip = { 18, 34, 84 } },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 140, 185, 230 },
 		backdropImage = BackgroundArt.backdrop_winter_evening or "rbxassetid://0",
 		backdropStyle = {
@@ -92,7 +95,10 @@ CosmeticSets.Definitions = {
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",
-		face = { paper = { 255, 242, 220 }, border = { 240, 160, 80 }, pip = { 200, 100, 60 }, foil = true },
+		-- same readable card as Frosted Garden: ivory face alone, warm cream paper, deep brown ink at 7:1
+		face = { paper = { 252, 242, 218 }, border = { 240, 160, 80 }, pip = { 96, 40, 20 }, foil = true },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 240, 170, 90 },
 		-- the painted play table is multiplied by `felt` (a deep midnight pine green leaning blue) and its rail lip by `wood` (a warm festival tone)
 		tableTint = { felt = { 70, 120, 120 }, wood = { 255, 205, 160 } },
@@ -114,7 +120,10 @@ CosmeticSets.Definitions = {
 		icon = "🏮",
 		description = "Dim lamps and a quiet room as the night winds down.",
 		cardBackId = "closing_lantern",
-		face = { paper = { 228, 210, 180 }, border = { 150, 105, 60 }, pip = { 110, 80, 55 } },
+		-- same readable card: ivory face alone, a lamp-lit cream paper, dark umber ink at 7:1
+		face = { paper = { 240, 228, 204 }, border = { 150, 105, 60 }, pip = { 60, 40, 28 } },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 150, 105, 60 },
 		backdropImage = BackgroundArt.backdrop_closing_time or "rbxassetid://0",
 		backdropStyle = {
@@ -143,7 +152,11 @@ CosmeticSets.Definitions = {
 				{ kind = "sparks", count = 16, speed = 0.5 },
 			},
 		},
-		face = { paper = { 252, 240, 208 }, border = { 222, 182, 104 }, pip = { 168, 122, 24 }, foil = true },
+		-- A premium classic card: the painted ivory face stands alone (classicFace), the gold shows as a thin edge and foil.
+		-- Ink is near black and deep red, at least 7:1 on the ivory paper.
+		face = { paper = { 252, 240, 208 }, border = { 222, 182, 104 }, pip = { 96, 66, 8 }, foil = true },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 222, 182, 104 },
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
 	},
@@ -368,9 +381,17 @@ end
 -- Optional painted-table tint of a set (or set id): { felt = {r,g,b}, wood = {r,g,b} } multipliers, nil keeps the table exactly as painted.
 function CosmeticSets.tableTintOf(setOrId)
 	local set = type(setOrId) == "string" and CosmeticSets.getById(setOrId) or setOrId
-	local t = type(set) == "table" and set.tableTint or nil
-	if type(t) ~= "table" or type(t.felt) ~= "table" or type(t.wood) ~= "table" then return nil end
-	return t
+	if type(set) ~= "table" or set.id == CosmeticSets.DefaultId then return nil end
+	local t = set.tableTint
+	if type(t) == "table" and type(t.felt) == "table" and type(t.wood) == "table" then return t end
+	-- no explicit tint: derive one from the set's accent so every non-default set changes the felt (calm, never below 90)
+	local a = CosmeticSets.accentOf(set)
+	if type(a) ~= "table" then return nil end
+	local function lift(c, k) return math.max(90, math.floor(255 + (c - 255) * k + 0.5)) end
+	return {
+		felt = { lift(a[1], 0.62), lift(a[2], 0.62), lift(a[3], 0.62) },
+		wood = { lift(a[1], 0.35), lift(a[2], 0.35), lift(a[3], 0.35) },
+	}
 end
 
 function CosmeticSets.getById(id)
@@ -637,6 +658,7 @@ function CosmeticSets.skinOf(set)
 		id = set and set.id,
 		images = images,
 		neutral = false,
+		classicFace = set and set.classicFace == true or nil,
 		index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) },
 		colors = {
 			paper = face.paper, border = face.border, pip = face.pip,
@@ -670,6 +692,10 @@ function CosmeticSets.contrastRatio(a, b)
 end
 
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
+function CosmeticSets.minContrastOf(set)
+	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST
+end
+
 function CosmeticSets.indexStyle(set, isRed)
 	local face = CosmeticSets.faceStyleOf(set)
 	local base = isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK
@@ -685,7 +711,7 @@ function CosmeticSets.indexStyle(set, isRed)
 	end
 	local dark = CosmeticSets.BLACK_INK
 	local steps = 0
-	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.minContrastOf(set) and steps < 10 do
 		ink = mix(ink, dark, 0.25)
 		steps = steps + 1
 	end
@@ -735,7 +761,7 @@ function CosmeticSets.cardLook(set)
 	local function inkOn(isRed)
 		local ink = mix(isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK, face.pip, isRed and 0.2 or 0.5)
 		local steps = 0
-		while CosmeticSets.contrastRatio(ink, paper) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+		while CosmeticSets.contrastRatio(ink, paper) < CosmeticSets.minContrastOf(set) and steps < 10 do
 			ink = mix(ink, CosmeticSets.BLACK_INK, 0.25)
 			steps = steps + 1
 		end

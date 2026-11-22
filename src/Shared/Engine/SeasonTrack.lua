@@ -285,6 +285,41 @@ function SeasonTrack.grantPremium(profile, seasonId, day)
 	return {}
 end
 
+-- Season panel numbers (Client/SeasonPanel.lua): 128 px tiles with 12 px gaps, so the track shows 10 full tiles.
+SeasonTrack.TILE_W, SeasonTrack.TILE_GAP, SeasonTrack.TILES_VISIBLE = 128, 12, 10
+
+-- Season panel fit for a screen (Client/SeasonPanel.lua uses it, tests check it). Claim buttons are 44 px tall.
+-- Whole tiles only: narrow screens show fewer tiles; short screens scale the panel down (never below 0.8).
+SeasonTrack.BUTTON_H = 44
+SeasonTrack.TILE_H, SeasonTrack.PREMIUM_H, SeasonTrack.PANEL_EXTRA_H = 170, 118, 194
+function SeasonTrack.fit(viewW, viewH, hasPremium)
+	local step = SeasonTrack.TILE_W + SeasonTrack.TILE_GAP
+	local availW = math.floor(viewW * 0.94) - 30
+	local tiles = math.max(3, math.min(SeasonTrack.TILES_VISIBLE, math.floor((availW + SeasonTrack.TILE_GAP) / step)))
+	local trackW = tiles * step - SeasonTrack.TILE_GAP
+	local trackH = SeasonTrack.TILE_H + (hasPremium and SeasonTrack.PREMIUM_H or 0) + 26
+	local panelW, panelH = trackW + 30, trackH + SeasonTrack.PANEL_EXTRA_H
+	local scale = math.min(1, (viewH - 24) / panelH, (viewW - 12) / panelW)
+	scale = math.max(0.8, scale)
+	return { tiles = tiles, trackW = trackW, trackH = trackH, panelW = panelW, panelH = panelH, scale = scale,
+		shownW = panelW * scale, shownH = panelH * scale }
+end
+
+-- Painted art for a Tips reward by size: small pouch (up to 3), coin purse (4 to 5), big pouch (6 to 7), chest (8 and up).
+-- Returns the ContentArt category and key (all four already exist).
+function SeasonTrack.tipsArt(amount)
+	amount = tonumber(amount) or 0
+	if amount <= 3 then return "rewards_emblems", "rewards_pouch_small" end
+	if amount <= 5 then return "hud", "coin_purse" end
+	if amount <= 7 then return "rewards_emblems", "rewards_pouch_full" end
+	return "discoveries", "chest"
+end
+
+-- The reward line under a Premium cell: shown once per run of identical rewards ("Season Stamp" only on the first of a run).
+function SeasonTrack.premiumLabelShown(prevText, text)
+	return text ~= nil and text ~= "" and text ~= prevText
+end
+
 -- Short reward text ("+3 Tips next run"). `lookup` (optional) = { cardBackName, titleName } like TavernRank.rewardText.
 function SeasonTrack.rewardText(reward, lookup)
 	if reward and reward.kind == "tips" then
@@ -376,6 +411,33 @@ function SeasonTrack.view(profile, day, lookup)
 		tiers = tiers, claimable = claimable + premiumClaimable,
 		premium = { owned = premiumOwned, itemId = season.premiumItemId, claimable = premiumClaimable, perks = SeasonTrack.premiumPerks(season) },
 	}
+end
+
+-- The first tier whose free reward is not claimed yet (nil when every tier is claimed).
+function SeasonTrack.nextTier(view)
+	for _, row in ipairs(view and view.tiers or {}) do
+		if not row.claimed then return row end
+	end
+	return nil
+end
+
+-- One short line for the footer: what the next unclaimed tier gives, plus its Premium reward when Premium is not owned and it fits.
+SeasonTrack.NEXT_LINE_MAX = 80
+function SeasonTrack.nextLine(view)
+	local row = SeasonTrack.nextTier(view)
+	if not row then return "Every tier claimed. Nice work!" end
+	local line
+	if row.reached then
+		line = "Tier " .. row.tier .. " is ready: " .. row.text .. ". Tap it to claim."
+	else
+		line = "Next reward at tier " .. row.tier .. ": " .. row.text .. "."
+	end
+	local prem = row.premium
+	if prem and prem.locked and prem.text and prem.text ~= "" then
+		local more = line .. " Premium adds " .. prem.text .. "."
+		if #more <= SeasonTrack.NEXT_LINE_MAX then line = more end
+	end
+	return line
 end
 
 -- Registry check used by the tests: dates parse, seasons do not overlap, rewards reference real content ids lookups.

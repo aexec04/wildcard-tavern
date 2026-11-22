@@ -36,6 +36,7 @@ LiveEvents.Definitions = {
 		blurb = "The Daily Challenge is dressed for harvest. Same rules, same fair board.",
 		startDate = "2026-11-16", endDate = "2026-11-22",
 		modifier = { kind = "dailyLabel", text = "Harvest Week" },
+			rewards = { { kind = "cardBack", id = "festival_ribbon" } }, -- one free cosmetic, no power
 	},
 	{
 		id = "feast_week", name = "The Founders' Feast", icon = "🍲", bannerKey = "news_feast_week",

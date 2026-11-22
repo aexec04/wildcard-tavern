@@ -12,7 +12,7 @@
 
 local M = {}
 
-M.MIN_TEXT = 14
+M.MIN_TEXT = 16
 M.DESIGN_W, M.DESIGN_H = 1280, 720
 
 -- opaque area of each picture (x0, y0, x1, y1 as fractions), measured from the generated PNGs
@@ -51,6 +51,8 @@ function M.layout(w, h, mode)
 	else
 		out.rewards = R(304, 280, 336, 230)
 		out.summary = R(660, 280, 320, 230)
+		out.invite = R(315, 550, 180, 86) -- Invite a friend, left of Continue
+		out.share = R(320, 650, 640, 44) -- plain text share line under Continue
 	end
 	return out
 end
@@ -86,6 +88,15 @@ function M.summaryRows(summary, best)
 	}
 	return rows
 end
+
+-- The plain text share line for the Victory screen (no links; ShareResult keeps the Roblox chat limit).
+function M.shareLine(summary, best)
+	local ShareResult = require(script.Parent.ShareResult)
+	local hand = best and { name = best.name, score = best.score } or nil
+	return ShareResult.line({ night = n(summary and summary.night), won = true, bestHand = hand }, nil)
+end
+
+M.INVITE_TEXT = "Invite a friend"
 
 M.NEXT_SIZE = 16
 M.NEXT_RUN = "Next: start a new run from the Menu."

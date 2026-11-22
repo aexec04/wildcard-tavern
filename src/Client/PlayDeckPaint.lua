@@ -16,6 +16,9 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 
+local HudStyle = require(Engine:WaitForChild("HudStyle"))
+local HudTheme = require(script.Parent.HudTheme)
+
 local PlayDeckPaint = {}
 
 local KEEP = { ClickCatcher = true, DeckCardBack = true, DeckCount = true, StackBackA = true, StackBackB = true, StackBackC = true, StackBackD = true, StackBackE = true, PileGlow = true }
@@ -132,16 +135,51 @@ local function paint(widget, deckRect, platesId)
 		board.Parent = count
 	end
 	local b = PlayTableLayout.PLATE_BOXES.play
-	if type(platesId) == "string" and platesId ~= "" then
-		board.Image = platesId
-		local x, y, w, h = ImageSpace.rect(b.x, b.y + math.floor(b.h * 0.3 + 0.5), b.w, math.floor(b.h * 0.7 + 0.5), PlayTableLayout.PLATES_IMG_W, PlayTableLayout.PLATES_IMG_H)
-		board.ImageRectOffset = Vector2.new(x, y)
-		board.ImageRectSize = Vector2.new(w, h)
-		board.Visible = true
-	else
-		board.Visible = false
+	-- Golden Gala: the count sits on a palace velvet plate (the Play Hand and Discard family) instead of the brown board; every
+	-- other set keeps the wooden board. Re-dressed on every skin change.
+	local function dress()
+		local velvet = HudStyle.velvetPlate(HudTheme.setId(), HudTheme.skin().colors)
+		local ring = board:FindFirstChild("VelvetEdge")
+		if velvet then
+			board.Image = ""
+			board.BackgroundColor3 = Color3.fromRGB(velvet.deck[1], velvet.deck[2], velvet.deck[3])
+			board.BackgroundTransparency = 0
+			board.Visible = true
+			if not board:FindFirstChildOfClass("UICorner") then
+				local uc = Instance.new("UICorner")
+				uc.CornerRadius = UDim.new(0, 8)
+				uc.Parent = board
+			end
+			if not ring then
+				ring = Instance.new("UIStroke")
+				ring.Name = "VelvetEdge"
+				ring.Thickness = 2
+				ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				ring.Parent = board
+			end
+			ring.Color = Color3.fromRGB(velvet.deckEdge[1], velvet.deckEdge[2], velvet.deckEdge[3])
+			ring.Enabled = true
+			count.TextColor3 = Color3.fromRGB(velvet.deckText[1], velvet.deckText[2], velvet.deckText[3])
+			return
+		end
+		board.BackgroundTransparency = 1
+		if ring then ring.Enabled = false end
+		if type(platesId) == "string" and platesId ~= "" then
+			board.Image = platesId
+			local x, y, w, h = ImageSpace.rect(b.x, b.y + math.floor(b.h * 0.3 + 0.5), b.w, math.floor(b.h * 0.7 + 0.5), PlayTableLayout.PLATES_IMG_W, PlayTableLayout.PLATES_IMG_H)
+			board.ImageRectOffset = Vector2.new(x, y)
+			board.ImageRectSize = Vector2.new(w, h)
+			board.Visible = true
+		else
+			board.Visible = false
+		end
+		count.TextColor3 = Color3.fromRGB(250, 240, 220)
 	end
-	count.TextColor3 = Color3.fromRGB(250, 240, 220)
+	dress()
+	if not board:GetAttribute("SkinHooked") then
+		board:SetAttribute("SkinHooked", true)
+		HudTheme.onSkin(function() if board.Parent then dress() end end)
+	end
 	return true
 end
 

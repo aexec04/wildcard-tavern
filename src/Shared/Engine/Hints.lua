@@ -49,7 +49,7 @@ Hints.Definitions = {
 	-- the first three rounds layer (Engine/RoundHints, Client/RoundHintsFX): shown on the table plate, never as a bubble, so no trigger here;
 	-- they live in this list only so hintsSeen stores them and Replay Hints clears them
 	{ id = "round_hint_select", icon = "🃏", target = "table", text = "Pick up to 5 cards, then Play Hand.", trigger = function() return false end },
-	{ id = "round_hint_tiers", icon = "👑", target = "table", text = "The frame shows power: wood is Common, gold is Legendary.", trigger = function() return false end },
+	{ id = "round_hint_tiers", icon = "👑", target = "table", text = "Frame colour shows rarity: wood Common, gold Legendary.", trigger = function() return false end },
 	{ id = "round_hint_target", icon = "🎯", target = "table", text = "Reach the Target score before your hands run out.", trigger = function() return false end },
 }
 

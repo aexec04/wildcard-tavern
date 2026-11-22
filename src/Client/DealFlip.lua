@@ -14,7 +14,7 @@ local CardBacks = require(Engine:WaitForChild("CardBacks"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local CardBackView = require(script.Parent.CardBackView)
 
-local FLIP_TIME = 0.12 -- seconds to close the back
+local FLIP_TIME = 0.15-- seconds to close the back
 local STAGGER = 0.04 -- extra delay per card
 local FLY_TIME = 0.24 -- the existing deal tween; the flip starts once the card has landed
 
@@ -23,6 +23,10 @@ local M = {}
 -- button: the freshly built card TextButton; order: 1-based position among dealt cards.
 function M.play(button, order, backId)
 	if ClientSettings.get("animSpeed") == "fast" then
+		return
+	end
+	if ClientSettings.get("reduceShake") == true then -- calm mode: no flip tween, just the soft deal sound
+		if (order or 1) == 1 then require(script.Parent.Cue).play("card_deal") end
 		return
 	end
 	backId = backId or CardBacks.DefaultId

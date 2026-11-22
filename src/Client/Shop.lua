@@ -1118,6 +1118,15 @@ return function(deps)
 				packReveal = require(script.Parent.PackRevealFX).attach(shopPackPanel, packItemsRow, list, pending.items, rarities, {
 					z = shopPackPanel.ZIndex + 20,
 					isPicked = function(i) return pendingPackSelected[i] == true end,
+					pickCount = pending.pickCount,
+					isOwned = function(i)
+						local id = pending.items[i].id
+						for _, o in ipairs(state.ownedPatrons or {}) do if o.id == id then return true end end
+						for _, inv in ipairs({ state.houseRecipeInventory or {}, state.menuRecipeInventory or {}, state.secretRecipeInventory or {} }) do
+							for _, rid in ipairs(inv) do if rid == id then return true end end
+						end
+						return false
+					end,
 					onPick = function(i) if packCards[i] then packCards[i].spec.onClick(packCards[i]) end end,
 				})
 			end)

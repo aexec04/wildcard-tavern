@@ -1802,6 +1802,7 @@ local function refreshScorePreview()
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
 	pcall(function() require(script.PatronRow).setPreview(preview) end) -- the Mult panel by the Patron display shows this same preview
+	pcall(function() require(script.HandReadout).set(playButton, preview and preview.name or nil, latestState and latestState.handLevels) end) -- name and base Chips x Mult above Play Hand
 	pcall(function() require(script.Gameplay2).setPreview(preview, latestState and latestState.handLevels) end) -- v2: hand name, level, chips and mult over the centre score
 	if not preview then
 		SidebarModule.scorePreviewLabel.Text = "Select cards..."
@@ -2290,7 +2291,7 @@ local function render(state)
 	-- counterparts) are shipped fresh in every serializeState() call, so
 	-- this always reflects the actual current run, including after
 	-- "New Run..." swaps a seeded run back out for a normal one.
-	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
+	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode, state.dailyModifierInfo)
 	root:SetAttribute("ToastScreen", require(ReplicatedStorage.Shared.Engine.ToastPlacement).screenOf(state)) -- toasts never cover titles
 	pcall(SettingsOverlay.setBlessing, state.runModifier) -- "This run: <blessing>" row in Settings
 	pcall(function() -- the seed / date / week also shows in Settings

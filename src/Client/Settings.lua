@@ -57,8 +57,8 @@ return function(deps)
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, settingsBackdrop)
 
 	local settingsPanel = Instance.new("Frame")
-	settingsPanel.Size = UDim2.fromScale(0.5, 0.8)
-	settingsPanel.Position = UDim2.fromScale(0.25, 0.1)
+	settingsPanel.Size = UDim2.fromScale(SettingsLayout.PANEL.fw, SettingsLayout.PANEL.fh)
+	settingsPanel.Position = UDim2.fromScale((1 - SettingsLayout.PANEL.fw) / 2, SettingsLayout.PANEL.fy)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
@@ -73,7 +73,7 @@ return function(deps)
 	local settingsTitle = Instance.new("TextLabel")
 	settingsTitle.Size = UDim2.new(1, 0, 0, 40)
 	settingsTitle.BackgroundTransparency = 1
-	settingsTitle.Font = Enum.Font.GothamBold
+	settingsTitle.Font = Enum.Font.Merriweather
 	settingsTitle.TextSize = 22
 	settingsTitle.TextColor3 = TEXT
 	settingsTitle.Text = "Settings"
@@ -91,7 +91,7 @@ return function(deps)
 	runLabel.Size = UDim2.new(1, -40, 0, 22)
 	runLabel.Position = UDim2.new(0, 20, 0, 40)
 	runLabel.BackgroundTransparency = 1
-	runLabel.Font = Enum.Font.GothamBold
+	runLabel.Font = Enum.Font.Merriweather
 	runLabel.TextSize = 16
 	runLabel.TextColor3 = HEADER
 	runLabel.Visible = false
@@ -99,8 +99,8 @@ return function(deps)
 	runLabel.Parent = settingsPanel
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -40, 1, -110)
-	scroll.Position = UDim2.new(0, 20, 0, 48)
+	scroll.Size = UDim2.new(1, -40, 1, -(SettingsLayout.PANEL.top + SettingsLayout.PANEL.bottomReserve))
+	scroll.Position = UDim2.new(0, 20, 0, SettingsLayout.PANEL.top)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
@@ -126,7 +126,7 @@ return function(deps)
 		label.Size = UDim2.new(1, 0, 0, 30)
 		label.LayoutOrder = order()
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
+		label.Font = Enum.Font.Merriweather
 		label.TextSize = 18
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextYAlignment = Enum.TextYAlignment.Bottom
@@ -138,6 +138,37 @@ return function(deps)
 
 	-- One row: label + description on the left, a value button on the
 	-- right. `choices` is a list of { value, text }; clicking cycles them.
+	local function backPlate(button)
+		local B = SettingsLayout.BACKING
+		local back = Instance.new("Frame")
+		back.Name = "PlateBacking"
+		back.BackgroundColor3 = Color3.fromRGB(B.fill[1], B.fill[2], B.fill[3])
+		back.BackgroundTransparency = B.transparency
+		back.BorderSizePixel = 0
+		back.Active = false
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, B.corner)
+		corner.Parent = back
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(B.edge[1], B.edge[2], B.edge[3])
+		stroke.Thickness = B.edgePx
+		stroke.Parent = back
+		local function fit()
+			back.AnchorPoint = button.AnchorPoint
+			back.Position = button.Position
+			back.Size = button.Size
+			back.Visible = button.Visible
+			back.ZIndex = math.max(0, button.ZIndex - 3) -- under the picture (ZIndex - 1) and the button
+		end
+		fit()
+		for _, prop in ipairs({ "Position", "Size", "AnchorPoint", "Visible", "ZIndex" }) do
+			button:GetPropertyChangedSignal(prop):Connect(fit)
+		end
+		back.Parent = button.Parent
+		button.Destroying:Connect(function() back:Destroy() end)
+		return back
+	end
+
 	local function makeChoiceRow(key, labelText, description, choices, custom)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 62) -- 14px description may wrap to 2 lines
@@ -149,7 +180,7 @@ return function(deps)
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -130, 0, 22)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
+		label.Font = Enum.Font.Merriweather
 		label.TextSize = 15
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = TEXT
@@ -162,7 +193,7 @@ return function(deps)
 		desc.TextYAlignment = Enum.TextYAlignment.Top
 		desc.Position = UDim2.new(0, 0, 0, 22)
 		desc.BackgroundTransparency = 1
-		desc.Font = Enum.Font.Gotham
+		desc.Font = Enum.Font.Merriweather
 		desc.TextSize = 14
 		desc.TextWrapped = true
 		desc.TextXAlignment = Enum.TextXAlignment.Left
@@ -176,13 +207,15 @@ return function(deps)
 		button.Size = isSwitch and UDim2.new(0, SW.w, 0, SW.h) or UDim2.new(0, 110, 0, 44)
 		button.AnchorPoint = Vector2.new(1, 0.5)
 		button.Position = UDim2.new(1, -16, 0.5, 0)
-		button.Font = Enum.Font.GothamBold
+		button.Font = Enum.Font.Merriweather
 		button.TextSize = 16
 		button.TextColor3 = TEXT
-		button.ZIndex = 21
+		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
 		button.Parent = row
 		polishButton(button, 8)
 		addButtonHoverScale(button)
+		if not isSwitch then button:SetAttribute("FlatFace", true) end -- no set plate on top (Hold to Confirm showed two gold corners): the brass plate fills
+		if not isSwitch then pcall(backPlate, button); pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE) end -- the same whole-picture brass plate as the Account buttons; the word shows the value
 
 		local function getVal()
 			if custom then return custom.get() end
@@ -263,7 +296,7 @@ return function(deps)
 		local t = Instance.new("TextLabel")
 		t.Size = UDim2.new(1, -130, 0, 22)
 		t.BackgroundTransparency = 1
-		t.Font = Enum.Font.GothamBold
+		t.Font = Enum.Font.Merriweather
 		t.TextSize = 16
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.TextColor3 = TEXT
@@ -274,7 +307,7 @@ return function(deps)
 		b.Size = UDim2.new(1, -130, 0, 36)
 		b.Position = UDim2.new(0, 0, 0, 22)
 		b.BackgroundTransparency = 1
-		b.Font = Enum.Font.Gotham
+		b.Font = Enum.Font.Merriweather
 		b.TextSize = 14
 		b.TextWrapped = true
 		b.TextXAlignment = Enum.TextXAlignment.Left
@@ -288,7 +321,7 @@ return function(deps)
 		go.Size = UDim2.new(0, 110, 0, 44)
 		go.AnchorPoint = Vector2.new(1, 0.5)
 		go.Position = UDim2.new(1, -4, 0.5, 0)
-		go.Font = Enum.Font.GothamBold
+		go.Font = Enum.Font.Merriweather
 		go.TextSize = 16
 		go.TextColor3 = TEXT
 		go.BackgroundColor3 = BUTTON
@@ -319,7 +352,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, -130, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -330,7 +363,7 @@ return function(deps)
 		blurb.Size = UDim2.new(1, -130, 0, 36)
 		blurb.Position = UDim2.new(0, 0, 0, 22)
 		blurb.BackgroundTransparency = 1
-		blurb.Font = Enum.Font.Gotham
+		blurb.Font = Enum.Font.Merriweather
 		blurb.TextSize = 14
 		blurb.TextWrapped = true
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
@@ -344,7 +377,7 @@ return function(deps)
 		go.Size = UDim2.new(0, 110, 0, 44)
 		go.AnchorPoint = Vector2.new(1, 0.5)
 		go.Position = UDim2.new(1, -4, 0.5, 0)
-		go.Font = Enum.Font.GothamBold
+		go.Font = Enum.Font.Merriweather
 		go.TextSize = 14
 		go.TextColor3 = TEXT
 		go.BackgroundColor3 = BUTTON
@@ -371,7 +404,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, -130, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -382,7 +415,7 @@ return function(deps)
 		blurb.Size = UDim2.new(1, -130, 0, 36)
 		blurb.Position = UDim2.new(0, 0, 0, 22)
 		blurb.BackgroundTransparency = 1
-		blurb.Font = Enum.Font.Gotham
+		blurb.Font = Enum.Font.Merriweather
 		blurb.TextSize = 14
 		blurb.TextWrapped = true
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
@@ -395,7 +428,7 @@ return function(deps)
 		replay.Size = UDim2.new(0, SettingsLayout.PANEL.replayW, 0, SettingsLayout.PANEL.replayH)
 		replay.AnchorPoint = Vector2.new(1, 0.5)
 		replay.Position = UDim2.new(1, -4, 0.5, 0)
-		replay.Font = Enum.Font.GothamBold
+		replay.Font = Enum.Font.Merriweather
 		replay.TextSize = 14
 		replay.TextColor3 = TEXT
 		replay.BackgroundColor3 = BUTTON
@@ -433,7 +466,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, 0, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -444,7 +477,7 @@ return function(deps)
 		box.Name = "CodeBox"
 		box.Size = UDim2.new(1, -130, 0, 44)
 		box.Position = UDim2.new(0, 0, 0, 26)
-		box.Font = Enum.Font.GothamBold
+		box.Font = Enum.Font.Merriweather
 		box.TextSize = 16
 		box.TextColor3 = TEXT
 		box.PlaceholderText = "Type a code"
@@ -460,7 +493,7 @@ return function(deps)
 		redeem.Size = UDim2.new(0, 120, 0, 44)
 		redeem.AnchorPoint = Vector2.new(1, 0)
 		redeem.Position = UDim2.new(1, -4, 0, 26)
-		redeem.Font = Enum.Font.GothamBold
+		redeem.Font = Enum.Font.Merriweather
 		redeem.TextSize = 15
 		redeem.TextColor3 = TEXT
 		redeem.BackgroundColor3 = BUTTON
@@ -514,8 +547,8 @@ return function(deps)
 		hint.Size = UDim2.new(1, -16, 0, 96)
 		hint.LayoutOrder = order()
 		hint.BackgroundTransparency = 1
-		hint.Font = Enum.Font.Gotham
-		hint.TextSize = 14
+		hint.Font = Enum.Font.Merriweather
+		hint.TextSize = 15
 		hint.TextWrapped = true
 		hint.TextXAlignment = Enum.TextXAlignment.Left
 		hint.TextYAlignment = Enum.TextYAlignment.Top
@@ -529,66 +562,57 @@ return function(deps)
 
 	-- ===== Account =====
 	makeHeader("Account")
-	local accountRow = Instance.new("Frame")
-	accountRow.Size = UDim2.new(1, 0, 0, 44)
-	accountRow.LayoutOrder = order()
-	accountRow.BackgroundTransparency = 1
-	accountRow.ZIndex = 21
-	accountRow.Parent = scroll
+	local ACC = SettingsLayout.ACCOUNT
+	local function makeAccountRow()
+		local rowFrame = Instance.new("Frame")
+		rowFrame.Size = UDim2.new(1, 0, 0, ACC.plateH)
+		rowFrame.LayoutOrder = order()
+		rowFrame.BackgroundTransparency = 1
+		rowFrame.ZIndex = 21
+		rowFrame.Parent = scroll
+		-- No list layout here on purpose:TavernKit.painted parents each plate picture as a SIBLING of the button, and a list layout
+		-- would give every picture its own slot and push the buttons one panel width to the right (live, Nov 22). Plates are placed by Position.
+		return rowFrame
+	end
+	local accountRow = makeAccountRow()
+	local accountRow2 = makeAccountRow()
 
-	local accountLayout = Instance.new("UIListLayout")
-	accountLayout.FillDirection = Enum.FillDirection.Horizontal
-	accountLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	accountLayout.Padding = UDim.new(0, 10)
-	accountLayout.Parent = accountRow
-
-	local function makeAccountButton(text, layoutOrder, iconImage)
+	local function makeAccountButton(text, layoutOrder, iconName, parentRow, perRow)
+		perRow = perRow or ACC.perRow
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1 / 3, -7, 0, SettingsLayout.PAUSE.plateH)
+		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
+		button.Position = UDim2.new((layoutOrder - 1) / perRow, (layoutOrder - 1) * ACC.gap / perRow, 0, 0) -- slot i: i * (width + gap)
 		button.TextWrapped = true
 		button.LayoutOrder = layoutOrder
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = 15
+		button.Font = Enum.Font.Merriweather
+		button.TextSize = ACC.textSize
 		button.Text = text
 		button.BackgroundColor3 = BUTTON
 		button.TextColor3 = TEXT
-		button.ZIndex = 21
-		button.Parent = accountRow
+		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
+		button.Parent = parentRow or accountRow
 		polishButton(button, 12)
 		addButtonHoverScale(button)
-		require(script.Parent.ConceptTSkin).plateButton(button)
-		-- Icon badge on the left edge, parented to the button.
-		if iconImage and iconImage ~= "rbxassetid://0" then
-			local icon = Instance.new("ImageLabel")
-			icon.Size = UDim2.new(0, 22, 0, 22)
-			icon.AnchorPoint = Vector2.new(0, 0.5)
-			icon.Position = UDim2.new(0, 10, 0.5, 0)
-			icon.BackgroundTransparency = 1
-			icon.Image = iconImage
-			icon.ScaleType = Enum.ScaleType.Crop
-			icon.ZIndex = 22
-			icon.Parent = button
-			roundCorner(icon, 11)
-		end
+		-- The one shared ornate dark plate (same as the gear menu and All actions) with its own painted icon; every Account
+		-- button gets exactly one plate and one icon, a flat brown look stays if the art does not load.
+		local Kit = require(script.Parent.TavernKit)
+		button:SetAttribute("AccountButton", true)
+		button:SetAttribute("FlatFace", true) -- SetSkin draws no set plate over it: the brass kit plate always shows, whatever Card Set is equipped
+		pcall(backPlate, button)
+		pcall(Kit.painted, button, SettingsLayout.PLATE)
+		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
 		return button
 	end
 
-	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, ArtAssetsModule.cornerIconHowToPlay)
-	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
-	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, nil)
+	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, "bulb")
+	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, "bars")
+	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, "pause")
 	settingsMainMenuButton.Name = "MainMenu"
-	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own full-width row under the three buttons.
-	local settingsDailyButton = makeAccountButton("Daily Rewards", 4, nil)
-	settingsDailyButton.Parent = scroll
-	settingsDailyButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
-	settingsDailyButton.LayoutOrder = order()
-
+	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
+	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, "crown", accountRow2, ACC.secondRow)
 	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
-	local settingsMapButton = makeAccountButton("Tavern Map", 5, nil)
+	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
 	settingsMapButton.Name = "TavernMap"
-	settingsMapButton.Parent = scroll
-	settingsMapButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
-	settingsMapButton.LayoutOrder = order()
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
@@ -598,10 +622,29 @@ return function(deps)
 		parent = scroll, layoutOrder = order(),
 	})
 
+	-- ===== About: game name with version and a one line thanks (Engine/GameName), no links =====
+	makeHeader("About")
+	for i, line in ipairs(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName")).aboutLines()) do
+		local about = Instance.new("TextLabel")
+		about.Name = "AboutLine" .. i
+		about.Size = UDim2.new(1, 0, 0, i == 1 and 26 or 44)
+		about.LayoutOrder = order()
+		about.BackgroundTransparency = 1
+		about.Font = Enum.Font.Merriweather
+		about.TextSize = 16
+		about.TextWrapped = true
+		about.TextXAlignment = Enum.TextXAlignment.Left
+		about.TextYAlignment = Enum.TextYAlignment.Top
+		about.TextColor3 = TEXT
+		about.Text = line
+		about.ZIndex = 21
+		about.Parent = scroll
+	end
+
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, SettingsLayout.CLOSE.w, 0, SettingsLayout.CLOSE.h)
 	settingsCloseButton.Position = UDim2.new(0.5, -SettingsLayout.CLOSE.w / 2, 1, -(SettingsLayout.CLOSE.h + 8))
-	settingsCloseButton.Font = Enum.Font.GothamBold
+	settingsCloseButton.Font = Enum.Font.Merriweather
 	settingsCloseButton.TextSize = 16
 	settingsCloseButton.Name = "Close" -- code and skins find this button by name; the word is Resume
 	settingsCloseButton.Text = SettingsLayout.PAUSE.resumeText
@@ -639,6 +682,28 @@ return function(deps)
 			OverlayManager.open("journey")
 		end)
 	end)
+
+	-- Exactly one Tavern Map plate: a stray duplicate (an older merged copy named TavernMap) is removed, and Studio prints each Account rect.
+	for _, d in ipairs(scroll:GetDescendants()) do
+		if d:IsA("TextButton") and d ~= settingsMapButton and (d.Name == "TavernMap" or d.Text == "Tavern Map") then
+			d:Destroy()
+		end
+	end
+	if game:GetService("RunService"):IsStudio() then
+		task.defer(function()
+			task.wait(1)
+			for _, b in ipairs(scroll:GetDescendants()) do
+				if b:IsA("TextButton") and b:GetAttribute("AccountButton") then
+					local rel = b.AbsolutePosition - scroll.AbsolutePosition
+					warn(string.format("[SettingsAccount] %s x=%d y=%d w=%d h=%d (scroll %dx%d)", b.Text, rel.X, rel.Y, b.AbsoluteSize.X, b.AbsoluteSize.Y, scroll.AbsoluteSize.X, scroll.AbsoluteSize.Y))
+					-- runtime check on the REAL built plates: x must sit inside the scroll width (a plate one panel width to the right was the Nov 22 bug)
+					if rel.X < -1 or rel.X + b.AbsoluteSize.X > scroll.AbsoluteSize.X + 1 or b.AbsoluteSize.Y < 44 then
+						warn("[SettingsAccount] OUTSIDE the scroll: " .. b:GetFullName())
+					end
+				end
+			end
+		end)
+	end
 
 	for _, button in ipairs({ settingsHowToPlayButton, settingsLeaderboardButton }) do
 		button.MouseButton1Click:Connect(function()
@@ -687,7 +752,7 @@ return function(deps)
 	blessingRow.Size = UDim2.new(1, 0, 0, 62)
 	blessingRow.LayoutOrder = 0
 	blessingRow.BackgroundTransparency = 1
-	blessingRow.Font = Enum.Font.GothamMedium
+	blessingRow.Font = Enum.Font.Merriweather
 	blessingRow.TextSize = 14
 	blessingRow.RichText = true
 	blessingRow.TextWrapped = true

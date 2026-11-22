@@ -28,6 +28,14 @@ MenuLayout.Parallax = {
 	backdropScale = 1.08, -- backdrop is drawn this much larger so edges never show
 }
 
+-- The painted wordmark's glyph starts 8 px under the title label (GLYPH_TOP 12, label TOP 4). The parallax can lift the
+-- title group by up to 28 px, so the glyph top is kept at 12 px or lower; returns the downward shift (px, 0 or more).
+MenuLayout.WORDMARK = { minGlyphTop = 12, glyphDrop = 8 }
+function MenuLayout.keepWordmarkOnScreen(groupDy, titleTop)
+	local glyphTop = (tonumber(groupDy) or 0) + (tonumber(titleTop) or 4) + MenuLayout.WORDMARK.glyphDrop
+	return math.max(0, MenuLayout.WORDMARK.minGlyphTop - glyphTop)
+end
+MenuLayout.LIST_END_PAD = 40 -- one plate (a 40 px row) of padding under the last row of the All actions list
 MenuLayout.PHONE_WIDTH = 700 -- narrower than this: no scene, just the action list
 MenuLayout.MAX_ANIMATED = 16 -- cap on animated foreground objects
 
@@ -206,6 +214,21 @@ function MenuLayout.plateRect(hotspot, screenW, screenH)
 	local l, _, r, b = MenuLayout.rect(hotspot, screenW, screenH)
 	local cx, half = (l + r) / 2, (r - l) / 2 * MenuLayout.PLATE_W
 	return cx - half, b + 2, cx + half, b + 2 + MenuLayout.PLATE_H * screenH
+end
+
+-- The open All actions list (not phones): its right edge is 16 px from the screen edge, its bottom 62 px above the bottom, at
+-- most 0.7 of the height, and it never starts above `boardBottom + gap` so it cannot cover the Rank and Next goal notes on the
+-- Notice Board. Returns left, top, right, bottom (px). `boardBottom` = bottom of the board rectangle, nil on the old layout.
+MenuLayout.LIST = { width = 252, right = 16, bottom = 62, maxFrac = 0.7, gap = 10, minHeight = 120 }
+function MenuLayout.listRect(screenW, screenH, boardBottom)
+	local L = MenuLayout.LIST
+	local bottom = screenH - L.bottom
+	local height = math.min(L.maxFrac * screenH, bottom - 8)
+	if boardBottom then
+		height = math.min(height, bottom - (boardBottom + L.gap))
+	end
+	height = math.max(L.minHeight, height)
+	return screenW - L.right - L.width, bottom - height, screenW - L.right, bottom
 end
 
 -- Pixel rectangle of the Notice Board.

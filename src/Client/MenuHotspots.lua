@@ -362,7 +362,8 @@ function Hotspots.build(opts)
 		ls.Thickness = 2
 		ls.Parent = list
 		local pad = Instance.new("UIPadding")
-		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 8), UDim.new(0, 8)
+		-- one plate of empty room under the last row, so the list has a visible end and no half plate sits at the edge
+		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 8), UDim.new(0, 8 + Layout.LIST_END_PAD)
 		pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 8), UDim.new(0, 8)
 		pad.Parent = list
 		local ll = Instance.new("UIListLayout")
@@ -939,9 +940,24 @@ function Hotspots.build(opts)
 		end
 	end
 
+	-- The open All actions list starts under the Notice Board so the Rank and Next goal notes are never half covered.
+	function result.sizeList(w, h)
+		if Layout.isPhone(w) then return end
+		local boardBottom
+		if Layout.room and Layout.noticeSpot then
+			local _, _, _, b = Layout.rect(Layout.noticeSpot, w, h)
+			boardBottom = b
+		end
+		local l, t, r, b = Layout.listRect(w, h, boardBottom)
+		list.AnchorPoint = Vector2.new(1, 1)
+		list.Position = UDim2.fromOffset(r, b)
+		list.Size = UDim2.fromOffset(r - l, b - t)
+	end
+
 	function result.applyViewport(w, h)
 		state.w, state.h = w, h
 		if Layout.room then placeRoom(w, h) end
+		result.sizeList(w, h)
 		for _, sc in pairs(scrolls) do positionScroll(sc) end
 		local phone = Layout.isPhone(w)
 		if phone == state.phone and result._applied then return end
@@ -961,8 +977,7 @@ function Hotspots.build(opts)
 			if buttons.play then buttons.play.LayoutOrder = 0 end
 		else
 			list.AnchorPoint = Vector2.new(1, 1)
-			list.Position = UDim2.new(1, -16, 1, -62)
-			list.Size = UDim2.new(0, 252, 0.7, 0)
+			result.sizeList(w, h)
 			list.Visible = false
 			state.listOpen = false
 			dockAll()

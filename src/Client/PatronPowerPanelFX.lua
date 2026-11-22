@@ -53,8 +53,9 @@ local function build(layer)
 	title = label("Title", Rules.TITLE_SIZE, Color3.fromRGB(TC[1], TC[2], TC[3]), Enum.Font.Merriweather)
 	body = label("Body", Rules.BODY_SIZE, Color3.fromRGB(235, 218, 180), Enum.Font.Gotham)
 	title.Text, body.Text = Rules.TITLE, Rules.BODY
-	title.Position = UDim2.new(0.31, 0, 0, 8); title.Size = UDim2.new(0.64, 0, 0, 28)
-	body.Position = UDim2.new(0.31, 0, 0, 38); body.Size = UDim2.new(0.64, 0, 1, -42)
+	-- the 44 px close X sits in the top right corner (inset 8): both text blocks stop short of it, never under it
+	title.Position = UDim2.new(0.31, 0, 0, 8); title.Size = UDim2.new(0.64, -Rules.X_CLEAR, 0, 28)
+	body.Position = UDim2.new(0.31, 0, 0, Rules.BODY_TOP); body.Size = UDim2.new(0.64, -8, 1, -(Rules.BODY_TOP + Rules.BODY_PAD))
 	-- the panel stays for the whole round: a tap or the strip Got it never closes it (it only waits while the round hint holds its spot)
 	tap = Instance.new("TextButton")
 	tap.Name = "PatronPowerTap"

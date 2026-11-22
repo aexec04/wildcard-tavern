@@ -22,6 +22,17 @@ M.TOMORROW_H = 44 -- the tomorrow line is a 44 px press target that opens the Da
 M.TOMORROW_MAX = 40
 M.ORDER = 1
 
+-- The note's line with today's twist (Engine/DailyModifiers): "Today: Golden Start. Start the run with 8 extra Tips."
+-- Falls back to the plain line when the date key is not usable.
+function M.lineFor(dateKey)
+	local ok, DailyModifiers = pcall(require, script.Parent.DailyModifiers)
+	if not ok or not DailyModifiers.dayNumber(dateKey) then
+		return M.LINE
+	end
+	local def = DailyModifiers.forDate(dateKey)
+	return "Today: " .. def.name .. ". " .. def.text
+end
+
 -- Tomorrow's slot on the 7 day ladder (the ladder loops, so after slot 7 comes slot 1). nil until the player has a streak.
 function M.tomorrowLine(login)
 	if type(login) ~= "table" or type(login.rewards) ~= "table" or #login.rewards == 0 then return nil end

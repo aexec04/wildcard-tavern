@@ -3,6 +3,8 @@
 	Studio-only jump hook. Set a StringValue named DebugGoto under the LocalPlayer (or the attribute DebugGoto)
 	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1, round1:<cardSetId>, round1:mod=<blessingId>[,tag=<tagId>]
 	(the last starts round 1 with that Card Set previewed, e.g. round1:winter_evening).
+	Every value below and above may end in :<cardSetId> (haggle:winter_evening, boss1:dune_market, menu:meadow_picnic, map:harbor_lights):
+	that set is previewed over the equipped one through the Card Sets Preview path, and "[DebugGoto] screen set=<id> (<screen>)" is printed.
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
 	player, so it only warns. scale:<w>x<h> shrinks GameUI to that viewport, scale:off restores it. Parsing is in Engine/DebugGotoRules.lua.
@@ -388,6 +390,15 @@ function DebugGoto.init(deps)
 			else
 				error(target.kind .. " is not reachable from script (needs a second player)")
 			end
+			-- menu:<setId>, map:<setId>, tome:<page>:<setId>, news:<setId>: preview that set over whatever is equipped
+			if target.setId and (target.kind == "menu" or target.kind == "tome" or target.kind == "map" or target.kind == "news") then
+				local set = require(ReplicatedStorage.Shared.Engine.CosmeticSets).getById(target.setId)
+				if not set then error("unknown card set " .. target.setId) end
+				local View = require(script.Parent.CosmeticSetsView)
+				pcall(View.stopPreview)
+				View.preview(set.id, set.cardBackId)
+				print("[DebugGoto] screen set=" .. set.id .. " (" .. target.kind .. ")")
+			end
 		end)
 		if ok and target.kind == "synth" then
 			-- "<name> ok" is printed once the screen is up
@@ -414,6 +425,13 @@ function DebugGoto.init(deps)
 			if synthWhich then
 				local which, variant, page = synthWhich, synthVariant, synthPage
 				synthWhich, synthVariant, synthPage = nil, nil, nil
+				-- the set preview first, so the room, keeper, plates and boss table are built for it (it used to be dropped on synth screens)
+				if previewSet then
+					local set = previewSet
+					previewSet = nil
+					local okP, errP = pcall(function() require(script.Parent.CosmeticSetsView).preview(set.id, set.cardBackId) end)
+					print("[DebugGoto] screen set=" .. set.id .. " (" .. which .. ")" .. (okP and "" or (" preview failed: " .. tostring(errP))))
+				end
 				local okS, errS = pcall(showSynth, which, variant, page)
 				if not okS then warn("[DebugGoto] " .. which .. " failed: " .. tostring(errS)) end
 				return
@@ -447,7 +465,7 @@ function DebugGoto.init(deps)
 				previewSet = nil
 				-- same call the Card Sets Preview button makes; PlayScenePaint then prints [PlayTableSet] <set> front=<painted|default>
 				local okP, errP = pcall(function() require(script.Parent.CosmeticSetsView).preview(set.id, set.cardBackId) end)
-				print("[DebugGoto] round1 preview " .. set.id .. (okP and " ok" or (" failed: " .. tostring(errP))))
+				print("[DebugGoto] screen set=" .. set.id .. " (round1)" .. (okP and "" or (" preview failed: " .. tostring(errP))))
 			end
 			return
 		end

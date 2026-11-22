@@ -14,6 +14,7 @@
 local CollectionBook = require(script.Parent.CollectionBook)
 local CosmeticSets = require(script.Parent.CosmeticSets)
 local Badges = require(script.Parent.Badges)
+local Flair = require(script.Parent.Flair)
 local TavernRank = require(script.Parent.TavernRank)
 
 local CollectionRewards = {}
@@ -28,6 +29,7 @@ CollectionRewards.Groups = {
 	{ id = "sets", name = "Card Sets", icon = "🎴" },
 	{ id = "titles", name = "Titles", icon = "🏷️", tab = "titles" },
 	{ id = "badges", name = "Badges", icon = "🏅" },
+	{ id = "flair", name = "Flair", icon = "✨" },
 }
 
 -- EDIT ME. kind: tips (next run) | cardBack (CardBacks id) | title (an Achievements id with milestoneReward = true).
@@ -37,6 +39,8 @@ CollectionRewards.Rewards = {
 	bosses = { [25] = { kind = "tips", amount = 2 }, [50] = { kind = "tips", amount = 3 }, [75] = { kind = "cardBack", id = "winter_frost" }, [100] = { kind = "title", id = "book_bosses" } },
 	sets = { [25] = { kind = "tips", amount = 2 }, [50] = { kind = "tips", amount = 3 }, [75] = { kind = "cardBack", id = "dune_gold" }, [100] = { kind = "title", id = "book_sets" } },
 	titles = { [25] = { kind = "tips", amount = 2 }, [50] = { kind = "tips", amount = 3 }, [75] = { kind = "cardBack", id = "lilypad_green" }, [100] = { kind = "title", id = "book_titles" } },
+	-- Flair has no Achievements title, so every step pays Tips only.
+	flair = { [25] = { kind = "tips", amount = 2 }, [50] = { kind = "tips", amount = 3 }, [75] = { kind = "tips", amount = 4 }, [100] = { kind = "tips", amount = 5 } },
 	badges = { [25] = { kind = "tips", amount = 2 }, [50] = { kind = "tips", amount = 3 }, [75] = { kind = "cardBack", id = "shell_pearl" }, [100] = { kind = "title", id = "book_badges" } },
 }
 
@@ -62,6 +66,16 @@ function CollectionRewards.progress(profile)
 			found, total = t.found, t.total
 		elseif g.id == "sets" then
 			found, total = countIn(profile.ownedSetIds, CosmeticSets.Definitions), #CosmeticSets.Definitions
+		elseif g.id == "flair" then
+			found, total = 0, 0
+			for _, slot in ipairs(Flair.Slots) do
+				for _, option in ipairs(Flair.optionsFor(slot.id)) do
+					if not option.default then
+						total = total + 1
+						if Flair.isOwned(profile, option.id) then found = found + 1 end
+					end
+				end
+			end
 		else
 			found, total = countIn(profile.badgeIds, Badges.Definitions), #Badges.Definitions
 		end

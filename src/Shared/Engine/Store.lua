@@ -41,7 +41,7 @@ Store.Items = {
 	},
 	{
 		id = "vip", category = "cosmetic", kind = "pass", passId = "vip", icon = "⭐", name = "VIP",
-		description = "A little sparkle for regulars. Looks and a second badge slot, no power.",
+		description = "A little sparkle for regulars. A second badge slot, no power.",
 		perks = { "Gold star beside your name", "A second badge slot" },
 	},
 	{

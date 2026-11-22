@@ -170,7 +170,32 @@ function DebugGotoRules.isFullScreenSize(xs, xo, ys, yo)
 	return xs >= 0.95 and ys >= 0.95 and math.abs(xo) <= 64 and math.abs(yo) <= 64
 end
 
+-- Any jump may end in :<cardSetId> (haggle:winter_evening, haggle:good:golden_gala, boss1:dune_market, menu:meadow_picnic, map:harbor_lights ...).
+-- The suffix is split off first, the rest parses as before, and the target gets setId so the client previews that set for the room, shop,
+-- keeper, plates, menu and boss table through the Card Sets Preview path. The id must be a real Card Set (checked here, not in the client).
+function DebugGotoRules.splitSet(value)
+	if type(value) ~= "string" then return value, nil end
+	local text = value:lower():gsub("%s+", "")
+	local head, tail = text:match("^(.+):([a-z0-9_]+)$")
+	if head and tail then
+		local okC, CS = pcall(require, script.Parent.CosmeticSets)
+		if okC and type(CS) == "table" and CS.getById and CS.getById(tail) then return head, tail end
+	end
+	return value, nil
+end
+
 function DebugGotoRules.parse(value)
+	local head, setId = DebugGotoRules.splitSet(value)
+	if setId then
+		local target, why = DebugGotoRules.parseCore(head)
+		if not target then return nil, why end
+		target.setId = setId
+		return target
+	end
+	return DebugGotoRules.parseCore(value)
+end
+
+function DebugGotoRules.parseCore(value)
 	if type(value) ~= "string" or value == "" then
 		return nil, "empty value"
 	end

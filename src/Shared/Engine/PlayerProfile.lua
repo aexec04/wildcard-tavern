@@ -151,6 +151,7 @@ PlayerProfile.ID_SET_FIELDS = {
 	"rewardTitleIds",
 	"unlockedCardBackIds",
 	"seasonRewardIds", -- [Seasons id] = true, seasonal rewards already earned (Engine/Seasons.lua)
+	"seenNewIds", -- ["kind:id"] = true, unlocks the player has looked at (Engine/NewItems.lua, "New" ribbons)
 }
 
 -- Which saved set each Collection tab's discoveries go into.
@@ -187,6 +188,7 @@ function PlayerProfile.new()
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
 		seasonRewardIds = {}, -- [Seasons id] = true
+		seenNewIds = {}, -- ["kind:id"] = true: unlocks already looked at, so no New ribbon (Engine/NewItems.lua)
 		seasonId = nil, -- Tavern Season track (Engine/SeasonTrack.lua): the season the next two fields belong to
 		seasonXp = 0,
 		seasonClaimed = {}, -- [tier] = true
@@ -550,6 +552,9 @@ function PlayerProfile.migrate(raw)
 	end
 
 	JourneyMap.regrantRewards(profile)
+	if raw.seenNewIds == nil then
+		require(script.Parent.NewItems).seed(profile) -- an older save: what it already owns is not New
+	end
 	return profile
 end
 

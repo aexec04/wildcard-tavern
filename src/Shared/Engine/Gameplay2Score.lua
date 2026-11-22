@@ -14,7 +14,7 @@
 
 local M = {}
 
-M.TABLE = { stepDur = 0.07, maxSteps = 12, slamFrom = 1.0, slamPeak = 1.25, slamUp = 0.12, slamSettle = 0.18, burst = 10, hold = 1.0 }
+M.TABLE = { stepDur = 0.07, maxSteps = 12, slamFrom = 1.0, slamPeak = 1.25, slamUp = 0.15, slamSettle = 0.2, burst = 10, hold = 1.0 }
 
 function M.pitch(i, n)
 	if (n or 1) <= 1 then return 1.0 end

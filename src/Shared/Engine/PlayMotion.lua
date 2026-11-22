@@ -41,7 +41,7 @@ function PlayMotion.dealTiming(order, count)
 	local k = count > 1 and (order - 1) / (count - 1) or 0
 	local delay = (order - 1) * 0.06
 	local dur = 0.25 + 0.10 * PlayMotion.clamp(k, 0, 1)
-	return delay, math.max(0.12, math.min(dur, 0.6 - delay))
+	return delay, math.max(0.15, math.min(dur, 0.6 - delay))
 end
 
 -- discard flight: each discarded card arcs to the deck pile, 0.05 s apart, shrinking to endScale; calm and Fast speed skip it
