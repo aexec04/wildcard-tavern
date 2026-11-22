@@ -47,4 +47,81 @@ function SaveLock.stamp(profile, jobId, now, release)
 	return out
 end
 
+SaveLock.MIN_SAVE_GAP = 15 -- seconds; a timer or event save sooner than this after the last good one is skipped (the profile stays dirty)
+
+-- Pure helper for the throttle: may a non-final save run now? `force` (store receipts) and `release` (leaving) always may.
+function SaveLock.mayWrite(lastSaveAt, now, release, force)
+	if release == true or force == true or type(lastSaveAt) ~= "number" then
+		return true
+	end
+	return now - lastSaveAt >= SaveLock.MIN_SAVE_GAP or now < lastSaveAt
+end
+
+-- Claims the stored profile through `store:UpdateAsync` (anything with that method, so a fake works in tests).
+-- Returns status, stored: "ok" (stored may be nil for a new player), "locked" (a live server holds it),
+-- "corrupt" (an entry exists but is not a table: never overwritten) or "error" (every attempt threw).
+-- `delays` are the waits before each retry, `wait` the sleep function.
+function SaveLock.load(store, key, jobId, now, delays, wait)
+	local status, stored = "locked", nil
+	for attempt = 1, #delays + 1 do
+		local claimed, corrupt, old0 = false, false, nil
+		local ok = pcall(function()
+			store:UpdateAsync(key, function(old)
+				old0, corrupt = old, old ~= nil and type(old) ~= "table"
+				if corrupt then
+					return nil -- keep whatever is there; a blank profile must not replace it
+				end
+				if SaveLock.canClaim(old, jobId, now()) then
+					claimed = true
+					local out = {}
+					if type(old) == "table" then
+						for k, v in pairs(old) do out[k] = v end
+					end
+					out.sessionLock = { jobId = jobId, t = now() }
+					return out
+				end
+				return nil
+			end)
+		end)
+		if ok and claimed then
+			return "ok", old0
+		elseif ok and corrupt then
+			return "corrupt", nil
+		end
+		status = ok and "locked" or "error"
+		if attempt <= #delays then
+			wait(delays[attempt])
+		end
+	end
+	return status, stored
+end
+
+-- Writes `profile` (stamped with the lease, or released). Returns "ok", "locked" (another live server owns it:
+-- nothing written) or "error" (every attempt threw, caller keeps the profile dirty).
+function SaveLock.save(store, key, profile, jobId, now, release, delays, wait)
+	local written, ok = false, false
+	for attempt = 1, #delays + 1 do
+		ok = pcall(function()
+			store:UpdateAsync(key, function(old)
+				if type(old) ~= "nil" and type(old) ~= "table" then
+					return nil
+				end
+				if not SaveLock.canClaim(old, jobId, now()) then
+					return nil
+				end
+				written = true
+				return SaveLock.stamp(profile, jobId, now(), release == true)
+			end)
+		end)
+		if ok or attempt > #delays then
+			break
+		end
+		wait(delays[attempt])
+	end
+	if ok and written then
+		return "ok"
+	end
+	return ok and "locked" or "error"
+end
+
 return SaveLock

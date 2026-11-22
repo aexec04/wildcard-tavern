@@ -11324,6 +11324,82 @@ table.insert(tests, { name = "Launch safety audit: every remote handler is rate 
 	assert(receipt and receipt:find("pcall(saveProfile", 1, true) and receipt:find("NotProcessedYet", 1, true), "store receipts save before acknowledging")
 end })
 
+table.insert(tests, { name = "SaveLock load and save: a failing, timing out, locked or corrupt DataStore never overwrites good data and a bad field falls back", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local function fake(initial, failTimes)
+		local f = { value = initial, calls = 0, writes = 0, failTimes = failTimes or 0 }
+		function f:UpdateAsync(_, fn)
+			self.calls = self.calls + 1
+			if self.failTimes > 0 then
+				self.failTimes = self.failTimes - 1
+				error("request was throttled / timed out")
+			end
+			local new = fn(self.value)
+			if new ~= nil then
+				self.value = new
+				self.writes = self.writes + 1
+			end
+		end
+		return f
+	end
+	local waits = 0
+	local function wait() waits = waits + 1 end
+	local function now() return 1000 end
+	local delays = SaveLock.RETRY_DELAYS
+	-- new player and good data load; the lease is written
+	local s = fake(nil)
+	local status = SaveLock.load(s, "k", "A", now, delays, wait)
+	expectEqual(status, "ok")
+	expectEqual(s.value.sessionLock.jobId, "A")
+	local good = fake({ discoveredPatronIds = { x = true }, sessionLock = { jobId = "B", t = 100 } })
+	status = SaveLock.load(good, "k", "A", now, delays, wait)
+	expectEqual(status, "ok")
+	-- errors retry with backoff, then succeed
+	local flaky = fake({ keys = 2 }, 2)
+	waits = 0
+	status = SaveLock.load(flaky, "k", "A", now, delays, wait)
+	expectEqual(status, "ok")
+	expectEqual(waits, 2)
+	-- a store that always fails gives "error" after every retry and writes nothing
+	local dead = fake({ keys = 2 }, 99)
+	status = SaveLock.load(dead, "k", "A", now, delays, wait)
+	expectEqual(status, "error")
+	expectEqual(dead.calls, #delays + 1)
+	expectEqual(dead.writes, 0)
+	-- another live server holds it: locked, nothing written
+	local held = fake({ sessionLock = { jobId = "B", t = 990 } })
+	expectEqual(SaveLock.load(held, "k", "A", now, {}, wait), "locked")
+	expectEqual(held.writes, 0)
+	-- an entry that is not a table is never replaced by a blank profile
+	local bad = fake("garbage")
+	expectEqual(SaveLock.load(bad, "k", "A", now, delays, wait), "corrupt")
+	expectEqual(bad.value, "garbage")
+	expectEqual(SaveLock.save(bad, "k", { keys = 1 }, "A", now, false, {}, wait), "locked")
+	expectEqual(bad.value, "garbage")
+	-- saves: ok, retried error, final error, and a foreign live lock refuses
+	local st = fake({ keys = 1 })
+	expectEqual(SaveLock.save(st, "k", { keys = 5 }, "A", now, false, {}, wait), "ok")
+	expectEqual(st.value.keys, 5)
+	expectEqual(SaveLock.save(fake({}, 1), "k", { keys = 5 }, "A", now, true, SaveLock.SAVE_RETRY_DELAYS, wait), "ok")
+	expectEqual(SaveLock.save(fake({}, 9), "k", { keys = 5 }, "A", now, true, SaveLock.SAVE_RETRY_DELAYS, wait), "error")
+	local foreign = fake({ keys = 9, sessionLock = { jobId = "B", t = 995 } })
+	expectEqual(SaveLock.save(foreign, "k", { keys = 0 }, "A", now, false, {}, wait), "locked")
+	expectEqual(foreign.value.keys, 9)
+	-- throttle: timer saves wait, final and forced saves never do
+	expectTrue(SaveLock.mayWrite(nil, 100, false, false))
+	expectEqual(SaveLock.mayWrite(100, 105, false, false), false)
+	expectTrue(SaveLock.mayWrite(100, 105, true, false))
+	expectTrue(SaveLock.mayWrite(100, 105, false, true))
+	expectTrue(SaveLock.mayWrite(100, 100 + SaveLock.MIN_SAVE_GAP, false, false))
+	-- corrupt or missing fields fall back to defaults instead of erroring
+	for _, raw in ipairs({ "x", 5, {}, { discoveredPatronIds = 7, clearedNightIds = "no", worldRoute = { 1, 2 }, settings = "bad" }, { ownedSetIds = { [1] = {} } } }) do
+		local p = PlayerProfile.migrate(raw)
+		expectEqual(type(p.discoveredPatronIds), "table")
+		expectEqual(type(p.settings), "table")
+	end
+end })
+
 table.insert(tests, { name = "SaveLock and RateLimit: a live lease blocks other servers, stale or own leases do not, release clears it, spam is dropped", fn = function()
 	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
 	local RateLimit = require(script.Parent.Parent.Engine.RateLimit)

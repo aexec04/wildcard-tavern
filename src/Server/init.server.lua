@@ -189,72 +189,36 @@ local saveBlocked = {} -- [player] = true when the stored profile could not be l
 -- Loads and claims the profile. Retries with backoff (not in Studio); on failure the player still plays with a fresh
 -- profile, but saveBlocked is set so that profile can never overwrite the real save.
 local function loadProfile(player)
-	local key = profileKey(player)
 	local delays = RunService:IsStudio() and {} or SaveLock.RETRY_DELAYS
-	local lastErr = "locked by another server"
-	for attempt = 1, #delays + 1 do
-		local claimed, stored = false, nil
-		local ok, err = pcall(function()
-			ProfileStore:UpdateAsync(key, function(old)
-				if SaveLock.canClaim(old, game.JobId, os.time()) then
-					claimed, stored = true, old
-					local out = {}
-					if type(old) == "table" then
-						for k, v in pairs(old) do out[k] = v end
-					end
-					out.sessionLock = { jobId = game.JobId, t = os.time() }
-					return out
-				end
-				claimed = false
-				return nil -- cancel: a live server holds this profile
-			end)
-		end)
-		if ok and claimed then
-			return PlayerProfile.migrate(stored)
-		end
-		lastErr = ok and "locked by another server" or tostring(err)
-		if attempt <= #delays then
-			task.wait(delays[attempt])
-		end
+	local status, stored = SaveLock.load(ProfileStore, profileKey(player), game.JobId, os.time, delays, task.wait)
+	if status == "ok" then
+		return PlayerProfile.migrate(stored)
 	end
 	warn(string.format(
 		"PlayerProfile load failed for %s (%s), playing with a fresh profile that will NOT be saved this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
-		player.Name, lastErr
+		player.Name, status
 	))
 	saveBlocked[player] = true
 	return PlayerProfile.new()
 end
 
--- `release` (the final save on leave) also clears the lease so the next server can claim at once.
-local function saveProfile(player, release)
+local lastSaveAt = {} -- [player] = os.time() of the last good save, for the SaveLock.MIN_SAVE_GAP throttle
+
+-- `release` (the final save on leave) also clears the lease so the next server can claim at once. `force` skips the throttle.
+local function saveProfile(player, release, force)
 	local profile = profiles[player]
-	if not profile or saveBlocked[player] then
+	if not profile or saveBlocked[player] or not SaveLock.mayWrite(lastSaveAt[player], os.time(), release, force) then
 		return
 	end
-	local written, ok, err = false, false, nil
 	-- The final save (release) retries a DataStore error a couple of times; the timer save just waits for the next tick.
 	local delays = (release == true and not RunService:IsStudio()) and SaveLock.SAVE_RETRY_DELAYS or {}
-	for attempt = 1, #delays + 1 do
-		ok, err = pcall(function()
-			ProfileStore:UpdateAsync(profileKey(player), function(old)
-				if not SaveLock.canClaim(old, game.JobId, os.time()) then
-					return nil -- another live server owns this profile now: never overwrite it
-				end
-				written = true
-				return SaveLock.stamp(profile, game.JobId, os.time(), release == true)
-			end)
-		end)
-		if ok or attempt > #delays then
-			break
-		end
-		task.wait(delays[attempt])
-	end
-	if ok and written then
+	local status = SaveLock.save(ProfileStore, profileKey(player), profile, game.JobId, os.time, release, delays, task.wait)
+	if status == "ok" then
 		profileDirty[player] = nil
+		lastSaveAt[player] = os.time()
 	else
-		warn(string.format("PlayerProfile save failed for %s: %s", player.Name, ok and "profile is held by another server" or tostring(err)))
-		-- Leave profileDirty set -- the next autosave tick (or the final
-		-- PlayerRemoving/BindToClose attempt) will retry.
+		warn(string.format("PlayerProfile save failed for %s: %s", player.Name, status))
+		-- Leave profileDirty set -- the next autosave tick (or the final PlayerRemoving/BindToClose attempt) will retry.
 	end
 end
 
@@ -1723,7 +1687,7 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 			local boughtItem = Store.getByProductId(receiptInfo.ProductId)
 			Analytics.single(buyer, "store_bought", 1, { item = boughtItem and boughtItem.id or "unknown" }) -- tuning data
 			profileDirty[buyer] = true
-			pcall(saveProfile, buyer)
+			pcall(saveProfile, buyer, false, true)
 			if profileDirty[buyer] then
 				return Enum.ProductPurchaseDecision.NotProcessedYet -- not saved yet: Roblox retries, the grant is idempotent
 			end
@@ -1999,6 +1963,7 @@ Players.PlayerRemoving:Connect(function(player)
 	saveEndlessScore(player)
 	RateLimit.forget(player.UserId)
 	saveBlocked[player] = nil
+	lastSaveAt[player] = nil
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
