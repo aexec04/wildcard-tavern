@@ -333,7 +333,7 @@ return function(deps)
 		end
 		local newGain = gain or 1
 		if id == currentTrackId then
-			if newGain ~= bedGain then -- same song, new screen: only the bed's level changes, stepped
+			if MusicMix.needsLevelStep(fadeGroup.Volume, bedGain, newGain) then -- same song, new screen (or a cut short fade): only the bed's level changes, stepped
 				bedGain = newGain
 				fadeToken += 1
 				stepFade(fadeGroup.Volume, bedGain, ClientSettings.get("reduceMotion") == true, fadeToken)
@@ -535,6 +535,12 @@ return function(deps)
 			sfxPool[id] = pooled
 		end
 	end
+
+	ClientSettings.onChanged(function(key)
+		if key == "muted" and ClientSettings.get("muted") == true then -- Mute cuts the effects that are playing too
+			for _, pooled in pairs(sfxPool) do pcall(function() pooled:Stop() end) end
+		end
+	end)
 
 	-- SCORING JUICE: 4 dedicated Sound instances for Client/ScorePopup.lua's
 	-- chip/mult/xmult/thud reveal sequence, using their own real ids

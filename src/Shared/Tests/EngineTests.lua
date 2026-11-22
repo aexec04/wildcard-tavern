@@ -22959,7 +22959,8 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 	local deep = FX.dbToGain(-4)
 	expectTrue(math.abs(deep - 0.631) < 0.001, "-4 dB is a gain of 0.631")
 	expectEqual(FX.duck(-1), 1, "before the beat nothing is ducked")
-	expectEqual(FX.duck(0), deep, "it drops at once")
+	expectEqual(FX.duck(0), 1, "the dip starts from full level")
+	expectEqual(FX.duck(FX.DUCK_ATTACK), deep, "it reaches the dip in 0.2 s")
 	expectEqual(FX.duck(1.2), deep, "and holds for 1.2 s")
 	expectTrue(FX.duck(1.5) > deep and FX.duck(1.5) < 1, "then eases back")
 	expectEqual(FX.duck(1.8), 1, "fully back after 0.6 s")
@@ -35104,6 +35105,29 @@ table.insert(tests, { name = "Daily return: claimable chest says Claim reward an
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
 	expectTrue(read("src/Client/DailyStrip.lua"):find("ReadyRing", 1, true) ~= nil, "gold ring on the ready chest")
 	expectTrue(read("src/Client/NextGoalBanner.lua"):find("still()", 1, true) ~= nil, "Next goal bar respects Calm mode")
+end })
+
+table.insert(tests, { name = "Music mix: duck attacks over 0.2 s, interrupted fades resume, mute and slider win", fn = function()
+	local SoundFX = require(script.Parent.Parent.Engine.SoundFX)
+	local MM = require(script.Parent.Parent.Engine.MusicMix)
+	local deep = SoundFX.dbToGain(SoundFX.DUCK_DB)
+	expectEqual(SoundFX.duck(0), 1, "duck starts at full level")
+	local mid = SoundFX.duck(0.1)
+	expectTrue(mid < 1 and mid > deep, "halfway through the attack is between full and ducked")
+	expectTrue(math.abs(SoundFX.duck(0.2) - deep) < 1e-9 and math.abs(SoundFX.duck(1.0) - deep) < 1e-9, "ducked after 0.2 s and held")
+	expectEqual(SoundFX.duck(1.8), 1, "back to full after hold and release")
+	local last = 1
+	for i = 0, 40 do local g = SoundFX.duck(i * 0.05); expectTrue(g <= 1 and g >= deep - 1e-9, "duck stays in range"); if i <= 4 then expectTrue(g <= last + 1e-9, "attack only falls"); last = g end end
+	expectTrue(MM.needsLevelStep(0.4, 1, 1), "a cut short fade at 0.4 steps back to 1")
+	expectTrue(not MM.needsLevelStep(1, 1, 1), "same song, same gain, full level: no restart")
+	expectTrue(MM.needsLevelStep(1, 1, 0.6), "a new gain steps")
+	expectEqual(MM.volume(0.5, true, 1, 1), 0, "Mute wins")
+	expectEqual(MM.volume(0.5, false, 0.6, 1), 0.3, "the slider scales the bed gain")
+	local f = MM.fade(false); expectTrue(f[#f][1] == 0 and f[#f][2] == 1, "crossfade ends exactly out 0, in 1")
+	for i = 2, #f do expectTrue(f[i][1] <= f[i - 1][1] and f[i][2] >= f[i - 1][2], "monotonic crossfade, no pop") end
+	if not io then return end
+	local function read(path) local fh = io.open(path, "r"); if not fh then return "" end; local c = fh:read("a"); fh:close(); return c end
+	expectTrue(read("src/Client/Sound.lua"):find("Mute cuts the effects that are playing too", 1, true) ~= nil, "Mute stops playing effects")
 end })
 
 return tests

@@ -11,7 +11,7 @@
 	SoundFX.JITTERED                       cues that get pitch (6 percent) and volume (8 percent) jitter
 	SoundFX.minInterval(cue)               seconds between two plays of a cue (hover 0.08, the rest 0.05)
 	SoundFX.newGate()                      gate:allow(cue, now) -> bool, one per-cue minimum interval
-	SoundFX.duck(t, deep, hold, release)   music gain at t seconds after a big beat starts: 4 dB down at once, held 1.2 s, back up over 0.6 s
+	SoundFX.duck(t, deep, hold, release)   music gain at t seconds after a big beat starts: 4 dB down over 0.2 s, held to 1.2 s, back up over 0.6 s
 	SoundFX.dbToGain(db)
 	SoundFX.Layers                         composite cues: name -> { { cue, delay, speed (or semitones), volume, maxLength } }
 	SoundFX.layersFor(name)                the layers of a composite cue or nil
@@ -84,11 +84,14 @@ function SoundFX.dbToGain(db)
 end
 
 SoundFX.DUCK_DB, SoundFX.DUCK_HOLD, SoundFX.DUCK_RELEASE = -4, 1.2, 0.6
-function SoundFX.duck(t, deep, hold, release)
+SoundFX.DUCK_ATTACK = 0.2 -- the music dips over 0.2 s, never a pop
+function SoundFX.duck(t, deep, hold, release, attack)
 	deep = deep or SoundFX.dbToGain(SoundFX.DUCK_DB)
 	hold = hold or SoundFX.DUCK_HOLD
 	release = release or SoundFX.DUCK_RELEASE
+	attack = attack or SoundFX.DUCK_ATTACK
 	if t < 0 then return 1 end
+	if t < attack then return 1 + (deep - 1) * (t / attack) end
 	if t <= hold then return deep end
 	if t >= hold + release then return 1 end
 	local k = (t - hold) / release
