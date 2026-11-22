@@ -2555,6 +2555,32 @@ table.insert(tests, { name = "Save audit: the profile DataStore is only touched 
 	assert(src:find("profileDirty[player]", 1, true), "dirty flag drives the save")
 end })
 
+table.insert(tests, { name = "Pre publish sweep: every Debug remote is Studio gated and every other server remote is rate limited", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local debugSeen = 0
+	for i, l in ipairs(lines) do
+		local dbg = l:match("^Rem%.(Debug%w+)%.OnServerEvent")
+		if dbg then
+			debugSeen = debugSeen + 1
+			assert((lines[i + 1] or ""):find("IsStudio", 1, true), dbg .. " must return at once outside Studio")
+		elseif l:find("OnServerEvent:Connect", 1, true) then
+			local guarded = false
+			for j = i, math.min(i + 8, #lines) do
+				if lines[j]:find("RateLimit", 1, true) or lines[j]:find("IsStudio", 1, true) then guarded = true end
+			end
+			assert(guarded, "remote handler without a rate limit or Studio gate at line " .. i)
+		end
+	end
+	assert(debugSeen >= 4, "debug remotes were found and checked")
+	local src = table.concat(lines, "\n")
+	assert(not src:find("UserId%s*==%s*%d%d%d%d"), "no hard coded user ids on the server")
+end })
+
 table.insert(tests, { name = "PlayerProfile.recordPatronsFound: reports changed only when something is actually new", fn = function()
 	local profile = PlayerProfile.new()
 	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }))
