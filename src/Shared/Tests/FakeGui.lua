@@ -259,6 +259,9 @@ function FakeGui.env(opts)
 	if stubs.RoomWall == nil then -- the shared painted wall behind the scene pages (Client/RoomWall): the tests see an empty wall
 		stubs.RoomWall = { COLOR = Color3.fromRGB(44, 30, 20), fill = function() end }
 	end
+	if stubs.VictoryScreen == nil then -- the purple Victory screen (Client/VictoryScreen): showPick fails so ChoicePanel keeps its own cards
+		stubs.VictoryScreen = { showPick = function() error("no Victory screen in the fake") end, hidePick = function() end }
+	end
 	local state = { warns = {}, prints = {}, studio = opts.studio == true, services = {}, delays = {}, parked = {} }
 	-- resume every thread parked at a task.wait once
 	function state.runWaiting()

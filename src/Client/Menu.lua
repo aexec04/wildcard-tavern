@@ -64,6 +64,7 @@ return function(deps)
 	menuBackgroundArt.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
 	menuBackgroundArt.BackgroundTransparency = 0
 	menuBackgroundArt.Parent = menuFrame
+	pcall(function() require(script.Parent.ThemeWash).attach(menuBackgroundArt, "menuBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 	if menuArtId then
 		require(script.Parent.PanelArt).vignette(menuFrame, 10) -- dark edge vignette (stepped Frames, Color stops only)
 	end

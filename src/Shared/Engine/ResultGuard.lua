@@ -2,7 +2,7 @@
 -- (the Store and its tab strip) must stay hidden, even if something re-shows them.
 local ResultGuard = {}
 
-ResultGuard.RESULTS = { "RunSummaryBackdrop", "NightVictoryBackdrop" }
+ResultGuard.RESULTS = { "RunSummaryBackdrop", "NightVictoryBackdrop", "VictoryBackdrop" }
 ResultGuard.HIDDEN = { "StoreBackdrop" }
 
 -- visible: map of backdrop name -> bool. Returns true when an account panel must be forced hidden.

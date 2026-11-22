@@ -13498,6 +13498,24 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	local distinct = 0
 	for _ in pairs(seenPanel) do distinct = distinct + 1 end
 	expectTrue(distinct >= 5, "sets look different from each other even without art")
+	do -- thin-edge ivory card: every set differs by edge colour and paper tint, ink stays readable
+		local seenEdge, seenPaper = {}, {}
+		for _, set in ipairs(CS.Definitions) do
+			local look = CS.cardLook(set)
+			local ek, pk = table.concat(look.edge, ","), table.concat(look.paper, ",")
+			expectTrue(seenEdge[ek] == nil, set.id .. " edge colour is unique (also " .. tostring(seenEdge[ek]) .. ")")
+			expectTrue(seenPaper[pk] == nil or set.id == "classic_tavern" or seenPaper[pk] == "classic_tavern" or false, set.id .. " paper tint is unique (also " .. tostring(seenPaper[pk]) .. ")")
+			seenEdge[ek], seenPaper[pk] = set.id, set.id
+			expectTrue(CS.contrastRatio(look.ink.red, look.paper) >= 4.5, set.id .. " red ink 4.5:1 on tinted paper")
+			expectTrue(CS.contrastRatio(look.ink.black, look.paper) >= 4.5, set.id .. " black ink 4.5:1 on tinted paper")
+			if set.id ~= "classic_tavern" then
+				local strength = 1 - look.washTransparency
+				expectTrue(strength >= 0.05 and strength <= 0.12, set.id .. " paper tint is 5 to 12 percent")
+			end
+		end
+		expectTrue(CS.cardLook(CS.Definitions[2]).motif == "frost", "winter set has a frost edge")
+		expectTrue(CS.cardLook({ id = "harvest_table", backdropStyle = { tint = { 200, 170, 110 } } }).motif == "warm", "harvest set is warm")
+	end
 	expectTrue(CS.skinOf(nil).neutral, "nil set is neutral")
 	local f = io and io.open and io.open("src/Client/SetSkin.lua", "r")
 	if not f then return end
@@ -21142,9 +21160,29 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 			expectFalse(hit(t.face, t.back), "face and back do not overlap")
 			expectFalse(hit(t.face, t.name) or hit(t.back, t.name) or hit(t.name, t.preview), "name sits between the cards and the Preview plate")
 			expectTrue(t.name.h >= 36 and t.preview.h >= 24 and t.cardH >= 48, "two name lines, a Preview plate and cards big enough to see")
+			if t.swatch then
+				expectTrue(inside(t.swatch, rel), "frame " .. i .. " swatch inside the frame")
+				expectFalse(hit(t.swatch, t.face) or hit(t.swatch, t.back) or hit(t.swatch, t.name), "the mini table swatch sits between the cards and the name")
+			end
 		end
 		-- soft vignette only where the picture leaves an edge
 		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "plain fade strip") end
+	end
+	-- the live grid at 1920x957, 1280x720, 1024x768 and 800x450: every cell's parts (cards, swatch, name, Preview) stay inside its frame, and the cells stay inside the area
+	for _, screen in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.panel(screen[1], screen[2])
+		local g = L.grid(pw, ph - L.TOP - L.BOTTOM, 15, 1)
+		for i, cell in ipairs(g.cells) do
+			local f = cell.frame
+			local t = L.tileParts(f)
+			local rel = { x = 0, y = 0, w = f.w, h = f.h }
+			local function within(a, b) return a.x >= b.x and a.y >= b.y and a.x + a.w <= b.x + b.w and a.y + a.h <= b.y + b.h end
+			for _, k in ipairs({ "face", "back", "name", "preview", "swatch" }) do
+				if t[k] then expectTrue(within(t[k], rel), "grid " .. screen[1] .. "x" .. screen[2] .. " cell " .. i .. " " .. k .. " inside its frame") end
+			end
+			if t.swatch then expectTrue(t.swatch.y >= t.face.y + t.face.h and t.name.y >= t.swatch.y + t.swatch.h, "swatch sits between cards and name") end
+			expectTrue(f.x >= 0 and f.x + f.w <= pw and cell.plaque.y + cell.plaque.h <= ph, "cell " .. i .. " is on the panel at " .. screen[1] .. "x" .. screen[2])
+		end
 	end
 	-- paging: every set and every back (plus Match my set) is reachable
 	local function reach(n)
@@ -35877,6 +35915,95 @@ table.insert(tests, { name = "CollectionTileCache: tiles build 12 to a chunk wit
 		if phase.name == "account" then acc = i end
 	end
 	expectTrue(at and acc and at < acc, "the collection phase comes before the account phase")
+end })
+
+table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 11 px or more, only real rewards and stats", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local function inside(r, w, h, what) expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, what .. " inside the screen") end
+	local function apart(a, b, what) expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, what .. " do not overlap") end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = Look.layout(w, h, mode)
+			local list = { L.banner, L.subtitle, L.hero, L.chest, L.button }
+			if mode == "run" then list[#list + 1] = L.rewards; list[#list + 1] = L.summary else for _, c in ipairs(L.cards) do list[#list + 1] = c end end
+			for i, r in ipairs(list) do
+				inside(r, w, h, mode .. " plate " .. i .. " at " .. w)
+				for j = i + 1, #list do apart(r, list[j], mode .. " plates " .. i .. "," .. j .. " at " .. w) end
+			end
+			expectTrue(Look.fontSize(22, L.scale) >= 11 and Look.fontSize(1, L.scale) == 11, "text floor is 11 px at " .. w)
+		end
+	end
+	expectEqual(Look.commas(34750), "34,750", "score uses commas")
+	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
+	expectEqual(#cols, 1, "no unlocks means no unlock column")
+	expectEqual(cols[1].value, "+150", "tips column")
+	expectEqual(#Look.rewardColumns({ tipsEarned = 0, unlockCount = 2 }), 2, "unlocks get a column")
+	local rows = Look.summaryRows({ score = 1200, night = 8, cap = 8, hands = 31, tipsTotal = 90 }, { name = "Flush", score = 80 })
+	expectEqual(rows[1].value, "1,200", "final round score row")
+	expectEqual(rows[2].value, "Flush", "best hand row")
+	expectEqual(rows[3].value, "8 of 8", "night reached row")
+	expectEqual(Look.summaryRows({}, nil)[2].value, "-", "no best hand shows a dash")
+	local MG = require(script.Parent.Parent.Engine.MenuGate)
+	expectTrue(MG.mustHide("VictoryBackdrop", true), "MenuGate knows the Victory backdrop")
+	expectTrue(require(script.Parent.Parent.Engine.ResultGuard).mustHide({ VictoryBackdrop = true }), "ResultGuard knows the Victory backdrop")
+	local M2 = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local prev = { phase = "playing", targetScore = 100, roundScore = 90, tips = 5, round = 3, bossModifier = { id = "x" }, night = 8, nightCap = 8 }
+	local lines = M2.clearLines(prev, { phase = "shop", roundScore = 150, tips = 15, handsPlayedTotal = 31, tipsEarnedTotal = 90 })
+	expectTrue(lines and lines.night and lines.night.runComplete, "final Night boss clear is Run complete")
+	expectEqual(lines.summary.hands, 31, "summary carries the hands played")
+	expectEqual(lines.summary.tipsEarned, 10, "summary carries the Tips earned")
+end })
+
+table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every slot falls back to classic, wash styles are valid and carry no layout", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS = require(E.ThemeScenes)
+	local CS = require(E.CosmeticSets)
+	local AL = require(E.AmbientLayout)
+	expectEqual(#TS.ORDER, #CS.Definitions, "one ThemeScenes entry per Card Set")
+	for _, def in ipairs(CS.Definitions) do
+		expectTrue(TS.known(def.id), def.id .. " has a ThemeScenes entry")
+		local t = TS.of(def.id)
+		expectEqual(t.setId, def.id, def.id .. " resolves to itself")
+		for _, slot in ipairs(TS.SLOTS) do
+			expectTrue(type(t.art[slot]) == "string" and t.art[slot] ~= "", def.id .. " " .. slot .. " has an art key (own or classic)")
+		end
+		for i = 1, 3 do
+			expectTrue(type(t.tint[i]) == "number" and t.tint[i] >= 0 and t.tint[i] <= 255, def.id .. " tint is well formed")
+			expectTrue(type(t.accent[i]) == "number" and t.accent[i] >= 0 and t.accent[i] <= 255, def.id .. " accent is well formed")
+		end
+		expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		local style = TS.washStyle(def.id, "menuBackdrop")
+		if def.id == "classic_tavern" then
+			expectTrue(style == nil, "classic_tavern keeps its own scenes, no wash")
+		else
+			expectTrue(CS.validateStyle(style), def.id .. " wash style is valid")
+			expectEqual(style.overlay.transparency, TS.WASH_TRANSPARENCY, def.id .. " wash overlay transparency")
+			for k in pairs(style) do
+				expectTrue(k == "overlay" or k == "vignette" or k == "layers", def.id .. " wash has no layout key " .. k)
+			end
+			expectTrue(TS.washStyle(def.id, "tableBackground") == nil, def.id .. " table room is painted, no wash on it")
+		end
+	end
+	-- unknown or missing ids fall back to classic, key by key
+	local c = TS.of("classic_tavern")
+	for _, bad in ipairs({ "nope", "", 5, false }) do
+		local t = TS.of(bad)
+		expectEqual(t.setId, "classic_tavern", "unknown set falls back to classic")
+		for _, slot in ipairs(TS.SLOTS) do expectEqual(t.art[slot], c.art[slot], "fallback slot " .. slot) end
+	end
+	expectEqual(TS.of(nil).setId, "classic_tavern", "nil falls back")
+	-- ice: frost vignette and snow
+	local ice = TS.washStyle("winter_evening", "mapBackdrop")
+	expectTrue(ice.vignette ~= nil and ice.layers[1].kind == "snow", "winter_evening gets a frost vignette and drifting snow")
+	-- layout identical across sets: art slots hold only string keys, the wash only fills its host
+	for _, id in ipairs({ "classic_tavern", "winter_evening", "golden_gala" }) do
+		for _, slot in ipairs(TS.SLOTS) do expectEqual(type(TS.of(id).art[slot]), "string", id .. " " .. slot .. " is a key, not a rect") end
+	end
+	-- table slots follow the set's painted room pair
+	local PRA = require(E.PlayRoomArt)
+	expectEqual(TS.of("winter_evening").art.tableBackground, PRA.keys("winter_evening").bg, "table background is the set's room")
+	expectEqual(TS.of("winter_evening").art.tableFront, PRA.keys("winter_evening").front, "table rail is the set's front")
 end })
 
 return tests

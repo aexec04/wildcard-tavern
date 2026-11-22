@@ -28,6 +28,7 @@ return function(deps)
 	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
 	local burst = require(script.Parent.ParticleBurst)({ screenGui = deps.screenGui, tweenTo = deps.tweenTo }).burst
 
+	pcall(function() require(script.Parent.VictoryScreen).setBestHand(deps.getBestHand) end) -- the Victory screen's Best Hand row
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local GOLD = Color3.fromRGB(255, 214, 130)
 	local ClientSettings = require(script.Parent.ClientSettings)

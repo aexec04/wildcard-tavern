@@ -98,7 +98,7 @@ local function addSetLayers(face, zIndex, rankText)
 	wash.Name = "SetPaper"
 	wash.Size = UDim2.fromScale(1, 1)
 	wash.BackgroundColor3 = rgb(setFace.paper)
-	wash.BackgroundTransparency = 0.8
+	wash.BackgroundTransparency = 1 - 0.10 -- the set's paper colour tints the ivory face 10 percent (CosmeticSets.cardLook)
 	wash.BorderSizePixel = 0
 	wash.Active = false
 	wash.ZIndex = zIndex
@@ -122,9 +122,42 @@ local function addSetLayers(face, zIndex, rankText)
 	edgeCorner.Parent = edge
 	local edgeStroke = Instance.new("UIStroke")
 	edgeStroke.Color = rgb(setFace.border)
-	edgeStroke.Thickness = 1.5
-	edgeStroke.Transparency = 0.2
+	edgeStroke.Thickness = 1
+	edgeStroke.Transparency = 0
 	edgeStroke.Parent = edge
+	-- corner pips in the set accent, so the set reads even where the thin edge is small
+	for _, pos in ipairs({ { 0.07, 0.05 }, { 0.93, 0.05 }, { 0.07, 0.95 }, { 0.93, 0.95 } }) do
+		local pip = Instance.new("Frame")
+		pip.Name = "SetPip"
+		pip.AnchorPoint = Vector2.new(0.5, 0.5)
+		pip.Position = UDim2.fromScale(pos[1], pos[2])
+		pip.Size = UDim2.fromOffset(4, 4)
+		pip.BackgroundColor3 = rgb(setFace.border)
+		pip.BorderSizePixel = 0
+		pip.Active = false
+		pip.ZIndex = zIndex
+		pip.Parent = face
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(1, 0)
+		pc.Parent = pip
+	end
+	if setFace.motif == "frost" then -- ice sets: a pale second edge just inside the first
+		local frost = Instance.new("Frame")
+		frost.Name = "SetFrost"
+		frost.AnchorPoint = Vector2.new(0.5, 0.5)
+		frost.Position = UDim2.fromScale(0.5, 0.5)
+		frost.Size = UDim2.fromScale(0.84, 0.88)
+		frost.BackgroundTransparency = 1
+		frost.BorderSizePixel = 0
+		frost.Active = false
+		frost.ZIndex = zIndex
+		frost.Parent = face
+		local fs = Instance.new("UIStroke")
+		fs.Color = Color3.fromRGB(235, 246, 255)
+		fs.Thickness = 1
+		fs.Transparency = 0.35
+		fs.Parent = frost
+	end
 
 	if setFace.foil then
 		local foil = Instance.new("Frame") -- a still diagonal sheen, stacked frames only

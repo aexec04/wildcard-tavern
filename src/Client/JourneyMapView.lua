@@ -105,6 +105,7 @@ return function(deps)
 	frame.Visible = false
 	frame.Parent = deps.parent
 	deps.polishPanel(frame, 10, "parchment")
+	pcall(function() require(script.Parent.ThemeWash).attach(frame, "mapBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -16, 1, -12)
