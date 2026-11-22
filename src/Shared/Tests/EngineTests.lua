@@ -42993,4 +42993,80 @@ table.insert(tests, { name = "NightBoons: picking runs through RunChoice, valida
 	end
 end })
 
+-- ===== StartingDecks =====
+local function countCards(state)
+	return #state.deck + #state.hand + #state.discardPile
+end
+
+table.insert(tests, { name = "StartingDecks: Classic 52, Lucky 56 with four extra Kings, Slim 40 with no 2s, 3s or 4s", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	expectEqual(#SD.Definitions, 3)
+	for _, def in ipairs(SD.Definitions) do
+		local deck = SD.build(def.id)
+		expectEqual(#deck, def.size, def.id .. " size")
+		expectTrue(#def.name > 0 and #def.text > 0 and #def.text <= 60, def.id .. " has short texts")
+	end
+	local lucky = SD.build("lucky")
+	local kings = 0
+	for _, c in ipairs(lucky) do if c.rank == 13 then kings = kings + 1 end end
+	expectEqual(kings, 8, "two Kings per suit")
+	for _, c in ipairs(SD.build("slim")) do expectTrue(c.rank >= 5, "no low cards in Slim") end
+	expectEqual(#SD.build("nope"), 52, "unknown id gives Classic")
+	expectTrue(SD.build("classic")[1] ~= SD.build("classic")[1], "fresh card tables every call")
+end })
+
+table.insert(tests, { name = "StartingDecks: Lucky opens at Night 3 and Slim at Night 5, a locked or unknown pick falls back to Classic", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local function profileAt(n) return { stats = { bestNightReached = n } } end
+	expectEqual(SD.resolve(profileAt(0), "classic"), "classic")
+	expectEqual(SD.resolve(profileAt(2), "lucky"), "classic")
+	expectEqual(SD.resolve(profileAt(3), "lucky"), "lucky")
+	expectEqual(SD.resolve(profileAt(4), "slim"), "classic")
+	expectEqual(SD.resolve(profileAt(5), "slim"), "slim")
+	expectEqual(SD.resolve(profileAt(9), "../evil"), "classic")
+	expectEqual(SD.resolve(profileAt(9), 5), "classic")
+	expectEqual(SD.resolve(nil, "slim"), "classic", "no profile means nothing is open")
+	local rows = SD.view(profileAt(3))
+	expectTrue(rows[1].open and rows[2].open and not rows[3].open and #rows[3].hint > 0 and rows[2].hint == "")
+end })
+
+table.insert(tests, { name = "StartingDecks: a run deals from the picked deck and keeps its size all run", fn = function()
+	for id, size in pairs({ classic = 52, lucky = 56, slim = 40 }) do
+		local state = RunState.new({ startingDeckId = id }, function(n) return 1 end)
+		expectEqual(state.startingDeckId, id)
+		expectEqual(countCards(state), size, id)
+	end
+	expectEqual(RunState.new(nil, function(n) return 1 end).startingDeckId, "classic")
+	expectEqual(RunState.new({ startingDeckId = "nope" }, function(n) return 1 end).startingDeckId, "classic")
+end })
+
+table.insert(tests, { name = "StartingDecks: the server resolves the pick, fixed boards and Boss Rush use Classic, retries keep the deck", fn = function()
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("require(Engine.StartingDecks).resolve(profile, extra.startingDeckId)", 1, true) ~= nil, "the server checks what is open")
+	expectTrue(src:find("(forceStandard or rush or isTutorial == true) and \"classic\"", 1, true) ~= nil, "fixed boards use Classic")
+	expectTrue(select(2, src:gsub("startingDeckId = session.state.startingDeckId", "")) >= 2, "restart and abandon keep the deck")
+end })
+
+table.insert(tests, { name = "StartingDecks: the pre run screen lists the three decks, locked ones cannot be picked", fn = function()
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("makeRunSetupSectionLabel(\"Starting Deck\"", 1, true) ~= nil)
+	expectTrue(src:find("selectedMode, selectedStartingDeckId)", 1, true) ~= nil, "the pick is sent with Begin Run")
+	expectTrue(src:find("clickCatcher.Active = false", 1, true) ~= nil, "locked cards ignore clicks")
+end })
+
+table.insert(tests, { name = "StartingDecks: Slim costs 1 Discard (sim: classic 40.7, lucky 44.3, slim 45.7 percent win, all within 10 points)", fn = function()
+	local classic = RunState.new({ startingDeckId = "classic" }, function(n) return 1 end)
+	local slim = RunState.new({ startingDeckId = "slim" }, function(n) return 1 end)
+	local lucky = RunState.new({ startingDeckId = "lucky" }, function(n) return 1 end)
+	expectEqual(slim.config.discardsPerRound, classic.config.discardsPerRound - 1)
+	expectEqual(lucky.config.discardsPerRound, classic.config.discardsPerRound)
+	expectEqual(slim.discardsRemaining, classic.discardsRemaining - 1)
+end })
+
 return tests

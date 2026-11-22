@@ -18,6 +18,7 @@ local EndlessRules = require(script.Parent.EndlessRules)
 local RunModes = require(script.Parent.RunModes) -- Quick Run (4 Nights)
 local DeckVariants = require(script.Parent.DeckVariants)
 local NightBoons = require(script.Parent.NightBoons)
+local StartingDecks = require(script.Parent.StartingDecks)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
 local Tags = require(script.Parent.Tags)
@@ -176,6 +177,9 @@ function RunState.new(options, rng)
 	for key, delta in pairs(deckVariant.configOverrides or {}) do
 		config[key] = config[key] + delta
 	end
+	for key, delta in pairs((StartingDecks.getById(options.startingDeckId) or {}).configDelta or {}) do
+		config[key] = config[key] + delta -- Slim Deck: 1 fewer Discard
+	end
 	config.handSize = math.max(1, config.handSize)
 	config.handsPerRound = math.max(1, config.handsPerRound)
 	config.discardsPerRound = math.max(0, config.discardsPerRound)
@@ -215,6 +219,7 @@ function RunState.new(options, rng)
 		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
 		unlockedContent = options.unlockedContent,
 		deckVariantId = deckVariant.id,
+		startingDeckId = (StartingDecks.getById(options.startingDeckId) or StartingDecks.getById(StartingDecks.DefaultId)).id,
 		difficultyId = difficulty.id,
 		targetMultiplier = (deckVariant.targetScoreMultiplier or 1) * (difficulty.targetScoreMultiplier or 1),
 		bossRoundsEnabled = difficulty.bossRoundsEnabled ~= false,
@@ -231,7 +236,7 @@ function RunState.new(options, rng)
 		-- reshuffled back in at the start of the next round. Cards are the
 		-- SAME Lua tables all run (never regenerated), so a Garnish/Special/
 		-- Stamp a House Recipe adds to a card sticks with it for the run.
-		deck = Deck.newStandardDeck(), -- unshuffled; startRound below shuffles+deals
+		deck = StartingDecks.build(options.startingDeckId), -- Classic, Lucky or Slim (Engine/StartingDecks), unshuffled; startRound below shuffles+deals
 		discardPile = {},
 		hand = {},
 		handsRemaining = config.handsPerRound,

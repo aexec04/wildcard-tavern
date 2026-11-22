@@ -187,6 +187,13 @@ return function(deps)
 	local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
 
 	makeRunSetupSectionLabel("Deck Variant", "", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
+
+	-- STARTING DECK (Engine/StartingDecks.lua): Classic 52, Lucky 56, Slim 40. The server decides what is open and re-checks the pick.
+	local StartingDecks = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StartingDecks"))
+	local START_DECK_HEADER_ORDER, START_DECK_CARD_BASE = 500, 500
+	local selectedStartingDeckId = StartingDecks.DefaultId
+	local startingDeckCards = {}
+	makeRunSetupSectionLabel("Starting Deck", "", START_DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
 	makeRunSetupSectionLabel("Difficulty", "", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
 
 	-- STAKES (Engine/Stakes.lua): eight tiers, each adds one rule. Win a run on a stake to open the next.
@@ -308,6 +315,32 @@ return function(deps)
 	-- reselect must NOT re-trigger the cascade.
 	local function refreshRunSetupCards(reveal)
 		local newlyBuiltCards = {}
+
+		for _, child in ipairs(startingDeckCards) do
+			child:Destroy()
+		end
+		startingDeckCards = {}
+		do
+			local latest = deps.getLatestState and deps.getLatestState()
+			local rows = latest and latest.startingDecks or StartingDecks.view(nil)
+			for i, row in ipairs(rows) do
+				local locked = not row.open
+				local card, clickCatcher = makePickCard(runSetupScroll, START_DECK_CARD_BASE + i, row.icon .. " " .. row.name,
+					locked and ("Locked. " .. row.hint) or row.text, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked)
+				table.insert(startingDeckCards, card)
+				table.insert(newlyBuiltCards, card)
+				if locked then
+					clickCatcher.Active = false
+					if row.id == selectedStartingDeckId then selectedStartingDeckId = StartingDecks.DefaultId end
+				else
+					clickCatcher.MouseButton1Click:Connect(function()
+						playClickSfx(0.4)
+						selectedStartingDeckId = row.id
+						refreshRunSetupCards()
+					end)
+				end
+			end
+		end
 
 		for _, child in ipairs(deckVariantCards) do
 			child:Destroy()
@@ -515,7 +548,7 @@ return function(deps)
 		if onBeginRun then
 			onBeginRun()
 		end
-		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake, selectedChallengeId, selectedMode)
+		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake, selectedChallengeId, selectedMode, selectedStartingDeckId)
 		popOut(runSetupBackdrop, runSetupPanel, nil, function()
 			menuFrame.Visible = false
 			root.Visible = true

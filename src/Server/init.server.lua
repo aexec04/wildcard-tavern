@@ -663,6 +663,8 @@ local function serializeState(session, player)
 			}
 		end)(),
 		deckVariantId = state.deckVariantId,
+		startingDeckId = state.startingDeckId,
+		startingDecks = require(Engine.StartingDecks).view(profiles[player]), -- the pre run screen deck cards, with what is open
 		difficultyId = state.difficultyId,
 		stake = state.stake,
 		highestStakeUnlocked = Stakes.highestUnlocked(profiles[player]),
@@ -1787,6 +1789,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 	sessions[player] = {
 		state = RunState.new({
 			deckVariantId = forceStandard and "standard" or deckVariantId,
+			-- STARTING DECK (Engine/StartingDecks.lua): only an open deck is honored; fixed boards, Boss Rush and the tutorial use Classic
+			startingDeckId = (forceStandard or rush or isTutorial == true) and "classic" or require(Engine.StartingDecks).resolve(profile, extra.startingDeckId),
 			difficultyId = forceStandard and "standard" or difficultyId,
 			stakeId = stake,
 			endlessRules = seededRng == nil and isTutorial ~= true and not rush and challengeId == nil, -- Crowd Rules: normal runs only
@@ -3448,7 +3452,7 @@ Rem.RestartRun.OnServerEvent:Connect(function(player)
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
 	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake,
-		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil, quick = session.state.quickRun == true })
+		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil, quick = session.state.quickRun == true, startingDeckId = session.state.startingDeckId })
 end)
 
 -- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
@@ -3462,7 +3466,7 @@ Rem.AbandonRun.OnServerEvent:Connect(function(player)
 		return
 	end
 	profileDirty[player] = true
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake)
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake, { startingDeckId = session.state.startingDeckId })
 end)
 
 -- The ONLY way a tutorial run begins: the Tutorial tile on the main menu. Scripted hands, no profile writes.
@@ -3475,7 +3479,7 @@ Rem.StartTutorial.OnServerEvent:Connect(function(player)
 	logStep(player, "tutorial_started")
 end)
 
-Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode)
+Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode, startingDeckId)
 	if not RateLimit.allow(player.UserId, "Rem.StartRun", os.clock()) then return end
 	if not sessions[player] then
 		return
@@ -3492,7 +3496,7 @@ Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId,
 	if type(challengeId) ~= "string" then
 		challengeId = nil
 	end
-	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush", quick = mode == "quick" })
+	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush", quick = mode == "quick", startingDeckId = type(startingDeckId) == "string" and startingDeckId or nil })
 end)
 
 -- ===== One More Round (see the section next to ProcessReceipt) =====

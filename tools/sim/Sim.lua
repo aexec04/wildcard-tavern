@@ -1101,6 +1101,7 @@ function Sim.runOne(cfg, seed)
 
 	local state = E.RunState.new({
 		deckVariantId = cfg.deck,
+		startingDeckId = cfg.startDeck,
 		difficultyId = cfg.difficulty,
 		nightOneBonusDiscards = cfg.nightOneDiscards,
 		stakeId = cfg.stake,

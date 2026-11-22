@@ -16,6 +16,7 @@
 		--stakes                     every stake x every bot, one summary line each
 		--ladder                     all three bots, one summary line each
 		--variants                   decent bot on every deck and difficulty
+		--start-decks                decent bot on Classic, Lucky and Slim (Engine/StartingDecks), --start-deck ID for one
 		--bosses                     force each boss on --boss-night, report clear rates
 		--boss-list ID,ID            limit --bosses to these
 		--patron-lift                start with each Patron for free, report win-rate lift
@@ -52,7 +53,7 @@ local function parseArgs(argv)
 		src = toolsDir .. "/../src/Shared",
 	}
 	local names = {
-		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--src"] = "src",
+		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--start-deck"] = "startDeck", ["--src"] = "src",
 		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss", ["--mode"] = "mode",
 		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
 		["--build"] = "build", ["--patron-list"] = "patronList", ["--daily-twist"] = "dailyTwist",
@@ -65,7 +66,7 @@ local function parseArgs(argv)
 		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds",
 	}
 	local flags = {
-		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
+		["--ladder"] = "ladder", ["--variants"] = "variants", ["--start-decks"] = "startDecks", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
 		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
@@ -112,7 +113,7 @@ end
 
 local function workerArgs(run, firstRun, count, outPath)
 	local parts = {
-		"--bot", run.bot, "--difficulty", run.difficulty, "--deck", run.deck,
+		"--bot", run.bot, "--difficulty", run.difficulty, "--deck", run.deck, "--start-deck", run.startDeck or "classic",
 		"--max-night", run.maxNight, "--bank", run.bank, "--seed", run.seed,
 		"--src", run.src, "--boss-night", run.bossNight,
 		"--runs", count, "--first-run", firstRun, "--worker-out", outPath,
@@ -243,6 +244,10 @@ elseif cfg.ladder then
 	end
 	if cfg.json then
 		Report.writeJson(cfg.json, "ladder", summaries.decent)
+	end
+elseif cfg.startDecks then
+	for _, def in ipairs(engine.StartingDecks.Definitions) do
+		runAndSummarize("start-deck=" .. def.id, { startDeck = def.id })
 	end
 elseif cfg.variants then
 	for _, def in ipairs(engine.DeckVariants.Definitions) do
