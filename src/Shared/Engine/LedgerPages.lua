@@ -11,7 +11,7 @@
 local LedgerPages = {}
 
 LedgerPages.PAGES = { "Story", "Hall of Fame", "Records" }
-LedgerPages.EMPTY_NOTE = "Nothing written yet. Go lose gracefully."
+LedgerPages.EMPTY_NOTE = "Nothing written yet. Finish a run and it shows up here."
 LedgerPages.RUNS_SHOWN = 10
 LedgerPages.SPARK_SLOTS = 20
 LedgerPages.BESTS_SHOWN = 3
@@ -25,9 +25,13 @@ end
 function LedgerPages.fmt(n)
 	n = whole(n)
 	if n >= 1e9 then return string.format("%.1fB", n / 1e9) end
-	if n >= 1e6 then return string.format("%.1fM", n / 1e6) end
-	if n >= 1e4 then return string.format("%.1fK", n / 1e3) end
-	return tostring(n)
+	local text = string.format("%d", n) -- whole number already, so %d is safe
+	while true do -- thousands separators: 12345 -> 12,345
+		local nxt, hits = text:gsub("^(%d+)(%d%d%d)", "%1,%2")
+		text = nxt
+		if hits == 0 then break end
+	end
+	return text
 end
 
 -- True when nothing has been written yet (no finished run).
