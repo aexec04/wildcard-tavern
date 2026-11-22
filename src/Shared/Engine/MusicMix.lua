@@ -98,4 +98,10 @@ function MusicMix.shouldFade(fromKey, toKey)
 	return fromKey ~= nil and toKey ~= nil and fromKey ~= toKey
 end
 
+-- same song asked for again: does the bed level need a step? A fade that was cut short leaves the level off the gain, so the
+-- same key and gain still steps back up (otherwise the bed would stay quiet)
+function MusicMix.needsLevelStep(currentVolume, bedGain, newGain)
+	return newGain ~= bedGain or math.abs((tonumber(currentVolume) or 0) - newGain) > MusicMix.MIN_CLEAR_STEP
+end
+
 return MusicMix
