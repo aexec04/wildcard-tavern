@@ -38233,4 +38233,30 @@ table.insert(tests, { name = "Victory and Run Over polish: serif 16 px text, 44 
 	end
 end })
 
+table.insert(tests, { name = "Late game: targets rise every Night from 5 to 12, Boss multiplier never drops, Night 6+ bosses are new rules until the pool runs out", fn = function()
+	local cap = RunState.DefaultConfig.nightCap
+	for n = 5, 11 do
+		for round = 1, 3 do
+			expectTrue(RunState.targetScoreFor(n + 1, round, 3, cap) > RunState.targetScoreFor(n, round, 3, cap), "round " .. round .. " target rises from Night " .. n)
+		end
+		expectTrue(RunState.blindMultiplierFor(n + 1, 3, 3, cap) >= RunState.blindMultiplierFor(n, 3, 3, cap), "Boss multiplier never drops at Night " .. n)
+	end
+	local used, fresh = {}, 0
+	local seq = 0
+	local function pseudo(k)
+		seq = seq + 7
+		return (seq % k) + 1
+	end
+	for n = 6, 12 do
+		local def = BossRounds.pick(pseudo, n, used, nil)
+		local isNew = true
+		for _, id in ipairs(used) do
+			if id == def.id then isNew = false end
+		end
+		if isNew then fresh = fresh + 1 end
+		table.insert(used, def.id)
+	end
+	expectTrue(fresh >= 4, "at least one new boss rule per two Nights across Nights 6 to 12, got " .. fresh .. " new")
+end })
+
 return tests
