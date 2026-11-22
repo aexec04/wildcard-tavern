@@ -38501,4 +38501,17 @@ table.insert(tests, { name = "HandReadout: name and base Chips x Mult at the han
 	end
 end })
 
+table.insert(tests, { name = "Patron roster: every ability text is 60 chars or less, no em dash, priced 4 to 8, rarity known", fn = function()
+	local CB = require(script.Parent.Parent.Engine.CollectionBook)
+	local bad = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		local s = p.description or ""
+		if #s > 60 then bad[#bad + 1] = p.id .. " text " .. #s end
+		if s:find("\226\128\148", 1, true) then bad[#bad + 1] = p.id .. " em dash" end
+		if (p.price or 0) < 4 or p.price > 8 then bad[#bad + 1] = p.id .. " price " .. tostring(p.price) end
+		if not CB.Rarities[CB.rarityOf({ id = p.id, tab = "patrons", def = p })] then bad[#bad + 1] = p.id .. " rarity" end
+	end
+	expectTrue(#bad == 0, table.concat(bad, "; "))
+end })
+
 return tests

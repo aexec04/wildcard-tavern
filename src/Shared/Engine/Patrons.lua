@@ -256,7 +256,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "repeat_customer", name = "Repeat Customer", icon = "🔁", price = 7,
-		description = "x3 Mult if you've already played this poker hand type this round.",
+		description = "x3 Mult if you already played this hand type this round.",
 		flavorText = "Found a favorite and is never changing it.",
 		effect = function(_handResult, context)
 			if context.alreadyPlayedThisHandTypeThisRound then
@@ -424,7 +424,7 @@ Patrons.Definitions = {
 	-- ===== More XMULT (only House Favorite/Repeat Customer existed before) =====
 	{
 		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8,
-		description = "x1.1 Mult for each Hand you have remaining this round after this one.",
+		description = "x1.1 Mult for each Hand you have left after this one.",
 		short = "x1.1 Mult per Hand left after this one",
 		flavorText = "Arrives before the doors open and waits politely.",
 		effect = function(_handResult, context)
@@ -683,7 +683,7 @@ Patrons.Definitions = {
 	-- ===== SCALING (grow over a run; every count lives on the run's state) =====
 	{
 		id = "slow_cooker", name = "Slow Cooker", icon = "🍲", price = 7,
-		description = "x0.025 more Mult for every round cleared this run (up to x2).",
+		description = "x0.025 more Mult per round cleared this run (up to x2).",
 		flavorText = "Good things take time, and this stew takes all night.",
 		effect = function(_handResult, context)
 			local rounds = context.roundsCleared or 0
@@ -759,7 +759,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "pair_bonds", name = "Pair Bonds", icon = "💞", price = 6,
-		description = "+1 Mult for every 4 Pairs or Two Pairs played this run (up to +15).",
+		description = "+1 Mult per 4 Pairs or Two Pairs played this run (max +15).",
 		flavorText = "Introduces everyone to everyone else.",
 		effect = function(_handResult, context)
 			local stats = context.handStatsBefore or {}
@@ -846,7 +846,7 @@ local biomePatrons = {
 	},
 	{
 		id = "marsh_gardener", name = "Marsh Gardener", icon = "🍄", price = 5, rarity = "uncommon", biome = "swamp",
-		description = "+3 Mult if none of the scoring cards is a Heart or a Diamond.",
+		description = "+3 Mult if no scoring card is a Heart or a Diamond.",
 		flavorText = "Grows mushrooms only in the shadiest corners.",
 		effect = function(handResult, _context)
 			local red = countScoring(handResult, function(card)
