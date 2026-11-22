@@ -40297,6 +40297,29 @@ table.insert(tests, { name = "Tooltips, guided hint and Next goal banner wear th
 	end
 end })
 
+table.insert(tests, { name = "Tutorial ribbon and How to play wear the set plate and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = CS.hintStyleOf(set.id)
+		if set.id == CS.DefaultId then
+			expectTrue(st == nil, "classic keeps its own colours")
+		elseif st then
+			n = n + 1
+			expectTrue(CS.contrastRatio(st.plate, st.ink) >= 7, set.id .. " tutorial ink is 7:1")
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a hint style")
+	if not io then return end
+	for file, needle in pairs({ TutorialWalkthrough = "HintSkin", HowToPlay = "HintSkin" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil and src:find(".bind(", 1, true) ~= nil, file .. " binds the hint skin")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Settings sliders and On switches use the set accent, 4.5:1 on the track and for the white On text, on every set, classic unchanged", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	expectEqual(CS.controlAccentOf("classic_tavern"), nil, "classic keeps gold and green")

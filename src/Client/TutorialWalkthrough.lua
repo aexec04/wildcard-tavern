@@ -127,6 +127,8 @@ return function(deps)
 	ribbonText.Text = ""
 	ribbonText.ZIndex = Z + 3
 	ribbonText.Parent = ribbon
+	-- the equipped Card Set plate and ink at 7:1 (classic keeps the wood look)
+	require(script.Parent.HintSkin).bind(ribbon, rStroke, { ribbonText }, { plate = Color3.fromRGB(70, 48, 30), edge = Color3.fromRGB(222, 182, 104), ink = Color3.fromRGB(250, 235, 200) })
 	local arrow = Instance.new("TextLabel")
 	arrow.Name = "TutorialArrow"
 	arrow.AnchorPoint = Vector2.new(0.5, 0.5)
