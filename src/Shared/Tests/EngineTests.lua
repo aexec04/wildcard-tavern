@@ -30183,6 +30183,43 @@ table.insert(tests, { name = "Tutorial Skip: 44 px touch target, always on scree
 	assert(st:find("Replay Tutorial", 1, true) and st:find("deps.replayTutorial", 1, true), "Settings has a Replay Tutorial entry")
 end })
 
+table.insert(tests, { name = "Rejoin safety: save, load and save again never changes the profile, no live run is stored, a corrupt save falls back to defaults", fn = function()
+	local function same(a, b, path)
+		if type(a) ~= type(b) then error("type differs at " .. path) end
+		if type(a) ~= "table" then
+			if a ~= b and not (a ~= a and b ~= b) then error("value differs at " .. path) end
+			return
+		end
+		for k, v in pairs(a) do same(v, b[k], path .. "." .. tostring(k)) end
+		for k in pairs(b) do if a[k] == nil then error("extra key at " .. path .. "." .. tostring(k)) end end
+	end
+	local p = PlayerProfile.new()
+	p.stats.runsStarted, p.stats.runsWon, p.stats.bestNightReached = 7, 2, 5
+	p.discoveredPatronIds.tip_jar = true
+	p.settings.muted = true
+	local once = PlayerProfile.migrate(p)
+	local twice = PlayerProfile.migrate(once)
+	same(once, twice, "profile") -- a rejoin that loads what it just saved changes nothing, so nothing is paid twice
+	same(p.stats, once.stats, "stats")
+	for key in pairs(once) do
+		assert(not tostring(key):lower():find("liverun") and key ~= "activeRun" and key ~= "runState", "a live run is never written to the profile: " .. tostring(key))
+	end
+	for _, bad in ipairs({ "garbage", 42, true, {}, { stats = "x", settings = 5, discoveredPatronIds = 9 } }) do
+		local ok, loaded = pcall(PlayerProfile.migrate, bad)
+		assert(ok, "a corrupt save must not error")
+		assert(loaded.stats.runsStarted == 0 and loaded.stats.runsWon == 0, "a corrupt save falls back to a fresh profile")
+	end
+end })
+
+table.insert(tests, { name = "Tutorial: the Nice! button is a 44 px touch target and the ribbon text is 14 px or more", fn = function()
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/TutorialWalkthrough.lua", "r"))
+	local w = f:read("*a")
+	f:close()
+	assert(w:find("okButton.Size = UDim2.fromOffset(140, 44)", 1, true), "Nice! is 44 px tall")
+	assert(w:find("ribbonText.TextSize = 20", 1, true), "ribbon text is 20 px")
+end })
+
 table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every group fill and ribbon, active tab is lighter", fn = function()
 	local PanelGroups = require(script.Parent.Parent.Engine.PanelGroups)
 	for _, g in ipairs(PanelGroups.GROUPS) do
