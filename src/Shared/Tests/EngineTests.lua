@@ -40971,6 +40971,43 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
+table.insert(tests, { name = "DailyStamps: one stamp per ladder day in the set accent with a readable check, today pulses only while claimable and never in Calm mode, a missed day gets a kind line", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStamps)
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local profile = PlayerProfile.new()
+	LS.checkIn(profile, 100)
+	local view = LS.view(profile)
+	local states = DS.states(view)
+	expectEqual(#states, 7, "one stamp slot per ladder day")
+	expectEqual(states[1].state, "today"); expectTrue(states[1].pulse, "today pulses while its reward waits")
+	expectEqual(states[2].state, "ahead"); expectFalse(states[2].pulse)
+	LS.claim(profile, 1, nil)
+	local claimed = DS.states(LS.view(profile))
+	expectEqual(claimed[1].state, "stamped", "a claimed day wears a stamp")
+	expectFalse(claimed[1].pulse, "nothing pulses once it is claimed")
+	expectEqual(DS.pulse(false, true).seconds, 1.2)
+	expectTrue(DS.PULSE_SECONDS >= 1 / 3 * 2, "slow enough to stay under 3 flashes a second")
+	expectEqual(DS.pulse(true, true), nil, "Calm mode and Reduce motion: no pulse")
+	expectEqual(DS.pulse(false, false), nil, "no pulse when nothing waits")
+	for _, set in ipairs(CS.Definitions) do
+		local c = DS.stampColors(set.id)
+		expectTrue(CS.contrastRatio(c.fill, c.ink) >= 3, set.id .. " check mark reads on its stamp at 3:1")
+	end
+	expectEqual(DS.stampColors(CS.DefaultId).fill[1], 246, "classic keeps the gold stamp")
+	expectEqual(DS.streakLine({ streak = 3, best = 3 }), "Streak: 3 days")
+	expectEqual(DS.streakLine({ streak = 1, best = 1 }), "Streak: 1 day")
+	local fresh = DS.streakLine({ streak = 1, best = 6 })
+	expectTrue(fresh:find("Fresh start", 1, true) ~= nil and fresh:find("6", 1, true) ~= nil, "a missed day starts fresh without scolding")
+	expectTrue(not fresh:find("lost") and not fresh:find("broke") and not fresh:find("missed") and not fresh:find("\226\128\148"), "kid safe wording")
+	expectEqual(LS.view(profile).best, 1, "the view carries the best streak")
+	if io and io.open then
+		local f = assert(io.open("src/Client/DailyRewardsPanel.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("DailyStamps.pulse(", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil and src:find("DailyStamps.stampColors", 1, true) ~= nil, "the panel uses the stamp rules and the calm switch")
+	end
+end })
+
 table.insert(tests, { name = "Card Sets hero preview flip: 0.25 s when a different tile is picked, never in Calm mode, not on a repaint, the face fan and back sit side by side with a 44 px Equip on every set and size", fn = function()
 	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

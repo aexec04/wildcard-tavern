@@ -172,7 +172,7 @@ function LoginStreak.view(profile)
 			today = reward.day == today,
 		})
 	end
-	return { streak = streak, today = today, rewards = rows }
+	return { streak = streak, best = profile.bestLoginStreak or streak, today = today, rewards = rows }
 end
 
 return LoginStreak
