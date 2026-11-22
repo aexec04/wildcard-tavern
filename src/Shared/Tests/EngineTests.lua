@@ -34900,7 +34900,7 @@ table.insert(tests, { name = "PatronParchment.storedRect: the 81 crops are scale
 		expectTrue(r.y + r.h <= 1536 * 0.82, id .. ": window ends above the baked name plate")
 		n = n + 1
 	end
-	expectEqual(n, 81, "one crop per Patron")
+	expectEqual(n, #Patrons.Definitions, "one crop per Patron")
 	expectTrue(P.storedRect("no_such_patron") == nil, "no crop, no rect")
 end })
 
@@ -38930,7 +38930,7 @@ table.insert(tests, { name = "StoreLayout.touchH: Buy and Close plates measure a
 	expectEqual(L.touchH(1), 44)
 end })
 
-table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, Good Company score as written, read short and safe, and borrow a real portrait", fn = function()
+table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, Good Company score as written, read short and safe, and have their own art", fn = function()
 	local Card = require(script.Parent.Parent.Engine.Card)
 	local Synergy = require(script.Parent.Parent.Engine.Synergy)
 	local function hand(name, ranks)
@@ -38949,6 +38949,8 @@ table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, 
 	expectEqual(good.effect(hand("High Card", { 2 }), { ownedPatrons = { good, lone, even } }).mult, 6, "Good Company counts the other Patrons")
 	expectTrue(good.effect(hand("High Card", { 2 }), { ownedPatrons = { good } }) == nil, "Good Company alone does nothing")
 	local art = require(script.Parent.Parent.Engine.PatronArt)
+	local cards = require(script.Parent.Parent.Engine.ConceptTPatronArt)
+	local crops = require(script.Parent.Parent.Engine.PatronCardCrop)
 	for _, p in ipairs({ lone, even, odd, good }) do
 		expectTrue(#p.description <= 60, p.id .. " text 60 characters or less")
 		expectTrue(not (p.name .. p.description .. p.flavorText):lower():find("balatro"), p.id .. " name rule")
@@ -38957,9 +38959,10 @@ table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, 
 		end
 		expectTrue(p.price >= 5 and p.price <= 7 and (p.rarity == "common" or p.rarity == "uncommon"), p.id .. " priced by rarity")
 		expectTrue(p.tags and #p.tags >= 1, p.id .. " has a synergy tag")
-		expectTrue(Patrons.artKey(p.id) ~= p.id and art[Patrons.artKey(p.id)], p.id .. " borrows a portrait that exists")
+		expectTrue(art[p.id] and art[p.id] ~= "rbxassetid://0", p.id .. " has its own portrait")
+		expectTrue(cards["ctp_" .. p.id], p.id .. " has its own cut card")
+		expectTrue(crops[p.id], p.id .. " has a card crop")
 	end
-	expectEqual(Patrons.artKey("twin_spoons"), "twin_spoons", "a Patron with its own art keeps its id")
 end })
 
 return tests

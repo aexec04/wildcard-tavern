@@ -1107,9 +1107,9 @@ local depthPatrons = {
 		handsDelta = 1, handSizeDelta = -1,
 		effect = function() return nil end,
 	},
-	-- Roster additions. artStandIn: borrows another Patron's painted portrait until its own art lands (see Patrons.artKey).
+	-- Roster additions.
 	{
-		id = "lone_wolf", name = "Lone Wolf", icon = "🐺", price = 5, rarity = "common", artStandIn = "night_owl",
+		id = "lone_wolf", name = "Lone Wolf", icon = "🐺", price = 5, rarity = "common",
 		description = "+15 Mult if the hand is a High Card.",
 		flavorText = "Prefers a quiet corner table.",
 		effect = function(handResult, _context)
@@ -1117,7 +1117,7 @@ local depthPatrons = {
 		end,
 	},
 	{
-		id = "even_keel", name = "Even Keel", icon = "⚖️", price = 6, rarity = "common", artStandIn = "steady_hand",
+		id = "even_keel", name = "Even Keel", icon = "⚖️", price = 6, rarity = "common",
 		description = "+3 Mult for each scoring 2, 4, 6, 8 or 10.",
 		flavorText = "Likes everything in pairs and nothing rocky.",
 		effect = function(handResult, _context)
@@ -1131,7 +1131,7 @@ local depthPatrons = {
 		end,
 	},
 	{
-		id = "odd_duck", name = "Odd Duck", icon = "🦆", price = 6, rarity = "common", artStandIn = "meadow_bee",
+		id = "odd_duck", name = "Odd Duck", icon = "🦆", price = 6, rarity = "common",
 		description = "+12 Chips for each scoring 3, 5, 7 or 9.",
 		flavorText = "Quacks at the strangest moments.",
 		effect = function(handResult, _context)
@@ -1145,7 +1145,7 @@ local depthPatrons = {
 		end,
 	},
 	{
-		id = "good_company", name = "Good Company", icon = "🤝", price = 7, rarity = "uncommon", artStandIn = "full_house_crowd",
+		id = "good_company", name = "Good Company", icon = "🤝", price = 7, rarity = "uncommon",
 		description = "+3 Mult for each other Patron at your table.",
 		flavorText = "Never eats alone.",
 		effect = function(_handResult, context)
@@ -1216,12 +1216,6 @@ function Patrons.sum(owned, field)
 		total = total + (patron[field] or 0)
 	end
 	return total
-end
-
--- The art key to draw for a Patron: its own id, or the Patron whose portrait it borrows until its art lands (artStandIn).
-function Patrons.artKey(id)
-	local def = Patrons.getById(id)
-	return def and def.artStandIn or id
 end
 
 function Patrons.getById(id)
