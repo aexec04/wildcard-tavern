@@ -171,7 +171,7 @@ function DebugGotoRules.isFullScreenSize(xs, xo, ys, yo)
 end
 
 -- Screens a set suffix is meant for (one per screen to check per set): menu, haggle, round1, boss1, map, store, season, collection.
-DebugGotoRules.SET_SCREENS = { "menu", "haggle", "round1", "boss1", "map", "store", "season", "collection" }
+DebugGotoRules.SET_SCREENS = { "menu", "haggle", "round1", "boss1", "map", "store", "season", "collection", "boon" }
 
 -- Any jump may end in :<cardSetId> (haggle:winter_evening, haggle:good:golden_gala, boss1:dune_market, menu:meadow_picnic, map:harbor_lights ...).
 -- The suffix is split off first, the rest parses as before, and the target gets setId so the client previews that set for the room, shop,
@@ -207,6 +207,9 @@ function DebugGotoRules.parseCore(value)
 	if text == "equip" then return nil, "equip needs a card set id (equip:<setId>)" end
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
+	end
+	if text == "boon" then -- the Night boon picker with three sample boons (boon:<setId> previews it in that Card Set)
+		return { kind = "boon" }
 	end
 	if text == "map" then -- the real Tavern Map overlay (the same opener as the Journey corner button)
 		return { kind = "map" }

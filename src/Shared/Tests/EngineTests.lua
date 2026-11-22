@@ -43425,7 +43425,11 @@ end })
 table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store, season and collection each take a :<setId> suffix for every set", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
-	expectEqual(#R.SET_SCREENS, 8, "eight screens are listed")
+	expectEqual(#R.SET_SCREENS, 9, "nine screens are listed (boon is the Night boon picker)")
+	local boon, boonSet = R.parse("boon"), R.parse("boon:winter_evening")
+	expectTrue(boon and boon.kind == "boon" and boon.setId == nil, "boon alone opens the picker in the equipped set")
+	expectTrue(boonSet and boonSet.kind == "boon" and boonSet.setId == "winter_evening", "boon:<setId> previews the picker in that set")
+	expectTrue(R.parse("boon:no_such_set") == nil, "an unknown set is an error for boon too")
 	local n = 0
 	for _, set in ipairs(CS.Definitions) do
 		for _, screen in ipairs(R.SET_SCREENS) do
@@ -43437,7 +43441,7 @@ table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store
 			end
 		end
 	end
-	expectEqual(n, 8 * #CS.Definitions, "every screen and set pair parsed")
+	expectEqual(n, 9 * #CS.Definitions, "every screen and set pair parsed")
 	local season, coll = R.parse("season"), R.parse("collection")
 	expectTrue(season and season.kind == "tome" and season.page == "season" and season.setId == nil, "season alone opens the Season panel")
 	expectTrue(coll and coll.kind == "tome" and coll.page == "collection", "collection alone opens the Collection")
