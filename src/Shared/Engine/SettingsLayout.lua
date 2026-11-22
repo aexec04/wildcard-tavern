@@ -52,6 +52,9 @@ M.PANEL = { fw = 0.5, fy = 0.115, fh = 0.773, sidePad = 20, top = 48, bottomRese
 -- Plate picture for every Settings button: the finished whole picture (TavernStyle wh_btn_dark, drawn Stretch, no nine-slice), so the centre
 -- always fills. The ornate nine-slice orn_btn_dark drew only its corners at 228x56 and 110x44 (live, Nov 22).
 M.PLATE = "wh_btn_dark"
+-- Solid backing under every plate picture (live, Nov 22: the picture loaded and sat in place yet showed nothing on the dark wood).
+-- A filled dark brown frame with a gold edge and 6 px corners, so a plate is always visible even if the picture draws clear.
+M.BACKING = { fill = { 60, 42, 26 }, transparency = 0, edge = { 200, 165, 90 }, edgePx = 2, corner = 6 }
 M.ACCOUNT = { plateH = 56, gap = 10, textSize = 18, perRow = 3, secondRow = 2 }
 
 -- Rects of the five Account plates relative to the scroll canvas (x from its left edge, y from the top of the first Account row).

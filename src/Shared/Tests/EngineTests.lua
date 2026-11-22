@@ -37561,6 +37561,19 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	expectTrue(A.plateH >= 44, "Account plates are 44 px or taller")
 end })
 
+table.insert(tests, { name = "Settings plates: a solid dark brown backing with a gold edge sits under every Account and Hold to Confirm plate picture", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local B = SL.BACKING
+	expectTrue(B.transparency < 0.3, "backing is visibly filled (transparency below 0.3)")
+	expectEqual(table.concat(B.fill, ","), "60,42,26", "backing is the dark brown")
+	expectTrue(B.edgePx >= 1 and B.corner == 6, "gold edge and 6 px corners")
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	local _, uses = src:gsub("pcall%(backPlate, button%)", "")
+	expectEqual(uses, 2, "Account buttons and the Hold to Confirm button both get the backing")
+	expectTrue(src:find("back.ZIndex = math.max(0, button.ZIndex - 3)", 1, true) ~= nil, "backing sits under the picture and the button")
+end })
+
 table.insert(tests, { name = "Settings Account: five plates from the live layout function sit inside the panel at four sizes, 44 px or more, none overlapping", fn = function()
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 800, 450 } }) do
@@ -37607,7 +37620,7 @@ table.insert(tests, { name = "Settings Account: rows have no list layout (painte
 	expectTrue(at and to and src:sub(at, to):find("UIListLayout", 1, true) == nil, "Account rows use no UIListLayout")
 	expectTrue(src:find("button.Position = UDim2.new((layoutOrder - 1) / perRow", 1, true) ~= nil, "each plate is positioned by slot")
 	expectTrue(src:find("OUTSIDE the scroll", 1, true) ~= nil, "Studio check compares real AbsolutePosition with the scroll")
-	expectTrue(src:find('if not isSwitch then pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
+	expectTrue(src:find('if not isSwitch then pcall(backPlate, button); pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE', 1, true) ~= nil, "multi-choice buttons (Hold to Confirm) use the brass plate")
 end })
 
 table.insert(tests, { name = "Set backdrop layers never draw in a button or popup: host lookup skips GuiButtons, Settings plates take no set overlay", fn = function()
