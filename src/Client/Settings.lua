@@ -395,9 +395,11 @@ return function(deps)
 		polishButton(go, 8)
 		addButtonHoverScale(go)
 		go.MouseButton1Click:Connect(function()
-			playClickSfx()
-			settingsBackdrop.Visible = false
-			pcall(deps.replayTutorial)
+			-- a calm confirm first (Client/ReplayConfirm): replaying changes no saved progress
+			require(script.Parent.ReplayConfirm).ask(function()
+				settingsBackdrop.Visible = false
+				pcall(deps.replayTutorial)
+			end)
 		end)
 	end
 
@@ -765,6 +767,9 @@ return function(deps)
 	require(script.Parent.QuitConfirm).install({
 		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
 		polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
+	})
+	require(script.Parent.ReplayConfirm).install({
+		screenGui = deps.screenGui, polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
 	})
 	OverlayManager.registerOpener("quitToTavern", function()
 		require(script.Parent.QuitConfirm).ask()

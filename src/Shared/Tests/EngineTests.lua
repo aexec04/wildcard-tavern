@@ -14262,6 +14262,31 @@ table.insert(tests, { name = "LedgerPages favourites: most played Patron from th
 	expectTrue(Layout.span("left", 9) ~= nil, "ruled line 9 exists on the left page")
 end })
 
+table.insert(tests, { name = "ReplayFlow: one confirm per request, safe kid wording, Replay Tutorial asks first, runs only the walkthrough and never touches the profile", fn = function()
+	local RF = require(script.Parent.Parent.Engine.ReplayFlow)
+	local s = RF.new()
+	expectTrue(RF.request(s), "the confirm opens")
+	expectFalse(RF.request(s), "not twice")
+	expectTrue(RF.confirm(s), "Replay once")
+	expectFalse(RF.confirm(s), "a double tap cannot replay twice")
+	RF.finish(s)
+	expectTrue(RF.request(s), "a new request may open after it finished")
+	RF.cancel(s)
+	expectFalse(RF.confirm(s), "Not now then Replay does nothing")
+	for _, w in ipairs({ RF.TITLE, RF.MESSAGE, RF.YES, RF.NO }) do
+		expectTrue(not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. w)
+	end
+	expectTrue(RF.MESSAGE:find("progress", 1, true) ~= nil, "the message says progress is safe")
+	if io and io.open then
+		local function read(p) local f = assert(io.open(p, "r")); local t = f:read("*a"); f:close(); return t end
+		local settings = read("src/Client/Settings.lua")
+		expectTrue(settings:find("ReplayConfirm).ask(function()", 1, true) ~= nil, "the Replay button asks first")
+		local confirm = read("src/Client/ReplayConfirm.lua")
+		expectTrue(not confirm:find("FireServer", 1, true) and not confirm:find("InvokeServer", 1, true) and not confirm:find("hasSeenTutorial", 1, true), "the confirm never writes the profile or the tutorial flag")
+		expectTrue(confirm:find("TweenService", 1, true) == nil, "no tween")
+	end
+end })
+
 table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, empty note is friendly", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(LP.fmt(0), "0", "zero")
