@@ -44,6 +44,11 @@ local Quests = require(Engine.Quests) -- daily quests
 local AccountProgress = require(Engine.AccountProgress) -- run counters to XP and quest progress
 local progressSeqCounter = 0 -- ids progress toasts (rank ups, quests done)
 local Analytics = require(Engine.Analytics) -- funnel steps and custom events; errors never reach gameplay
+local LaunchLog = require(Engine.AnalyticsEvents).new({ -- launch funnel and Tips economy; off in Studio unless workspace attribute AnalyticsDebug is true
+	service = (function() local ok, svc = pcall(game.GetService, game, "AnalyticsService") return ok and svc or nil end)(),
+	enabled = not game:GetService("RunService"):IsStudio() or workspace:GetAttribute("AnalyticsDebug") == true,
+	print = game:GetService("RunService"):IsStudio() and print or nil,
+})
 local NextGoal = require(Engine.NextGoal) -- the menu's Next Goal line
 local FirstRewards = require(Engine.FirstRewards) -- tutorial and first-win rewards, the one-time follow prompt
 local PatronsData = require(Engine.Patrons) -- display names for the Next Goal line
@@ -1261,6 +1266,12 @@ local function syncProfileFromSession(player)
 			session.runEndLogged = true
 			local route = runState.worldRoute or {}
 			Analytics.runEnd(player, runState.stake, WorldMap.regionOf(route[#route]), runState.night, runState.wonRun)
+			if TutorialStart.writesProfile(session) then
+				local lostBoss = not runState.wonRun and RunState.isBossRound(runState)
+				LaunchLog.runEnded(player, runState.night, runState.roundScore or 0,
+					runState.wonRun and "won" or (lostBoss and "boss" or "hands"))
+				if lostBoss and runState.bossModifier then LaunchLog.bossLost(player, runState.bossModifier.id) end
+			end
 		end
 		-- TUNING DATA: flush the run's aggregate once (a lost Boss Round is recorded first, then Patrons owned and bought).
 		if session.telemetry and not session.telemetryFlushed then
@@ -1817,6 +1828,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		PlayerProfile.recordRunStarted(profile)
 		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
 		Analytics.runStart(player, stake, seedMode or "normal")
+		LaunchLog.runStarted(player)
 		if profile.stats.runsStarted >= 2 then
 			logStep(player, "second_run_started")
 		end
@@ -1929,6 +1941,7 @@ local function onPlayerAdded(player)
 		end
 	end)
 	logStep(player, "menu_shown")
+	LaunchLog.step(player, "menu_opened")
 	local okSession, errSession = pcall(startNewSession, player)
 	if not okSession then
 		warn("[Startup] startNewSession failed for " .. player.Name .. ": " .. tostring(errSession))
@@ -1970,6 +1983,7 @@ Players.PlayerRemoving:Connect(function(player)
 	followPrompts[player] = nil
 	storePrompts[player] = nil
 	funnelSessions[player] = nil
+	LaunchLog.forget(player)
 	profileDirty[player] = nil
 	dailyPending[player] = nil
 	dailyDirty[player] = nil
@@ -2080,10 +2094,19 @@ Rem.PlayHand.OnServerEvent:Connect(function(player, cardIndices)
 	if spectated then
 		for _, index in ipairs(cardIndices) do playedCards[#playedCards + 1] = session.state.hand[index] end
 	end
+	local tipsBefore, wasBoss = session.state.tips or 0, RunState.isBossRound(session.state)
 	local ok, result = pcall(RunState.playHand, session.state, cardIndices)
 	if not ok then
 		warn("PlayHand error for " .. player.Name .. ": " .. tostring(result))
 		return
+	end
+	if TutorialStart.writesProfile(session) then -- launch funnel and Tips earned, from server values only
+		LaunchLog.step(player, "first_hand_played")
+		if result.roundWon then
+			LaunchLog.step(player, "first_round_cleared")
+			if wasBoss then LaunchLog.step(player, "first_night_cleared") end
+			LaunchLog.earned(player, "round_clear", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
+		end
 	end
 	if spectated then -- spectators see the hand, its type and score (never anything hidden)
 		pcall(function()
@@ -2188,8 +2211,11 @@ Rem.BuyPatron.OnServerEvent:Connect(function(player, patronId)
 		return
 	end
 
+	local tipsBefore = session.state.tips or 0
 	local ok = RunState.buyPatron(session.state, patronId)
 	if ok then
+		LaunchLog.step(player, "first_patron_bought")
+		LaunchLog.spent(player, "shop_patron", tipsBefore - (session.state.tips or 0), session.state.tips or 0)
 		pcall(function() -- tuning data: counted in memory, sent once at Game Over (Engine/RunTelemetry.lua)
 			require(Engine.RunTelemetry).recordPatronBought(session.telemetry, patronId, session.state.stake, session.state.night)
 		end)
@@ -2218,7 +2244,9 @@ Rem.SellPatron.OnServerEvent:Connect(function(player, patronId)
 		return
 	end
 
+	local tipsBefore = session.state.tips or 0
 	RunState.sellPatron(session.state, patronId)
+	LaunchLog.earned(player, "selling", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
 	pushState(player)
 end)
 
@@ -2311,7 +2339,11 @@ Rem.SellRecipe.OnServerEvent:Connect(function(player, category, id)
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsRecipeUse(session.phase) or session.state.pendingPack then return end
 	if type(category) ~= "string" or type(id) ~= "string" then return end
-	if RunState.sellRecipe(session.state, category, id) then pushState(player) end
+	local tipsBefore = session.state.tips or 0
+	if RunState.sellRecipe(session.state, category, id) then
+		LaunchLog.earned(player, "selling", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
+		pushState(player)
+	end
 end)
 
 -- ===== Reroll / Packs / House Passes (Vouchers) =====
@@ -2350,6 +2382,7 @@ Rem.RerollShop.OnServerEvent:Connect(function(player)
 		return
 	end
 	session.state.tips = session.state.tips - cost
+	LaunchLog.spent(player, "reroll", cost, session.state.tips)
 	rollShopOffers(session, true)
 	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
 	pushState(player)
@@ -2449,6 +2482,7 @@ Rem.BuyPack.OnServerEvent:Connect(function(player, packId)
 		return
 	end
 
+	local tipsBefore = session.state.tips or 0
 	local ok, revealOrErr = pcall(RunState.openPack, session.state, packId)
 	if not ok then
 		warn("BuyPack error for " .. player.Name .. ": " .. tostring(revealOrErr))
@@ -2459,6 +2493,7 @@ Rem.BuyPack.OnServerEvent:Connect(function(player, packId)
 		-- nothing was charged.
 		return
 	end
+	LaunchLog.spent(player, "shop_pack", tipsBefore - (session.state.tips or 0), session.state.tips or 0)
 
 	for i, pack in ipairs(session.packOffers) do
 		if pack.id == packId then
@@ -3262,7 +3297,11 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	local wasModifier = session.choice.kind == "modifier"
 	local wasReward = session.choice.kind == "reward"
+	local tipsBefore, wasEvent = session.state.tips or 0, session.choice.kind == "event"
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
+	if ok and wasEvent then
+		LaunchLog.earned(player, "events", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
+	end
 	if ok and wasReward and not (session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial) then
 		nextChoice = RunChoice.rollEvent(session.state, true) -- the between-Nights event the reward put off
 	end

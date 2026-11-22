@@ -35266,4 +35266,65 @@ tests[#tests + 1] = ({ name = "Tavern Map: no local shadows the route drawing fu
 	expectTrue(read("src/Client/MapErrors.lua"):find("[TavernMap]", 1, true) ~= nil, "MapErrors keeps the [TavernMap] warn")
 end })
 
+table.insert(tests, { name = "AnalyticsEvents: names stable and unique, payload shapes, funnel order, once per session, rate limit, failures and Studio stay silent", fn = function()
+	local AE = require(script.Parent.Parent.Engine.AnalyticsEvents)
+	local seen = {}
+	for _, list in ipairs({ AE.Steps, AE.EarnSources, AE.SpendSinks, AE.CustomEvents }) do
+		for _, name in ipairs(list) do
+			expectTrue(not seen[name], "duplicate event name " .. name)
+			seen[name] = true
+		end
+	end
+	expectEqual(table.concat(AE.Steps, ","), "menu_opened,run_started,first_hand_played,first_round_cleared,first_night_cleared,first_patron_bought,second_run_started")
+	expectEqual(AE.stepIndex("second_run_started"), 7)
+	expectEqual(AE.economyPayload("earn", "round_clear", 12.9, 40).amount, 12)
+	expectEqual(AE.economyPayload("spend", "reroll", 5, 3).flow, "Sink")
+	expectEqual(AE.economyPayload("earn", "reroll", 5, 3), nil)
+	expectEqual(AE.economyPayload("spend", "shop_pack", 0, 3), nil)
+	expectEqual(AE.economyPayload("spend", "shop_pack", -4, 3), nil)
+	expectEqual(AE.runEndedPayload(3, 1200, "boss").fields.cause, "boss")
+	expectEqual(AE.runEndedPayload(3, 1200, "Ahmed says hi"), nil)
+	expectEqual(AE.bossLostPayload("the_bouncer").fields.boss, "the_bouncer")
+	expectEqual(AE.bossLostPayload("Some Name!"), nil)
+	local log, clock, printed = {}, 1000, {}
+	local fake = {
+		LogFunnelStepEvent = function(_, pl, funnel, sid, step, name) log[#log + 1] = { "step", funnel, sid, step, name } end,
+		LogEconomyEvent = function(_, pl, flow, cur, bal, amt, tt, sku) log[#log + 1] = { "eco", flow, cur, bal, amt, sku } end,
+		LogCustomEvent = function(_, pl, name, value, fields) log[#log + 1] = { "custom", name, value, fields } end,
+	}
+	local a = AE.new({ service = fake, enabled = true, now = function() return clock end, print = function(m) printed[#printed + 1] = m end })
+	local p = { UserId = 7 }
+	expectTrue(a.step(p, "menu_opened"))
+	expectTrue(not a.step(p, "menu_opened"), "never twice in one session")
+	expectTrue(not a.step(p, "bogus"))
+	a.runStarted(p); a.runStarted(p); a.runStarted(p)
+	expectEqual(#log, 3) -- menu_opened, run_started, second_run_started
+	expectEqual(log[2][4], 2); expectEqual(log[3][4], 7); expectEqual(log[1][3], log[3][3], "one funnel session id")
+	for i = 1, 3 do a.step(p, AE.Steps[i + 2]) end
+	a.earned(p, "round_clear", 6, 20); a.spent(p, "shop_patron", 5, 15)
+	expectEqual(log[#log][2], "Sink"); expectEqual(log[#log][6], "shop_patron")
+	a.runEnded(p, 2, 300, "hands"); a.bossLost(p, "the_bouncer")
+	expectEqual(log[#log][2], "boss_lost")
+	expectEqual(#printed > 0, true)
+	local count = 0
+	for _, m in ipairs(printed) do if m:find("step_menu_opened", 1, true) then count = count + 1 end end
+	expectEqual(count, 1, "each name printed once")
+	-- rate limit: no more than MAX_ECONOMY economy events a minute, a new minute resets
+	local before = #log
+	for i = 1, 100 do a.earned(p, "selling", 1, 1) end
+	expectEqual(#log - before, AE.MAX_ECONOMY - 2)
+	clock = clock + 61
+	expectTrue(a.earned(p, "selling", 1, 1))
+	-- a throwing service never escapes
+	local b = AE.new({ service = { LogFunnelStepEvent = function() error("boom") end, LogEconomyEvent = function() error("boom") end, LogCustomEvent = function() error("boom") end }, enabled = true })
+	expectTrue(b.step(p, "menu_opened")); expectEqual(b.earned(p, "selling", 3, 3), false); expectEqual(b.runEnded(p, 1, 1, "won"), false)
+	-- disabled (Studio) and no service: nothing sent, nothing breaks
+	local off = AE.new({ service = fake, enabled = false })
+	local n = #log
+	off.step(p, "menu_opened"); off.earned(p, "selling", 3, 3); off.runEnded(p, 1, 1, "won")
+	expectEqual(#log, n)
+	local none = AE.new({})
+	expectTrue(none.step(p, "menu_opened")); expectEqual(none.bossLost(p, "x"), false)
+end })
+
 return tests
