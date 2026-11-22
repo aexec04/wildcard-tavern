@@ -14,6 +14,7 @@ local M = {}
 M.TITLE = "Patron Power"
 M.BODY = "The frame shows power: Wood is Common, gold is Legendary."
 M.TITLE_SIZE, M.BODY_SIZE = 22, 18
+M.X_CLEAR = 52 -- px the text columns keep from the right edge so the 44 px close X (inset 8) never covers them
 M.MAX_ROUND = 1 -- Night 1, round 1 only: nobody needs the frame colour tip on every round
 -- reference rect and the Got it plate under the text column
 M.REF = { x = 15 / 1672, w = 320 / 1672, h = 140 / 941 }

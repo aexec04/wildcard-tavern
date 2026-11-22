@@ -143,7 +143,11 @@ CosmeticSets.Definitions = {
 				{ kind = "sparks", count = 16, speed = 0.5 },
 			},
 		},
-		face = { paper = { 252, 240, 208 }, border = { 222, 182, 104 }, pip = { 168, 122, 24 }, foil = true },
+		-- A premium classic card: the painted ivory face stands alone (classicFace), the gold shows as a thin edge and foil.
+		-- Ink is near black and deep red, at least 7:1 on the ivory paper.
+		face = { paper = { 252, 240, 208 }, border = { 222, 182, 104 }, pip = { 96, 66, 8 }, foil = true },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 222, 182, 104 },
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
 	},
@@ -645,6 +649,7 @@ function CosmeticSets.skinOf(set)
 		id = set and set.id,
 		images = images,
 		neutral = false,
+		classicFace = set and set.classicFace == true or nil,
 		index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) },
 		colors = {
 			paper = face.paper, border = face.border, pip = face.pip,
@@ -678,6 +683,10 @@ function CosmeticSets.contrastRatio(a, b)
 end
 
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
+function CosmeticSets.minContrastOf(set)
+	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST
+end
+
 function CosmeticSets.indexStyle(set, isRed)
 	local face = CosmeticSets.faceStyleOf(set)
 	local base = isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK
@@ -693,7 +702,7 @@ function CosmeticSets.indexStyle(set, isRed)
 	end
 	local dark = CosmeticSets.BLACK_INK
 	local steps = 0
-	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.minContrastOf(set) and steps < 10 do
 		ink = mix(ink, dark, 0.25)
 		steps = steps + 1
 	end
@@ -743,7 +752,7 @@ function CosmeticSets.cardLook(set)
 	local function inkOn(isRed)
 		local ink = mix(isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK, face.pip, isRed and 0.2 or 0.5)
 		local steps = 0
-		while CosmeticSets.contrastRatio(ink, paper) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+		while CosmeticSets.contrastRatio(ink, paper) < CosmeticSets.minContrastOf(set) and steps < 10 do
 			ink = mix(ink, CosmeticSets.BLACK_INK, 0.25)
 			steps = steps + 1
 		end

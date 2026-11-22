@@ -499,3 +499,6 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - Also clean: fit_audit (44 screen sizes, 0 failures), text size lint (all 14 or more), SortOrder, shadow call and Luau syntax lints.
 - ROADMAP: every open box left is user-only (Creator Hub passes, products, badges, thumbnail and video, real phone test) or ongoing (weekly updates, analytics, co-op later).
 - User-only launch steps: see claude/LAUNCH-CHECK.md. Nothing in this sweep was viewed in Studio or on a real device.
+
+## Golden Gala card face (2026-11-22)
+- Golden Gala draws the painted ivory classic face alone (no drape, paper tile or frame art) with the thin gold edge and foil. Index ink is at least 7 to 1 on its paper (other sets 4.5 to 1). Patron Power text stops short of its close X. Not yet checked in Studio Play.
