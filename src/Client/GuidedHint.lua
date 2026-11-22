@@ -18,6 +18,7 @@ local FxLoop = require(script.Parent.FxLoop)
 local M = {}
 local plate, line1, line2, outline, outline2, outlineOn, skipBtn
 local pulseLoop
+local extra = {} -- steady outlines on the rest of the best play
 local skipped = false -- Skip hides the hint for the rest of this session; the server flag already makes it once per profile
 
 local GOLD = Color3.fromRGB(246, 196, 70)
@@ -75,6 +76,7 @@ function M.hide()
 	outlineOn = nil
 	if outline then outline.Enabled = false; outline.Parent = nil end
 	if outline2 then outline2.Enabled = false; outline2.Parent = nil end
+	for _, o in ipairs(extra) do o.Enabled = false; o.Parent = nil end
 end
 
 function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
@@ -99,10 +101,25 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
 	skipBtn.Visible = true
 	skipBtn.Size = UDim2.fromOffset(sr.w, sr.h)
 	skipBtn.Position = UDim2.fromOffset(sr.x, sr.y)
+	local best = hint.target == "card" and state and Guided.bestPlay(state.hand) or nil
 	local target = hint.target == "card" and firstCard or playButton
 	outline2.Enabled = false
 	outline2.Parent = nil
-	if hint.target == "card" and cards and cards[2] and cards[2].Parent then
+	for _, o in ipairs(extra) do o.Enabled = false; o.Parent = nil end
+	if best and cards then -- outline the cards of the best legal hand (Engine/GuidedHand.bestPlay); steady, so Calm mode is static
+		local first = cards[best.indices[1]]
+		if first and first.Parent then target = first end
+		for k = 2, #best.indices do
+			local c = cards[best.indices[k]]
+			if c and c.Parent then
+				local o = extra[k - 1]
+				if not o then o = outline:Clone(); o.Name = "GuidedOutlineBest"; extra[k - 1] = o end
+				o.Transparency = 0
+				o.Parent = c
+				o.Enabled = true
+			end
+		end
+	elseif hint.target == "card" and cards and cards[2] and cards[2].Parent then
 		outline2.Parent = cards[2]
 		outline2.Enabled = true
 	end
