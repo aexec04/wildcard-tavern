@@ -330,6 +330,7 @@ function SeasonPanel.init(deps)
 			if row.reached and not prem.locked and not prem.claimed then
 				deps.playClickSfx()
 				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
+				pcall(function() require(script.Parent.ClaimGlow).glow(claimBox) end)
 				ClaimRemote:FireServer(row.tier, true)
 			end
 		end)
@@ -420,6 +421,7 @@ function SeasonPanel.init(deps)
 			if row.reached and not row.claimed then
 				deps.playClickSfx()
 				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
+				pcall(function() require(script.Parent.ClaimGlow).glow(t) end)
 				ClaimRemote:FireServer(row.tier)
 			end
 		end)
@@ -525,6 +527,7 @@ function SeasonPanel.init(deps)
 		if state and state.season and (state.season.claimable or 0) > 0 then
 			deps.playClickSfx()
 			pcall(function() require(script.Parent.Cue).play("reward_claim") end)
+			pcall(function() require(script.Parent.ClaimGlow).glow(claimAll) end)
 			ClaimRemote:FireServer("all")
 		end
 	end)

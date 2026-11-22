@@ -5007,6 +5007,34 @@ table.insert(tests, { name = "BossOutfits: every boss has a valid outfit (known 
 	checkOutfit("unknown", BossOutfits.resolve("no_such_boss", false)) -- falls back to Default
 end })
 
+table.insert(tests, { name = "ClaimMoment: every set gets the claim cue and a 0.4 s accent glow at 3:1, Calm mode gets the cue and no glow, claim sites call it", fn = function()
+	local CM = require(script.Parent.Parent.Engine.ClaimMoment)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local colours = {}
+	for _, set in ipairs(CS.Definitions) do
+		local plan = CM.plan(set.id, false)
+		expectEqual(plan.cue, "reward_claim", set.id .. " plays the existing claim cue")
+		expectTrue(plan.glow ~= nil and plan.glow.seconds == 0.4, set.id .. " glows for 0.4 s")
+		expectTrue(CS.contrastRatio(plan.glow.color, CS.FOCUS_RING_BACKING) >= 3, set.id .. " glow reads on the dark wood")
+		local calm = CM.plan(set.id, true)
+		expectEqual(calm.cue, "reward_claim", set.id .. " keeps the cue in Calm mode")
+		expectEqual(calm.glow, nil, set.id .. " has no glow in Calm mode")
+		colours[table.concat(plan.glow.color, ",")] = true
+	end
+	local n = 0
+	for _ in pairs(colours) do n = n + 1 end
+	expectTrue(n >= 10, "sets glow in their own colours")
+	if io and io.open then
+		for _, file in ipairs({ "src/Client/SeasonPanel.lua", "src/Client/DailyStrip.lua" }) do
+			local f = assert(io.open(file, "r"))
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("ClaimGlow", 1, true) ~= nil, file .. " glows on claim")
+		end
+		local f = assert(io.open("src/Client/ClaimGlow.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("plan.glow", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil, "ClaimGlow asks the calm switch before it tweens")
+	end
+end })
 table.insert(tests, { name = "Strings: every id has safe English text (no em dash, no double dash, no banned word), unknown ids echo, and Settings uses ids for the moved lines", fn = function()
 	local Strings = require(script.Parent.Parent.Engine.Strings)
 	local n = 0
