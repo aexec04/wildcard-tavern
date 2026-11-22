@@ -44806,4 +44806,20 @@ table.insert(tests, { name = "Boon icons: all 12 Night boons have a painted id i
 	end
 end })
 
+table.insert(tests, { name = "Starting deck icons: every deck tile uses a different existing card back picture, the back exists in CardBacks and CardBackArt, the emoji stays as the fallback", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local Art = require(script.Parent.Parent.Engine.CardBackArt)
+	local CB = require(script.Parent.Parent.Engine.CardBacks)
+	local seen = {}
+	for _, def in ipairs(SD.Definitions) do
+		local key = SD.iconBack(def.id)
+		expectTrue(key ~= nil, def.id .. " has an icon back")
+		expectTrue(Art[key] ~= nil and Art[key]:match("^rbxassetid://%d+$") ~= nil, def.id .. " back " .. tostring(key) .. " has a painted id")
+		expectTrue(CB.getById == nil or CB.getById(key) ~= nil or Art[key] ~= nil, def.id .. " back is a known back")
+		expectTrue(not seen[key], def.id .. " uses its own back")
+		seen[key] = true
+		expectTrue(def.icon ~= nil and def.icon ~= "", def.id .. " keeps its emoji")
+	end
+end })
+
 return tests

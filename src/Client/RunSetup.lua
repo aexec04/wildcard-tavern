@@ -340,7 +340,8 @@ return function(deps)
 				local locked = not row.open
 				local tileTitle, tileLine = StartingDecks.tile(row)
 				local card, clickCatcher = makePickCard(runSetupScroll, START_DECK_CARD_BASE + i, tileTitle,
-					tileLine, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked)
+					tileLine, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked,
+					StartingDecks.iconBack(row.id) and { "card_backs", StartingDecks.iconBack(row.id) } or nil)
 				table.insert(startingDeckCards, card)
 				table.insert(newlyBuiltCards, card)
 				if locked then
