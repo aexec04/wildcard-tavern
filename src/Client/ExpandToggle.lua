@@ -76,7 +76,7 @@ return function(panel, opts)
 			activeTween:Cancel()
 			activeTween = nil
 		end
-		if instant then
+		if instant or not require(script.Parent.ClientSettings).motionAllowed() then
 			panel.Size = targetSize
 		else
 			local tween = TweenService:Create(panel, TWEEN_INFO, { Size = targetSize })

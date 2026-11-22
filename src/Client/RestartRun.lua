@@ -220,8 +220,11 @@ local function build(deps)
 		label.Parent = screenGui
 		deps.polishPanel(label, 8, "wood")
 		task.delay(2.6, function()
-			local t = TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1, TextStrokeTransparency = 1 })
-			t:Play()
+			if require(script.Parent.ClientSettings).motionAllowed() then
+				TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			else
+				label.BackgroundTransparency, label.TextTransparency, label.TextStrokeTransparency = 1, 1, 1 -- Calm: no fade
+			end
 			task.delay(0.45, function() label:Destroy() end)
 		end)
 	end

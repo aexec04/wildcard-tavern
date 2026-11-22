@@ -88,7 +88,11 @@ local function revealArt(art, emojiLabel)
 		shown = true
 		hideEmoji()
 		art.Visible = true
-		TweenService:Create(art, TweenInfo.new(0.12), { ImageTransparency = target }):Play()
+		if require(script.Parent.ClientSettings).motionAllowed() then
+			TweenService:Create(art, TweenInfo.new(0.12), { ImageTransparency = target }):Play()
+		else
+			art.ImageTransparency = target -- Calm and Reduce motion: no fade
+		end
 	end
 	art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
 		if art.IsLoaded then onLoaded() end

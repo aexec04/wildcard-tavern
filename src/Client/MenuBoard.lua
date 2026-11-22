@@ -214,7 +214,12 @@ function MenuBoard.build(parent)
 		pc.CornerRadius = UDim.new(1, 0)
 		pc.Parent = pin
 		local function hover(on)
-			TweenService:Create(note, TweenInfo.new(0.12), { Position = UDim2.fromOffset(0, on and -3 or 0) }):Play()
+			local goal = UDim2.fromOffset(0, on and -3 or 0)
+			if require(script.Parent.ClientSettings).motionAllowed() then
+				TweenService:Create(note, TweenInfo.new(0.12), { Position = goal }):Play()
+			else
+				note.Position = goal -- Calm and Reduce motion: no tween
+			end
 		end
 		local target = note
 		if onClick then

@@ -502,7 +502,11 @@ return function(deps)
 					local sc = Instance.new("UIScale")
 					sc.Scale = 0.2
 					sc.Parent = btn
-					deps.TweenService:Create(sc, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+					if require(script.Parent.ClientSettings).motionAllowed() then
+						deps.TweenService:Create(sc, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+					else
+						sc.Scale = 1 -- Calm and Reduce motion: appears at full size
+					end
 				end
 				btn.Activated:Connect(function()
 					if revealable[id] then
