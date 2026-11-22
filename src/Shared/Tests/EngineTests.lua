@@ -38237,4 +38237,17 @@ do
 	end })
 end
 
+table.insert(tests, { name = "StoreLayout.touchH: Buy and Close plates measure at least 44 px on screen at 800x450, 1024x768 and 1920x1080 and never overlap the card row", fn = function()
+	local L = require(script.Parent.Parent.Engine.StoreLayout)
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local sc = L.scale(size[1], size[2])
+		local r = L.rects(sc)
+		expectTrue(sc * r.close.h >= 44 - 0.001, "Close " .. size[1] .. "x" .. size[2])
+		expectTrue(sc * r.buy.h >= 44 - 0.001, "Buy " .. size[1] .. "x" .. size[2])
+		expectTrue(r.row.y + r.row.h <= r.close.y, "row above Close at " .. size[1] .. "x" .. size[2])
+		expectTrue(r.price.y + r.price.h <= r.buy.y, "price above Buy at " .. size[1] .. "x" .. size[2])
+	end
+	expectEqual(L.touchH(1), 44)
+end })
+
 return tests

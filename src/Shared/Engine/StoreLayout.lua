@@ -15,6 +15,11 @@ function StoreLayout.scale(screenW, screenH)
 	return math.max(StoreLayout.SCALE_MIN, math.min(StoreLayout.SCALE_MAX, s))
 end
 
+-- plate height in panel pixels that still measures 44 px on screen after the panel is shrunk by `scale`
+function StoreLayout.touchH(scale)
+	return math.max(StoreLayout.BUTTON_H, math.ceil(StoreLayout.BUTTON_H / math.max(0.01, scale or 1) - 0.0001))
+end
+
 -- width of a row of n cards
 function StoreLayout.rowWidth(n)
 	if n <= 0 then return 0 end
@@ -22,14 +27,15 @@ function StoreLayout.rowWidth(n)
 end
 
 -- rects inside the panel (panel pixels, before the UIScale): row, the Buy plate of a card (card relative), Close
-function StoreLayout.rects()
+function StoreLayout.rects(scale)
 	local L = StoreLayout
+	local bh = L.touchH(scale)
 	return {
 		row = { x = L.ROW_X, y = L.ROW_Y, w = L.PANEL_W - L.ROW_PAD, h = L.CARD_H },
-		buy = { x = 18, y = L.CARD_H - 52, w = L.CARD_W - 36, h = L.BUTTON_H },
+		buy = { x = 18, y = L.CARD_H - 4 - bh, w = L.CARD_W - 36, h = bh },
 		price = { x = 8, y = L.CARD_H - 76, w = L.CARD_W - 16, h = 20 },
 		perks = { x = 10, y = 200, w = L.CARD_W - 20, h = 54 },
-		close = { x = (L.PANEL_W - L.CLOSE_W) / 2, y = L.PANEL_H - L.CLOSE_BOTTOM - L.BUTTON_H, w = L.CLOSE_W, h = L.BUTTON_H },
+		close = { x = (L.PANEL_W - L.CLOSE_W) / 2, y = L.PANEL_H - L.CLOSE_BOTTOM - bh, w = L.CLOSE_W, h = bh },
 	}
 end
 
