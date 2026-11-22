@@ -10512,7 +10512,7 @@ end })
 
 table.insert(tests, { name = "Hints: data table valid, each hint once, never in the tutorial, replay clears, safe migration", fn = function()
 	local Hints = require(script.Parent.Parent.Engine.Hints)
-	expectEqual(#Hints.Definitions, 13) -- ten bubbles plus the three table plates of Engine/RoundHints
+	expectEqual(#Hints.Definitions, 14) -- eleven bubbles plus the three table plates of Engine/RoundHints
 	local ids = {}
 	for _, hint in ipairs(Hints.Definitions) do
 		expectTrue(not ids[hint.id], "unique " .. hint.id); ids[hint.id] = true
@@ -10532,6 +10532,12 @@ table.insert(tests, { name = "Hints: data table valid, each hint once, never in 
 	expectEqual(Hints.dueFor({ phase = "playing", bossModifier = {} }, {}, {}).id, "first_boss")
 	expectEqual(Hints.dueFor({ phase = "roundSelect", lastInterest = 2 }, {}, {}).id, "first_interest")
 	expectEqual(Hints.dueFor({ phase = "roundSelect", discoveries = { found = 1 } }, {}, {}).id, "first_discovery")
+	-- first mark: the Mark pack at the Counter or a marked card in hand, once, never in the guided first hand
+	expectEqual(Hints.dueFor({ phase = "shop", markOffer = { id = "gilded" } }, { first_counter = true }, {}).id, "first_mark")
+	expectEqual(Hints.dueFor({ phase = "playing", hand = { { rank = 5, suit = "Hearts", mark = "lucky" } } }, {}, {}).id, "first_mark")
+	expectEqual(Hints.dueFor({ phase = "playing", hand = { { rank = 5, suit = "Hearts" } } }, {}, {}), nil, "an unmarked hand shows nothing")
+	expectEqual(Hints.dueFor({ phase = "playing", guidedFirstHand = true, hand = { { mark = "lucky" } } }, {}, {}), nil, "never in the guided hand")
+	expectEqual(Hints.dueFor({ phase = "shop", markOffer = { id = "gilded" } }, { first_counter = true, first_mark = true }, {}), nil, "saved seen flag: once only")
 	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { runSetupOpen = true }).id, "first_stakes")
 	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { questsOpen = true }).id, "first_quests")
 	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { seasonOpen = true }).id, "first_season")
@@ -44921,3 +44927,4 @@ table.insert(tests, { name = "Night boon picker: Choose plate is 44 px on screen
 end })
 
 return tests
+

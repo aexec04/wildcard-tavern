@@ -46,6 +46,17 @@ Hints.Definitions = {
 		trigger = function(state) return type(state.discoveries) == "table" and (state.discoveries.found or 0) >= 1 end },
 	{ id = "first_interest", icon = "🪙", target = "tips", text = "Saved Tips earn interest at the end of each round.",
 		trigger = function(state) return (state.lastInterest or 0) > 0 end },
+	{ id = "first_mark", icon = "🏷️", target = "counter", text = "A [Mark] stays on its card all run and adds a bonus.",
+		trigger = function(state)
+			if state.guidedFirstHand == true then return false end -- never in the guided first hand
+			if state.phase == "shop" and state.markOffer ~= nil then return true end
+			if state.phase == "playing" then
+				for _, card in ipairs(type(state.hand) == "table" and state.hand or {}) do
+					if card.mark then return true end
+				end
+			end
+			return false
+		end },
 	-- the first three rounds layer (Engine/RoundHints, Client/RoundHintsFX): shown on the table plate, never as a bubble, so no trigger here;
 	-- they live in this list only so hintsSeen stores them and Replay Hints clears them
 	{ id = "round_hint_select", icon = "🃏", target = "table", text = "Pick up to 5 cards, then Play Hand.", trigger = function() return false end },
