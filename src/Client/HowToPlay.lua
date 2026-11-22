@@ -91,6 +91,7 @@ return function(deps)
 	howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	howToPlayPanel.ZIndex = Z
 	howToPlayPanel.Parent = howToPlayBackdrop
+	require(script.Parent.TitleBand).attach(howToPlayPanel, { height = 40 })
 	polishPanel(howToPlayPanel, 16, "parchment")
 	addSoftShadow(howToPlayPanel, 18)
 	-- Notice-board art; the dark scrim sits behind the text area so cream text stays readable.

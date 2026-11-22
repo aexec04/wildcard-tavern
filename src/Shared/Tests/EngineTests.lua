@@ -40388,7 +40388,7 @@ table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear t
 	expectTrue(quit:find('"primary")', 1, true) ~= nil and quit:find('"secondary")', 1, true) ~= nil and quit:find("setPlateButton(b, kind)", 1, true) ~= nil, "Quit confirm Stay and Quit ask for set plates")
 	expectTrue(quit:find("UDim2.new(0, 180, 0, 48)", 1, true) ~= nil, "Quit confirm buttons keep 48 px")
 	expectTrue(settings:find('setPlateButton(redeem, "primary")', 1, true) ~= nil, "Codes Redeem asks for the set plate")
-	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
+	expectTrue(settings:find("UDim2.new(0, SettingsLayout.CODES.redeemW, 0, SettingsLayout.CODES.boxH)", 1, true) ~= nil, "Codes Redeem keeps 44 px (SettingsLayout.CODES)")
 end })
 
 table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use the set accent, classic keeps gold, text colours untouched", fn = function()
@@ -40472,6 +40472,138 @@ table.insert(tests, { name = "Popup close X disc follows the Card Set accent, cr
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("CS.closeDiscOf(", 1, true) ~= nil and src:find("BRASS, BRASS_HOVER", 1, true) ~= nil, "CloseX asks the pure rule and keeps classic brass")
 	expectTrue(src:find("Rules.DISC", 1, true) ~= nil and src:find("Rules.HIT", 1, true) ~= nil, "disc and 44 px hit sizes still come from CloseXRules")
+end })
+
+table.insert(tests, { name = "Popup title band follows the Card Set accent, cream title keeps 7:1 on every set, classic untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.titleBandOf("classic_tavern"), nil, "classic keeps its popup")
+	expectEqual(CS.titleBandOf(nil), nil, "no set keeps its popup")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local b = CS.titleBandOf(set.id)
+			expectTrue(b ~= nil, set.id .. " has a title band")
+			if b then
+				n = n + 1
+				expectTrue(CS.contrastRatio(b.fill, b.ink) >= 7, set.id .. " cream title keeps 7:1 on the band")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a title band")
+	if not io then return end
+	local f = io.open("src/Client/TitleBand.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CS.titleBandOf(", 1, true) ~= nil and src:find("band.Visible = false", 1, true) ~= nil, "band asks the pure rule and hides for classic")
+	for _, name in ipairs({ "DailyRewardsPanel", "QuestsPanel", "SeasonPanel", "MusicPanel", "HowToPlay" }) do
+		local g = io.open("src/Client/" .. name .. ".lua", "r")
+		if g then
+			local s = g:read("*a"); g:close()
+			expectTrue(s:find("TitleBand", 1, true) ~= nil, name .. " attaches the title band")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tooltips, guided hint and Next goal banner wear the set ink and plate at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps its plates")
+	expectEqual(CS.hintStyleOf(nil), nil, "no set keeps its plates")
+	local n, seen = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil, set.id .. " has a hint style")
+			if h then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " ink keeps 7:1 on the hint plate")
+				seen[h.edge[1] .. "," .. h.edge[2] .. "," .. h.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a hint style")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local hs = read("HintSkin")
+	if hs then
+		expectTrue(hs:find("CS.hintStyleOf(", 1, true) ~= nil and hs:find("classic.plate", 1, true) ~= nil, "HintSkin asks the pure rule and restores classic")
+	end
+	for _, name in ipairs({ "Tooltip", "GuidedHint", "NextGoalBanner" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("HintSkin", 1, true) ~= nil, name .. " binds the hint skin") end
+	end
+end })
+
+table.insert(tests, { name = "Settings sliders and On switches use the set accent, 4.5:1 on the track and for the white On text, on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.controlAccentOf("classic_tavern"), nil, "classic keeps gold and green")
+	expectEqual(CS.controlAccentOf(nil), nil, "no set keeps gold and green")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local c = CS.controlAccentOf(set.id)
+			expectTrue(c ~= nil, set.id .. " has control colours")
+			if c then
+				n = n + 1
+				expectTrue(CS.contrastRatio(c.sliderFill, CS.SLIDER_TRACK) >= 4.5, set.id .. " slider fill 4.5:1 on the track")
+				expectTrue(CS.contrastRatio(c.onFill, c.onText) >= 4.5, set.id .. " On text 4.5:1 on the switch fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has control colours")
+	if not io then return end
+	for file, needle in pairs({ ["VisualHelpers"] = "controlAccentOf", ["Settings"] = "controlAccentOf" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil, file .. " asks the pure control rule")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Menu news banner, rank bar and board notes follow the set plate path on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps the wood plates")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " banner ink 7:1 on its plate")
+			expectTrue(Style.setPiece("wh_target", set.id) ~= nil, set.id .. " resolves a note plate piece")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 non classic sets covered")
+	if not io then return end
+	for file, needle in pairs({ MenuRank = "HintSkin", NewsPanel = "HintSkin", NextGoalBanner = "HintSkin", MenuBoard = "onSkin" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil, file .. " follows the equipped set")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Settings Codes row: 44 px box and Redeem, a kid safe message line, row tall enough for all of it", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local C = SL.CODES
+	expectTrue(C.boxH >= 44 and C.redeemW >= 100, "box and Redeem are at least 44 px tall")
+	expectTrue(C.msgY >= C.boxY + C.boxH, "the message line sits under the box")
+	expectTrue(C.msgY + C.msgH <= C.rowH, "title, box and message fit inside the row, so nothing reaches the About lines")
+	expectTrue(C.msgSize >= 14, "message text is 14 px or more")
+	for _, line in ipairs({ SL.CODES_SHORT, SL.CODES_SENT }) do
+		expectTrue(#line < 60 and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "plain short message: " .. line)
+	end
+	if not io then return end
+	local f = io.open("src/Client/Settings.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CodeMessage", 1, true) ~= nil and src:find("SettingsLayout.CODES_SHORT", 1, true) ~= nil, "a short code says why nothing happened")
 end })
 
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()

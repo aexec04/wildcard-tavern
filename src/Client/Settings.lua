@@ -229,6 +229,12 @@ return function(deps)
 					if isSwitch then -- clear On and Off: fill plus the word
 						local f = (i == 1) and SW.offFill or SW.onFill
 						local t = (i == 1) and SW.offText or SW.onText
+						if i ~= 1 then -- the On state wears the equipped Card Set accent (white text 4.5:1); classic keeps green
+							local ok, c = pcall(function()
+								return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).controlAccentOf(require(script.Parent.TavernKit).plateSetId())
+							end)
+							if ok and c then f, t = c.onFill, c.onText end
+						end
 						button.BackgroundColor3 = Color3.fromRGB(f[1], f[2], f[3])
 						button.TextColor3 = Color3.fromRGB(t[1], t[2], t[3])
 					else
@@ -262,6 +268,7 @@ return function(deps)
 			end
 		end)
 		refresh()
+		pcall(function() require(script.Parent.HudTheme).onSkin(function() if button.Parent then refresh() end end) end) -- an equipped set shows at once
 	end
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }
@@ -458,7 +465,7 @@ return function(deps)
 	do
 		local row = Instance.new("Frame")
 		row.Name = "CodesRow"
-		row.Size = UDim2.new(1, 0, 0, 76)
+		row.Size = UDim2.new(1, 0, 0, SettingsLayout.CODES.rowH)
 		row.LayoutOrder = order()
 		row.BackgroundTransparency = 1
 		row.ZIndex = 21
@@ -475,8 +482,8 @@ return function(deps)
 		title.Parent = row
 		local box = Instance.new("TextBox")
 		box.Name = "CodeBox"
-		box.Size = UDim2.new(1, -130, 0, 44)
-		box.Position = UDim2.new(0, 0, 0, 26)
+		box.Size = UDim2.new(1, -130, 0, SettingsLayout.CODES.boxH)
+		box.Position = UDim2.new(0, 0, 0, SettingsLayout.CODES.boxY)
 		box.Font = Enum.Font.Merriweather
 		box.TextSize = 16
 		box.TextColor3 = TEXT
@@ -490,9 +497,9 @@ return function(deps)
 		polishButton(box, 8)
 		local redeem = Instance.new("TextButton")
 		redeem.Name = "Redeem"
-		redeem.Size = UDim2.new(0, 120, 0, 44)
+		redeem.Size = UDim2.new(0, SettingsLayout.CODES.redeemW, 0, SettingsLayout.CODES.boxH)
 		redeem.AnchorPoint = Vector2.new(1, 0)
-		redeem.Position = UDim2.new(1, -4, 0, 26)
+		redeem.Position = UDim2.new(1, -4, 0, SettingsLayout.CODES.boxY)
 		redeem.Font = Enum.Font.Merriweather
 		redeem.TextSize = 15
 		redeem.TextColor3 = TEXT
@@ -505,9 +512,29 @@ return function(deps)
 			redeem.TextColor3 = Color3.fromRGB(250, 240, 220) -- the equipped Card Set's green plate; classic keeps the flat button
 		end
 		addButtonHoverScale(redeem)
+		local msg = Instance.new("TextLabel")
+		msg.Name = "CodeMessage"
+		msg.Size = UDim2.new(1, 0, 0, SettingsLayout.CODES.msgH)
+		msg.Position = UDim2.new(0, 0, 0, SettingsLayout.CODES.msgY)
+		msg.BackgroundTransparency = 1
+		msg.Font = Enum.Font.Merriweather
+		msg.TextSize = SettingsLayout.CODES.msgSize
+		msg.TextXAlignment = Enum.TextXAlignment.Left
+		msg.TextColor3 = SUBTLE
+		msg.TextTransparency, msg.TextStrokeTransparency = 0, 1
+		msg.Text = ""
+		msg.ZIndex = 21
+		msg.Parent = row
+		local function say(text)
+			msg.Text = text
+			task.delay(4, function()
+				if msg.Parent and msg.Text == text then msg.Text = "" end
+			end)
+		end
 		local function send()
 			local text = box.Text
-			if #text < 3 then
+			if #text < SettingsLayout.CODES.minLen then
+				say(SettingsLayout.CODES_SHORT)
 				return
 			end
 			playClickSfx()
@@ -517,6 +544,7 @@ return function(deps)
 				remote:FireServer(text)
 			end
 			box.Text = ""
+			say(SettingsLayout.CODES_SENT)
 			redeem.Text = "Sent"
 			task.delay(1.2, function()
 				if redeem.Parent then redeem.Text = "Redeem" end

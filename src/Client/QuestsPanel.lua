@@ -191,6 +191,7 @@ function QuestsPanel.init(deps)
 	panel.ZIndex = 31
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "wood")
+	require(script.Parent.TitleBand).attach(panel)
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(560, QuestsPanel.PANEL_H)
 	constraint.Parent = panel

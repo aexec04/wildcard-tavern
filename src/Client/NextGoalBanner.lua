@@ -65,6 +65,9 @@ function NextGoalBanner.attach(parent, layoutOrder)
 	text.TextXAlignment = Enum.TextXAlignment.Left
 	text.TextTruncate = Enum.TextTruncate.AtEnd
 	text.TextColor3 = CREAM -- on the dark painted plate
+	pcall(function() -- equipped Card Set plate, edge and ink at 7:1, classic unchanged
+		require(script.Parent.HintSkin).bind(frame, stroke, { text }, { plate = WOOD, edge = GOLD, ink = CREAM })
+	end)
 	text.TextTransparency = 0
 	text.TextStrokeTransparency = 1
 	text.Text = ""

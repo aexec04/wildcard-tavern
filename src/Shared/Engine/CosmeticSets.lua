@@ -750,6 +750,51 @@ function CosmeticSets.closeDiscOf(setId)
 	return { rest = c, hover = mix(c, { 255, 255, 255 }, 0.18) }
 end
 
+-- Settings controls in the set accent: slider fill (4.5:1 on the dark track) and the On switch (white text 4.5:1 on its fill). nil for classic.
+CosmeticSets.SLIDER_TRACK = { 60, 45, 32 }
+CosmeticSets.SWITCH_ON_TEXT = { 255, 255, 255 }
+CosmeticSets.CONTROL_MIN_CONTRAST = 4.5
+function CosmeticSets.controlAccentOf(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local fill = ring
+	local guard = 0
+	while CosmeticSets.contrastRatio(fill, CosmeticSets.SLIDER_TRACK) < CosmeticSets.CONTROL_MIN_CONTRAST and guard < 40 do
+		fill = mix(fill, { 255, 244, 226 }, 0.12)
+		guard = guard + 1
+	end
+	local onFill = ring
+	guard = 0
+	while CosmeticSets.contrastRatio(onFill, CosmeticSets.SWITCH_ON_TEXT) < CosmeticSets.CONTROL_MIN_CONTRAST and guard < 40 do
+		onFill = mix(onFill, { 20, 14, 10 }, 0.12)
+		guard = guard + 1
+	end
+	return { sliderFill = fill, onFill = onFill, onText = CosmeticSets.SWITCH_ON_TEXT }
+end
+
+-- Hint plates (tooltips, the guided hint, the Next goal banner): the same dark accent tint and cream ink, 7:1. nil for classic.
+function CosmeticSets.hintStyleOf(setId)
+	local b = CosmeticSets.titleBandOf(setId)
+	if not b then return nil end
+	return { plate = b.fill, edge = b.edge, ink = b.ink }
+end
+
+-- Popup title band: a dark strip tinted toward the equipped set accent behind a cream title, edge in the accent. Cream text keeps 7:1 on the fill.
+-- nil for classic or an unknown set so classic popups stay as they are.
+CosmeticSets.TITLE_INK = { 250, 240, 220 }
+CosmeticSets.TITLE_MIN_CONTRAST = 7
+function CosmeticSets.titleBandOf(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local fill = mix({ 40, 28, 20 }, ring, 0.3)
+	local guard = 0
+	while CosmeticSets.contrastRatio(fill, CosmeticSets.TITLE_INK) < CosmeticSets.TITLE_MIN_CONTRAST and guard < 40 do
+		fill = mix(fill, { 20, 14, 10 }, 0.15)
+		guard = guard + 1
+	end
+	return { fill = fill, edge = ring, ink = CosmeticSets.TITLE_INK }
+end
+
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
 function CosmeticSets.minContrastOf(set)
 	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST

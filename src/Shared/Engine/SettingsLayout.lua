@@ -31,6 +31,11 @@ function M.rowOrder()
 end
 
 M.MIN_TOUCH = 44
+-- The Codes row: the title, a 44 px box with a Redeem plate beside it, then one message line. One list row, so it never overlaps the next one.
+M.CODES = { rowH = 100, titleH = 22, boxY = 26, boxH = 44, redeemW = 120, msgY = 74, msgH = 22, msgSize = 14, minLen = 3 }
+M.CODES_SHORT = "A code has at least 3 letters."
+M.CODES_SENT = "Sent! A message will tell you if it worked."
+
 M.SWITCH = {
 	w = 104, h = 44,
 	onFill = { 46, 112, 56 }, offFill = { 74, 52, 34 },
