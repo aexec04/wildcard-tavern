@@ -43444,4 +43444,41 @@ table.insert(tests, { name = "Mode titles: each has an art prompt and the server
 	expectTrue(src:find("PlayerProfile.recordStartingDeck(profile", 1, true) ~= nil, "a deck start is counted")
 end })
 
+-- ===== Pre run screen per Card Set =====
+table.insert(tests, { name = "Pre run screen: plates and ink read 7:1 on every Card Set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local count = 0
+	for _, set in ipairs(CS.Definitions) do
+		local style = CS.popupStyleOf(set.id)
+		if set.id == CS.DefaultId then
+			expectTrue(style == nil, "classic keeps the wood and parchment of the screen")
+		else
+			count = count + 1
+			expectTrue(style ~= nil, set.id .. " has a popup style")
+			expectTrue(CS.contrastRatio(style.dark.fill, style.dark.ink) >= 7, set.id .. " header ink on the dark plate")
+			expectTrue(CS.contrastRatio(style.paper.top, style.paper.ink) >= 7, set.id .. " card ink on paper top")
+			expectTrue(CS.contrastRatio(style.paper.bottom, style.paper.ink) >= 7, set.id .. " card ink on paper bottom")
+		end
+	end
+	expectEqual(count, 14, "all 14 Card Sets besides classic")
+	-- the card text fits two 15 px lines at the narrowest panel (60 percent of 640 px, minus margins and the stripe)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	for _, row in ipairs(SD.view({ stats = { bestNightReached = 0 } })) do
+		local text = row.open and row.text or ("Locked. " .. row.hint)
+		expectTrue(Layout.estimateLines(text, 0.6 * 640 - 30 - 30 - 16, 15) <= 2, row.id .. " fits in two lines")
+	end
+end })
+
+table.insert(tests, { name = "Pre run screen: headers and open pick cards go through PopupSkin", fn = function()
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("PopupSkin).dark(header, headerStroke", 1, true) ~= nil, "section headers wear the set plate")
+	expectTrue(src:find("PopupSkin).paper(card, nil, nil", 1, true) ~= nil, "open pick cards wear the set paper")
+	expectTrue(src:find("if not plate and not locked then", 1, true) ~= nil, "locked cards and stake plates keep their own look")
+end })
+
 return tests
+

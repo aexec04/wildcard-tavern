@@ -172,6 +172,11 @@ return function(deps)
 		label.Text = text -- plain text: no emoji in headers
 		label.ZIndex = 27
 		label.Parent = header
+		-- the set plate: the header takes the equipped Card Set's fill, edge and cream ink (7:1), classic keeps its wood and gold
+		pcall(function()
+			require(script.Parent.PopupSkin).dark(header, headerStroke, { { label, Color3.fromRGB(250, 235, 200) } },
+				{ plate = Color3.fromRGB(86, 58, 34), edge = GOLD })
+		end)
 		return header
 	end
 
@@ -306,6 +311,14 @@ return function(deps)
 		clickCatcher.ZIndex = 26
 		clickCatcher.Parent = card
 		addButtonHoverScale(clickCatcher, { hoverScale = 1.02, pressScale = 0.98 })
+
+		-- the set plate: an open pick card takes the Card Set's paper and dark ink (7:1); locked and stake plate cards keep their own look
+		if not plate and not locked then
+			pcall(function()
+				require(script.Parent.PopupSkin).paper(card, nil, nil, { { nameLabel, INK }, { descLabel, INK } },
+					{ fill = card.BackgroundColor3, edge = GOLD })
+			end)
+		end
 
 		return card, clickCatcher
 	end
