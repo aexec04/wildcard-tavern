@@ -38513,4 +38513,12 @@ table.insert(tests, { name = "BestLine: best Night and best hand line, nil when 
 	expectTrue(BL.text({ bestNightReached = 0 / 0, bestHandScore = -5 }) == nil)
 end })
 
+table.insert(tests, { name = "Economy fairness: cheapest Patron is affordable from the first round win and the reroll is never free", fn = function()
+	local firstWin = RunState.DEFAULT_CONFIG and RunState.DEFAULT_CONFIG.tipsPerRoundWin or 4
+	local cheapest = math.huge
+	for _, patron in ipairs(Patrons.Definitions) do cheapest = math.min(cheapest, patron.price) end
+	expectTrue(cheapest <= firstWin, "a Patron is affordable with the Tips from the first round win")
+	expectTrue(Shop.REROLL_BASE_COST >= 1 and Shop.REROLL_BASE_COST <= 6, "reroll stays a small price")
+end })
+
 return tests

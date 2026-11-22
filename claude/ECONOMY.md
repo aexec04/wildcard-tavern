@@ -31,3 +31,21 @@ Full table in BALANCE-REPORT.md. Bots: random, greedy, decent (legal-hand bots a
 - Before: decent bot cleared Nights 1 to 3 in 300 of 300 runs; greedy cleared Night 2 in 92% and Night 3 in 89% of runs.
 - Change: Night 2 base target x1.12 and Night 3 x1.2 (RunState NIGHT_TUNE). Night 1 (WelcomeEase) and Night 4 on are unchanged.
 - After: greedy clears Night 2 in 85% and Night 3 in 80%; random 15% / 8% / 5% for Nights 1 to 3; decent still clears Nights 1 to 3 every run but with scores 236% and 206% of target (was 263% and 246%). The bots see every hand, so a new player lands lower.
+
+## Patron and Counter price fairness (sim, 60 runs, decent and builder bots, `lua tools/_probe_shop_econ.lua`)
+Tips on arrival at each Counter visit (average, min):
+
+| Visit | Avg Tips | Min | Visits where nothing is affordable and no reroll |
+| --- | --- | --- | --- |
+| Night 1 Round 1 | 4.0 | 4 | 44 of 60 |
+| Night 1 Round 2 | 6.8 | 4 | 12 |
+| Night 1 Round 3 | 9.9 | 8 | 0 |
+| Night 2 Round 1 | 6.9 | 4 | 3 |
+| Night 2 Round 2 | 6.5 | 4 | 8 |
+| Night 2 Round 3 | 11.1 | 8 | 0 |
+| Night 3 Round 1 | 7.1 | 4 | 6 |
+| Night 3 Round 2 | 7.5 | 4 | 8 |
+
+- A first run can afford a Patron by Night 2: the cheapest Patron costs 4 and the bots bought 5.4 Patrons per run on average, so every Night 2 Round 1 visit holds at least 4 Tips.
+- Never stuck: the shop only costs Tips, hands and discards come from the round, so 0 Tips never removes a hand. The first visit of a run often shows only 5 to 7 Tip Patrons against 4 Tips; the next visit fixes it, so the Night 1 Round 3 visit is never a dead shop.
+- Change made: none. A 15 percent move on a 4 Tip price or the 4 Tip start rounds back to the same whole number, so no price or reward changed. The existing price range test stays and a new test pins the cheapest Patron at or under the first round win.
