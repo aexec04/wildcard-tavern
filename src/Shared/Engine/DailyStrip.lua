@@ -91,10 +91,31 @@ end
 
 -- The strip never covers the room cards of the Night map: given the bottom edge of the lowest card (screen px), it stays at the bottom
 -- when that is clear, otherwise sits right under the cards if the whole strip still fits, otherwise there is no room (nil).
+M.GAP = 8
+
+-- Lowest bottom edge (y + h) of a list of { y =, h = } rects, nil when empty. The client feeds it the room panels AND their Select,
+-- Skip and Target plates, because those hang below the panel.
+function M.lowestBottom(rects)
+	local bottom
+	for _, r in ipairs(rects or {}) do
+		local b = r.y + r.h
+		if not bottom or b > bottom then bottom = b end
+	end
+	return bottom
+end
+
+-- true when rect r overlaps any rect in the list (touching edges do not count)
+function M.overlapsAny(r, rects)
+	for _, o in ipairs(rects or {}) do
+		if r.x < o.x + o.w and o.x < r.x + r.w and r.y < o.y + o.h and o.y < r.y + r.h then return true end
+	end
+	return false
+end
+
 function M.rectBelow(w, h, cardsBottom)
 	local r = M.rect(w, h)
 	if not cardsBottom then return r end
-	local gap = 4
+	local gap = M.GAP
 	if r.y >= cardsBottom + gap then return r end
 	local y = math.floor(cardsBottom) + gap
 	if y + r.h <= h - 2 then r.y = y; return r end

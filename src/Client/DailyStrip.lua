@@ -53,14 +53,14 @@ local function cardsBottom(g, phase)
 	if phase ~= "roundSelect" then return nil end
 	local rs = g:FindFirstChild("RoundSelect", true)
 	if not rs or not rs:IsA("GuiObject") or not rs.Visible then return nil end
-	local bottom
+	-- every visible panel, button and plate counts: Select and Skip hang below the panel, so measuring panels alone left a false free band
+	local rects = {}
 	for _, d in ipairs(rs:GetDescendants()) do
-		if d:IsA("GuiObject") and d.Name:match("^RoundPanel%d") then
-			local b = d.AbsolutePosition.Y + d.AbsoluteSize.Y - g.AbsolutePosition.Y
-			if not bottom or b > bottom then bottom = b end
+		if d:IsA("GuiObject") and d.Visible and (d.Name:match("^RoundPanel%d") or d:IsA("GuiButton") or d.Name:match("Plate$") or d.Name:match("^Target")) then
+			rects[#rects + 1] = { y = d.AbsolutePosition.Y - g.AbsolutePosition.Y, h = d.AbsoluteSize.Y }
 		end
 	end
-	return bottom
+	return Rules.lowestBottom(rects)
 end
 
 local function build(root)

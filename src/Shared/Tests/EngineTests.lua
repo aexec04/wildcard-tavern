@@ -32668,6 +32668,18 @@ table.insert(tests, { name = "Night map: the daily strip never covers the room c
 		expectTrue(tight == nil or tight.y >= h - D.HEIGHT - D.MARGIN - 2 + 4, "never overlaps the cards at " .. w)
 		expectTrue(D.rectBelow(w, h, nil).y == D.rect(w, h).y, "no cards: the normal place")
 	end
+	do -- Select and Skip plates hang below the panel: the strip must clear them and never overlap a button
+		for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+			local w, h = sz[1], sz[2]
+			local panel = { x = w * 0.3, y = h * 0.2, w = w * 0.4, h = h * 0.45 }
+			local skip = { x = panel.x + 10, y = panel.y + panel.h + 4, w = panel.w - 20, h = 40 }
+			local bottom = D.lowestBottom({ panel, skip })
+			expectTrue(bottom == skip.y + skip.h, "lowest bottom is the Skip plate, not the panel at " .. w)
+			local r = D.rectBelow(w, h, bottom)
+			expectTrue(r == nil or (r.y >= bottom + 8 and not D.overlapsAny(r, { panel, skip })), "strip clears Skip by 8 px or hides at " .. w)
+		end
+		expectTrue(D.lowestBottom({}) == nil, "no rects, no bottom")
+	end
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local strip = read("src/Client/DailyStrip.lua")
