@@ -70,7 +70,7 @@ function M.install(deps)
 		l.Parent = panel
 		return l
 	end
-	label(Flow.TITLE, 22, 14, 30, Color3.fromRGB(255, 214, 130), Enum.Font.GothamBold)
+	local titleLabel = label(Flow.TITLE, 22, 14, 30, Color3.fromRGB(255, 214, 130), Enum.Font.GothamBold)
 	local message = label(Flow.MESSAGE, 16, 52, 60, TEXT, Enum.Font.Gotham)
 
 	local function button(text, anchorX, posX, color, kind)
@@ -97,6 +97,13 @@ function M.install(deps)
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = stay
 	local quit = button(Flow.QUIT, 1, -20, Color3.fromRGB(110, 70, 40), "secondary")
+
+	-- the equipped Card Set's panel colours and ink (7:1); classic keeps the wood panel and gold title
+	pcall(function()
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { titleLabel, Color3.fromRGB(255, 214, 130) }, { message, TEXT } },
+			{ plate = Color3.fromRGB(40, 30, 22), edge = pStroke and pStroke.Color })
+	end)
 
 	local function close()
 		Flow.cancel(state)

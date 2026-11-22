@@ -128,13 +128,17 @@ return function(deps)
 		l.Parent = sheet
 		return l
 	end
-	local confirmTitleLabel = text("Title", 20, Enum.Font.GothamBold)
-	local ConceptSkin = require(script.Parent.ConceptTSkin)
+	local confirmTitleLabel = text("Title", 20, Enum.Font.GothamBold)	local ConceptSkin = require(script.Parent.ConceptTSkin)
 	ConceptSkin.title(confirmTitleLabel, require(ReplicatedStorage.Shared.Engine.ConceptTSkin).INK)
 	confirmTitleLabel.TextStrokeTransparency = 1 -- dark ink on paper needs no outline
 	confirmTitleLabel.TextSize = 22
 	local confirmMessageLabel = text("Body", 16, Enum.Font.GothamMedium)
 	confirmMessageLabel.TextYAlignment = Enum.TextYAlignment.Top
+	-- the equipped Card Set's paper tint, edge and dark ink (7:1); classic keeps the warm parchment
+	pcall(function()
+		require(script.Parent.PopupSkin).paper(sheet, paper, sheetEdge, { { confirmTitleLabel, INK }, { confirmMessageLabel, INK } },
+			{ top = Color3.fromRGB(246, 232, 198), bottom = Color3.fromRGB(228, 210, 172), edge = Color3.fromRGB(200, 160, 84) })
+	end)
 
 	local function plate(name)
 		local b = Instance.new("TextButton")
@@ -213,6 +217,11 @@ return function(deps)
 			confirmYesButton.BackgroundTransparency = o.danger and 0 or 1
 			confirmYesButton.ConceptTPlate.Visible = not o.danger
 		end
+		pcall(function() -- the equipped Card Set's plates (classic and plateless sets return false and keep the ConceptT plate)
+			local TK = require(script.Parent.TavernKit)
+			TK.setPlateButton(confirmNoButton, "secondary")
+			if not o.danger then TK.setPlateButton(confirmYesButton, "primary") end
+		end)
 		confirmYesButton.Position = UDim2.fromOffset(pad, y)
 		confirmNoButton.Position = UDim2.fromOffset(innerW + pad - 190, y)
 		y = y + 44 + 20

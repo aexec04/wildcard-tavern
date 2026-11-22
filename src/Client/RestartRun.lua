@@ -135,6 +135,10 @@ local function build(deps)
 	cancelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cancelStroke.Parent = cancel
 
+	pcall(function() -- the equipped Card Set's plate for Cancel (the red Hold button keeps its danger colour)
+		require(script.Parent.TavernKit).setPlateButton(cancel, "primary")
+	end)
+
 	-- Restart: hold to confirm, with a fill bar
 	local restart = Instance.new("TextButton")
 	restart.Size = UDim2.new(0, 190, 0, 50)
@@ -161,6 +165,12 @@ local function build(deps)
 	fill.Parent = restart
 	restart.TextTransparency = 0
 	restart.TextStrokeTransparency = 0.5
+
+	pcall(function() -- the equipped Card Set's panel colours and ink (7:1); classic keeps the wood panel and gold title
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { title, Color3.fromRGB(255, 214, 130) }, { message, TEXT } },
+			{ plate = Color3.fromRGB(40, 30, 22), edge = pStroke and pStroke.Color })
+	end)
 
 	local hold = HoldConfirm.new(HOLD_SECONDS)
 	local holdConn = nil

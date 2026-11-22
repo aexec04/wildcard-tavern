@@ -40531,4 +40531,45 @@ table.insert(tests, { name = "Night clear Continue wears the equipped Card Set p
 	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "Boss intro plate goes through the set aware painter")
 end })
 
+table.insert(tests, { name = "Confirm, Choice, Quit and Restart popups wear the set paper, plate and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its popups")
+	expectEqual(CS.popupStyleOf(nil), nil, "no set keeps its popups")
+	local n, papers = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " cream ink keeps 7:1 on the dark panel")
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " dark ink keeps 7:1 on the paper top")
+				expectTrue(CS.contrastRatio(p.paper.bottom, p.paper.ink) >= 7, set.id .. " dark ink keeps 7:1 on the paper foot")
+				papers[p.paper.top[1] .. "," .. p.paper.top[2] .. "," .. p.paper.top[3] .. "/" .. p.paper.edge[1] .. "," .. p.paper.edge[2]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	expectTrue(next(papers) ~= nil, "paper tints exist")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local ps = read("PopupSkin")
+	if ps then
+		expectTrue(ps:find("CS.popupStyleOf(", 1, true) ~= nil and ps:find("classic.plate", 1, true) ~= nil and ps:find("classic.top", 1, true) ~= nil, "PopupSkin asks the pure rule and restores classic")
+	end
+	for _, name in ipairs({ "ConfirmDialog", "ChoicePanel", "QuitConfirm", "RestartRun" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("PopupSkin", 1, true) ~= nil or src:find("setPlateButton", 1, true) ~= nil, name .. " binds the popup skin") end
+	end
+	for _, name in ipairs({ "ConfirmDialog", "RestartRun" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("setPlateButton", 1, true) ~= nil, name .. " asks for the set plate") end
+	end
+end })
+
 return tests

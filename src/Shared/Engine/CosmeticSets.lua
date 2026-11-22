@@ -795,6 +795,28 @@ function CosmeticSets.rowStyleOf(setId)
 	return { row = row, hot = hot, ink = ink, sub = sub, edge = band.edge, badge = badge, badgeInk = badgeInk, chip = control.onFill, chipInk = control.onText }
 end
 
+-- Small popups (Confirm, Choice, Quit, Restart): `dark` is the wood-panel look (fill, edge, cream ink, 7:1) and `paper` is the parchment look
+-- (top and bottom paper stops tinted toward the accent, dark ink kept at 7:1 on both, accent edge). nil for classic so those popups stay as built.
+CosmeticSets.PAPER_INK = { 46, 32, 20 }
+CosmeticSets.POPUP_MIN_CONTRAST = 7
+function CosmeticSets.popupStyleOf(setId)
+	local b = CosmeticSets.titleBandOf(setId)
+	if not b then return nil end
+	local function paperStop(base, t)
+		local c = mix(base, b.edge, t)
+		local guard = 0
+		while CosmeticSets.contrastRatio(c, CosmeticSets.PAPER_INK) < CosmeticSets.POPUP_MIN_CONTRAST and guard < 40 do
+			c = mix(c, { 250, 244, 226 }, 0.15)
+			guard = guard + 1
+		end
+		return c
+	end
+	return {
+		dark = { fill = b.fill, edge = b.edge, ink = b.ink },
+		paper = { top = paperStop({ 246, 232, 198 }, 0.16), bottom = paperStop({ 228, 210, 172 }, 0.24), edge = b.edge, ink = CosmeticSets.PAPER_INK },
+	}
+end
+
 -- Loading screen: the equipped set's dark plate, accent edge and cream ink (7:1) for the tip plate, Skip plate and bar trim. nil for classic,
 -- an unknown id or no id (a first join has no profile yet), so the screen keeps its painted look.
 function CosmeticSets.loadingStyleOf(setId)
