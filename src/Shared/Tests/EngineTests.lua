@@ -38595,6 +38595,40 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Reading level: player facing text in the content registries has no word of 14 letters or more and only the listed long words of 12 or 13", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local fields = { name = true, description = true, desc = true, flavorText = true, text = true, label = true, hint = true, title = true, unlockText = true, detail = true }
+	-- words of 12 or 13 letters that a 12 year old knows (a game word or an everyday word); a new one needs a decision
+	local allowed = { completionist = true, neighborhood = true, troublemaker = true, ["everything's"] = true }
+	local over = {}
+	local function scan(v, depth)
+		if type(v) ~= "table" or depth > 6 then return end
+		for k, x in pairs(v) do
+			if type(x) == "string" and fields[k] then
+				for word in x:gmatch("[%a']+") do
+					local w = word:lower()
+					if #w >= 14 or (#w >= 12 and not allowed[w]) then over[#over + 1] = w end
+					expectFalse(w == "retriggers" or w == "randomizes", "plain words: " .. w)
+				end
+			elseif type(x) == "table" then
+				scan(x, depth + 1)
+			end
+		end
+	end
+	local total = 0
+	for _, name in ipairs({ "Patrons", "BossRounds", "Recipes", "Packs", "HousePasses", "Tags", "Achievements", "Quests", "CosmeticSets" }) do
+		local mod = require(Engine[name])
+		for k, v in pairs(mod) do
+			if type(v) == "table" and (k == "Definitions" or k:find("Recipes$")) then
+				scan(v, 0)
+				total = total + #v
+			end
+		end
+	end
+	expectTrue(total > 100, "the audit read the registries: " .. total .. " entries")
+	expectEqual(#over, 0, "long words: " .. table.concat(over, ", "))
+end })
+
 table.insert(tests, { name = "Rate limits: a spammed remote averages at most 20 calls a second, each handler checks its own bucket first, buckets are per player", fn = function()
 	local RL = require(script.Parent.Parent.Engine.RateLimit)
 	-- 1000 calls a second for 10 s, 60 s and a cold start: allowed calls per second stay at 20 or under after the burst
