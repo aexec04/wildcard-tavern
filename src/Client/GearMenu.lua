@@ -62,7 +62,7 @@ function M.install(deps)
 	-- speaker (Sound toggle) and Settings round buttons at the top left: the same actions as the menu rows
 	local PaintedArt = require(Engine:WaitForChild("PaintedKitArt"))
 	local quick = {}
-	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "ct_hud_gear", "Settings" } }) do
+	for _, q in ipairs({ { "speaker", "pk_w_icon_speaker", "Sound" }, { "pause", "ct_hud_gear", "Settings" }, { "tome", "", "Tome" } }) do
 		local b = Instance.new("TextButton")
 		b.Name = "Quick_" .. q[1]
 		b.AutoButtonColor = false
@@ -83,6 +83,12 @@ function M.install(deps)
 		qi.Image = PaintedArt[q[2]] or Art[q[2]] or ""
 		qi.ZIndex = Z + 2
 		qi.Parent = b
+		if q[1] == "tome" then -- the Menu's painted Tome book (MenuSceneArt menu_item_tome), no new image
+			local ok, id = pcall(function() return require(Engine:WaitForChild("ContentArt")).getImageId("menu_scene", "menu_item_tome") end)
+			if ok and id then qi.Image = id end
+			qi.Size = UDim2.fromScale(0.74, 0.74)
+			qi.Position = UDim2.fromScale(0.13, 0.13)
+		end
 		if qi.Image == "" then -- no art id: the word stands in (ASCII only)
 			local word = ButtonLabelTop.own(b, q[3], 12, Z + 2, rgb("cream"))
 			word.Size = UDim2.fromScale(1, 1)
@@ -152,7 +158,41 @@ function M.install(deps)
 		rows[def.id] = { button = b, label = label, pill = pill, def = def }
 	end
 
+	-- the Tome dropdown: Collection, Card Sets, Flair, Legend, Tavern Ledger (same wording as the Menu's Tome), opened by the book icon or the Tome row
+	local tomeCatcher = catcher:Clone()
+	tomeCatcher.Name = "TomeCatcher"
+	tomeCatcher.Visible = false
+	tomeCatcher.Parent = host
+	local tomeMenu = menu:Clone()
+	tomeMenu.Name = "TomeMenu"
+	tomeMenu.Visible = false
+	for _, ch in ipairs(tomeMenu:GetChildren()) do if ch:IsA("ScrollingFrame") then ch:Destroy() end end
+	tomeMenu.Parent = host
+	local tomeScroll = scroll:Clone()
+	tomeScroll.Name = "Rows"
+	for _, ch in ipairs(tomeScroll:GetChildren()) do ch:Destroy() end
+	tomeScroll.CanvasSize = UDim2.fromOffset(0, G.contentHeight(G.TOME_ROWS))
+	tomeScroll.Parent = tomeMenu
+	local tomeRows = {}
+	for _, def in ipairs(G.TOME_ROWS) do
+		local b = Kit.secondaryButton(tomeScroll, def.label)
+		b.Name = "Row_" .. def.id
+		b.ZIndex = Z + 2
+		pcall(Kit.paintedButton, b, "secondary")
+		local label = ButtonLabelTop.own(b, def.label, Style.TEXT.button, Z + 4, rgb("cream"))
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Size = UDim2.new(1, -36, 1, 0)
+		label.Position = UDim2.fromOffset(18, 0)
+		tomeRows[def.id] = { button = b, def = def }
+	end
+	if game:GetService("RunService"):IsStudio() then
+		local names = {}
+		for _, def in ipairs(G.TOME_ROWS) do names[#names + 1] = def.label end
+		print("[Tome] rows: " .. table.concat(names, ", "))
+	end
+
 	local isOpen = false
+	local tomeOpen = false
 	local size = Vector2.new(1280, 720)
 
 	local function paintSpeaker() -- the speaker shows the master Sound state: dimmed with a slash across it while sound is off
@@ -195,6 +235,16 @@ function M.install(deps)
 			b.Position = UDim2.fromOffset(qr[k].x, qr[k].y)
 			b.Size = UDim2.fromOffset(qr[k].w, qr[k].h)
 		end
+		local tr = G.tomeMenuRect(size.X, size.Y)
+		tomeMenu.Position = UDim2.fromOffset(tr.x, tr.y)
+		tomeMenu.Size = UDim2.fromOffset(tr.w, tr.h)
+		tomeScroll.ScrollingEnabled = tr.scroll
+		tomeScroll.CanvasSize = UDim2.fromOffset(0, tr.contentH)
+		for _, rr in ipairs(G.tomeRowRects(tr)) do
+			local r = tomeRows[rr.id]
+			r.button.Position = UDim2.fromOffset(rr.x, rr.y)
+			r.button.Size = UDim2.fromOffset(rr.w - (tr.scroll and 6 or 0), rr.h)
+		end
 		local mr = G.menuRect(size.X, size.Y)
 		menu.Position = UDim2.fromOffset(mr.x, mr.y)
 		menu.Size = UDim2.fromOffset(mr.w, mr.h)
@@ -229,6 +279,33 @@ function M.install(deps)
 		end
 	end
 	M.setOpen = setOpen
+
+	local function setTomeOpen(open)
+		if open == tomeOpen then return end
+		tomeOpen = open
+		tomeCatcher.Visible = open
+		if open then layout() end
+		tomeMenu.Visible = open
+	end
+	M.setTomeOpen = setTomeOpen
+	local function openTome()
+		pcall(function() require(script.Parent.Cue).play("button_click") end)
+		OverlayManager.closeAllExcept("tome-menu")
+		setOpen(false)
+		setTomeOpen(not tomeOpen)
+	end
+	quick.tome.MouseButton1Click:Connect(openTome)
+	tomeCatcher.MouseButton1Click:Connect(function() setTomeOpen(false) end)
+	OverlayManager.register("tome-menu", function() setTomeOpen(false) end)
+	pcall(function() require(script.Parent.PopupDismiss).attach(tomeCatcher, { id = "tome-menu", panel = tomeMenu, close = function() setTomeOpen(false) end, button = false }) end)
+	for id, r in pairs(tomeRows) do
+		r.button.MouseButton1Click:Connect(function()
+			pcall(function() require(script.Parent.Cue).play("button_click") end)
+			setTomeOpen(false)
+			OverlayManager.open(r.def.overlay) -- the real panel opener, same as the Menu's Tome; closes with its own X or Esc
+			if game:GetService("RunService"):IsStudio() then print("[Tome] opened " .. r.def.overlay) end
+		end)
+	end
 
 	quick.pause.MouseButton1Click:Connect(function() -- the ONE settings button: the round gear top left opens the dropdown (its Settings row opens the full screen)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)

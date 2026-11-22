@@ -29532,7 +29532,7 @@ table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggle
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local ids = {}
 	for _, r in ipairs(G.ROWS) do ids[#ids + 1] = r.id end
-	expectEqual(table.concat(ids, ","), "sound,music,tracks,map,collection,settings,howTo,quit", "gear rows")
+	expectEqual(table.concat(ids, ","), "sound,music,tracks,map,tome,settings,howTo,quit", "gear rows")
 	local H = require(script.Parent.Parent.Engine.HoverIntent)
 	local c = H.new(0.15, 0.2)
 	c:enter(0); expectTrue(not c:poll(0.1), "not before 0.15 s")
@@ -29550,17 +29550,39 @@ table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggle
 	expectTrue(src:find("show = 0.15, hide = 0.2", 1, true) ~= nil, "the deck hint uses the intent timing")
 end })
 
-table.insert(tests, { name = "Gear menu: the Collection row is listed and opens the collection opener", fn = function()
-	local G = require(script.Parent.Parent.Engine.GearMenu)
-	local found
-	for _, r in ipairs(G.ROWS) do if r.id == "collection" then found = r end end
-	assert(found and found.kind == "action" and found.label == "Collection", "gear menu lists Collection")
-	assert(require(script.Parent.Parent.Engine.FeatureFlags).enabled("TOME_COLLECTION"), "flag on")
+table.insert(tests, { name = "Gear menu: the Tome row replaces the lone Collection row, the Tome dropdown lists the five Menu pages and opens their real openers, the Tome icon sits after the gear clear of Target at six sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local G, L, ML = require(E.GearMenu), require(E.Gameplay2Layout), require(E.MenuLayout)
+	local tome, coll
+	for _, r in ipairs(G.ROWS) do if r.id == "tome" then tome = r end if r.id == "collection" then coll = r end end
+	assert(tome and tome.kind == "action" and tome.label == "Tome" and coll == nil, "gear menu lists Tome instead of Collection")
+	assert(require(E.FeatureFlags).enabled("TOME_COLLECTION"), "flag on")
+	local want = { "Collection", "Card Sets", "Flair", "Legend", "Tavern Ledger" }
+	assert(#G.TOME_ROWS == 5, "five rows")
+	for i, w in ipairs(want) do assert(G.TOME_ROWS[i].label == w, "row " .. i .. " is " .. w) end
+	local menuTome = ML.getHotspot("tome")
+	for i, id in ipairs(menuTome.actions) do assert(G.TOME_ROWS[i].id == id, "same order and ids as the Menu Tome: " .. id) end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local q, m = G.quickRects(w, h), G.tomeMenuRect(w, h)
+		expectTrue(q.tome.x == q.pause.x + q.pause.w + G.QUICK_GAP and q.tome.y == q.pause.y and q.tome.w == q.pause.w, "Tome icon 12 px after the gear, same size " .. w)
+		expectTrue(q.tome.w >= 44 and q.tome.x + q.tome.w <= w, "Tome icon is 44 px or more and on screen " .. w)
+		expectTrue(m.x >= 0 and m.x + m.w <= w and m.y >= q.tome.y + q.tome.h and m.y + m.h <= h, "Tome menu on screen under the icon " .. w)
+		expectTrue(not hit(q.tome, m) and not hit(q.tome, q.pause) and not hit(q.tome, q.speaker), "Tome icon overlaps nothing in its row " .. w)
+		for _, rr in ipairs(G.tomeRowRects(m)) do expectTrue(rr.h >= 44 and rr.x + rr.w <= m.w, rr.id .. " row 44 px inside the menu " .. w) end
+		local r = L.rects(w, h)
+		for _, k in ipairs({ "target", "round", "tips", "traySlot1", "traySlot2", "trayUse", "traySell" }) do
+			if r[k] then expectTrue(not hit(q.tome, r[k]), "Tome icon clear of " .. k .. " at " .. w .. "x" .. h) end
+		end
+		print(string.format("[Tome] %dx%d icon=%d,%d,%d menu=%d,%d,%d,%d", w, h, q.tome.x, q.tome.y, q.tome.w, m.x, m.y, m.w, m.h))
+	end
 	if not io then return end
 	local f = io.open("src/Client/GearMenu.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	assert(src:find('OverlayManager.open("collection")', 1, true), "the row calls the registered opener")
+	assert(src:find("OverlayManager.open(r.def.overlay)", 1, true), "the Tome rows call the registered openers")
+	assert(src:find('"menu_item_tome"', 1, true), "the icon reuses the Menu's painted Tome book")
 end })
 
 table.insert(tests, { name = "FeatureFlags: default flags build no corner icons, each flag brings its own back, LEGACY_V1 brings all", fn = function()

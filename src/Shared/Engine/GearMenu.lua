@@ -31,10 +31,20 @@ M.ROWS = {
 	{ id = "music", kind = "toggle", label = "Music" },
 	{ id = "tracks", kind = "action", label = "Music tracks" },
 	{ id = "map", kind = "action", label = "Tavern Map" },
-	{ id = "collection", kind = "action", label = "Collection" },
+	{ id = "tome", kind = "action", label = "Tome" },
 	{ id = "settings", kind = "action", label = "Settings" },
 	{ id = "howTo", kind = "action", label = "How to play" },
 	{ id = "quit", kind = "action", label = "Quit to Tavern" },
+}
+
+-- The Tome dropdown (the round book icon after the gear, and the gear menu's Tome row): the same pages and wording as the Menu's Tome
+-- (MenuLayout "tome" actions). `overlay` is the OverlayManager opener id.
+M.TOME_ROWS = {
+	{ id = "collection", label = "Collection", overlay = "collection" },
+	{ id = "cardSets", label = "Card Sets", overlay = "cosmeticSets" },
+	{ id = "flair", label = "Flair", overlay = "flair" },
+	{ id = "legend", label = "Legend", overlay = "legend" },
+	{ id = "stats", label = "Tavern Ledger", overlay = "stats" },
 }
 
 local function round(n) return math.floor(n + 0.5) end
@@ -67,32 +77,37 @@ function M.quickRects(w, h)
 		local x0 = round(61 / M.QUICK_REF_W * w)
 		local gap = round(21 / M.QUICK_REF_W * w)
 		local y = math.max(M.CORE_CLEAR_Y, round(0.016 * h)) -- Roblox's own menu, chat and mic buttons fill y 0 to 36: start below them
-		return { speaker = { x = x0, y = y, w = q, h = q }, pause = { x = x0 + q + gap, y = y, w = q, h = q } }
+		local px = x0 + q + gap
+		return { speaker = { x = x0, y = y, w = q, h = q }, pause = { x = px, y = y, w = q, h = q }, tome = { x = px + q + M.QUICK_GAP, y = y, w = q, h = q } }
 	end
 	local x0 = M.margin(w)
 	local speaker = { x = x0, y = gy, w = q, h = q }
 	local pause = { x = x0 + q + M.QUICK_GAP, y = gy, w = q, h = q }
-	return { speaker = speaker, pause = pause }
+	return { speaker = speaker, pause = pause, tome = { x = pause.x + q + M.QUICK_GAP, y = gy, w = q, h = q } }
 end
 
-function M.contentHeight()
-	local n = #M.ROWS
+function M.contentHeight(rows)
+	local n = #(rows or M.ROWS)
 	return n * M.ROW_H + (n - 1) * M.ROW_GAP + 2 * M.PAD
 end
 
-function M.menuRect(w, h)
-	local g = M.gearRect(w, h)
+function M.menuRect(w, h, anchor, rows)
+	local g = anchor or M.gearRect(w, h)
 	local mw = math.min(M.MENU_W, w - 2 * M.margin(w))
 	local y = g.y + g.h + 4
-	local full = M.contentHeight()
+	local full = M.contentHeight(rows)
 	local mh = math.min(full, h - y - M.margin(w))
 	local x = math.max(M.margin(w), math.min(g.x, w - M.margin(w) - mw)) -- hangs under the gear, left edges level, always on screen
 	return { x = x, y = y, w = mw, h = math.max(M.ROW_H + 2 * M.PAD, mh), scroll = mh < full, contentH = full }
 end
 
-function M.rowRects(menu)
+-- the Tome dropdown hangs under the Tome icon, left edges level, always on screen
+function M.tomeMenuRect(w, h) return M.menuRect(w, h, M.quickRects(w, h).tome, M.TOME_ROWS) end
+function M.tomeRowRects(menu) return M.rowRects(menu, M.TOME_ROWS) end
+
+function M.rowRects(menu, rows)
 	local out = {}
-	for i, row in ipairs(M.ROWS) do
+	for i, row in ipairs(rows or M.ROWS) do
 		out[i] = { id = row.id, x = M.PAD, y = M.PAD + (i - 1) * (M.ROW_H + M.ROW_GAP), w = menu.w - 2 * M.PAD, h = M.ROW_H }
 	end
 	return out
