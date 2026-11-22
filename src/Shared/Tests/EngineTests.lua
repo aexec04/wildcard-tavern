@@ -40971,6 +40971,27 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
+table.insert(tests, { name = "Spectate overlay, badge and viewers list wear the set panel, edge and ink at 7:1 on every set, Leave takes the set plate", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if p then
+			n = n + 1
+			expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " ink keeps 7:1 on the watcher panel")
+			expectTrue(CS.contrastRatio(p.dark.edge, p.dark.fill) >= 1.2, set.id .. " edge is distinct from the fill")
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	if io and io.open then
+		local f = assert(io.open("src/Client/SpectatePanel.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find("Skin.dark(overlay", 1, true) ~= nil, "the overlay binds the popup skin")
+		expectTrue(src:find("Skin.dark(badge", 1, true) ~= nil and src:find("Skin.dark(list", 1, true) ~= nil, "the badge and the viewers list bind it too")
+		expectTrue(src:find("setPlateButton(leaveButton", 1, true) ~= nil, "Leave takes the set plate")
+	end
+end })
+
 table.insert(tests, { name = "Store cards and panel wear the set paper, edge and ink at 4.5:1 or more on every set, classic unchanged", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps parchment cards")
