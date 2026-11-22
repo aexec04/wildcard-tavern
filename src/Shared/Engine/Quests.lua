@@ -17,6 +17,8 @@
 		housePasses / recipes / cardsDiscarded  bought / used / cards thrown away
 		night     highest Night of the run           state.night
 		rounds    rounds cleared                     state.roundsCleared
+		boonsPicked  Night boons picked              state.boonsPicked
+		deckRounds / deckBosses  rounds / Boss Rounds cleared with the Lucky or Slim Deck (state.startingDeckId is not classic)
 	Daily, Weekly and Seed runs count too.
 
 	Profile: quests = { day, ids = { questId x3 }, progress = { [questId] = n }, done = { [questId] = true } },
@@ -58,7 +60,13 @@ Quests.Definitions = {
 	{ id = "straight_2", name = "Straight Ahead", icon = "🛤️", desc = "Play 2 Straights.", counter = "straights", goal = 2, xp = 70, tips = 3 },
 	{ id = "packs_2", name = "Pack Parade", icon = "🎀", desc = "Buy 2 Packs.", counter = "packs", goal = 2, xp = 60, tips = 3 },
 	{ id = "rounds_3", name = "Warm Up", icon = "🔥", desc = "Clear 3 rounds.", counter = "rounds", goal = 3, xp = 40, tips = 2 },
+	-- Night boons and Starting Decks (a deck quest is swapped for another quest while the Lucky and Slim decks are still locked, see idsFor)
+	{ id = "boon_1", name = "Boon Taker", icon = "✨", desc = "Pick a Night boon.", counter = "boonsPicked", goal = 1, xp = 40, tips = 2 },
+	{ id = "boon_3", name = "Boon Collector", icon = "🎁", desc = "Pick 3 Night boons.", counter = "boonsPicked", goal = 3, xp = 70, tips = 3 },
+	{ id = "deck_rounds", name = "Deck Explorer", icon = "🃏", desc = "Clear 3 rounds with the Lucky or Slim Deck.", counter = "deckRounds", goal = 3, xp = 70, tips = 3 },
+	{ id = "deck_boss", name = "Deck Boss Beater", icon = "🏆", desc = "Win a Boss Round with the Lucky or Slim Deck.", counter = "deckBosses", goal = 1, xp = 80, tips = 4 },
 }
+Quests.DECK_COUNTERS = { deckRounds = true, deckBosses = true } -- these need the Lucky or Slim deck, which open at Night 3 and 5
 
 function Quests.getById(id)
 	for _, q in ipairs(Quests.Definitions) do
@@ -115,8 +123,38 @@ function Quests.rollFor(day)
 	return out
 end
 
-local function freshState(day)
-	return { day = day, ids = Quests.rollFor(day), progress = {}, done = {} }
+-- The three quest ids a profile sees on a day: the shared roll, except that while no Starting Deck besides Classic is open the deck quests
+-- are swapped for the first spare quest (not in this week's plan, not on a counter already in the day), so nothing offered is impossible.
+function Quests.idsFor(profile, day)
+	local ids = Quests.rollFor(day)
+	local StartingDecks = require(script.Parent.StartingDecks)
+	if profile == nil or StartingDecks.isUnlocked(profile, "lucky") then return ids end
+	local inWeek, counters = {}, {}
+	for _, list in pairs(Quests.weekPlan(math.floor(day) // 7)) do
+		for _, id in ipairs(list) do inWeek[id] = true end
+	end
+	for _, id in ipairs(ids) do
+		local def = Quests.getById(id)
+		if def and not Quests.DECK_COUNTERS[def.counter] then counters[def.counter] = true end
+	end
+	for i, id in ipairs(ids) do
+		local def = Quests.getById(id)
+		if def and Quests.DECK_COUNTERS[def.counter] then
+			for _, q in ipairs(Quests.Definitions) do
+				if not inWeek[q.id] and not Quests.DECK_COUNTERS[q.counter] and not counters[q.counter] then
+					ids[i] = q.id
+					inWeek[q.id] = true
+					counters[q.counter] = true
+					break
+				end
+			end
+		end
+	end
+	return ids
+end
+
+local function freshState(day, profile)
+	return { day = day, ids = Quests.idsFor(profile, day), progress = {}, done = {} }
 end
 
 -- Makes sure profile.quests is today's. Returns true when it was rolled (new day).
@@ -127,7 +165,7 @@ function Quests.ensureDay(profile, day)
 		q.done = q.done or {}
 		return false
 	end
-	profile.quests = freshState(day)
+	profile.quests = freshState(day, profile)
 	return true
 end
 
@@ -229,6 +267,9 @@ function Quests.countersOf(state)
 		cardsDiscarded = state.cardsDiscarded or 0,
 		night = state.night or 0, -- highest Night reached; deltas add up to the Night number
 		rounds = state.roundsCleared or 0,
+		boonsPicked = state.boonsPicked or 0,
+		deckRounds = (state.startingDeckId and state.startingDeckId ~= "classic") and (state.roundsCleared or 0) or 0,
+		deckBosses = (state.startingDeckId and state.startingDeckId ~= "classic") and (state.bossesCleared or 0) or 0,
 	}
 end
 

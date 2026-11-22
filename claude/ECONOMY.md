@@ -167,6 +167,12 @@ Tips on arrival at each Counter visit and Patrons already held on arrival, 200 s
 | straight_2 | straights | 2 | 1 | 2 |
 | packs_2 | packs | 2 | 1 | 2 |
 | rounds_3 | rounds | 3 | 4 | 1 |
+| boon_1 | boonsPicked | 1 | 2 | 1 |
+| boon_3 | boonsPicked | 3 | 2 | 2 |
+| deck_rounds | deckRounds | 3 | 4 | 1 |
+| deck_boss | deckBosses | 1 | 1 | 1 |
+
+Boon and deck quests (added with the Night boons and Starting Decks): boon quests count picks (Nights 2 and 3 of a model run give 2). Deck quests count rounds and Boss Rounds cleared on the Lucky or Slim deck, so `Quests.idsFor(profile, day)` swaps them for the first spare quest while no deck besides Classic is open (Night 3), and a locked profile is never offered an impossible quest. The model run for this table is on the Lucky deck.
 
 Result: no quest needs more than 2 runs, so no goal was lowered and no Tips or XP reward changed. Four quests (Flush Finish, Full House Party, Big Swing, Swift Win) depend on the hand you draw, not on volume. Their goal is already 1 and cannot go lower, so a player gets them by play. The model run earns none of those four, so the table calls them "by play".
 

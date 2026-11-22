@@ -24,7 +24,7 @@ EconomySim.RunModel = {
 	handsPlayedTotal = 12, handStats = { Pair = 4, Straight = 1, ["Three of a Kind"] = 1, ["Full House"] = 0 },
 	discardsUsedTotal = 5, cardsDiscarded = 10, flushClears = 0, packsBought = 1, bossesCleared = 1,
 	bigHands = 0, richClears = 1, quickClears = 0, housePassesBought = 1, recipesUsed = 1,
-	night = 3, roundsCleared = 4,
+	night = 3, roundsCleared = 4, boonsPicked = 2, -- Night 2 and Night 3 each open with a boon pick
 }
 EconomySim.RunsPerSession = 2
 
@@ -136,7 +136,9 @@ end
 -- happens by play, so the goal must stay 1) or "night" (a highest Night goal, met in one run when the run gets that far).
 function EconomySim.questReport()
 	local Quests = require(script.Parent.Quests)
-	local perRun = Quests.countersOf(copyRun())
+	local model = copyRun()
+	model.startingDeckId = "lucky" -- deck quests are only offered once a deck besides Classic is open, so model a run on one
+	local perRun = Quests.countersOf(model)
 	local rows = {}
 	for _, def in ipairs(Quests.Definitions) do
 		local per = perRun[def.counter] or 0

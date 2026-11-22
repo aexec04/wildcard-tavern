@@ -9855,8 +9855,8 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
-	-- 24 quest types, unique ids, never two quests on one counter in a day, deterministic
-	expectEqual(#Quests.Definitions, 24, "24 quest types")
+	-- 28 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 28, "28 quest types")
 	do -- variety: 12+ distinct counters, and no quest repeats inside a UTC week (3 a day, 21 different)
 		local kinds, kindCount = {}, 0
 		for _, def in ipairs(Quests.Definitions) do
@@ -44874,6 +44874,46 @@ table.insert(tests, { name = "Run Over deck hint: names the nearest locked Start
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('RunOverHint")).line(state.startingDecks)', 1, true) ~= nil, "Run Over shows the deck hint line")
 	end
+end })
+
+table.insert(tests, { name = "Boon and deck quests: four new quests with short kind lines, the boon counter is real, deck quests never reach a profile with no open deck, unlocked profiles can see them", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local ids = { "boon_1", "boon_3", "deck_rounds", "deck_boss" }
+	for _, id in ipairs(ids) do
+		local def = Quests.getById(id)
+		expectTrue(def ~= nil, id .. " exists")
+		if def then
+			expectTrue(#def.desc <= 60 and #def.name <= 24, id .. " text is short: " .. def.desc)
+			expectTrue(def.goal <= 3 and def.tips >= 2 and def.tips <= 5, id .. " goal under 3 runs and fair Tips")
+			expectTrue(not (def.name .. def.desc):find("\226\128\148") and not (def.name .. def.desc):lower():find("balatro"), id .. " clean text")
+		end
+	end
+	local c = Quests.countersOf({ boonsPicked = 2, startingDeckId = "slim", roundsCleared = 4, bossesCleared = 1 })
+	expectEqual(c.boonsPicked, 2); expectEqual(c.deckRounds, 4); expectEqual(c.deckBosses, 1)
+	c = Quests.countersOf({ boonsPicked = 2, startingDeckId = "classic", roundsCleared = 4, bossesCleared = 1 })
+	expectEqual(c.deckRounds, 0, "Classic does not count for deck quests"); expectEqual(c.deckBosses, 0)
+	local locked, open = { stats = { bestNightReached = 0 } }, { stats = { bestNightReached = 5 } }
+	local sawDeckOpen = false
+	for day = 20000, 20200 do
+		local forLocked, forOpen = Quests.idsFor(locked, day), Quests.idsFor(open, day)
+		expectEqual(#forLocked, 3)
+		local counters = {}
+		for _, id in ipairs(forLocked) do
+			local def = Quests.getById(id)
+			expectTrue(not Quests.DECK_COUNTERS[def.counter], "day " .. day .. ": a locked profile is never offered " .. id)
+			expectTrue(not counters[def.counter], "day " .. day .. ": two quests on " .. def.counter)
+			counters[def.counter] = true
+		end
+		for _, id in ipairs(forOpen) do
+			if Quests.DECK_COUNTERS[Quests.getById(id).counter] then sawDeckOpen = true end
+		end
+	end
+	expectTrue(sawDeckOpen, "an unlocked profile sees deck quests")
+	local p = { stats = { bestNightReached = 0 } }
+	Quests.ensureDay(p, 20000)
+	expectEqual(table.concat(p.quests.ids, ","), table.concat(Quests.idsFor(p, 20000), ","), "ensureDay deals the profile's own list")
+	local done = Quests.apply({ quests = { day = 20000, ids = { "boon_3", "pairs_3", "hands_10" }, progress = {}, done = {} }, stats = { bestNightReached = 5 } }, 20000, { boonsPicked = 3 })
+	expectEqual(#done, 1, "three boon picks complete Boon Collector")
 end })
 
 return tests
