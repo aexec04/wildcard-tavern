@@ -43109,4 +43109,39 @@ table.insert(tests, { name = "EndlessScreen: Run Over shows the lines and the Sh
 	expectTrue(src:find("EndlessScreen.shareLine(lastState.night", 1, true) ~= nil)
 end })
 
+-- ===== DailyShare =====
+table.insert(tests, { name = "DailyShare: a kind seed name per date, the same for everyone, and a short share line", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyShare)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectEqual(DS.seedName("2026-11-22"), DS.seedName("2026-11-22"), "stable")
+	local names, count = {}, 0
+	for day = 1, 28 do
+		local name = DS.seedName(string.format("2026-11-%02d", day))
+		expectTrue(name:match("^%a+ %a+$") ~= nil, name)
+		if not names[name] then names[name] = true count = count + 1 end
+	end
+	expectTrue(count >= 12, "the names vary day to day, got " .. count)
+	for _, w in ipairs(DS.Adjectives) do expectTrue(#w > 0) end
+	local line = DS.line({ night = 6, won = false }, "2026-11-22", "Steady Hands")
+	expectEqual(line, "Daily " .. DS.seedName("2026-11-22") .. " (Steady Hands): I reached Night 6 in " .. require(script.Parent.Parent.Engine.GameName).NAME .. ". Can you beat me?")
+	expectTrue(DS.line({ night = 8, won = true }, "2026-11-22", nil):find("won and reached Night 8", 1, true) ~= nil)
+	expectTrue(DS.line({}, nil, nil):find("Night 1", 1, true) ~= nil, "bad summary is safe")
+	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= DS.MAX_LENGTH)
+	local lower = line:lower()
+	expectTrue(lower:find("balatro", 1, true) == nil and not line:find("\226\128\148", 1, true))
+	for _, w in ipairs(DS.Nouns) do
+		local bad = { "beer", "wine", "ale", "rum", "gin" }
+		for _, b in ipairs(bad) do expectTrue(w:lower() ~= b, w) end
+	end
+	expectTrue(Layout.SMALL_H >= 44, "the share button keeps a 44 px hit area")
+end })
+
+table.insert(tests, { name = "DailyShare: the Share button on a Daily run uses the Daily line", fn = function()
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("DailyShare", 1, true) ~= nil and src:find("lastState.isDaily", 1, true) ~= nil)
+end })
+
 return tests

@@ -281,6 +281,11 @@ return function(deps)
 	shareButton.MouseButton1Click:Connect(function()
 		click()
 		local seedInfo = SeedDisplay.label(lastState)
+		if lastState and lastState.isDaily then -- a Daily shares its seed name and twist, never a code to type
+			local twist = type(lastState.dailyModifierInfo) == "table" and lastState.dailyModifierInfo.name or nil
+			showBox(require(Engine:WaitForChild("DailyShare")).line(lastSummary, lastState.dailyDateKey, twist))
+			return
+		end
 		local EndlessScreen = require(Engine:WaitForChild("EndlessScreen"))
 		local view = EndlessScreen.lines(lastState, lastSummary and lastSummary.endlessBestByStake, lastSummary and lastSummary.stake or (lastState and lastState.stake))
 		if view then
