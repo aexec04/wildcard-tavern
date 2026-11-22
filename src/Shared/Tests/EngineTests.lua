@@ -40087,4 +40087,23 @@ table.insert(tests, { name = "Menu Play and Season Claim All wear the equipped C
 	expectEqual(Style.resultPlate("primary", 190, 44, "classic_tavern"), nil, "classic Claim All stays flat green")
 end })
 
+table.insert(tests, { name = "Settings, Store and Card Sets primary buttons wear the equipped Card Set plate, classic unchanged, 44 px targets kept", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	for setId, map in pairs(Style.SET_PLATES) do
+		expectEqual(Style.setPiece(SL.PLATE, setId), map[SL.PLATE], setId .. " Settings Account plate follows the set")
+		expectTrue(Style.resultPlate("primary", 310, 44, setId) ~= nil, setId .. " Store Buy and Equip plate")
+	end
+	expectEqual(Style.setPiece(SL.PLATE, "classic_tavern"), SL.PLATE, "classic Settings plate unchanged")
+	expectEqual(Style.resultPlate("primary", 310, 44, "classic_tavern"), nil, "classic Store Buy stays flat green")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local store, room, settings = read("src/Client/StorePanel.lua"), read("src/Client/CardSetsRoom.lua"), read("src/Client/Settings.lua")
+	if not (store and room and settings) then return end
+	expectTrue(store:find('Kit.setPlateButton(button, "primary")', 1, true) ~= nil, "Store Buy asks for the set plate")
+	expectTrue(store:find("UDim2.new(1, -36, 0, 44)", 1, true) ~= nil, "Store Buy keeps its 44 px height")
+	expectTrue(room:find('setPlateButton(btn, "primary")', 1, true) ~= nil, "Card Sets Equip asks for the set plate")
+	expectTrue(settings:find("button.ZIndex = 24", 1, true) ~= nil, "Settings Account buttons keep ZIndex 24 over the plate backing")
+end })
+
 return tests

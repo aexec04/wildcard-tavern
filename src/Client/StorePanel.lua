@@ -144,6 +144,7 @@ local function buildCard(row, order)
 	elseif row.available then
 		Kit.skin(button, row.studioFree and "Take for free" or "Buy", "primary")
 		paintButton(button, "buy")
+		pcall(function() Kit.setPlateButton(button, "primary") end) -- the equipped Card Set's green plate; classic keeps the flat green
 		button.MouseButton1Click:Connect(function()
 			ui.playClickSfx()
 			ui.purchaseRemote:FireServer(row.id)
