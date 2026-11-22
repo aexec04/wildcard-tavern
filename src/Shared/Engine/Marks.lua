@@ -71,14 +71,15 @@ function Marks.findCard(state, rank, suit)
 end
 
 -- Spends Tips and puts the mark on the picked card. Returns ok, message.
-function Marks.buy(state, markId, rank, suit)
+function Marks.buy(state, markId, rank, suit, price)
 	local def = type(markId) == "string" and Card.Marks[markId] or nil
 	if not def then return false, "Unknown mark" end
 	if type(rank) ~= "number" or type(suit) ~= "string" then return false, "Pick a card" end
-	if (state.tips or 0) < Marks.price(state) then return false, "Not enough tips" end
+	price = price or Marks.price(state) -- the Market node sells at its own price
+	if (state.tips or 0) < price then return false, "Not enough tips" end
 	local card = Marks.findCard(state, rank, suit)
 	if not card then return false, "That card is not in your deck, or it is already marked" end
-	state.tips = state.tips - Marks.price(state)
+	state.tips = state.tips - price
 	card.mark = markId
 	state.marksBought = (state.marksBought or 0) + 1
 	return true, def.name .. " Mark added to your " .. Card.toString(card) .. "."

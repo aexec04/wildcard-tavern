@@ -44096,4 +44096,67 @@ table.insert(tests, { name = "Boss rules: Frozen Hand, Quiet Tavern and Short Ta
 	expectEqual(full - frozen, 9, "the first card's 9 Chips are gone")
 end })
 
+-- ===== Tavern Map event nodes =====
+table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	local function open(night, tips)
+		local state = RunState.new(nil, SeededRng.new(5))
+		state.night, state.tips = night, tips
+		return state, NightBoons.draft(state, true, SeededRng.new(9))
+	end
+	for _, n in ipairs({ 4, 7, 10 }) do
+		local state, choice = open(n, 10)
+		expectTrue(ME.shrineView(state, choice) ~= nil, "Night " .. n .. " has a shrine")
+		local ok, msg, new = ME.rerollBoon(state, choice)
+		expectTrue(ok and new and #new.options == 3 and new.kind == "boon", "a new draft of three")
+		expectEqual(state.tips, 7)
+		local seen = {}
+		for _, o in ipairs(choice.options) do seen[o.id] = true end
+		for _, o in ipairs(new.options) do expectFalse(seen[o.id], "no boon from the first draft") end
+		local ok2 = ME.rerollBoon(state, new)
+		expectFalse(ok2, "once per Night"); expectEqual(state.tips, 7)
+	end
+	for _, n in ipairs({ 2, 3, 5, 8, 11 }) do
+		local state, choice = open(n, 10)
+		expectEqual(ME.shrineView(state, choice), nil, "no shrine on Night " .. n)
+		expectFalse((ME.rerollBoon(state, choice)))
+	end
+	local state, choice = open(4, 2)
+	expectFalse((ME.rerollBoon(state, choice)), "not enough Tips"); expectEqual(state.tips, 2)
+	expectEqual(ME.shrineView(state, { kind = "event" }), nil, "only the boon pick has a shrine")
+end })
+
+table.insert(tests, { name = "MapEvents: the Market sells a chosen mark for 4 Tips once per Night at Round Select, and refuses everything else", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	local state = RunState.new(nil, SeededRng.new(5))
+	RunState.startRound(state)
+	state.night, state.round, state.tips = 4, 1, 10
+	expectEqual(ME.marketView(state, "playing"), nil, "only at Round Select")
+	local view = ME.marketView(state, "roundSelect")
+	expectTrue(view and view.price == 4 and #view.marks == 3 and view.canAfford)
+	expectFalse((ME.marketBuy(state, "roundSelect", "nope", 14, "Hearts")))
+	expectFalse((ME.marketBuy(state, "roundSelect", "gilded", 99, "Hearts")))
+	expectEqual(state.tips, 10, "refusals cost nothing")
+	expectTrue((ME.marketBuy(state, "roundSelect", "lively", 14, "Hearts")))
+	expectEqual(state.tips, 6)
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "once per Night")
+	expectFalse((ME.marketBuy(state, "roundSelect", "lucky", 14, "Spades")))
+	state.night = 5
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "Night 5 has no market")
+	state.night, state.round = 7, 2
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "first round of the Night only")
+end })
+
+table.insert(tests, { name = "MapEvents: the server routes MapEvent through the rate limit and Round Select only, and every text is kid safe", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	expectTrue(#ME.shrineView({ night = 4, tips = 5 }, { kind = "boon" }).text <= 60)
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('RateLimit.allow(player.UserId, "Rem.MapEvent"', 1, true) ~= nil, "rate limited")
+	expectTrue(src:find('session.phase ~= "roundSelect" or type(action) ~= "string"', 1, true) ~= nil, "Round Select only")
+end })
+
 return tests

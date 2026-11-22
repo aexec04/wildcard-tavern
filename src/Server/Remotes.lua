@@ -64,6 +64,7 @@ Rem.BuyPack = newRemote("BuyPack")       -- (player, packId)
 Rem.ResolvePack = newRemote("ResolvePack") -- (player, chosenIds)
 Rem.BuyHousePass = newRemote("BuyHousePass") -- (player, passId)
 Rem.BuyMark = newRemote("BuyMark") -- (player, markId, rank, suit)
+Rem.MapEvent = newRemote("MapEvent") -- (player, "shrine") or (player, "market", markId, rank, suit): Engine/MapEvents
 Rem.AdvanceRound = newRemote("AdvanceRound")
 -- ROUND SELECT FEATURE: fired from Client/RoundSelect.lua, the screen
 -- shown whenever phase == "roundSelect" (start of a run, and every time

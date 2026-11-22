@@ -16,7 +16,7 @@ PreviewGuard.BLOCKED = {
 	["Rem.PlayHand"] = true, ["Rem.Discard"] = true, ["Rem.BuyPatron"] = true, ["Rem.SellPatron"] = true, ["Rem.MovePatron"] = true, ["Rem.UseRuleBan"] = true,
 	["Rem.Choice"] = true, ["Rem.ChooseRoad"] = true, ["Rem.Minigame"] = true, ["Rem.SideStop"] = true, ["Rem.BuyRecipe"] = true,
 	["Rem.UseRecipe"] = true, ["Rem.SellRecipe"] = true, ["Rem.RerollShop"] = true, ["Rem.Haggle"] = true, ["Rem.Stranger"] = true, ["Rem.BuyPack"] = true,
-	["Rem.ResolvePack"] = true, ["Rem.BuyHousePass"] = true, ["Rem.BuyMark"] = true, ["Rem.AdvanceRound"] = true, ["Rem.SelectRound"] = true, ["Rem.SkipRound"] = true,
+	["Rem.ResolvePack"] = true, ["Rem.BuyHousePass"] = true, ["Rem.BuyMark"] = true, ["Rem.MapEvent"] = true, ["Rem.AdvanceRound"] = true, ["Rem.SelectRound"] = true, ["Rem.SkipRound"] = true,
 	["UseRuleBanRemote"] = true, ["Rem.UnlockRoad"] = true, ["Rem.UseCompass"] = true, ["Rem.RequestContinue"] = true,
 }
 -- remotes that end a preview on the server (a new run, a restart, leaving a run)

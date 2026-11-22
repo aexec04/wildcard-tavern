@@ -622,6 +622,10 @@ local function serializeState(session, player)
 		packOffers = packOffers,
 		voucherOffer = voucherOffer,
 		markOffer = markOffer,
+		mapEvents = {
+			shrine = require(Engine.MapEvents).shrineView(state, session.choice),
+			market = require(Engine.MapEvents).marketView(state, session.phase),
+		},
 		rerollCost = RunState.rerollCost(state, session.rerollCost or Shop.REROLL_BASE_COST),
 		-- pendingPack is already the lightweight { packId, category, pickCount,
 		-- items = {id,name,icon,description} } shape RunState.openPack builds
@@ -2610,6 +2614,31 @@ Rem.BuyHousePass.OnServerEvent:Connect(function(player, passId)
 	local ok = RunState.buyHousePass(session.state, passId)
 	if ok then
 		session.voucherOffer = nil
+	end
+	pushState(player)
+end)
+
+-- Tavern Map event nodes on Nights 4, 7 and 10 (Engine/MapEvents.lua): "shrine" rerolls the open boon draft once,
+-- "market" sells a mark of your choice. Every rule and refusal lives in the engine.
+Rem.MapEvent.OnServerEvent:Connect(function(player, action, markId, rank, suit)
+	if not RateLimit.allow(player.UserId, "Rem.MapEvent", os.clock()) then return end
+	local session = sessions[player]
+	if not session or session.phase ~= "roundSelect" or type(action) ~= "string" then
+		return
+	end
+	local MapEvents = require(Engine.MapEvents)
+	if action == "shrine" then
+		if session.choice then
+			local ok, message, newChoice = MapEvents.rerollBoon(session.state, session.choice)
+			if ok then
+				session.choice = newChoice
+				RunState.refreshSnapshot(session.state)
+			end
+			pushRewardNotice(player, { text = message })
+		end
+	elseif action == "market" and type(markId) == "string" and type(rank) == "number" and type(suit) == "string" and not session.choice then
+		local _, message = MapEvents.marketBuy(session.state, session.phase, markId, math.floor(rank), suit)
+		pushRewardNotice(player, { text = message })
 	end
 	pushState(player)
 end)
