@@ -40971,6 +40971,30 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
+table.insert(tests, { name = "Card Sets hero preview flip: 0.25 s when a different tile is picked, never in Calm mode, not on a repaint, the face fan and back sit side by side with a 44 px Equip on every set and size", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(L.flipPlan(false, "a", "b").seconds, 0.25)
+	expectEqual(L.flipPlan(false, nil, "a").seconds, 0.25, "the first pick flips")
+	expectEqual(L.flipPlan(false, "a", "a"), nil, "a repaint of the same pick does not flip")
+	expectEqual(L.flipPlan(true, "a", "b"), nil, "Calm mode and Reduce motion never flip")
+	expectEqual(L.flipPlan(false, "a", nil), nil)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(size[1], size[2])
+		local room = L.room(pw, ph - L.TOP - L.BOTTOM, #CS.Definitions, 1)
+		expectTrue(room.ok, size[1] .. " the room fits")
+		local hp = room.parts or L.heroParts(room.hero)
+		expectTrue(hp.button.h >= 44, size[1] .. " Equip is 44 px or more")
+		expectTrue(hp.back.x >= hp.fan[1].x, size[1] .. " the back sits right of the fan, side by side")
+		expectTrue(hp.back.x + hp.back.w <= hp.felt.x + hp.felt.w and hp.back.x >= hp.felt.x, size[1] .. " the back is inside the felt")
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/CardSetsRoom.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("Layout.flipPlan(", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil, "the room asks the flip rule and the calm switch")
+	end
+end })
+
 table.insert(tests, { name = "Spectate overlay, badge and viewers list wear the set panel, edge and ink at 7:1 on every set, Leave takes the set plate", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	local n = 0

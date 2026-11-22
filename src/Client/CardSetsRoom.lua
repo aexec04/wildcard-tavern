@@ -16,6 +16,8 @@ CardSetsRoom.new(ctx) -> room
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ClientSettings = require(script.Parent.ClientSettings)
 local FullScreen = require(script.Parent.PanelFullScreen)
 
 local CardSetsRoom = {}
@@ -289,6 +291,7 @@ function CardSetsRoom.new(ctx)
 		return d
 	end
 
+	local flippedKey -- the entry whose card back last turned over in the hero, so a repaint of the same pick does not flip again
 	local function paintHero(entry, d, g)
 		local hp, hero = g.parts, g.hero
 		local z = 43
@@ -303,6 +306,7 @@ function CardSetsRoom.new(ctx)
 		local tb = rel(hp.table)
 		local owned = d.owned
 		local sceneSet = entry.set or ctx.CosmeticSets.getById(ctx.getState() and ctx.getState().cosmetics and ctx.getState().cosmetics.equippedSetId or ctx.CosmeticSets.DefaultId) or ctx.CosmeticSets.Definitions[1]
+		local flipRect
 		local scene = miniScene(frame, tb, { rail = hp.rail and rel(hp.rail), felt = rel(hp.felt), prop = hp.prop and rel(hp.prop) }, sceneSet, z + 1, true)
 		local function inScene(r) return { x = r.x - tb.x, y = r.y - tb.y, w = r.w, h = r.h } end
 		if entry.set then
@@ -320,6 +324,7 @@ function CardSetsRoom.new(ctx)
 			local th = ctx.CardBackView.thumb(scene, back, { size = Vector2.new(br.w, br.h), locked = false, shimmer = false, zIndex = 21 + z })
 			th.Position = UDim2.fromOffset(br.x, br.y)
 			th.Rotation = 4
+			flipRect = br
 		else
 			local br = inScene(rel(hp.big))
 			solid(scene, Color3.fromRGB(34, 22, 14), { x = br.x - 8, y = br.y + br.h, w = br.w + 16, h = 7 }, 20 + z, 3)
@@ -327,6 +332,21 @@ function CardSetsRoom.new(ctx)
 			local th = ctx.CardBackView.thumb(scene, d.shown, { size = Vector2.new(br.w, br.h), equipped = d.equipped, locked = not owned, zIndex = 21 + z, isActive = ctx.isOpen })
 			th.Position = UDim2.fromOffset(br.x, br.y)
 			th.Rotation = -4
+			flipRect = br
+		end
+		-- picking a tile turns the card back over once (0.25 s): a cover the size of the back narrows to nothing. Calm mode and Reduce
+		-- motion get no cover and no tween (rule in Engine/CardSetsSceneLayout.flipPlan).
+		local plan = Layout.flipPlan(ClientSettings.get("reduceShake") == true, flippedKey, entry.key)
+		flippedKey = entry.key
+		if plan and flipRect then
+			local cover = solid(scene, Color3.fromRGB(34, 22, 14), flipRect, 30 + z, 6)
+			cover.Name = "FlipCover"
+			cover.AnchorPoint = Vector2.new(0.5, 0)
+			cover.Position = UDim2.fromOffset(flipRect.x + flipRect.w / 2, flipRect.y)
+			cover.Size = UDim2.fromOffset(flipRect.w, flipRect.h)
+			local tw = TweenService:Create(cover, TweenInfo.new(plan.seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, flipRect.h) })
+			tw.Completed:Connect(function() cover:Destroy() end)
+			tw:Play()
 		end
 		if not owned and entry.set then dim(scene, { x = 0, y = 0, w = tb.w, h = tb.h }, 40 + z) end
 		if not owned then padlock(frame, tb.x + tb.w - 24, tb.y + 6, z + 60) end
