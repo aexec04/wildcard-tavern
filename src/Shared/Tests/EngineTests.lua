@@ -35972,4 +35972,27 @@ tests[#tests + 1] = ({ name = "Golden Gala shows an ivory face with dark readabl
 	end
 end })
 
+tests[#tests + 1] = ({ name = "Plated buttons: for every real button size the chosen plate piece keeps its slice corners inside the button and leaves a centre that fills", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	-- sizes used by Menu All actions, Settings (Account, Hold to Confirm, toggles), Store Buy and Close, Tome tabs, Quests, Season, Music, hero Equip
+	local sizes = { { 228, 56 }, { 110, 44 }, { 160, 44 }, { 200, 44 }, { 44, 44 }, { 120, 44 }, { 150, 44 }, { 104, 44 }, { 300, 56 }, { 705, 44 }, { 340, 48 }, { 90, 34 }, { 128, 44 } }
+	for _, kind in ipairs({ "primary", "secondary" }) do
+		for _, s in ipairs(sizes) do
+			local piece = Style.buttonPiece(kind, s[1], s[2])
+			local def = Style.PAINTED[piece]
+			expectTrue(def ~= nil, piece .. " is a registered piece")
+			if def.inset then
+				local sl = Style.paintedSlice(piece, s[1], s[2])
+				local cols = (def.inset.l + def.inset.r) * sl.scale
+				local rows = (def.inset.t + def.inset.b) * sl.scale
+				expectTrue(cols < s[1] and rows < s[2], piece .. " corners fit " .. s[1] .. "x" .. s[2])
+				expectTrue(def.inset.l * 2 < def.src[1] and def.inset.t * 2 < def.src[2], piece .. " centre exists in the picture")
+				expectTrue(s[1] - cols >= 0.1 * s[1] and s[2] - rows >= 0.1 * s[2], piece .. " centre fills at " .. s[1] .. "x" .. s[2])
+			end
+		end
+	end
+	local bad = Style.plateAudit({ { 228, 56 }, { 110, 44 }, { 160, 44 }, { 44, 44 } })
+	expectEqual(#bad, 0, "plateAudit clean at the real button sizes: " .. table.concat(bad, "; "))
+end })
+
 return tests
