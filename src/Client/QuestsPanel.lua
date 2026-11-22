@@ -124,6 +124,14 @@ local function buildCard(parent, row, order, roundCorner)
 	rewardStroke.Color = GOLD
 	rewardStroke.Thickness = 1.5
 	rewardStroke.Parent = reward
+	if row.done then -- rewards are paid by the server when the quest completes: a gold "Claimed" plate shows it is in your pocket
+		reward.BackgroundColor3 = GOLD
+		rewardStroke.Color = INK
+		reward.Name = "RewardClaimed"
+		label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "Claimed", TextSize = 18, TextColor3 = INK, ZIndex = 33 })
+		label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = INK, ZIndex = 33 })
+		return card
+	end
 	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "+" .. row.xp .. " XP", TextSize = 16, TextColor3 = CREAM, ZIndex = 33 })
 	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = GOLD, ZIndex = 33 })
 	return card

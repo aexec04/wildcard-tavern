@@ -39702,4 +39702,27 @@ table.insert(tests, { name = "JourneyMap.rewardSentence: one short sentence per 
 	end
 end })
 
+table.insert(tests, { name = "Quests and Music: Claimed plate, 44 px reward plate, Now playing line fits every screen size", fn = function()
+	local P = require(script.Parent.Parent.Engine.MusicPicker)
+	expectEqual(P.nowPlaying("auto", false), "Now playing: Tavern Mix", "default track named")
+	expectEqual(P.nowPlaying("gameplay", false), "Now playing: Card Table", "chosen free track named")
+	expectEqual(P.nowPlaying("nonsense", false), "Now playing: Tavern Mix", "unknown falls back to auto")
+	for _, t in ipairs(P.TRACKS) do
+		if t.pack then expectEqual(P.nowPlaying(t.id, false), "Now playing: Tavern Mix", "locked pack track is not named") end
+	end
+	expectTrue(P.TITLE_H >= 56 + 26, "title area has room for the 26 px Now playing line")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = P.layout(sz[1], sz[2])
+		expectTrue(L.panel.h <= sz[2] - 16 and L.panel.w <= sz[1] - 16, "panel fits " .. sz[1])
+		expectTrue(L.body.h > 0, "body visible at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local q = read("src/Client/QuestsPanel.lua")
+	expectTrue(q:find('Text = "Claimed"', 1, true) ~= nil and q:find("reward.BackgroundColor3 = GOLD", 1, true) ~= nil, "done quest shows a gold Claimed plate")
+	expectTrue(q:find("QuestsPanel.CARD_H, QuestsPanel.REWARD_W", 1, true) ~= nil and q:find("reward.Size = UDim2.fromOffset(104, 56)", 1, true) ~= nil, "reward plate is 56 px tall")
+	local m = read("src/Client/MusicPanel.lua")
+	expectTrue(m:find("nowLabel.TextSize = 16", 1, true) ~= nil, "Now playing is 16 px")
+end })
+
 return tests

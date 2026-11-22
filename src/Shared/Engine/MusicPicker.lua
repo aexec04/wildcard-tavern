@@ -91,7 +91,7 @@ end
 -- Panel rectangles for a viewport (pure, tested at 1920x957, 1280x720, 1024x768, 800x450). The panel is at most 360 wide and the
 -- viewport height minus a 16 px margin; the body between the title bar and the panel bottom scrolls when it does not fit.
 -- Returns { panel = {x,y,w,h}, closeX = {x,y,w,h} (screen coords), body = {h = visible, content = full height}, contentH }.
-M.ROW_H, M.ROW_GAP, M.TITLE_H = 44, 8, 56
+M.ROW_H, M.ROW_GAP, M.TITLE_H = 44, 8, 84 -- title bar 56 plus a 28 px Now playing line
 function M.shopHeight() -- plate pad, title, line, rows (each with its gap), button, pad
 	return 12 + 28 + 2 + 22 + 6 + #M.SHOP_TRACKS * (M.ROW_H - 4 + M.ROW_GAP) + 44 + 12
 end
@@ -111,6 +111,12 @@ function M.layout(vw, vh)
 		body = { h = h - M.TITLE_H - 8, content = contentH },
 		contentH = contentH,
 	}
+end
+
+-- The Now playing line: names the track that really plays (auto is the Tavern Mix).
+function M.nowPlaying(selected, ownsPack)
+	local t = BY_ID[M.effective(selected, ownsPack)] or BY_ID.auto
+	return "Now playing: " .. (t and t.name or "Tavern Mix")
 end
 
 function M.assetFor(trackId)

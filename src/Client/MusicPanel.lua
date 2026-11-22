@@ -45,9 +45,11 @@ local function apply()
 	end
 end
 
+local nowLabel
 local function refresh()
 	if not rowsHost then return end
 	local selected = Picker.effective(ClientSettings.get("musicTrack"), ownsPack)
+	if nowLabel then nowLabel.Text = Picker.nowPlaying(selected, ownsPack) end
 	for _, row in ipairs(rowsHost:GetChildren()) do
 		if row:IsA("GuiButton") then
 			local t = row:GetAttribute("TrackId")
@@ -210,6 +212,21 @@ function M.install(root)
 	title.TextTransparency, title.TextStrokeTransparency = 0, 1
 	title.ZIndex = Z + 2
 	title.Parent = panel
+
+	nowLabel = Instance.new("TextLabel")
+	nowLabel.Name = "NowPlaying"
+	nowLabel.BackgroundTransparency = 1
+	nowLabel.Size = UDim2.new(1, -32, 0, 26)
+	nowLabel.Position = UDim2.fromOffset(16, 48)
+	nowLabel.Font = Enum.Font[Style.FONTS.title]
+	nowLabel.Text = Picker.nowPlaying(ClientSettings.get("musicTrack"), ownsPack)
+	nowLabel.TextSize = 16
+	nowLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nowLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nowLabel.TextColor3 = GOLD
+	nowLabel.TextTransparency, nowLabel.TextStrokeTransparency = 0, 1
+	nowLabel.ZIndex = Z + 2
+	nowLabel.Parent = panel
 
 	local body = Instance.new("ScrollingFrame")
 	body.Name = "Body"
