@@ -26935,7 +26935,7 @@ table.insert(tests, { name = "Play table cohesion: card index text has a 15 px f
 	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local face, pop = slurp("src/Client/CardFace.lua"), slurp("src/Client/ScorePopup.lua")
 	if not (face and pop) then return end
-	expectTrue(face:find("MinTextSize = 18", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 18")
+	expectTrue(face:find("MinTextSize = 20", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 20")
 	expectTrue(pop:find("PlayedLane", 1, true) ~= nil, "ScorePopup lands cards through PlayedLane")
 	expectTrue(pop:find("Color3.fromRGB(60, 130, 235)", 1, true) == nil and pop:find("Color3.fromRGB(225, 55, 55)", 1, true) == nil, "no saturated flat blue and red on the readout")
 end })
@@ -30784,7 +30784,9 @@ table.insert(tests, { name = "Accessibility: Colorblind Suits inks read at 4.5:1
 		for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
 			local m = A.SuitMarks[n]
 			local ink = CS.colorblindInkOf(set, m.ink)
-			expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			if not set.darkFace then -- a dark painted face has no pale paper: the dark plate is the surface the mark sits on
+				expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			end
 			expectTrue(CS.contrastRatio(ink, plate) >= 4.5, set.id .. " " .. n .. " ink on index plate")
 			expectTrue(not seen[m.glyph .. m.letter], set.id .. " " .. n .. " cue is unique")
 			seen[m.glyph .. m.letter] = true
@@ -32999,7 +33001,7 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
 	local face = read("src/Client/CardFace.lua")
-	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 18", 1, true), "CardLook mirrors the CardFace index box and floor")
+	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 20", 1, true), "CardLook mirrors the CardFace index box and floor")
 	assert(read("src/Client/init.client.lua"):find('WaitForChild("CardLook")', 1, true), "the hub draws the selection edge from CardLook")
 	local pal = read("src/Client/Palette.lua")
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
@@ -42004,6 +42006,48 @@ table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: ever
 	end
 end })
 
+table.insert(tests, { name = "Dark face sets: corner index is light ink on a dark plate at 7:1, every set reads at 4.5:1, classic and light faces unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local dark = CS.getById("harbor_lights")
+	assert(dark and dark.darkFace == true, "Harbor Lights is flagged dark")
+	for _, red in ipairs({ true, false }) do
+		local st = CS.indexStyle(dark, red)
+		assert(st.dark == true, "dark style flagged")
+		assert(CS.contrastRatio(st.ink, st.plate) >= 7, "Harbor Lights index ink reads at 7:1")
+		assert(CS.contrastRatio(st.ink, { 22, 33, 41 }) >= 4.5, "light ink reads on the navy face")
+		assert(st.ink[1] >= 240, "ink is light")
+	end
+	for _, set in ipairs(CS.Definitions) do
+		for _, red in ipairs({ true, false }) do
+			local st = CS.indexStyle(set, red)
+			assert(CS.contrastRatio(st.ink, st.plate) >= 4.5, set.id .. " index ink reads at 4.5:1")
+			if not set.darkFace then assert(st.dark == nil, set.id .. " light face keeps dark ink") end
+		end
+	end
+	assert(CS.indexStyle(CS.getById("golden_gala"), false).dark == nil and CS.indexStyle(CS.getById("frosted_garden"), false).dark == nil, "Frosted Garden and Golden Gala unchanged")
+end })
+
+table.insert(tests, { name = "Table dress: empty Patron seats lean firmly toward each set's colours, further than before", fn = function()
+	local TD = require(script.Parent.Parent.Engine.TableDress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	assert(TD.STRENGTH.seat >= 0.7, "seat tint is firm")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId and CS.deckTint(set.id) then
+			local c = TD.tintFor(set.id, "seat")
+			assert(c[1] < 255 or c[2] < 255 or c[3] < 255, set.id .. " seat leans off white")
+			local lean = (255 - c[1]) + (255 - c[2]) + (255 - c[3])
+			local base = CS.deckTint(set.id).base
+			local full = (255 - base[1]) + (255 - base[2]) + (255 - base[3])
+			assert(full <= 0 or lean >= full * 0.8 * 0.85, set.id .. " seat carries most of the back colour")
+			n = n + 1
+		end
+	end
+	assert(n >= 12, "checked every set with a back")
+	local w = TD.tintFor("classic_tavern", "seat")
+	assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic seat unchanged")
+end })
+
 table.insert(tests, { name = "Table dress: pile, banners and seat faces wear each set's colours, classic stays white, every set differs from classic", fn = function()
 	local TD = require(script.Parent.Parent.Engine.TableDress)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
@@ -42471,6 +42515,7 @@ table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4
 end })
 
 return tests
+
 
 
 

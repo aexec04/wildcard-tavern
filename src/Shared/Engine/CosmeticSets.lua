@@ -266,6 +266,7 @@ CosmeticSets.Definitions = {
 			layers = { { kind = "sparks", count = 8, speed = 0.5 } },
 		},
 		face = { paper = { 220, 234, 248 }, border = { 140, 183, 200 }, pip = { 22, 33, 41 } }, -- pale harbor blue paper
+		darkFace = true, -- the painted face art is dark navy: the index wears light ink on a dark plate (see indexStyle)
 		unlock = { kind = "biome", region = "coast" },
 	},
 	{
@@ -953,6 +954,17 @@ function CosmeticSets.indexStyle(set, isRed)
 		plate = face.paper -- the paper colour itself (field name kept: it is the surface the ink sits on)
 		ink = mix(base, face.pip, isRed and 0.2 or 0.5)
 	end
+	if set and set.darkFace and not face.neutral then
+		-- dark painted face: light ink (cream, a warm coral for red suits) on the face's own deep tone, 7:1 at least
+		plate = mix(face.pip, { 8, 14, 24 }, 0.5)
+		ink = isRed and { 255, 176, 160 } or { 250, 244, 226 }
+		local lift = 0
+		while CosmeticSets.contrastRatio(ink, plate) < math.max(7, CosmeticSets.minContrastOf(set)) and lift < 10 do
+			plate = mix(plate, { 0, 0, 0 }, 0.25)
+			lift = lift + 1
+		end
+		return { plate = plate, ink = ink, edge = mix(plate, ink, 0.35), dark = true }
+	end
 	local dark = CosmeticSets.BLACK_INK
 	local steps = 0
 	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.minContrastOf(set) and steps < 10 do
@@ -985,6 +997,15 @@ function CosmeticSets.colorblindInkOf(set, markInk)
 	local paper = CosmeticSets.cardLook(set).paper
 	local plate = CosmeticSets.indexStyle(set, false).plate
 	local need = math.max(4.5, CosmeticSets.minContrastOf(set))
+	if set and set.darkFace then
+		-- dark painted face: lighten toward cream until the mark reads on the dark plate
+		local light, n = markInk, 0
+		while CosmeticSets.contrastRatio(light, plate) < need and n < 12 do
+			light = mix(light, { 250, 244, 226 }, 0.2)
+			n = n + 1
+		end
+		return light
+	end
 	local ink, steps = markInk, 0
 	while (CosmeticSets.contrastRatio(ink, paper) < need or CosmeticSets.contrastRatio(ink, plate) < need) and steps < 12 do
 		ink = mix(ink, CosmeticSets.BLACK_INK, 0.2)

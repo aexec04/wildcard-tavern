@@ -76,7 +76,7 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 	label.Parent = parent
 	-- TextScaled alone shrank the corner index to about 8 px; keep it readable
 	local limit = Instance.new("UITextSizeConstraint")
-	limit.MinTextSize = 18
+	limit.MinTextSize = 20
 	limit.MaxTextSize = 60
 	limit.Parent = label
 	return label
@@ -417,7 +417,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		if info then
 			for _, lab in ipairs({ rank, suit, bottom }) do
 				lab.TextStrokeColor3 = info.stroke
-				lab.TextStrokeTransparency = 0.55
+				lab.TextStrokeTransparency = info.dark and 0.1 or 0.55 -- light ink on a dark painted face keeps a solid dark outline
 			end
 		end
 	else
