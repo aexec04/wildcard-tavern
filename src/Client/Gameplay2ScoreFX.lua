@@ -40,7 +40,7 @@ local function burst(parent, n)
 		d.Parent = parent
 		local a = (i / n) * math.pi * 2
 		local dist = 60 + (i % 3) * 18
-		local tw = TweenService:Create(d, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		local tw = TweenService:Create(d, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Position = UDim2.new(0.5, math.cos(a) * dist, 0.45, math.sin(a) * dist * 0.5), BackgroundTransparency = 1 })
 		tw.Completed:Connect(function() d:Destroy() end)
 		tw:Play()

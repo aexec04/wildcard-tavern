@@ -14,7 +14,7 @@ local CardBacks = require(Engine:WaitForChild("CardBacks"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local CardBackView = require(script.Parent.CardBackView)
 
-local FLIP_TIME = 0.12 -- seconds to close the back
+local FLIP_TIME = 0.15-- seconds to close the back
 local STAGGER = 0.04 -- extra delay per card
 local FLY_TIME = 0.24 -- the existing deal tween; the flip starts once the card has landed
 

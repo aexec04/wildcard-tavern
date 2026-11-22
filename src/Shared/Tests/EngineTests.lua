@@ -30158,7 +30158,7 @@ table.insert(tests, { name = "TouchGestures: tap, drag and long press thresholds
 	expectTrue(G.withinTap(0, 38, 40, 60) and not G.withinTap(0, 39, 40, 60), "slack on the tall side")
 	expectTrue(G.motion(true) == nil, "calm mode: no motion")
 	local m = G.motion(false)
-	expectTrue(m.slide == 0.12 and m.lift == 24 and G.LONG_PRESS == 0.35 and G.CUE == "card_flip", "tuned numbers")
+	expectTrue(m.slide == 0.15 and m.lift == 24 and G.LONG_PRESS == 0.35 and G.CUE == "card_flip", "tuned numbers")
 	local Card = require(script.Parent.Parent.Engine.Card)
 	local tip = G.cardTip({ rank = 12, suit = "Hearts" }, Card)
 	expectTrue(tip == "Queen of Hearts", "card name: " .. tip)
@@ -30791,7 +30791,7 @@ table.insert(tests, { name = "Gameplay v2 scoring: centre score counts up in 12 
 	assert(#p.steps == 12 and p.steps[12] == 310 and p.final == 310 and p.burst > 0 and p.hold == 1.0)
 	for i = 2, #p.steps do assert(p.steps[i] >= p.steps[i - 1], "steps never go down") end
 	assert(p.slam.peak > 1.2 and p.slam.peak <= 1.3, "slam scales up about 1.25")
-	assert(math.abs(p.total - (12 * 0.07 + 0.12 + 0.18 + 1.0)) < 1e-9)
+	assert(math.abs(p.total - (12 * 0.07 + 0.15 + 0.2 + 1.0)) < 1e-9)
 	local f = S.plan(0, 310, { fast = true })
 	assert(math.abs(f.total - p.total / 2) < 1e-9 and f.hold == 0.5, "Fast halves every time")
 	local c = S.plan(0, 310, { calm = true })
@@ -37969,6 +37969,31 @@ table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards blo
 	assert(Map.nextHighlight(9, 1, 5) == 1 and Map.nextHighlight(1, 1, 0) == nil)
 	local text = table.concat(Map.hintLines(), " ")
 	assert(text:find("Space") and text:find("D%-pad") and not text:find("\226\128\148") and not text:lower():find("balat"))
+end })
+
+table.insert(tests, { name = "Run feel: deal, slide, slam and flip times sit in 0.15 to 0.35 s, Calm mode has no motion", fn = function()
+	local lo, hi = 0.15 - 1e-9, 0.35 + 1e-9
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	for n = 1, 8 do
+		for i = 1, n do
+			local _, dur = PM.dealTiming(i, n)
+			expectTrue(dur >= lo and dur <= hi, "deal card " .. i .. " of " .. n .. " lasts " .. dur)
+		end
+	end
+	local TG = require(script.Parent.Parent.Engine.TouchGestures)
+	local m = TG.motion(false)
+	expectTrue(m.slide >= lo and m.slide <= hi and m.drop >= lo and m.drop <= hi, "slide and drop in range")
+	expectTrue(TG.motion(true) == nil, "Calm: no slide tween")
+	local S = require(script.Parent.Parent.Engine.Gameplay2Score)
+	local p = S.plan(0, 500)
+	expectTrue(p.slam.up >= lo and p.slam.up <= hi and p.slam.settle >= lo and p.slam.settle <= hi, "slam up and settle in range")
+	expectTrue(PM.flight(1, 3, false, false).dur >= lo and PM.flight(1, 3, false, false).dur <= hi, "discard flight in range")
+	expectTrue(PM.flight(1, 3, true, false) == nil, "Calm: no flight")
+	expectTrue(S.plan(0, 500, { calm = true }).total == 0, "Calm: score lands at once")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); local t = f:read("*a"); f:close(); return t end
+	expectTrue(read("src/Client/DealFlip.lua"):find("FLIP_TIME = 0.15", 1, true) ~= nil, "flip 0.15 s")
+	expectTrue(read("src/Client/Gameplay2ScoreFX.lua"):find("TweenInfo.new(0.35, Enum.EasingStyle.Quad", 1, true) ~= nil, "burst 0.35 s")
 end })
 
 return tests
