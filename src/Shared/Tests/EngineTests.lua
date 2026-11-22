@@ -31558,6 +31558,7 @@ table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note wi
 	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
 	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 110 and D.ORDER > 0, "words and order: after the ticker (0)")
 	assert(D.BUTTON.h >= 30 and D.BUTTON.w >= 100, "a plate big enough to press")
+	assert(D.LINE == "A new Daily starts every day at midnight UTC." and #D.LINE < 60, "plain reset wording, under 60 characters")
 	local bad = (D.TITLE .. D.LINE .. D.BUTTON_TEXT):lower()
 	assert(not bad:find("\u{2014}", 1, true) and not bad:find("--", 1, true) and not bad:find("balatro", 1, true), "no dashes, no banned word")
 	if not io then return end
