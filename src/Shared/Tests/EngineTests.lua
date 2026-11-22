@@ -39776,6 +39776,25 @@ table.insert(tests, { name = "Economy week: a 20 minute session pays every day, 
 	expectTrue(md:find("Week", 1, true) ~= nil and not md:lower():find("balatro"))
 end })
 
+table.insert(tests, { name = "Quests: every daily quest finishes in 3 runs or fewer of a 20 minute session, luck quests keep goal 1", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local rows = EconomySim.questReport()
+	expectEqual(#rows, #Quests.Definitions)
+	local luck = 0
+	for _, r in ipairs(rows) do
+		if r.kind == "luck" then
+			luck = luck + 1
+			expectEqual(r.goal, 1, r.id .. " needs a lucky play, so its goal stays 1")
+		else
+			expectTrue(r.runs ~= nil and r.runs <= 3, r.id .. " must finish in 3 runs or fewer, got " .. tostring(r.runs))
+		end
+	end
+	expectEqual(luck, 4) -- Flush Finish, Full House Party, Big Swing, Swift Win
+	local md = EconomySim.questMarkdown(rows)
+	expectTrue(md:find("boss_streak", 1, true) ~= nil and not md:lower():find("balatro"))
+end })
+
 table.insert(tests, { name = "BestLine: best Night and best hand line, nil when new, 40 chars or less, kid safe", fn = function()
 	local BL = require(script.Parent.Parent.Engine.BestLine)
 	expectTrue(BL.text(nil) == nil and BL.text({}) == nil and BL.text({ bestNightReached = 0, bestHandScore = 0 }) == nil)

@@ -111,6 +111,40 @@ function EconomySim.markdown(result)
 	return table.concat(lines, "\n")
 end
 
+-- Per quest: how many runs of the session model finish it. kind = "steady" (the model run earns the counter, so a normal
+-- player finishes it in `runs` runs), "luck" (the model run earns none; a Flush finish, Full House, 500 hand or 2 hand win
+-- happens by play, so the goal must stay 1) or "night" (a highest Night goal, met in one run when the run gets that far).
+function EconomySim.questReport()
+	local Quests = require(script.Parent.Quests)
+	local perRun = Quests.countersOf(copyRun())
+	local rows = {}
+	for _, def in ipairs(Quests.Definitions) do
+		local per = perRun[def.counter] or 0
+		local row = { id = def.id, counter = def.counter, goal = def.goal, perRun = per }
+		if def.counter == "night" then
+			row.kind, row.runs = "night", per >= def.goal and 1 or nil
+		elseif per <= 0 then
+			row.kind = "luck"
+		else
+			row.kind, row.runs = "steady", math.ceil(def.goal / per)
+		end
+		rows[#rows + 1] = row
+	end
+	return rows
+end
+
+function EconomySim.questMarkdown(rows)
+	local lines = {
+		"| Quest | Counter | Goal | Per model run | Runs to finish |",
+		"| --- | --- | --- | --- | --- |",
+	}
+	for _, r in ipairs(rows) do
+		local runs = r.kind == "luck" and "by play (goal 1)" or tostring(r.runs or "never")
+		lines[#lines + 1] = string.format("| %s | %s | %d | %d | %s |", r.id, r.counter, r.goal, r.perRun, runs)
+	end
+	return table.concat(lines, "\n")
+end
+
 EconomySim.MAX_RANK = TavernRank.MAX_RANK
 
 return EconomySim

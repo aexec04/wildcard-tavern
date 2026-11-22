@@ -134,3 +134,36 @@ Tips on arrival at each Counter visit and Patrons already held on arrival, 200 s
 - Never a dead shop: the lowest average on arrival is 4.0 (the Night 1 start, exactly the cheapest Patron), and every later visit averages 6.8 or more.
 - Patrons by Night 4: the bot holds 5.0 on arrival, above the 2 to 3 target. By Night 8 it holds about 5.3 (the seat limit is 5, extra seats come from a voucher), which is the 4 to 5 target.
 - Why no change: the bot buys every affordable Patron on sight and never keeps Tips back, so it fills the 5 seats by Night 3. A real player picks and saves, and the first visit of a run is exactly 4 Tips with the cheapest Patron at 4, so lowering the round Tips payout or raising rerolls by even one Tip would make the first shops dead or the Night 1 buy impossible. The 5 seat cap, not income, is what bounds Patron count, so nothing here makes later Nights richer. No payout or reroll number changed. If real players show Night 4 with 5 Patrons, the lever is seat count or Patron price, a design call.
+
+## Quests: can a 20 minute session finish each one?
+
+`lua tools/quest_report.lua` (Engine/EconomySim `questReport`, pinned by the test `Quests: every daily quest finishes in 3 runs or fewer`). The session model is two runs of 12 hands, 5 discards, 4 rounds, 1 Boss Round, Night 3, one Pack, one House Pass, one Recipe. A session is 2 runs, so a quest that needs 3 runs or fewer is finishable in one or two sittings.
+
+| Quest | Counter | Goal | Per model run | Runs to finish |
+| --- | --- | --- | --- | --- |
+| pairs_3 | pairs | 3 | 4 | 1 |
+| flush_clear | flushWins | 1 | 0 | by play (goal 1) |
+| buy_pack | packs | 1 | 1 | 1 |
+| discard_5 | discards | 5 | 5 | 1 |
+| boss_win | bosses | 1 | 1 | 1 |
+| hands_10 | hands | 10 | 12 | 1 |
+| straight_play | straights | 1 | 1 | 1 |
+| full_house_play | fullHouses | 1 | 0 | by play (goal 1) |
+| trips_play | trips | 2 | 1 | 2 |
+| big_swing | bigHands | 1 | 0 | by play (goal 1) |
+| tips_left | richClears | 1 | 1 | 1 |
+| quick_win | quickClears | 1 | 0 | by play (goal 1) |
+| buy_pass | housePasses | 1 | 1 | 1 |
+| use_recipe | recipes | 1 | 1 | 1 |
+| discard_cards_10 | cardsDiscarded | 10 | 10 | 1 |
+| boss_streak | bosses | 2 | 1 | 2 |
+| hands_15 | hands | 15 | 12 | 2 |
+| reach_night_3 | night | 3 | 3 | 1 |
+| rounds_5 | rounds | 5 | 4 | 2 |
+| pairs_8 | pairs | 8 | 4 | 2 |
+| discard_8 | discards | 8 | 5 | 2 |
+| straight_2 | straights | 2 | 1 | 2 |
+| packs_2 | packs | 2 | 1 | 2 |
+| rounds_3 | rounds | 3 | 4 | 1 |
+
+Result: no quest needs more than 2 runs, so no goal was lowered and no Tips or XP reward changed. Four quests (Flush Finish, Full House Party, Big Swing, Swift Win) depend on the hand you draw, not on volume. Their goal is already 1 and cannot go lower, so a player gets them by play. The model run earns none of those four, so the table calls them "by play".
