@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Trim the three Golden Gala plates to their alpha box and resize each to the exact classic plate size (keeps nine-slice insets valid).
 Writes a preview sheet to art-wip/painted_kit/_gala_plates_preview.png. Usage: python3 -I tools/_gala_plate_fit.py"""
-import pathlib
+import pathlib, sys
 from PIL import Image
 
 R = pathlib.Path(__file__).resolve().parents[1] / "art-wip" / "painted_kit"
 WANT = {"pk_gala_btn_dark": (1382, 402), "pk_gala_btn_green": (1498, 410), "pk_gala_orn_btn_green": (1348, 562)}
+for _s in ("frost", "fest", "close"):  # Frosted Garden, Mountain Festival, Closing Time plates
+    WANT["pk_%s_btn_dark" % _s] = (1382, 402)
+    WANT["pk_%s_btn_green" % _s] = (1498, 410)
+if len(sys.argv) > 1:  # optional name filters, e.g. frost fest close
+    WANT = {k: v for k, v in WANT.items() if any(a in k for a in sys.argv[1:])}
 sheet = Image.new("RGB", (1600, 1500), (70, 55, 50))
 y = 10
 for k, sz in WANT.items():

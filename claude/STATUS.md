@@ -510,6 +510,9 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - Golden Gala buttons wear palace plates: burgundy velvet secondary and emerald primary (`pk_gala_btn_dark`, `pk_gala_btn_green`, `pk_gala_orn_btn_green`, `TavernStyle.SET_PLATES` and `buttonPiece(kind, w, h, setId)`, re-dressed by `TavernKit.paintedButton` on skin change and preview); the dark nine-slice (square buttons) and every other set keep the classic plates. Play Hand and Discard use the same path, so a previewed or equipped Golden Gala dresses them too; Rank, Suit, the Score plate and tabs stay classic. Studio look due.
 - The Golden Gala Counter never draws the green round table (`ThemeScenes.shopTableShown`, `ShopBackdrop` relayout) and keeps 30 percent of the room tint (`OWN_ROOM_TINT_KEEP`), so the marble floor and shelves read; classic and other sets unchanged. Studio look still due.
 
+## Card set identity: Frosted Garden, Mountain Festival, Closing Time (2026-11-22, not checked live in Studio)
+- Each of the three sets has its own Counter room (`shop_room_frost`, `shop_room_fest`, `shop_room_close`), a redressed keeper (`shop_marlo_<frost|fest|close>_behind` and `_wave`, via `ThemeScenes.KEEPER_OF`) and its own velvet-style secondary and primary plates (`pk_<key>_btn_dark` and `_btn_green`, `TavernStyle.SET_PLATES`), same mechanism, sizes and insets as Golden Gala. The Select bar and square plates keep the classic art. Classic and other sets unchanged. The rooms still show a painted round table baked into the picture.
+
 ## Golden Gala card face (2026-11-22)
 - Golden Gala draws the painted ivory classic face alone (no drape, paper tile or frame art) with the thin gold edge and foil. Index ink is at least 7 to 1 on its paper (other sets 4.5 to 1). Patron Power text stops short of its close X. Not yet checked in Studio Play.
 ## First five minutes: shorter waits (2026-11-22)

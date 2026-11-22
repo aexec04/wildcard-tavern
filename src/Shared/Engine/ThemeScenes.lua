@@ -63,7 +63,9 @@ local LAYER_OF = { snow = "snow", ember = "sparks", dust = "dust", mote = "dust"
 -- painted per theme scenes (table_scene ids, see claude/THEMES.md): menu, boss table and map ground. The table room itself is the set's PlayRoomArt pair.
 -- boss and map ids are registered; their screens (Gameplay2, Tavern Map) read the art key when those lanes wire it.
 local THEME_ART = {
-	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map" },
+	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map", shopBackdrop = "shop_scene:shop_room_frost" },
+	festival_night = { shopBackdrop = "shop_scene:shop_room_fest" },
+	closing_time = { shopBackdrop = "shop_scene:shop_room_close" },
 	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", tablePlay = "table_scene:theme_gala_play", shopBackdrop = "shop_scene:shop_room_gala" },
 }
 
@@ -109,7 +111,12 @@ end
 
 -- The keeper pieces for a set: its own painted keeper (golden_gala courtier) or the classic Marlo pieces.
 -- Returns behindId, waveId, own. Classic and every other set get shop_marlo_behind and shop_marlo_wave.
-local KEEPER_OF = { golden_gala = { behind = "shop_marlo_gala_behind", wave = "shop_marlo_gala_wave" } }
+local KEEPER_OF = {
+	golden_gala = { behind = "shop_marlo_gala_behind", wave = "shop_marlo_gala_wave" },
+	winter_evening = { behind = "shop_marlo_frost_behind", wave = "shop_marlo_frost_wave" },
+	festival_night = { behind = "shop_marlo_fest_behind", wave = "shop_marlo_fest_wave" },
+	closing_time = { behind = "shop_marlo_close_behind", wave = "shop_marlo_close_wave" },
+}
 function ThemeScenes.shopKeeperIds(setId)
 	local ContentArt = require(script.Parent.ContentArt)
 	local k = KEEPER_OF[setId]

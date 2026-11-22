@@ -15882,6 +15882,8 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
 	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true, shop_room_gala = true, shop_marlo_gala_behind = true, shop_marlo_gala_wave = true,
+		shop_room_frost = true, shop_room_fest = true, shop_room_close = true, shop_marlo_frost_behind = true, shop_marlo_frost_wave = true, shop_marlo_fest_behind = true,
+		shop_marlo_fest_wave = true, shop_marlo_close_behind = true, shop_marlo_close_wave = true,
 		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
@@ -32002,7 +32004,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 27, "twenty seven painted pieces: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice), the nine whole-picture plates and the three Golden Gala palace plates")
+	expectTrue(n == 33, "thirty three painted pieces (six more: two plates each for Frosted Garden, Mountain Festival and Closing Time), and before them: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice), the nine whole-picture plates and the three Golden Gala palace plates")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -37667,7 +37669,8 @@ table.insert(tests, { name = "ThemeScenes: winter_evening ice tavern ids are rec
 		expectTrue(type(TSA[key]) == "string" and string.match(TSA[key], "^rbxassetid://%d+$") ~= nil and TSA[key] ~= "rbxassetid://0", key .. " has a well formed asset id")
 		expectEqual(TS.themeImageId("winter_evening", slot), TSA[key], slot .. " resolves to the recorded id")
 	end
-	expectTrue(TS.themeImageId("winter_evening", "shopBackdrop") == nil, "slots without ice art keep the classic picture")
+	expectEqual(TS.themeImageId("winter_evening", "shopBackdrop"), require(E.ShopSceneArt).shop_room_frost, "the Frosted Garden shop slot is its own Counter room")
+	expectTrue(TS.themeImageId("winter_evening", "tablePlay") == nil, "slots without ice art keep the classic picture")
 	expectTrue(TS.themeImageId("classic_tavern", "menuBackdrop") == nil, "classic keeps its own menu picture")
 	expectTrue(TS.themeImageId("nope", "menuBackdrop") == nil, "unknown set has no theme picture")
 	expectEqual(TS.of("classic_tavern").art.menuBackdrop, "menu_scene:wall", "classic menu key unchanged")
@@ -37706,7 +37709,7 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 		expectTrue(gown == true and cown == false, "only the set with its own room hides the classic strip")
 		expectEqual(cid, SSA.shop_room_a, "classic Counter room stays shop_room_a")
 		expectTrue(gid ~= cid, "golden_gala and classic draw different Counter rooms")
-		expectEqual(select(1, TS.shopRoomId("winter_evening")), SSA.shop_room_a, "other sets keep the classic room")
+		expectEqual(select(1, TS.shopRoomId("meadow_picnic")), SSA.shop_room_a, "other sets keep the classic room")
 		expectEqual(select(1, TS.shopRoomId(nil)), SSA.shop_room_a, "no set means classic")
 		do -- the keeper: courtier for golden_gala, classic Marlo everywhere else (ShopBackdrop applies this on build, skin change and preview)
 			local gb, gw, gown = TS.shopKeeperIds("golden_gala")
@@ -37717,7 +37720,7 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 			expectEqual(cb, SSA.shop_marlo_behind, "classic keeper unchanged")
 			expectEqual(cw, SSA.shop_marlo_wave, "classic keeper wave unchanged")
 			expectTrue(gb ~= cb and gw ~= cw, "gala and classic keepers differ")
-			expectEqual(select(1, TS.shopKeeperIds("winter_evening")), SSA.shop_marlo_behind, "other sets keep Marlo")
+			expectEqual(select(1, TS.shopKeeperIds("meadow_picnic")), SSA.shop_marlo_behind, "other sets keep Marlo")
 			expectEqual(select(1, TS.shopKeeperIds(nil)), SSA.shop_marlo_behind, "no set means Marlo")
 		end
 		local full = { 240, 235, 215 }
@@ -39782,6 +39785,47 @@ table.insert(tests, { name = "Quests and Music: Claimed plate, 44 px reward plat
 	expectTrue(q:find("QuestsPanel.CARD_H, QuestsPanel.REWARD_W", 1, true) ~= nil and q:find("reward.Size = UDim2.fromOffset(104, 56)", 1, true) ~= nil, "reward plate is 56 px tall")
 	local m = read("src/Client/MusicPanel.lua")
 	expectTrue(m:find("nowLabel.TextSize = 16", 1, true) ~= nil, "Now playing is 16 px")
+end })
+
+table.insert(tests, { name = "Card set identity: Frosted Garden, Mountain Festival and Closing Time have their own Counter room, keeper and plates; classic and other sets unchanged", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local SSA = require(script.Parent.Parent.Engine.ShopSceneArt)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	local function good(id) return type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0" end
+	local cases = {
+		winter_evening = { key = "frost", room = "shop_room_frost" },
+		festival_night = { key = "fest", room = "shop_room_fest" },
+		closing_time = { key = "close", room = "shop_room_close" },
+	}
+	local seen = {}
+	for setId, c in pairs(cases) do
+		local rid, own = TS.shopRoomId(setId)
+		expectEqual(rid, SSA[c.room], setId .. " room is its own picture")
+		expectTrue(good(rid) and own == true, setId .. " own room flag")
+		expectEqual(TS.shopTableShown(own, true, false), false, setId .. " hides the drawn green table")
+		local b, w, kown = TS.shopKeeperIds(setId)
+		expectEqual(b, SSA["shop_marlo_" .. c.key .. "_behind"], setId .. " keeper behind piece")
+		expectEqual(w, SSA["shop_marlo_" .. c.key .. "_wave"], setId .. " keeper wave piece")
+		expectTrue(good(b) and good(w) and kown == true and b ~= SSA.shop_marlo_behind and w ~= SSA.shop_marlo_wave, setId .. " keeper differs from Marlo")
+		expectEqual(Style.buttonPiece("primary", 310, 80, setId), c.key .. "_wh_btn_green", setId .. " primary plate")
+		expectEqual(Style.buttonPiece("secondary", 310, 80, setId), c.key .. "_wh_btn_dark", setId .. " secondary plate")
+		expectEqual(Style.buttonPiece("primary", 900, 44, setId), "orn_btn_green", setId .. " Select bar stays classic")
+		for classic, mine in pairs(Style.SET_PLATES[setId]) do
+			local cp, p = Style.PAINTED[classic], Style.PAINTED[mine]
+			expectEqual(p.src[1], cp.src[1], mine .. " width matches " .. classic)
+			expectEqual(p.src[2], cp.src[2], mine .. " height matches " .. classic)
+			expectEqual(p.whole, cp.whole, mine .. " whole flag matches")
+			expectTrue(good(Art[p.art]) and Art[p.art] ~= Art[cp.art], mine .. " has its own picture id")
+			expectTrue(not seen[Art[p.art]], mine .. " id is unique")
+			seen[Art[p.art]] = true
+		end
+	end
+	for _, setId in ipairs({ nil, "classic_tavern", "meadow_picnic", "riverside_evening" }) do
+		expectEqual(select(1, TS.shopRoomId(setId)), SSA.shop_room_a, tostring(setId) .. " keeps the classic room")
+		expectEqual(select(1, TS.shopKeeperIds(setId)), SSA.shop_marlo_behind, tostring(setId) .. " keeps Marlo")
+		expectEqual(Style.buttonPiece("primary", 310, 80, setId), "wh_btn_green", tostring(setId) .. " keeps the classic plate")
+	end
 end })
 
 return tests

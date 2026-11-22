@@ -107,6 +107,13 @@ M.PAINTED = {
 	gala_wh_btn_dark = { art = "pk_gala_btn_dark", whole = true, src = { 1382, 402 } },
 	gala_wh_btn_green = { art = "pk_gala_btn_green", whole = true, src = { 1498, 410 } },
 	gala_orn_btn_green = { art = "pk_gala_orn_btn_green", full = true, src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
+	-- Frosted Garden, Mountain Festival and Closing Time plates: same sizes as the classic dark and green plates (tools/_gala_plate_fit.py)
+	frost_wh_btn_dark = { art = "pk_frost_btn_dark", whole = true, src = { 1382, 402 } },
+	frost_wh_btn_green = { art = "pk_frost_btn_green", whole = true, src = { 1498, 410 } },
+	fest_wh_btn_dark = { art = "pk_fest_btn_dark", whole = true, src = { 1382, 402 } },
+	fest_wh_btn_green = { art = "pk_fest_btn_green", whole = true, src = { 1498, 410 } },
+	close_wh_btn_dark = { art = "pk_close_btn_dark", whole = true, src = { 1382, 402 } },
+	close_wh_btn_green = { art = "pk_close_btn_green", whole = true, src = { 1498, 410 } },
 	wh_btn_green = { art = "pk_w_btn_green", whole = true, src = { 1498, 410 } },
 	wh_btn_sq = { art = "pk_w_btn_sq", whole = true, src = { 1329, 652 } },
 	wh_count = { art = "pk_w_count", whole = true, src = { 1443, 425 } },
@@ -203,6 +210,9 @@ end
 -- repaint (the dark nine-slice), keeps the classic piece, so classic is unchanged.
 M.SET_PLATES = {
 	golden_gala = { wh_btn_dark = "gala_wh_btn_dark", wh_btn_green = "gala_wh_btn_green", orn_btn_green = "gala_orn_btn_green" },
+	winter_evening = { wh_btn_dark = "frost_wh_btn_dark", wh_btn_green = "frost_wh_btn_green" },
+	festival_night = { wh_btn_dark = "fest_wh_btn_dark", wh_btn_green = "fest_wh_btn_green" },
+	closing_time = { wh_btn_dark = "close_wh_btn_dark", wh_btn_green = "close_wh_btn_green" },
 }
 function M.setPiece(piece, setId)
 	local map = setId and M.SET_PLATES[setId]
