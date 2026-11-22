@@ -38595,6 +38595,49 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Remote functions: all five (three leaderboards, challenge seed, menu ticker) cap how often one player can call them, and board and scope junk is normalised", fn = function()
+	local LB = require(script.Parent.Parent.Engine.Leaderboards)
+	local junk = { 0 / 0, math.huge, -1, 0, "", "x", "global", {}, { 1 }, true, false, function() end }
+	for _, v in ipairs(junk) do
+		local okB, b = pcall(LB.isBoard, v)
+		expectTrue(okB and b == false, "isBoard refuses junk")
+		local okS, s = pcall(LB.normalizeScope, v)
+		expectTrue(okS and (s == LB.GLOBAL or s == LB.FRIENDS), "normalizeScope always answers global or friends")
+	end
+	expectTrue(LB.isBoard(LB.STANDARD) and LB.isBoard(LB.REVIVED))
+	expectEqual(LB.normalizeScope(nil), LB.GLOBAL)
+	expectEqual(LB.normalizeScope(LB.FRIENDS), LB.FRIENDS)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local function window(startLine, n)
+		local out = {}
+		for i = startLine, math.min(#lines, startLine + n) do out[#out + 1] = lines[i] end
+		return table.concat(out, "\n")
+	end
+	local seen = 0
+	for i, l in ipairs(lines) do
+		local lb = l:match("^Rem%._lb%.(Get%w+Leaderboard) = function")
+		if lb then
+			seen = seen + 1
+			local w = window(i, 8)
+			expectTrue(w:find("LEADERBOARD_COOLDOWN", 1, true) ~= nil and w:find("isBoard", 1, true) ~= nil, lb .. " checks the board and has a per player cooldown")
+		end
+		if l:find("^Rem%.MakeChallengeSeed%.OnServerInvoke") then
+			seen = seen + 1
+			expectTrue(window(i, 5):find("< 1", 1, true) ~= nil, "MakeChallengeSeed has a 1 second cooldown")
+		end
+		if l:find("TickerRemote.OnServerInvoke", 1, true) then
+			seen = seen + 1
+			expectTrue(window(i, 3):find("RateLimit.allow", 1, true) ~= nil, "GetMenuTicker is rate limited")
+		end
+	end
+	expectEqual(seen, 5, "every RemoteFunction handler was checked")
+end })
+
 table.insert(tests, { name = "Reading level: player facing text in the content registries has no word of 14 letters or more and only the listed long words of 12 or 13", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local fields = { name = true, description = true, desc = true, flavorText = true, text = true, label = true, hint = true, title = true, unlockText = true, detail = true }
