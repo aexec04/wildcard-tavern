@@ -723,6 +723,22 @@ function CosmeticSets.wordmarkTint(setId)
 	return { top = lit(g.top), bottom = lit(g.bottom), image = image }
 end
 
+-- The round close X disc in a Card Set's accent: { rest, hover } (rgb tables), brass pulled 50 percent toward the accent and darkened until the
+-- cream cross keeps 3:1 (a graphic needs 3:1); hover is a lighter step. nil for classic or an unknown set, so classic keeps its brass.
+CosmeticSets.CLOSE_BRASS = { 176, 138, 66 }
+CosmeticSets.CLOSE_CROSS = { 250, 240, 220 }
+function CosmeticSets.closeDiscOf(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local c = mix(CosmeticSets.CLOSE_BRASS, ring, 0.5)
+	local guard = 0
+	while CosmeticSets.contrastRatio(c, CosmeticSets.CLOSE_CROSS) < 3 and guard < 40 do
+		c = mix(c, { 30, 20, 12 }, 0.1)
+		guard = guard + 1
+	end
+	return { rest = c, hover = mix(c, { 255, 255, 255 }, 0.18) }
+end
+
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
 function CosmeticSets.minContrastOf(set)
 	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST

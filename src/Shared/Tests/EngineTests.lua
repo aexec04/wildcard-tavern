@@ -40208,6 +40208,31 @@ table.insert(tests, { name = "Menu wordmark takes the Card Set accent, 7:1 again
 	expectTrue(wm:find("applyTint", 1, true) ~= nil and wm:find("Hud.onSkin", 1, true) ~= nil, "equipping a set re-tints at once")
 end })
 
+table.insert(tests, { name = "Popup close X disc follows the Card Set accent, cream cross keeps 3:1 on every set, classic brass untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.closeDiscOf("classic_tavern"), nil, "classic keeps brass")
+	expectEqual(CS.closeDiscOf(nil), nil, "no set keeps brass")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local d = CS.closeDiscOf(set.id)
+			expectTrue(d ~= nil, set.id .. " has a close disc")
+			if d then
+				n = n + 1
+				expectTrue(CS.contrastRatio(d.rest, CS.CLOSE_CROSS) >= 3, set.id .. " cross keeps 3:1 on the resting disc")
+				expectTrue(d.hover[1] >= d.rest[1] and d.hover[2] >= d.rest[2] and d.hover[3] >= d.rest[3], set.id .. " hover is lighter")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a close disc")
+	if not io then return end
+	local f = io.open("src/Client/CloseX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CS.closeDiscOf(", 1, true) ~= nil and src:find("BRASS, BRASS_HOVER", 1, true) ~= nil, "CloseX asks the pure rule and keeps classic brass")
+	expectTrue(src:find("Rules.DISC", 1, true) ~= nil and src:find("Rules.HIT", 1, true) ~= nil, "disc and 44 px hit sizes still come from CloseXRules")
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
