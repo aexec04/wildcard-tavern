@@ -364,15 +364,40 @@ function CardSetsRoom.new(ctx)
 		local ring = stroke(holder, restColor, d.equipped and 3 or (selected and 2 or 1))
 		local pic = { x = cell.pic.x - cell.tile.x, y = cell.pic.y - cell.tile.y, w = cell.pic.w, h = cell.pic.h }
 		if entry.set then
-			local ts = Layout.tileScene(pic)
-			local scene = miniScene(holder, pic, { rail = ts.rail, felt = ts.felt }, entry.set, 44, false)
-			local look = ctx.CosmeticSets.cardLook(entry.set)
-			for k = 1, 3 do
-				local cr = ts.cards[k]
-				local c = ivoryCard(scene, { x = cr.x - pic.x, y = cr.y - pic.y, w = cr.w, h = cr.h }, look, ({ "A", "K", "Q" })[k], k == 2, 50 + k * 2)
-				c.Rotation = (k - 2) * 5
+			-- the set's own Counter room as a clipped thumbnail with its keeper standing in it and a felt and rail swatch along the foot
+			local scene = solid(holder, Color3.fromRGB(34, 22, 14), pic, 44, 6)
+			scene.Name = "SetScene"
+			scene.ClipsDescendants = true
+			local roomId = ThemeScenes.shopRoomId(entry.set.id)
+			if roomId then
+				local room = Instance.new("ImageLabel")
+				room.Name = "SceneRoom"
+				room.BackgroundTransparency = 1
+				room.Image = roomId
+				room.ScaleType = Enum.ScaleType.Crop
+				room.Size = UDim2.fromScale(1, 1)
+				room.ZIndex = 45
+				room.Parent = scene
 			end
-			prop(scene, ThemeScenes.propOf(entry.set.id), { x = 6, y = 2, w = math.floor(pic.w * 0.3), h = ts.rail.y - pic.y - 4 }, 56)
+			local behindId = ThemeScenes.shopKeeperIds(entry.set.id)
+			if behindId then
+				local keeper = Instance.new("ImageLabel")
+				keeper.Name = "SceneKeeper"
+				keeper.BackgroundTransparency = 1
+				keeper.Image = behindId
+				keeper.ScaleType = Enum.ScaleType.Fit
+				keeper.AnchorPoint = Vector2.new(1, 1)
+				keeper.Position = UDim2.new(1, -2, 1, -8)
+				keeper.Size = UDim2.fromScale(0.46, 0.84)
+				keeper.ZIndex = 46
+				keeper.Parent = scene
+			end
+			local tint = ctx.CosmeticSets.tableTintOf(entry.set)
+			local wood = tint and tint.wood or { 150, 104, 60 }
+			local felt = tint and tint.felt or { 52, 110, 78 }
+			local rail = solid(scene, rgb(wood), { x = 0, y = pic.h - 11, w = pic.w, h = 11 }, 47, 0)
+			rail.Name = "SetSwatch"
+			solid(scene, rgb(felt), { x = 0, y = pic.h - 8, w = pic.w, h = 8 }, 48, 0).Name = "SetFelt"
 			if not d.owned then dim(scene, { x = 0, y = 0, w = pic.w, h = pic.h }, 70) end -- 40 percent veil, not a grey wash
 		else
 			solid(holder, Color3.fromRGB(40, 26, 36), pic, 44, 6)
@@ -385,8 +410,17 @@ function CardSetsRoom.new(ctx)
 			th.Rotation = -4
 		end
 		if not d.owned then padlock(holder, pic.x + pic.w - 22, pic.y + 5, 80) end
+		-- the set's own plate (dark, accent edge, cream ink at 7:1) carries the name and the state line; classic keeps the dark wood plate
+		local band = entry.set and ctx.CosmeticSets.titleBandOf(entry.set.id) or nil
+		local plateR = { x = cell.name.x - cell.tile.x, y = cell.name.y - cell.tile.y, w = cell.name.w, h = cell.name.h + cell.state.h }
+		local plate = solid(holder, band and rgb(band.fill) or Color3.fromRGB(34, 22, 14), plateR, 46, 6)
+		plate.Name = "SetPlate"
+		stroke(plate, band and rgb(band.edge) or Color3.fromRGB(150, 108, 58), 1)
 		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
 			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.name, ZIndex = 47 })
+		local stateText = d.equipped and "Equipped" or (d.owned and "Owned" or ((entry.set and entry.set.unlock.kind == "tips") and string.format("%d Tips", math.floor(entry.set.unlock.price)) or "Locked"))
+		ctx.label(holder, { Name = "State", Position = UDim2.fromOffset(cell.state.x - cell.tile.x, cell.state.y - cell.tile.y), Size = UDim2.fromOffset(cell.state.w, cell.state.h), Font = Enum.Font.GothamMedium,
+			TextSize = 16, TextColor3 = d.equipped and Color3.fromRGB(255, 226, 150) or CREAM, Text = stateText, ZIndex = 47 })
 		addTip(holder, d.tip)
 		if d.owned and (entry.set or entry.back) and ctx.getState() and ctx.getState().newItems and #ctx.getState().newItems > 0 then -- "New" until hovered or clicked (Engine/NewItems)
 			require(script.Parent.NewRibbon).attach(holder, entry.set and "set" or "back", entry.key, ctx.getState(), 60)
@@ -445,7 +479,7 @@ function CardSetsRoom.new(ctx)
 			if k == "fan" then parts.fan = {}; for i, r in ipairs(v) do parts.fan[i] = down(r, "fan" .. i) end else parts[k] = down(v, k) end
 		end
 		local cells = {}
-		for i, c in ipairs(g.cells) do cells[i] = { tile = down(c.tile), pic = down(c.pic), name = down(c.name), board = down(c.board) } end
+		for i, c in ipairs(g.cells) do cells[i] = { tile = down(c.tile), pic = down(c.pic), name = down(c.name), state = down(c.state), board = down(c.board) } end
 		placed.plates = { tabs = { down(g.plates.tabs[1]), down(g.plates.tabs[2]) }, page = down(g.plates.page), prev = down(g.plates.prev), next = down(g.plates.next) }
 		paintPlates(g.pages)
 		-- the selected entry (default: the equipped one) shows large in the hero

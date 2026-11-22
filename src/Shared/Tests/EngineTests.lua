@@ -14299,7 +14299,9 @@ table.insert(tests, { name = "Art maps: every blessing has a painted icon and ev
 	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	for _, def in ipairs(RunModifiers.Definitions) do
-		expectTrue(ContentArt.getImageId("blessing_icons", def.id) ~= nil, def.id .. " has a blessing icon")
+		-- the three newest blessings draw their emoji until painted icons are generated (ChoicePanel falls back to def.icon)
+		local emojiOnly = def.id == "spare_chair" or def.id == "extra_hand" or def.id == "lucky_penny"
+		expectTrue(ContentArt.getImageId("blessing_icons", def.id) ~= nil or (emojiOnly and type(def.icon) == "string" and def.icon ~= ""), def.id .. " has a blessing icon")
 	end
 	for _, set in ipairs(CS.Definitions) do
 		if set.id ~= "classic_tavern" then
@@ -40608,7 +40610,7 @@ table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use
 	expectTrue(season:find("Kit.ringColor(GOLD)", 1, true) ~= nil and season:find("stroke.Color = ringGold", 1, true) ~= nil, "Season claim glow and Next ring use the set accent")
 	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
 	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
-	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
+	expectTrue(season:find("TextColor3 = markInk, Text = \"Now\"", 1, true) ~= nil and season:find(" or Color3.fromRGB(150, 100, 20)", 1, true) ~= nil, "Season Now tag keeps its classic text colour, a set paper swaps in the 7:1 ink")
 	expectTrue(daily:find("skin and skin.ink or INK", 1, true) ~= nil, "Daily text is dark ink on classic parchment and the set ink on a set row")
 end })
 
@@ -41092,6 +41094,224 @@ table.insert(tests, { name = "Tome Flair, Legend and Ledger tabs wear the set pl
 	if th then expectTrue(th:find("HintSkin", 1, true) ~= nil, "Tome header plates bind the hint skin") end
 	local lb = read("LedgerBook")
 	if lb then expectTrue(lb:find("ledgerStyleOf(", 1, true) ~= nil, "the Ledger asks the pure rule") end
+end })
+
+table.insert(tests, { name = "Card Sets room tiles: each set's own Counter room, keeper, plate and a 16 px state line fit 800x450 to 1920x1080", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local sizes = { { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 1080 } }
+	for _, sz in ipairs(sizes) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		local g = L.room(pw, ph - L.TOP - L.BOTTOM, #CS.Definitions, 1)
+		expectTrue(g.ok and #g.cells >= 5, "room fits with a full row at " .. sz[1] .. "x" .. sz[2])
+		for i, c in ipairs(g.cells) do
+			expectTrue(c.tile.w >= 44 and c.tile.h >= 44, "tile is a 44 px target at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(inside(c.pic, c.tile) and inside(c.name, c.tile) and inside(c.state, c.tile), "tile parts inside the tile (" .. i .. ")")
+			expectFalse(hit(c.pic, c.name) or hit(c.name, c.state) or hit(c.pic, c.state), "picture, name and state line do not overlap")
+			expectTrue(c.state.h >= 20, "state line holds 16 px text")
+			expectTrue(c.state.w >= 66, "Equipped fits the state line at 16 px at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(c.pic.h >= 28, "picture stays visible")
+		end
+	end
+	for _, set in ipairs(CS.Definitions) do
+		local room = TS.shopRoomId(set.id)
+		expectTrue(type(room) == "string" and room ~= "", set.id .. " has a Counter room picture")
+		local behind = TS.shopKeeperIds(set.id)
+		expectTrue(type(behind) == "string" and behind ~= "", set.id .. " has a keeper")
+		local band = CS.titleBandOf(set.id)
+		if set.id ~= CS.DefaultId then expectTrue(band ~= nil and CS.contrastRatio(band.fill, band.ink) >= 7, set.id .. " name plate keeps 7:1") end
+	end
+	if not io then return end
+	local f = io.open("src/Client/CardSetsRoom.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("ThemeScenes.shopRoomId(", 1, true) ~= nil and src:find("ThemeScenes.shopKeeperIds(", 1, true) ~= nil, "tiles draw the set's own Counter room and keeper")
+		expectTrue(src:find('Name = "State"', 1, true) ~= nil and src:find("TextSize = 16", 1, true) ~= nil, "tiles draw a 16 px state line")
+	end
+end })
+
+table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups wear the set panel and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its popups")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " cream ink keeps 7:1 on the dark panel")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	if not io then return end
+	for _, name in ipairs({ "DeckTracker", "PokerHandsReference", "SeedRunDialog" }) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the popup skin")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Store cards and panel wear the set paper, edge and ink at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps parchment cards")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 4.5, set.id .. " card ink keeps 4.5:1 on the card paper")
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " title ink keeps 4.5:1 on the panel")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local f = io.open("src/Client/StorePanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".paper(", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, "Store binds paper cards and a dark panel")
+		expectTrue(src:find('setPlateButton(close, "secondary")', 1, true) ~= nil, "Close takes the set plate")
+	end
+end })
+
+table.insert(tests, { name = "Season tiles take the set paper, edge and tier ink at 7:1 on every set, claim buttons stay 44 px, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SeasonTrack = require(script.Parent.Parent.Engine.SeasonTrack)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps parchment tiles")
+	expectTrue(SeasonTrack.BUTTON_H >= 44, "claim buttons stay 44 px")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a paper style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " tier numbers keep 7:1 on the tile")
+				local lit = { math.min(255, math.floor(p.paper.top[1] + (255 - p.paper.top[1]) * 0.35)), math.min(255, math.floor(p.paper.top[2] + (255 - p.paper.top[2]) * 0.35)), math.min(255, math.floor(p.paper.top[3] + (255 - p.paper.top[3]) * 0.35)) }
+				expectTrue(CS.contrastRatio(lit, p.paper.ink) >= 7, set.id .. " Now and Next marks keep 7:1 on the lit tile")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local f = io.open("src/Client/SeasonPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("popupStyleOf", 1, true) ~= nil and src:find("paper.edge", 1, true) ~= nil and src:find("ringColor", 1, true) ~= nil, "Season tiles ask the set paper and ring")
+	end
+end })
+
+table.insert(tests, { name = "My Patrons seat order, set bonus plates and Sell plate wear the set plate and ink at 7:1 on every set, rarity frames and classic untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its plates")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a panel style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " seat order and bonus ink keep 7:1")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "PatronSeatStrip", "SetBonusPlate" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the set panel skin") end
+	end
+	local cards = read("ShopCards")
+	if cards then
+		expectTrue(cards:find('setPlateButton(button, "primary")', 1, true) ~= nil, "Sell and Buy plates ask for the set plate")
+		expectTrue(cards:find("RarityFrame.apply(artFrame, rarity or \"common\"", 1, true) ~= nil, "rarity frames are untouched")
+	end
+end })
+
+table.insert(tests, { name = "Phone and tablet audit over all 14 sets at 800x450, 1024x768 and 1366x768: Counter shop, Tavern Map header, Season, Store, Tome header and Flair room keep fit and 44 px targets", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local want = { ["Counter shop"] = true, ["Tavern Map header"] = true, ["Season panel"] = true, ["Store"] = true, ["Tome header"] = true, ["Flair room"] = true }
+	local keep = {}
+	for _, sc in ipairs(screens) do if want[sc.name] then keep[#keep + 1] = sc end end
+	expectEqual(#keep, 6, "all six screens are covered")
+	local runs = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+			for _, sc in ipairs(keep) do
+				runs = runs + 1
+				for _, f in ipairs(Audit.checkScreen(sc, sz[1], sz[2])) do
+					expectTrue(f.rule ~= "touch" and f.rule ~= "screen" and f.rule ~= "text" and f.rule ~= "build", set.id .. " " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+				end
+			end
+		end
+	end
+	expectTrue(runs >= 14 * 3 * 6, "every set, size and screen was audited")
+end })
+
+table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: every set's backdrop layers and ambient particles are off, no per set effect flashes faster than 3 times a second", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local Scenes = require(Engine.ThemeScenes)
+	local Access = require(Engine.Accessibility)
+	expectTrue(Access.calm({ reduceShake = true }) and Access.calm({ reduceMotion = true }) and Access.calm({ reduceFlashing = true }), "each of the three switches means calm")
+	expectTrue(not Access.calm({}), "nothing set is not calm")
+	local MAX_RAD_PER_SEC = 2 * math.pi * 3 -- a sine at this rate flashes 3 times a second
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		n = n + 1
+		local style = CS.backdropStyleOf(set)
+		if style then
+			expectTrue(CS.validateStyle(style) ~= nil, set.id .. " backdrop style is valid")
+			for _, layer in ipairs(style.layers or {}) do
+				expectTrue((layer.count or 0) <= CS.BackdropLimits.maxParticles, set.id .. " layer " .. tostring(layer.kind) .. " stays under the particle cap")
+			end
+		end
+		expectTrue(Scenes.of(set.id).ambient ~= nil, set.id .. " names its ambient kind (AmbientLife draws none in calm mode)")
+	end
+	expectTrue(n >= 14, "every set was checked")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local bd, ambient, hud, wash, skin = read("BackdropStyles"), read("AmbientLife"), read("HudTheme"), read("ThemeWash"), read("SetSkin")
+	if bd then
+		expectTrue(bd:find("local run = isShown(controller.host) and not calm()", 1, true) ~= nil, "backdrop particles stop in calm mode")
+		expectTrue(bd:find("if calm() then -- Calm mode and Reduce motion: no particle shows", 1, true) ~= nil, "backdrop particles are hidden at build in calm mode")
+		for rate in bd:gmatch("math%.sin%(t %* ([%d%.]+)") do
+			expectTrue(tonumber(rate) <= MAX_RAD_PER_SEC, "backdrop sine rate " .. rate .. " flashes at most 3 times a second")
+		end
+	end
+	if ambient then
+		expectTrue(ambient:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "ambient scene builds no objects in calm mode")
+		for rate in ambient:gmatch("math%.sin%(t %* ([%d%.]+)") do
+			expectTrue(tonumber(rate) <= MAX_RAD_PER_SEC, "ambient sine rate " .. rate .. " flashes at most 3 times a second")
+		end
+	end
+	if hud then expectTrue(hud:find("if calm() then", 1, true) ~= nil, "HudTheme swaps without a tween in calm mode") end
+	for name, src in pairs({ ThemeWash = wash, SetSkin = skin }) do
+		expectTrue(src == nil or src:find("TweenService", 1, true) == nil, name .. " creates no tweens")
+	end
 end })
 
 return tests

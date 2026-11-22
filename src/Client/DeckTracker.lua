@@ -200,6 +200,12 @@ return function(deps)
 		pcall(Kit.skin, sortButton, nil, "secondary")
 		pcall(Kit.skin, closeButton, nil, "secondary")
 	end
+	pcall(function() -- the equipped Card Set's panel colours and ink (7:1); classic keeps the wood panel and cream words
+		local pStroke = panel:FindFirstChild("KitTrim") or panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { titleLabel, CREAM }, { captionLabel, CREAM }, { nextDrawLabel, SOFT_CREAM }, { counterLabel, GOLD } },
+			{ plate = panel.BackgroundColor3, edge = pStroke and pStroke.Color })
+		Kit.setPlateButton(sortButton, "secondary")
+	end)
 	require(script.Parent.CloseX).retire(closeButton)
 	require(script.Parent.CloseX).attach(panel, function()
 		playClickSfx()

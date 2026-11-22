@@ -55,6 +55,7 @@ function PopupSkin.paper(sheet, gradient, stroke, labels, classic)
 			gradient.Color = ColorSequence.new(p and c3(p.top) or classic.top, p and c3(p.bottom) or classic.bottom)
 		end
 		if stroke then stroke.Color = p and c3(p.edge) or classic.edge end
+		if classic.fill then sheet.BackgroundColor3 = p and c3(p.top) or classic.fill end -- flat parchment cards (no gradient)
 		inkAll(labels, p and p.ink)
 	end
 	apply()

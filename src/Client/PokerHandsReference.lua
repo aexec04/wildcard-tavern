@@ -130,7 +130,7 @@ return function(deps)
 	studs(panel, Z + 1)
 	deps.addSoftShadow(panel, 18)
 
-	text(panel, { text = "Poker Hands", size = 28, color = GOLD, align = Enum.TextXAlignment.Center,
+	local handsTitle = text(panel, { text = "Poker Hands", size = 28, color = GOLD, align = Enum.TextXAlignment.Center,
 		position = UDim2.new(0, 120, 0, 8), sizeUdim = UDim2.new(1, -240, 0, 36) })
 
 	local function plaqueButton(label, position, anchor)
@@ -162,6 +162,11 @@ return function(deps)
 	end
 	local backButton = plaqueButton("< Back", UDim2.fromOffset(14, 10), Vector2.new(0, 0))
 	local closeButton = plaqueButton("Close", UDim2.new(1, -14, 0, 10), Vector2.new(1, 0))
+
+	pcall(function() -- the equipped Card Set's panel colours and gold title (7:1); classic keeps the wood panel
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { handsTitle, GOLD } }, { plate = WOOD, edge = pStroke and pStroke.Color })
+	end)
 
 	local listFrame = Instance.new("ScrollingFrame")
 	listFrame.Name = "HandList"
