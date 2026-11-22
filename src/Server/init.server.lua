@@ -1639,6 +1639,20 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 	if wasPurchased then
 		Analytics.single(player, "store_bought", 1, { item = "pass_" .. tostring(gamePassId) }) -- tuning data
 		refreshOwnedGamePasses(player)
+	else
+		local pass = nil
+		for _, def in ipairs(GamePasses.Definitions) do
+			if def.gamePassId == gamePassId then pass = def end
+		end
+		pushRewardNotice(player, { text = Store.declinedNotice(pass and pass.name or nil) }) -- cancelled or failed: calm, nothing charged
+	end
+end)
+
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId, productId, isPurchased)
+	local player = Players:GetPlayerByUserId(userId)
+	if player and not isPurchased then
+		local item = Store.getByProductId(productId)
+		pushRewardNotice(player, { text = Store.declinedNotice(item and item.name or nil) })
 	end
 end)
 

@@ -12,6 +12,8 @@ local OverlayManager = require(script.Parent.OverlayManager)
 local Kit = require(script.Parent.TavernKit)
 local StoreLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StoreLayout")) -- panel numbers, tested at every size
 
+local Store = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Store"))
+
 local StorePanel = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -28,16 +30,7 @@ local pricePending = {}
 
 -- Text under an item's name: owned, free in Studio, coming soon, a real price, or a plain fallback.
 function StorePanel.priceText(row, cache)
-	if row.owned then
-		return "Owned"
-	elseif row.listOnly then
-		return "Offered when a run ends"
-	elseif row.studioFree then
-		return "Free in Studio"
-	elseif row.comingSoon then
-		return "Coming soon"
-	end
-	return (cache and cache[row.robloxId]) or "Price shown at checkout"
+	return Store.priceLine(row, cache)
 end
 
 local function fetchPrice(row)

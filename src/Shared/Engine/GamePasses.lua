@@ -34,7 +34,7 @@ GamePasses.Definitions = {
 		id = "fast_forward",
 		name = "Fast Forward",
 		icon = "⏩",
-		description = "Speeds up the hand-scoring reveal sequence, same numbers, same result, just quicker to sit through on a run you already know by heart.",
+		description = "Makes the score reveal quicker. Same numbers, same result. No gameplay power.",
 		gamePassId = 2075404246,
 	},
 	{
