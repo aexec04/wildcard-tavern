@@ -18,7 +18,7 @@ TableDress.PARTS = {
 	seat = { "SeatFacePicture" },
 }
 -- how far each part leans from white toward the set's card back colour (the painted purple needs a firm lean to read as another set)
-TableDress.STRENGTH = { deck = 0.7, banner = 0.7, seat = 0.45 }
+TableDress.STRENGTH = { deck = 0.7, banner = 0.7, seat = 0.85 }
 
 local byName = {}
 for part, names in pairs(TableDress.PARTS) do
