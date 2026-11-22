@@ -44159,4 +44159,32 @@ table.insert(tests, { name = "MapEvents: the server routes MapEvent through the 
 	expectTrue(src:find('session.phase ~= "roundSelect" or type(action) ~= "string"', 1, true) ~= nil, "Round Select only")
 end })
 
+-- ===== Patron and Boon synergy hints =====
+table.insert(tests, { name = "Synergy hints: a seated Patron that works with the active Night boon shows one kind line of 60 characters or less, a set still wins, no boon no line", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Synergy)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	for _, link in ipairs(G.BOON_LINKS) do
+		expectTrue(#link.text <= 60 and #link.text > 0, link.text)
+		expectTrue(NightBoons.getById(link.boon) ~= nil, link.boon .. " is a real boon")
+		expectTrue(link.patron == nil or Patrons.getById(link.patron) ~= nil, tostring(link.patron) .. " is a real Patron")
+		local t = link.text:lower()
+		expectTrue(not t:find("beer") and not t:find("wine") and not t:find("balatro"), "kid safe")
+	end
+	expectTrue(#G.BOON_KEEPER_TEXT <= 60)
+	local h = G.boonHint({ "the_regular", "final_bow" }, "extra_hand")
+	expectTrue(h ~= nil and h.kind == "boon" and h.a == 2 and h.text:find("Final Bow", 1, true) ~= nil)
+	expectEqual(G.boonHint({ "final_bow" }, "extra_discard"), nil, "the wrong boon gives no hint")
+	expectEqual(G.boonHint({ "final_bow" }, nil), nil, "no boon, no hint")
+	expectEqual(G.boonHint({}, "extra_hand"), nil)
+	expectTrue(G.boonHint({ "boon_keeper" }, "free_reroll") ~= nil, "Boon Keeper pairs with every boon")
+	expectTrue(G.boonHint({ "full_palette" }, "wider_grip") ~= nil, "a Flush Patron pairs with Wider Grip by tag")
+	expectEqual(G.hint({ "final_bow" }, "extra_hand").kind, "boon")
+	expectEqual(G.hint({ "final_bow" }), nil, "the old call still works")
+	local src = io and io.open and io.open("src/Client/Gameplay2SynergyFX.lua", "r")
+	if src then
+		local text = src:read("*a"); src:close()
+		expectTrue(text:find("Rules.hint(ownedIds or {}, boonId)", 1, true) ~= nil and text:find("Tween", 1, true) == nil, "the chip adds no tween, Calm stays static")
+	end
+end })
+
 return tests

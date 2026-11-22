@@ -70,8 +70,8 @@ local function chip(layer)
 	return c
 end
 
-function M.update(layer, rects, ownedIds)
-	local hint = Rules.hint(ownedIds or {})
+function M.update(layer, rects, ownedIds, boonId)
+	local hint = Rules.hint(ownedIds or {}, boonId)
 	local hr = hint and Rules.hintRect(rects)
 	if hint and hr then
 		local c = chip(layer)

@@ -961,7 +961,7 @@ function M.install(deps)
 			if not require(Engine:WaitForChild("BossCard")).active(lastState) then -- a boss round: the Boss card splits the row, no threads
 				for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end
 			end
-			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids)
+			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids, lastState.nightBoon and lastState.nightBoon.id)
 		end)
 		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)
 		pcall(function() require(script.Parent.NightIntroFX).update(layer, lastState, size.X, size.Y) end) -- Night N, the room and the rule, 1.2 s, tap to skip, none in Calm
