@@ -1153,6 +1153,42 @@ local depthPatrons = {
 			return others > 0 and { mult = 3 * others } or nil
 		end,
 	},
+	-- New strategies: a flush engine, a trips engine, a discard engine and a last hand engine.
+	{
+		id = "full_palette", name = "Full Palette", icon = "🌈", price = 8, rarity = "uncommon",
+		description = "x1.5 Mult if the hand is a Flush or Straight Flush.",
+		flavorText = "Paints the whole table one bright color.",
+		effect = function(handResult, _context)
+			if handResult.name == "Flush" or handResult.name == "Straight Flush" then return { multMultiplier = 1.5 } end
+			return nil
+		end,
+	},
+	{
+		id = "triple_scoop", name = "Triple Scoop", icon = "🍨", price = 7, rarity = "uncommon",
+		description = "+25 Mult if the hand is Three of a Kind or Full House.",
+		flavorText = "Always asks for one more of the same.",
+		effect = function(handResult, _context)
+			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then return { mult = 25 } end
+			return nil
+		end,
+	},
+	{
+		id = "spare_shuffle", name = "Spare Shuffle", icon = "🔀", price = 6, rarity = "common",
+		description = "+2 Mult for each Discard you have left.",
+		flavorText = "Keeps the deck moving and the cards fresh.",
+		effect = function(_handResult, context)
+			local left = context.discardsRemaining or 0
+			return left > 0 and { mult = 2 * left } or nil
+		end,
+	},
+	{
+		id = "final_bow", name = "Final Bow", icon = "🔔", price = 8, rarity = "uncommon",
+		description = "x2 Mult on the last Hand of a round.",
+		flavorText = "Saves the best act for the end of the night.",
+		effect = function(_handResult, context)
+			return context.isLastHand and { multMultiplier = 2 } or nil
+		end,
+	},
 }
 for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
@@ -1184,6 +1220,7 @@ local PATRON_TAGS = {
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
 	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
+	full_palette = { "flush" }, triple_scoop = { "pairs" }, spare_shuffle = { "flat" }, final_bow = { "flat" },
 }
 -- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
 local PATRON_COUNTERS = {

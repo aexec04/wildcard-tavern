@@ -40851,6 +40851,31 @@ tests[#tests + 1] = ({ name = "Set switching over all 14 sets: each set resolves
 	if g2 then expectTrue(g2:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws on a skin change") end
 end })
 
+tests[#tests + 1] = ({ name = "New strategy Patrons: Full Palette, Triple Scoop, Spare Shuffle and Final Bow fire only on their trigger, text 60 or less, priced 4 to 8", fn = function()
+	local function hand(name) return { name = name, scoringCards = {}, cards = {} } end
+	local fp, ts, ss, fb = Patrons.getById("full_palette"), Patrons.getById("triple_scoop"), Patrons.getById("spare_shuffle"), Patrons.getById("final_bow")
+	expectTrue(fp and ts and ss and fb, "all four are in the registry")
+	expectEqual(fp.effect(hand("Flush"), {}).multMultiplier, 1.5, "Full Palette on a Flush")
+	expectEqual(fp.effect(hand("Straight Flush"), {}).multMultiplier, 1.5, "Full Palette on a Straight Flush")
+	expectTrue(fp.effect(hand("Straight"), {}) == nil, "Full Palette ignores a Straight")
+	expectEqual(ts.effect(hand("Three of a Kind"), {}).mult, 25, "Triple Scoop on trips")
+	expectEqual(ts.effect(hand("Full House"), {}).mult, 25, "Triple Scoop on a Full House")
+	expectTrue(ts.effect(hand("Pair"), {}) == nil and ts.effect(hand("Four of a Kind"), {}) == nil, "Triple Scoop ignores a Pair and Four of a Kind")
+	expectEqual(ss.effect(hand("High Card"), { discardsRemaining = 3 }).mult, 6, "Spare Shuffle counts Discards left")
+	expectTrue(ss.effect(hand("High Card"), { discardsRemaining = 0 }) == nil, "Spare Shuffle with none left does nothing")
+	expectEqual(fb.effect(hand("Pair"), { isLastHand = true }).multMultiplier, 2, "Final Bow on the last Hand")
+	expectTrue(fb.effect(hand("Pair"), { isLastHand = false }) == nil, "Final Bow ignores earlier Hands")
+	local icons = {}
+	for _, p in ipairs(Patrons.Definitions) do icons[p.icon] = (icons[p.icon] or 0) + 1 end
+	for _, p in ipairs({ fp, ts, ss, fb }) do
+		expectTrue(#p.description <= 60 and not p.description:find("—", 1, true) and not p.description:find("–", 1, true), p.id .. " text 60 or less, no dash")
+		expectTrue(p.price >= 4 and p.price <= 8, p.id .. " priced 4 to 8")
+		expectTrue(p.tags and #p.tags >= 1, p.id .. " has a synergy tag")
+		expectEqual(icons[p.icon], 1, p.id .. " icon is unique")
+		expectTrue(not (p.name .. p.description .. p.flavorText):lower():find("balatro"), p.id .. " name rule")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "Card back per Card Set: every non classic set has its own painted back (unique id, art recorded), classic keeps its back", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local seen = {}
@@ -40874,3 +40899,4 @@ tests[#tests + 1] = ({ name = "Card back per Card Set: every non classic set has
 end })
 
 return tests
+
