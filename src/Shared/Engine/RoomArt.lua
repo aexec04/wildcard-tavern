@@ -7,6 +7,6 @@
 
 return {
 	["back_room"] = "rbxassetid://82089607020417",
-	["corner_table"] = "rbxassetid://86613683063942",
+	["corner_table"] = "rbxassetid://95048665223948",
 	["main_hall"] = "rbxassetid://73518310109163",
 }

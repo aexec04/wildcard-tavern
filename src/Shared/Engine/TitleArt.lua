@@ -8,7 +8,7 @@
 return {
 	["book_badges"] = "rbxassetid://135801626582997",
 	["book_bosses"] = "rbxassetid://82347870603419",
-	["book_patrons"] = "rbxassetid://96637532510059",
+	["book_patrons"] = "rbxassetid://72533860945801",
 	["book_recipes"] = "rbxassetid://119174158580447",
 	["book_sets"] = "rbxassetid://74117810506969",
 	["book_titles"] = "rbxassetid://136844767107165",

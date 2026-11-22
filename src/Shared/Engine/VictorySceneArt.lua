@@ -6,7 +6,7 @@
 ]]
 
 return {
-	["victory_backdrop"] = "rbxassetid://101224912366016",
+	["victory_backdrop"] = "rbxassetid://73856009569934",
 	["victory_banner"] = "rbxassetid://86666441243547",
 	["victory_button"] = "rbxassetid://130327274014835",
 	["victory_chest"] = "rbxassetid://87016507272103",
