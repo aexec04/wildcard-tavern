@@ -54,16 +54,13 @@ function M.layout(w, h, mode)
 	return out
 end
 
-local function n(v) return math.floor(tonumber(v) or 0) end
+local ScoreText = require(script.Parent.ScoreText)
 
+local function n(v) return ScoreText.clean(v) end
+
+-- commas up to 999,999,999, then short forms (1.2B), so a huge Endless total still fits the Victory plate
 local function commas(v)
-	local s = tostring(n(v))
-	local out = s
-	repeat
-		s = out
-		out = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
-	until out == s
-	return out
+	return ScoreText.plate(v)
 end
 M.commas = commas
 

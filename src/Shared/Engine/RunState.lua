@@ -916,7 +916,7 @@ local function playHandNow(state, cardIndices)
 		state.bigHands = (state.bigHands or 0) + 1 -- daily quest: score 500 in one hand
 	end
 	RunSummary.recordHand(state, handResult.name, score) -- best hand + Patrons used, for the end-of-run summary
-	state.roundScore = state.roundScore + score
+	state.roundScore = math.min(EndlessRules.TARGET_CAP, state.roundScore + (score == score and score or 0)) -- finite and capped, so no display or compare ever sees inf or NaN
 	state.tips = state.tips + (extra.tipsEarned or 0)
 	state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, extra.tipsEarned or 0) -- Tavern Stats: lifetime Tips earned
 

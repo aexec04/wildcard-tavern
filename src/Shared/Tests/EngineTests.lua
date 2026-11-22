@@ -22547,7 +22547,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
@@ -22594,7 +22594,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 		local factText = {}
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do factText[#factText + 1] = c.Text end
 		local all = table.concat(factText, "\n")
-		for _, want in ipairs({ "Biggest hand: Full House: 604", "Final score: 604 / 3174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
+		for _, want in ipairs({ "Biggest hand: Full House: 604", "Final score: 604 / 3,174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
 			expectTrue(all:find(want, 1, true) ~= nil, "the facts say '" .. want .. "' at " .. size[1])
 		end
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
@@ -31209,7 +31209,7 @@ table.insert(tests, { name = "Table top bar (reference pass): quick buttons scal
 	end
 	if not io then return end
 	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
-	for _, w in ipairs({ '"Target: %d"', '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
+	for _, w in ipairs({ '"Target: "', '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
 end })
 
 table.insert(tests, { name = "Gear menu quick buttons: speaker and the one gear sit at the top left, 44 px, on screen, apart from the menu and the Gameplay v2 pieces at six sizes", fn = function()
@@ -33354,7 +33354,7 @@ end })
 table.insert(tests, { name = "Run Over: summary names the night, best hand, score, Patrons and unlocks; Play Again and Menu are painted, One More Round stays", fn = function()
 	if not io then return end
 	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
-	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: %d / %d", "Patrons used", "unlockLine(names)", "Next unlock: ",
+	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: ", "Patrons used", "unlockLine(names)", "Next unlock: ",
 		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
 		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
 	end
@@ -36620,6 +36620,42 @@ table.insert(tests, { name = "Boss variety: every boss has a rule that is enforc
 			local list = {}
 			for i = 1, boss.patronCap + 2 do list[i] = { id = "p" .. i } end
 			expectEqual(#BossRules.scoringPatrons(boss, list), boss.patronCap, boss.id .. " caps Patrons")
+		end
+	end
+end })
+
+table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, NaN or negative, big numbers get commas then short forms, a round score never passes the cap", fn = function()
+	local ST = require(script.Parent.Parent.Engine.ScoreText)
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local VictoryLook = require(script.Parent.Parent.Engine.VictoryLook)
+	local LedgerPages = require(script.Parent.Parent.Engine.LedgerPages)
+	expectEqual(ST.full(0), "0")
+	expectEqual(ST.full(1234567), "1,234,567")
+	expectEqual(ST.full(nil), "0")
+	expectEqual(ST.full(-5), "0")
+	expectEqual(ST.full(0 / 0), "0")
+	expectEqual(ST.full(1 / 0), ST.full(ST.MAX), "inf shows the cap, never errors")
+	expectEqual(ST.short(9999), "9,999")
+	expectEqual(ST.short(12345), "12.3K")
+	expectEqual(ST.short(1234567), "1.2M")
+	expectEqual(ST.short(2e9), "2B")
+	expectEqual(ST.short(999999), "1M", "999,999 rounds up into the next unit, not 1000K")
+	expectEqual(ST.short(3.5e12), "3.5T")
+	expectEqual(ST.short(1e300), ST.short(ST.MAX), "huge numbers clamp")
+	expectEqual(ST.plate(999999999), "999,999,999")
+	expectEqual(ST.plate(1e9), "1B")
+	-- every display stays short enough for the Score plate
+	for _, v in ipairs({ 0, 1, 999, 123456789, 1e9, 1e12, 1e15, ST.MAX, 1e300, 1 / 0 }) do
+		expectTrue(#ST.plate(v) <= 11 and #ST.short(v) <= 7, "length of " .. tostring(v))
+		expectEqual(VictoryLook.commas(v), ST.plate(v))
+		expectEqual(LedgerPages.fmt(v), ST.plate(v))
+	end
+	-- targets through the real function stay finite, whole, positive and below the cap, in every round, far past Night 8
+	for _, night in ipairs({ 8, 9, 30, 100, 400, 1000, 5000 }) do
+		for round = 1, 3 do
+			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
+			expectTrue(t == t and t > 0 and t <= ER.TARGET_CAP and t == math.floor(t), "Night " .. night)
+			expectTrue(#ST.short(t) > 0)
 		end
 	end
 end })

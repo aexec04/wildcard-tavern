@@ -750,7 +750,7 @@ function M.install(deps)
 		local nowScore = math.floor(score or lastState.roundScore or 0)
 		phase = phase or lastState.phase
 		local function put(n)
-			scoreNum.Text = string.format("%d", math.floor(n))
+			scoreNum.Text = require(Engine:WaitForChild("ScoreText")).plate(n)
 			local fit = self.scoreFit
 			if fit then -- a long total shrinks to stay inside the plate's border
 				pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
@@ -844,7 +844,7 @@ function M.install(deps)
 					roundLabel.TextWrapped = true
 					roundLabel.RichText = ih >= 62
 					roundLabel.TextTruncate = Enum.TextTruncate.None
-					local goal = string.format("Score %d to clear", math.floor(lastState.targetScore or 0))
+					local goal = "Score " .. require(Engine:WaitForChild("ScoreText")).short(lastState.targetScore) .. " to clear"
 					if roundLabel.RichText then -- reference: 30 px title over a 20 px goal line
 						local avail = ih - 12 -- 6 px margin top and bottom: a 60 px scroll gets 28 and 17, both lines inside it
 						local titleSz, goalSz = math.min(30, math.floor(avail * 0.55)), math.min(20, math.floor(avail * 0.35))
@@ -918,8 +918,11 @@ function M.install(deps)
 		if lifeAttach() then life.scene(bossRef and "table_play" or key); life.place(size.X, size.Y) end -- the boss reference tavern has the reference layout, so it uses its candle spots
 		fitBanner()
 		self.writeNumeral()
-		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
-		setText(target, string.format("Target: %d", math.floor(lastState.targetScore or 0)))
+		do
+			local ST = require(Engine:WaitForChild("ScoreText"))
+			scoreProgress.Text = ST.short(lastState.roundScore) .. " of " .. ST.short(lastState.targetScore)
+			setText(target, "Target: " .. ST.short(lastState.targetScore))
+		end
 		setText(tips, string.format("Tips: %d", math.floor(lastState.tips or 0)))
 		do -- the Hands and Discards pills tick (pop) when their count changes
 			local function ticked(pill, text)

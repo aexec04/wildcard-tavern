@@ -317,7 +317,10 @@ return function(deps)
 		local function add(text, props) lines[#lines + 1] = { text = text, props = props or {} } end
 		local best = summary and summary.bestHand or bestHand
 		if best then add(string.format("\u{26A1} Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
-		add(string.format("Final score: %d / %d", math.floor(state.roundScore or 0), math.floor(state.targetScore or 0)))
+		do
+			local ST = require(Engine:WaitForChild("ScoreText"))
+			add("Final score: " .. ST.short(state.roundScore) .. " / " .. ST.short(state.targetScore))
+		end
 		add(string.format("Tips banked: %d", math.floor(state.tips or 0)))
 		if summary then
 			add("Road taken", { tone = "gold" })
