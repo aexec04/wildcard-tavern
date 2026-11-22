@@ -39199,6 +39199,28 @@ table.insert(tests, { name = "FitAudit: the checker flags off screen, small touc
 	end
 end })
 
+table.insert(tests, { name = "FitAudit per Card Set: the table of all 14 rooms and Classic keeps hand, actions, plates and deck on screen, 44 px plates, no overlap at 4 sizes", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local rooms = {}
+	for _, s in ipairs(screens) do
+		if s.name:find("^Table room ") then rooms[#rooms + 1] = s end
+	end
+	assert(#rooms == 15, "Classic plus the 14 set rooms, got " .. #rooms)
+	for _, s in ipairs(rooms) do
+		for _, sz in ipairs(Audit.SIZES) do
+			for _, f in ipairs(Audit.checkScreen(s, sz[1], sz[2])) do
+				assert(false, s.name .. " " .. f.size .. " " .. f.rule .. ": " .. f.detail)
+			end
+			local rects = s.rects(sz[1], sz[2])
+			if sz[1] >= 900 then
+				assert(rects.hand and rects.actions and rects.deck and rects.platePlay, s.name .. " has a painted layout at " .. sz[1] .. "x" .. sz[2])
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }

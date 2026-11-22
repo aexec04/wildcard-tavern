@@ -108,6 +108,32 @@ return function(E)
 		end,
 	})
 
+	-- Every Card Set room has its own measured table (felt, rail, deck, plates). Same placement the live table uses
+	-- (Client/PlayScenePaint: hand clear of the left board, 150 px kept for the draw pile). Under 900 px wide the flat layout stays.
+	do
+		local PTL, PBL, R = E("PlayTableLayout"), E("PlayBoardLayout"), E("ResponsiveLayout")
+		local sets = { { id = "classic", key = nil } }
+		for _, id in ipairs(E("PlayRoomArt").ORDER) do sets[#sets + 1] = { id = id, key = PTL.PREFIX_KEY and PTL.PREFIX_KEY .. id or "layout:" .. id } end
+		for _, s in ipairs(sets) do
+			add({
+				name = "Table room " .. s.id, lane = "table",
+				rects = function(w, h)
+					local left = R.SIDEBAR_W + 20
+					local bp = s.key and PBL.placement(w, h)
+					if bp then left = math.max(left, bp.x + bp.w + 24) end
+					local p = PTL.placement(w, h, left, R.PILE_RESERVE, s.key)
+					if not p then return {} end
+					return {
+						hand = p.hand, actions = p.actions, deck = p.map.deck,
+						plateSort = p.map.plates.sort, platePlay = p.map.plates.play, plateDiscard = p.map.plates.discard,
+					}
+				end,
+				-- the hand frame stands above the plates and the deck pile sits beside it; the three plates are one row inside the Actions row
+				intended = { "^hand$|^deck$", "^actions$|^plate", "^hand$|^actions$", "^hand$|^plate" },
+			})
+		end
+	end
+
 	add({
 		name = "Collection", lane = "menu",
 		rects = function(w, h)
