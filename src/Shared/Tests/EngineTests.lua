@@ -34966,4 +34966,20 @@ table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every sl
 	expectEqual(TS.of("winter_evening").art.tableFront, PRA.keys("winter_evening").front, "table rail is the set's front")
 end })
 
+table.insert(tests, { name = "ThemeScenes: winter_evening ice tavern ids are recorded, well formed and used by the menu, boss and map slots", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS = require(E.ThemeScenes)
+	local TSA = require(E.TableSceneArt)
+	local t = TS.of("winter_evening")
+	for slot, key in pairs({ menuBackdrop = "theme_ice_menu", bossTableBackground = "theme_ice_boss", mapBackdrop = "theme_ice_map" }) do
+		expectEqual(t.art[slot], "table_scene:" .. key, "winter_evening " .. slot .. " art key")
+		expectTrue(type(TSA[key]) == "string" and string.match(TSA[key], "^rbxassetid://%d+$") ~= nil and TSA[key] ~= "rbxassetid://0", key .. " has a well formed asset id")
+		expectEqual(TS.themeImageId("winter_evening", slot), TSA[key], slot .. " resolves to the recorded id")
+	end
+	expectTrue(TS.themeImageId("winter_evening", "shopBackdrop") == nil, "slots without ice art keep the classic picture")
+	expectTrue(TS.themeImageId("classic_tavern", "menuBackdrop") == nil, "classic keeps its own menu picture")
+	expectTrue(TS.themeImageId("nope", "menuBackdrop") == nil, "unknown set has no theme picture")
+	expectEqual(TS.of("classic_tavern").art.menuBackdrop, "menu_scene:wall", "classic menu key unchanged")
+end })
+
 return tests

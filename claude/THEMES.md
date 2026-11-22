@@ -11,7 +11,7 @@ Painted = a set specific picture. Wash = tint overlay at 0.78 transparency, a fr
 | Set id | Ambient | Table, rail | Boss table | Menu | Map | Shop, Victory |
 |---|---|---|---|---|---|---|
 | classic_tavern | dust | painted (classic) | painted (classic) | painted (classic) | painted (classic) | painted (classic) |
-| winter_evening | snow | painted | painted | wash (frost) | wash (frost) | wash (frost) |
+| winter_evening | snow | painted | painted | painted (ice tavern) | painted id registered, map screen not wired yet | wash (frost) |
 | festival_night | lantern | painted | painted | wash | wash | wash |
 | closing_time | ember | painted | painted | wash | wash | wash |
 | golden_gala | mote | painted | painted | wash | wash | wash |
@@ -29,4 +29,4 @@ Painted = a set specific picture. Wash = tint overlay at 0.78 transparency, a fr
 Notes
 - The boss table slot resolves to the set's room in ThemeScenes. The boss scene itself is drawn in Gameplay2 (another lane), which still
   uses `table_boss_ref` until that lane reads `ThemeScenes.of(set).art.bossTableBackground`.
-- The painted menu, map and shop pictures for ice are queued as a held task (winter_evening pilot).
+- winter_evening pilot art (table_scene theme_ice_menu, theme_ice_boss, theme_ice_map): the menu draws it through ThemeWash; boss and map ids are registered in ThemeScenes and wait for the Gameplay2 and Tavern Map lanes. Shop is still a wash.

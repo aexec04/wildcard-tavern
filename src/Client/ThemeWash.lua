@@ -21,11 +21,16 @@ function ThemeWash.attach(host, slot)
 	end)
 	if not ok then return out end
 	local HudTheme = require(script.Parent.HudTheme)
+	local plainImage = host:IsA("ImageLabel") and host.Image or nil -- the classic picture, put back when the set has no painted scene
 	function out.refresh()
 		if host.Parent == nil then return end -- a screen rebuilt per show (Victory): the old host is gone
 		local skin = HudTheme.skin()
 		local t = ThemeScenes.of(skin and skin.id)
 		out.current = t.setId
+		if plainImage ~= nil then
+			local ok2, id = pcall(ThemeScenes.themeImageId, t.setId, slot)
+			host.Image = (ok2 and id) or plainImage
+		end
 		pcall(controller.setStyle, ThemeScenes.washStyle(t.setId, slot))
 		if game:GetService("RunService"):IsStudio() then
 			print(string.format("[Theme] %s set=%s art=%s wash=%s", tostring(slot), t.setId, tostring(t.art[slot]), tostring(ThemeScenes.washed(t.setId, slot))))

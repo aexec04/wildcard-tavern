@@ -59,6 +59,12 @@ local DATA = {
 -- the backdrop layer kinds Client/BackdropStyles can draw (CosmeticSets.BackdropLimits.layerKinds) for each ambient kind
 local LAYER_OF = { snow = "snow", ember = "sparks", dust = "dust", mote = "dust", pollen = "dust", firefly = "dust", leaf = "dust", sand = "dust" }
 
+-- painted per theme scenes (table_scene ids, see claude/THEMES.md): menu, boss table and map ground. The table room itself is the set's PlayRoomArt pair.
+-- boss and map ids are registered; their screens (Gameplay2, Tavern Map) read the art key when those lanes wire it.
+local THEME_ART = {
+	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map" },
+}
+
 local function setArt(setId)
 	local art = {}
 	for k, v in pairs(CLASSIC_ART) do art[k] = v end
@@ -69,6 +75,7 @@ local function setArt(setId)
 		art.tableBackground, art.tableFront, art.bossTableBackground = k.bg, k.front, k.bg
 		painted.tableBackground, painted.tableFront, painted.bossTableBackground = true, true, true
 	end
+	for slot, key in pairs(THEME_ART[setId] or {}) do art[slot] = key end
 	return art, painted
 end
 
@@ -77,6 +84,16 @@ local PROP_OF = { snow = "snowflakes", cloud = "snowflakes", lantern = "lantern"
 	butterfly = "leaves", leaf = "leaves", ember = "candle", dust = "candle", sand = "candle" }
 function ThemeScenes.propOf(setId)
 	return PROP_OF[ThemeScenes.of(setId).ambient] or "candle"
+end
+
+-- the Image id of a set's own painted art for a slot ("table_scene:<id>" keys), or nil to keep the classic picture
+function ThemeScenes.themeImageId(setId, slot)
+	local own = THEME_ART[setId]
+	local key = own and own[slot]
+	if not key then return nil end
+	local tab, id = string.match(key, "^(%w+_%w+):(.+)$")
+	if not tab then return nil end
+	return require(script.Parent.ContentArt).getImageId(tab, id)
 end
 
 function ThemeScenes.known(setId)
