@@ -353,7 +353,11 @@ function M.install(deps)
 		local table2 = false
 		local gp = root:FindFirstChild("Gameplay2")
 		if gp and gp.Visible then table2 = true end
-		return G.visibleOn({ root = root.Visible, table = table2, counter = shown("Shop"), map = shown("RoundSelect") })
+		-- not on Round Select (map = false) and not while a draft or event choice is up: the corner buttons belong to the played table
+		local sg = host:FindFirstAncestorOfClass("ScreenGui")
+		local choice = sg and sg:FindFirstChild("ChoiceBackdrop")
+		local choiceUp = choice ~= nil and choice:IsA("GuiObject") and choice.Visible
+		return G.visibleOn({ root = root.Visible, table = table2, counter = shown("Shop"), map = false, popup = choiceUp })
 	end
 	host:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if isOpen then layout() end end)
 	layout()

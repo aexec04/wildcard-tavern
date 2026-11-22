@@ -18195,11 +18195,35 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	-- the first Patron and blessing choice: a Back plate button, 44 px high, that never talks to the server
 	local choice = read("src/Client/ChoicePanel.lua")
 	expectTrue(choice ~= nil, "ChoicePanel.lua readable")
-	expectTrue(choice:find('Text = "Back to menu"', 1, true) ~= nil and choice:find("UDim2.fromOffset(150, 44)", 1, true) ~= nil, "a 44 px Back to menu button")
+	expectTrue(choice:find('Text = "Back to menu"', 1, true) == nil and choice:find("BackToMenu", 1, true) == nil, "no Back to menu button on the draft: Escape and Roblox's menu are the way out")
 	expectTrue(choice:find("canAbandonChoice", 1, true) ~= nil and choice:find('"dismiss" or "locked"', 1, true) ~= nil, "the draft can be left, an event card is locked")
 	local back = choice:match("local function backToMenu%(%).-\n\tend\n")
 	expectTrue(back ~= nil and back:find("FireServer", 1, true) == nil and back:find("menuFrame.Visible = true", 1, true) ~= nil, "Back to menu only shows the Menu: nothing is sent to the server, so no run is abandoned")
 	expectTrue(choice:find("panel = holder", 1, true) ~= nil, "the cards' holder is the panel: a click on a card is never outside")
+end })
+
+table.insert(tests, { name = "Patron draft screen: one name, a rounded rectangle portrait, no subtitle, no corner buttons", fn = function()
+	local RC = require(script.Parent.Parent.Engine.RunChoice)
+	expectEqual(RC.startingPatrons ~= nil, true, "RunChoice loads")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end; local t = f:read("*a"); f:close(); return t end
+	local rc, cp, gm = read("src/Shared/Engine/RunChoice.lua"), read("src/Client/ChoicePanel.lua"), read("src/Client/GearMenu.lua")
+	if not (rc and cp and gm) then return end
+	expectFalse(rc:find("sit at your table from the first hand", 1, true) ~= nil, "the Patron draft has a title only")
+	expectFalse(cp:find("roundCorner(medalRing, 49)", 1, true) ~= nil or cp:find("roundCorner(well, 42)", 1, true) ~= nil, "no circle ring around the portrait")
+	expectTrue(cp:find("UDim2.fromOffset(140, 98)", 1, true) ~= nil, "the portrait frame is a rounded rectangle")
+	expectTrue(gm:find("map = false", 1, true) ~= nil and gm:find("popup = choiceUp", 1, true) ~= nil, "the gear and sound buttons hide on Round Select and under a draft")
+end })
+
+table.insert(tests, { name = "Round Select: no Blessing chip, one Tips border (the stroke exists before the picture is painted)", fn = function()
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end; local t = f:read("*a"); f:close(); return t end
+	local bc, rs = read("src/Client/BlessingChip.lua"), read("src/Client/RoundSelect.lua")
+	if not (bc and rs) then return end
+	expectTrue(bc:find('state.phase == "roundSelect" or not parentChip()', 1, true) ~= nil, "the Blessing chip is hidden on Round Select")
+	local stroke = rs:find('e.Color = Color3.fromRGB(150, 118, 66)', 1, true)
+	local paint = rs:find('painted(tipsChip, "count_tab")', 1, true)
+	expectTrue(stroke ~= nil and paint ~= nil and stroke < paint, "the Tips chip's flat stroke is made before painted(), which switches it off under the picture")
 end })
 
 -- ===== Haggle and Reroll did nothing on the Counter (2026-11-10): the gold pill was a label, never a button =====
@@ -27770,8 +27794,7 @@ table.insert(tests, { name = "First session polish: one sign per blessing line, 
 	local choicePanel, scout, board = read("src/Client/ChoicePanel.lua"), read("src/Client/BossScout.lua"), read("src/Client/MenuBoard.lua")
 	local shop, stage, scene = read("src/Client/Shop.lua"), read("src/Client/ShopStage.lua"), read("src/Client/ShopScene.lua")
 	if not (choicePanel and scout and board and shop and stage and scene) then return end
-	expectTrue(choicePanel:find("backButton.Position = UDim2.fromOffset(256, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(12, 12))", 1, true) ~= nil)
-	expectFalse(choicePanel:find("backButton.Position = UDim2.fromOffset(12, 12)", 1, true) ~= nil, "not under the top bar")
+	expectFalse(choicePanel:find("backButton", 1, true) ~= nil, "no Back to menu button on the draft")
 	expectTrue(scout:find("tokenChip.Position = UDim2.new(1, -78, 0, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(0, 82))", 1, true) ~= nil)
 	expectFalse(scout:find("tokenChip.Position = UDim2.new(1, -8, 0, 8)", 1, true) ~= nil)
 	expectTrue(board:find('d:GetPropertyChangedSignal("Text"):Connect(placeAgain)', 1, true) ~= nil, "a note whose words change is measured again")

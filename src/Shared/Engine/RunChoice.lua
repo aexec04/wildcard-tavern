@@ -72,7 +72,7 @@ local function patronChoice(state)
 	for _, p in ipairs(picks) do
 		options[#options + 1] = { id = p.id, name = p.name, icon = p.icon, line1 = p.description or "", line2 = "" }
 	end
-	return { kind = "patron", title = "Choose your first Patron", text = "They sit at your table from the first hand.", icon = "🧑‍🍳", options = options }
+	return { kind = "patron", title = "Choose your first Patron", icon = "🧑‍🍳", options = options }
 end
 
 -- A blessing line opens with "+" and a curse line with "-" (Engine/RunModifiers.line: one sign, never two).

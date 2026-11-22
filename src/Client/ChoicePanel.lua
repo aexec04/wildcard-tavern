@@ -147,13 +147,13 @@ local function buildCard(choice, option, order)
 
 	local medalRing = Instance.new("Frame") -- the brass ring the portrait sits in (made first, so it draws under the well)
 	medalRing.Name = "MedalRing"
-	medalRing.Size = UDim2.fromOffset(98, 98)
-	medalRing.Position = UDim2.new(0.5, -49, 0, 7)
+	medalRing.Size = UDim2.fromOffset(140, 98)
+	medalRing.Position = UDim2.new(0.5, -70, 0, 6)
 	medalRing.BackgroundColor3 = Color3.fromRGB(200, 160, 84)
 	medalRing.BorderSizePixel = 0
 	medalRing.ZIndex = 63
 	medalRing.Parent = card
-	ui.roundCorner(medalRing, 49)
+	ui.roundCorner(medalRing, 12)
 	local medalEdge = Instance.new("UIStroke")
 	medalEdge.Color = Color3.fromRGB(60, 40, 22)
 	medalEdge.Thickness = 2
@@ -161,12 +161,12 @@ local function buildCard(choice, option, order)
 	medalEdge.Parent = medalRing
 	local well = Instance.new("Frame")
 	well.Name = "Well"
-	well.Size = UDim2.fromOffset(84, 84)
-	well.Position = UDim2.new(0.5, -42, 0, 14)
+	well.Size = UDim2.fromOffset(126, 84)
+	well.Position = UDim2.new(0.5, -63, 0, 13)
 	well.BackgroundColor3 = WOOD
 	well.ZIndex = 63
 	well.Parent = card
-	ui.roundCorner(well, 42)
+	ui.roundCorner(well, 8)
 	local ring = Instance.new("UIStroke")
 	ring.Color = GOLD
 	ring.Thickness = 2
@@ -183,7 +183,7 @@ local function buildCard(choice, option, order)
 		crop.ClipsDescendants = true
 		crop.ZIndex = 65
 		crop.Parent = well
-		ui.roundCorner(crop, 42)
+		ui.roundCorner(crop, 8)
 		PatronPlaque.apply(crop, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 0,
 			size = UDim2.fromScale(PORTRAIT_SCALE, PORTRAIT_SCALE), position = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0) })
 		if game:GetService("RunService"):IsStudio() then
@@ -192,13 +192,13 @@ local function buildCard(choice, option, order)
 	elseif choice.kind == "modifier" then
 		local artId = ContentArt.getImageId("blessing_icons", option.id)
 		if artId then
-			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 8 })
 		end
 	elseif choice.kind == "event" then
 		-- one painted icon per option kind (decline included), else the event's own art; the emoji is only the last fallback
 		local artId = (option.kind and ContentArt.getImageId("option_icons", option.kind)) or (not isDecline and ContentArt.getImageId("events", choice.eventId)) or nil
 		if artId then
-			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 8 })
 		elseif game:GetService("RunService"):IsStudio() then
 			print(("[EmojiLeft] event %s option %s is drawn from the emoji %s"):format(tostring(choice.eventId), tostring(option.id), tostring(option.icon)))
 		end
@@ -235,8 +235,8 @@ local function buildCard(choice, option, order)
 		end
 		local plate = Instance.new("Frame")
 		plate.Name = "NamePlate"
-		plate.Position = UDim2.fromOffset(8, 102)
-		plate.Size = UDim2.new(1, -16, 0, 52)
+		plate.Position = UDim2.fromOffset(8, 108)
+		plate.Size = UDim2.new(1, -16, 0, 50)
 		plate.BackgroundColor3 = c3(rarity.plate)
 		plate.BackgroundTransparency = 0.05
 		plate.BorderSizePixel = 0
@@ -258,13 +258,13 @@ local function buildCard(choice, option, order)
 		})
 	else
 		label(card, {
-			Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 106), Text = option.name, TextSize = 19,
+			Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 112), Text = option.name, TextSize = 19,
 			TextWrapped = true,
 		})
 	end
 	-- the rule text sits in one block centred in the gap between the name and the Choose plate: dark ink, 16 px, the plus line in green ink
 	-- and the minus line in dark red ink (4.5:1 or better on the paper)
-	local ruleTop = rarity and 158 or 136
+	local ruleTop = rarity and 162 or 140
 	local ruleBox = Instance.new("Frame")
 	ruleBox.Name = "Rule"
 	ruleBox.BackgroundTransparency = 1
@@ -358,7 +358,6 @@ local function render()
 		ui.backdrop.Visible = false
 		return
 	end
-	ui.back.Visible = DismissRules.canAbandonChoice(choice.kind) -- only the start-of-run draft can be left
 	ui.skip.Visible = choice.kind == "reward" and choice.skip == true -- the Night clear Patron reward can be skipped
 	local key = ChoicePanel.keyOf(choice)
 	if key ~= builtKey then
@@ -373,6 +372,7 @@ local function render()
 		end)
 		ui.text.Text = choice.text or ""
 		ui.text.Visible = ui.text.Text ~= ""
+		ui.row.Position = UDim2.fromOffset(0, ui.text.Visible and 100 or 60) -- no subtitle: the cards sit higher
 		for i, option in ipairs(choice.options or {}) do
 			buildCard(choice, option, i)
 		end
@@ -539,21 +539,7 @@ function ChoicePanel.init(deps)
 	-- It does what Settings > Main Menu does and sends NOTHING to the server: no run is abandoned, no Tips banked for the run are
 	-- spent twice, and the draft stays pending, so the Menu's Play brings the same choice back (render() hides this screen while the
 	-- Menu is up) and New Run starts a clean run as it always did. Escape and a click on the dark area do the same.
-	local backButton = Instance.new("TextButton")
-	backButton.Name = "BackToMenu"
-	-- (below Roblox's own top bar buttons, which sit over the top left corner: Engine/ResponsiveLayout.clearOfTopBar)
-	backButton.Position = UDim2.fromOffset(256, require(Engine:WaitForChild("ResponsiveLayout")).clearOfTopBar(12, 12))
-	backButton.Size = UDim2.fromOffset(150, 44)
-	backButton.Font = Enum.Font.GothamBold
-	backButton.TextSize = 17
-	backButton.Text = "Back to menu"
-	backButton.TextColor3 = CREAM
-	backButton.BackgroundColor3 = WOOD
-	backButton.AutoButtonColor = true
-	backButton.Visible = false
-	backButton.ZIndex = 66
-	backButton.Parent = backdrop
-	deps.polishButton(backButton, 10)
+	-- There is no on screen button any more (the corner buttons belong to the played table); Escape and Roblox's own menu are the way out.
 	local function backToMenu()
 		if not (lastChoice and DismissRules.canAbandonChoice(lastChoice.kind)) then
 			return
@@ -562,18 +548,17 @@ function ChoicePanel.init(deps)
 		if deps.root then deps.root.Visible = false end
 		if deps.menuFrame then deps.menuFrame.Visible = true end
 	end
-	backButton.MouseButton1Click:Connect(backToMenu)
 	require(script.Parent.PopupDismiss).attach(backdrop, {
 		panel = holder,
 		close = backToMenu,
 		policy = function()
 			return (lastChoice and DismissRules.canAbandonChoice(lastChoice.kind)) and "dismiss" or "locked"
 		end,
-		button = true,
+		button = false,
 	})
 
 	ui = {
-		skip = skipButton, backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit, back = backButton,
+		skip = skipButton, backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit,
 		screenGui = deps.screenGui, menuFrame = deps.menuFrame, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, choiceRemote = deps.choiceRemote,
 	}

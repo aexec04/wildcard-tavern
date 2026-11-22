@@ -209,7 +209,8 @@ function BlessingChip.update(state)
 		return
 	end
 	local view = state.runModifier
-	if type(view) ~= "table" or not parentChip() then
+	-- never on Round Select: it hid the first blind's Tag bar and Target (the Settings row "This run: ..." still names the run)
+	if type(view) ~= "table" or state.phase == "roundSelect" or not parentChip() then
 		ui.shown = false
 		ui.chip.Visible = false
 		ui.chip:SetAttribute("Shown", false)

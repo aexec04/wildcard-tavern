@@ -267,15 +267,15 @@ return function(deps)
 	tipsChip.Text = "Tips: 0"
 	tipsChip.ZIndex = 7
 	tipsChip.Parent = roundSelectFrame
-	pcall(function() require(script.Parent.TavernKit).painted(tipsChip, "count_tab") end) -- painted frame, flat look if it does not load
 	roundCorner(tipsChip, 8)
-	do -- wood plate edge
+	do -- wood plate edge: the FLAT look's border. It must exist BEFORE painted() so the picture switches it off (its own gold border is the only one)
 		local e = Instance.new("UIStroke")
 		e.Color = Color3.fromRGB(150, 118, 66)
 		e.Thickness = 2
 		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		e.Parent = tipsChip
 	end
+	pcall(function() require(script.Parent.TavernKit).painted(tipsChip, "count_tab") end) -- painted frame, flat look if it does not load
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
