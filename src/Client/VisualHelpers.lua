@@ -613,6 +613,18 @@ return function(deps)
 		fill.ZIndex = 22
 		fill.Parent = track
 		polishButton(fill, 4)
+		do -- the equipped Card Set accent (4.5:1 on the track); classic keeps the gold fill
+			local classicFill = fill.BackgroundColor3
+			local function tint()
+				local c
+				pcall(function()
+					c = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).controlAccentOf(require(script.Parent.TavernKit).plateSetId())
+				end)
+				fill.BackgroundColor3 = c and Color3.fromRGB(c.sliderFill[1], c.sliderFill[2], c.sliderFill[3]) or classicFill
+			end
+			tint()
+			pcall(function() require(script.Parent.HudTheme).onSkin(function() if fill.Parent then tint() end end) end)
+		end
 
 		local knob = Instance.new("Frame")
 		knob.Size = UDim2.new(0, 18, 0, 18)

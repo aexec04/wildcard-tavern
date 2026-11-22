@@ -229,6 +229,12 @@ return function(deps)
 					if isSwitch then -- clear On and Off: fill plus the word
 						local f = (i == 1) and SW.offFill or SW.onFill
 						local t = (i == 1) and SW.offText or SW.onText
+						if i ~= 1 then -- the On state wears the equipped Card Set accent (white text 4.5:1); classic keeps green
+							local ok, c = pcall(function()
+								return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).controlAccentOf(require(script.Parent.TavernKit).plateSetId())
+							end)
+							if ok and c then f, t = c.onFill, c.onText end
+						end
 						button.BackgroundColor3 = Color3.fromRGB(f[1], f[2], f[3])
 						button.TextColor3 = Color3.fromRGB(t[1], t[2], t[3])
 					else
@@ -262,6 +268,7 @@ return function(deps)
 			end
 		end)
 		refresh()
+		pcall(function() require(script.Parent.HudTheme).onSkin(function() if button.Parent then refresh() end end) end) -- an equipped set shows at once
 	end
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }

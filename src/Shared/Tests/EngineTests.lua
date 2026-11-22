@@ -40297,6 +40297,33 @@ table.insert(tests, { name = "Tooltips, guided hint and Next goal banner wear th
 	end
 end })
 
+table.insert(tests, { name = "Settings sliders and On switches use the set accent, 4.5:1 on the track and for the white On text, on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.controlAccentOf("classic_tavern"), nil, "classic keeps gold and green")
+	expectEqual(CS.controlAccentOf(nil), nil, "no set keeps gold and green")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local c = CS.controlAccentOf(set.id)
+			expectTrue(c ~= nil, set.id .. " has control colours")
+			if c then
+				n = n + 1
+				expectTrue(CS.contrastRatio(c.sliderFill, CS.SLIDER_TRACK) >= 4.5, set.id .. " slider fill 4.5:1 on the track")
+				expectTrue(CS.contrastRatio(c.onFill, c.onText) >= 4.5, set.id .. " On text 4.5:1 on the switch fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has control colours")
+	if not io then return end
+	for file, needle in pairs({ ["VisualHelpers"] = "controlAccentOf", ["Settings"] = "controlAccentOf" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil, file .. " asks the pure control rule")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
