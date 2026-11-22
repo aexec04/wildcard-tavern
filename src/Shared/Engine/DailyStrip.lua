@@ -58,13 +58,13 @@ function M.view(login, quests)
 	end
 
 	-- Chest: today's login reward. Claimable once per UTC day.
-	out.chest, out.chestText = "none", "Chest"
+	out.chest, out.chestText, out.pulse = "none", "Chest soon", false
 	for _, r in ipairs(type(login.rewards) == "table" and login.rewards or {}) do
 		if r.claimable then
-			out.chest, out.chestText, out.rewardLabel, out.claimDay = "ready", "Open chest", r.label, r.day
+			out.chest, out.chestText, out.rewardLabel, out.claimDay, out.pulse = "ready", "Claim reward", r.label, r.day, true
 			break
 		elseif r.today and r.claimed then
-			out.chest, out.chestText, out.rewardLabel = "opened", "Chest opened", r.label
+			out.chest, out.chestText, out.rewardLabel = "opened", "Claimed today", r.label
 		end
 	end
 	return out

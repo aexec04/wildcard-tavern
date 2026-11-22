@@ -111,7 +111,13 @@ function NextGoalBanner.update(state)
 	local ratio = math.clamp(tonumber(goal.ratio) or 0, 0, 1)
 	if shownRatio ~= ratio then
 		shownRatio = ratio
-		TweenService:Create(ui.fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(ratio, 1) }):Play()
+		local still = false
+		pcall(function() still = require(script.Parent.TavernKit).still() end) -- Calm mode and Reduce motion: the bar jumps, no tween
+		if still then
+			ui.fill.Size = UDim2.fromScale(ratio, 1)
+		else
+			TweenService:Create(ui.fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(ratio, 1) }):Play()
+		end
 	end
 end
 
