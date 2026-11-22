@@ -1802,6 +1802,7 @@ local function refreshScorePreview()
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
 	pcall(function() require(script.PatronRow).setPreview(preview) end) -- the Mult panel by the Patron display shows this same preview
+	pcall(function() require(script.HandReadout).set(playButton, preview and preview.name or nil, latestState and latestState.handLevels) end) -- name and base Chips x Mult above Play Hand
 	pcall(function() require(script.Gameplay2).setPreview(preview, latestState and latestState.handLevels) end) -- v2: hand name, level, chips and mult over the centre score
 	if not preview then
 		SidebarModule.scorePreviewLabel.Text = "Select cards..."

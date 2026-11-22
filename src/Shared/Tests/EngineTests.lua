@@ -38411,4 +38411,29 @@ table.insert(tests, { name = "Daily modifiers: 12 kid safe twists, same for ever
 	expectTrue(label.text == "Daily: " .. DM.forDate("2026-12-01").name, "table scroll names the twist")
 end })
 
+table.insert(tests, { name = "HandReadout: name and base Chips x Mult at the hand's level, nil for nothing, Calm and size wired", fn = function()
+	local HR = require(script.Parent.Parent.Engine.HandReadout)
+	local Scoring = require(script.Parent.Parent.Engine.Scoring)
+	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
+	expectTrue(HR.line(nil) == nil and HR.line("Not A Hand") == nil, "no line without a real hand")
+	for _, name in ipairs(HandEvaluator.HandOrder) do
+		local b = Scoring.HandBase[name]
+		expectEqual(HR.line(name), string.format("%s, %d x %d", name, b.chips, b.mult))
+	end
+	local g = Scoring.HandLevelGrowth.Pair
+	local c, m = HR.values("Pair", { Pair = 3 })
+	expectEqual(c, math.floor(Scoring.HandBase.Pair.chips + g.chips * 3))
+	expectEqual(m, math.floor(Scoring.HandBase.Pair.mult + g.mult * 3))
+	expectTrue(HR.TEXT_SIZE >= 16, "16 px or more")
+	local f = io and io.open("src/Client/HandReadout.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('"reduceShake"', 1, true) ~= nil, "Calm mode skips the fade")
+		expectTrue(src:find("Enum.Font.Garamond", 1, true) ~= nil, "serif")
+		local hub = io.open("src/Client/init.client.lua", "r")
+		local h = hub:read("*a"); hub:close()
+		expectTrue(h:find("script.HandReadout", 1, true) ~= nil, "the hub feeds the readout on selection")
+	end
+end })
+
 return tests
