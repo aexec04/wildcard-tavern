@@ -227,6 +227,17 @@ function ThemeScenes.hueOf(setId)
 	return { math.floor(t[1] * 255 / top + 0.5), math.floor(t[2] * 255 / top + 0.5), math.floor(t[3] * 255 / top + 0.5) }
 end
 
+ThemeScenes.COLLECTION_WALL_TINT = 0.3 -- Collection wall
+ThemeScenes.RESULT_WASH_TINT = 0.25 -- Run Over and Victory room pictures
+
+-- A light multiplier a painted picture wears for a set: white pulled `amount` (0..1) toward the set hue. nil for classic or unknown, so classic is untouched.
+function ThemeScenes.washTint(setId, amount)
+	local h = ThemeScenes.hueOf(setId)
+	if not h then return nil end
+	amount = math.max(0, math.min(1, amount or 0.3))
+	return { math.floor(255 + (h[1] - 255) * amount + 0.5), math.floor(255 + (h[2] - 255) * amount + 0.5), math.floor(255 + (h[3] - 255) * amount + 0.5) }
+end
+
 function ThemeScenes.of(setId)
 	local id = ThemeScenes.known(setId) and setId or ThemeScenes.DEFAULT
 	local d = DATA[id]

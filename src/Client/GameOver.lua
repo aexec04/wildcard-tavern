@@ -73,6 +73,11 @@ return function(deps)
 	local clearWash -- removes the defeat wash when the screen closes
 	dim:GetPropertyChangedSignal("Visible"):Connect(function()
 		if not dim.Visible and clearWash then clearWash(); clearWash = nil end
+		if dim.Visible then -- the scrim takes a dark version of the equipped Card Set's colour (classic keeps its near black)
+			local ink = nil
+			pcall(function() ink = require(script.Parent.SetInk).get() end)
+			dim.BackgroundColor3 = ink and ink.plate or Color3.fromRGB(10, 8, 6)
+		end
 		local bar = root:FindFirstChild("MessageBar")
 		if dim.Visible and bar then bar.Visible = false end
 	end)

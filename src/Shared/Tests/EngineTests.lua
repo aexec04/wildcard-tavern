@@ -40252,4 +40252,39 @@ table.insert(tests, { name = "Counter Patron card frames pick up the set accent:
 	end
 end })
 
+table.insert(tests, { name = "Per set Collection wall, Run Over and Victory wash, Tavern Map node rings: set hue or accent in every set, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	expectEqual(TS.washTint("classic_tavern", 0.3), nil, "classic is never washed")
+	expectEqual(TS.washTint("no_such_set", 0.3), nil, "unknown set is never washed")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			for _, amount in ipairs({ TS.COLLECTION_WALL_TINT, TS.RESULT_WASH_TINT }) do
+				local t = TS.washTint(def.id, amount)
+				expectTrue(t ~= nil, def.id .. " has a wash")
+				for i = 1, 3 do expectTrue(t[i] >= 150 and t[i] <= 255, def.id .. " wash keeps the picture bright") end
+			end
+			-- the Run Over scrim is the set plate: dark, so the white text on it stays readable
+			local st = TS.scoreStyle(def.id)
+			expectTrue(st.plate[1] + st.plate[2] + st.plate[3] < 200, def.id .. " Run Over scrim stays dark")
+			-- the map node ring (set accent) shows on the dark map ground
+			expectTrue(CS.contrastRatio(st.accent, { 40, 30, 22 }) >= 3, def.id .. " node ring shows on the map")
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local wall, over, win, graph = read("src/Client/CollectionWall.lua"), read("src/Client/GameOver.lua"), read("src/Client/VictoryScreen.lua"), read("src/Client/JourneyMapGraph.lua")
+	if wall then
+		expectTrue(wall:find("washTint", 1, true) ~= nil, "Collection wall takes the wash")
+		expectTrue(over:find("SetInk", 1, true) ~= nil and over:find("Color3.fromRGB(10, 8, 6)", 1, true) ~= nil, "Run Over scrim takes the set plate, classic near black stays")
+		expectTrue(win:find("RESULT_WASH_TINT", 1, true) ~= nil, "Victory room picture takes the wash")
+		expectTrue(graph:find("nodeRing()", 1, true) ~= nil and graph:find("Color3.fromRGB(110, 80, 45)", 1, true) ~= nil, "map node ring takes the set accent, classic brown stays")
+	end
+end })
+
 return tests

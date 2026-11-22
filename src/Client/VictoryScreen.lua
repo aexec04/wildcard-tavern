@@ -146,6 +146,12 @@ local function baseScene(screenGui, w, h, mode)
 		bg.Size = UDim2.fromScale(1, 1)
 		bg.Image = Art.victory_backdrop
 		bg.ScaleType = Enum.ScaleType.Crop
+		pcall(function() -- the room picture wears 25 percent of the equipped Card Set's hue (classic unchanged)
+			local TS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
+			local skin = require(script.Parent.HudTheme).skin()
+			local t = TS.washTint(TS.effectiveSetId(skin and skin.id, nil), TS.RESULT_WASH_TINT)
+			if t then bg.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3]) end
+		end)
 		bg.ZIndex = 62
 		bg.Parent = gui
 	end

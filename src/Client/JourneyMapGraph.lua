@@ -28,6 +28,12 @@ return function(deps)
 
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local GOLD = Color3.fromRGB(222, 182, 104)
+	-- the ring of a node that is not lit: the equipped Card Set's accent (Client/SetInk), classic keeps its brown
+	local function nodeRing()
+		local ink = nil
+		pcall(function() ink = require(script.Parent.SetInk).get() end)
+		return ink and ink.accent or Color3.fromRGB(110, 80, 45)
+	end
 	local INK = Color3.fromRGB(60, 40, 22)
 
 	local root = Instance.new("Frame")
@@ -328,7 +334,7 @@ return function(deps)
 				local stopArt = v ~= "teaser" and ((deps.nodeArt and deps.nodeArt(stop.art)) or (deps.paintArt and deps.paintArt("node_encounter"))) or nil
 				if stopArt then paintNode(btn, stopArt) end
 				local st = Instance.new("UIStroke")
-				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
+				st.Color = glow and GOLD or nodeRing()
 				st.Thickness = id == highlighted and 5 or (choices[id] and 3 or 2)
 				st.Transparency = glow and 0 or 0.35
 				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -431,7 +437,7 @@ return function(deps)
 				local sideArt = (not stub) and deps.paintArt and deps.paintArt(SIDE_ART[stop.side]) or nil
 				if sideArt then paintNode(btn, sideArt) end
 				local st = Instance.new("UIStroke")
-				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
+				st.Color = glow and GOLD or nodeRing()
 				st.Thickness = glow and 3 or 2
 				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				st.Parent = btn
