@@ -294,7 +294,7 @@ function SeasonPanel.init(deps)
 		box.Parent = t
 		deps.roundCorner(box, 8)
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = GOLD
+		stroke.Color = require(script.Parent.TavernKit).ringColor(GOLD) -- locked and claimed premium cells keep their dim and green fills, the ring takes the set accent
 		stroke.Thickness = 2
 		stroke.Parent = box
 		label(box, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 2), TextSize = 14, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
@@ -337,14 +337,27 @@ function SeasonPanel.init(deps)
 
 	local state_tier -- the player's current tier, set by refresh before the tiles are built
 	local state_next -- the first unclaimed tier number, gets a gold ring and a Next tag
+	-- The equipped Card Set's paper tile style (CosmeticSets.popupStyleOf, dark ink 7:1); nil on classic so parchment stays as painted.
+	local function setPaper()
+		local paper
+		pcall(function()
+			local CS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			local s = CS.popupStyleOf(require(script.Parent.TavernKit).plateSetId())
+			paper = s and s.paper
+		end)
+		return paper
+	end
+	local function rgbOf(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+
 	local function tile(row, prevRow, hasPremium)
+		local paper = setPaper()
 		local t = Instance.new("TextButton")
 		t.Name = "Tier_" .. row.tier
 		t.LayoutOrder = row.tier
 		t.Size = UDim2.fromOffset(TILE_W, TILE_H)
 		t.AutoButtonColor = false
 		t.Text = ""
-		t.BackgroundColor3 = row.claimed and Color3.fromRGB(176, 190, 140) or PARCH
+		t.BackgroundColor3 = row.claimed and Color3.fromRGB(176, 190, 140) or (paper and rgbOf(paper.top) or PARCH)
 		t.BorderSizePixel = 0
 		t.ZIndex = 42
 		t.Parent = track
@@ -352,13 +365,13 @@ function SeasonPanel.init(deps)
 		local stroke = Instance.new("UIStroke")
 		local Kit = require(script.Parent.TavernKit)
 		local ringGold = Kit.ringColor(GOLD) -- the equipped Card Set's accent for the claim glow and the current tier ring; classic keeps gold
-		stroke.Color = (row.reached and not row.claimed) and ringGold or INK
+		stroke.Color = (row.reached and not row.claimed) and ringGold or (paper and rgbOf(paper.edge) or INK)
 		stroke.Thickness = (row.reached and not row.claimed) and 3 or 1.5
 		local isNow = state_tier ~= nil and row.tier == state_tier
 		if isNow then
 			stroke.Color = Kit.ringColor(Color3.fromRGB(255, 214, 90))
 			stroke.Thickness = 4
-			t.BackgroundColor3 = Color3.fromRGB(240, 222, 170)
+			t.BackgroundColor3 = paper and rgbOf(paper.top):Lerp(Color3.fromRGB(255, 255, 255), 0.35) or Color3.fromRGB(240, 222, 170)
 		end
 		local isNext = state_next ~= nil and row.tier == state_next and not isNow
 		if isNext and not row.reached then
@@ -368,12 +381,13 @@ function SeasonPanel.init(deps)
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
-		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier) })
+		local markInk = (paper and not row.claimed) and rgbOf(paper.ink) or Color3.fromRGB(150, 100, 20)
+		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier), TextColor3 = (paper and not row.claimed) and rgbOf(paper.ink) or INK })
 		if isNow then
-			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Now", ZIndex = 47 })
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = markInk, Text = "Now", ZIndex = 47 })
 		end
 		if isNext then
-			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, isNow and 25 or 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Next", ZIndex = 47 })
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, isNow and 25 or 5), TextSize = 16, TextColor3 = markInk, Text = "Next", ZIndex = 47 })
 		end
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(92, 92)

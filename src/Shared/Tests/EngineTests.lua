@@ -40296,7 +40296,7 @@ table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use
 	expectTrue(season:find("Kit.ringColor(GOLD)", 1, true) ~= nil and season:find("stroke.Color = ringGold", 1, true) ~= nil, "Season claim glow and Next ring use the set accent")
 	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
 	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
-	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
+	expectTrue(season:find("TextColor3 = markInk, Text = \"Now\"", 1, true) ~= nil and season:find(" or Color3.fromRGB(150, 100, 20)", 1, true) ~= nil, "Season Now tag keeps its classic text colour, a set paper swaps in the 7:1 ink")
 	expectTrue(daily:find("skin and skin.ink or INK", 1, true) ~= nil, "Daily text is dark ink on classic parchment and the set ink on a set row")
 end })
 
@@ -40740,6 +40740,33 @@ table.insert(tests, { name = "Store cards and panel wear the set paper, edge and
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".paper(", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, "Store binds paper cards and a dark panel")
 		expectTrue(src:find('setPlateButton(close, "secondary")', 1, true) ~= nil, "Close takes the set plate")
+	end
+end })
+
+table.insert(tests, { name = "Season tiles take the set paper, edge and tier ink at 7:1 on every set, claim buttons stay 44 px, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SeasonTrack = require(script.Parent.Parent.Engine.SeasonTrack)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps parchment tiles")
+	expectTrue(SeasonTrack.BUTTON_H >= 44, "claim buttons stay 44 px")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a paper style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " tier numbers keep 7:1 on the tile")
+				local lit = { math.min(255, math.floor(p.paper.top[1] + (255 - p.paper.top[1]) * 0.35)), math.min(255, math.floor(p.paper.top[2] + (255 - p.paper.top[2]) * 0.35)), math.min(255, math.floor(p.paper.top[3] + (255 - p.paper.top[3]) * 0.35)) }
+				expectTrue(CS.contrastRatio(lit, p.paper.ink) >= 7, set.id .. " Now and Next marks keep 7:1 on the lit tile")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local f = io.open("src/Client/SeasonPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("popupStyleOf", 1, true) ~= nil and src:find("paper.edge", 1, true) ~= nil and src:find("ringColor", 1, true) ~= nil, "Season tiles ask the set paper and ring")
 	end
 end })
 
