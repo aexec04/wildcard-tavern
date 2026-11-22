@@ -12,7 +12,7 @@
 
 local M = {}
 
-M.MIN_TEXT = 11
+M.MIN_TEXT = 14
 M.DESIGN_W, M.DESIGN_H = 1280, 720
 
 -- opaque area of each picture (x0, y0, x1, y1 as fractions), measured from the generated PNGs
@@ -48,7 +48,7 @@ function M.layout(w, h, mode)
 	if mode == "pick" then
 		out.cards = { R(305, 280, 210, 230), R(535, 280, 210, 230), R(765, 280, 210, 230) }
 	else
-		out.rewards = R(300, 280, 340, 230)
+		out.rewards = R(304, 280, 336, 230)
 		out.summary = R(660, 280, 320, 230)
 	end
 	return out
