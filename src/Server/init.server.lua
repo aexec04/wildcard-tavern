@@ -2955,6 +2955,16 @@ Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto equip:<setId> really equips the set (no ownership check) so the equipped path can be checked on the table.
+Rem.DebugEquipSet.OnServerEvent:Connect(function(player, setId)
+	if not RunService:IsStudio() then return end
+	local profile = profiles[player]
+	if not profile or type(setId) ~= "string" or not CosmeticSets.getById(setId) then return end
+	profile.equippedSetId = setId
+	profileDirty[player] = true
+	pushState(player)
+end)
+
 Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
 	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
 	player:SetAttribute("PreviewMode", on == true or nil)

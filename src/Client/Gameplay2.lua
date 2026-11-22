@@ -179,6 +179,7 @@ function M.install(deps)
 			wallBanners[side] = img
 		end
 	end
+	task.defer(function() pcall(function() require(script.Parent.TableDress).install() end) end) -- pile, banners and seat faces wear the shown set's colours
 	-- centre of the felt: the round score and a thin gold underline, quiet so the cards stand out
 	local scoreBox = Instance.new("Frame")
 	scoreBox.Name = "CenterScore"

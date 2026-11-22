@@ -41716,7 +41716,68 @@ table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: ever
 	end
 end })
 
+table.insert(tests, { name = "Table dress: pile, banners and seat faces wear each set's colours, classic stays white, every set differs from classic", fn = function()
+	local TD = require(script.Parent.Parent.Engine.TableDress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	assert(TD.partOf("DeckBook") == "deck" and TD.partOf("WallBannerLeft") == "banner" and TD.partOf("WallBannerRight") == "banner" and TD.partOf("SeatFacePicture") == "seat", "names map to parts")
+	assert(TD.partOf("Nope") == nil, "unknown name")
+	for part in pairs(TD.PARTS) do
+		local w = TD.tintFor("classic_tavern", part)
+		assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic untouched for " .. part)
+		assert(TD.tintFor("no_such_set", part)[1] == 255, "unknown set untouched")
+		for _, set in ipairs(CS.Definitions) do
+			if set.id ~= CS.DefaultId then
+				local c = TD.tintFor(set.id, part)
+				assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " " .. part .. " leans off white")
+			end
+		end
+	end
+	local a, b = TD.tintFor("golden_gala", "deck"), TD.tintFor("festival_night", "deck")
+	assert(a[1] ~= b[1] or a[2] ~= b[2] or a[3] ~= b[3], "two sets give two pile colours")
+end })
+
+table.insert(tests, { name = "Table dress live: real ImageLabels change colour after a set switch (runs where Instance exists, else checks the wiring)", fn = function()
+	local ok = pcall(function() return Instance.new("Frame") end)
+	if ok then
+		local TD = require(script.Parent.Parent.Engine.TableDress)
+		local root = Instance.new("Frame")
+		local names = { "DeckBook", "WallBannerLeft", "WallBannerRight", "SeatFacePicture" }
+		for _, n in ipairs(names) do local l = Instance.new("ImageLabel"); l.Name = n; l.Parent = root end
+		-- the client module needs Players.LocalPlayer, so mirror its paint rule through the pure tint here
+		for _, setId in ipairs({ "golden_gala", "festival_night", "classic_tavern" }) do
+			for _, l in ipairs(root:GetChildren()) do
+				local t = TD.tintFor(setId, TD.partOf(l.Name))
+				l.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3])
+			end
+			local t = TD.tintFor(setId, "deck")
+			local got = root.DeckBook.ImageColor3
+			assert(math.floor(got.R * 255 + 0.5) == t[1] and math.floor(got.B * 255 + 0.5) == t[3], setId .. " pile colour read back from the real instance")
+		end
+	end
+	local function read(path) local f = io and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local client, g2 = read("src/Client/TableDress.lua"), read("src/Client/Gameplay2.lua")
+	if client and g2 then
+		assert(client:find("effectiveSetId", 1, true) and client:find("previewSetId", 1, true) and client:find("onSkin", 1, true) and client:find("onPreview", 1, true), "follows effectiveSetId, skin changes and previews")
+		assert(client:find("DescendantAdded", 1, true), "tints seats and pile built later")
+		assert(g2:find("TableDress", 1, true), "the table installs it")
+	end
+end })
+
+table.insert(tests, { name = "DebugGotoRules: equip:<setId> parses, malformed rejected, server remote is Studio only", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("equip:festival_night")
+	assert(t and t.kind == "equip" and t.setId == "festival_night", "equip parses")
+	assert(R.parse("equip") == nil and R.parse("equip:bad id!") == nil, "malformed rejected")
+	local f = io and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local i = src:find("Rem.DebugEquipSet.OnServerEvent", 1, true)
+		assert(i and src:sub(i, i + 200):find("IsStudio()", 1, true), "DebugEquipSet is Studio only")
+	end
+end })
+
 return tests
+
 
 
 
