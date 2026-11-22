@@ -70,3 +70,10 @@ Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with 
    DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
    DONE (21 to 23): Engine/Gameplay2Perf with the limit and a loop lint, the guide pulse on FxLoop, AuditV2 prints the live GuiObject count, boss entrance and tooltip cues wired, tests. The live counts need a Studio run.
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
+
+- Per set Counter shop: Patron card frames pick up the set accent. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: the Counter Patron card body outline wears the set accent (SetInk), the rarity frame keeps its colour, classic stays dark brown.
+- Per set Collection wall header and tab art tint. No spend. Concrete values, a test, one commit, STATUS line.
+- Per set Run Over and Victory background wash from the set room. No spend. Concrete values, a test, one commit, STATUS line.
+- Per set Tavern Map node icons tint. No spend. Concrete values, a test, one commit, STATUS line.
+- Per set loading screen tip line and colour. No spend. Concrete values, a test, one commit, STATUS line.

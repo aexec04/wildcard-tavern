@@ -317,7 +317,11 @@ function ShopCards.new(deps)
 			local hs = stroke(body, Color3.fromRGB(246, 196, 70), 4, 0)
 			hs.Name = "FirstBuyOutline"
 		else
-			stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+			local edge = stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+			pcall(function() -- a Card Set's accent outline on the card body (the rarity frame inside keeps its own colour); classic stays dark brown
+				local ink = require(script.Parent.SetInk).get()
+				if ink then edge.Name = "SetEdge"; edge.Color = ink.accent end
+			end)
 		end
 		card.body = body
 

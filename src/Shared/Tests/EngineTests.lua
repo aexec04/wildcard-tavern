@@ -40233,4 +40233,23 @@ table.insert(tests, { name = "Next Round, Reroll, Buy and round buttons take the
 	end
 end })
 
+table.insert(tests, { name = "Counter Patron card frames pick up the set accent: SetInk outline on the card body, rarity frame untouched, classic dark brown", fn = function()
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('SetInk', 1, true) ~= nil and src:find('edge.Name = "SetEdge"', 1, true) ~= nil, "card body outline asks SetInk")
+	expectTrue(src:find("Color3.fromRGB(30, 20, 12), 2, 0)", 1, true) ~= nil, "classic keeps the dark brown outline")
+	expectTrue(src:find("RarityFrame.apply(artFrame", 1, true) ~= nil, "the rarity frame is still drawn on the art")
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	for _, def in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(def.id)
+		if def.id ~= "classic_tavern" then
+			-- the outline sits on the dark wood card body: accent against it is at least 3:1 (it is a frame, the words inside are separate)
+			expectTrue(CS.contrastRatio(st.accent, { 52, 34, 20 }) >= 3, def.id .. " accent outline shows on the card wood")
+		end
+	end
+end })
+
 return tests
