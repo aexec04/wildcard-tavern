@@ -31882,14 +31882,14 @@ table.insert(tests, { name = "PatronJuice: each tier adds an effect, Calm mode k
 	assert(r.ring > 0 and r.sweep > 0 and r.sparks == 0, "rare adds the sweep")
 	assert(e.sparks == 6 and e.crown > 0 and e.rays == 0, "epic: 6 sparks and a crown flash")
 	assert(l.rays == 0.5 and l.edge > 0 and l.sparks == 6, "legendary: rays for 0.5 s and the edge glow")
-	assert(l.pill.rise == 24 and l.pill.dur == 0.7, "the pill rises 24 px over 0.7 s")
+	assert(l.pill.rise == 24 and l.pill.dur == 0.6, "the pill rises 24 px over 0.6 s")
 	for _, tier in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
 		local k = J.spec(tier, true)
 		assert(k.static and k.hop == 0 and k.ring == 0 and k.sweep == 0 and k.sparks == 0 and k.crown == 0 and k.rays == 0 and k.edge == 0 and k.pill.rise == 0, "calm: text only " .. tier)
 		assert(J.spec(tier, false, true).pill.dur < J.spec(tier).pill.dur, "fast halves " .. tier)
 	end
 	assert(J.tierOf("mythical") == "legendary" and J.tierOf("nonsense") == "common" and J.tierOf("EPIC") == "epic", "tier names")
-	assert(J.pillText("chips", 30) == "+30 Chips" and J.pillText("mult", 4) == "+4 Mult" and J.pillText("xmult", 1.5) == "x1.5" and J.pillText("money", 3) == "" and J.pillText("mult", nil) == "", "pill text")
+	assert(J.pillText("chips", 30) == "+30 Chips" and J.pillText("mult", 4) == "+4 Mult" and J.pillText("xmult", 1.5) == "x1.5" and J.pillText("money", 3) == "+$3" and J.pillText("other", 3) == "" and J.pillText("mult", nil) == "", "pill text")
 	local o = J.order({ "a", "b", "c", "d" }, { "d", "b" })
 	assert(#o == 2 and o[1] == "b" and o[2] == "d", "row order, left to right")
 	assert(J.delayOf(1) == 0 and math.abs(J.delayOf(3) - 0.24) < 1e-9, "0.12 s apart")
@@ -37994,6 +37994,22 @@ table.insert(tests, { name = "Run feel: deal, slide, slam and flip times sit in 
 	local function read(path) local f = io.open(path, "r"); local t = f:read("*a"); f:close(); return t end
 	expectTrue(read("src/Client/DealFlip.lua"):find("FLIP_TIME = 0.15", 1, true) ~= nil, "flip 0.15 s")
 	expectTrue(read("src/Client/Gameplay2ScoreFX.lua"):find("TweenInfo.new(0.35, Enum.EasingStyle.Quad", 1, true) ~= nil, "burst 0.35 s")
+end })
+
+table.insert(tests, { name = "Patron cue: every kind a Patron can score shows text, the pill is 16 px or more and rises 24 px over 0.6 s", fn = function()
+	local J = require(script.Parent.Parent.Engine.PatronJuice)
+	for _, kind in ipairs({ "chips", "mult", "xmult", "money" }) do
+		expectTrue(J.pillText(kind, 5) ~= "", kind .. " has a cue text")
+	end
+	expectTrue(J.PILL_RISE == 24 and J.PILL_DUR == 0.6, "24 px over 0.6 s")
+	for _, tier in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+		local sp = J.spec(tier, false)
+		expectTrue(sp.pill.rise == 24 and sp.hop > 0, tier .. " pulses and rises")
+		expectTrue(J.spec(tier, true).pill.dur > 0, tier .. " keeps a static cue in Calm mode")
+	end
+	if not io then return end
+	local f = io.open("src/Client/PatronJuiceFX.lua", "r"); local src = f:read("*a"); f:close()
+	for size in src:gmatch("TextSize = (%d+)") do expectTrue(tonumber(size) >= 16, "pill text " .. size .. " px") end
 end })
 
 return tests

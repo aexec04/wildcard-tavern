@@ -171,7 +171,7 @@ function M.play(slot, tier, kind, amount, rim)
 			return true
 		end
 		local function frac(d) return d > 0 and math.min(1, e / d) or 1 end
-		if p then -- rises 24 px and fades over 0.7 s, the rim fades with it
+		if p then -- rises 24 px and fades over 0.6 s, the rim fades with it
 			local f = frac(spec.pill.dur)
 			p.Position = UDim2.new(0.5, 0, 0, -4 - spec.pill.rise * f)
 			local a = f > 0.5 and (f - 0.5) * 2 or 0

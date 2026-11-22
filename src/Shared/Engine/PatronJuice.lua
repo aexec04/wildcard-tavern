@@ -21,7 +21,7 @@
 local M = {}
 
 M.SPACING = 0.12
-M.PILL_RISE, M.PILL_DUR = 24, 0.7
+M.PILL_RISE, M.PILL_DUR = 24, 0.6
 
 local ORDER = { common = 1, uncommon = 2, rare = 3, epic = 4, legendary = 5 }
 
@@ -70,6 +70,7 @@ function M.pillText(kind, amount)
 	if kind == "chips" then return "+" .. s .. " Chips" end
 	if kind == "mult" then return "+" .. s .. " Mult" end
 	if kind == "xmult" then return "x" .. s end
+	if kind == "money" then return "+$" .. s end
 	return ""
 end
 
