@@ -10750,40 +10750,62 @@ end })
 
 -- ===== First 5 minutes: goal banner, first rewards, funnel and analytics =====
 
-table.insert(tests, { name = "NextGoal: tutorial, first win, quest, unlock, rank in that order, always a short line and a 0 to 1 bar", fn = function()
+table.insert(tests, { name = "NextGoal: every state has one kid safe goal of 40 characters or less, finished steps never return", fn = function()
 	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)
 	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
 	local names = { unlock = function(kind, id) return "Thing " .. id end }
+	local function check(goal, kind, label)
+		expectTrue(goal ~= nil, label .. ": a goal exists")
+		expectEqual(goal.kind, kind, label)
+		expectTrue(#goal.text > 0 and #goal.text <= 40, label .. " short line: " .. goal.text)
+		expectTrue(goal.ratio >= 0 and goal.ratio <= 1, label .. " bar 0 to 1")
+		expectTrue(not goal.text:lower():find("balatro") and not goal.text:lower():find("beer") and not goal.text:lower():find("wine"), label .. " kid safe")
+	end
+	local day = 20000
 	local profile = PlayerProfile.new()
-	local goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "tutorial")
+	check(NextGoal.compute(profile, day, names), "tutorial", "fresh profile")
 	profile.hasSeenTutorial = true
-	profile.stats.bestNightReached = 3
-	goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "firstWin")
-	expectEqual(goal.ratio, 3 / 8)
-	profile.stats.runsWon = 1
-	goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "quest", "an unfinished daily quest comes next")
-	expectTrue(goal.text:find("%(%d+/%d+%)") ~= nil)
-	-- finish all three quests: the closest unlock is next
-	Quests.ensureDay(profile, 20000)
+	check(NextGoal.compute(profile, day, names), "night1", "tutorial done")
+	-- Night 1 cleared, today's chest waiting
+	profile.stats.bestNightReached = 2
+	profile.stats.runsStarted = 1
+	profile.stats.handsPlayedTotal = 10
+	LoginStreak.checkIn(profile, day)
+	check(NextGoal.compute(profile, day, names), "chest", "Night 1 cleared, chest waiting")
+	-- chest claimed: the Patron step, then Card Set, then a quest
+	LoginStreak.claim(profile, LoginStreak.slotFor(profile.loginStreak), nil)
+	check(NextGoal.compute(profile, day, names), "hire", "chest claimed, no shop seen")
+	profile.stats.handsPlayedTotal = 30
+	check(NextGoal.compute(profile, day, names), "cardset", "starter look")
+	profile.ownedSetIds.winter_evening = true
+	check(NextGoal.compute(profile, day, names), "quest", "an unfinished quest")
+	Quests.ensureDay(profile, day)
 	for _, id in ipairs(profile.quests.ids) do profile.quests.done[id] = true end
-	goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "unlock")
-	expectTrue(goal.text:find("Thing ") ~= nil and goal.ratio >= 0 and goal.ratio < 1)
-	-- nothing measurable left: the next rank, then the top
+	check(NextGoal.compute(profile, day, names), "firstWin", "quests done, no win yet")
+	-- many runs: unlock, rank, then the evergreen Daily Challenge
+	profile.stats.runsStarted = 40
+	profile.stats.runsWon = 5
+	check(NextGoal.compute(profile, day, names), "unlock", "many runs")
 	for kind, rules in pairs(require(script.Parent.Parent.Engine.Unlocks).Rules) do
 		for id in pairs(rules) do profile.unlockedContent[kind .. ":" .. id] = true end
 	end
-	goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "rank")
+	check(NextGoal.compute(profile, day, names), "rank", "everything unlocked")
 	profile.tavernXp = require(script.Parent.Parent.Engine.TavernRank).MAX_XP
-	goal = NextGoal.compute(profile, 20000, names)
-	expectEqual(goal.kind, "done")
-	for _, g in ipairs({ goal }) do
-		expectTrue(g.ratio >= 0 and g.ratio <= 1 and #g.text > 0 and #g.text <= 70, "short line: " .. g.text)
-	end
+	check(NextGoal.compute(profile, day, names), "daily", "top rank")
+	-- finished steps do not come back: a cleared Night 1 never shows night1 again
+	profile.stats.bestNightReached = 5
+	expectTrue(NextGoal.compute(profile, day, names).kind ~= "night1")
+	-- a long Patron name still fits
+	local fresh = PlayerProfile.new()
+	fresh.hasSeenTutorial = true
+	fresh.stats.bestNightReached = 3
+	fresh.stats.runsStarted = 9
+	fresh.stats.runsWon = 1
+	fresh.stats.handsPlayedTotal = 99
+	fresh.ownedSetIds.winter_evening = true
+	local long = NextGoal.compute(fresh, nil, { unlock = function() return string.rep("Long", 20) end })
+	expectTrue(#long.text <= 40, "long names are clipped: " .. long.text)
 end })
 
 table.insert(tests, { name = "Unlocks.closest: picks the nearest measurable closed item, none once everything is open", fn = function()
