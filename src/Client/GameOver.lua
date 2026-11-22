@@ -233,7 +233,7 @@ return function(deps)
 
 	local continueButton = button(actionsF, "ContinueButton", "One More Round", WOOD, GOLD_TEXT, 16)
 	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", GREEN, CREAM, 20)
-	local tavernButton = button(actionsF, "BackToTavern", "Menu", WOOD, CREAM, 16)
+	local tavernButton = button(actionsF, "BackToTavern", "Back to Tavern", WOOD, CREAM, 16)
 	local shareButton = button(moreF, "ShareResult", "Share", WOOD, CREAM, 16)
 	local challengeButton = button(moreF, "ChallengeFriend", "Challenge", WOOD, CREAM, 16)
 	local inviteButton = button(moreF, "InviteFriends", "Invite", WOOD, CREAM, 16)

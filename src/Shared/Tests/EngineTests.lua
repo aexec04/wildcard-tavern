@@ -22995,7 +22995,7 @@ table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varie
 	if not f then return end
 	local src = f:read("*a")
 	f:close()
-	expectTrue(src:find('"BackToTavern", "Menu"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Menu button (the Back to Tavern action)")
+	expectTrue(src:find('"BackToTavern", "Back to Tavern"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Menu button (the Back to Tavern action)")
 	expectTrue(src:find("AccentBar", 1, true) == nil, "red accent line removed")
 	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
 end })
@@ -34752,10 +34752,11 @@ table.insert(tests, { name = "Run Over: summary names the night, best hand, scor
 	if not io then return end
 	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
 	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: ", "Patrons used", "unlockLine(names)", "Next unlock: ",
-		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
+		'"PlayAgain", "Play Again"', '"BackToTavern", "Back to Tavern"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
 		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
 	end
-	expectTrue(src:find("Back to Tavern\"", 1, true) == nil, "no second name for the Menu button")
+	local _, namedCount = src:gsub('"Back to Tavern"', "")
+	expectEqual(namedCount, 1, "the Menu button has one name, Back to Tavern, and no second label")
 end })
 
 table.insert(tests, { name = "Boss intro: the plate stands below the Patron row at four sizes, never over the top bar or the seats, rule text shrinks instead of truncating", fn = function()
@@ -42004,6 +42005,28 @@ table.insert(tests, { name = "Hand reference: level ups since the last open flas
 	expectTrue(src:find("HandLedger.levelUps", 1, true) ~= nil and src:find("hintStyleOf", 1, true) ~= nil, "panel flashes in the set accent")
 	expectTrue(src:find("if not calm() then\n\t\t\t\t\tstroke.Thickness = 5", 1, true) ~= nil, "the flash tween is skipped in Calm")
 	expectTrue(src:find("PopupSkin", 1, true) ~= nil, "the panel wears the set plate")
+end })
+
+table.insert(tests, { name = "Run Over retry flow: Try Again after a loss, Back to Tavern, Best Night line, one tap to a new run, set plates, Escape kept", fn = function()
+	local E = script.Parent.Parent.Engine
+	local BL = require(E.BestLine)
+	expectTrue(BL.text({ bestNightReached = 5, bestHandScore = 1200 }):find("Best: Night 5", 1, true) ~= nil, "Best Night shows from profile stats")
+	expectTrue(#BL.text({ bestNightReached = 5, bestHandScore = 1200 }) <= BL.MAX_CHARS, "the line is short")
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local go, init = read("src/Client/GameOver.lua"), read("src/Client/init.client.lua")
+	if not (go and init) then return end
+	expectTrue(go:find('isWin and "Play Again" or "Try Again"', 1, true) ~= nil, "Try Again after a loss")
+	expectTrue(go:find('"BackToTavern", "Back to Tavern"', 1, true) ~= nil, "the second action says Back to Tavern")
+	expectTrue(go:find('paintedButton(b, "primary")', 1, true) ~= nil and go:find('paintedButton(b, "secondary")', 1, true) ~= nil, "buttons take the set plates")
+	expectTrue(go:find("BestLine", 1, true) ~= nil, "Best Night line is on the screen")
+	local a = init:find("GameOverPanel.playAgainButton.MouseButton1Click:Connect(function()", 1, true)
+	expectTrue(a ~= nil, "Try Again is wired")
+	if a then
+		local body = init:sub(a, a + 400)
+		expectTrue(body:find("RestartRunRemote:FireServer()", 1, true) ~= nil, "one tap starts a new run (no confirm step)")
+	end
+	expectTrue(init:find("GameOverPanel.gameOverFrame }", 1, true) ~= nil or init:find("GameOverPanel.gameOverFrame,", 1, true) ~= nil, "Escape still dismisses through PopupDismiss")
 end })
 
 return tests
