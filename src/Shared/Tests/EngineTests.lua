@@ -10892,6 +10892,94 @@ table.insert(tests, { name = "Run variety audit: every Event option, skip Tag an
 	end
 end })
 
+table.insert(tests, { name = "Soft lock check: scripted runs through Nights 1 to 3 always have a legal next action, Tips never go negative, the hand never empties mid round and no card is lost", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local function cards(s) return #s.deck + #s.hand + #s.discardPile end
+	local function invariants(s, label)
+		expectTrue(type(s.tips) == "number" and s.tips >= 0 and s.tips == math.floor(s.tips), label .. ": Tips whole and not negative")
+		expectTrue(s.handsRemaining >= 0 and s.discardsRemaining >= 0, label .. ": hands and discards not negative")
+		if not s.roundOver and not s.runOver then
+			expectTrue(#s.hand >= 1, label .. ": hand never empty mid round")
+			expectTrue(s.handsRemaining >= 1, label .. ": a round in progress has a hand left to play")
+			expectTrue(RunState.hasLegalPlay(s), label .. ": a legal play exists")
+		end
+	end
+	for seed = 1, 8 do
+		local rng = SeededRng.new(seed)
+		local s = RunState.new(nil, rng)
+		s.strangerSeed = seed * 31 + 7
+		local total = cards(s)
+		local steps, wonRounds = 0, 0
+		while s.night <= 3 and not s.runOver and steps < 400 do
+			steps = steps + 1
+			invariants(s, "seed " .. seed .. " step " .. steps)
+			-- Round Select: on even seeds the first round of a Night is skipped for its Tag
+			if seed % 2 == 0 and s.round == 1 and RunState.canSkipRound(s) then
+				local tag = RunState.skipRound(s)
+				expectTrue(tag ~= nil, "skip gives a Tag")
+				invariants(s, "after skip")
+				expectEqual(cards(s), total, "skip keeps every card")
+			end
+			if not s.roundOver then
+				s.targetScore = 1 -- an easy target so the script reaches the Counter
+				if s.discardsRemaining > 0 and #s.hand > 1 then
+					RunState.discard(s, { 1 })
+					invariants(s, "after discard")
+					expectEqual(cards(s), total, "discard keeps every card")
+				end
+				local ok = pcall(RunState.playHand, s, { 1 })
+				if not ok then
+					ok = pcall(RunState.playHand, s, { 1, 2, 3, 4, 5 })
+				end
+				expectTrue(ok or s.roundOver or s.runOver, "some legal play always works")
+				invariants(s, "after play")
+			end
+			if s.roundOver and not s.runOver then
+				wonRounds = wonRounds + 1
+				-- Counter: buy what is affordable, reroll once, sell one, then leave
+				local offers = Shop.rollOffers(s)
+				for _, offer in ipairs(offers.patrons or {}) do
+					local price = RunState.patronPrice(s, offer)
+					if s.tips >= price and #s.ownedPatrons < RunState.patronSlotLimit(s) then
+						RunState.buyPatron(s, offer.id)
+						expectTrue(s.tips >= 0, "buying never goes negative")
+						break
+					end
+				end
+				local cost = RunState.rerollCost(s, Shop.REROLL_BASE_COST or 2)
+				if cost >= 1 and s.tips >= cost then
+					s.tips = s.tips - cost
+					Shop.rollOffers(s)
+				end
+				if #s.ownedPatrons > 1 then
+					RunState.sellPatron(s, s.ownedPatrons[#s.ownedPatrons].id)
+				end
+				invariants(s, "Counter")
+				-- a poor or empty Counter is never a dead end: leaving is always legal
+				RunState.advanceToNextRound(s)
+				expectEqual(cards(s), total, "next round keeps every card")
+				invariants(s, "after advance")
+				if s.round == 1 and s.night >= 2 then
+					local choice = RunChoice.rollEvent(s, true)
+					local guard = 0
+					while choice and guard < 4 do
+						guard = guard + 1
+						local picked, _, _, nextChoice = RunChoice.pick(s, choice, "decline")
+						if not picked then
+							picked, _, _, nextChoice = RunChoice.pick(s, choice, choice.options[1].id)
+						end
+						expectTrue(picked ~= nil, "an event card can always be answered")
+						choice = nextChoice
+						invariants(s, "after event")
+					end
+				end
+			end
+		end
+		expectTrue(steps < 400, "seed " .. seed .. " reaches Night 4 or ends cleanly, not an endless loop")
+		expectTrue(wonRounds >= 1, "seed " .. seed .. " cleared at least one round")
+	end
+end })
+
 table.insert(tests, { name = "Tavern Events: the new trade events offer three choices with a cost, and the Choice plates are 44 px tall", fn = function()
 	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
 	for _, id in ipairs({ "gamblers_table", "wandering_tailor", "cellar_cat" }) do
