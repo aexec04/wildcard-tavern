@@ -38117,4 +38117,124 @@ table.insert(tests, { name = "Tutorial and How to play text: one short sentence 
 	expectTrue(How.Tiles[6].text:find(tostring(nights), 1, true) ~= nil, "Nights count matches WorldMap")
 end })
 
+-- INPUT FUZZ: the server calls these engine functions after its own checks; whatever gets through must either
+-- work or fail with the state untouched (RunState transacts), never half apply.
+do
+	local PayloadGuard = require(script.Parent.Parent.Engine.PayloadGuard)
+	local function signature(state)
+		local owned = {}
+		for _, p in ipairs(state.ownedPatrons) do owned[#owned + 1] = p.id end
+		return table.concat({
+			state.tips, state.handsRemaining, state.discardsRemaining, #state.hand, #state.deck, #state.discardPile,
+			state.round, state.night, tostring(state.roundOver), tostring(state.runOver), table.concat(owned, ","),
+		}, "|")
+	end
+	local function fresh()
+		local state = RunState.new(nil, function(n) return n end)
+		RunState.startRound(state)
+		return state
+	end
+
+	table.insert(tests, { name = "Input fuzz: discard with none left and play or discard after the round ends leave state intact", fn = function()
+		local state = fresh()
+		state.discardsRemaining = 0
+		local before = signature(state)
+		expectFalse(pcall(RunState.discard, state, { 1 }))
+		expectEqual(signature(state), before)
+		local guard = 0
+		while not state.roundOver and guard < 20 do
+			guard = guard + 1
+			RunState.playHand(state, { 1 })
+		end
+		expectTrue(state.roundOver, "round ended")
+		local after = signature(state)
+		for _ = 1, 3 do
+			expectFalse(pcall(RunState.playHand, state, { 1 }), "play after the round ended is rejected")
+			expectFalse(pcall(RunState.discard, state, { 1 }), "discard after the round ended is rejected")
+		end
+		expectEqual(signature(state), after)
+	end })
+
+	table.insert(tests, { name = "Input fuzz: bad index lists never pass the guard, and engine calls with them leave state intact", fn = function()
+		local state = fresh()
+		local before = signature(state)
+		local junk = {
+			{}, { 0 }, { -1 }, { 1.5 }, { 0/0 }, { math.huge }, { 99 }, { "1" }, { 1, 1 }, { 1, 2, 3, 4, 5, 6 },
+			{ { 1 } }, { [2] = 1 }, { a = 1 }, { 1, nil, 3 }, "1", 1, true,
+		}
+		for i, list in ipairs(junk) do
+			expectFalse(PayloadGuard.indexList(list, #state.hand), "guard refuses junk " .. i)
+		end
+		-- the server only forwards lists the guard accepts, so that is what the engine must survive
+		local forwarded = 0
+		for _, list in ipairs(junk) do
+			if PayloadGuard.indexList(list, #state.hand) then
+				forwarded = forwarded + 1
+				pcall(RunState.playHand, state, list)
+			end
+		end
+		expectEqual(forwarded, 0)
+		expectEqual(signature(state), before)
+	end })
+
+	table.insert(tests, { name = "Input fuzz: buying twice, unknown ids and a full table never corrupt tips or seats", fn = function()
+		local state = fresh()
+		state.tips = 50
+		local ok1 = RunState.buyPatron(state, "the_regular")
+		local ok2 = RunState.buyPatron(state, "the_regular")
+		expectTrue(ok1)
+		local price = Patrons.getById("the_regular").price
+		expectEqual(state.tips, 50 - price * (ok2 and 2 or 1))
+		local snap = signature(state)
+		for _, id in ipairs({ "", "nope", "__index", "the_regular\0" }) do
+			expectFalse(RunState.buyPatron(state, id), "unknown id refused")
+		end
+		expectEqual(signature(state), snap)
+		local guard = 0
+		while RunState.buyPatron(state, "the_regular") and guard < 20 do guard = guard + 1 end
+		state.tips = 999
+		local full = signature(state)
+		expectFalse(RunState.buyPatron(state, "the_regular"))
+		expectEqual(signature(state), full)
+		while RunState.sellPatron(state, "the_regular") do end
+		expectEqual(#state.ownedPatrons, 0)
+		local tipsAfter = state.tips
+		local ok3, refund3 = RunState.sellPatron(state, "the_regular")
+		expectFalse(ok3)
+		expectEqual(refund3, 0)
+		expectEqual(state.tips, tipsAfter)
+	end })
+
+	table.insert(tests, { name = "Input fuzz: phase gates refuse card actions outside play and shop actions outside the shop", fn = function()
+		for _, phase in ipairs({ "menu", "roundSelect", "shop", "gameover", "", "PLAYING", "playing " }) do
+			expectFalse(RunState.phaseAllowsCardActions(phase), "no card actions in " .. phase)
+		end
+		expectFalse(RunState.phaseAllowsCardActions(nil))
+		for _, phase in ipairs({ "menu", "roundSelect", "playing", "gameover", "", "SHOP" }) do
+			expectFalse(RunState.phaseAllowsShopActions(phase), "no shop actions in " .. phase)
+		end
+		expectTrue(RunState.phaseAllowsCardActions("playing"))
+		expectTrue(RunState.phaseAllowsShopActions("shop"))
+	end })
+
+	table.insert(tests, { name = "Input fuzz: random action storm keeps counters and seats in range", fn = function()
+		local seed = 12345
+		local function rnd(n) seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n + 1 end
+		local state = fresh()
+		for _ = 1, 400 do
+			local roll = rnd(6)
+			if roll == 1 then pcall(RunState.playHand, state, { rnd(10) })
+			elseif roll == 2 then pcall(RunState.discard, state, { rnd(10) })
+			elseif roll == 3 then state.tips = state.tips + 5; RunState.buyPatron(state, "the_regular")
+			elseif roll == 4 then RunState.sellPatron(state, "the_regular")
+			elseif roll == 5 then pcall(RunState.advanceToNextRound, state)
+			elseif state.roundOver and not state.runOver then pcall(RunState.startRound, state) end
+			expectTrue(state.tips >= 0, "tips never negative")
+			expectTrue(state.handsRemaining >= 0 and state.discardsRemaining >= 0, "counters never negative")
+			expectTrue(#state.ownedPatrons <= RunState.patronSlotLimit(state), "seats within the limit")
+			if state.runOver then break end
+		end
+	end })
+end
+
 return tests
