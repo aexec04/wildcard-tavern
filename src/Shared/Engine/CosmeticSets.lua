@@ -943,6 +943,23 @@ function CosmeticSets.indexStyle(set, isRed)
 	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
 end
 
+-- Gamepad focus ring colour for a set: the set accent lightened toward white until it keeps 3:1 against the dark wood behind buttons;
+-- classic and unknown sets keep the gold ring. Returns {r,g,b}.
+CosmeticSets.FOCUS_RING_GOLD = { 246, 196, 70 }
+CosmeticSets.FOCUS_RING_BACKING = { 40, 26, 16 }
+function CosmeticSets.focusRingOf(setId)
+	local set = CosmeticSets.getById(setId)
+	if not set or set.id == CosmeticSets.DefaultId then return CosmeticSets.FOCUS_RING_GOLD end
+	local ring = CosmeticSets.accentOf(set)
+	if not ring then return CosmeticSets.FOCUS_RING_GOLD end
+	local steps = 0
+	while CosmeticSets.contrastRatio(ring, CosmeticSets.FOCUS_RING_BACKING) < 3 and steps < 10 do
+		ring = mix(ring, { 255, 255, 255 }, 0.2)
+		steps = steps + 1
+	end
+	return ring
+end
+
 -- Colorblind Suits ink for one suit mark ({r,g,b}) on a set's card: darkened toward black until it reads at the set's
 -- minimum contrast on both the face paper and the index plate. Returns {r,g,b}.
 function CosmeticSets.colorblindInkOf(set, markInk)

@@ -18,6 +18,7 @@ local Focus = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Eng
 local M = {}
 local installed, usingPad = false, false
 local current, ring, ringTarget, scopeOf
+local ringColor = Color3.fromRGB(Focus.RING.color[1], Focus.RING.color[2], Focus.RING.color[3]) -- the equipped Card Set's accent, see setRingColor
 
 local function ringFrame()
 	if ring then return ring end
@@ -26,7 +27,7 @@ local function ringFrame()
 	ring.BackgroundTransparency = 1
 	ring.Size = UDim2.new(1, 0, 1, 0)
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(Focus.RING.color[1], Focus.RING.color[2], Focus.RING.color[3])
+	stroke.Color = ringColor
 	stroke.Thickness = Focus.RING.thickness
 	stroke.Parent = ring
 	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 8); corner.Parent = ring
@@ -64,6 +65,14 @@ local function focus(button)
 	local f = ringFrame()
 	f.ZIndex = button.ZIndex + 5
 	f.Parent = button -- parented to the button so it follows it and survives a Clone of its slot
+end
+
+-- Called when the equipped Card Set changes: rgb table {r,g,b}. Colour only, no tween.
+function M.setRingColor(c)
+	if type(c) ~= "table" then return end
+	ringColor = Color3.fromRGB(c[1], c[2], c[3])
+	local stroke = ring and ring:FindFirstChildOfClass("UIStroke")
+	if stroke then stroke.Color = ringColor end
 end
 
 function M.install(getMenuRoot, tableActive)

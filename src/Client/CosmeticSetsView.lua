@@ -93,6 +93,7 @@ local function applyTheme(set)
 			warn(("[SetSkin] cardLook set=%s edge=%s paper=%s motif=%s"):format(tostring(set.id), table.concat(look.edge, ","), table.concat(look.paper, ","), tostring(look.motif)))
 		end
 		pcall(function() require(script.Parent.CardFace).setStyle(face, set) end)
+		pcall(function() require(script.Parent.GamepadMenuNav).setRingColor(CosmeticSets.focusRingOf(set.id)) end)
 	end
 	local accent = theme.accent and Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3]) or nil
 	for _, name in ipairs(SetSkin.HUD_PANELS) do -- side panel, hand tray and draw pile wear the panel skin too

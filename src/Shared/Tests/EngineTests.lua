@@ -33902,6 +33902,19 @@ table.insert(tests, { name = "First five minutes: no timed step that is not a ch
 	expectEqual(M2.nightIntro(true, false), nil, "Calm mode has no timed intro")
 end })
 
+table.insert(tests, { name = "GamepadFocus: the focus ring takes the Card Set accent at 3:1 or more on the dark wood, classic keeps gold, every set has one", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.focusRingOf(CS.DefaultId), CS.FOCUS_RING_GOLD, "classic keeps the gold ring")
+	expectEqual(CS.focusRingOf("no_such_set"), CS.FOCUS_RING_GOLD, "unknown set keeps gold")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		n = n + 1
+		local c = CS.focusRingOf(set.id)
+		expectTrue(type(c) == "table" and #c == 3, set.id .. " has a ring colour")
+		expectTrue(CS.contrastRatio(c, CS.FOCUS_RING_BACKING) >= 3, set.id .. " ring reads at 3:1 on the dark wood")
+	end
+	expectTrue(n >= 14, "all sets checked")
+end })
 table.insert(tests, { name = "GamepadFocus: D-pad moves to the nearest button, wraps, starts top left, reaches every button of a menu and a popup grid", fn = function()
 	local F = require(script.Parent.Parent.Engine.GamepadFocus)
 	expectEqual(F.next({}, nil, "DPadDown"), nil, "no buttons, no focus")
