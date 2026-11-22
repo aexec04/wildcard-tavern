@@ -38259,4 +38259,48 @@ table.insert(tests, { name = "Late game: targets rise every Night from 5 to 12, 
 	expectTrue(fresh >= 4, "at least one new boss rule per two Nights across Nights 6 to 12, got " .. fresh .. " new")
 end })
 
+table.insert(tests, { name = "Daily modifiers: 12 kid safe twists, same for everyone on a date, never the same two days running, applied to the run and shown on the Menu plate and table scroll", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	expectTrue(#DM.Definitions >= 10, "at least 10 twists")
+	local ids = {}
+	for _, def in ipairs(DM.Definitions) do
+		expectTrue(not ids[def.id], "unique id " .. def.id)
+		ids[def.id] = true
+		expectTrue(#def.text > 0 and #def.text <= 60 and #def.name > 0, "short text for " .. def.id)
+		local lower = (def.name .. def.text):lower()
+		expectTrue(not lower:find("balatro") and not lower:find("beer") and not lower:find("wine") and not lower:find("ale ") and not lower:find("\226\128\148"), "safe words in " .. def.id)
+	end
+	expectTrue(DM.dayNumber("1970-01-01") == 0 and DM.dayNumber("1970-01-02") == 1 and DM.dayNumber("2000-03-01") == 11017, "day numbers")
+	local seen, prev = {}, nil
+	for d = 1, 24 do
+		local key = string.format("2026-12-%02d", d)
+		if d <= 31 then
+			local def = DM.forDate(key)
+			expectTrue(DM.forDate(key).id == def.id, "same twist all day")
+			expectTrue(prev == nil or prev ~= def.id, "no repeat two days running at " .. key)
+			prev = def.id
+			seen[def.id] = true
+		end
+	end
+	local count = 0
+	for _ in pairs(seen) do count = count + 1 end
+	expectTrue(count == #DM.Definitions, "all twists appear within 24 days")
+	expectTrue(DM.forDate("garbage").id == DM.Definitions[1].id, "bad key falls back")
+	-- applied to a run
+	local plain = RunState.new()
+	local golden = RunState.new({ dailyModifierId = "golden_start" })
+	expectTrue(golden.tips == plain.tips + 8, "Golden Start tips")
+	local short = RunState.new({ dailyModifierId = "short_hands" })
+	expectTrue(short.config.handSize == plain.config.handSize - 1 and short.config.handsPerRound == plain.config.handsPerRound + 1, "Short Hands config")
+	local solo = RunState.new({ dailyModifierId = "solo_star" })
+	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 2 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
+	expectTrue(plain.dailyModifier == nil, "normal runs have no daily twist")
+	-- Menu plate and table scroll words
+	local MenuDailyEntry = require(script.Parent.Parent.Engine.MenuDailyEntry)
+	expectTrue(MenuDailyEntry.lineFor("2026-12-01"):find("Today: " .. DM.forDate("2026-12-01").name, 1, true) ~= nil, "Menu plate names the twist")
+	expectTrue(MenuDailyEntry.lineFor("nope") == MenuDailyEntry.LINE, "Menu plate falls back")
+	local label = require(script.Parent.Parent.Engine.SeedDisplay).label({ isDaily = true, dailyDateKey = "2026-12-01", dailyModifierInfo = DM.forDate("2026-12-01") })
+	expectTrue(label.text == "Daily: " .. DM.forDate("2026-12-01").name, "table scroll names the twist")
+end })
+
 return tests

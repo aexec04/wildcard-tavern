@@ -588,6 +588,7 @@ local function serializeState(session, player)
 		handsRemaining = state.handsRemaining,
 		roundStartHands = state.roundStartHands, -- the client's score preview needs it (Sleepy Cook: first hand of the round)
 		challenge = state.challenge, -- the Challenge Run twist in force, or nil (Engine/Challenges.lua)
+		dailyModifier = state.dailyModifier, -- the Daily Run's twist of the day, or nil (Engine/DailyModifiers.lua)
 		discardsRemaining = state.discardsRemaining,
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
@@ -1032,6 +1033,7 @@ local function serializeState(session, player)
 		-- going since before a UTC midnight.
 		isDaily = session.isDaily or false,
 		dailyDateKey = session.dailyDateKey,
+		dailyModifierInfo = session.isDaily and require(Engine.DailyModifiers).forDate(session.dailyDateKey) or nil, -- { id, name, icon, text } for the table scroll
 		-- WEEKLY CHALLENGE / SEED CODES (Phase 16): same idea as the Daily
 		-- fields just above, one pair per run mode. At most one of
 		-- isDaily/isWeekly/isSeeded is ever true for a given session --
@@ -1790,6 +1792,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			-- BOSS COUNTERPLAY: Rule Ban tokens for normal runs only (never Daily, Weekly, Seed, Boss Rush, challenge, Quick or the tutorial)
 			ruleBans = seededRng == nil and isTutorial ~= true and not rush and not quick and challengeId == nil,
 			challengeId = challengeId,
+			dailyModifierId = isDaily and require(Engine.DailyModifiers).forDate(seedLabel).id or nil, -- the Daily Run's twist of the day, same for everyone
 			welcomeEase = welcomeEase,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
 			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,

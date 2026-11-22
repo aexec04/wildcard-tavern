@@ -135,7 +135,7 @@ function HandPreview.compute(view, cardIndices)
 
 	local tips = BossRules.wipesTips(boss, counters.handStatsBefore, handName) and 0 or view.tips
 	local scoringContext = context(handName, tips)
-	scoringContext.patronPower = view.challenge and view.challenge.patronPower
+	scoringContext.patronPower = (view.challenge and view.challenge.patronPower) or (view.dailyModifier and view.dailyModifier.patronPower)
 	local scored, _, chips, mult, extra = pcall(Scoring.calculate, handResult, BossRules.scoringPatrons(boss, patrons), scoringContext)
 	restore()
 	if not scored then

@@ -292,8 +292,9 @@ return function(deps)
 	end)
 
 	local SeedDisplay = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedDisplay"))
-	local function setRunModeBadge(isDaily, dailyDateKey, isWeekly, weeklyDateKey, isSeeded, seedCode)
+	local function setRunModeBadge(isDaily, dailyDateKey, isWeekly, weeklyDateKey, isSeeded, seedCode, dailyModifierInfo)
 		local info = SeedDisplay.label({
+			dailyModifierInfo = dailyModifierInfo,
 			isDaily = isDaily, dailyDateKey = dailyDateKey, isWeekly = isWeekly, weeklyDateKey = weeklyDateKey,
 			isSeeded = isSeeded, seedCode = seedCode,
 		})

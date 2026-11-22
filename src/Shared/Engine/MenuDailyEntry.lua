@@ -19,4 +19,15 @@ M.NOTE_H = 110 -- title, two text lines, then the button, all inside the painted
 M.BUTTON = { w = 124, h = 34 }
 M.ORDER = 1
 
+-- The note's line with today's twist (Engine/DailyModifiers): "Today: Golden Start. Start the run with 8 extra Tips."
+-- Falls back to the plain line when the date key is not usable.
+function M.lineFor(dateKey)
+	local ok, DailyModifiers = pcall(require, script.Parent.DailyModifiers)
+	if not ok or not DailyModifiers.dayNumber(dateKey) then
+		return M.LINE
+	end
+	local def = DailyModifiers.forDate(dateKey)
+	return "Today: " .. def.name .. ". " .. def.text
+end
+
 return M

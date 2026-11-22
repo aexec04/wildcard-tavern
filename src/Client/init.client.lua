@@ -2289,7 +2289,7 @@ local function render(state)
 	-- counterparts) are shipped fresh in every serializeState() call, so
 	-- this always reflects the actual current run, including after
 	-- "New Run..." swaps a seeded run back out for a normal one.
-	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
+	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode, state.dailyModifierInfo)
 	root:SetAttribute("ToastScreen", require(ReplicatedStorage.Shared.Engine.ToastPlacement).screenOf(state)) -- toasts never cover titles
 	pcall(SettingsOverlay.setBlessing, state.runModifier) -- "This run: <blessing>" row in Settings
 	pcall(function() -- the seed / date / week also shows in Settings

@@ -52,7 +52,7 @@ function M.attach(parent, layoutOrder, onPlay)
 		return t
 	end
 	text("Title", Rules.TITLE, 18, Enum.Font.Merriweather, 10, 22, GOLD)
-	text("Text", Rules.LINE, 14, Enum.Font.GothamMedium, 32, 36, CREAM)
+	text("Text", Rules.lineFor(require(ReplicatedStorage.Shared.Engine.SeededRng).dailyDateKey()), 14, Enum.Font.GothamMedium, 32, 36, CREAM)
 
 	local play = Kit.primaryButton(frame, Rules.BUTTON_TEXT)
 	play.Name = "DailyPlay"
