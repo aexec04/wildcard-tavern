@@ -135,7 +135,7 @@ Patrons.Definitions = {
 
 	-- ===== +MULT: rewards a specific hand type =====
 	{
-		id = "regulars_round", name = "Regulars' Round", icon = "🤝", price = 5,
+		id = "regulars_round", name = "Regulars' Round", icon = "💬", price = 5,
 		description = "+8 Mult if the hand contains a Pair.",
 		flavorText = "Two old friends who never sit apart.",
 		effect = function(handResult, _context)
@@ -1107,6 +1107,52 @@ local depthPatrons = {
 		handsDelta = 1, handSizeDelta = -1,
 		effect = function() return nil end,
 	},
+	-- Roster additions. artStandIn: borrows another Patron's painted portrait until its own art lands (see Patrons.artKey).
+	{
+		id = "lone_wolf", name = "Lone Wolf", icon = "🐺", price = 5, rarity = "common", artStandIn = "night_owl",
+		description = "+15 Mult if the hand is a High Card.",
+		flavorText = "Prefers a quiet corner table.",
+		effect = function(handResult, _context)
+			return handResult.name == "High Card" and { mult = 15 } or nil
+		end,
+	},
+	{
+		id = "even_keel", name = "Even Keel", icon = "⚖️", price = 6, rarity = "common", artStandIn = "steady_hand",
+		description = "+3 Mult for each scoring 2, 4, 6, 8 or 10.",
+		flavorText = "Likes everything in pairs and nothing rocky.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 2 or card.rank == 4 or card.rank == 6 or card.rank == 8 or card.rank == 10 then
+					count = count + 1
+				end
+			end
+			return count > 0 and { mult = 3 * count } or nil
+		end,
+	},
+	{
+		id = "odd_duck", name = "Odd Duck", icon = "🦆", price = 6, rarity = "common", artStandIn = "meadow_bee",
+		description = "+12 Chips for each scoring 3, 5, 7 or 9.",
+		flavorText = "Quacks at the strangest moments.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 3 or card.rank == 5 or card.rank == 7 or card.rank == 9 then
+					count = count + 1
+				end
+			end
+			return count > 0 and { chips = 12 * count } or nil
+		end,
+	},
+	{
+		id = "good_company", name = "Good Company", icon = "🤝", price = 7, rarity = "uncommon", artStandIn = "full_house_crowd",
+		description = "+3 Mult for each other Patron at your table.",
+		flavorText = "Never eats alone.",
+		effect = function(_handResult, context)
+			local others = math.max(0, #(context.ownedPatrons or {}) - 1)
+			return others > 0 and { mult = 3 * others } or nil
+		end,
+	},
 }
 for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
@@ -1137,6 +1183,7 @@ local PATRON_TAGS = {
 	ladder_builder = { "straight" }, royal_road = { "straight" }, savings_club = { "economy" }, bargain_hunter = { "economy" },
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
+	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
 }
 -- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
 local PATRON_COUNTERS = {
@@ -1169,6 +1216,12 @@ function Patrons.sum(owned, field)
 		total = total + (patron[field] or 0)
 	end
 	return total
+end
+
+-- The art key to draw for a Patron: its own id, or the Patron whose portrait it borrows until its art lands (artStandIn).
+function Patrons.artKey(id)
+	local def = Patrons.getById(id)
+	return def and def.artStandIn or id
 end
 
 function Patrons.getById(id)

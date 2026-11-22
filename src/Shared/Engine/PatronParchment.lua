@@ -13,6 +13,7 @@
 ]]
 
 local Crop = require(script.Parent.PatronCardCrop)
+local Patrons = require(script.Parent.Patrons)
 local NameFit = require(script.Parent.PatronNameFit)
 
 local M = {}
@@ -93,14 +94,14 @@ function M.rowStyle(names, w, h)
 end
 
 function M.imageRect(id)
-	return Crop[tostring(id or "")]
+	return Crop[Patrons.artKey(tostring(id or ""))]
 end
 
 -- The window in STORED texture pixels. Roblox keeps an upload at most 1024 px on its long side, so the 1024 x 1536 cut card is a
 -- 683 x 1024 texture and ImageRectOffset/Size must be scaled by 2/3 (Engine/ImageSpace), or the window lands low and shows the baked name.
 M.SOURCE_W, M.SOURCE_H = 1024, 1536
 function M.storedRect(id)
-	local r = Crop[tostring(id or "")]
+	local r = Crop[Patrons.artKey(tostring(id or ""))]
 	if not r then return nil end
 	local ImageSpace = require(script.Parent.ImageSpace)
 	local x, y, w, h = ImageSpace.rect(r.x, r.y, r.w, r.h, M.SOURCE_W, M.SOURCE_H)

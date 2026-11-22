@@ -38930,4 +38930,36 @@ table.insert(tests, { name = "StoreLayout.touchH: Buy and Close plates measure a
 	expectEqual(L.touchH(1), 44)
 end })
 
+table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, Good Company score as written, read short and safe, and borrow a real portrait", fn = function()
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local Synergy = require(script.Parent.Parent.Engine.Synergy)
+	local function hand(name, ranks)
+		local cards = {}
+		for i, r in ipairs(ranks) do cards[i] = Card.new(r, "Hearts") end
+		return { name = name, scoringCards = cards, cards = cards }
+	end
+	local lone, even, odd, good = Patrons.getById("lone_wolf"), Patrons.getById("even_keel"), Patrons.getById("odd_duck"), Patrons.getById("good_company")
+	expectTrue(lone and even and odd and good, "all four are in the registry")
+	expectEqual(lone.effect(hand("High Card", { 13 }), {}).mult, 15, "Lone Wolf on a High Card")
+	expectTrue(lone.effect(hand("Pair", { 13, 13 }), {}) == nil, "Lone Wolf ignores a Pair")
+	expectEqual(even.effect(hand("Two Pair", { 2, 4, 6, 8, 10 }), {}).mult, 15, "Even Keel counts 2, 4, 6, 8, 10")
+	expectTrue(even.effect(hand("High Card", { 14 }), {}) == nil, "Even Keel ignores an Ace")
+	expectEqual(odd.effect(hand("Straight", { 3, 5, 7, 9, 10 }), {}).chips, 48, "Odd Duck counts 3, 5, 7, 9")
+	expectTrue(odd.effect(hand("High Card", { 12 }), {}) == nil, "Odd Duck ignores a Queen")
+	expectEqual(good.effect(hand("High Card", { 2 }), { ownedPatrons = { good, lone, even } }).mult, 6, "Good Company counts the other Patrons")
+	expectTrue(good.effect(hand("High Card", { 2 }), { ownedPatrons = { good } }) == nil, "Good Company alone does nothing")
+	local art = require(script.Parent.Parent.Engine.PatronArt)
+	for _, p in ipairs({ lone, even, odd, good }) do
+		expectTrue(#p.description <= 60, p.id .. " text 60 characters or less")
+		expectTrue(not (p.name .. p.description .. p.flavorText):lower():find("balatro"), p.id .. " name rule")
+		for _, bad in ipairs({ "beer", "wine", "ale ", "🍻", "🍺", "🍷" }) do
+			expectTrue(not (p.name .. p.description .. p.flavorText .. p.icon):lower():find(bad, 1, true), p.id .. " no alcohol: " .. bad)
+		end
+		expectTrue(p.price >= 5 and p.price <= 7 and (p.rarity == "common" or p.rarity == "uncommon"), p.id .. " priced by rarity")
+		expectTrue(p.tags and #p.tags >= 1, p.id .. " has a synergy tag")
+		expectTrue(Patrons.artKey(p.id) ~= p.id and art[Patrons.artKey(p.id)], p.id .. " borrows a portrait that exists")
+	end
+	expectEqual(Patrons.artKey("twin_spoons"), "twin_spoons", "a Patron with its own art keeps its id")
+end })
+
 return tests

@@ -34,6 +34,7 @@ local ART_MAPS = {
 	housePasses = require(Engine:WaitForChild("HousePassArt")),
 	titles = require(Engine:WaitForChild("TitleArt")),
 }
+local Patrons = require(Engine:WaitForChild("Patrons"))
 local CARD_ART = require(Engine:WaitForChild("ConceptTPatronArt")) -- full Concept T cut cards (ctp_<patronId>), win over the old portrait
 
 local GOLD = Color3.fromRGB(222, 182, 104)
@@ -169,8 +170,9 @@ function PatronPlaque.apply(frame, patronId, opts)
 	if type(patronId) ~= "string" or patronId == "" then return nil end
 	local category = opts.category or "patrons"
 	local map = ART_MAPS[category]
-	local artId = map and map[patronId]
-	local cutCard = category == "patrons" and not opts.portrait and CARD_ART["ctp_" .. patronId] or nil
+	local artKey = category == "patrons" and Patrons.artKey(patronId) or patronId -- a new Patron may borrow a portrait (artStandIn)
+	local artId = map and map[artKey]
+	local cutCard = category == "patrons" and not opts.portrait and CARD_ART["ctp_" .. artKey] or nil
 	if type(cutCard) == "string" and cutCard ~= "" then artId = cutCard else cutCard = nil end
 	if type(artId) ~= "string" or artId == "" or artId == "rbxassetid://0" then return nil end
 
