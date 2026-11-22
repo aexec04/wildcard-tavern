@@ -52,6 +52,7 @@ end
 -- the speaker (Sound toggle) and Pause round buttons sit in a row at the TOP LEFT (the reference puts them left of the Target plate), same size
 -- and top as the gear, 8 px apart; they do what the menu rows do. The consumables tray starts one row lower (Gameplay2Layout, M.SIZE + QUICK_GAP).
 M.QUICK_GAP = 12
+M.CORE_CLEAR_Y = 44 -- Roblox's core buttons occupy about x 24 to 262, y 0 to 36 of the GUI: the quick buttons start at or below this
 -- reference: the two round gold buttons are about 95 px at 1672 wide, so 109 px at 1920; they scale with the width and never go under 44 px
 M.QUICK_REF, M.QUICK_REF_W = 109, 1920
 function M.quickSize(w)
@@ -65,7 +66,7 @@ function M.quickRects(w, h)
 		-- reference (1672 x 941, x 1.148): centres x 115 and 245 and the top of the top bar (y about 15 at 957), so they never sit over the candle
 		local x0 = round(61 / M.QUICK_REF_W * w)
 		local gap = round(21 / M.QUICK_REF_W * w)
-		local y = math.max(4, round(0.016 * h))
+		local y = math.max(M.CORE_CLEAR_Y, round(0.016 * h)) -- Roblox's own menu, chat and mic buttons fill y 0 to 36: start below them
 		return { speaker = { x = x0, y = y, w = q, h = q }, pause = { x = x0 + q + gap, y = y, w = q, h = q } }
 	end
 	local x0 = M.margin(w)

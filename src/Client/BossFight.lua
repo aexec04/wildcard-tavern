@@ -142,6 +142,13 @@ local function build(deps)
 	-- The boss home (Engine/BossHomeLayout): a round medallion and the name plate in the top strip, above the Patron Nook.
 	-- homeRects holds the resting host-relative rects; nil when the strip is too narrow (the old centred plate stays).
 	local homeRects = nil
+	-- the Concept T and Gameplay v2 tables announce the boss once (Boss card, top plate), so the old top plate and medallion never show
+	-- there: they sat on the Target plate and printed the name a second time
+	local function legacyHeaderHidden()
+		local okCT, ctActive = pcall(function() return require(script.Parent.ConceptTPlay).isActive() end)
+		local g2 = root:FindFirstChild("Gameplay2")
+		return (okCT and ctActive == true) or (g2 ~= nil and g2:IsA("GuiObject") and g2.Visible)
+	end
 	local function layout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
@@ -189,9 +196,7 @@ local function build(deps)
 		end
 		-- the Concept T screen shows the boss name and rule once, on the red plate (BossPresenceFX), so the old top
 		-- plate and medallion stay hidden there (they covered the Round banner)
-		local okCT, ctActive = pcall(function() return require(script.Parent.ConceptTPlay).isActive() end)
-		local g2 = root:FindFirstChild("Gameplay2") -- the Gameplay v2 table announces the boss once (intro, then one slim rule plate), never in the top bar
-		if (okCT and ctActive == true) or (g2 ~= nil and g2:IsA("GuiObject") and g2.Visible) then
+		if legacyHeaderHidden() then
 			if pl then pl.Visible = false end
 			if med then med.Visible = false end
 		elseif pl then
@@ -1029,7 +1034,9 @@ local function build(deps)
 			pscale.Scale = S(0.96)
 			play(pscale, { Scale = BASE_SCALE }, 0.35, Enum.EasingStyle.Back)
 			local introDelay = 1.0
-			if homeRects then
+			if legacyHeaderHidden() then
+				plate.Visible = false; medallion.Visible = false
+			elseif homeRects then
 				if motionOk() and not fast() then
 					medallion.Position = homeRects.medallion - UDim2.fromOffset(0, 100)
 					plate.Position = homeRects.plate - UDim2.fromOffset(0, 100)

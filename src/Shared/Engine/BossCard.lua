@@ -93,6 +93,17 @@ function M.cardRect(r, viewW, viewH)
 	return { x = x, y = pl.y, w = w, h = pl.h }
 end
 
+-- How far the Boss card's glow rings may reach past each edge, and how far a Patron card's halo may: both stop GLOW_CLEAR px short of the
+-- next card (the halo of two neighbours shares the gap), so a glow never washes over a neighbouring seat or its badges.
+M.GLOW_CLEAR = 6
+function M.seatGap(r)
+	local s = r and r.slots
+	if not (s and s[1] and s[2] and s[1].card and s[2].card) then return 0 end
+	return math.max(0, s[2].card.x - (s[1].card.x + s[1].card.w))
+end
+function M.bossReach(gap) return math.max(0, math.min(30, math.floor((tonumber(gap) or 0) - M.GLOW_CLEAR))) end
+function M.haloReach(gap, want) return math.max(0, math.min(want or 24, math.floor(((tonumber(gap) or 0) - M.GLOW_CLEAR) / 2))) end
+
 function M.cardParts(rect)
 	local pad = 8
 	local side = math.max(24, math.min(M.PORTRAIT, rect.h - 2 * pad))

@@ -30793,7 +30793,7 @@ table.insert(tests, { name = "Table top bar (reference pass): quick buttons scal
 	expectTrue(G.quickSize(1280) > 44 and G.quickSize(1280) < 109, "scales down")
 	expectTrue(G.quickSize(600) == 44 and G.quickSize(1024) == 44, "44 px floor on compact windows")
 	local q = G.quickRects(1920, 957)
-	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 21 and q.speaker.y == 15 and q.speaker.x + 54 == 115, "reference: centres x 115 and 245, top y 15 at 1920")
+	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 21 and q.speaker.y == 44 and q.speaker.x + 54 == 115, "reference: centres x 115 and 245, top y 15 at 1920")
 	local qc = G.quickRects(1024, 600)
 	expectTrue(qc.pause.x - (qc.speaker.x + qc.speaker.w) == 12, "compact keeps the 12 px gap")
 	expectTrue(L.barTextSize(85) == 40, "40 px words on the 1920 plate")
@@ -34313,7 +34313,7 @@ table.insert(tests, { name = "Table fixes (live pass): Speaker and Pause at the 
 	local E = script.Parent.Parent.Engine
 	local SP, G = require(E.Gameplay2ScorePlate), require(E.GearMenu)
 	local q = G.quickRects(1920, 957)
-	expectTrue(q.speaker.y + q.speaker.h / 2 < 80 and q.speaker.y <= 20, "centre near y 65 and top with the top bar")
+	expectTrue(q.speaker.y >= 44 and q.speaker.y + q.speaker.h / 2 < 120, "starts at y 44 or lower, under Roblox's core buttons")
 	expectTrue(SP.CAP_H == 30 and SP.NUMERAL == 54 and SP.CAP_H + SP.NUMERAL + 2 * SP.PAD >= 96, "plate content is about 100 px")
 	if not io then return end
 	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
@@ -34682,6 +34682,42 @@ table.insert(tests, { name = "Rank and Suit labels keep 4 px clear on each side 
 	end
 end })
 
+table.insert(tests, { name = "Boss round overlap pass: Boss card, top plate, speaker and pause, seats, pills and hand stay apart at four sizes; glow stops 6 px before the neighbours", fn = function()
+	local B = require(script.Parent.Parent.Engine.BossCard)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1309, 751 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local set = L.flat(r)
+		local q = G.quickRects(w, h)
+		set.speaker, set.pause = q.speaker, q.pause
+		set.bossCard = B.cardRect(r, w, h)
+		local names = {}
+		for k, v in pairs(set) do if v then names[#names + 1] = k end end
+		table.sort(names)
+		for i = 1, #names do
+			for j = i + 1, #names do
+				local a, b = names[i], names[j]
+				if not (L.ALLOWED[a .. "|" .. b] or L.ALLOWED[b .. "|" .. a]) then expectTrue(not hit(set[a], set[b]), a .. " and " .. b .. " overlap at " .. w .. "x" .. h) end
+			end
+		end
+		expectTrue(q.speaker.y >= G.CORE_CLEAR_Y and q.pause.y >= G.CORE_CLEAR_Y, "speaker and pause start under Roblox's core buttons at " .. w .. "x" .. h)
+		local plate = B.plateRect(r)
+		local seatTop = r.slots[1].card.y
+		if plate then expectTrue(seatTop - (plate.y + plate.h) >= 8, "boss plate stays 8 px above the seats at " .. w .. "x" .. h) end
+		expectTrue(r.round.y + r.round.h <= seatTop - 8 or w < L.REF_MIN_W, "scroll clear of the seats at " .. w .. "x" .. h)
+		local gap = B.seatGap(r)
+		expectTrue(B.bossReach(gap) + B.GLOW_CLEAR <= gap and 2 * B.haloReach(gap, 24) + B.GLOW_CLEAR <= math.max(gap, B.GLOW_CLEAR), "glow reach ends 6 px before the neighbour at " .. w .. "x" .. h)
+		if w >= L.REF_MIN_W then
+			local T = require(script.Parent.Parent.Engine.PatronTierStyle)
+			local d = T.discRect(r.slots[1].card.w, r.slots[1].card.h)
+			expectTrue(d.x + d.w - r.slots[1].card.w + 6 <= gap, "power disc stays 6 px clear of the next seat at " .. w .. "x" .. h)
+			expectTrue(r.playCount.y >= r.hand.y + r.hand.h + 6 and r.discardCount.y >= r.hand.y + r.hand.h + 6, "Hands and Discards pills sit 6 px under the hand frame at " .. w .. "x" .. h)
+		end
+	end
+end })
 table.insert(tests, { name = "Boss round card: health is max(0, Target - Score), card and health rows clear of the table at four sizes", fn = function()
 	local B = require(script.Parent.Parent.Engine.BossCard)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

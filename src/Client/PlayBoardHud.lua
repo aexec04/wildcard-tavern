@@ -723,7 +723,41 @@ local function reportOverlaps(root, st)
 		warn("[PlateOverlap] " .. (#found == 0 and "nothing overlaps the Tips and hint plates" or (#found .. " visible Frame(s) overlap them:\n  " .. table.concat(found, "\n  "))))
 	end
 end
-PlayBoardHud.reportOverlaps = function(root) local st = stateFor(root) pcall(reportOverlaps, root, st) end
+-- Studio only: [Overlap] lists every pair of visible text, plate or card pieces of the v2 table whose rects intersect and that belong to
+-- different top level pieces of the layer (a piece over its own seat or plate is intended layering). Prints "clean" when there are none.
+local function reportTable(root)
+	if not game:GetService("RunService"):IsStudio() then return end
+	local layer = root:FindFirstChild("Gameplay2")
+	if not (layer and layer:IsA("GuiObject") and layer.Visible) then return end
+	local pieces = {}
+	for _, top in ipairs(layer:GetChildren()) do
+		if top:IsA("GuiObject") and top.Visible then
+			for _, d in ipairs(top:GetDescendants()) do
+				local isText = (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.TextTransparency < 1
+				local isCard = d:IsA("Frame") and d.Name:find("Card", 1, true) and d.BackgroundTransparency < 1
+				if d:IsA("GuiObject") and d.Visible and d.AbsoluteSize.X > 4 and d.AbsoluteSize.Y > 4 and (isText or isCard) and not d.Name:find("Glow", 1, true) then
+					pieces[#pieces + 1] = { d = d, top = top }
+				end
+			end
+			if top.Name:find("Card", 1, true) or top.Name:find("Plate", 1, true) then pieces[#pieces + 1] = { d = top, top = top } end
+		end
+	end
+	local found = {}
+	for i = 1, #pieces do
+		for j = i + 1, #pieces do
+			local a, b = pieces[i], pieces[j]
+			if a.top ~= b.top and not a.d:IsDescendantOf(b.d) and not b.d:IsDescendantOf(a.d) then
+				local p, sz, q, sq = a.d.AbsolutePosition, a.d.AbsoluteSize, b.d.AbsolutePosition, b.d.AbsoluteSize
+				if p.X < q.X + sq.X and q.X < p.X + sz.X and p.Y < q.Y + sq.Y and q.Y < p.Y + sz.Y then
+					found[#found + 1] = a.d.Name .. " | " .. b.d.Name
+				end
+			end
+		end
+	end
+	local vp = root.AbsoluteSize
+	warn(string.format("[Overlap] %dx%d %s", math.floor(vp.X), math.floor(vp.Y), #found == 0 and "clean" or (#found .. " pair(s):\n  " .. table.concat(found, "\n  ", 1, math.min(#found, 30)))))
+end
+PlayBoardHud.reportOverlaps = function(root) local st = stateFor(root) pcall(reportOverlaps, root, st); pcall(reportTable, root) end
 
 function schedule(root, st)
 	if st.applying or st.pending or not st.rect then return end

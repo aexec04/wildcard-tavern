@@ -189,7 +189,7 @@ local function applySeatGlow(layer, rects, owned)
 			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
 			local gl = Rules.glow(true)
 			pcall(function() -- candlelight: the shared feathered radial glow (no ring edges, no seams), about 30 px past the card, static in Calm mode and Reduce motion
-				local pad = gl.seatHalo
+				local pad = Rules.haloReach(Rules.seatGap(rects), gl.seatHalo)
 				local cw, ch = s.card.w + 4, s.card.h + 4
 				local plateBottom = (top and top.Plate.Visible) and (top.Plate.Position.Y.Offset + top.Plate.Size.Y.Offset) or 0
 				local padT = math.max(0, math.min(pad, (s.card.y - 2) - plateBottom)) -- the halo stops under the top plate
@@ -234,10 +234,9 @@ function M.update(layer, state, rects, viewW, viewH)
 		place(card, spot)
 		local parts = Rules.cardParts(spot)
 		place(card.Portrait, parts.portrait)
-		local nameH = math.max(16, math.min(26, math.floor(parts.text.h * 0.3)))
-		card.Title.Position = UDim2.fromOffset(parts.text.x, parts.text.y); card.Title.Size = UDim2.fromOffset(parts.text.w, nameH)
-		card.Title.TextSize = nameH - 2; card.Title.Text = name
-		card.Rule.Position = UDim2.fromOffset(parts.text.x, parts.text.y + nameH + 2); card.Rule.Size = UDim2.fromOffset(parts.text.w, parts.text.h - nameH - 2)
+		-- the name is printed once, large, on the top plate (and on the seat card): this card carries the portrait and the rule only
+		card.Title.Visible = false; card.Title.Text = name
+		card.Rule.Position = UDim2.fromOffset(parts.text.x, parts.text.y); card.Rule.Size = UDim2.fromOffset(parts.text.w, parts.text.h)
 		card.Rule.TextSize = math.max(12, math.min(17, math.floor(parts.text.h * 0.2)))
 		card.Rule.Text = rule
 		if lastBossId ~= (boss and boss.id) then
@@ -279,6 +278,16 @@ function M.update(layer, state, rects, viewW, viewH)
 			seatCard.Art.Face.Text = Moments.bossIcon(boss and boss.rules)
 		end
 		seatCard.Glow.Thickness = glow.stroke
+		do -- the rings stop 6 px short of the neighbouring seats
+			local step = math.floor(Rules.bossReach(Rules.seatGap(rects)) / 3)
+			for i = 1, 3 do
+				local ring = seatCard["OuterGlow" .. i]
+				local d = (i - 1) * step
+				ring.Position = UDim2.fromOffset(-d, -d); ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
+				ring.Visible = step > 0 or i == 1
+				ring.Ring.Thickness = math.max(1, step)
+			end
+		end
 		if not pulseTweens and glow.pulse then
 			pulseTweens = {}
 			for i = 1, 3 do -- ring i pulses from lo + 0.15 (i - 1) up to hi + 0.15 (i - 1): the inner ring is the strongest

@@ -52,6 +52,7 @@ function M.fitRoundText(text, want, plateW)
 	local fit = math.floor(inner / (n * M.ROUND_CHAR_W))
 	return math.max(M.ROUND_TEXT_MIN, math.min(want, fit))
 end
+M.HAND_PILL_AIR = 14 -- the hand frame ends this far above the Hands and Discards pills (the fan never touches them)
 M.PILL_GAP = 4 -- clear air between a count pill and the top edge of its button
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
@@ -71,6 +72,7 @@ function M.patronRow(w, h, n)
 	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
 	-- the reference mockup (1672 x 941) spreads the five seats over x 410 to 1255, half of the width (REF_SPAN)
 	local gap = math.max(8, round(0.014 * w), (w >= M.REF_MIN_W and math.floor((M.REF_SPAN * w - M.SEATS * cw) / (M.SEATS - 1)) or 0))
+	if ref then gap = math.max(gap, math.floor(TierStyle.discDiameter(cw) * TierStyle.DISC_OVERLAP_X + 0.5) + 6) end -- a power disc hangs this far past its card's right edge: it stays 6 px clear of the next seat (reference screens; compact ones have no room to spare)
 	local span = M.SEATS * cw + (M.SEATS - 1) * gap
 	local x0 = round((w - span) / 2)
 	-- reference screens: the value bubble rows ride up onto the card's bottom edge (as in the mockup) as far as the power disc still clears the label
@@ -159,7 +161,7 @@ function M.rects(w, h)
 	-- hand: between the stage and the buttons
 	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)
 	local handTop = round((h < 500 and 0.54 or (w >= 1600 and 0.585 or 0.605)) * h)
-	local handH = btnY - cph - M.PILL_GAP - 6 - handTop -- the count pills hang above the buttons
+	local handH = btnY - cph - M.PILL_GAP - (ref and M.HAND_PILL_AIR or 6) - handTop -- the count pills hang above the buttons
 	local handW = round((w < 1000 and 0.68 or 0.67) * w) -- reference fan spans x 300 to 1410 of 1672 (0.664 wide, centre 0.511) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2 + (w < 1000 and 0 or 0.011 * w)), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
