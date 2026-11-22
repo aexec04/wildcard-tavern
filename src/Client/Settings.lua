@@ -137,6 +137,37 @@ return function(deps)
 
 	-- One row: label + description on the left, a value button on the
 	-- right. `choices` is a list of { value, text }; clicking cycles them.
+	local function backPlate(button)
+		local B = SettingsLayout.BACKING
+		local back = Instance.new("Frame")
+		back.Name = "PlateBacking"
+		back.BackgroundColor3 = Color3.fromRGB(B.fill[1], B.fill[2], B.fill[3])
+		back.BackgroundTransparency = B.transparency
+		back.BorderSizePixel = 0
+		back.Active = false
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, B.corner)
+		corner.Parent = back
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(B.edge[1], B.edge[2], B.edge[3])
+		stroke.Thickness = B.edgePx
+		stroke.Parent = back
+		local function fit()
+			back.AnchorPoint = button.AnchorPoint
+			back.Position = button.Position
+			back.Size = button.Size
+			back.Visible = button.Visible
+			back.ZIndex = math.max(0, button.ZIndex - 3) -- under the picture (ZIndex - 1) and the button
+		end
+		fit()
+		for _, prop in ipairs({ "Position", "Size", "AnchorPoint", "Visible", "ZIndex" }) do
+			button:GetPropertyChangedSignal(prop):Connect(fit)
+		end
+		back.Parent = button.Parent
+		button.Destroying:Connect(function() back:Destroy() end)
+		return back
+	end
+
 	local function makeChoiceRow(key, labelText, description, choices, custom)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 62) -- 14px description may wrap to 2 lines
@@ -183,7 +214,7 @@ return function(deps)
 		polishButton(button, 8)
 		addButtonHoverScale(button)
 		if not isSwitch then button:SetAttribute("FlatFace", true) end -- no set plate on top (Hold to Confirm showed two gold corners): the brass plate fills
-		if not isSwitch then pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE) end -- the same whole-picture brass plate as the Account buttons; the word shows the value
+		if not isSwitch then pcall(backPlate, button); pcall(require(script.Parent.TavernKit).painted, button, SettingsLayout.PLATE) end -- the same whole-picture brass plate as the Account buttons; the word shows the value
 
 		local function getVal()
 			if custom then return custom.get() end
@@ -476,6 +507,7 @@ return function(deps)
 		local Kit = require(script.Parent.TavernKit)
 		button:SetAttribute("AccountButton", true)
 		button:SetAttribute("FlatFace", true) -- SetSkin draws no set plate over it: the brass kit plate always shows, whatever Card Set is equipped
+		pcall(backPlate, button)
 		pcall(Kit.painted, button, SettingsLayout.PLATE)
 		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
 		return button
