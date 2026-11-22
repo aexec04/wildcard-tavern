@@ -40130,4 +40130,24 @@ table.insert(tests, { name = "Collection and Leaderboards tabs wear the equipped
 	expectTrue(lb:find("CloseX", 1, true) ~= nil, "Leaderboards Close is the round X, not a plate")
 end })
 
+table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear the equipped Card Set plates, classic unchanged, 44 px targets kept", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 180, 48, setId) ~= nil, setId .. " green plate for Stay, Next and Redeem")
+		expectTrue(Style.resultPlate("secondary", 180, 48, setId) ~= nil, setId .. " dark plate for Quit, Back and Replay")
+	end
+	expectEqual(Style.resultPlate("primary", 180, 48, "classic_tavern"), nil, "classic keeps the flat buttons")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local how, quit, settings = read("src/Client/HowToPlay.lua"), read("src/Client/QuitConfirm.lua"), read("src/Client/Settings.lua")
+	if not (how and quit and settings) then return end
+	expectTrue(how:find('makeNavButton("Next", 130, "primary")', 1, true) ~= nil and how:find('makeNavButton("Back", 130, "secondary")', 1, true) ~= nil, "How to play Next and Back ask for set plates")
+	expectTrue(how:find('makeNavButton("Replay tutorial", 190, "secondary")', 1, true) ~= nil, "Replay tutorial asks for a set plate")
+	expectTrue(how:find("UDim2.new(0, w, 0, 42)", 1, true) ~= nil, "How to play nav buttons keep their 42 px height")
+	expectTrue(quit:find('"primary")', 1, true) ~= nil and quit:find('"secondary")', 1, true) ~= nil and quit:find("setPlateButton(b, kind)", 1, true) ~= nil, "Quit confirm Stay and Quit ask for set plates")
+	expectTrue(quit:find("UDim2.new(0, 180, 0, 48)", 1, true) ~= nil, "Quit confirm buttons keep 48 px")
+	expectTrue(settings:find('setPlateButton(redeem, "primary")', 1, true) ~= nil, "Codes Redeem asks for the set plate")
+	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
+end })
+
 return tests
