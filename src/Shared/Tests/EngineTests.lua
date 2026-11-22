@@ -38595,6 +38595,28 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Endless Night 100: the full targetForRound path (boss, stake, Endless rules, every round) is finite, whole, positive and under the cap", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	for _, night in ipairs({ 9, 50, 100, 1000 }) do
+		for _, withRules in ipairs({ false, true }) do
+			for round = 1, 3 do
+				local state = RunState.new({ endlessRules = withRules }, SeededRng.new(night + round))
+				state.night = night
+				state.bossRoundsEnabled = true
+				state.nightBossModifier = BossRounds.getById("big_tab")
+				state.stakeRules = Stakes.rulesFor and Stakes.rulesFor(Stakes.MAX) or state.stakeRules
+				local t = RunState.targetForRound(state, round)
+				expectTrue(t == t and t > 0 and t <= ER.TARGET_CAP and t == math.floor(t), "Night " .. night .. " round " .. round .. " target " .. tostring(t))
+				state.targetMultiplier = 1e9 -- a runaway modifier still clamps
+				local big = RunState.targetForRound(state, round)
+				expectTrue(big == big and big <= ER.TARGET_CAP and big >= t, "runaway multiplier clamps at Night " .. night)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "First hand guidance: wrong inputs never advance or trap the tutorial, Skip works at every step, text names only controls on its screen", fn = function()
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
