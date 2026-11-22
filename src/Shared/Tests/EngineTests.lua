@@ -2625,6 +2625,41 @@ table.insert(tests, { name = "Save audit: old profiles load with every current f
 	assert(Guard.indexList({ 1, 3, 5 }, 8, 5), "a good index list is accepted")
 end })
 
+table.insert(tests, { name = "Save safety: 8 old profile shapes (no sets, season, quests, nil or junk settings, unknown keys) load with defaults, no error, nothing real lost", fn = function()
+	local fresh = PlayerProfile.new()
+	local shapes = {
+		{ name = "first ever save", raw = {}, keep = function(p) return p.stats.runsStarted == 0 end },
+		{ name = "stats only, no sets", raw = { stats = { runsStarted = 6, runsWon = 2, bestNightReached = 5 } },
+			keep = function(p) return p.stats.runsStarted == 6 and p.stats.runsWon == 2 and p.stats.bestNightReached == 5 and next(p.ownedSetIds) == nil end },
+		{ name = "owned set, no season", raw = { ownedSetIds = { winter_evening = true }, equippedSetId = "winter_evening" },
+			keep = function(p) return p.ownedSetIds.winter_evening == true and p.equippedSetId == "winter_evening" and p.seasonXp == 0 end },
+		{ name = "no quests, tavern XP and streak", raw = { tavernXp = 120, loginStreak = 4, pendingStartTips = 3 },
+			keep = function(p) return p.tavernXp == 120 and p.loginStreak == 4 and p.pendingStartTips == 3 and p.quests == nil end },
+		{ name = "quests in progress", raw = { quests = { day = 20800, ids = { "pairs_3", "buy_pack", "hands_10" }, progress = { pairs_3 = 2 }, done = {} }, questsDone = 7 },
+			keep = function(p) return p.questsDone == 7 and p.quests ~= nil and p.quests.day == 20800 and p.quests.progress.pairs_3 == 2 end },
+		{ name = "nil settings and unknown keys", raw = { settings = nil, futureThing = { 1, 2 }, [5] = "x", discoveredPatronIds = { tip_jar = true } },
+			keep = function(p) return p.discoveredPatronIds.tip_jar == true and p.futureThing == nil and p.settings ~= nil end },
+		{ name = "junk settings", raw = { settings = { sfxVolume = "loud", muted = 3, musicVolume = 0.4, nope = true }, stats = { runsStarted = 2 } },
+			keep = function(p) return p.settings.musicVolume == 0.4 and p.settings.nope == nil and type(p.settings.sfxVolume) == "number" and p.stats.runsStarted == 2 end },
+		{ name = "season from an old schema", raw = { seasonId = "no_such_season", seasonXp = 50, seasonClaimed = "x", version = 0 },
+			keep = function(p) return type(p.seasonClaimed) == "table" and p.version == PlayerProfile.SCHEMA_VERSION end },
+	}
+	expectEqual(#shapes, 8)
+	for _, shape in ipairs(shapes) do
+		local ok, profile = pcall(PlayerProfile.migrate, shape.raw)
+		expectTrue(ok, shape.name .. " errored: " .. tostring(profile))
+		for key, default in pairs(fresh) do
+			if default ~= nil then
+				expectTrue(profile[key] ~= nil, shape.name .. " is missing the default for " .. key)
+				expectEqual(type(profile[key]), type(default), shape.name .. " has the wrong type for " .. key)
+			end
+		end
+		expectTrue(shape.keep(profile), shape.name .. " lost real progress")
+		local again = PlayerProfile.migrate(profile)
+		expectTrue(shape.keep(again), shape.name .. " lost progress on the second load")
+	end
+end })
+
 table.insert(tests, { name = "Save audit: the profile DataStore is only touched inside pcall and autosave only writes dirty profiles", fn = function()
 	if not io then return end
 	local f = io.open("src/Server/init.server.lua", "r")
