@@ -577,14 +577,9 @@ return function(deps)
 	settingsMainMenuButton.Name = "MainMenu"
 	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
 	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, "crown", accountRow2, ACC.secondRow)
-	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
-
 	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
-	local settingsMapButton = makeAccountButton("Tavern Map", 5, nil)
+	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
 	settingsMapButton.Name = "TavernMap"
-	settingsMapButton.Parent = scroll
-	settingsMapButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
-	settingsMapButton.LayoutOrder = order()
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
