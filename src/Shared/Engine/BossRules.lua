@@ -13,6 +13,9 @@
 	  noScoringTips      true                    Tips from scoring (Patron tips, Gold Stamps, Lucky) are not paid
 	  tipsPercent        number (1..100)         percent of Tips paid at round end (flat reward and interest)
 	  minCardsPerHand    number                  a hand needs at least this many cards
+	  firstCardOut       true                    the first card played each hand scores nothing (Frozen Hand, in Scoring)
+	  patronChipsFactor  number                  every Patron's Chips bonus is multiplied by this, rounded down (Quiet Tavern, in Scoring)
+	  patronsSitOut      number                  this many seated Patrons, from the last seat, do not score (Short Table)
 ]]
 
 local Card = require(script.Parent.Card)
@@ -59,6 +62,10 @@ end
 -- The Patrons that take part in scoring: capped to the first N when a rule says so.
 function BossRules.scoringPatrons(rules, ownedPatrons)
 	local cap = rules and rules.patronCap
+	if rules and rules.patronsSitOut then -- Short Table: the last seated Patron sits out
+		local left = math.max(0, #ownedPatrons - rules.patronsSitOut)
+		cap = cap and math.min(cap, left) or left
+	end
 	if not cap or #ownedPatrons <= cap then
 		return ownedPatrons
 	end

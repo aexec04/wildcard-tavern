@@ -38911,7 +38911,8 @@ table.insert(tests, { name = "Boss variety: every boss has a rule that is enforc
 	local BC = require(script.Parent.Parent.Engine.BossCounters)
 	local effectKeys = { "handSizeDelta", "discardsDelta", "handsPerRoundOverride", "targetScoreMultiplier", "chipsMultiplier", "multMultiplier",
 		"tipsLostPerCardPlayed", "forcedRandomDiscardsPerHand", "requiredCardsPerHand", "noRepeatHandTypes", "zeroTipsOnMostPlayedHand",
-		"firstHandMultiplier", "tipsLostAtStart", "minHandName", "minCardsPerHand", "noScoreHandTypes", "patronCap", "noScoringTips", "debuff" }
+		"firstHandMultiplier", "tipsLostAtStart", "minHandName", "minCardsPerHand", "noScoreHandTypes", "patronCap", "noScoringTips", "debuff",
+		"firstCardOut", "patronChipsFactor", "patronsSitOut" }
 	-- 1. every boss has at least one enforced effect, a readable rule line, and a signature no other boss on its tier shares
 	local seen = {}
 	for _, boss in ipairs(BossRounds.Definitions) do
@@ -39018,6 +39019,17 @@ table.insert(tests, { name = "Boss variety: every boss has a rule that is enforc
 			setHand(t, pairA)
 			RunState.playHand(t, { 1, 2 })
 			expectTrue(first > 0 and t.lastPlay.score == 0, boss.id .. " scores a repeated hand type as nothing")
+		end
+		if boss.firstCardOut then
+			local with, without = playScore(boss, pairA), playScore(none, pairA)
+			expectTrue(with < without, boss.id .. " silences the first card played: " .. with .. " vs " .. without)
+		end
+		if boss.patronsSitOut then
+			local list = {}
+			for i = 1, 4 do list[i] = { id = "p" .. i } end
+			expectEqual(#BossRules.scoringPatrons(boss, list), 4 - boss.patronsSitOut, boss.id .. " benches the last Patron")
+			expectEqual(BossRules.scoringPatrons(boss, list)[3].id, "p3", boss.id .. " keeps the first seats")
+			expectEqual(#BossRules.scoringPatrons(boss, {}), 0, boss.id .. " with no Patrons is safe")
 		end
 		if boss.patronCap then
 			local list = {}
@@ -44056,6 +44068,32 @@ table.insert(tests, { name = "Boon Keeper: every Night boon picked is counted on
 	state.night = 3
 	expectTrue((NightBoons.apply(state, NightBoons.Definitions[2].id)))
 	expectEqual(RunState.runCounters(state).boonsPicked, 2)
+end })
+
+-- ===== Boss rules for Nights 7 to 12 =====
+table.insert(tests, { name = "Boss rules: Frozen Hand, Quiet Tavern and Short Table start at Night 7, have kid safe text, and Quiet Tavern halves Patron Chips (rounded down) without touching Mult", fn = function()
+	for _, id in ipairs({ "frozen_hand", "quiet_tavern", "short_table" }) do
+		local b = BossRounds.getById(id)
+		expectTrue(b ~= nil and b.minNight == 7, id .. " is a Night 7 boss")
+		expectTrue(#b.description > 0 and #b.description <= 60 and #b.flavorText > 0, id .. " texts")
+		local text = (b.name .. b.description .. b.flavorText):lower()
+		expectTrue(not text:find("beer") and not text:find("wine") and not text:find("balatro"), id .. " kid safe")
+	end
+	local chipsPatron = { id = "chips", name = "Chips", effect = function() return { chips = 25, mult = 3 } end }
+	local function score(ctx)
+		local _, chips, mult = Scoring.calculate({ name = "High Card", scoringCards = { Card.new(9, "Hearts") } }, { chipsPatron }, ctx)
+		return chips, mult
+	end
+	local c0, m0 = score({})
+	local c1, m1 = score({ patronChipsFactor = 0.5 })
+	expectEqual(c0 - c1, 13, "25 Chips become 12, rounded down")
+	expectEqual(m1, m0, "Mult is untouched")
+	-- Frozen Hand: the first played card adds nothing, wherever it lands
+	local a, b2 = Card.new(9, "Hearts"), Card.new(9, "Spades")
+	local hr = { name = "Pair", scoringCards = { a, b2 } }
+	local _, full = Scoring.calculate(hr, {}, { allPlayedCards = { a, b2 } })
+	local _, frozen = Scoring.calculate(hr, {}, { allPlayedCards = { a, b2 }, firstCardOut = true })
+	expectEqual(full - frozen, 9, "the first card's 9 Chips are gone")
 end })
 
 return tests

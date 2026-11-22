@@ -871,6 +871,7 @@ local function playHandNow(state, cardIndices)
 					ownedPatronSpecials = state.ownedPatronSpecials,
 					brittleShielded = state.brittleShieldRound,
 					debuff = bossMod and bossMod.debuff,
+					firstCardOut = bossMod and bossMod.firstCardOut, patronChipsFactor = bossMod and bossMod.patronChipsFactor,
 					tips = state.tips,
 					alreadyPlayedThisHandTypeThisRound = state.handTypesPlayedThisRound[candidateHandResult.name] == true,
 					handsRemaining = math.max(0, state.handsRemaining - 1),
@@ -927,6 +928,7 @@ local function playHandNow(state, cardIndices)
 			ownedPatronSpecials = state.ownedPatronSpecials, -- Silver/Gold/Rainbow on a Patron
 			brittleShielded = state.brittleShieldRound, -- "Sugar Shield" Secret Recipe
 			debuff = bossModifier and bossModifier.debuff,
+			firstCardOut = bossModifier and bossModifier.firstCardOut, patronChipsFactor = bossModifier and bossModifier.patronChipsFactor, -- Frozen Hand, Quiet Tavern
 			tips = state.tips, -- Tips held BEFORE this hand's reward -- Penny Pincher/Tab Regulars read this
 			alreadyPlayedThisHandTypeThisRound = alreadyPlayedThisHandTypeThisRound, -- Repeat Customer reads this
 			handsRemaining = state.handsRemaining,

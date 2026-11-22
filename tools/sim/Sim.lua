@@ -202,6 +202,7 @@ local function scorePlay(state, hand, combo, patrons)
 		handLevels = state.handLevels,
 		ownedPatronSpecials = state.ownedPatronSpecials,
 		debuff = boss and boss.debuff,
+		firstCardOut = boss and boss.firstCardOut, patronChipsFactor = boss and boss.patronChipsFactor,
 		tips = state.tips,
 		alreadyPlayedThisHandTypeThisRound = alreadyPlayed,
 		handsRemaining = handsLeft,

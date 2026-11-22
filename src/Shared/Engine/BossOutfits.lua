@@ -97,6 +97,9 @@ BossOutfits.Bosses = {
 	rushed_order = { shirt = { 190, 90, 60 }, pants = { 50, 40, 36 }, hat = "chef", hatColor = WHITE, prop = "receipt", propColor = PAPER, accent = { 205, 52, 46 }, cape = false },
 	picky_eater = { shirt = { 200, 190, 170 }, hat = "chef", hatColor = WHITE, prop = "tray", propColor = { 200, 190, 170 }, accent = { 90, 160, 90 }, cape = false },
 	crowded_counter = { shirt = { 110, 80, 60 }, hat = "cap", hatColor = { 90, 64, 46 }, prop = "ledger", propColor = { 150, 110, 70 }, accent = { 232, 150, 42 }, cape = false },
+	frozen_hand = { shirt = { 120, 170, 205 }, hat = "cap", hatColor = { 90, 140, 180 }, prop = "lantern", propColor = WHITE, accent = { 190, 225, 250 } },
+	quiet_tavern = { shirt = { 96, 84, 120 }, hat = "tall", hatColor = { 64, 54, 90 }, prop = "scroll", propColor = WHITE, accent = { 160, 140, 210 } },
+	short_table = { shirt = { 130, 92, 56 }, hat = "chef", hatColor = WHITE, prop = "tray", propColor = GOLD, accent = { 210, 160, 90 } },
 	penny_wise = { shirt = { 70, 90, 60 }, hat = "cap", hatColor = { 50, 70, 46 }, prop = "coins", propColor = GOLD, accent = GOLD, cape = false },
 	bare_bones = { shirt = { 226, 224, 216 }, pants = { 226, 224, 216 }, hat = "cap", hatColor = { 226, 224, 216 }, prop = "none", accent = { 190, 186, 170 }, cape = false },
 }

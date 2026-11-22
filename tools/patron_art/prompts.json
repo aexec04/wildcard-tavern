@@ -278,7 +278,10 @@
     "house_minimum": "an avatar steward pointing at a tall wooden measuring stick with a gold line marked near the top",
     "picked_over": "an avatar peering at a picked-over serving table with only a few cards and crumbs left, a red heart gone from the display",
     "rushed_order": "a frantic avatar cook racing across the kitchen holding three order tickets, a big clock ticking on the wall",
-    "bare_bones": "a cheerful avatar in a bone-pattern pajama costume in a nearly empty tavern with one stool and one candle"
+    "bare_bones": "a cheerful avatar in a bone-pattern pajama costume in a nearly empty tavern with one stool and one candle",
+    "frozen_hand": "an avatar dealer in a pale blue coat holding a frosty playing card with ice crystals on their gloved hand, a cold glow, a cozy tavern behind, no text",
+    "quiet_tavern": "an avatar innkeeper in a purple robe holding a finger to their lips beside a tavern full of sleepy guests with a small candle, hush mood, no text",
+    "short_table": "an avatar waiter in a chef hat carrying one wooden chair toward a small crowded tavern table with an empty gap at the end, friendly, no text"
   },
   "recipe_subjects": {
     "sugar_rush": "an avatar baker zooming along with trails of sparkling sugar and a jar of rainbow candy",

@@ -88,6 +88,7 @@ function HandPreview.compute(view, cardIndices)
 			ownedPatronSpecials = view.ownedPatronSpecials,
 			brittleShielded = view.brittleShieldRound,
 			debuff = boss and boss.debuff,
+			firstCardOut = boss and boss.firstCardOut, patronChipsFactor = boss and boss.patronChipsFactor,
 			tips = tips,
 			alreadyPlayedThisHandTypeThisRound = playedThisRound[handName] == true,
 			handsRemaining = handsAfter,
