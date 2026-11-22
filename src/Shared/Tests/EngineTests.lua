@@ -40460,4 +40460,56 @@ tests[#tests + 1] = ({ name = "Live table scene: switching Card Sets draws only 
 	end
 end })
 
+tests[#tests + 1] = ({ name = "Set switching over all 14 sets: each set resolves only its own room, front, live table, boss table, shop room and keeper, classic last", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	-- every set in turn, classic last (equip and preview both go through the same per set lookups)
+	local order = {}
+	for _, id in ipairs(PRA.ORDER) do order[#order + 1] = id end
+	expectEqual(#order, 14, "14 non classic sets with their own room")
+	order[#order + 1] = "classic_tavern"
+	local seen = { bg = {}, front = {}, live = {}, boss = {}, shop = {}, keeper = {} }
+	local function claim(kind, value, setId)
+		if value == nil then return end
+		expectTrue(seen[kind][value] == nil or seen[kind][value] == setId, setId .. " " .. kind .. " is not shared with " .. tostring(seen[kind][value]))
+		seen[kind][value] = setId
+	end
+	for _, setId in ipairs(order) do
+		expectTrue(TS.known(setId), setId .. " is a known set")
+		local room = PRA.roomArt(setId, Art)
+		local liveN, liveB = TS.liveTableId(setId, false, Art), TS.liveTableId(setId, true, Art)
+		local src, key = TS.bossBackdrop(setId)
+		local shopId, shopOwn = TS.shopRoomId(setId)
+		local behind = TS.shopKeeperIds(setId)
+		if setId == "classic_tavern" then
+			expectEqual(room.room, nil, "classic draws the classic room")
+			expectEqual(room.bg, PRA.CLASSIC.bg, "classic room bg")
+			expectEqual(room.front, PRA.CLASSIC.front, "classic room front")
+			expectEqual(liveN, nil, "classic live table is the classic tavern")
+			expectEqual(liveB, nil, "classic boss table is the classic tavern")
+			expectEqual(src, "classic", "classic boss table source")
+			expectTrue(shopOwn == false, "classic shop room is the classic one")
+		else
+			expectEqual(room.room, setId, setId .. " draws its own room")
+			expectEqual(room.bg, PRA.keys(setId).bg, setId .. " room bg key")
+			expectEqual(room.front, PRA.keys(setId).front, setId .. " room front key")
+			expectTrue(type(liveN) == "string" and liveN ~= "", setId .. " live table has a picture")
+			expectTrue(type(liveB) == "string" and liveB ~= "", setId .. " boss live table has a picture")
+			expectTrue(src == "own" or src == "room", setId .. " boss table is its own or its play room, never classic")
+			expectTrue(shopOwn == true and shopId ~= nil, setId .. " has its own shop room")
+			claim("bg", room.bg, setId); claim("front", room.front, setId)
+			claim("live", liveN, setId); claim("shop", shopId, setId)
+			claim("keeper", behind, setId)
+			if src == "room" then expectEqual(key, PRA.keys(setId).bg, setId .. " boss fallback is its own room") end
+		end
+	end
+	-- the set switching hooks are in place: equip, Preview and DebugGoto all go through HudTheme.setSkin, and listeners redraw on it
+	if not (io and io.open) then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local hud, g2 = read("src/Client/HudTheme.lua"), read("src/Client/Gameplay2.lua")
+	if hud then expectTrue(hud:find("function HudTheme.setSkin", 1, true) ~= nil, "HudTheme.setSkin is the one switch point") end
+	if g2 then expectTrue(g2:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws on a skin change") end
+end })
+
 return tests
