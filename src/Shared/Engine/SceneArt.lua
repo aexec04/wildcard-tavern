@@ -64,7 +64,7 @@ return {
 	["swamp_boardwalk_in"] = "rbxassetid://115554370082948",
 	["tavern_gate_a"] = "rbxassetid://134319447174269",
 	["tavern_gate_b"] = "rbxassetid://73290874510871",
-	["tavern_gate_in"] = "rbxassetid://126464976466279",
+	["tavern_gate_in"] = "rbxassetid://74332304720420",
 	["warm_kitchen_a"] = "rbxassetid://132859518936609",
 	["warm_kitchen_b"] = "rbxassetid://125091993587902",
 	["warm_kitchen_in"] = "rbxassetid://80065204881258",

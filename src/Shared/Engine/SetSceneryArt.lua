@@ -6,7 +6,7 @@
 ]]
 
 return {
-	["closing_time"] = "rbxassetid://76438383912611",
+	["closing_time"] = "rbxassetid://129553581707918",
 	["dune_market"] = "rbxassetid://90175474330612",
 	["festival_night"] = "rbxassetid://100266649695510",
 	["golden_gala"] = "rbxassetid://139773760269594",
