@@ -21211,7 +21211,7 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 		expectTrue(src:find("[CardSetsRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
 		expectTrue(src:find("[PanelFit] cardsets", 1, true) ~= nil, "the [PanelFit] line is printed")
 		expectTrue(src:find("stroke(btn", 1, true) == nil and src:find("stroke(b,", 1, true) == nil, "no UIStroke on a button that carries text (it doubled the text)")
-		expectTrue(src:find("opts.pill", 1, true) ~= nil and src:find("if view.page > 1 then plateButton", 1, true) ~= nil, "pills for Locked and Buy, disabled arrows draw nothing")
+		expectTrue(src:find("opts.pill", 1, true) ~= nil and src:find("view.page > 1, -1", 1, true) ~= nil, "pills for Locked and Buy, arrows that go nowhere are dimmed and inert")
 	end
 end })
 
@@ -21274,6 +21274,20 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 			expectFalse(hit(g.hero, g.shelf), "hero and shelf do not overlap")
 			local p = g.parts
 			for _, r in ipairs({ p.plate, p.button, p.desc, p.table }) do expectTrue(inside(r, g.hero), "hero part inside the hero") end
+			expectTrue(inside(p.felt, p.rail) and inside(p.rail, p.table), "felt inside the rail inside the scene")
+			local fi = p.fanInfo
+			expectTrue(fi.margin >= (p.felt.h >= 140 and 24 or 6), "fan keeps its margin from the felt edge")
+			for i, r in ipairs(p.fan) do -- the turned extent of every card stays inside the felt, minus the margin
+				local ext = { x = r.x - fi.ex, y = r.y - fi.ey, w = r.w + 2 * fi.ex, h = r.h + 2 * fi.ey }
+				local safe = { x = p.felt.x + fi.margin, y = p.felt.y + fi.margin, w = p.felt.w - 2 * fi.margin, h = p.felt.h - 2 * fi.margin }
+				expectTrue(inside(ext, safe), "fan card " .. i .. " fully inside the felt with its margin at " .. sz[1] .. "x" .. sz[2])
+				expectTrue(r.w >= 8 and math.floor(r.h * 0.34) >= 11 or r.h < 40, "rank text stays readable")
+			end
+			local bx = { x = p.back.x - fi.ex, y = p.back.y - fi.ey, w = p.back.w + 2 * fi.ex, h = p.stand.y + p.stand.h - p.back.y + 2 * fi.ey }
+			expectTrue(inside({ x = bx.x, y = bx.y + 0, w = bx.w, h = bx.h - fi.ey }, p.felt), "back and its stand inside the felt")
+			expectTrue(p.felt.h < 140 or fi.cardH >= 60, "cards are readable on a roomy table")
+			expectTrue(inside(p.big, p.felt), "the large back is inside the felt")
+			expectTrue(p.prop == nil or (inside(p.prop, p.table) and p.prop.y + p.prop.h <= p.rail.y), "the prop stands above the rail")
 			expectTrue(p.button.w >= 120 and p.button.h >= 36, "Equip button big enough")
 			expectFalse(hit(p.button, p.desc) or hit(p.desc, p.table) or hit(p.plate, p.table), "hero parts do not overlap")
 			for i, r in ipairs(p.fan) do
@@ -21281,6 +21295,13 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 				if i > 1 then expectTrue(r.x > p.fan[i - 1].x, "fan cards step right") end
 			end
 			expectTrue(p.fan[5].x + p.fan[5].w <= p.back.x, "fan clears the back on its stand")
+			local ts = L.tileScene(g.cells[1] and g.cells[1].pic or { x = 0, y = 0, w = 100, h = 80 })
+			local pic = g.cells[1] and g.cells[1].pic
+			if pic then
+				expectTrue(inside(ts.rail, pic) and inside(ts.felt, ts.rail), "tile table inside the picture")
+				for _, c in ipairs(ts.cards) do expectTrue(inside(c, ts.felt), "tile card inside its felt") end
+				expectTrue(ts.cards[1].w >= 10, "tile cards are visible")
+			end
 			expectTrue(inside(p.back, p.table) and inside(p.big, p.table), "back and large back inside the table")
 			expectTrue(p.stand.y >= p.back.y + p.back.h - 1, "stand sits under the back")
 			local seen = 0
@@ -21300,10 +21321,23 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 			local tb = g.plates.tabs
 			expectFalse(hit(tb[1], tb[2]) or hit(tb[2], g.plates.page), "tabs and page controls do not overlap")
 			expectTrue(g.plates.next.x + g.plates.next.w <= W, "page controls on screen")
+			local pg = g.plates
+			expectTrue(not hit(pg.prev, pg.page) and not hit(pg.page, pg.next) and not hit(pg.prev, pg.next), "the three page plates do not overlap")
+			for _, r in ipairs({ pg.prev, pg.page, pg.next }) do
+				expectTrue(inside(r, { x = 0, y = 0, w = W, h = H }) and not hit(r, g.shelf) and not hit(r, g.hero), "page plate under the shelf, on screen at " .. sz[1] .. "x" .. sz[2])
+			end
 		end
 	end
 	expectTrue(L.room(1920 * 0.94, 957 * 0.94 - L.TOP - L.BOTTOM, 15, 1).pages == 1, "15 Card Sets are one page at desktop size")
 	expectFalse(L.room(300, 200, 5, 1).ok, "a tiny panel does not fit the room")
+end })
+
+tests[#tests + 1] = ({ name = "ThemeScenes.propOf: every set has one known prop", fn = function()
+	local T = require(script.Parent.Parent.Engine.ThemeScenes)
+	local known = { snowflakes = true, lantern = true, candle = true, leaves = true }
+	for _, id in ipairs(T.ORDER) do expectTrue(known[T.propOf(id)], id .. " has a prop") end
+	expectEqual(T.propOf("winter_evening"), "snowflakes", "the ice tavern has snowflakes")
+	expectEqual(T.propOf("nope"), T.propOf("classic_tavern"), "unknown set falls back to classic")
 end })
 
 tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body at 1920x1080 and 1280x720, content fills plaques, pages and shelves with whole text", fn = function()

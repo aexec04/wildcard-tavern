@@ -155,28 +155,73 @@ function M.heroParts(hero)
 	local plate = { x = hero.x + 12, y = hero.y + 10, w = hero.w - 24, h = 34 }
 	local bw = math.min(200, hero.w - 24)
 	local button = { x = hero.x + math.floor((hero.w - bw) / 2), y = hero.y + hero.h - 10 - 38, w = bw, h = 38 }
-	local descH = hero.h < 230 and 0 or 30 -- a short window drops the description line, the table keeps its size
+	local descH = hero.h < 300 and 0 or 30 -- a short window drops the description line, the table keeps its size
 	local desc = { x = hero.x + 12, y = button.y - 6 - descH, w = hero.w - 24, h = descH }
 	local ty = plate.y + plate.h + 8
 	local tbl = { x = hero.x + 12, y = ty, w = hero.w - 24, h = desc.y - 6 - ty }
-	local cardH = math.floor(math.min(tbl.h * 0.62, tbl.w * 0.221 * 1.5))
-	local cardW = math.floor(cardH * 2 / 3)
+	local sp = M.sceneParts(tbl)
+	local fp = M.fanParts(sp.felt)
+	local bh = sp.felt.h - 32 -- 16 px clear all round, so a tilted back and its shadow stay on the felt
+	local bw2 = math.floor(bh * 2 / 3)
+	local big = { x = sp.felt.x + math.floor((sp.felt.w - bw2) / 2), y = sp.felt.y + 16, w = bw2, h = bh }
+	return { plate = plate, button = button, desc = desc, table = tbl, rail = sp.rail, felt = sp.felt, prop = sp.prop, fan = fp.fan, back = fp.back,
+		stand = fp.stand, fanInfo = fp, big = big }
+end
+
+-- The mini table scene (hero and tiles): the room picture fills `scene`, a wooden rail and the felt sit inset in it, a prop (candle, lantern,
+-- snowflakes, leaves) stands in the free band above the table. A short scene (small window) uses the whole scene as the table, no prop.
+M.RAIL = 9
+M.FAN_ROT = 4 -- degrees per fan step (cards 1 to 5 turn -8, -4, 0, 4, 8)
+function M.sceneParts(scene)
+	local tall = scene.h >= 150
+	local mx, top, bot = math.floor(scene.w * 0.06), math.floor(scene.h * 0.22), math.floor(scene.h * 0.05)
+	local rail = tall and { x = scene.x + mx, y = scene.y + top, w = scene.w - 2 * mx, h = scene.h - top - bot }
+		or { x = scene.x, y = scene.y, w = scene.w, h = scene.h }
+	local rw = tall and M.RAIL or 5
+	local felt = { x = rail.x + rw, y = rail.y + rw, w = rail.w - 2 * rw, h = rail.h - 2 * rw }
+	local prop = tall and { x = scene.x + mx, y = scene.y + 4, w = math.floor(scene.w * 0.2), h = top - 8 } or nil
+	return { rail = rail, felt = felt, prop = prop }
+end
+
+-- Five fanned cards plus the back on its stand, all inside the felt with `margin` (24 px, less on a very short felt) around the turned
+-- extent of every card (ex, ey = extra half extents a turned card takes).
+function M.fanParts(felt)
+	local margin = felt.h >= 140 and 24 or math.max(6, math.floor(felt.h / 6))
+	local gap = 10
+	local byW = (felt.w - 2 * margin - gap) / 4.04
+	local byH = (felt.h - 2 * margin - 6) / 1.9
+	local cardW = math.max(8, math.floor(math.min(byW, byH)))
+	local cardH = math.floor(cardW * 3 / 2)
+	local ex, ey = math.ceil(cardH * 0.08), math.ceil(cardW * 0.2)
 	local step = math.floor(cardW * 0.45)
-	local cy = tbl.y + tbl.h - cardH - 10
+	local y = felt.y + math.floor((felt.h - cardH - 6) / 2)
 	local fan = {}
-	for i = 1, 5 do fan[i] = { x = tbl.x + 14 + (i - 1) * step, y = cy, w = cardW, h = cardH } end
-	local back = { x = tbl.x + tbl.w - cardW - 14, y = cy, w = cardW, h = cardH }
+	for i = 1, 5 do fan[i] = { x = felt.x + margin + ex + (i - 1) * step, y = y, w = cardW, h = cardH } end
+	local back = { x = felt.x + felt.w - margin - ex - cardW, y = y, w = cardW, h = cardH }
 	local stand = { x = back.x - 6, y = back.y + back.h, w = cardW + 12, h = 6 }
-	local bigH = tbl.h - 22
-	local big = { x = tbl.x + math.floor((tbl.w - math.floor(bigH * 2 / 3)) / 2), y = tbl.y + 8, w = math.floor(bigH * 2 / 3), h = bigH }
-	return { plate = plate, button = button, desc = desc, table = tbl, fan = fan, back = back, stand = stand, big = big }
+	return { cardW = cardW, cardH = cardH, margin = margin, ex = ex, ey = ey, fan = fan, back = back, stand = stand }
+end
+
+-- a tile picture: the room picture fills `pic`, a small table inset in it with three cards (A K Q) side by side
+function M.tileScene(pic)
+	local mx, top, bot = math.floor(pic.w * 0.08), math.floor(pic.h * 0.26), math.floor(pic.h * 0.08)
+	local rail = { x = pic.x + mx, y = pic.y + top, w = pic.w - 2 * mx, h = pic.h - top - bot }
+	local felt = { x = rail.x + 3, y = rail.y + 3, w = rail.w - 6, h = rail.h - 6 }
+	local ch = math.floor(math.min(felt.h - 8, (felt.w - 8) / 2.56 * 1.5))
+	local cw = math.floor(ch * 2 / 3)
+	local step = math.floor(cw * 0.78)
+	local x0 = felt.x + math.floor((felt.w - (cw + 2 * step)) / 2)
+	local y = felt.y + math.floor((felt.h - ch) / 2)
+	local cards = {}
+	for k = 1, 3 do cards[k] = { x = x0 + (k - 1) * step, y = y, w = cw, h = ch } end
+	return { rail = rail, felt = felt, cards = cards }
 end
 
 function M.room(areaW, areaH, n, page)
 	local R = M.ROOM
 	local top = R.barTop + R.barH + 12
 	local hero = { x = R.side, y = top, w = math.floor(areaW * R.heroFrac) - R.side, h = areaH - top - 10 }
-	local shelf = { x = hero.x + hero.w + R.gap, y = top, w = areaW - R.side - (hero.x + hero.w + R.gap), h = hero.h }
+	local shelf = { x = hero.x + hero.w + R.gap, y = top, w = areaW - R.side - (hero.x + hero.w + R.gap), h = hero.h - R.barH - 8 } -- the page plates take the foot
 	local cols = R.cols
 	local tileW = math.floor((shelf.w - (cols - 1) * R.tileGap) / cols)
 	local picH = math.floor(tileW * 0.8)
@@ -203,11 +248,13 @@ function M.room(areaW, areaH, n, page)
 		}
 	end
 	local bw, cw, y = 150, 104, R.barTop
+	local py = shelf.y + shelf.h + 8 -- the three page plates stand in a row under the shelf
+	local px = shelf.x + math.floor((shelf.w - (3 * cw + 20)) / 2)
 	out.plates = {
 		tabs = { { x = R.side, y = y, w = bw, h = R.barH }, { x = R.side + bw + 10, y = y, w = bw, h = R.barH } },
-		page = { x = areaW - R.side - 3 * cw - 20, y = y, w = cw, h = R.barH },
-		prev = { x = areaW - R.side - 2 * cw - 10, y = y, w = cw, h = R.barH },
-		next = { x = areaW - R.side - cw, y = y, w = cw, h = R.barH },
+		prev = { x = px, y = py, w = cw, h = R.barH },
+		page = { x = px + cw + 10, y = py, w = cw, h = R.barH },
+		next = { x = px + 2 * (cw + 10), y = py, w = cw, h = R.barH },
 	}
 	return out
 end
