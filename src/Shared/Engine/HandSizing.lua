@@ -76,7 +76,7 @@ end
 -- The live hand frame: the layout rect, grown upward (never down, so the pills and buttons keep their clearance) until the frame is tall
 -- enough for cards at their wide target size. The frame is transparent, so the cards just rise into the open stage like the reference.
 M.MAX_RISE = 70
-M.PICK_ROOM = 15-- the big hand frame stands this far lower than its layout rect, so a picked card (28 px lift) has room under the Score plate
+M.PICK_ROOM = 8 -- the hand frame stands this far lower than its layout rect (a picked card has room under the Score plate); 8 keeps the frame 6 px above the Hands and Discards pills
 M.PILL_CLEAR = 7-- the cards are this much shorter (card tops stay put, bottoms rise) so the fan stays clear of the Hands and Discards pills
 function M.frameFor(areaW, rect, count)
 	if (areaW or 0) < M.BIG_FROM or (count or 0) < 1 then return rect end

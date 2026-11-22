@@ -6,7 +6,7 @@
 	BossCard.healthText(cur, total) -> "300 / 300"
 	BossCard.fraction(cur, total) -> 0..1                 width of the red fill
 	BossCard.cardRect(r, viewW, viewH) -> rect | nil      the left Boss card: the same rect as the Patron Power panel (nil = nothing fits)
-	BossCard.cardParts(rect) -> { portrait, text }        portrait square at the left, name plus rule at the right (card-local px)
+	BossCard.cardParts(rect) -> { portrait, title, text } portrait square at the left, name line and rule text at the right (card-local px)
 	BossCard.plateRect(r) -> rect | nil                   the taller boss plate over the scroll (nil when the room is short)
 	BossCard.topParts(r) -> { plate|nil, name, bar, night|nil }  rows inside the plate (or the scroll): name large, red bar under it, small Night line
 	BossCard.glow(calm) -> { pulse, stroke, softStroke }  pulse seconds (nil when calm), stroke widths
@@ -21,6 +21,7 @@ M.TWEEN_SECONDS = 0.3
 M.NIGHT_MIN_H = 60 -- the plate or scroll must be at least this tall for the small Night line
 M.PLATE_H = 96 -- the boss plate height on a roomy screen
 M.EDGE = 12 -- the Boss card stands at least this far from the left screen edge
+M.TITLE_H = 22 -- the one-line boss name above the rule text in the Boss card
 M.PLATE_AIR = 10 -- clear space between the plate and the Patron row (never less than 8)
 
 function M.health(target, score)
@@ -109,7 +110,10 @@ function M.cardParts(rect)
 	local side = math.max(24, math.min(M.PORTRAIT, rect.h - 2 * pad))
 	local portrait = { x = pad, y = pad, w = side, h = side }
 	local tx = portrait.x + side + pad
-	return { portrait = portrait, text = { x = tx, y = pad, w = math.max(20, rect.w - tx - pad), h = rect.h - 2 * pad } }
+	local tw = math.max(20, rect.w - tx - pad)
+	local th = M.TITLE_H
+	-- the boss name stands on one line above the rule text; the rule gets the rest
+	return { portrait = portrait, title = { x = tx, y = pad, w = tw, h = th }, text = { x = tx, y = pad + th + 2, w = tw, h = math.max(10, rect.h - 2 * pad - th - 2) } }
 end
 
 function M.plateRect(r)

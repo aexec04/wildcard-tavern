@@ -43,7 +43,7 @@ function M.scaled(name, w, h)
 	return { x = r[1] * sx, y = r[2] * sy, w = r[3] * sx, h = r[4] * sy }
 end
 
-M.QUICK_Y_FREE = { speaker = true, pause = true }
+M.QUICK_Y_FREE = { speaker = true, pause = true } -- also free in size and x: the three round icons shrink to clear the painted banner (GearMenu.quickSize)
 
 -- One row per piece present in live: { name, dx, dy, sizePct, bad }
 function M.compare(live, w, h)
@@ -53,10 +53,10 @@ function M.compare(live, w, h)
 		if a and b then
 			local dx = (a.x + a.w / 2) - (b.x + b.w / 2)
 			local dy = (a.y + a.h / 2) - (b.y + b.h / 2)
-			if M.QUICK_Y_FREE[name] then dy = 0 end -- the round buttons sit below Roblox's core buttons (GearMenu.CORE_CLEAR_Y), not at the mockup height
+			if M.QUICK_Y_FREE[name] then dy = 0; dx = 0 end -- the round buttons sit below Roblox's core buttons (GearMenu.CORE_CLEAR_Y), not at the mockup height
 			local sw = math.abs(a.w - b.w) / b.w * 100
 			local sh = math.abs(a.h - b.h) / b.h * 100
-			local pct = math.max(sw, sh)
+			local pct = M.QUICK_Y_FREE[name] and 0 or math.max(sw, sh)
 			rows[#rows + 1] = { name = name, dx = dx, dy = dy, sizePct = pct,
 				bad = math.abs(dx) > M.CENTRE_PX or math.abs(dy) > M.CENTRE_PX or pct > M.SIZE_PCT }
 		end

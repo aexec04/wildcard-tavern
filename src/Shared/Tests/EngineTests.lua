@@ -30808,14 +30808,21 @@ table.insert(tests, { name = "Gameplay v2 polish run: every whole-picture plate 
 	end
 end })
 
-table.insert(tests, { name = "Table top bar (reference pass): quick buttons scale to 109 px at 1920 with a 12 px gap, stay 44 px minimum and clear of the tray, bar words grow with the plate", fn = function()
+table.insert(tests, { name = "Table top bar (reference pass): quick buttons scale down to at most 109 px and stop 12 px before the painted left banner, stay 44 px minimum and clear of the tray, bar words grow with the plate", fn = function()
 	local E = script.Parent.Parent.Engine
 	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)
-	expectTrue(G.quickSize(1920) == 109, "109 px at 1920")
+	expectTrue(G.quickSize(1920) <= 109 and G.quickSize(1920) > 44, "at most 109 px at 1920")
+	expectTrue(G.quickRowH(1920) == 109, "the tray row keeps the 109 px reference row")
+	for _, bs in ipairs({ { 1920, 957 }, { 1672, 941 }, { 1506, 751 }, { 1280, 720 } }) do
+		local qb = G.quickRects(bs[1], bs[2])
+		expectTrue(qb.tome.x + qb.tome.w <= math.floor(G.BANNER_LEFT * bs[1]) - G.BANNER_CLEAR + 1, "Tome icon ends 12 px before the painted banner at " .. bs[1])
+		local lb = L.banners(bs[1], bs[2])
+		if lb and lb.left then expectTrue(qb.tome.x + qb.tome.w <= lb.left.x, "Tome icon clear of the HUD left banner at " .. bs[1]) end
+	end
 	expectTrue(G.quickSize(1280) > 44 and G.quickSize(1280) < 109, "scales down")
 	expectTrue(G.quickSize(600) == 44 and G.quickSize(1024) == 44, "44 px floor on compact windows")
 	local q = G.quickRects(1920, 957)
-	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 21 and q.speaker.y == 44 and q.speaker.x + 54 == 115, "reference: centres x 115 and 245, top y 15 at 1920")
+	expectTrue(q.pause.x - (q.speaker.x + q.speaker.w) == 21 and q.speaker.y == 44 and q.speaker.x == 61, "reference: 21 px gap, x 61, below the Roblox buttons at 1920")
 	local qc = G.quickRects(1024, 600)
 	expectTrue(qc.pause.x - (qc.speaker.x + qc.speaker.w) == 12, "compact keeps the 12 px gap")
 	expectTrue(L.barTextSize(85) == 40, "40 px words on the 1920 plate")
@@ -34797,6 +34804,8 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 			for _, k in ipairs({ "bar", "round", "target", "tips", "hand", "stage" }) do if r[k] then expectTrue(not hit(c, r[k]), "card clear of " .. k .. " at " .. w .. "x" .. h) end end
 			local parts = B.cardParts(c)
 			expectTrue(parts.portrait.x + parts.portrait.w < parts.text.x and parts.text.x + parts.text.w <= c.w, "portrait left of the text inside the card at " .. w)
+			expectTrue(parts.title.y + parts.title.h <= parts.text.y and parts.title.x == parts.text.x and parts.title.w == parts.text.w, "boss name line stands above the rule text at " .. w)
+			expectTrue(parts.text.y + parts.text.h <= c.h and parts.title.h >= 18, "rule text stays inside the card under a one-line name at " .. w)
 		elseif w >= 1280 then
 			expectTrue(false, "the Boss card must fit at " .. w .. "x" .. h)
 		end
@@ -35816,6 +35825,26 @@ table.insert(tests, { name = "Music library: ids well formed, the three first tr
 		expectTrue(credits:find(key, 1, true), "credits list " .. key)
 	end
 	expectTrue(not credits:lower():find("balatro", 1, true), "no banned word in the credits")
+end })
+
+table.insert(tests, { name = "Table overlaps: the hand frame stays clear of the Hands and Discards pills and the three round icons clear of the left banner at four sizes", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L, HS, G = require(E.Gameplay2Layout), require(E.HandSizing), require(E.GearMenu)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1309, 751 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local fr = HS.frameFor(w, r.hand, 8)
+		for _, k in ipairs({ "playCount", "discardCount" }) do
+			expectTrue(fr.y + fr.h <= r[k].y - 4, "hand frame ends 4 px or more above " .. k .. " at " .. w .. "x" .. h)
+			expectTrue(not hit(fr, r[k]), "hand frame does not touch " .. k .. " at " .. w .. "x" .. h)
+		end
+		local q = G.quickRects(w, h)
+		local b = L.banners(w, h)
+		if b and b.left then
+			for _, k in ipairs({ "speaker", "pause", "tome" }) do expectTrue(not hit(q[k], b.left), k .. " icon clear of the left banner at " .. w .. "x" .. h) end
+		end
+	end
 end })
 
 return tests

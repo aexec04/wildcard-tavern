@@ -65,9 +65,20 @@ M.QUICK_GAP = 12
 M.CORE_CLEAR_Y = 44 -- Roblox's core buttons occupy about x 24 to 262, y 0 to 36 of the GUI: the quick buttons start at or below this
 -- reference: the two round gold buttons are about 95 px at 1672 wide, so 109 px at 1920; they scale with the width and never go under 44 px
 M.QUICK_REF, M.QUICK_REF_W = 109, 1920
+M.BANNER_LEFT, M.BANNER_CLEAR = 0.1705, 12 -- the left banner starts at 0.1705 of the width (HUD pair; the painted one is at x 345 of 1920)
+-- the row the icons were designed for (reference scale); the consumables tray keeps standing under it even when the icons shrink to clear the banner
+function M.quickRowH(w)
+	if (tonumber(w) or 0) < 1200 then return M.SIZE end
+	return math.max(M.SIZE, math.min(M.QUICK_REF, round((tonumber(w) or M.QUICK_REF_W) * M.QUICK_REF / M.QUICK_REF_W)))
+end
 function M.quickSize(w)
 	if (tonumber(w) or 0) < 1200 then return M.SIZE end -- compact windows keep the 44 px buttons (the tray needs the room)
-	return math.max(M.SIZE, math.min(M.QUICK_REF, round((tonumber(w) or M.QUICK_REF_W) * M.QUICK_REF / M.QUICK_REF_W)))
+	w = tonumber(w) or M.QUICK_REF_W
+	local q = math.min(M.QUICK_REF, round(w * M.QUICK_REF / M.QUICK_REF_W))
+	-- the three icons (Speaker, Pause, Tome) end BANNER_CLEAR px before the left banner the reference table paints, so they never cover it
+	local x0, gap = round(61 / M.QUICK_REF_W * w), round(21 / M.QUICK_REF_W * w)
+	local room = round(M.BANNER_LEFT * w) - M.BANNER_CLEAR - x0 - gap - M.QUICK_GAP
+	return math.max(M.SIZE, math.min(q, math.floor(room / 3)))
 end
 function M.quickRects(w, h)
 	local gy = topY(w)

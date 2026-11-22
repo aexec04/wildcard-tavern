@@ -234,8 +234,10 @@ function M.update(layer, state, rects, viewW, viewH)
 		place(card, spot)
 		local parts = Rules.cardParts(spot)
 		place(card.Portrait, parts.portrait)
-		-- the name is printed once, large, on the top plate (and on the seat card): this card carries the portrait and the rule only
-		card.Title.Visible = false; card.Title.Text = name
+		-- the card names the boss on one line above its rule (the header plate keeps its own large name)
+		card.Title.Visible = true; card.Title.Text = name
+		card.Title.Position = UDim2.fromOffset(parts.title.x, parts.title.y); card.Title.Size = UDim2.fromOffset(parts.title.w, parts.title.h)
+		card.Title.TextSize = math.max(13, math.min(19, parts.title.h - 4)); card.Title.TextWrapped = false
 		card.Rule.Position = UDim2.fromOffset(parts.text.x, parts.text.y); card.Rule.Size = UDim2.fromOffset(parts.text.w, parts.text.h)
 		card.Rule.TextSize = math.max(12, math.min(17, math.floor(parts.text.h * 0.2)))
 		card.Rule.Text = rule

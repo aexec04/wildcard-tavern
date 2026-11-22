@@ -172,7 +172,7 @@ function M.rects(w, h)
 	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
 	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
 	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
-	local ty = qy + require(script.Parent:WaitForChild("GearMenu")).quickSize(w) + 8 -- one row below the Speaker and Pause buttons (Engine/GearMenu.quickRects)
+	local ty = qy + require(script.Parent:WaitForChild("GearMenu")).quickRowH(w) + 8 -- one row below the Speaker and Pause buttons (Engine/GearMenu.quickRects)
 	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
 		local sw2 = math.floor((trayW - 8) / 2)
 		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)
