@@ -1014,6 +1014,8 @@ end
 
 function Sim.shopVisit(state, cfg, rng, rec)
 	rec.tipsAtShop[#rec.tipsAtShop + 1] = state.tips
+	rec.shopVisits = rec.shopVisits or {}
+	rec.shopVisits[#rec.shopVisits + 1] = { night = state.night, round = state.round, tips = state.tips, patrons = #state.ownedPatrons }
 	useHeldRecipes(state, rec)
 	local rerollCost = E.Shop.REROLL_BASE_COST
 	local offers = E.Shop.rollOffers(state)

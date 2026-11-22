@@ -116,3 +116,21 @@ Night 1 is over the 90 percent goal. Night 3 is at 100 percent, above the 60 to 
 | Worst 3 (second_opinion, color_matcher, long_road) | 89.7 to 90.2% | -2.2 to -2.7 |
 
 No Patron is more than 15 points from the average (the widest gap is 2.8). Builds are random, so every Patron appears in about the same share of builds; none is picked under 5 or over 40 percent. No Patron number or price changed. Round clear is a gentle measure; the `--late` table above shows the per Night picture.
+
+## Shop economy: Tips against Patron prices, Nights 1 to 8 (`lua tools/run_sim.lua --shop-econ --runs 200 --bot decent --jobs 4`)
+Tips on arrival at each Counter visit and Patrons already held on arrival, 200 seeds (runs that reach the visit).
+
+| Visit | Avg Tips | Patrons held | | Visit | Avg Tips | Patrons held |
+|---|---|---|---|---|---|---|
+| N1 R1 | 4.0 | 0.00 | | N5 R1 | 8.8 | 5.11 |
+| N1 R2 | 6.8 | 0.05 | | N5 R3 | 12.0 | 5.13 |
+| N1 R3 | 10.1 | 0.69 | | N6 R1 | 8.6 | 5.16 |
+| N2 R1 | 7.5 | 1.65 | | N6 R3 | 12.0 | 5.18 |
+| N2 R3 | 10.8 | 3.10 | | N7 R1 | 9.1 | 5.21 |
+| N3 R1 | 8.0 | 4.07 | | N7 R3 | 12.0 | 5.25 |
+| N3 R3 | 11.9 | 4.80 | | N8 R1 | 9.1 | 5.28 |
+| N4 R1 | 8.8 | 5.00 | | N8 R2 | 8.9 | 5.31 |
+
+- Never a dead shop: the lowest average on arrival is 4.0 (the Night 1 start, exactly the cheapest Patron), and every later visit averages 6.8 or more.
+- Patrons by Night 4: the bot holds 5.0 on arrival, above the 2 to 3 target. By Night 8 it holds about 5.3 (the seat limit is 5, extra seats come from a voucher), which is the 4 to 5 target.
+- Why no change: the bot buys every affordable Patron on sight and never keeps Tips back, so it fills the 5 seats by Night 3. A real player picks and saves, and the first visit of a run is exactly 4 Tips with the cheapest Patron at 4, so lowering the round Tips payout or raising rerolls by even one Tip would make the first shops dead or the Night 1 buy impossible. The 5 seat cap, not income, is what bounds Patron count, so nothing here makes later Nights richer. No payout or reroll number changed. If real players show Night 4 with 5 Patrons, the lever is seat count or Patron price, a design call.

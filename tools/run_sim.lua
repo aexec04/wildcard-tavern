@@ -67,7 +67,7 @@ local function parseArgs(argv)
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -352,6 +352,38 @@ elseif cfg.late then
 			cells[#cells + 1] = string.format("%6.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
 		end
 		print(string.format("%-9d %s", count, table.concat(cells, " ")))
+	end
+elseif cfg.shopEcon then
+	-- Tips on hand and Patrons held at each Counter visit, Night 1 to 8 (runs that reach the visit)
+	local records = collect(runConfig({ maxNight = 8 }))
+	local agg = {}
+	local function key(night, round) return (night - 1) * 3 + round end
+	for _, rec in ipairs(records) do
+		for _, v in ipairs(rec.shopVisits or {}) do
+			local a = agg[key(v.night, v.round)] or { n = 0, tips = 0, patrons = 0, dead = 0, night = v.night, round = v.round }
+			a.n, a.tips, a.patrons = a.n + 1, a.tips + v.tips, a.patrons + v.patrons
+			agg[key(v.night, v.round)] = a
+		end
+	end
+	print(string.format("Shop economy, bot %s, %d seeds. Counter visits, Night 1 to 8:", cfg.bot, #records))
+	print(string.format("%-12s %6s %9s %9s", "Visit", "runs", "avg Tips", "Patrons"))
+	for k = 1, 24 do
+		local a = agg[k]
+		if a then print(string.format("N%d R%d %12d %9.1f %9.2f", a.night, a.round, a.n, a.tips / a.n, a.patrons / a.n)) end
+	end
+	-- Patrons held on entering the Night 4 and Night 8 Round 1 Counter visit (the first visit of that Night is after Round 1)
+	local function held(night)
+		local n, sum = 0, 0
+		for _, rec in ipairs(records) do
+			local last
+			for _, v in ipairs(rec.shopVisits or {}) do if v.night < night or (v.night == night and v.round == 1) then last = v end end
+			if last and last.night == night then n, sum = n + 1, sum + last.patrons end
+		end
+		return n, sum / math.max(1, n)
+	end
+	for _, night in ipairs({ 4, 8 }) do
+		local n, avg = held(night)
+		print(string.format("Patrons held at the first Night %d Counter visit: %.2f (%d runs)", night, avg, n))
 	end
 elseif cfg.patronRates then
 	-- Per Patron clear rate: random 4 Patron builds from Night 4, score = share of Night 4 to 8 rounds cleared by builds holding the Patron
