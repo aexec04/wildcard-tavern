@@ -46,7 +46,7 @@ return function(E)
 			local s = L.scale(w, h)
 			local ox, oy = (w - L.PANEL_W * s) / 2, (h - L.PANEL_H * s) / 2
 			local function place(r) return { x = ox + r.x * s, y = oy + r.y * s, w = r.w * s, h = r.h * s } end
-			local r = L.rects()
+			local r = L.rects(s)
 			return { panel = place({ x = 0, y = 0, w = L.PANEL_W, h = L.PANEL_H }), closeButton = place(r.close) }
 		end,
 	})
@@ -61,7 +61,7 @@ return function(E)
 		name = "Table (play board)", lane = "table",
 		rects = function(w, h) return E("PlayBoardLayout").hud(w, h) end,
 		-- hands, discards and handsDiscards are alternatives for the same strip, not neighbours
-		intended = { "^hands$|^discards$", "^handsDiscards$|^hands$", "^handsDiscards$|^discards$" },
+		intended = { "^hands$|^discards$", "^handsDiscards$|^hands$", "^handsDiscards$|^discards$", "^ringRow$|^hands", "^ringRow$|^discards", "^ringRow$|^handsDiscards$" }, -- ringRow is the Patron seat container, the seats themselves sit on the painted rings
 		skip = { touch = { ["^hands"] = true, ["^discards"] = true } }, -- readouts, not buttons
 	})
 

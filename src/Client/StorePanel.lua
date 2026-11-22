@@ -174,6 +174,7 @@ function StorePanel.refresh()
 		fetchPrice(row)
 		buildCard(row, i)
 	end
+	if ui.resize then ui.resize() end -- new Buy plates take the 44 px on screen height
 end
 
 function StorePanel.init(deps)
@@ -201,6 +202,15 @@ function StorePanel.init(deps)
 	local function resize()
 		local size = deps.screenGui.AbsoluteSize
 		fit.Scale = StoreLayout.scale(size.X, size.Y)
+		local bh = StoreLayout.touchH(fit.Scale) -- stays 44 px on screen when the panel shrinks
+		local c = panel:FindFirstChild("Close")
+		if c then c.Size = UDim2.fromOffset(160, bh) end
+		for _, d in ipairs(panel:GetDescendants()) do
+			if d.Name == "Buy" and d:IsA("TextButton") then
+				d.Size = UDim2.new(1, -36, 0, bh)
+				d.Position = UDim2.new(0, 18, 1, -4 - bh)
+			end
+		end
 	end
 	resize()
 	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
@@ -234,8 +244,10 @@ function StorePanel.init(deps)
 	close.ZIndex = 33
 	close.Parent = panel
 	Kit.skin(close, "Close", "secondary")
+	resize() -- the Close plate exists now
 
 	ui = {
+		resize = resize,
 		backdrop = backdrop, panel = panel, row = row, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, purchaseRemote = deps.purchaseRemote, getLatestState = deps.getLatestState,
 		popIn = deps.popIn, popOut = deps.popOut,
