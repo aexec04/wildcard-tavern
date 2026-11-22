@@ -8279,6 +8279,39 @@ table.insert(tests, { name = "TableStyle: backdrop resolves per region and route
 	expectTrue(not boss.grade or not BossStage.isRedish(boss.grade.color), "no red in the boss mood")
 end })
 
+table.insert(tests, { name = "Card Set themes: every non-classic set differs from classic on faces, accent and table, no purple wash, ink readable, card back and slots resolve", fn = function()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local classic = CosmeticSets.getById(CosmeticSets.DefaultId)
+	local classicLook = CosmeticSets.cardLook(classic)
+	local seenLooks = {}
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		if set.id ~= CosmeticSets.DefaultId then
+			local look = CosmeticSets.cardLook(set)
+			local face = CosmeticSets.faceStyleOf(set)
+			local accent = CosmeticSets.accentOf(set)
+			-- differs from classic on at least one of face paper, accent edge, backdrop
+			local sameEdge = look.edge[1] == classicLook.edge[1] and look.edge[2] == classicLook.edge[2] and look.edge[3] == classicLook.edge[3]
+			expectTrue(not sameEdge or set.backdropStyle ~= nil, set.id .. " does not look like classic")
+			-- no purple wash: the paper wash and accent must not be dominated by blue+red over green
+			local function purple(c) return c[1] > c[2] + 40 and c[3] > c[2] + 40 end
+			expectTrue(not purple(face.paper), set.id .. " paper is not a purple wash")
+			expectTrue(not purple(look.paper), set.id .. " card paper is not a purple wash")
+			expectTrue(not purple(accent), set.id .. " accent is not purple")
+			-- card ink reads on the paper
+			expectTrue(CosmeticSets.contrastRatio(look.ink.red, look.paper) >= 4.5, set.id .. " red ink contrast")
+			expectTrue(CosmeticSets.contrastRatio(look.ink.black, look.paper) >= 4.5, set.id .. " black ink contrast")
+			-- slots: theme resolves skin colours and a known card back
+			local skin = CosmeticSets.skinOf(set)
+			expectTrue(skin.colors and skin.colors.paper and skin.colors.panel and skin.colors.button and skin.colors.tab, set.id .. " skin slots")
+			expectTrue(CardBacks.getById(set.cardBackId or "classic") ~= nil, set.id .. " card back exists")
+			local key = look.edge[1] .. "," .. look.edge[2] .. "," .. look.edge[3] .. "|" .. look.paper[1] .. "," .. look.paper[2] .. "," .. look.paper[3]
+			expectTrue(not seenLooks[key], set.id .. " card look is distinct from " .. tostring(seenLooks[key]))
+			seenLooks[key] = set.id
+		end
+	end
+end })
+
 table.insert(tests, { name = "CosmeticSets: every set resolves a card face and backdrop style, equipping changes the table", fn = function()
 	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
 	local TableStyle = require(script.Parent.Parent.Engine.TableStyle)
