@@ -41905,6 +41905,30 @@ table.insert(tests, { name = "Boss intro plate and rule chip wear the set plate,
 	expectTrue(not src:find("TweenService:Create(rulePlate", 1, true), "the rule chip adds no tween, Calm stays static")
 end })
 
+table.insert(tests, { name = "Moderation checklist lists every Patron, Boss Round, Recipe, House Pass and Title art id with a tick box", fn = function()
+	if not io then return end
+	local f = io.open("claude/MODERATION-CHECK.md", "r")
+	if not f then return end
+	local md = f:read("*a"); f:close()
+	local E = script.Parent.Parent.Engine
+	local n = 0
+	for _, name in ipairs({ "PatronArt", "BossRoundArt", "RecipeArt", "HousePassArt", "TitleArt" }) do
+		for key, asset in pairs(require(E[name])) do
+			local id = tostring(asset):match("%d+")
+			n = n + 1
+			expectTrue(md:find("- [ ] `" .. key .. "` `" .. id .. "`", 1, true) ~= nil or md:find("- [x] `" .. key .. "` `" .. id .. "`", 1, true) ~= nil, name .. " " .. key .. " is in the checklist")
+		end
+	end
+	expectTrue(n > 300, "the checklist covers the registry art maps")
+	for _, reg in ipairs({ "Patrons", "BossRounds", "HousePasses" }) do
+		local art = ({ Patrons = "PatronArt", BossRounds = "BossRoundArt", HousePasses = "HousePassArt" })[reg]
+		local map = require(E[art])
+		for _, d in ipairs(require(E[reg]).Definitions) do
+			if map[d.id] then expectTrue(md:find("`" .. d.id .. "` `", 1, true) ~= nil, reg .. " " .. d.id .. " appears") end
+		end
+	end
+end })
+
 return tests
 
 
