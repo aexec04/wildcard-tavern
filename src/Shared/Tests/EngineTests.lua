@@ -41944,4 +41944,60 @@ table.insert(tests, { name = "Season tier preview: words per tier state, popup f
 	expectTrue(select(2, view:gsub("playClickSfx%(%)", "")) == 1, "one tap cue in the popup, on Close only")
 end })
 
+table.insert(tests, { name = "Card Set progress ring: pieces owned per set, 12 ticks inside the disc, accent at 4.5:1 on all 14 sets, hidden when the picture is too short, still in Calm mode", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SetProgress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local CB = require(script.Parent.Parent.Engine.CardBacks)
+	local fresh = { unlockedSetIds = { "classic_tavern" }, unlockedCardBackIds = { "classic" } }
+	local o, t = SP.count(CS.getById("classic_tavern"), fresh, CB)
+	expectEqual(o, 2); expectEqual(t, 2)
+	local mid = CS.Definitions[2]
+	o = SP.count(mid, fresh, CB)
+	expectEqual(o, 0, mid.id .. " is not owned yet")
+	o = SP.count(mid, { unlockedSetIds = { "classic_tavern", mid.id }, unlockedCardBackIds = { "classic" } }, CB)
+	expectTrue(o >= 1 and o <= 2, "owning the set counts the set, and its set-only back")
+	o = SP.count(mid, { unlockedSetIds = { "classic_tavern" }, unlockedCardBackIds = { "classic", mid.cardBackId } }, CB)
+	expectEqual(o, 1, "the back alone is one piece")
+	expectEqual(select(2, SP.count(nil, nil, nil)), 2, "bad input never errors")
+	expectEqual(SP.ticks(0, 2), 0); expectEqual(SP.ticks(1, 2), 6); expectEqual(SP.ticks(2, 2), 12); expectEqual(SP.ticks(9, 2), 12)
+	expectEqual(SP.ticks(1, 0), 12, "no total never divides by zero")
+	for _, d in ipairs({ 22, 28, 34 }) do
+		local seen = {}
+		for i = 1, SP.TICKS do
+			local r = SP.tick(i, d)
+			expectTrue(r.x >= -2 and r.y >= -2 and r.x + r.w <= d + 2 and r.y + r.h <= d + 2, "tick " .. i .. " sits on the ring at " .. d)
+			local key = r.x .. "," .. r.y
+			expectTrue(not seen[key], "ticks do not stack")
+			seen[key] = true
+		end
+		expectEqual(SP.tick(1, d).rotation, 0)
+		expectEqual(SP.tick(4, d).rotation, 90)
+	end
+	expectEqual(SP.diameter(200), SP.MAX_D)
+	expectEqual(SP.diameter(40), 30)
+	expectTrue(SP.diameter(28) == nil and SP.diameter(31) == nil, "a short picture leaves the ring out")
+	expectEqual(SP.diameter(32), SP.MIN_D)
+	local litSeen = {}
+	for _, set in ipairs(CS.Definitions) do
+		local c = SP.colors(set.id, CS)
+		expectTrue(CS.contrastRatio(c.lit, SP.BACKING) >= 4.5, set.id .. " lit ticks are 4.5:1 on the disc")
+		expectTrue(CS.contrastRatio(c.unlit, SP.BACKING) >= 2, set.id .. " unlit ticks stay visible")
+		litSeen[table.concat(c.lit, ",")] = true
+		local o2, t2 = SP.count(set, { unlockedSetIds = { "classic_tavern", set.id }, unlockedCardBackIds = { "classic", set.cardBackId } }, CB)
+		expectEqual(o2, t2, set.id .. " owned in full reads 2 of 2")
+	end
+	local n = 0
+	for _ in pairs(litSeen) do n = n + 1 end
+	expectTrue(n >= 8, "sets do not all share one ring colour")
+	expectEqual(SP.line(2, 2), "You own every piece of this set")
+	expectTrue(#SP.line(1, 2) <= 70 and not SP.line(1, 2):find("--", 1, true))
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local s = h:read("*a"); h:close(); return s end
+	local room = read("src/Client/CardSetsRoom.lua")
+	expectTrue(room:find("SetProgress.colors(entry.set.id, ctx.CosmeticSets)", 1, true) ~= nil and room:find('ringFrame.Name = "SetRing"', 1, true) ~= nil, "the tile draws the ring")
+	expectTrue(room:find("SetProgress.diameter(pic.h)", 1, true) ~= nil, "the ring size comes from the picture height")
+	local ringBlock = room:match('ringFrame.Name = "SetRing".-tick.Parent = ringFrame') or ""
+	expectTrue(ringBlock ~= "" and ringBlock:find("Tween", 1, true) == nil, "the ring is still: no tween")
+end })
+
 return tests

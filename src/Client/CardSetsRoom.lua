@@ -135,6 +135,7 @@ function CardSetsRoom.new(ctx)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local PlayRoomArt = require(Engine:WaitForChild("PlayRoomArt"))
 	local ThemeScenes = require(Engine:WaitForChild("ThemeScenes"))
+	local SetProgress = require(Engine:WaitForChild("SetProgress"))
 	local roomImages = {}
 	do -- the set's own table room picture (the same art ThemeScenes and the play table use); classic falls back to the reference tavern
 		local okA, PlaySceneArt = pcall(require, Engine:WaitForChild("PlaySceneArt"))
@@ -273,6 +274,8 @@ function CardSetsRoom.new(ctx)
 			elseif set.unlock.kind == "tips" then d.action = string.format("Buy (%d)", math.floor(set.unlock.price)); d.run = function() ctx.actions.buySet(set.id) end
 			else d.action = "Locked" end
 			d.tip = set.name .. ": " .. d.desc .. (d.owned and "" or ("\n" .. ctx.CosmeticSets.unlockText(set)))
+			d.piecesOwned, d.piecesTotal = SetProgress.count(set, cosmetics, ctx.CardBacks)
+			d.tip = d.tip .. "\n" .. SetProgress.line(d.piecesOwned, d.piecesTotal)
 			if not d.owned then d.desc = ctx.CosmeticSets.unlockText(set) end
 		else
 			local back = entry.back
@@ -430,6 +433,36 @@ function CardSetsRoom.new(ctx)
 			th.Rotation = -4
 		end
 		if not d.owned then padlock(holder, pic.x + pic.w - 22, pic.y + 5, 80) end
+		if entry.set and d.piecesOwned then
+			-- how much of this set is owned: a ring of 12 ticks in the set accent (4.5:1 on its disc), bottom left above the rail; still, so Calm mode needs nothing
+			local size = SetProgress.diameter(pic.h)
+			if size then
+				local colors = SetProgress.colors(entry.set.id, ctx.CosmeticSets)
+				local lit = SetProgress.ticks(d.piecesOwned, d.piecesTotal)
+				local ringFrame = Instance.new("Frame")
+				ringFrame.Name = "SetRing"
+				ringFrame.Position = UDim2.fromOffset(pic.x + 5, pic.y + pic.h - size - 14)
+				ringFrame.Size = UDim2.fromOffset(size, size)
+				ringFrame.BackgroundColor3 = rgb(SetProgress.BACKING)
+				ringFrame.BackgroundTransparency = 0.15
+				ringFrame.BorderSizePixel = 0
+				ringFrame.ZIndex = 75
+				ringFrame.Parent = holder
+				ctx.roundCorner(ringFrame, math.floor(size / 2))
+				for i = 1, SetProgress.TICKS do
+					local t = SetProgress.tick(i, size)
+					local tick = Instance.new("Frame")
+					tick.Name = "Tick" .. i
+					tick.Position = UDim2.fromOffset(t.x, t.y)
+					tick.Size = UDim2.fromOffset(t.w, t.h)
+					tick.Rotation = t.rotation
+					tick.BackgroundColor3 = rgb(i <= lit and colors.lit or colors.unlit)
+					tick.BorderSizePixel = 0
+					tick.ZIndex = 76
+					tick.Parent = ringFrame
+				end
+			end
+		end
 		-- the set's own plate (dark, accent edge, cream ink at 7:1) carries the name and the state line; classic keeps the dark wood plate
 		local band = entry.set and ctx.CosmeticSets.titleBandOf(entry.set.id) or nil
 		local plateR = { x = cell.name.x - cell.tile.x, y = cell.name.y - cell.tile.y, w = cell.name.w, h = cell.name.h + cell.state.h }
