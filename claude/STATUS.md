@@ -471,3 +471,6 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## First five minutes walkthrough (2026-11-22)
 - The guided hint (`Engine/GuidedHand.hint`) covers hands 1 to 3 (cards, then Play Hand, with a Discard line) and ends after hand 3. `FirstImpression.IDLE` lists each wait against a 20 s budget, pinned by test; the seconds are estimates, not Studio timings.
+
+## Gamepad menu navigation (2026-11-22)
+- `Engine/GamepadFocus` (pure, tested) picks the next button for a D-pad move; `Client/GamepadMenuNav` draws a gold ring on it, A presses it with the normal click, B closes the top popup (through `TableKeys` and `PopupDismiss`). It covers the Menu and every registered popup (Settings, Store, Collection), only while the last input was a gamepad, never over the table hand or a text box. Not tried with a real controller or in Studio.
