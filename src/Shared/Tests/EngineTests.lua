@@ -35838,4 +35838,21 @@ table.insert(tests, { name = "PatronCardSpec: Draft, Counter and seats share one
 	end
 end })
 
+table.insert(tests, { name = "PatronCardSpec: Counter art is a clipped Crop window like Patron pick, My Patrons names start at the shared size", fn = function()
+	if not io then return end
+	local function read(file) local f = io.open(file, "r"); if not f then return nil end; local src = f:read("*a"); f:close(); return src end
+	local shop, choice, row = read("src/Client/ShopCards.lua"), read("src/Client/ChoicePanel.lua"), read("src/Client/PatronRow.lua")
+	if shop then
+		expectTrue(shop:find("ClipsDescendants = true", 1, true) ~= nil, "Counter portrait window is clipped")
+		expectTrue(shop:find("Enum.ScaleType.Crop", 1, true) ~= nil, "Counter portrait is cropped")
+		expectTrue(shop:find("PatronCardSpec.NAME.min, PatronCardSpec.NAME.max", 1, true) ~= nil, "Counter name range is the shared one")
+	end
+	if choice then
+		expectTrue(choice:find("Enum.ScaleType.Crop", 1, true) ~= nil, "Patron pick portrait is cropped")
+	end
+	if row then
+		expectTrue(row:find("NameFit.MAX_SIZE", 1, true) ~= nil, "My Patrons seats use PatronNameFit, whose max is the shared 16")
+	end
+end })
+
 return tests
