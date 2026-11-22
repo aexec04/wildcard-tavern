@@ -10762,6 +10762,39 @@ end })
 
 -- ===== First 5 minutes: goal banner, first rewards, funnel and analytics =====
 
+table.insert(tests, { name = "NextGoal order: tutorial, then Night 1, Daily chest, Season tier, then a Quest", fn = function()
+	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)
+	local SeasonTrack = require(script.Parent.Parent.Engine.SeasonTrack)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local first = nil
+	for d = 19000, 22000, 5 do
+		if SeasonTrack.active(d) then first = d break end
+	end
+	if not first then return end -- no season in the registry window: nothing to order
+	local day = first
+	local profile = PlayerProfile.new()
+	profile.hasSeenTutorial = true
+	profile.stats.bestNightReached = 2
+	profile.stats.runsStarted = 5
+	profile.stats.handsPlayedTotal = 99
+	profile.ownedSetIds.winter_evening = true
+	SeasonTrack.addXp(profile, SeasonTrack.XP_PER_TIER * 2, day)
+	LoginStreak.checkIn(profile, day)
+	-- chest comes before the Season tier
+	expectEqual(NextGoal.compute(profile, day, {}).kind, "chest")
+	LoginStreak.claim(profile, LoginStreak.slotFor(profile.loginStreak), nil)
+	local goal = NextGoal.compute(profile, day, {})
+	expectEqual(goal.kind, "season")
+	expectTrue(#goal.text <= 40 and goal.ratio >= 0 and goal.ratio <= 1)
+	-- tutorial and Night 1 still come first
+	profile.hasSeenTutorial = false
+	expectEqual(NextGoal.compute(profile, day, {}).kind, "tutorial")
+	profile.hasSeenTutorial = true
+	-- once every reached tier is claimed, the Season step is gone and a Quest (or later step) follows
+	SeasonTrack.claimAll(profile, day)
+	expectTrue(NextGoal.compute(profile, day, {}).kind ~= "season")
+end })
+
 table.insert(tests, { name = "NextGoal: every state has one kid safe goal of 40 characters or less, finished steps never return", fn = function()
 	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)
 	local Quests = require(script.Parent.Parent.Engine.Quests)

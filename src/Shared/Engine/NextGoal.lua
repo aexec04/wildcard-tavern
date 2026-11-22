@@ -7,6 +7,7 @@
 	  1 tutorial   the walkthrough was never finished or skipped
 	  2 night1     Night 1 not cleared yet
 	  3 chest      today's Daily chest is waiting
+	  3b season    a reached Season tier is waiting to be claimed
 	  4 hire       a first run that never reached a shop
 	  5 cardset    still on the starter look and no Card Set owned
 	  6 quest      an unfinished daily quest (progress = its own bar)
@@ -24,6 +25,7 @@ local Quests = require(script.Parent.Quests)
 local TavernRank = require(script.Parent.TavernRank)
 local Unlocks = require(script.Parent.Unlocks)
 local LoginStreak = require(script.Parent.LoginStreak)
+local SeasonTrack = require(script.Parent.SeasonTrack)
 local CosmeticSets = require(script.Parent.CosmeticSets)
 
 local NextGoal = {}
@@ -63,6 +65,13 @@ function NextGoal.compute(profile, day, names)
 	local streak = profile.loginStreak or 0
 	if streak >= 1 and LoginStreak.canClaim(profile, LoginStreak.slotFor(streak)) then
 		return { kind = "chest", icon = "🎁", text = "Next goal: claim your Daily chest", ratio = 0 }
+	end
+	-- 2b. a Season tier that is reached and not yet claimed
+	if type(day) == "number" then
+		local ok, view = pcall(SeasonTrack.view, profile, day)
+		if ok and view and not view.upcoming and (view.claimable or 0) > 0 then
+			return { kind = "season", icon = "🎖", text = "Next goal: claim a Season tier", ratio = view.into / math.max(1, view.xpPerTier) }
+		end
 	end
 	-- 3. hire a Patron: a first run that ended early never saw the shop
 	if (stats.runsStarted or 0) <= 1 and (stats.handsPlayedTotal or 0) < 12 then
