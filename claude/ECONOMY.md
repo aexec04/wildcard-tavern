@@ -63,3 +63,9 @@ Tips on arrival at each Counter visit (average, min):
 - A first run can afford a Patron by Night 2: the cheapest Patron costs 4 and the bots bought 5.4 Patrons per run on average, so every Night 2 Round 1 visit holds at least 4 Tips.
 - Never stuck: the shop only costs Tips, hands and discards come from the round, so 0 Tips never removes a hand. The first visit of a run often shows only 5 to 7 Tip Patrons against 4 Tips; the next visit fixes it, so the Night 1 Round 3 visit is never a dead shop.
 - Change made: none. A 15 percent move on a 4 Tip price or the 4 Tip start rounds back to the same whole number, so no price or reward changed. The existing price range test stays and a new test pins the cheapest Patron at or under the first round win.
+
+## Run variety: 200 seeds with random Patron picks (2026-11-22)
+`lua tools/run_sim.lua --combos --bot decent --runs 200 --seed 1 --jobs 4` buys whatever Patron is on offer in random order (no value judgement, no selling) and counts the final seats.
+- Win rate with random picks: 17.5 percent (the value picking bot wins far more, so Patron choice matters).
+- Most picked Patrons: queens_gambit 28 runs (17.9 percent win), rising_dough 23 (34.8), summit_guide 23 (17.4), tip_jar 23 (30.4), all_matching 22 (18.2).
+- Best looking: rising_dough and tip_jar at 30 to 35 percent, far below 90. No Patron and no pair with at least 5 runs wins more than 90 percent, so no Patron numbers changed. Pairs are thin at 200 runs (no pair seen more than 6 times); raise --runs for pair detail.
