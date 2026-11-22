@@ -21210,8 +21210,8 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("[CardSetsRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
 		expectTrue(src:find("[PanelFit] cardsets", 1, true) ~= nil, "the [PanelFit] line is printed")
-		expectTrue(src:find("UIStroke", 1, true) == nil or src:find("local fs = Instance.new(\"UIStroke\")", 1, true) ~= nil, "no UIStroke on a button (it doubled the Preview text)")
-		expectTrue(src:find("pill = pill", 1, true) ~= nil and src:find("if view.page > 1 then plateButton", 1, true) ~= nil, "pills for Locked and Buy, disabled arrows draw nothing")
+		expectTrue(src:find("stroke(btn", 1, true) == nil and src:find("stroke(b,", 1, true) == nil, "no UIStroke on a button that carries text (it doubled the text)")
+		expectTrue(src:find("opts.pill", 1, true) ~= nil and src:find("if view.page > 1 then plateButton", 1, true) ~= nil, "pills for Locked and Buy, disabled arrows draw nothing")
 	end
 end })
 
@@ -21255,6 +21255,55 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.grid: fills the panel width, 
 		expectTrue(last.x > 0, "last cell on screen")
 	end
 	expectFalse(L.grid(150, 100, 5, 1).ok, "a tiny panel does not fit a grid")
+end })
+
+tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 percent, 5 tile columns on shelf boards, nothing overlaps at 4 sizes, every entry on some page", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		expectTrue(pw <= sz[1] and ph <= sz[2], "panel on screen at " .. sz[1] .. "x" .. sz[2])
+		local W, H = pw, ph - L.TOP - L.BOTTOM
+		for _, n in ipairs({ 1, 16, 40 }) do
+			local g = L.room(W, H, n, 1)
+			expectTrue(g.ok, "room fits at " .. sz[1] .. "x" .. sz[2])
+			expectEqual(g.cols, 5, "5 tiles per row")
+			local frac = (g.hero.x + g.hero.w) / W
+			expectTrue(frac > 0.3 and frac < 0.46, "hero is about 40 percent of the width")
+			expectFalse(hit(g.hero, g.shelf), "hero and shelf do not overlap")
+			local p = g.parts
+			for _, r in ipairs({ p.plate, p.button, p.desc, p.table }) do expectTrue(inside(r, g.hero), "hero part inside the hero") end
+			expectTrue(p.button.w >= 120 and p.button.h >= 36, "Equip button big enough")
+			expectFalse(hit(p.button, p.desc) or hit(p.desc, p.table) or hit(p.plate, p.table), "hero parts do not overlap")
+			for i, r in ipairs(p.fan) do
+				expectTrue(inside(r, p.table), "fan card inside the table")
+				if i > 1 then expectTrue(r.x > p.fan[i - 1].x, "fan cards step right") end
+			end
+			expectTrue(p.fan[5].x + p.fan[5].w <= p.back.x, "fan clears the back on its stand")
+			expectTrue(inside(p.back, p.table) and inside(p.big, p.table), "back and large back inside the table")
+			expectTrue(p.stand.y >= p.back.y + p.back.h - 1, "stand sits under the back")
+			local seen = 0
+			for page = 1, g.pages do
+				local gp = L.room(W, H, n, page)
+				expectEqual(#gp.cells, math.min(gp.perPage, n - (page - 1) * gp.perPage), "one cell per entry")
+				seen = seen + #gp.cells
+				for i, c in ipairs(gp.cells) do
+					expectTrue(inside(c.tile, gp.shelf) and c.board.y + c.board.h <= H, "tile inside the shelf and body")
+					expectTrue(c.tile.y + c.tile.h <= c.board.y + 1, "tile stands on its shelf board")
+					expectTrue(c.name.h >= 28 and c.name.w >= 56 and inside(c.name, c.tile), "name fits")
+					expectTrue(inside(c.pic, c.tile), "picture inside the tile")
+					for j = i + 1, #gp.cells do expectFalse(hit(c.tile, gp.cells[j].tile), "tiles do not overlap") end
+				end
+			end
+			expectEqual(seen, n, "every entry is on some page")
+			local tb = g.plates.tabs
+			expectFalse(hit(tb[1], tb[2]) or hit(tb[2], g.plates.page), "tabs and page controls do not overlap")
+			expectTrue(g.plates.next.x + g.plates.next.w <= W, "page controls on screen")
+		end
+	end
+	expectTrue(L.room(1920 * 0.94, 957 * 0.94 - L.TOP - L.BOTTOM, 15, 1).pages == 1, "15 Card Sets are one page at desktop size")
+	expectFalse(L.room(300, 200, 5, 1).ok, "a tiny panel does not fit the room")
 end })
 
 tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body at 1920x1080 and 1280x720, content fills plaques, pages and shelves with whole text", fn = function()

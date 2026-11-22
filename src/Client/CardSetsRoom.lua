@@ -1,12 +1,12 @@
 --[[
 	Client/CardSetsRoom.lua
-	The painted Card Sets shelf wall (cardsets_room_a) behind the Card Sets & Backs panel (Client/CosmeticSetsPanel.lua). Slots and paging
-	come from the tested Engine/CardSetsSceneLayout.lua: the top plate row holds the two tabs (Card Sets, Card Backs) and the page
-	controls, each of the ten framed velvet slots holds one set (a sample face and its back) or one card back, with its name, a Preview
-	plate, and the action on the brass plaque under the frame (Equip, Equipped, Buy (n), Locked). Details of a locked entry are in its
-	tooltip. The picture is cover-fitted with a soft vignette over uncovered edges (Client/PanelScene.lua), never stretched.
+	The Card Sets & Backs room (Client/CosmeticSetsPanel.lua) over the shared Collection wall. One large hero preview on the left (about 40
+	percent): for a Card Set a mini table in its felt and rail colours, 5 ivory cards fanned with its accent edge and corner pips, its back on a
+	stand, its name plate and one Equip or Buy button; for a Card Back the back large with a tilt and soft shadow. On the right a shelf of tiles,
+	5 per row, each standing on a drawn shelf board (a mini table picture or a tilted back, name below, gold ring on the equipped one, padlock
+	on locked ones). Clicking a tile selects it into the hero. Rects come from the tested Engine/CardSetsSceneLayout.room.
 
-	CardSetsRoom.new(ctx) -> room
+CardSetsRoom.new(ctx) -> room
 	  ctx = { panel, screenGui, roundCorner, playClickSfx, label, isOpen = fn, hide = { gui, ... } (plain widgets to hide),
 	          CosmeticSets, CardBacks, CardBackView, SetSkin, getState = fn,
 	          actions = { equipSet(id), buySet(id), equipBack(idOrNil), preview(name, setId, backId) }, backHint = fn(back) }
@@ -24,6 +24,7 @@ local CREAM = Color3.fromRGB(250, 240, 220)
 local GOLD = Color3.fromRGB(255, 214, 130)
 local INK = Color3.fromRGB(44, 26, 12)
 local DIM_INK = Color3.fromRGB(88, 64, 40)
+local BODY_TEXT = 14
 local BROWN = Color3.fromRGB(96, 66, 34)
 
 function CardSetsRoom.new(ctx)
@@ -98,182 +99,227 @@ function CardSetsRoom.new(ctx)
 		return b
 	end
 
-	local function entries(state)
+	local function entries()
 		local out = {}
 		if view.tab == "sets" then
-			for _, set in ipairs(ctx.CosmeticSets.Definitions) do out[#out + 1] = { set = set } end
+			for _, set in ipairs(ctx.CosmeticSets.Definitions) do out[#out + 1] = { key = set.id, set = set } end
 		else
-			out[1] = { match = true }
-			for _, back in ipairs(ctx.CardBacks.Definitions) do out[#out + 1] = { back = back } end
+			out[1] = { key = "match", match = true }
+			for _, back in ipairs(ctx.CardBacks.Definitions) do out[#out + 1] = { key = back.id, back = back } end
 		end
 		return out
 	end
 
-	-- a sample face tinted by the set (as in the old row preview) and the set's back
-	local function setPreview(frame, parts, set, back, owned)
-		local face = Instance.new("Frame")
-		face.BackgroundColor3 = owned and Color3.fromRGB(246, 236, 214) or Color3.fromRGB(130, 130, 130)
-		face.ZIndex = 44
-		face.Position, face.Size = rectProps(parts.face)
-		face.Parent = frame
-		ctx.roundCorner(face, 5)
-		local fs = Instance.new("UIStroke")
-		fs.Thickness = 2
-		local trim = back and back.colors.trim or { 205, 170, 95 }
-		fs.Color = Color3.fromRGB(trim[1], trim[2], trim[3])
-		fs.Parent = face
-		local theme = ctx.CosmeticSets.themeOf(set)
-		if owned and not theme.face.neutral then
-			local p, b = theme.face.paper, theme.face.border
-			face.BackgroundColor3 = Color3.fromRGB(p[1], p[2], p[3])
-			fs.Color = Color3.fromRGB(b[1], b[2], b[3])
-		end
-		pcall(ctx.SetSkin.cardLayers, face, 44, "K", theme.skin)
-		ctx.label(face, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = Color3.fromRGB(60, 40, 22), Text = "K", ZIndex = 46 })
-		local thumb = ctx.CardBackView.thumb(frame, back, { size = Vector2.new(parts.back.w, parts.back.h), locked = not owned, shimmer = false, zIndex = 44 })
-		thumb.Position = UDim2.fromOffset(parts.back.x, parts.back.y)
-		if parts.swatch then -- a framed mini table in this set's own felt and rail colours
-			local tint = ctx.CosmeticSets.tableTintOf(set)
-			local felt = tint and tint.felt or { 52, 110, 78 }
-			local wood = tint and tint.wood or { 150, 104, 60 }
-			local rail = Instance.new("Frame")
-			rail.Name = "SetSwatch"
-			rail.BorderSizePixel = 0
-			rail.BackgroundColor3 = Color3.fromRGB(wood[1], wood[2], wood[3])
-			rail.ZIndex = 44
-			rail.Position, rail.Size = rectProps(parts.swatch)
-			rail.Parent = frame
-			ctx.roundCorner(rail, 5)
-			local inner = Instance.new("Frame")
-			inner.BorderSizePixel = 0
-			inner.BackgroundColor3 = Color3.fromRGB(felt[1], felt[2], felt[3])
-			inner.AnchorPoint = Vector2.new(0.5, 0.5)
-			inner.Position = UDim2.fromScale(0.5, 0.5)
-			inner.Size = UDim2.new(1, -6, 1, -6)
-			inner.ZIndex = 45
-			inner.Parent = rail
-			ctx.roundCorner(inner, 3)
-			if not owned then rail.BackgroundTransparency = 0.45; inner.BackgroundTransparency = 0.45 end
-		end
+	local function rgb(c) return Color3.fromRGB(c[1], c[2], c[3]) end
+	local function solid(parent, color, r, z, corner)
+		local f = Instance.new("Frame")
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = color
+		f.ZIndex = z
+		f.Position, f.Size = rectProps(r)
+		f.Parent = parent
+		if corner then ctx.roundCorner(f, corner) end
+		return f
+	end
+	local function stroke(parent, color, thickness)
+		local st = Instance.new("UIStroke")
+		st.Color = color
+		st.Thickness = thickness
+		st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		st.Parent = parent
+		return st
 	end
 
-	local function paintTile(i, entry, frame, plaque, state)
-		local cosmetics = state and state.cosmetics or { equippedSetId = ctx.CosmeticSets.DefaultId, unlockedSetIds = { ctx.CosmeticSets.DefaultId } }
-		local parts = Layout.tileParts(frame)
-		local holder = Instance.new("Frame")
-		holder.Name = "Slot" .. i
-		holder.BackgroundTransparency = 1
-		holder.Position, holder.Size = rectProps(frame)
-		holder.Active = true -- so its tooltip sees the pointer
-		holder.ZIndex = 43
-		holder.Parent = layer
+	-- a framed mini table in the set's own felt and rail colours
+	local function miniTable(parent, r, set, owned, z)
+		local tint = ctx.CosmeticSets.tableTintOf(set)
+		local felt = tint and tint.felt or { 52, 110, 78 }
+		local wood = tint and tint.wood or { 150, 104, 60 }
+		local rail = solid(parent, rgb(wood), r, z, 6)
+		rail.Name = "SetSwatch"
+		local inner = solid(rail, rgb(felt), { x = 4, y = 4, w = r.w - 8, h = r.h - 8 }, z + 1, 4)
+		if not owned then rail.BackgroundTransparency = 0.45; inner.BackgroundTransparency = 0.45 end
+		return rail, inner
+	end
 
-		local name, owned, equipped, action, actionText, tipText, onPreview, onAction
+	-- one new ivory card: thin accent edge, accent corner pips, rank in the set's ink (frost sets add a pale inner edge)
+	local function ivoryCard(parent, r, look, rank, red, z, owned)
+		local card = solid(parent, rgb(look.paper), r, z, 4)
+		stroke(card, rgb(look.edge), 1.5)
+		local pip = math.max(3, math.floor(r.w * 0.1))
+		for _, pos in ipairs({ { 3, 3 }, { r.w - 3 - pip, 3 }, { 3, r.h - 3 - pip }, { r.w - 3 - pip, r.h - 3 - pip } }) do
+			solid(card, rgb(look.edge), { x = pos[1], y = pos[2], w = pip, h = pip }, z + 1, 1)
+		end
+		if look.motif == "frost" then
+			local fr = solid(card, Color3.fromRGB(235, 245, 255), { x = 3, y = 3, w = r.w - 6, h = r.h - 6 }, z, 3)
+			fr.BackgroundTransparency = 1
+			stroke(fr, Color3.fromRGB(205, 228, 245), 1)
+		end
+		ctx.label(card, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = math.max(11, math.floor(r.h * 0.34)),
+			TextColor3 = rgb(red and look.ink.red or look.ink.black), Text = rank, ZIndex = z + 2 })
+		if not owned then card.BackgroundTransparency = 0.35 end
+		return card
+	end
+
+	local function padlock(parent, x, y, z)
+		local body = solid(parent, Color3.fromRGB(214, 176, 92), { x = x, y = y + 7, w = 16, h = 12 }, z, 3)
+		local shackle = solid(parent, Color3.fromRGB(0, 0, 0), { x = x + 3, y = y, w = 10, h = 11 }, z - 1, 5)
+		shackle.BackgroundTransparency = 1
+		stroke(shackle, Color3.fromRGB(214, 176, 92), 2.5)
+		body.Name = "Padlock"
+		return body
+	end
+
+	local function shadowOf(parent, r, z)
+		local sh = solid(parent, Color3.fromRGB(10, 6, 3), { x = r.x + 4, y = r.y + 5, w = r.w, h = r.h }, z, 6)
+		sh.BackgroundTransparency = 0.6
+		sh.Name = "BackShadow"
+		return sh
+	end
+
+	-- what an entry is, owned, equipped, its action and tooltip
+	local function describe(entry, cosmetics)
+		local d = {}
 		if entry.set then
 			local set = entry.set
 			local unlocked = {}
 			for _, id in ipairs(cosmetics.unlockedSetIds or {}) do unlocked[id] = true end
-			owned = unlocked[set.id] == true
-			equipped = cosmetics.equippedSetId == set.id
-			name = set.name
-			setPreview(holder, parts, set, ctx.CardBacks.getById(set.cardBackId), owned)
-			if equipped then
-				actionText = "Equipped"
-			elseif owned then
-				actionText = "Equip"
-				onAction = function() ctx.actions.equipSet(set.id) end
-			elseif set.unlock.kind == "tips" then
-				actionText = string.format("Buy (%d)", math.floor(set.unlock.price))
-				onAction = function() ctx.actions.buySet(set.id) end
-			else
-				actionText = "Locked"
-			end
-			tipText = set.name .. ": " .. set.description .. (owned and "" or ("\n" .. ctx.CosmeticSets.unlockText(set)))
-			onPreview = function() ctx.actions.preview(set.name, set.id, set.cardBackId) end
+			d.owned = unlocked[set.id] == true
+			d.equipped = cosmetics.equippedSetId == set.id
+			d.name = set.name
+			d.desc = set.description or ""
+			if d.equipped then d.action = "Equipped"
+			elseif d.owned then d.action = "Equip"; d.run = function() ctx.actions.equipSet(set.id) end
+			elseif set.unlock.kind == "tips" then d.action = string.format("Buy (%d)", math.floor(set.unlock.price)); d.run = function() ctx.actions.buySet(set.id) end
+			else d.action = "Locked" end
+			d.tip = set.name .. ": " .. d.desc .. (d.owned and "" or ("\n" .. ctx.CosmeticSets.unlockText(set)))
+			if not d.owned then d.desc = ctx.CosmeticSets.unlockText(set) end
 		else
 			local back = entry.back
 			local backsUnlocked = {}
 			for _, id in ipairs(cosmetics.unlockedCardBackIds or { ctx.CardBacks.DefaultId }) do backsUnlocked[id] = true end
-			owned = back == nil or backsUnlocked[back.id] == true
-			if back == nil then equipped = cosmetics.pickedCardBackId == nil else equipped = cosmetics.pickedCardBackId == back.id end
-			local shown = back or ctx.CardBacks.getById(cosmetics.cardBackId or ctx.CardBacks.DefaultId)
-			name = back == nil and "Match my set" or back.name
-			local thumb = ctx.CardBackView.thumb(holder, shown, { size = Vector2.new(parts.single.w, parts.single.h), equipped = equipped, locked = not owned, zIndex = 44,
-				isActive = ctx.isOpen })
-			thumb.Position = UDim2.fromOffset(parts.single.x, parts.single.y)
-			do -- stands on the shelf: tilted, with a soft shadow; equipped gets a gold glow ring
-				thumb.Rotation = -4
-				local sh = Instance.new("Frame")
-				sh.Name = "BackShadow"
-				sh.BorderSizePixel = 0
-				sh.BackgroundColor3 = Color3.fromRGB(10, 6, 3)
-				sh.BackgroundTransparency = 0.6
-				sh.ZIndex = 43
-				sh.Position = UDim2.fromOffset(parts.single.x + 4, parts.single.y + 5)
-				sh.Size = UDim2.fromOffset(parts.single.w, parts.single.h)
-				sh.Parent = holder
-				ctx.roundCorner(sh, 6)
-				if equipped then
-					local glow = Instance.new("UIStroke")
-					glow.Color = GOLD
-					glow.Thickness = 3
-					glow.Transparency = 0.1
-					glow.Parent = thumb
-				end
-			end
-			if equipped then
-				actionText = "Equipped"
-			elseif owned then
-				actionText = back == nil and "Use set's" or "Equip"
-				onAction = function() ctx.actions.equipBack(back and back.id or nil) end
-			else
-				actionText = "Locked"
-			end
-			tipText = name .. (owned and "" or ("\n" .. ctx.backHint(back)))
-			if back ~= nil then
-				onPreview = function() ctx.actions.preview(back.name, cosmetics.equippedSetId or ctx.CosmeticSets.DefaultId, back.id) end
-			end
+			d.owned = back == nil or backsUnlocked[back.id] == true
+			if back == nil then d.equipped = cosmetics.pickedCardBackId == nil else d.equipped = cosmetics.pickedCardBackId == back.id end
+			d.shown = back or ctx.CardBacks.getById(cosmetics.cardBackId or ctx.CardBacks.DefaultId)
+			d.name = back == nil and "Match my set" or back.name
+			d.desc = back == nil and "The card back follows your equipped Card Set." or (d.owned and "A card back for your deck." or ctx.backHint(back))
+			if d.equipped then d.action = "Equipped"
+			elseif d.owned then d.action = back == nil and "Use set's" or "Equip"; d.run = function() ctx.actions.equipBack(back and back.id or nil) end
+			else d.action = "Locked" end
+			d.tip = d.name .. (d.owned and "" or ("\n" .. ctx.backHint(back)))
 		end
+		return d
+	end
 
-		if entry.set then -- the name sits on a plate in the set's accent, lightened so the ink stays readable
-			local acc = ctx.CosmeticSets.accentOf(entry.set) or { 205, 170, 95 }
-			local function toCream(v, c) return math.floor(v + (c - v) * 0.6 + 0.5) end
-			local plate = Instance.new("Frame")
-			plate.Name = "NamePlate"
-			plate.BorderSizePixel = 0
-			plate.BackgroundColor3 = Color3.fromRGB(toCream(acc[1], 250), toCream(acc[2], 240), toCream(acc[3], 220))
-			plate.BackgroundTransparency = owned and 0.1 or 0.5
-			plate.ZIndex = 44
-			plate.Position, plate.Size = rectProps(parts.name)
-			plate.Parent = holder
-			ctx.roundCorner(plate, 4)
+	local function paintHero(entry, d, g)
+		local hp, hero = g.parts, g.hero
+		local z = 43
+		local function rel(r) return { x = r.x - hero.x, y = r.y - hero.y, w = r.w, h = r.h } end
+		local frame = solid(layer, Color3.fromRGB(70, 44, 24), hero, z, 10)
+		frame.Name = "Hero"
+		stroke(frame, Color3.fromRGB(214, 172, 88), 2)
+		local plate = solid(frame, Color3.fromRGB(34, 22, 14), rel(hp.plate), z + 1, 6)
+		local acc = entry.set and ctx.CosmeticSets.accentOf(entry.set) or { 214, 172, 88 }
+		stroke(plate, rgb(acc), 1.5)
+		ctx.label(plate, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, Text = d.name, ZIndex = z + 2 })
+		local tb = rel(hp.table)
+		local owned = d.owned
+		if entry.set then
+			miniTable(frame, tb, entry.set, owned, z + 1)
+			local look = ctx.CosmeticSets.cardLook(entry.set)
+			local ranks = { { "A", false }, { "K", true }, { "Q", false }, { "J", true }, { "10", false } }
+			for i, rk in ipairs(ranks) do
+				local c = ivoryCard(frame, rel(hp.fan[i]), look, rk[1], rk[2], z + 3 + i * 2, owned)
+				c.Rotation = (i - 3) * 5
+			end
+			local br = rel(hp.back)
+			solid(frame, Color3.fromRGB(34, 22, 14), rel(hp.stand), z + 3, 3)
+			shadowOf(frame, br, z + 3)
+			local back = ctx.CardBacks.getById(entry.set.cardBackId)
+			local th = ctx.CardBackView.thumb(frame, back, { size = Vector2.new(br.w, br.h), locked = not owned, shimmer = false, zIndex = z + 4 })
+			th.Position = UDim2.fromOffset(br.x, br.y)
+			th.Rotation = 4
+		else
+			local bg = solid(frame, Color3.fromRGB(40, 26, 36), tb, z + 1, 8)
+			stroke(bg, Color3.fromRGB(214, 172, 88), 1.5)
+			local br = rel(hp.big)
+			solid(frame, Color3.fromRGB(34, 22, 14), { x = br.x - 8, y = br.y + br.h, w = br.w + 16, h = 7 }, z + 3, 3)
+			shadowOf(frame, br, z + 3)
+			local th = ctx.CardBackView.thumb(frame, d.shown, { size = Vector2.new(br.w, br.h), equipped = d.equipped, locked = not owned, zIndex = z + 4, isActive = ctx.isOpen })
+			th.Position = UDim2.fromOffset(br.x, br.y)
+			th.Rotation = -4
 		end
-		-- name on two lines in the velvet, whole (a 38 px box fits two 14 px lines), no dots
-		ctx.label(holder, { Position = UDim2.fromOffset(parts.name.x, parts.name.y), Size = UDim2.fromOffset(parts.name.w, parts.name.h), Font = Enum.Font.GothamBold, TextSize = 15,
-			TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = owned and INK or DIM_INK, Text = name, ZIndex = 45 })
-		if onPreview then
-			local pb = plateButton(holder, parts.preview, "Preview", { onClick = onPreview, solid = BROWN })
-			pb.AutoButtonColor = true
-			pb.TextColor3 = CREAM -- clean cream text on the brown plate: no stroke (a UIStroke on a button strokes its text and doubles it)
-			pb.TextStrokeTransparency = 1
+		if not owned then padlock(frame, tb.x + tb.w - 24, tb.y + 6, z + 20) end
+		if hp.desc.h >= 28 then
+			ctx.label(frame, { Position = UDim2.fromOffset(hp.desc.x - hero.x, hp.desc.y - hero.y), Size = UDim2.fromOffset(hp.desc.w, hp.desc.h), Font = Enum.Font.Gotham,
+				TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.desc, ZIndex = z + 2 })
 		end
-		addTip(holder, tipText)
-		do -- hover lifts the tile 6 px (set directly, no tween, so calm mode needs nothing extra)
+		local locked = d.run == nil
+		local btn = plateButton(layer, hp.button, d.action, { solid = locked and Color3.fromRGB(34, 22, 14) or GOLD, onClick = d.run })
+		btn.Name = "HeroAction"
+		btn.TextSize = 17
+		btn.TextColor3 = locked and CREAM or INK
+		btn.ZIndex = 46
+		if not locked then btn.AutoButtonColor = true end
+		local rim = solid(layer, Color3.fromRGB(214, 172, 88), { x = hp.button.x - 2, y = hp.button.y - 2, w = hp.button.w + 4, h = hp.button.h + 4 }, 45, 6) -- gold rim behind the button (a UIStroke on a button doubles its text)
+		rim.Name = "HeroRim"
+	end
+
+	local function paintTile(i, entry, cell, d, selected)
+		local holder = Instance.new("TextButton")
+		holder.Name = "Slot" .. i
+		holder.AutoButtonColor = false
+		holder.Text = ""
+		holder.BackgroundColor3 = Color3.fromRGB(70, 44, 24)
+		holder.BorderSizePixel = 0
+		holder.Position, holder.Size = rectProps(cell.tile)
+		holder.ZIndex = 43
+		holder.Parent = layer
+		ctx.roundCorner(holder, 8)
+		local restColor = d.equipped and GOLD or (selected and CREAM or Color3.fromRGB(150, 108, 58))
+		local ring = stroke(holder, restColor, d.equipped and 3 or (selected and 2 or 1))
+		local pic = { x = cell.pic.x - cell.tile.x, y = cell.pic.y - cell.tile.y, w = cell.pic.w, h = cell.pic.h }
+		if entry.set then
+			miniTable(holder, pic, entry.set, d.owned, 44)
+			local look = ctx.CosmeticSets.cardLook(entry.set)
+			local cw = math.floor(math.min(pic.w * 0.22, pic.h * 0.5 * 2 / 3))
+			local ch = math.floor(cw * 3 / 2)
+			for k = 1, 3 do
+				local cx = pic.x + math.floor(pic.w / 2) - cw - math.floor(cw / 4) + (k - 1) * math.floor(cw * 0.75)
+				local c = ivoryCard(holder, { x = cx, y = pic.y + pic.h - ch - 6, w = cw, h = ch }, look, ({ "A", "K", "Q" })[k], k == 2, 46 + k * 2, d.owned)
+				c.Rotation = (k - 2) * 6
+			end
+		else
+			solid(holder, Color3.fromRGB(40, 26, 36), pic, 44, 6)
+			local ch = pic.h - 8
+			local cw = math.floor(ch * 2 / 3)
+			local r = { x = pic.x + math.floor((pic.w - cw) / 2), y = pic.y + 4, w = cw, h = ch }
+			shadowOf(holder, r, 45)
+			local th = ctx.CardBackView.thumb(holder, d.shown, { size = Vector2.new(cw, ch), equipped = d.equipped, locked = not d.owned, shimmer = false, zIndex = 46 })
+			th.Position = UDim2.fromOffset(r.x, r.y)
+			th.Rotation = -4
+		end
+		if not d.owned then padlock(holder, pic.x + pic.w - 20, pic.y + 4, 60) end
+		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
+			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = d.owned and CREAM or Color3.fromRGB(190, 175, 150), Text = d.name, ZIndex = 47 })
+		addTip(holder, d.tip)
+		holder.MouseButton1Click:Connect(function()
+			ctx.playClickSfx()
+			view.selected = entry.key
+			room.paint()
+		end)
+		do -- hover lifts the tile 6 px with a warm ring (set directly, no tween, so calm mode needs nothing extra)
 			local base = holder.Position
-			holder.MouseEnter:Connect(function() holder.Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, base.Y.Offset - 6) end)
-			holder.MouseLeave:Connect(function() holder.Position = base end)
+			holder.MouseEnter:Connect(function() holder.Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, base.Y.Offset - 6); ring.Color = GOLD end)
+			holder.MouseLeave:Connect(function() holder.Position = base; ring.Color = restColor end)
 		end
-		-- the action lives on the brass plaque under the frame
-		local pr = { x = plaque.x - 0, y = plaque.y, w = plaque.w, h = plaque.h }
-		local pill = actionText == "Locked" or string.sub(actionText, 1, 3) == "Buy" -- cream on a dark pill; Equip and Equipped stay ink on the brass
-		plateButton(layer, pr, actionText, { onClick = onAction, pill = pill, active = equipped })
 	end
 
 	-- the plate row: two tabs, then "Page n of m" and the arrows (plates stay intact and empty when there is one page)
 	local function paintPlates(pages)
 		local pl = placed.plates
 		local function tab(rect, text, key)
-			plateButton(layer, rect, text, { solid = view.tab == key and BROWN or Color3.fromRGB(34, 22, 14), onClick = function() view.tab, view.page = key, 1; room.paint() end }).TextColor3 = CREAM
+			plateButton(layer, rect, text, { solid = view.tab == key and BROWN or Color3.fromRGB(34, 22, 14), onClick = function() view.tab, view.page, view.selected = key, 1, nil; room.paint() end }).TextColor3 = CREAM
 		end
 		tab(pl.tabs[1], "Card Sets", "sets")
 		tab(pl.tabs[2], "Card Backs", "backs")
@@ -288,49 +334,50 @@ function CardSetsRoom.new(ctx)
 		for _, ch in ipairs(layer:GetChildren()) do ch:Destroy() end
 		if not room.on or not placed then return end
 		local state = ctx.getState()
-		local list = entries(state)
-			local g = Layout.grid(placed.areaW, placed.areaH, #list, view.page)
+		local cosmetics = state and state.cosmetics or { equippedSetId = ctx.CosmeticSets.DefaultId, unlockedSetIds = { ctx.CosmeticSets.DefaultId } }
+		local list = entries()
+		local g = Layout.room(placed.areaW, placed.areaH, #list, view.page)
 		view.page = g.page
 		local top = placed.top
 		local function down(r) return { x = r.x, y = r.y + top, w = r.w, h = r.h } end
+		local parts = {}
+		for k, v in pairs(g.parts) do
+			if k == "fan" then parts.fan = {}; for i, r in ipairs(v) do parts.fan[i] = down(r) end else parts[k] = down(v) end
+		end
+		local cells = {}
+		for i, c in ipairs(g.cells) do cells[i] = { tile = down(c.tile), pic = down(c.pic), name = down(c.name), board = down(c.board) } end
 		placed.plates = { tabs = { down(g.plates.tabs[1]), down(g.plates.tabs[2]) }, page = down(g.plates.page), prev = down(g.plates.prev), next = down(g.plates.next) }
 		paintPlates(g.pages)
-		local function box(color, r, grow)
-			local f = Instance.new("Frame")
-			f.BackgroundColor3 = color
-			f.BorderSizePixel = 0
-			f.ZIndex = 42
-			f.Position, f.Size = rectProps({ x = r.x - grow, y = r.y - grow, w = r.w + 2 * grow, h = r.h + 2 * grow })
-			f.Parent = layer
-			return f
+		-- the selected entry (default: the equipped one) shows large in the hero
+		local selected
+		for _, e in ipairs(list) do if e.key == view.selected then selected = e end end
+		if not selected then
+			local eq = view.tab == "sets" and cosmetics.equippedSetId or (cosmetics.pickedCardBackId or "match")
+			for _, e in ipairs(list) do if e.key == eq then selected = e end end
+			selected = selected or list[1]
 		end
+		paintHero(selected, describe(selected, cosmetics), { parts = parts, hero = down(g.hero) })
 		local seenShelf = {}
-		for i, cell in ipairs(g.cells) do
+		for i, cell in ipairs(cells) do
 			local entry = list[(g.page - 1) * g.perPage + i]
-			local fr, pq, sh = down(cell.frame), down(cell.plaque), down(cell.shelf)
-			if not seenShelf[sh.y] then -- one carved wood shelf board under each row: shadow, light top edge, plank, dark underside
-				seenShelf[sh.y] = true
-				box(Color3.fromRGB(20, 12, 6), { x = sh.x, y = sh.y + sh.h, w = sh.w, h = 8 }, 0)
-				box(Color3.fromRGB(126, 88, 48), { x = sh.x, y = sh.y - 2, w = sh.w, h = sh.h + 6 }, 0)
-				box(Color3.fromRGB(168, 122, 70), { x = sh.x, y = sh.y - 2, w = sh.w, h = 2 }, 0)
+			local bd = cell.board
+			if not seenShelf[bd.y] then -- one carved wood shelf board under each row: shadow, plank, light top edge
+				seenShelf[bd.y] = true
+				solid(layer, Color3.fromRGB(20, 12, 6), { x = bd.x, y = bd.y + bd.h, w = bd.w, h = 6 }, 42, nil).BackgroundTransparency = 0.4
+				solid(layer, Color3.fromRGB(126, 88, 48), bd, 42, nil)
+				solid(layer, Color3.fromRGB(168, 122, 70), { x = bd.x, y = bd.y, w = bd.w, h = 2 }, 42, nil)
 			end
-			box(Color3.fromRGB(10, 6, 3), { x = fr.x + 6, y = fr.y + 8, w = fr.w, h = fr.h + 34 }, 5).BackgroundTransparency = 0.55 -- soft drop shadow
-			box(Color3.fromRGB(70, 44, 24), fr, 6) -- carved wood frame
-			box(Color3.fromRGB(150, 108, 58), fr, 3) -- brass inlay line
-			box(Color3.fromRGB(226, 205, 168), fr, 0) -- parchment plate
-			local br = Layout.COLORS.brass
-			box(Color3.fromRGB(br[1], br[2], br[3]), pq, 0) -- brass plaque under the frame
-			paintTile(i, entry, fr, pq, state)
+			paintTile(i, entry, cell, describe(entry, cosmetics), entry.key == selected.key)
 		end
 	end
 
 	function room.layout()
 		local screen = ctx.screenGui.AbsoluteSize
-		local pw, ph = Layout.panel(screen.X, screen.Y)
+		local pw, ph = Layout.roomPanel(screen.X, screen.Y)
 		pw, ph = FullScreen.fit(ctx.panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local area = { x = 0, y = Layout.TOP, w = pw, h = ph - Layout.TOP - Layout.BOTTOM }
-		local p = Layout.grid(area.w, area.h, 1, 1)
-		room.on = p.ok and pw >= 640 and ph >= 520
+		local p = Layout.room(area.w, area.h, 1, 1)
+		room.on = p.ok and pw >= Layout.ROOM_MIN.w and ph >= Layout.ROOM_MIN.h
 		placed = nil
 		if room.on then
 			placed = { areaW = area.w, areaH = area.h, top = Layout.TOP, plates = p.plates }
@@ -351,7 +398,7 @@ function CardSetsRoom.new(ctx)
 				local fit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fit(screen.Y, shownH)
 				print(string.format("[PanelFit] cardsets screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, room.on and pw or math.floor(screen.X * 0.64), shownH, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[CardSetsRoom] %s slots=%d (plates %d, frames %d, plaques %d) panel %dx%d", room.on and "painted" or "plain",
-					room.on and (p.cols * p.rows) or 0, 0, room.on and p.cols or 0, room.on and p.rows or 0, pw, ph))
+					room.on and p.perPage or 0, 0, room.on and p.cols or 0, room.on and p.rows or 0, pw, ph))
 			end
 		end
 		return room.on
