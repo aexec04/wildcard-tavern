@@ -37809,6 +37809,23 @@ table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards blo
 	assert(text:find("Space") and text:find("D%-pad") and not text:find("\226\128\148") and not text:lower():find("balat"))
 end })
 
+table.insert(tests, { name = "EmptyStates.Screens: every empty or failed screen has a short, safe line, and the Quests panel draws it in the serif", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	for _, k in ipairs({ "quests", "questsLoading", "offlineSave", "loadFailed", "collection", "leaderboard", "friends", "badges", "titles", "season" }) do
+		local t = ES.Screens[k]
+		assert(type(t) == "string" and #t > 0 and #t <= 60, k .. " has a short line")
+		assert(not t:find("\226\128\148") and not t:find("%-%-") and not t:lower():find("balat") and not t:lower():find("beer") and not t:lower():find("ale "), k .. " is plain and safe")
+	end
+	assert(ES.screenLine("nope") == ES.Screens.loadFailed, "unknown keys fall back to the load failed line")
+	assert(ES.FONT == "Merriweather")
+	local f = io and io.open("src/Client/QuestsPanel.lua", "r") -- no io library in Studio
+	if f then
+		local src = f:read("*a")
+		f:close()
+		assert(src:find("screenLine%(key%)") and src:find("Enum.Font.Merriweather", 1, true) and src:find('note("questsLoading")', 1, true) and src:find('note("quests")', 1, true), "Quests draws its empty lines")
+	end
+end })
+
 table.insert(tests, { name = "Phone touch audit: table controls are 44 px, hand cards do not hit neighbours, Patron plates open on tap and close on tap away (800x450, 1024x768)", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local L, HS, TG, TT = require(Engine.Gameplay2Layout), require(Engine.HandSizing), require(Engine.TouchGestures), require(Engine.TipTap)
