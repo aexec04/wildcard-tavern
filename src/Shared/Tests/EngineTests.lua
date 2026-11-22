@@ -40433,4 +40433,31 @@ table.insert(tests, { name = "Night clear Continue wears the equipped Card Set p
 	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "Boss intro plate goes through the set aware painter")
 end })
 
+tests[#tests + 1] = ({ name = "Live table scene: switching Card Sets draws only the current set's room, normal and Boss rounds", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local seen = {}
+	for _, boss in ipairs({ false, true }) do
+		for _, setId in ipairs({ "golden_gala", "festival_night", "classic_tavern", "winter_evening", "golden_gala" }) do
+			local id = TS.liveTableId(setId, boss, Art)
+			if setId == "classic_tavern" then
+				expectTrue(id == nil, "classic keeps the classic tavern (nil)")
+			elseif setId == "golden_gala" then
+				expectTrue(type(id) == "string" and id ~= "", "golden_gala draws its own room")
+			else
+				expectEqual(id, TS.themeImageId(setId, boss and "bossTableBackground" or "tablePlay") or Art[PRA.keys(setId).bg], setId .. " draws its own scene, not the previous set's")
+			end
+			if not boss and setId ~= "classic_tavern" then seen[setId] = id end
+		end
+	end
+	expectTrue(seen.festival_night ~= seen.golden_gala and seen.festival_night ~= seen.winter_evening, "each set's room is a different picture")
+	local g2 = io and io.open and io.open("src/Client/Gameplay2.lua", "r")
+	if g2 then
+		local src = g2:read("*a"); g2:close()
+		expectTrue(src:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws its room when the skin changes")
+		expectTrue(src:find("liveTableId", 1, true) ~= nil, "the live table asks ThemeScenes.liveTableId")
+	end
+end })
+
 return tests

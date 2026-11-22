@@ -110,6 +110,19 @@ function ThemeScenes.themeImageId(setId, slot)
 	return require(script.Parent.ContentArt).getImageId(tab, id)
 end
 
+-- The picture the live play table (Client/Gameplay2) draws for a set: its own painted theme art, else on a normal round its own room
+-- (play_room_<set>_bg), else on a Boss round the boss fallback. nil keeps the classic tavern. `art` is the generated PlaySceneArt map.
+-- One answer per set, so switching sets can never leave the previous set's room on screen.
+function ThemeScenes.liveTableId(setId, boss, art)
+	local own = ThemeScenes.themeImageId(setId, boss and "bossTableBackground" or "tablePlay")
+	if own then return own end
+	if ThemeScenes.known(setId) and setId ~= ThemeScenes.DEFAULT and PlayRoomArt.SETS[setId] then
+		local v = art and art[PlayRoomArt.keys(setId).bg]
+		if type(v) == "string" and v ~= "" and v ~= "rbxassetid://0" then return v end
+	end
+	return nil
+end
+
 -- The paper of the Stranger's offer scroll (Client/ShopHaggle): "frost", "gala" or "harvest" for the sets that have a variant, nil keeps the
 -- cream scroll (shop_offer_scroll_a / _b). Variants are edits of scroll a, so they only replace the normal offer.
 ThemeScenes.SCROLL_PAPER = { winter_evening = "frost", winter_table = "frost", golden_gala = "gala", harvest_table = "harvest" }

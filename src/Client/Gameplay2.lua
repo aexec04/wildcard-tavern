@@ -915,21 +915,9 @@ function M.install(deps)
 		local img = bossRef or (key == "table_play" and (TableArt.table_play_ref or TableArt.table_play)) or TableArt[key] or "" -- normal rounds keep the reference tavern
 		do -- a Card Set with its own painted table (Golden Gala) swaps the scene on the live table: normal rounds use its tablePlay, Boss rounds its boss table
 			local okT, setImg = pcall(function()
-				local TS = require(Engine:WaitForChild("ThemeScenes"))
 				local skin = require(script.Parent.HudTheme).skin()
-				return TS.themeImageId(skin and skin.id, key == "table_boss" and "bossTableBackground" or "tablePlay")
+				return require(Engine:WaitForChild("ThemeScenes")).liveTableId(skin and skin.id, key == "table_boss", require(Engine:WaitForChild("PlaySceneArt")))
 			end)
-			if okT and setImg == nil and key == "table_boss" then -- no boss art for this set yet: its own play room, never the classic tavern
-				local okR, roomImg = pcall(function()
-					local TS = require(Engine:WaitForChild("ThemeScenes"))
-					local skin = require(script.Parent.HudTheme).skin()
-					local source, roomKey = TS.bossBackdrop(skin and skin.id)
-					if source ~= "room" then return nil end
-					local v = require(Engine:WaitForChild("PlaySceneArt"))[roomKey]
-					return (type(v) == "string" and v ~= "" and v ~= "rbxassetid://0") and v or nil
-				end)
-				if okR then setImg = roomImg end
-			end
 			local own = okT and setImg ~= nil and setImg ~= (key == "table_boss" and TableArt.table_boss_ref or TableArt.table_play_ref)
 			scene:SetAttribute("SetArt", own)
 			if own then img = setImg; bossRef = nil end
@@ -1026,6 +1014,10 @@ function M.install(deps)
 				if not ok and not self.warned then self.warned = true; warn("[Gameplay2] apply stopped on an error: " .. tostring(err)) end
 			end
 		end
+	end)
+	-- equip, Preview start and Preview stop change the set while the table is up: draw the new set's room at once (no new game state comes)
+	require(script.Parent.HudTheme).onSkin(function()
+		if active and lastState then pcall(self.update, lastState) end
 	end)
 	current = self
 	return self

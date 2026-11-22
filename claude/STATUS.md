@@ -553,3 +553,6 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Daily return: tomorrow's reward on the Menu (2026-11-22)
 - The Daily Challenge note on the Notice Board shows a gold "Tomorrow: 40 XP" line from the Daily Rewards ladder (`MenuDailyEntry.tomorrowLine`, hidden until a streak exists, loops after slot 7). The line and the Play Daily plate are 44 px targets; tapping the line opens the Daily Rewards panel. Not screenshotted (no Studio session here).
+
+## Switching Card Sets redraws the live table (Nov 22)
+- The live play table (Gameplay2) redraws its room on every skin change (equip, Preview start, Preview stop), and normal rounds draw the set's own room (`ThemeScenes.liveTableId`, test over four set switches). Needs you: check DebugGoto round1:festival_night after golden_gala in Studio.
