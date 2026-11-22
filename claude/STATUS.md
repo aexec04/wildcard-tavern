@@ -488,6 +488,7 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## First five minutes walkthrough (2026-11-22)
 - The guided hint (`Engine/GuidedHand.hint`) covers hands 1 to 3 (cards, then Play Hand, with a Discard line) and ends after hand 3. `FirstImpression.IDLE` lists each wait against a 20 s budget, pinned by test; the seconds are estimates, not Studio timings.
+- Silent or feedback-free moments found by reading the code (no Studio run): a new guided hint line, the Night intro plate, a corner toast (unlock, Night clear), a first time hint bubble, a refused action warning (for example a sixth card), and a sixth card pick that did nothing. Fixed: each now plays a soft existing cue (chip, scroll_open, chip_big, shop_cant) and a sixth pick says "You can play up to 5 cards." Still open, needing Studio timing: the wait from Play to the first deal, the Tavern Map load, and the Counter first open.
 
 ## Hand reading aids (Nov 22)
 - Commit 8ea2887, tests 1443 passed. A 16 px serif line above Play Hand shows the best hand and its base Chips x Mult at your level (for example "Pair, 10 x 2"), live as cards are selected, hidden when none are, 0.15 s fade except in Calm mode (Engine/HandReadout, Client/HandReadout). Needs a Studio look at 1920x1080 and 800x450.

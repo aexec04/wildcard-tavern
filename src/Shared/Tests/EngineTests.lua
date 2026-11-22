@@ -41820,6 +41820,17 @@ table.insert(tests, { name = "Hand keys: R sorts by rank, S by suit, the mode re
 	assert(hub:find("PickEdge", 1, true) and hub:find("ink and ink.accent", 1, true), "picked edge takes the set accent, gold for classic")
 end })
 
+table.insert(tests, { name = "First 5 minutes: the five formerly silent moments (guided line, Night intro, corner toast, first time hint, refused action) each play a cue that exists", fn = function()
+	local SI = require(script.Parent.Parent.Engine.SoundIds)
+	for _, name in ipairs({ "chip", "scroll_open", "chip_big", "shop_cant" }) do assert(SI.Cues[name] and SI.Cues[name].id ~= "", name .. " cue has a sound id") end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	for file, cue in pairs({ ["GuidedHint"] = "chip", ["NightIntroFX"] = "scroll_open", ["CornerToast"] = "chip_big", ["FirstTimeHints"] = "chip", ["MessageBanner"] = "shop_cant" }) do
+		local src = read("src/Client/" .. file .. ".lua")
+		if src then assert(src:find('Cue).play("' .. cue .. '"', 1, true), file .. " plays " .. cue) end
+	end
+end })
+
 table.insert(tests, { name = "Patron cue pill and Score plate words wear the set ink at 7:1 over every set, classic unchanged, no tween added", fn = function()
 	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

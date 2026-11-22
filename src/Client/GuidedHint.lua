@@ -91,6 +91,7 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
 		M.hide()
 		return
 	end
+	if line1.Text ~= hint.line1 then pcall(function() require(script.Parent.Cue).play("chip", 0.8) end) end -- a new guided line ticks softly (it used to appear silently)
 	plate.Visible = true
 	line1.Text, line2.Text = hint.line1, hint.line2
 	local pr = Guided.plateRect(r, layer.AbsoluteSize.Y)

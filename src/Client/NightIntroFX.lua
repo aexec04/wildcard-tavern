@@ -51,6 +51,7 @@ end
 
 local function show(layer, state, w, h, timing)
 	M.skip(layer)
+	pcall(function() require(script.Parent.Cue).play("scroll_open", 0.6) end) -- the Night plate arrives with a soft scroll sound
 	local night = JourneyMap.getNight(math.floor(state.night or 1))
 	local lines = Rules.nightIntroLines(state, night and night.name or "Endless Nights")
 	local holder = Instance.new("Frame")
