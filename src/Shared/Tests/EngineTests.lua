@@ -2887,39 +2887,39 @@ table.insert(tests, { name = "Card backs: unlock sources (default, earned, with 
 	local profile = PlayerProfile.new()
 	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "classic"))
 	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"))
-	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"))
+	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "back_winter_evening"))
 	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "nope"))
 	profile.unlockedCardBackIds.gilded_ledger = true
 	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"), "milestone/journey earned")
 	profile.ownedSetIds.winter_evening = true
-	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"), "comes with an unlocked set")
-	expectTrue(CosmeticSets.isCardBackUnlocked(PlayerProfile.new(), "gilded_ledger", { set_golden_gala = true }), "gala pass unlocks its set's back")
+	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "back_winter_evening"), "comes with an unlocked set")
+	expectTrue(CosmeticSets.isCardBackUnlocked(PlayerProfile.new(), "back_golden_gala", { set_golden_gala = true }), "gala pass unlocks its set's back")
 end })
 
 table.insert(tests, { name = "Card backs: equip only unlocked, effective back follows the set when no pick", fn = function()
 	local profile = PlayerProfile.new()
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic")
-	expectFalse((CosmeticSets.equipCardBack(profile, "winter_frost")))
+	expectFalse((CosmeticSets.equipCardBack(profile, "back_winter_evening")))
 	expectEqual(profile.equippedCardBackId, nil)
 	profile.ownedSetIds.winter_evening = true
 	CosmeticSets.equip(profile, "winter_evening")
-	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "follows the set")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "back_winter_evening", "follows the set")
 	profile.unlockedCardBackIds.hall_banner = true
 	expectTrue((CosmeticSets.equipCardBack(profile, "hall_banner")))
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "hall_banner", "the pick wins over the set")
 	expectEqual(profile.equippedSetId, "winter_evening", "equipping a back leaves the set alone")
 	expectTrue((CosmeticSets.equipCardBack(profile, nil)))
-	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "cleared pick follows the set again")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "back_winter_evening", "cleared pick follows the set again")
 end })
 
 table.insert(tests, { name = "Card backs: a pick that is no longer unlocked falls back; migrate keeps only known ids", fn = function()
 	local profile = PlayerProfile.new()
-	profile.equippedCardBackId = "gilded_ledger"
+	profile.equippedCardBackId = "back_golden_gala"
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic", "not unlocked")
 	profile.equippedSetId = "golden_gala"
-	expectEqual(CosmeticSets.effectiveCardBackId(profile, { set_golden_gala = true }), "gilded_ledger")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile, { set_golden_gala = true }), "back_golden_gala")
 	expectEqual(CosmeticSets.effectiveCardBackId(profile, {}), "classic", "pass gone")
-	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "gilded_ledger" }).equippedCardBackId, "gilded_ledger")
+	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "back_golden_gala" }).equippedCardBackId, "back_golden_gala")
 	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "removed_back" }).equippedCardBackId, nil)
 	expectEqual(PlayerProfile.migrate({ equippedCardBackId = 7 }).equippedCardBackId, nil)
 	expectEqual(PlayerProfile.migrate({}).equippedCardBackId, nil)
@@ -40510,6 +40510,28 @@ tests[#tests + 1] = ({ name = "Set switching over all 14 sets: each set resolves
 	local hud, g2 = read("src/Client/HudTheme.lua"), read("src/Client/Gameplay2.lua")
 	if hud then expectTrue(hud:find("function HudTheme.setSkin", 1, true) ~= nil, "HudTheme.setSkin is the one switch point") end
 	if g2 then expectTrue(g2:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws on a skin change") end
+end })
+
+tests[#tests + 1] = ({ name = "Card back per Card Set: every non classic set has its own painted back (unique id, art recorded), classic keeps its back", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local seen = {}
+	local count = 0
+	for _, set in ipairs(CosmeticSets.Definitions or CosmeticSets.Sets or {}) do
+		local back = CardBacks.getById(set.cardBackId)
+		expectTrue(back ~= nil, set.id .. " back exists")
+		if set.id == "classic_tavern" then
+			expectEqual(set.cardBackId, "classic", "classic keeps its back")
+		else
+			count = count + 1
+			expectEqual(set.cardBackId, "back_" .. set.id, set.id .. " back id")
+			expectTrue(seen[set.cardBackId] == nil, set.id .. " back is not shared")
+			seen[set.cardBackId] = true
+			expectTrue(back.setOnly == true, set.id .. " back is set only")
+			local img = ContentArt.getImageId("card_backs", set.cardBackId)
+			expectTrue(type(img) == "string" and img ~= "" and img ~= "rbxassetid://0", set.id .. " back has painted art")
+		end
+	end
+	expectEqual(count, 14, "14 non classic sets")
 end })
 
 return tests

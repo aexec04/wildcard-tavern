@@ -557,3 +557,4 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 ## Switching Card Sets redraws the live table (Nov 22)
 - The live play table (Gameplay2) redraws its room on every skin change (equip, Preview start, Preview stop), and normal rounds draw the set's own room (`ThemeScenes.liveTableId`, test over four set switches). Needs you: check DebugGoto round1:festival_night after golden_gala in Studio.
 - A test steps through all 14 sets with classic last and checks each resolves only its own room, front, live table, boss table, shop room and keeper, none shared.
+- Every non classic Card Set has its own painted card back (`back_<setId>`, set only, in CardBackArt) used by the deck pile and the Card Sets view; classic keeps its back. Test checks unique ids and recorded art.
