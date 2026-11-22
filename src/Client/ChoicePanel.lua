@@ -15,7 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
-local PORTRAIT_SCALE = 1.5 -- Patron portraits in the draft rings: enlarged and top anchored so the baked in name is clipped away
+local DraftPortrait = require(Engine:WaitForChild("DraftPortrait")) -- what the Patron rings draw (cut card portrait window)
 local ClientSettings = require(script.Parent.ClientSettings)
 local ModalStage = require(script.Parent.ModalStage)
 local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
@@ -173,23 +173,41 @@ local function buildCard(choice, option, order)
 	ring.Parent = well
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
 	if choice.kind == "patron" or choice.kind == "rushPatron" or choice.kind == "reward" then
-		-- Patron art is a full card with its name baked in at the bottom: show it enlarged and anchored to the top, clipped by the
-		-- round well, so only the character shows inside the ring
+		-- The ring shows the portrait window of the cut card (Engine/DraftPortrait): no frame, no baked name, clipped to the ring
 		local crop = Instance.new("Frame")
 		crop.Name = "PortraitCrop"
 		crop.Size = UDim2.fromScale(1, 1)
 		crop.BackgroundTransparency = 1
 		crop.BorderSizePixel = 0
 		crop.ClipsDescendants = true
-		crop.ZIndex = 65
+		crop.ZIndex = 64
 		crop.Parent = well
 		ui.roundCorner(crop, 8)
-		-- plain portrait (never the full cut card, which carries its own frame and name): as wide as the well, top anchored,
-		-- so it fills the frame with no dark slab and the baked ribbon at the bottom falls outside the clip
-		PatronPlaque.apply(crop, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 0, portrait = true,
-			size = UDim2.fromScale(1, PORTRAIT_SCALE), position = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0) })
-		if game:GetService("RunService"):IsStudio() then
-			print(("[PortraitCrop] patron=%s scale=%.2f anchor=top"):format(tostring(option.id), PORTRAIT_SCALE))
+		local spec = DraftPortrait.spec(option.id)
+		if spec then
+			local pic = Instance.new("ImageLabel")
+			pic.Name = "PatronArt"
+			pic.BackgroundTransparency = 1
+			pic.BorderSizePixel = 0
+			pic.Active = false
+			pic.Image = spec.image
+			pic.ScaleType = spec.kind == "card" and Enum.ScaleType.Crop or Enum.ScaleType.Fit
+			if spec.rect then
+				pic.ImageRectOffset = Vector2.new(spec.rect.x, spec.rect.y)
+				pic.ImageRectSize = Vector2.new(spec.rect.w, spec.rect.h)
+			end
+			pic.Size = UDim2.fromScale(1, 1)
+			pic.Position = UDim2.fromScale(0, 0)
+			pic.ZIndex = 64
+			pic.Parent = crop
+			if game:GetService("RunService"):IsStudio() then
+				task.defer(function()
+					if not crop.Parent then return end
+					local w = DraftPortrait.overflow(pic.AbsolutePosition.X, pic.AbsolutePosition.Y, pic.AbsoluteSize.X, pic.AbsoluteSize.Y,
+						crop.AbsolutePosition.X, crop.AbsolutePosition.Y, crop.AbsoluteSize.X, crop.AbsoluteSize.Y)
+					if w then warn("[PortraitCrop] " .. tostring(option.id) .. " " .. w) end
+				end)
+			end
 		end
 	elseif choice.kind == "modifier" then
 		local artId = ContentArt.getImageId("blessing_icons", option.id)
