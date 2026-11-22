@@ -40,7 +40,7 @@ function SeasonPanel.init(deps)
 		l.TextColor3 = INK
 		l.TextTransparency = 0
 		l.TextStrokeTransparency = 1
-		l.TextSize = 15
+		l.TextSize = 16
 		l.ZIndex = 43
 		for k, v in pairs(props) do
 			l[k] = v
@@ -253,7 +253,7 @@ function SeasonPanel.init(deps)
 	closeButton.AnchorPoint = Vector2.new(0.5, 1)
 	closeButton.Position = UDim2.new(0.5, 0, 1, -10)
 	closeButton.Font = Enum.Font.GothamBold
-	closeButton.TextSize = 15
+	closeButton.TextSize = 16
 	closeButton.TextColor3 = CREAM
 	closeButton.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 	closeButton.Text = "Close"
@@ -315,11 +315,11 @@ function SeasonPanel.init(deps)
 		stroke.Color = require(script.Parent.TavernKit).ringColor(GOLD) -- locked and claimed premium cells keep their dim and green fills, the ring takes the set accent
 		stroke.Thickness = 2
 		stroke.Parent = box
-		label(box, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 2), TextSize = 14, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
+		label(box, { Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(0, 1), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
 		local category, key, emoji = rewardArt(prem.reward)
 		local well = Instance.new("Frame")
-		well.Size = UDim2.fromOffset(40, 40)
-		well.Position = UDim2.fromOffset(math.floor((TILE_W - 8 - 40) / 2), 20)
+		well.Size = UDim2.fromOffset(36, 36)
+		well.Position = UDim2.fromOffset(math.floor((TILE_W - 8 - 36) / 2), 20)
 		well.BackgroundColor3 = WOOD
 		well.BorderSizePixel = 0
 		well.ZIndex = 44
@@ -330,13 +330,13 @@ function SeasonPanel.init(deps)
 			pcall(ArtIcon.apply, well, category, key, glyph, { cornerRadius = 8, zIndex = 46, dim = prem.locked })
 		end
 		if prem.locked then glyph.TextTransparency = 0.35 end -- dimmed, never black
-		label(box, { Size = UDim2.new(1, -4, 0, 30), Position = UDim2.fromOffset(2, 62), TextSize = 14, TextWrapped = true, Font = Enum.Font.GothamMedium,
-			Text = SeasonTrack.premiumLabelShown(prevRow and prevRow.premium and prevRow.premium.text, prem.text) and prem.text or "" })
+		label(box, { Size = UDim2.new(1, -4, 0, 36), Position = UDim2.fromOffset(2, 58), TextSize = SeasonTrack.NAME_SIZE, TextWrapped = true, Font = Enum.Font.GothamMedium,
+			Text = SeasonTrack.premiumLabelShown(prevRow and prevRow.premium and prevRow.premium.short, prem.short) and prem.short or "" })
 		if prem.claimed then
 			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
 		elseif prem.locked then
 			label(box, { Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 0), TextSize = 20, Text = "🔒", ZIndex = 48 })
-			label(box, { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -22), TextSize = 16, TextColor3 = CREAM, Text = "Premium only", ZIndex = 48 })
+			label(box, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.new(0, 0, 1, -18), TextSize = 16, TextColor3 = CREAM, Text = "Premium only", ZIndex = 48 })
 		end
 		local claimBox = Instance.new("TextButton")
 		claimBox.Size = UDim2.fromScale(1, 1)
@@ -409,8 +409,8 @@ function SeasonPanel.init(deps)
 			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, isNow and 25 or 5), TextSize = 16, TextColor3 = markInk, Text = "Next", ZIndex = 47 })
 		end
 		local well = Instance.new("Frame")
-		well.Size = UDim2.fromOffset(92, 92)
-		well.Position = UDim2.fromOffset(math.floor((TILE_W - 92) / 2), 28)
+		well.Size = UDim2.fromOffset(80, 80)
+		well.Position = UDim2.fromOffset(math.floor((TILE_W - 80) / 2), 28)
 		well.BackgroundColor3 = WOOD
 		well.BorderSizePixel = 0
 		well.ZIndex = 43
@@ -424,14 +424,14 @@ function SeasonPanel.init(deps)
 		if not row.reached then
 			glyph.TextTransparency = 0.35 -- dimmed, never black
 		end
-		label(t, {
-			Size = UDim2.new(1, -6, 0, 32), Position = UDim2.fromOffset(3, 118), TextSize = 14, TextWrapped = true,
-			Font = Enum.Font.GothamMedium, Text = row.text or "",
+		label(t, { -- the reward's own name, 16 px, two lines at most (SeasonTrack.NAME_*); the icon above says what kind it is
+			Size = UDim2.fromOffset(SeasonTrack.NAME_W, 38), Position = UDim2.fromOffset(3, 112), TextSize = SeasonTrack.NAME_SIZE, TextWrapped = true,
+			Font = Enum.Font.GothamMedium, Text = row.short or row.text or "",
 		})
 		if row.claimed then
 			label(t, { Size = UDim2.fromOffset(30, 30), Position = UDim2.new(1, -32, 0, 2), TextSize = 22, TextColor3 = GREEN, Text = "✔", ZIndex = 47 })
 		elseif not row.reached then
-			label(t, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, TILE_H - 20), TextSize = 14, Font = Enum.Font.Gotham, Text = row.need .. " XP" })
+			label(t, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, TILE_H - 20), TextSize = 16, Font = Enum.Font.Gotham, Text = row.need .. " XP" })
 		end
 		t.Size = UDim2.fromOffset(TILE_W, TILE_H + (hasPremium and PREMIUM_H or 0))
 		if hasPremium then premiumSection(t, row, prevRow) end

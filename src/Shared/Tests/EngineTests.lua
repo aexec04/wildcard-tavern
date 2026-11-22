@@ -45022,6 +45022,59 @@ table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Pat
 	end
 end })
 
+table.insert(tests, { name = "Season tier rewards audit: all 30 tiers of both seasons, free and premium, have an icon and a name that fits two 16 px lines, claimed and locked states differ, the panel fits four sizes", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local RewardArt = require(script.Parent.Parent.Engine.RewardArt)
+	local lookup = {
+		cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+		titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+		setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+	}
+	expectEqual(ST.NAME_SIZE, 16)
+	expectTrue(ST.TILE_H >= 150, "tile is tall enough for the icon, two name lines and the XP line")
+	local checked = 0
+	for _, season in ipairs(ST.Seasons) do
+		local profile = PlayerProfile.new()
+		local day = ST.window(season)
+		local view = ST.view(profile, day, lookup)
+		expectEqual(#view.tiers, 30, season.id .. " has 30 tiers")
+		for _, row in ipairs(view.tiers) do
+			for _, cell in ipairs({ { "free", row.reward, row.short }, { "premium", row.premium.reward, row.premium.short } }) do
+				local where = season.id .. " tier " .. row.tier .. " " .. cell[1]
+				expectTrue(cell[2] ~= nil, where .. " has a reward")
+				local category, key, emoji = RewardArt.resolve(cell[2])
+				expectTrue(type(emoji) == "string" and emoji ~= "", where .. " has an icon fallback")
+				expectTrue(category == nil or key ~= nil, where .. " art has a key")
+				expectTrue(type(cell[3]) == "string" and cell[3] ~= "" and #cell[3] <= 28, where .. " has a short name: " .. tostring(cell[3]))
+				expectTrue(not tostring(cell[3]):find("_", 1, true), where .. " shows a name, not a raw id: " .. tostring(cell[3]))
+				expectTrue(ST.nameLines(cell[3]) <= ST.NAME_LINES, where .. " name fits two 16 px lines: " .. tostring(cell[3]))
+				checked = checked + 1
+			end
+		end
+		expectTrue(view.tiers[1].claimed == false and view.tiers[1].reached == false, "a new profile sees tier 1 locked and unclaimed")
+		expectTrue(view.tiers[1].need > 0 and view.tiers[1].premium.locked == true, "locked premium cells say so")
+	end
+	expectEqual(checked, 120)
+	expectEqual(ST.shortText({ kind = "tips", amount = 3 }), "+3 Tips")
+	expectEqual(ST.nameLines("Season Stamp"), 1)
+	expectEqual(ST.nameLines("Card back: Starlit Keeper Deluxe Edition"), 4)
+	-- the panel fits every window size: whole tiles, never smaller than 0.8, 44 px buttons
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		for _, prem in ipairs({ false, true }) do
+			local fit = ST.fit(sz[1], sz[2], prem)
+			expectTrue(fit.tiles >= 3 and fit.tiles <= ST.TILES_VISIBLE, sz[1] .. "x" .. sz[2] .. " shows whole tiles: " .. fit.tiles)
+			expectTrue(fit.shownW <= sz[1] and fit.scale >= 0.8, sz[1] .. "x" .. sz[2] .. " panel width fits")
+			expectTrue(ST.touchH(fit.scale) * fit.scale >= 43.9, sz[1] .. "x" .. sz[2] .. " claim plates stay 44 px on screen")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/SeasonPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("TextSize = SeasonTrack.NAME_SIZE", 1, true) ~= nil, "tile and premium names use the 16 px size")
+		expectTrue(not src:find("TextSize = 14", 1, true), "no 14 px text is left on the Season panel")
+	end
+end })
+
 table.insert(tests, { name = "Mark and Slim quests: counters read the run, Slim Sprint is swapped out until the Slim Deck is open, rewards stay in the 2 to 4 Tips range, the model run finishes each in 2 runs or fewer", fn = function()
 	local Quests = require(script.Parent.Parent.Engine.Quests)
 	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
