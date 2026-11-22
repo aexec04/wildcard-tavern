@@ -41722,6 +41722,190 @@ table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and
 	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
 end })
 
+table.insert(tests, { name = "Soft lock hunt: every deck against every boss rule, random plays and discards always leave a legal action and the round always ends", fn = function()
+	local rounds = 0
+	for deckIndex, deck in ipairs(DeckVariants.Definitions) do
+		for bossIndex, boss in ipairs(BossRounds.Definitions) do
+			for night = 1, 9, 4 do
+				local seed = deckIndex * 1000 + bossIndex * 10 + night
+				local rng = SeededRng.new(seed)
+				local state = RunState.new({ deckVariantId = deck.id }, rng)
+				state.night, state.round, state.nightBossModifier = night, state.config.roundsPerNight, boss
+				RunState.startRound(state)
+				local actions = 0
+				while not state.roundOver do
+					actions = actions + 1
+					expectTrue(actions <= 60, deck.id .. " " .. boss.id .. " round never ended")
+					expectTrue(state.handsRemaining > 0 and RunState.hasLegalPlay(state), deck.id .. " " .. boss.id .. " left no legal play")
+					local need = (state.bossModifier and state.bossModifier.requiredCardsPerHand) or math.max(rng(5), (state.bossModifier and state.bossModifier.minCardsPerHand) or 1)
+					local size = math.min(#state.hand, need)
+					local picks, taken = {}, {}
+					while #picks < size do
+						local i = rng(#state.hand)
+						if not taken[i] then taken[i] = true; table.insert(picks, i) end
+					end
+					local ok, err
+					if state.discardsRemaining > 0 and rng(3) == 1 then
+						ok, err = pcall(RunState.discard, state, picks)
+					else
+						ok, err = pcall(RunState.playHand, state, picks)
+					end
+					expectTrue(ok, deck.id .. " " .. boss.id .. " legal action errored: " .. tostring(err))
+				end
+				rounds = rounds + 1
+			end
+		end
+	end
+	expectTrue(rounds >= 4 * #BossRounds.Definitions * 3 - 1, "swept every deck and boss: " .. rounds)
+end })
+
+table.insert(tests, { name = "Seeded daily determinism: two players on one date get the same deck order, shop offers, packs, bosses, scores and Recipe rolls even with different global randomness; another date differs", fn = function()
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local function playerRun(seed, noise)
+		math.randomseed(noise) -- each simulated player has their own global math.random state
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard", seeded = true }, SeededRng.new(seed))
+		local out = {}
+		local function note(v) out[#out + 1] = tostring(v) end
+		for _ = 1, 4 * 3 do
+			for _ = 1, noise % 7 do math.random() end -- other players' activity must not leak in
+			for _, c in ipairs(state.hand) do note(c.rank .. c.suit) end
+			note(state.targetScore) note(state.bossModifier and state.bossModifier.id or "-") note(state.nightBossModifier and state.nightBossModifier.id or "-")
+			note(state.currentRoundSkipTag and state.currentRoundSkipTag.id or "-")
+			local guard = 0
+			while not state.roundOver and guard < 20 do
+				guard = guard + 1
+				state.targetScore = math.min(state.targetScore, 400)
+				local n = math.max(1, math.min(5, #state.hand, (state.bossModifier and (state.bossModifier.requiredCardsPerHand or state.bossModifier.minCardsPerHand)) or 5))
+				local picks = {}
+				for i = 1, n do picks[i] = i end
+				if state.discardsRemaining > 0 and guard == 1 then
+					RunState.discard(state, { 1, 2 })
+					for _, c in ipairs(state.hand) do note(c.rank .. c.suit) end
+				end
+				local r = RunState.playHand(state, picks)
+				note(r.score) note(r.handName)
+			end
+			if state.runOver then break end
+			state.tips = state.tips + 40
+			for _ = 1, 3 do
+				local o = Shop.rollOffers(state)
+				for _, pt in ipairs(o.patrons) do note(pt.id) end
+				for _, k in ipairs(o.packs) do note(k.id) end
+				note(o.voucher and o.voucher.id or "none")
+			end
+			local opened = RunState.openPack(state, Shop.rollOffers(state).packs[1].id)
+			if opened then
+				for _, item in ipairs(state.pendingPack and state.pendingPack.items or {}) do note(item.id) end
+				RunState.resolvePack(state, {})
+			end
+			RunState.advanceToNextRound(state)
+		end
+		return table.concat(out, ",")
+	end
+	local day = SeededRng.dailySeed(1788134400)
+	local a, b = playerRun(day, 11), playerRun(day, 98765)
+	expectTrue(#a > 200, "the trace covers a real run")
+	expectEqual(a, b, "same date, same run for both players")
+	expectEqual(a, playerRun(day, 5), "and a third player")
+	expectTrue(a ~= playerRun(SeededRng.dailySeed(1788134400 + 86400), 11), "the next date differs")
+	expectTrue(a ~= playerRun(SeededRng.dailySeed(1788134400 + 2 * 86400), 11), "two dates on differs")
+end })
+
+table.insert(tests, { name = "Repeated runs: 200 runs in one process each start from clean counters, Tips, deck and seats, shared definition tables never grow, and memory stays bounded", fn = function()
+	local function defSizes()
+		return { #Patrons.Definitions, #BossRounds.Definitions, #DeckVariants.Definitions, #Packs.Definitions, #Tags.Definitions or 0, #Recipes.HouseRecipes or 0 }
+	end
+	local function oneRun(i)
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(500 + i))
+		local tipsAtStart = state.tips
+		expectEqual(state.roundsCleared, 0, "run " .. i .. " rounds cleared starts at 0")
+		expectEqual(state.bossesCleared, 0, "run " .. i .. " bosses cleared starts at 0")
+		expectEqual(state.handsPlayedTotal, 0, "run " .. i .. " hands played starts at 0")
+		expectEqual(state.discardsUsedTotal, 0, "run " .. i .. " discards used starts at 0")
+		expectEqual(state.patronsSold, 0, "run " .. i .. " Patrons sold starts at 0")
+		expectEqual(next(state.handStats), nil, "run " .. i .. " hand stats start empty")
+		expectEqual(#state.ownedPatrons, 0, "run " .. i .. " starts with no Patrons")
+		expectEqual(#state.discardPile, 0, "run " .. i .. " starts with an empty discard pile")
+		expectEqual(#state.deck + #state.hand, 52, "run " .. i .. " has a full deck")
+		expectEqual(state.night, 1)
+		expectEqual(state.round, 1)
+		for _ = 1, 3 do
+			local guard = 0
+			while not state.roundOver and guard < 20 do
+				guard = guard + 1
+				state.targetScore = math.min(state.targetScore, 50)
+				RunState.playHand(state, { 1, 2, 3, 4, 5 })
+			end
+			if state.runOver then break end
+			state.tips = state.tips + 30
+			local offers = Shop.rollOffers(state)
+			if offers.patrons[1] then RunState.buyPatron(state, offers.patrons[1].id) end
+			RunState.advanceToNextRound(state)
+		end
+		expectTrue(state.handsPlayedTotal > 0 and state.tips >= 0, "run " .. i .. " actually played")
+		return tipsAtStart
+	end
+	local before = defSizes()
+	local firstTips
+	oneRun(0)
+	collectgarbage() collectgarbage()
+	local base = collectgarbage("count")
+	for i = 1, 200 do
+		local t = oneRun(i)
+		firstTips = firstTips or t
+		expectEqual(t, firstTips, "run " .. i .. " starts with the same Tips as run 1")
+	end
+	collectgarbage() collectgarbage()
+	local grown = collectgarbage("count") - base
+	expectTrue(grown < 4096, "200 runs left " .. math.floor(grown) .. " KB behind")
+	local after = defSizes()
+	for i = 1, #before do expectEqual(after[i], before[i], "shared definition table " .. i .. " never grows") end
+end })
+
+table.insert(tests, { name = "Tutorial time: Menu to the first cleared round takes about a minute, no step needs more than 20 s, and the idle waits stay under 20 s", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local toClear = Steps.secondsToRoundClear()
+	expectEqual(toClear, 53, "Menu, Corner Table, four guided hands and the target note")
+	expectTrue(toClear <= 60, "the first Night round clears within a minute of tutorial steps")
+	local longest, which = Steps.longestStepSeconds()
+	expectTrue(longest <= Steps.MAX_STEP_SECONDS, which .. " takes " .. longest .. " s")
+	local idle = 0
+	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id); idle = idle + w.seconds end
+	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
+end })
+
+-- PERFORMANCE BUDGET: a source count of the tween call sites in the files that run on a hand play and on a shop open (the fake
+-- GUI cannot run the live scenes, so this is a ceiling on code, not a runtime count). See claude/PERF-BUDGET.md.
+table.insert(tests, { name = "Performance budget: tween call sites on the hand play and shop open paths stay under their caps, no single file over 18", fn = function()
+	if not (io and io.open) then return end
+	local groups = {
+		hand = { cap = 85, files = { "Gameplay2FeelFX", "Gameplay2ScoreFX", "Gameplay2MomentsFX", "PatronRow", "PatronMotionFX", "ActionButtonFX", "HudTickFX",
+			"Showdown", "HandTouchFX", "DealFlip", "SortGlideFX", "ComboCounter", "GameplayScene", "HandReadout", "DeckWidget", "PatronShineFX", "PatronCalloutFX" } },
+		shop = { cap = 47, files = { "ShopScene", "ShopCards", "PackRevealFX", "RarityFrame", "ChoicePanel", "DeckTracker" } },
+	}
+	for name, g in pairs(groups) do
+		local total = 0
+		for _, file in ipairs(g.files) do
+			local f = io.open("src/Client/" .. file .. ".lua", "r")
+			if f then
+				local count = 0
+				for line in f:lines() do
+					local s = line:gsub("^%s+", "")
+					if s:sub(1, 2) ~= "--" and s:sub(1, 20) ~= "local function tween" then
+						if line:find("TweenService:Create", 1, true) or line:match("^tween%(") or line:match("[^%w_.:]tween%(") then count = count + 1 end
+					end
+				end
+				f:close()
+				expectTrue(count <= 18, file .. " has " .. count .. " tween call sites, the per file cap is 18")
+				total = total + count
+			end
+		end
+		expectTrue(total <= g.cap, name .. " path has " .. total .. " tween call sites, the cap is " .. g.cap)
+		expectTrue(total >= 20, "the " .. name .. " scan really read the files: " .. total)
+	end
+end })
+
 table.insert(tests, { name = "Result screens: Victory Continue and Skip wear the equipped Card Set plate, classic keeps its own", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Look = require(script.Parent.Parent.Engine.VictoryLook)
