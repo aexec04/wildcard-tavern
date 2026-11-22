@@ -1,0 +1,13 @@
+# First hand guidance: audit
+- Commit: f22b4a0 Tutorial: test that wrong inputs never trap the step machine, Skip works at every step and step text names only controls on its screen
+- Tests: 1393 passed, 0 failed (run with lua; lua5.3 is not installed here).
+- Audit result: no code bug found, so the commit adds a test only.
+  - TutorialSteps allow lists reject Discard and Sort at every step.
+  - Scripted picks accept only hand slots 1..count.
+  - Wrong deliberate actions return "wrong" (the target wiggles) and never advance.
+  - Skip needs a hold to confirm and ends the machine at any step. If the dialog is missing, Skip still completes.
+  - MarkTutorialSeen is idempotent, and the tutorial starts only from the menu tile, so it does not reappear.
+  - A missing target is passed over (tap steps) or the dim is lifted (action steps) after 3 s.
+  - The GuidedHand hint moves on after one selected card and ends after the first hand. Only a profile's first run is guided.
+- The new test runs all of this through the real machine: wrong inputs at every step, Skip at every step, a full correct run, an unscripted replay, and step text against its screen.
+- Needs you: nothing. The client wiggle and the Skip popup are visual and were not checked in Studio.

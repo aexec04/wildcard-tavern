@@ -39045,4 +39045,53 @@ table.insert(tests, { name = "PatronCardSpec: Draft, Counter and seats share one
 	end
 end })
 
+table.insert(tests, { name = "Boss intro and Night clear: rule text fits two lines of 14 px, 44 px Continue, nothing overlapping at 800x450, 1024x768 and 1920x1080", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- every Boss rule is one sentence that fits two 14 px lines (about 7.5 px a letter) in the narrowest intro text column, never cut with dots
+	local narrow, shortest = math.huge, math.huge
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local p = M.bossIntroPlateFor(r, w, h)
+		expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= w and p.y + p.h <= h, "intro plate on screen at " .. w)
+		expectTrue(p.h >= 64, "intro plate holds the portrait at " .. w)
+		for _, k in ipairs({ "bar", "target", "tips", "round", "gear" }) do expectTrue(not hit(p, r[k]), "intro plate clear of " .. k .. " at " .. w) end
+		for i, sl in ipairs(r.slots) do expectTrue(not hit(p, sl.pill), "intro plate clear of seat " .. i .. " at " .. w) end
+		local _, text = M.bossIntroParts(p)
+		narrow = math.min(narrow, text.w)
+		local nr, rr = M.bossIntroRows(text)
+		shortest = math.min(shortest, rr.h)
+		expectTrue(nr.h >= 22 and nr.y + nr.h <= rr.y and rr.y + rr.h <= text.h, "name and rule rows stack inside the plate at " .. w)
+		for _, big in ipairs({ false, true }) do
+			local np = M.nightPlate(w, h, big)
+			expectTrue(np.x >= 0 and np.y >= 0 and np.x + np.w <= w and np.y + np.h <= h, "Night plate on screen at " .. w)
+			local c = M.continueRect({ w = np.w, h = np.h })
+			expectTrue(c.h >= 44 and c.w >= 44, "Continue is at least 44 px at " .. w)
+			expectTrue(c.x >= 0 and c.x + c.w <= np.w and c.y + c.h <= np.h, "Continue inside the Night plate at " .. w)
+			-- text rows (Title 10..50, Night, Score, Tips) stay above the Continue plate
+			local lastRow = (big and 120 or 108) + 26
+			expectTrue(lastRow + 4 <= c.y, "tally rows clear of Continue at " .. w .. " big=" .. tostring(big))
+		end
+	end
+	expectTrue(shortest >= 34, "the rule box holds two 14 px lines (" .. shortest .. " px)")
+	for _, def in ipairs(BossRounds.Definitions) do
+		local d = tostring(def.description or "")
+		expectTrue(#d > 0 and #d * 7.5 <= narrow * 2 * 0.9, def.id .. " rule fits two 14 px lines in the intro (" .. #d .. " letters, column " .. narrow .. ")")
+		expectFalse(d:find("\u{2014}", 1, true) ~= nil or d:lower():find("balatro", 1, true) ~= nil, def.id .. " rule has no em dash or banned word")
+	end
+	expectEqual(M.bossIntro(true, false), nil, "Calm mode: no moving intro, the static Boss card tells the rule")
+	local calmT = M.clearTiming(true, false)
+	expectTrue(calmT.slide == 0 and calmT.fade == 0 and calmT.count == false, "Calm mode Night clear plate: no slide, fade or count")
+	local t = M.bossIntro(false, true)
+	expectTrue(t.slide + t.hold >= 1.25, "Fast speed keeps the intro readable")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(fx:find('"boss_intro"', 1, true) ~= nil, "the Boss intro plays its existing cue")
+	expectTrue(fx:find("MinTextSize = 14", 1, true) ~= nil, "intro text never shrinks under 14 px")
+	expectTrue(read("src/Client/NightVictory.lua"):find('"night_clear"', 1, true) ~= nil, "Night clear plays its existing cue")
+end })
+
 return tests

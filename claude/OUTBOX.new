@@ -1,0 +1,9 @@
+
+## News panel: paint it as a tavern notice board scene and wire it (2026-11-12)
+- Commit: 30c82d0 News panel: painted tavern notice board (news_room_a) wired through PanelScene, banner title, parchment subtitle, notes on pinned papers, plain Close plaque; [NewsRoom] Studio line
+- Tests: 826 passed, 0 failed.
+- Generated 2 variants (news_room_a cloth banner and cork, news_room_b rope sign and two lanterns). Picked a. Only a was uploaded (Image asset) and recorded in PanelSceneArt.
+- Wired: new Engine/NewsSceneLayout.lua (slots measured by eye from the 1024 picture, may need a nudge), NewsPanel uses the shared PanelScene. Title on the banner, subtitle on the parchment strip, notes on the three pinned papers (the picture's own pins, so notes draw no paper or pin of their own), Close is a plain cream label on the shelf plaque (button fill, gloss and stroke hidden, which should remove the garbled icon).
+- Choice: the painted board shows 1 to 3 events. With 4 or more events, a window under about 700 px, or a missing id, the old cork board is used. NewsSceneLayout.MAX_SLOTS = 5 is declared but the picture only has 3 papers. Unused papers read "More news soon".
+- Not verified in Studio: check DebugGoto news at 1920x957 (text inside the papers, Close on the plaque, [NewsRoom] line).
+panel_scene news_room_a 109031658568506

@@ -1,0 +1,8 @@
+
+## Table: 800x450 Score plate progress and Patron seat names 9 px (2026-11-20)
+- Commit: "Table: 800x450 seat names 9 px with a 22 px coin, Score plate progress centred clear of the end caps, tests". One commit covers both queue tasks because their tests share EngineTests.lua.
+- Tests: 1311 passed, 0 failed (used `lua`).
+- Score plate: "0 / 65" is centred between the numeral and the right end cap, 6 px clear of a 14 px cap (END_CAP is my estimate of the painted cap depth), and the gold arrow ornaments are hidden whenever the progress is inside the plate.
+- Seat names: seats 62 to 69 px wide (the 66 px seats at 800x450) get a 22 px power coin instead of 28 px, and the wrapped label starts at x 1. Name size at 800x450 is now 9 (was 8), 6 px coin gap kept.
+- Needs you (Studio): scale:800x450 patrons:5, check the plate text clears the caps (adjust Gameplay2ScorePlate.END_CAP if not) and the 22 px coin still reads.
+- Art ids: none.
