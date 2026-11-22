@@ -1429,6 +1429,15 @@ return function(deps)
 		end)
 	end
 
+	do -- Boons: a small page of the 12 Night boons, seen or not seen yet (Client/BoonsPage); not part of the Collection percent
+		local boonsPlate = quietPlate("Boons", #CollectionBook.Tabs + 1)
+		boonsPlate.MouseButton1Click:Connect(function()
+			playClickSfx()
+			local state = getLatestState and getLatestState()
+			pcall(function() require(script.Parent.BoonsPage).open(state and state.collection and state.collection.boonsSeen or {}) end)
+		end)
+	end
+
 	local function showMilestoneToast(milestoneIds)
 		local lines = {}
 		for _, id in ipairs(milestoneIds) do

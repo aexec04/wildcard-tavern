@@ -20581,7 +20581,8 @@ table.insert(tests, { name = "Collection opens on the gallery room: six hotspots
 		if c.ClassName == "TextButton" then plates[#plates + 1] = c end
 	end
 	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
-	expectEqual(#plates, 7, "a Gallery plate and one per section")
+	expectEqual(#plates, 8, "a Gallery plate, one per section and the Boons page plate")
+	expectEqual(plates[8].Text, "Boons", "the last plate opens the Boons page")
 	expectEqual(plates[1].Text, "< Gallery")
 	for i, tab in ipairs(CB.Tabs) do -- each tab plate carries its count pill: "Name  found / total"
 		local counts = CB.tabCounts(col.view and col.view.sets or {})[tab.id]
@@ -44914,6 +44915,60 @@ table.insert(tests, { name = "Boon and deck quests: four new quests with short k
 	expectEqual(table.concat(p.quests.ids, ","), table.concat(Quests.idsFor(p, 20000), ","), "ensureDay deals the profile's own list")
 	local done = Quests.apply({ quests = { day = 20000, ids = { "boon_3", "pairs_3", "hands_10" }, progress = {}, done = {} }, stats = { bestNightReached = 5 } }, 20000, { boonsPicked = 3 })
 	expectEqual(#done, 1, "three boon picks complete Boon Collector")
+end })
+
+table.insert(tests, { name = "Collection Boons page: all 12 boons listed with seen or not seen yet, Seen N of 12, empty line for a new player, 16 px text, 44 px rows, the list scrolls and the Close plate fits at four sizes, ink 4.5:1 on every set plate", fn = function()
+	local Page = require(script.Parent.Parent.Engine.BoonsPage)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local empty = Page.view({})
+	expectEqual(#empty.rows, #NB.Definitions)
+	expectEqual(empty.total, 12)
+	expectEqual(empty.count, Page.EMPTY_LINE, "a new player sees a friendly line, not blank rows")
+	for _, row in ipairs(empty.rows) do
+		expectTrue(not row.seen and row.line == Page.UNSEEN_LINE and row.name ~= "" and row.name ~= "???", row.id .. " unseen row is clear")
+	end
+	local some = Page.view({ "extra_hand", "warm_welcome", "not_a_boon" })
+	expectEqual(some.seen, 2, "unknown ids never count")
+	expectEqual(some.count, "Seen 2 of 12")
+	for _, row in ipairs(some.rows) do
+		if row.seen then expectEqual(row.line, NB.getById(row.id).text) end
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " lines are short")
+	end
+	expectTrue(Page.TEXT_SIZE >= 16 and Page.ROW_H >= 44 and Page.CLOSE_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local L = Page.layout(sz[1], sz[2])
+		local label = sz[1] .. "x" .. sz[2]
+		for name, r in pairs({ panel = L.panel, header = L.header, list = L.list, close = L.close }) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], label .. " " .. name .. " is on screen")
+		end
+		expectTrue(L.close.h >= 44 and L.close.w >= 44, label .. " Close plate is 44 px")
+		expectTrue(L.list.y >= L.header.y + L.header.h and L.list.y + L.list.h <= L.close.y, label .. " the list sits between the header and Close")
+		expectTrue(L.rowsFit >= 2, label .. " at least two rows show: " .. L.rowsFit)
+		expectTrue(L.list.h > 0 and L.list.h + 1 >= L.rowH, label .. " the list can scroll to the last row")
+	end
+	local checked = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			checked = checked + 1
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " boon row ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+	expectTrue(checked >= 14, "every Card Set checked: " .. checked)
+	local p = PP.new()
+	expectEqual(PP.recordBoonsSeen(p, { "extra_hand", "free_reroll" }), 2)
+	expectEqual(PP.recordBoonsSeen(p, { "extra_hand", "steady_pace", 7 }), 1, "only new ids count")
+	local back = PP.migrate(p)
+	expectTrue(back.seenBoonIds.extra_hand and back.seenBoonIds.free_reroll and back.seenBoonIds.steady_pace, "seen boons survive a save and load")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('quietPlate("Boons"', 1, true) ~= nil, "the Collection has a Boons plate")
+	end
 end })
 
 return tests

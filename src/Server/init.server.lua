@@ -765,7 +765,10 @@ local function serializeState(session, player)
 					table.insert(cardBacks, id)
 				end
 			end
-			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks }
+			local boonsSeen = {}
+			for id in pairs(profile and profile.seenBoonIds or {}) do boonsSeen[#boonsSeen + 1] = id end
+			table.sort(boonsSeen)
+			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks, boonsSeen = boonsSeen }
 		end)(),
 		-- One-shot: milestone ids claimed since the last push (nil otherwise).
 		collectionMilestoneNotice = session.collectionMilestoneNotice,
@@ -3132,6 +3135,11 @@ Rem.AdvanceRound.OnServerEvent:Connect(function(player)
 		-- a Patron reward for the Night just cleared comes first (Skip allowed); an event, if rolled, follows it
 		-- a Night boon (Nights 2 to 12) opens the Night, then the reward and event follow it (RunChoice.pick, kind "boon")
 		session.choice = RunChoice.boonDraft(session.state, not fixedRun) or RunChoice.afterBoon(session.state, not fixedRun)
+		if session.choice and session.choice.kind == "boon" and profiles[player] then -- the Collection Boons page lists what was offered
+			local offered = {}
+			for _, option in ipairs(session.choice.options or {}) do offered[#offered + 1] = option.id end
+			if PlayerProfile.recordBoonsSeen(profiles[player], offered) > 0 then profileDirty[player] = true end
+		end
 	end
 	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
 	if RunService:IsStudio() and not session.choice and not fixedRun then
