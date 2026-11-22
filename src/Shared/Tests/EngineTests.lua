@@ -40926,4 +40926,31 @@ table.insert(tests, { name = "Toasts, warning strip and Next goal banner wear th
 	if goal then expectTrue(goal:find("HintSkin", 1, true) ~= nil, "Next goal banner binds the set plate") end
 end })
 
+table.insert(tests, { name = "Collection progress plaque, filter plate, tiles and chips wear the set fill, edge and ink at 4.5:1 or more on every set, locked tiles dimmed, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its wood")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a dark style")
+			if p then
+				n = n + 1
+				local f = p.dark.fill
+				local locked = { f[1] * 0.55, f[2] * 0.55, f[3] * 0.55 } -- the locked tile fill is 45 percent darker, so ink and DIM only gain contrast
+				expectTrue(CS.contrastRatio(f, p.dark.ink) >= 4.5, set.id .. " tile name and chip ink keeps 4.5:1")
+				expectTrue(CS.contrastRatio(locked, p.dark.ink) >= CS.contrastRatio(f, p.dark.ink), set.id .. " locked tile keeps the ink readable")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local fh = io.open("src/Client/Collection.lua", "r")
+	if fh then
+		local src = fh:read("*a"); fh:close()
+		expectTrue(src:find("PS.dark(overallBar", 1, true) ~= nil and src:find(".dark(legendRow", 1, true) ~= nil, "progress plaque and filter plate bind the set")
+		expectTrue(src:find("setDark()", 1, true) ~= nil and src:find("f:Lerp(Color3.fromRGB(0, 0, 0), 0.45)", 1, true) ~= nil, "tiles take the set fill, locked ones dimmed")
+	end
+end })
+
 return tests
