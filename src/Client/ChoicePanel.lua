@@ -509,7 +509,7 @@ function ChoicePanel.init(deps)
 	local backButton = Instance.new("TextButton")
 	backButton.Name = "BackToMenu"
 	-- (below Roblox's own top bar buttons, which sit over the top left corner: Engine/ResponsiveLayout.clearOfTopBar)
-	backButton.Position = UDim2.fromOffset(12, require(Engine:WaitForChild("ResponsiveLayout")).clearOfTopBar(12, 12))
+	backButton.Position = UDim2.fromOffset(256, require(Engine:WaitForChild("ResponsiveLayout")).clearOfTopBar(12, 12))
 	backButton.Size = UDim2.fromOffset(150, 44)
 	backButton.Font = Enum.Font.GothamBold
 	backButton.TextSize = 17
