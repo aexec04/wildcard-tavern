@@ -9,6 +9,17 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GlowCurve = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GlowCurve"))
 
+-- ClientSettings is read lazily (pcall) so a module that builds without the settings module still draws
+local function settings()
+	local ok, cs = pcall(function() return require(script.Parent.ClientSettings) end)
+	return ok and cs or nil
+end
+local function perfRaw()
+	local cs = settings()
+	local ok, v = pcall(function() return cs.getRaw("performanceMode") end)
+	return ok and v or false
+end
+
 local SoftGlow = {}
 
 local function apply(rings, peak, inner)
@@ -28,9 +39,18 @@ function SoftGlow.build(parent, opts)
 	root.ClipsDescendants = false
 	root.ZIndex = opts.zIndex or 1
 	root.Parent = parent
+	local perfOn = perfRaw() == true -- Performance mode: no discs are built
+	root.Visible = not perfOn
+	local cs = settings()
+	if cs and type(cs.onChanged) == "function" then
+		cs.onChanged(function(key, value)
+			if key == "performanceMode" and root.Parent then root.Visible = value ~= true end
+		end)
+	end
 	local spec = GlowCurve.rings(GlowCurve.DEFAULT_STEPS, opts.peak, opts.inner)
 	local rings = {}
 	for i, s in ipairs(spec) do
+		if perfOn then break end
 		local d = Instance.new("Frame")
 		d.Name = "Ring" .. i
 		d.AnchorPoint = Vector2.new(0.5, 0.5)

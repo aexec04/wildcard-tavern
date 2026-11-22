@@ -280,6 +280,7 @@ local function showPopup()
 		custom = function(holder, painted) buildLadder(holder, painted, login, id, LoginStreak.laterLabel(claimDay)) end,
 		onButton = function()
 			if ui.remote then ui.remote:FireServer(claimDay) end
+			pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 			flyCoin()
 		end,
 		onClose = function() ui.queuedId = nil end,

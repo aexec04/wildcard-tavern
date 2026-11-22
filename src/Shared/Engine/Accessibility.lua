@@ -38,6 +38,7 @@ end
 
 function Accessibility.particleCount(settings, count)
 	count = math.max(0, math.floor(tonumber(count) or 0))
+	if on(settings, "performanceMode") then return 0 end -- Performance mode: no particles at all
 	if on(settings, "reduceFlashing") then
 		return math.floor(count * Accessibility.PARTICLE_SCALE)
 	end

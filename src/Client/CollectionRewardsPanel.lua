@@ -219,6 +219,7 @@ function CollectionRewardsPanel.init(deps)
 		c.MouseButton1Click:Connect(function()
 			if m.reached and not m.claimed then
 				deps.playClickSfx()
+				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 				ClaimRemote:FireServer(group, m.pct)
 			end
 		end)
@@ -302,6 +303,7 @@ function CollectionRewardsPanel.init(deps)
 		local state = deps.getLatestState and deps.getLatestState() or nil
 		if state and state.collectionRewards and (state.collectionRewards.claimable or 0) > 0 then
 			deps.playClickSfx()
+			pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 			ClaimRemote:FireServer("all")
 		end
 	end)

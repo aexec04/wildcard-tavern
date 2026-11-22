@@ -5545,12 +5545,88 @@ table.insert(tests, { name = "ScoreJuice: new best, target clear, shake and burs
 	expectEqual(SJ.slowMoFor(true, true) > SJ.slowMoFor(true, false), true)
 end })
 
+table.insert(tests, { name = "Sound pass: every UI moment has a cue with a call site, layered from existing ids, ducked and muted like the rest", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local FX = require(script.Parent.Parent.Engine.SoundFX)
+	local D = require(script.Parent.Parent.Engine.SoundDirector)
+	for _, m in ipairs(G.UI_MOMENTS) do
+		expectTrue(S.cueId(m.cue) ~= nil or FX.layersFor(m.cue) ~= nil, m.moment .. " resolves to a sound")
+		local ok, fh = pcall(function() return io.open(m.file, "r") end)
+		if ok and fh then
+			local src = fh:read("*a"); fh:close()
+			expectTrue(src:find(m.marker, 1, true) ~= nil, m.moment .. " calls " .. m.cue .. " in " .. m.file)
+		end
+	end
+	for _, name in ipairs({ "reward_claim", "night_clear" }) do
+		for _, layer in ipairs(FX.layersFor(name)) do
+			expectTrue(S.Cues[layer.cue].id ~= "", name .. " layer " .. layer.cue .. " has an id")
+			expectTrue((layer.volume or 1) * S.Cues[layer.cue].volume <= 0.8, name .. " stays under 0.8")
+		end
+		for _, step in ipairs(G.SLIDER_STEPS) do
+			expectEqual(G.effective(S.Cues[name].volume, 1, step, true), 0, name .. " is silent when muted")
+			expectTrue(G.effective(S.Cues[name].volume, 1, step, false) <= step + 1e-9, name .. " follows the SFX slider")
+		end
+	end
+	-- ducking: a Night clear fanfare halves a claim sound, and cuts the lower round stinger instead of stacking on it
+	local d = D.new()
+	expectEqual(D.info("night_clear").group, "fanfare", "night_clear is a fanfare")
+	expectEqual(D.info("reward_claim").group, "coin", "reward_claim is a coin sound")
+	expectTrue(d:request("round_clear", 1).play, "round stinger plays")
+	local r = d:request("night_clear", 1.2)
+	expectTrue(r.play and r.cut ~= nil, "the Night clear cuts the round stinger")
+	expectEqual(d:request("reward_claim", 1.5).scale, 0.5, "a claim ducks under the fanfare")
+	local d2 = D.new()
+	expectTrue(d2:request("reward_claim", 5).play and not d2:request("reward_claim", 5.05).play, "a double click claim sounds once")
+end })
+
+table.insert(tests, { name = "Performance mode: its own saved switch, no vignettes, glows or particles, works with Calm mode, 150 ms build budget", fn = function()
+	local P = require(script.Parent.Parent.Engine.PerformanceMode)
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(PP.defaultSettings().performanceMode, false, "off by default")
+	expectEqual(PP.migrate({ settings = { performanceMode = true } }).settings.performanceMode, true, "the switch is saved")
+	expectEqual(PP.migrate({ settings = { performanceMode = "yes" } }).settings.performanceMode, false, "a bad value falls back to off")
+	local off, perf = { performanceMode = false }, { performanceMode = true }
+	expectTrue(P.vignettes(off) and P.glows(off) and P.particles(off) and not P.on(off), "everything draws when off")
+	expectTrue(not P.vignettes(perf) and not P.glows(perf) and not P.particles(perf) and P.on(perf), "vignettes, glows and particles are off")
+	expectTrue(P.vignettes(nil) and not P.on(nil), "no settings table means off")
+	expectEqual(A.particleCount(perf, 20), 0, "no particles under Performance mode")
+	-- Calm mode and Performance mode together: each keeps its own meaning
+	local both = { performanceMode = true, reduceMotion = true, reduceFlashing = true, reduceShake = true }
+	expectTrue(A.calm(both) and P.on(both) and A.particleCount(both, 20) == 0, "both on: calm and no particles")
+	expectTrue(A.calm({ reduceMotion = true }) and not P.on({ reduceMotion = true }), "Calm alone does not switch Performance mode on")
+	expectTrue(not A.calm(perf), "Performance alone does not switch Calm mode on")
+	expectEqual(SL.calmValue(both), true, "the Calm switch still reads On")
+	for k in pairs(SL.calmWrites(false)) do expectTrue(k ~= "performanceMode", "the Calm switch never writes performanceMode") end
+	local found = false
+	for _, row in ipairs(SL.rowOrder()) do if row == "performanceMode" then found = true end end
+	expectTrue(found, "Settings lists a Performance Mode row")
+	-- the build budget
+	expectEqual(P.BUDGET_MS, 150)
+	local slow = P.slow({ { name = "a", ms = 40 }, { name = "b", ms = 151 }, { name = "c", ms = 150 }, { name = "d", ms = 400 } })
+	expectEqual(#slow, 2, "only builds over 150 ms are reported")
+	expectEqual(slow[1].name, "d", "slowest first")
+	expectTrue(P.line("Store", 151.2):find("OVER 150 ms", 1, true) ~= nil and P.line("Store", 90):find("OVER", 1, true) == nil, "the Studio line flags only slow builds")
+	-- the client modules honour the switch
+	local okIo, fh = pcall(function() return io.open("src/Client/SoftGlow.lua", "r") end)
+	if okIo and fh then
+		local glow = fh:read("*a"); fh:close()
+		expectTrue(glow:find("performanceMode", 1, true) ~= nil, "SoftGlow checks Performance mode")
+		local vig = io.open("src/Client/SmoothVignette.lua", "r"):read("*a")
+		expectTrue(vig:find("performanceMode", 1, true) ~= nil, "SmoothVignette checks Performance mode")
+		local st = io.open("src/Client/Settings.lua", "r"):read("*a")
+		expectTrue(st:find('makeChoiceRow("performanceMode"', 1, true) ~= nil, "the Settings screen has the switch")
+	end
+end })
+
 table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn = function()
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
-		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat", "card_deselect", "shop_sell", "pack_open", "jingle_run", "jingle_boss", "jingle_round" }
+		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat", "card_deselect", "shop_sell", "pack_open", "reward_claim", "night_clear", "jingle_run", "jingle_boss", "jingle_round" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(S.Named) do expectEqual(S.Cues[name] ~= nil, true, "named cue " .. name) end
 	for _, name in ipairs({ "score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }) do

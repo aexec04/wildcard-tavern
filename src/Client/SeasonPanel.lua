@@ -323,6 +323,7 @@ function SeasonPanel.init(deps)
 		claimBox.MouseButton1Click:Connect(function()
 			if row.reached and not prem.locked and not prem.claimed then
 				deps.playClickSfx()
+				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 				ClaimRemote:FireServer(row.tier, true)
 			end
 		end)
@@ -377,6 +378,7 @@ function SeasonPanel.init(deps)
 		t.MouseButton1Click:Connect(function()
 			if row.reached and not row.claimed then
 				deps.playClickSfx()
+				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 				ClaimRemote:FireServer(row.tier)
 			end
 		end)
@@ -466,6 +468,7 @@ function SeasonPanel.init(deps)
 		local state = deps.getLatestState and deps.getLatestState() or nil
 		if state and state.season and (state.season.claimable or 0) > 0 then
 			deps.playClickSfx()
+			pcall(function() require(script.Parent.Cue).play("reward_claim") end)
 			ClaimRemote:FireServer("all")
 		end
 	end)
