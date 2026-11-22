@@ -1403,6 +1403,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		keys.actions.popupOpen = function() return guardLock:isLocked() or MenuScreen.menuFrame.Visible end
 		keys.actions.back = function() require(script.PopupDismiss).escape() end
 		keys.install()
+		require(script.GamepadMenuNav).install(function() return MenuScreen.menuFrame end, function() return keys.actions.isActive ~= nil and keys.actions.isActive() == true end) -- D-pad focus ring on the Menu and popups
 	end)
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 

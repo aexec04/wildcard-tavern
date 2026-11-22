@@ -22,6 +22,17 @@ M.PATH = {
 	{ id = "play", plate = "Play Hand", taps = 1 },
 }
 
+-- Longest stretch with nothing to do or no pointer, in seconds, for each wait on the way to Night 1 cleared (estimates from the timers and hint rules, not measured in Studio).
+-- A test holds every one under MAX_IDLE.
+M.MAX_IDLE = 20
+M.IDLE = {
+	{ id = "night_intro", seconds = 1.2, note = "timed plate, a tap skips it" },
+	{ id = "travel_cover", seconds = 5, note = "TravelTiming.MAX, a tap skips after 1 s" },
+	{ id = "first_hand_to_play", seconds = 12, note = "guided hint points at the cards, then Play Hand" },
+	{ id = "after_first_hand", seconds = 15, note = "guided follow-up lines for hands 2 and 3 (was unguided)" },
+	{ id = "round_won_to_counter", seconds = 6, note = "round clear banner, then the Counter opens with a first_counter hint" },
+}
+
 function M.tapsToFirstHand(cards)
 	local total = 0
 	for _, s in ipairs(M.PATH) do

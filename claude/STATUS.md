@@ -469,3 +469,9 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - First run polish: Patron draft portraits are cropped inside the ring (1.3x, top anchored, baked in name clipped); the "Pick up to 5 cards, then Play Hand." plate shows on round 1 beside the Patron Power panel and pulses; a picked card under the mouse keeps 26 px clear of the "N of Target" line; Round Select reads "Night begins. Play this round, or skip it for a Tag."; the blessing chip has a dark plate with cream text there; the boss card room name is 17 px like the others. Studio check: `[PortraitCrop]` prints one line per Patron in the draft; look at round 1 at 1920x957, 1280x720 and 800x450.
 - Tome page fit and touch hints: full screen Tome pages report `[PanelFit]` from `PanelLayout.fitFullScreen` (top 65, bottom at the window edge, tested at 5 sizes); the old centered formula wrongly flagged Card Sets 7 px over. On touch only devices a tap on any Tooltip target shows its tip for 3 s (`Client/TouchHelp`, rules in `Engine/TouchHint`). Studio check: `[PanelFit]` lines say fits=true for cardsets, legend, stats and every full screen page.
 - Tests: 1372 passing.
+
+## First five minutes walkthrough (2026-11-22)
+- The guided hint (`Engine/GuidedHand.hint`) covers hands 1 to 3 (cards, then Play Hand, with a Discard line) and ends after hand 3. `FirstImpression.IDLE` lists each wait against a 20 s budget, pinned by test; the seconds are estimates, not Studio timings.
+
+## Gamepad menu navigation (2026-11-22)
+- `Engine/GamepadFocus` (pure, tested) picks the next button for a D-pad move; `Client/GamepadMenuNav` draws a gold ring on it, A presses it with the normal click, B closes the top popup (through `TableKeys` and `PopupDismiss`). It covers the Menu and every registered popup (Settings, Store, Collection), only while the last input was a gamepad, never over the table hand or a text box. Not tried with a real controller or in Studio.

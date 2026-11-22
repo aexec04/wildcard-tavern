@@ -25424,7 +25424,7 @@ table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed sta
 	end
 	local a, b = G.hint(true, 0, 0, false), G.hint(true, 0, 2, false)
 	assert(a.target == "card" and b.target == "play" and a.pulse and a.line1 ~= "" and a.line2 ~= "" and b.line1 ~= a.line1)
-	assert(G.hint(true, 1, 0, false) == nil and G.hint(false, 0, 0, false) == nil and G.hint(nil, 0, 0, false) == nil)
+	assert(G.hint(true, 3, 0, false) == nil and G.hint(false, 0, 0, false) == nil and G.hint(nil, 0, 0, false) == nil)
 	assert(G.hint(true, 0, 0, true).pulse == false and G.hint(true, 0, 1, true).pulse == false)
 	for _, h in ipairs({ a, b }) do assert(not (h.line1 .. h.line2):find("[\226\128\148]") and not (h.line1 .. h.line2):find("%-%-")) end
 end })
@@ -30035,7 +30035,7 @@ table.insert(tests, { name = "Guided hint: the plate sits between the Patron pil
 		assert(p.x >= 0 and p.x + p.w <= v[1], "plate on screen at " .. v[1])
 	end
 	-- the hint points at the card until one is picked, then at Play Hand, and ends after the first hand
-	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 1, 2, false) == nil)
+	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 3, 2, false) == nil)
 	assert(G.hint(true, 0, 1, false).target == "play" and G.hint(true, 0, 0, false).cards == 2, "Play Hand is the target as soon as a card is picked")
 	assert(G.hint(true, 0, 2, false).line1 == "Play your hand")
 end })
@@ -33004,7 +33004,7 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectTrue(a and a.target == "card", "no card picked: the hint points at a card")
 	local b = GH.hint(true, 0, 1, false)
 	expectTrue(b and b.target == "play", "one card picked: the hint points at Play Hand")
-	expectEqual(GH.hint(true, 1, 0, false), nil, "after the first hand the guided hint is gone")
+	expectEqual(GH.hint(true, 3, 0, false), nil, "after the third hand the guided hint is gone")
 	expectEqual(GH.hint(false, 0, 0, false), nil, "not a guided run: no hint")
 	for _, h in ipairs({ a, b }) do
 		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "each hint line is short (two lines, one glance)")
@@ -33196,6 +33196,62 @@ table.insert(tests, { name = "First impression: at most 6 taps from the Menu to 
 	expectEqual(G.hint(true, 0, 1, false).target, "play", "one card picked: point at Play Hand")
 	expectEqual(G.hint(true, 0, 3, false).target, "play", "more cards: still Play Hand")
 	expectEqual(G.hint(true, 0, 1, true).pulse, false, "Calm mode: no pulse")
+end })
+
+table.insert(tests, { name = "First five minutes: no wait over 20 s, and the guided hint carries hands 2 and 3 then ends", fn = function()
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id .. " stays under " .. F.MAX_IDLE .. " s") end
+	expectEqual(G.hint(true, 1, 0, false).target, "card", "after hand 1 with nothing picked: point at the cards")
+	expectEqual(G.hint(true, 1, 2, false).target, "play", "after hand 1 with cards picked: point at Play Hand")
+	expectTrue(G.hint(true, 2, 0, false) ~= nil, "hand 3 is still guided")
+	expectEqual(G.hint(true, 3, 0, false), nil, "the hint ends after hand 3")
+	expectEqual(G.hint(false, 1, 0, false), nil, "an unguided run never gets it")
+	expectEqual(G.hint(true, 1, 1, true).pulse, false, "Calm mode: no pulse")
+	for _, h in ipairs({ G.hint(true, 1, 0, false), G.hint(true, 2, 1, false) }) do
+		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "short lines")
+		expectFalse((h.line1 .. h.line2):find("\u{2014}", 1, true) ~= nil, "no em dash")
+	end
+end })
+
+table.insert(tests, { name = "GamepadFocus: D-pad moves to the nearest button, wraps, starts top left, reaches every button of a menu and a popup grid", fn = function()
+	local F = require(script.Parent.Parent.Engine.GamepadFocus)
+	expectEqual(F.next({}, nil, "DPadDown"), nil, "no buttons, no focus")
+	local menu = { -- a Menu column with a side rail
+		{ id = 1, x = 400, y = 200, w = 200, h = 60 }, { id = 2, x = 400, y = 280, w = 200, h = 60 },
+		{ id = 3, x = 400, y = 360, w = 200, h = 60 }, { id = 4, x = 20, y = 200, w = 60, h = 60 }, { id = 5, x = 20, y = 300, w = 60, h = 60 },
+	}
+	expectEqual(F.next(menu, nil, "DPadDown"), 4, "nothing focused: the top left button (same row, left first)")
+	expectEqual(F.next(menu, 1, "DPadDown"), 2)
+	expectEqual(F.next(menu, 2, "DPadUp"), 1)
+	expectEqual(F.next(menu, 3, "DPadDown"), 1, "wraps from the bottom to the top of the column")
+	expectEqual(F.next(menu, 1, "DPadLeft"), 4, "left reaches the rail")
+	expectEqual(F.next(menu, 4, "DPadRight"), 1)
+	expectEqual(F.next(menu, 2, "NotAKey"), 4, "an unknown key falls back to the first button")
+	expectTrue(F.reachable(menu), "every menu button is reachable")
+	local grid = {}
+	for row = 0, 2 do for col = 0, 3 do grid[#grid + 1] = { id = #grid + 1, x = 100 + col * 120, y = 80 + row * 90, w = 100, h = 60 } end end
+	expectTrue(F.reachable(grid), "a 4 x 3 Collection grid is reachable")
+	expectEqual(F.next(grid, 1, "DPadRight"), 2)
+	expectEqual(F.next(grid, 1, "DPadDown"), 5)
+	expectEqual(F.RING.color[1], 246, "gold ring")
+	expectTrue(F.RING.thickness >= 3, "visible ring")
+end })
+
+table.insert(tests, { name = "GamepadMenuNav: wired once from the hub, scoped to the top popup or the menu, never over the table hand or a text box, A presses and B closes", fn = function()
+	local f = io and io.open and io.open("src/Client/GamepadMenuNav.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("topBackdrop", 1, true) ~= nil, "scoped to the topmost popup")
+	expectTrue(src:find("GetFocusedTextBox", 1, true) ~= nil, "never on a text box")
+	expectTrue(src:find("tableActive", 1, true) ~= nil, "leaves the hand to TableKeys")
+	expectTrue(src:find(":Activate()", 1, true) ~= nil, "A presses through the normal click")
+	expectFalse(src:find("FireServer", 1, true) ~= nil, "sends nothing itself")
+	local hub = io.open("src/Client/init.client.lua", "r"):read("*a")
+	expectTrue(hub:find('require(script.GamepadMenuNav).install', 1, true) ~= nil, "installed from the hub")
+	local tk = io.open("src/Shared/Engine/TableKeyMap.lua", "r"):read("*a")
+	expectTrue(tk:find('ButtonB = "back"', 1, true) ~= nil, "B goes back through PopupDismiss while a popup is open")
+	for _, text in ipairs({ src }) do expectFalse(text:find("\226\128\148") ~= nil, "no em dash") end
 end })
 
 table.insert(tests, { name = "Gameplay2Tier: quiet, pulse, burst and OVERKILL by hand total versus Target, Combo pill from 3 triggers, Calm mode one static label, everything inside the centre block", fn = function()
@@ -37480,7 +37536,7 @@ table.insert(tests, { name = "First hand guidance: wrong inputs never advance or
 	expectEqual(G.hint(true, 0, 0, false).target, "card")
 	expectEqual(G.hint(true, 0, 1, false).target, "play")
 	expectEqual(G.hint(true, 0, 5, false).target, "play")
-	expectEqual(G.hint(true, 1, 0, false), nil)
+	expectEqual(G.hint(true, 3, 0, false), nil)
 	expectEqual(G.hint(false, 0, 0, false), nil)
 	expectFalse(G.isGuided(2, false, false, false), "a second run is never guided")
 	expectFalse(G.isGuided(1, false, false, true), "the tutorial run has its own flow")
