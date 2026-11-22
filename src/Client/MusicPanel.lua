@@ -24,7 +24,7 @@ local M = {}
 local Z = 5200
 local ownsPack, soundModule = false, nil
 local weSetTrack = false -- true while the track playing is the one we picked (so "auto" only clears our own override)
-local rowsHost, buyButton, buyLabel, backdrop
+local rowsHost, buyButton, buyLabel, backdrop, sPrice
 local shopRowRefs = {}
 
 local function rgb(name) local c = Style.rgb(name); return Color3.fromRGB(c[1], c[2], c[3]) end
@@ -79,6 +79,7 @@ local function refresh()
 	buyButton.AutoButtonColor = false
 	buyButton.BackgroundColor3 = b.enabled and Color3.fromRGB(46, 112, 56) or Color3.fromRGB(70, 60, 52)
 	buyLabel.Text = b.text
+	if sPrice then sPrice.Text = Picker.packLine(GamePasses.MUSIC_PACK, ownsPack) end
 end
 
 function M.setState(state, sound)
@@ -309,10 +310,14 @@ function M.install(root)
 	local sLine = addText(shopPlate, Picker.SHOP_LINE, 16, rgb("creamSoft"), Enum.TextXAlignment.Left)
 	sLine.Size = UDim2.new(1, -24, 0, 22)
 	sLine.Position = UDim2.fromOffset(12, 40)
+	sPrice = addText(shopPlate, Picker.packLine(GamePasses.MUSIC_PACK, ownsPack), 16, GOLD, Enum.TextXAlignment.Left)
+	sPrice.Name = "PackLine"
+	sPrice.Size = UDim2.new(1, -24, 0, Picker.PACK_LINE_H - 2)
+	sPrice.Position = UDim2.fromOffset(12, 62)
 	local shopRowsHost = Instance.new("Frame")
 	shopRowsHost.Name = "ShopRows"
 	shopRowsHost.BackgroundTransparency = 1
-	shopRowsHost.Position = UDim2.fromOffset(8, 70)
+	shopRowsHost.Position = UDim2.fromOffset(8, 70 + Picker.PACK_LINE_H)
 	shopRowsHost.Size = UDim2.new(1, -16, 0, #Picker.SHOP_TRACKS * (shopRowH + Picker.ROW_GAP))
 	shopRowsHost.ZIndex = Z + 3
 	shopRowsHost.Parent = shopPlate
@@ -361,7 +366,7 @@ function M.install(root)
 
 	-- the equipped Card Set dresses the panel: fill, gold edge, title, Now playing and track names at 7:1 (CosmeticSets.popupStyleOf); classic unchanged
 	do
-		local labels = { { title, rgb("cream") }, { nowLabel, GOLD }, { sTitle, rgb("cream") }, { sLine, rgb("creamSoft") } }
+		local labels = { { title, rgb("cream") }, { nowLabel, GOLD }, { sTitle, rgb("cream") }, { sLine, rgb("creamSoft") }, { sPrice, GOLD } }
 		for _, row in ipairs(rowsHost:GetChildren()) do
 			local nm = row:IsA("TextButton") and row:FindFirstChildWhichIsA("TextLabel")
 			if nm then labels[#labels + 1] = { nm, CREAM } end

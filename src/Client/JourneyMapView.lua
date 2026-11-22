@@ -1585,8 +1585,13 @@ return function(deps)
 			-- the same number the table shows: the live round's target on the current Night, the first round's on any other
 			target = MapSelectRules.targetFor(data.night, st and st.night or 1, st and st.round, st and st.roundTargets, RunStateEngine.targetScoreFor)
 		end
+		local bossLine = nil
+		if data.night and data.kind ~= "endless" then
+			local st = deps.getLatestState()
+			bossLine = MapSelectRules.bossLine(data.night, st and st.night or 1, st and st.bossModifier)
+		end
 		return MapSelectRules.describe({ name = node.name.Text, -- the chosen road's stop name when the road is picked
-			description = info.description, typeId = node.ntype, state = node.state, target = target }),
+			description = info.description, typeId = node.ntype, state = node.state, target = target, bossLine = bossLine }),
 			mapArt(info.art), info.icon
 	end
 	-- the panel steps down to a strip, then to a tab, when it would cover a node or label (MapSelectRules.pickMode)

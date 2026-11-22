@@ -14424,6 +14424,179 @@ table.insert(tests, { name = "ReplayFlow: one confirm per request, safe kid word
 	end
 end })
 
+table.insert(tests, { name = "Music pack and VIP rows: what you get, a price or Owned line, safe fair wording, 44 px Buy, the panel layout still fits every size", fn = function()
+	local MP = require(script.Parent.Parent.Engine.MusicPicker)
+	local GP = require(script.Parent.Parent.Engine.GamePasses)
+	local ST = require(script.Parent.Parent.Engine.Store)
+	local function safe(w, what)
+		local l = tostring(w):lower()
+		expectTrue(type(w) == "string" and w ~= "" and not w:find("\226\128\148") and not w:find("%-%-") and not l:find("balatro"), "safe words: " .. what)
+		for _, bad in ipairs({ "random", "chance", "odds", "loot", "gamble", "mystery", "win more", "stronger", "pay to win", "boost" }) do
+			expectFalse(l:find(bad, 1, true) ~= nil, what .. " never says " .. bad)
+		end
+	end
+	for _, state in ipairs({ { 0, false }, { 0, true }, { 123456, false }, { 123456, true } }) do
+		local line = MP.packLine(state[1], state[2])
+		safe(line, "packLine " .. state[1] .. " " .. tostring(state[2]))
+		expectTrue(#line <= 36, "the pack line fits the panel: " .. line)
+		expectTrue(line:find("Sound only", 1, true) == 1, "it says what you get: " .. line)
+	end
+	expectTrue(MP.packLine(0, false):find("Coming soon", 1, true) ~= nil, "id 0 says Coming soon")
+	expectTrue(MP.packLine(5, true):find("Owned", 1, true) ~= nil, "owned says Owned")
+	expectTrue(MP.packLine(5, false):find("checkout", 1, true) ~= nil, "a real id points to the checkout price")
+	safe(MP.SHOP_TITLE, "title"); safe(MP.SHOP_LINE, "line")
+	expectEqual(MP.buyButton(0, false).text, "Coming soon", "pass id 0 button")
+	expectFalse(MP.buyButton(0, false).enabled, "disabled while the pass does not exist")
+	expectTrue(MP.buyButton(7, false).enabled and MP.buyButton(7, false).text == "Get Music pack", "a real id can be bought")
+	expectFalse(MP.buyButton(7, true).show, "owned hides the Buy button")
+	for _, def in ipairs(GP.Definitions) do
+		if def.id == "music_pack" or def.id == "vip" then
+			safe(def.name, def.id); safe(def.description, def.id)
+			expectTrue(def.description:lower():find("no gameplay power", 1, true) ~= nil or def.description:lower():find("no power", 1, true) ~= nil, def.id .. " says it has no power")
+		end
+	end
+	local vip = ST.getById("vip")
+	safe(vip.description, "store vip"); expectTrue(vip.description:find("no power", 1, true) ~= nil, "the Store VIP card says no power")
+	for _, perk in ipairs(vip.perks) do safe(perk, "vip perk") end
+	expectEqual(ST.priceLine({ owned = true }, nil), "Owned", "VIP owned state")
+	expectEqual(ST.priceLine({ comingSoon = true }, nil), "Coming soon", "VIP before launch")
+	expectTrue(ST.priceLine({ robloxId = 1 }, { [1] = "R$ 99" }) == "R$ 99", "VIP shows the Robux price once loaded")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = MP.layout(sz[1], sz[2])
+		expectTrue(L.panel.x >= 0 and L.panel.y >= 0 and L.panel.x + L.panel.w <= sz[1] and L.panel.y + L.panel.h <= sz[2], "the panel fits at " .. sz[1])
+		expectTrue(L.closeX.w >= 36 and L.closeX.x + L.closeX.w <= L.panel.x + L.panel.w, "the X stays reachable at " .. sz[1])
+		expectTrue(L.body.content >= MP.shopHeight(), "the scroll body holds the shop plate at " .. sz[1])
+	end
+	if io and io.open then
+		local h = assert(io.open("src/Client/MusicPanel.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find("Size = UDim2.new(1, -24, 0, 44)", 1, true) ~= nil, "the Buy button is 44 px")
+		expectTrue(src:find("packLine", 1, true) ~= nil and src:find("PopupSkin", 1, true) ~= nil, "the pack line is drawn and wears the set ink")
+	end
+end })
+
+table.insert(tests, { name = "UI sound wiring pass 2: every new popup, plate and button plays one existing cue, none silent, none double fire, the cue exists and obeys the volume cap", fn = function()
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	local cue = SoundIds.button_click
+	if not cue then
+		for _, v in pairs(SoundIds) do
+			if type(v) == "table" and type(v.button_click) == "table" then cue = v.button_click end
+		end
+	end
+	expectTrue(cue ~= nil and cue.volume ~= nil and cue.volume <= 0.4, "button_click exists and stays at or under the 0.4 SFX cap")
+	if not (io and io.open) then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local function count(src, needle)
+		local n, at = 0, 1
+		while true do
+			local a, b = src:find(needle, at, true)
+			if not a then break end
+			n = n + 1; at = b + 1
+		end
+		return n
+	end
+	-- screen, file, the number of cue calls that must exist (one per tap handler, one on open), the call text
+	local wiring = {
+		{ screen = "Daily twist popup (Got it, outside tap, open)", file = "src/Client/TwistPopup.lua", cues = 3, needle = 'Cue.play("button_click")' },
+		{ screen = "Replay confirm", file = "src/Client/ReplayConfirm.lua", cues = 3, needle = "deps.playClickSfx()" },
+		{ screen = "Music pack Get button and track rows", file = "src/Client/MusicPanel.lua", cues = 2, needle = 'play("button_click")' },
+	}
+	for _, w in ipairs(wiring) do
+		local src = read(w.file)
+		expectEqual(count(src, w.needle), w.cues, w.screen .. " has exactly " .. w.cues .. " cue calls (no silent tap, no double fire)")
+	end
+	local tw = read("src/Client/TwistPopup.lua")
+	expectTrue(tw:find("TweenService", 1, true) == nil, "the twist popup adds no tween")
+	local closeBody = tw:match("local function close%(%)(.-)\n") or ""
+	expectTrue(closeBody:find("Cue", 1, true) == nil, "the twist popup close function is silent")
+	expectTrue(tw:find("if not built.backdrop.Visible then Cue.play", 1, true) ~= nil, "a second ask while open stays quiet")
+	expectTrue(read("src/Client/MapSelectPanel.lua"):find('rule = label(panel, "BossRule"', 1, true) ~= nil, "the boss rule line is a plain label, no sound owed")
+	local sidebar = read("src/Client/Sidebar.lua")
+	expectTrue(sidebar:find("TwistPopup", 1, true) ~= nil and count(sidebar, 'Cue.play("button_click")') == 0, "the twist plate tap sound comes from the popup, not played twice")
+end })
+
+table.insert(tests, { name = "ThumbReach: Play Hand, Discard, Rank and Suit sort, the hand and the deck sit in the lower 60 percent, 44 px tall, nothing critical in the top centre, at five sizes", fn = function()
+	local TR = require(script.Parent.Parent.Engine.ThumbReach)
+	for _, sz in ipairs({ { 800, 450 }, { 844, 390 }, { 1024, 768 }, { 1366, 768 }, { 1920, 957 } }) do
+		local findings = TR.audit(sz[1], sz[2])
+		expectEqual(#findings, 0, sz[1] .. "x" .. sz[2] .. " thumb reach: " .. table.concat(findings, "; "))
+		local r = TR.rects(sz[1], sz[2])
+		-- Play Hand is the primary: it sits left of Discard and both share one baseline, so one thumb rests on the pair
+		expectTrue(r.play.y == r.discard.y or math.abs((r.play.y + r.play.h) - (r.discard.y + r.discard.h)) <= 8, "Play Hand and Discard share a baseline at " .. sz[1])
+		expectTrue(r.sort.x + r.sort.w <= r.play.x, "the sort plates stand left of Play Hand at " .. sz[1])
+		expectTrue(r.discard.x >= r.play.x + r.play.w, "Discard is a separate target right of Play Hand at " .. sz[1])
+	end
+	-- the audit really fails when something critical is up top
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local saved = L.frac.play
+	L.frac.play = { 0.40, 0.02, 0.60, 0.10 }
+	local bad = TR.audit(1024, 768)
+	L.frac.play = saved
+	expectTrue(#bad >= 2, "a Play Hand moved to the top centre is flagged twice")
+	expectEqual(#TR.audit(1024, 768), 0, "the layout is restored")
+end })
+
+table.insert(tests, { name = "EmptyStates for the new screens: the Daily twist popup and the Tavern Map boss rule have a safe line from the one table, the popup falls back to it for a bad day, held screens listed", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	local TP = require(script.Parent.Parent.Engine.TwistPreview)
+	local MR = require(script.Parent.Parent.Engine.MapSelectRules)
+	for _, k in ipairs({ "twistNone", "twistFailed", "bossUnknown" }) do
+		local t = ES.Screens[k]
+		expectTrue(type(t) == "string" and #t > 0 and #t <= 60, k .. " is short: " .. tostring(t))
+		expectTrue(not t:find("\226\128\148") and not t:find("%-%-") and not t:lower():find("balat") and not t:lower():find("beer"), k .. " is plain and safe")
+	end
+	expectEqual(TP.EMPTY, ES.Screens.twistNone, "the twist popup empty line comes from the table")
+	expectEqual(MR.BOSS_SURPRISE, ES.Screens.bossUnknown, "the boss rule fallback comes from the table")
+	expectEqual(TP.view("garbage").line, ES.Screens.twistNone, "a bad day shows the empty line, never blank")
+	expectEqual(TP.view(nil).line, ES.Screens.twistNone, "no day shows the empty line")
+	expectEqual(MR.bossLine(5, 2, nil), ES.Screens.bossUnknown, "an unknown boss shows the safe line")
+	expectEqual(MR.bossLine(2, 2, { description = "" }), ES.Screens.bossUnknown, "a blank rule shows the safe line")
+	expectEqual(ES.screenLine("twistFailed"), ES.Screens.twistFailed, "the failed line is reachable")
+end })
+
+table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
+	local TP = require(script.Parent.Parent.Engine.TwistPreview)
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function safe(w, what)
+		expectTrue(type(w) == "string" and w ~= "" and not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. what)
+	end
+	local seen = {}
+	for day = 1, 24 do
+		local key = string.format("2026-12-%02d", day)
+		local v = TP.view(key)
+		expectFalse(v.empty, key .. " has a twist")
+		expectEqual(v.name, DM.forDate(key).name, key .. " shows the same twist the run uses")
+		expectTrue(#v.line <= 60, key .. " line is short")
+		expectTrue(v.nextLine:find("Tomorrow: ", 1, true) == 1, key .. " names tomorrow")
+		expectEqual(v.nextLine, "Tomorrow: " .. DM.forDate(string.format("2026-12-%02d", day + 1)).name, key .. " tomorrow matches the next day")
+		expectTrue(v.nextLine ~= "Tomorrow: " .. v.name, key .. " tomorrow differs from today")
+		safe(v.line, key); safe(v.name, key); safe(v.title, "title"); safe(v.close, "close")
+		seen[v.name] = true
+	end
+	local n = 0 for _ in pairs(seen) do n = n + 1 end
+	expectEqual(n, #DM.Definitions, "every twist shows up")
+	local bad = TP.view("not a date")
+	expectTrue(bad.empty and bad.line == TP.EMPTY and bad.nextLine == "", "a bad key shows the safe empty line")
+	safe(TP.EMPTY, "empty")
+	expectTrue(TP.view(nil).empty, "nil key is empty")
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if set.id ~= "classic_tavern" then
+			expectTrue(p ~= nil and p.dark ~= nil, set.id .. " has popup colours for the twist popup")
+		end
+	end
+	if io and io.open then
+		local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+		local popup = read("src/Client/TwistPopup.lua")
+		expectTrue(popup:find("PopupSkin", 1, true) and popup:find("setPlateButton", 1, true), "the popup wears the set paper, plate and ink")
+		expectTrue(popup:find("TweenService", 1, true) == nil, "no tween, Calm mode identical")
+		expectTrue(popup:find("FireServer", 1, true) == nil, "display only")
+		expectTrue(popup:find("PopupDismiss", 1, true) and popup:find("OverlayManager.register", 1, true), "Escape and outside tap close it")
+		expectTrue(popup:find("Size = UDim2.new(1, -40", 1, true) and popup:find("Size = UDim2.new(0, 180, 0, 48)", 1, true), "the Got it button is 48 px")
+		expectTrue(read("src/Client/Sidebar.lua"):find("TwistPopup", 1, true) ~= nil, "the Daily twist plate opens it")
+	end
+end })
+
 table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, empty note is friendly", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(LP.fmt(0), "0", "zero")
@@ -37144,6 +37317,44 @@ table.insert(tests, { name = "MapSelectPanel layout: parts stay inside the panel
 	end
 end })
 
+table.insert(tests, { name = "MapSelectRules.bossLine: the current Night shows its real boss rule, every other Night a kind surprise line, the node tap carries Target plus rule, the rule row fits or yields", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local function safe(w, what)
+		expectTrue(type(w) == "string" and w ~= "" and #w <= R.BOSS_MAX and not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe short line: " .. what .. " " .. tostring(w))
+	end
+	safe(R.BOSS_SURPRISE, "surprise")
+	expectEqual(R.bossLine(3, 2, { description = "Deals you one fewer card this round." }), R.BOSS_SURPRISE, "another Night is a surprise")
+	expectEqual(R.bossLine(2, 2, nil), R.BOSS_SURPRISE, "no boss yet is a surprise")
+	expectEqual(R.bossLine(nil, 2, { description = "x" }), R.BOSS_SURPRISE, "no night is a surprise")
+	for _, def in ipairs(BR.Definitions) do
+		local line = R.bossLine(2, 2, { id = def.id, name = def.name, description = def.description })
+		safe(line, def.id)
+		expectTrue(line:find("Boss rule: ", 1, true) == 1, def.id .. " starts with Boss rule")
+	end
+	local long = R.bossLine(1, 1, { description = string.rep("word ", 40) })
+	expectTrue(#long <= R.BOSS_MAX and long:sub(-3) == "...", "a long rule is cut at a word")
+	local d = R.describe({ name = "Night 2", typeId = "encounter", state = "current", target = 300, bossLine = R.BOSS_SURPRISE })
+	expectEqual(d.target, 300, "the Night target shows")
+	expectEqual(d.bossLine, R.BOSS_SURPRISE, "the rule line shows")
+	expectEqual(R.describe({ name = "Shop", typeId = "shop", state = "current", bossLine = "x" }).bossLine, nil, "a shop has no boss line")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local zone = HR.layout(sz[1], sz[2]).panelZone
+		local parts = R.rects(zone, "full")
+		if parts.rule then
+			expectTrue(parts.rule.h >= 34, "the rule row holds two 14 px lines at " .. sz[1])
+			expectTrue(parts.rule.y >= parts.target.y + parts.target.h and parts.rule.y + parts.rule.h <= parts.button.y, "the rule sits between Target and Continue at " .. sz[1])
+		end
+	end
+	if io and io.open then
+		local h = assert(io.open("src/Client/MapSelectPanel.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find("d.bossLine", 1, true) ~= nil and src:find("replaces the flavour line", 1, true) ~= nil, "the panel draws the rule or lets it replace the flavour line")
+		h = assert(io.open("src/Client/JourneyMapView.lua", "r")); src = h:read("*a"); h:close()
+		expectTrue(src:find("MapSelectRules.bossLine(", 1, true) ~= nil, "the map passes the rule line to the panel")
+	end
+end })
+
 table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from full to compact to a tab when a node or label would sit under it", fn = function()
 	local R = require(script.Parent.Parent.Engine.MapSelectRules)
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
@@ -40566,6 +40777,38 @@ table.insert(tests, { name = "About: Settings About lines show name, version and
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('makeHeader("About")', 1, true) ~= nil, "Settings builds the About section")
+	end
+end })
+
+table.insert(tests, { name = "About panel per set: a framed card holds the two lines, wears every set fill and ink at 7:1, fits 800x450, kind text, no links", fn = function()
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(GameName.aboutPanelHeight(), 20 + 26 + 44, "the card is padding plus the two lines")
+	expectTrue(GameName.aboutPanelHeight() <= 100, "the card stays small")
+	for _, line in ipairs(GameName.aboutLines()) do
+		local l = line:lower()
+		expectTrue(l:find("http", 1, true) == nil and l:find("www.", 1, true) == nil and l:find(".com", 1, true) == nil, "no links: " .. line)
+		expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not l:find("balatro"), "safe words: " .. line)
+	end
+	expectTrue(GameName.THANKS:find("Thanks", 1, true) == 1, "the thanks is kind")
+	local checked = 0
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if set.id ~= "classic_tavern" then
+			expectTrue(p ~= nil, set.id .. " has popup colours for the About card")
+			local ratio = CS.contrastRatio(p.dark.ink, p.dark.fill)
+			expectTrue(ratio >= 7, set.id .. " About ink reads 7:1 on the fill, got " .. string.format("%.1f", ratio))
+			checked = checked + 1
+		end
+	end
+	expectEqual(checked, #CS.Definitions - 1, "every set except classic is checked")
+	-- one line of 16 px thanks wraps to two lines inside a 700 px scroll, and to two inside a narrow 480 px one: 44 px holds both
+	expectTrue(#GameName.THANKS * 8.6 <= 2 * (480 - 20 - 40), "the thanks fits two lines at 800x450")
+	if io and io.open then
+		local h = assert(io.open("src/Client/Settings.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find('card.Name = "AboutPanel"', 1, true) ~= nil and src:find("PopupSkin", 1, true) ~= nil, "Settings draws the About card with the set skin")
+		expectTrue(src:find("aboutPanelHeight", 1, true) ~= nil, "the card height comes from the engine")
 	end
 end })
 
