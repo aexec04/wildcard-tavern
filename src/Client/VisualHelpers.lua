@@ -559,7 +559,7 @@ return function(deps)
 	-- caller (just Master Volume, before this) is unaffected -- omitting
 	-- it leaves LayoutOrder at Roblox's own default (0), same as before
 	-- this parameter existed.
-	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue, layoutOrder)
+	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue, layoutOrder, snapFn)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 46)
 		row.BackgroundTransparency = 1
@@ -642,7 +642,8 @@ return function(deps)
 				return getValue()
 			end
 			local fraction = math.clamp((inputX - trackPos) / trackWidth, 0, 1)
-			return math.floor(min + fraction * (max - min) + 0.5)
+			local picked = math.floor(min + fraction * (max - min) + 0.5)
+			return snapFn and snapFn(picked) or picked
 		end
 
 		local function refresh()

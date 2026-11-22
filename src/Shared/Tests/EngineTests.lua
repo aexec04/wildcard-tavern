@@ -41727,4 +41727,51 @@ table.insert(tests, { name = "Set sound identity: every Card Set resolves every 
 	SoundIds.SetCues.winter_evening = nil
 end })
 
+table.insert(tests, { name = "Volume panel: sliders snap at 0, 25, 50, 75 and 100, Reset sound asks first and restores the three defaults, 44 px plates, 16 px values", fn = function()
+	local D = require(script.Parent.Parent.Engine.VolumeDetents)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(#D.STOPS, 5)
+	for _, stop in ipairs(D.STOPS) do
+		expectEqual(D.snap(stop), stop)
+		expectEqual(D.snap(stop + D.PULL), stop)
+		if stop > 0 then expectEqual(D.snap(stop - D.PULL), stop) end
+	end
+	expectEqual(D.snap(37), 37)
+	expectEqual(D.snap(23.6), 25)
+	expectEqual(D.snap(-5), 0)
+	expectEqual(D.snap(140), 100)
+	expectEqual(D.snap(nil), 0)
+	expectEqual(D.label(35), "35%")
+	expectEqual(D.label(34.6), "35%")
+	-- Reset only matters when a value differs; it restores music, SFX and mute and nothing else
+	local defaults = PP.defaultSettings()
+	local values = {}
+	for k, v in pairs(defaults) do values[k] = v end
+	local function get(key) return values[key] end
+	expectTrue(not D.needsReset(get, defaults), "fresh settings need no reset")
+	values.sfxVolume = 0.2
+	expectTrue(D.needsReset(get, defaults), "a moved slider needs a reset")
+	values.sfxVolume = defaults.sfxVolume
+	values.muted = true
+	expectTrue(D.needsReset(get, defaults), "mute needs a reset")
+	for _, key in ipairs(D.RESET_KEYS) do expectTrue(defaults[key] ~= nil, key .. " is a real setting") end
+	expectEqual(#D.RESET_KEYS, 3)
+	-- no em dash, calm words, short
+	for _, text in ipairs({ D.RESET_LABEL, D.CONFIRM_MESSAGE, D.CONFIRM_YES, D.CONFIRM_NO }) do
+		expectTrue(not text:find("\226\128\148", 1, true) and not text:lower():find("balatro", 1, true), "clean text")
+	end
+	expectTrue(#D.CONFIRM_YES <= 20 and #D.CONFIRM_NO <= 20, "button words are short")
+	-- wiring (source checks only where files can be read; Studio has no io)
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local vp = read("src/Client/VolumePanel.lua")
+	expectTrue(vp:find("Detents.snap", 1, true) ~= nil, "both sliders snap")
+	expectTrue(vp:find("showConfirmDialog(Detents.CONFIRM_MESSAGE", 1, true) ~= nil, "Reset asks before it changes anything")
+	expectTrue(vp:find("setPlateButton(resetButton", 1, true) ~= nil, "Reset wears the set plate")
+	expectTrue(vp:find('Size = UDim2.new(0.5, -4, 1, 0)', 1, true) ~= nil and vp:find("Size = UDim2.new(1, 0, 0, 44)", 1, true) ~= nil, "plates sit in a 44 px row")
+	local vh = read("src/Client/VisualHelpers.lua")
+	expectTrue(vh:find("snapFn and snapFn(picked)", 1, true) ~= nil, "makeSliderRow applies the snap while dragging")
+	expectTrue(vh:find("valueLabel.TextSize = 16", 1, true) ~= nil, "the value shows at 16 px")
+end })
+
 return tests

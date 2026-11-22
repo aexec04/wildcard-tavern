@@ -20,6 +20,10 @@
 
 local ClientSettings = require(script.Parent.ClientSettings)
 local OverlayManager = require(script.Parent.OverlayManager)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local Detents = require(Engine:WaitForChild("VolumeDetents"))
+local PlayerProfile = require(Engine:WaitForChild("PlayerProfile"))
 
 return function(deps)
 	local polishButton = deps.polishButton
@@ -82,9 +86,7 @@ return function(deps)
 	layout.Padding = UDim.new(0, 6)
 	layout.Parent = rows
 
-	local function percent(value)
-		return tostring(math.floor(value)) .. "%"
-	end
+	local percent = Detents.label
 
 	local function refreshIcon()
 		if volumeButton then
@@ -122,23 +124,37 @@ return function(deps)
 		return math.floor(ClientSettings.get("musicVolume") * 100 + 0.5)
 	end, function(newValue)
 		ClientSettings.set("musicVolume", newValue / 100)
-	end, percent, 1)
+	end, percent, 1, Detents.snap)
 
 	local refreshSfx = deps.makeSliderRow(rows, "SFX", 0, 100, function()
 		return math.floor(ClientSettings.get("sfxVolume") * 100 + 0.5)
 	end, function(newValue)
 		ClientSettings.set("sfxVolume", newValue / 100)
-	end, percent, 2)
+	end, percent, 2, Detents.snap)
+
+	-- Mute and Reset share one 44 px row (two plates, 8 px apart)
+	local buttonRow = Instance.new("Frame")
+	buttonRow.Name = "SoundButtons"
+	buttonRow.Size = UDim2.new(1, 0, 0, 44)
+	buttonRow.BackgroundTransparency = 1
+	buttonRow.LayoutOrder = 3
+	buttonRow.ZIndex = 21
+	buttonRow.Parent = rows
+	local buttonLayout = Instance.new("UIListLayout")
+	buttonLayout.FillDirection = Enum.FillDirection.Horizontal
+	buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	buttonLayout.Padding = UDim.new(0, 8)
+	buttonLayout.Parent = buttonRow
 
 	local muteButton = Instance.new("TextButton")
-	muteButton.Size = UDim2.new(0, 160, 0, 44)
-	muteButton.LayoutOrder = 3
+	muteButton.Size = UDim2.new(0.5, -4, 1, 0)
+	muteButton.LayoutOrder = 1
 	muteButton.Font = Enum.Font.Merriweather
 	muteButton.TextSize = 16
 	muteButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
 	muteButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 	muteButton.ZIndex = 21
-	muteButton.Parent = rows
+	muteButton.Parent = buttonRow
 	polishButton(muteButton, 8)
 	pcall(function() require(script.Parent.ConceptTSkin).plateButton(muteButton) end)
 	deps.addButtonHoverScale(muteButton)
@@ -150,6 +166,37 @@ return function(deps)
 	muteButton.MouseButton1Click:Connect(function()
 		ClientSettings.set("muted", not ClientSettings.get("muted"))
 		playClickSfx()
+	end)
+
+	local resetButton = Instance.new("TextButton")
+	resetButton.Name = "ResetSound"
+	resetButton.Size = UDim2.new(0.5, -4, 1, 0)
+	resetButton.LayoutOrder = 2
+	resetButton.Font = Enum.Font.Merriweather
+	resetButton.TextSize = 16
+	resetButton.Text = Detents.RESET_LABEL
+	resetButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
+	resetButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	resetButton.ZIndex = 21
+	resetButton.Parent = buttonRow
+	polishButton(resetButton, 8)
+	pcall(function() require(script.Parent.ConceptTSkin).plateButton(resetButton) end)
+	pcall(function() require(script.Parent.TavernKit).setPlateButton(resetButton, "secondary") end)
+	deps.addButtonHoverScale(resetButton)
+	resetButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		local defaults = PlayerProfile.defaultSettings()
+		if not Detents.needsReset(ClientSettings.get, defaults) then return end -- nothing to undo, no popup
+		local function doReset()
+			for _, key in ipairs(Detents.RESET_KEYS) do
+				ClientSettings.set(key, defaults[key])
+			end
+		end
+		if deps.showConfirmDialog then
+			deps.showConfirmDialog(Detents.CONFIRM_MESSAGE, doReset, { yesText = Detents.CONFIRM_YES, noText = Detents.CONFIRM_NO })
+		else
+			doReset()
+		end
 	end)
 
 	ClientSettings.onChanged(function(key)
