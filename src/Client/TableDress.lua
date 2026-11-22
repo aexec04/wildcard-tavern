@@ -32,7 +32,25 @@ end
 local CREAM = Color3.fromRGB(250, 240, 220)
 local function paint(inst, setId)
 	local part = Pure.partOf(inst.Name)
-	if part and inst:IsA("ImageLabel") then inst.ImageColor3 = expected(setId, part) end
+	if part and Pure.BACK_PARTS[part] and inst:IsA("ImageLabel") then
+		-- the pile and banners draw the set's own painted card back; classic (or a set with no painted back) keeps the shared picture
+		if inst:GetAttribute("ClassicImage") == nil then
+			inst:SetAttribute("ClassicImage", inst.Image)
+			inst:SetAttribute("ClassicScale", inst.ScaleType.Name)
+		end
+		local back = Pure.backImage(setId)
+		if back then
+			inst.Image = back
+			inst.ScaleType = Enum.ScaleType[Pure.BACK_SCALE[part]]
+			inst.ImageColor3 = Color3.new(1, 1, 1)
+		else
+			inst.Image = inst:GetAttribute("ClassicImage")
+			inst.ScaleType = Enum.ScaleType[inst:GetAttribute("ClassicScale")]
+			inst.ImageColor3 = expected(setId, part)
+		end
+	elseif part and inst:IsA("ImageLabel") then
+		inst.ImageColor3 = expected(setId, part)
+	end
 	if (inst.Name == "ScoreCaption" or inst.Name == "ScoreProgress") and inst:IsA("TextLabel") then -- Score plate words wear the set accent (7:1 on its plate), classic keeps cream
 		local ink = nil
 		pcall(function() ink = require(script.Parent.SetInk).get() end)

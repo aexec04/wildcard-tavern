@@ -8,6 +8,7 @@
 	TableDress.tintFor(setId, part) -> { r, g, b } 0..255 (classic and unknown sets: white, the art untouched)
 ]]
 local CosmeticSets = require(script.Parent.CosmeticSets)
+local ContentArt = require(script.Parent.ContentArt)
 
 local TableDress = {}
 
@@ -27,6 +28,17 @@ end
 function TableDress.partOf(name)
 	return byName[name]
 end
+
+-- The set's own painted card back (card_backs art), nil for classic, unknown sets and sets whose back is not painted yet.
+-- The pile top face and the two wall banners draw it instead of the shared crown picture.
+function TableDress.backImage(setId)
+	if setId == nil or setId == CosmeticSets.DefaultId then return nil end
+	local set = CosmeticSets.getById(setId)
+	return set and ContentArt.getImageId("card_backs", set.cardBackId) or nil
+end
+
+TableDress.BACK_PARTS = { deck = true, banner = true } -- the parts that swap their picture for the painted back
+TableDress.BACK_SCALE = { deck = "Fit", banner = "Crop" }
 
 function TableDress.tintFor(setId, part)
 	local tint = CosmeticSets.deckTint(setId)
