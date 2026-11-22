@@ -41882,6 +41882,29 @@ table.insert(tests, { name = "Patron cue pill and Score plate words wear the set
 	assert(not td:find("TweenService", 1, true), "TableDress adds no tween, so Calm mode stays static")
 end })
 
+table.insert(tests, { name = "Boss intro plate and rule chip wear the set plate, edge and ink at 7:1 on every set, classic keeps the boss tint, Continue stays 44 px", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local G2 = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectTrue(G2.continueRect({ w = 400, h = 300 }).h >= 44, "Continue is at least 44 px")
+	expectEqual(CS.hintStyleOf(CS.DefaultId), nil, "classic keeps the boss rule tint")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " boss plate ink is 7:1")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 sets covered")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2MomentsFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("hintStyleOf(Kit.plateSetId())", 1, true) ~= nil, "intro and chip ask the set style")
+	expectTrue(src:find("skinPlate(plate", 1, true) ~= nil, "Night clear plate keeps its set skin")
+	expectTrue(not src:find("TweenService:Create(rulePlate", 1, true), "the rule chip adds no tween, Calm stays static")
+end })
+
 return tests
 
 
