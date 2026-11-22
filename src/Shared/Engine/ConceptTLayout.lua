@@ -95,7 +95,7 @@ end
 -- the Rank | Suit sort pill: a flat 120 x 34 wood pill, 44 px tall on compact screens (touch target)
 M.SORT_W, M.SORT_H = 120, 34
 function M.sortSize(w, h)
-	local compact = (tonumber(w) or 0) < 1000 or (tonumber(h) or 0) < 600
+	local compact = (tonumber(w) or 0) < 1000 or (tonumber(h) or 0) < 800 -- every tablet and phone gets the 44 px touch height (1024x768 and 1366x768 included)
 	return { w = M.SORT_W, h = compact and M.MIN_TOUCH or M.SORT_H }
 end
 

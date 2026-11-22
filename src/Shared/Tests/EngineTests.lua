@@ -14377,6 +14377,27 @@ table.insert(tests, { name = "UI sound wiring pass 2: every new popup, plate and
 	expectTrue(sidebar:find("TwistPopup", 1, true) ~= nil and count(sidebar, 'Cue.play("button_click")') == 0, "the twist plate tap sound comes from the popup, not played twice")
 end })
 
+table.insert(tests, { name = "ThumbReach: Play Hand, Discard, Rank and Suit sort, the hand and the deck sit in the lower 60 percent, 44 px tall, nothing critical in the top centre, at five sizes", fn = function()
+	local TR = require(script.Parent.Parent.Engine.ThumbReach)
+	for _, sz in ipairs({ { 800, 450 }, { 844, 390 }, { 1024, 768 }, { 1366, 768 }, { 1920, 957 } }) do
+		local findings = TR.audit(sz[1], sz[2])
+		expectEqual(#findings, 0, sz[1] .. "x" .. sz[2] .. " thumb reach: " .. table.concat(findings, "; "))
+		local r = TR.rects(sz[1], sz[2])
+		-- Play Hand is the primary: it sits left of Discard and both share one baseline, so one thumb rests on the pair
+		expectTrue(r.play.y == r.discard.y or math.abs((r.play.y + r.play.h) - (r.discard.y + r.discard.h)) <= 8, "Play Hand and Discard share a baseline at " .. sz[1])
+		expectTrue(r.sort.x + r.sort.w <= r.play.x, "the sort plates stand left of Play Hand at " .. sz[1])
+		expectTrue(r.discard.x >= r.play.x + r.play.w, "Discard is a separate target right of Play Hand at " .. sz[1])
+	end
+	-- the audit really fails when something critical is up top
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local saved = L.frac.play
+	L.frac.play = { 0.40, 0.02, 0.60, 0.10 }
+	local bad = TR.audit(1024, 768)
+	L.frac.play = saved
+	expectTrue(#bad >= 2, "a Play Hand moved to the top centre is flagged twice")
+	expectEqual(#TR.audit(1024, 768), 0, "the layout is restored")
+end })
+
 table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
 	local TP = require(script.Parent.Parent.Engine.TwistPreview)
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
