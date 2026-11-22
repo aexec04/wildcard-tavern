@@ -29528,20 +29528,37 @@ table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style s
 	end
 end })
 
+table.insert(tests, { name = "Gear menu: the Collection row is listed and opens the collection opener", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local found
+	for _, r in ipairs(G.ROWS) do if r.id == "collection" then found = r end end
+	assert(found and found.kind == "action" and found.label == "Collection", "gear menu lists Collection")
+	assert(require(script.Parent.Parent.Engine.FeatureFlags).enabled("TOME_COLLECTION"), "flag on")
+	if not io then return end
+	local f = io.open("src/Client/GearMenu.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find('OverlayManager.open("collection")', 1, true), "the row calls the registered opener")
+end })
+
 table.insert(tests, { name = "FeatureFlags: default flags build no corner icons, each flag brings its own back, LEGACY_V1 brings all", fn = function()
 	local F = require(script.Parent.Parent.Engine.FeatureFlags)
 	local n = 0
 	for icon, flag in pairs(F.CORNER) do
 		n = n + 1
-		assert(F.FLAGS[flag] == false, flag .. " must default to false")
-		assert(not F.cornerIcon(icon), icon .. " icon must not exist by default")
+		if flag == "TOME_COLLECTION" then
+			assert(F.FLAGS[flag] == true and F.cornerIcon(icon), "Collection is back on")
+		else
+			assert(F.FLAGS[flag] == false, flag .. " must default to false")
+			assert(not F.cornerIcon(icon), icon .. " icon must not exist by default")
+		end
 		F.setOverride(flag, true)
 		assert(F.cornerIcon(icon), flag .. " must re-create " .. icon)
 		for other, oflag in pairs(F.CORNER) do
-			if other ~= icon then assert(not F.cornerIcon(other), flag .. " must not bring back " .. other) end
+			if other ~= icon and other ~= "collection" then assert(not F.cornerIcon(other), flag .. " must not bring back " .. other) end
 		end
 		F.setOverride(flag, nil)
-		assert(not F.cornerIcon(icon))
+		assert(F.cornerIcon(icon) == (flag == "TOME_COLLECTION"))
 	end
 	assert(n == 5, "five corner icons")
 	F.LEGACY_V1 = true

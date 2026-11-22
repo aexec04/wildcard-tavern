@@ -17,7 +17,7 @@ M.LEGACY_V1 = false
 -- Every opener found, default off (the remake shows HUD pills, Round bar, Patron row, hand, deck, Play Hand and Discard).
 M.FLAGS = {
 	JOURNEY_MAP = false,    -- corner Journey icon (Client/Journey.lua opener)
-	TOME_COLLECTION = false, -- corner Collection icon (Client/Collection.lua opener)
+	TOME_COLLECTION = true,  -- corner Collection icon (Client/Collection.lua opener)
 	SETTINGS = false,        -- corner gear (Client/Settings.lua opener, ConceptTPlay gear move)
 	VOLUME_PANEL = false,    -- corner speaker (Client/VolumePanel.lua opener)
 	RECIPES = false,         -- corner Poker Hands reference icon (Client/PokerHandsReference.lua opener)
