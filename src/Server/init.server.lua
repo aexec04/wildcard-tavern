@@ -1444,6 +1444,22 @@ function Spec.name(player)
 	return player.DisplayName ~= "" and player.DisplayName or player.Name
 end
 
+-- Display name for any user id (Roblox filters display names itself). Online players answer from memory; offline ones go
+-- through UserService, with the username as the last resort. Returns nil when nothing resolves.
+function Spec.nameFor(userId)
+	local online = Players:GetPlayerByUserId(userId)
+	if online then
+		return Spec.name(online)
+	end
+	local ok, infos = pcall(function() return game:GetService("UserService"):GetUserInfosByUserIdsAsync({ userId }) end)
+	local info = ok and type(infos) == "table" and infos[1] or nil
+	if info and type(info.DisplayName) == "string" and info.DisplayName ~= "" then
+		return info.DisplayName
+	end
+	local okName, username = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
+	return okName and username or nil
+end
+
 function Spec.send(viewers, event)
 	event = Spec.M.outgoing(event)
 	if not event or not Rem.SpectateStream then return end
@@ -3473,7 +3489,7 @@ local function getFriendList(player)
 		while true do
 			for _, item in ipairs(pages:GetCurrentPage()) do
 				ids[item.Id] = true
-				names[item.Id] = item.Username
+				names[item.Id] = (item.DisplayName and item.DisplayName ~= "") and item.DisplayName or item.Username
 				count += 1
 			end
 			if pages.IsFinished or count >= Leaderboards.MAX_FRIENDS then break end
@@ -3540,7 +3556,7 @@ local function friendsBoardResult(player, store, storeName, board, dateKey)
 		end
 		-- the player's own row gets their own name and flair too
 		if row.userId == player.UserId then
-			row.name = player.Name
+			row.name = Spec.name(player)
 			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank, row.vip = friendFlair(player.UserId)
 		end
 	end
@@ -3581,9 +3597,9 @@ local function globalBoardResult(player, store, storeName, board, periodKey, pen
 	for _, row in ipairs(top) do
 		local name = nameCache.get(row.userId)
 		if not name then
-			local nameOk, resolved = pcall(function() return Players:GetNameFromUserIdAsync(row.userId) end)
-			name = nameOk and resolved or "???"
-			if nameOk then nameCache.set(row.userId, name) end
+			local resolved = Spec.nameFor(row.userId)
+			name = resolved or "???"
+			if resolved then nameCache.set(row.userId, name) end
 		end
 		row.name = name
 		row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank, row.vip = friendFlair(row.userId) -- only players in this server have flair
@@ -3679,12 +3695,7 @@ Rem._lb.GetDailyLeaderboard = function(player, board, scope)
 			local combinedScore = entry.value
 			local name = nil
 			if userId then
-				local nameOk, resolvedName = pcall(function()
-					return Players:GetNameFromUserIdAsync(userId)
-				end)
-				if nameOk then
-					name = resolvedName
-				end
+				name = Spec.nameFor(userId)
 			end
 			table.insert(top, {
 				userId = userId,
@@ -3774,12 +3785,7 @@ Rem._lb.GetWeeklyLeaderboard = function(player, board, scope)
 			local combinedScore = entry.value
 			local name = nil
 			if userId then
-				local nameOk, resolvedName = pcall(function()
-					return Players:GetNameFromUserIdAsync(userId)
-				end)
-				if nameOk then
-					name = resolvedName
-				end
+				name = Spec.nameFor(userId)
 			end
 			table.insert(top, {
 				userId = userId,
@@ -3842,12 +3848,7 @@ local function fetchDailyTickerTop(dateKey)
 			local combinedScore = entry.value
 			local name = nil
 			if userId then
-				local nameOk, resolvedName = pcall(function()
-					return Players:GetNameFromUserIdAsync(userId)
-				end)
-				if nameOk then
-					name = resolvedName
-				end
+				name = Spec.nameFor(userId)
 			end
 			table.insert(top, {
 				userId = userId,
@@ -4022,7 +4023,7 @@ local function getFriendPresenceList(player)
 				local otherState = otherSession and otherSession.state
 				table.insert(list, {
 					userId = other.UserId,
-					name = other.Name,
+					name = Spec.name(other),
 					night = otherState and otherState.night or nil,
 					round = otherState and otherState.round or nil,
 					tips = otherState and otherState.tips or nil,

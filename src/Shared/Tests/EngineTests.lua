@@ -11400,6 +11400,20 @@ table.insert(tests, { name = "SaveLock load and save: a failing, timing out, loc
 	end
 end })
 
+table.insert(tests, { name = "Social check: boards and friend rows show display names, never usernames or typed text", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	local _, calls = src:gsub("GetNameFromUserIdAsync", "")
+	assert(calls == 1, "only the Spec.nameFor fallback may ask for a username (" .. calls .. ")")
+	assert(src:find("item.DisplayName", 1, true), "friend rows prefer the display name")
+	assert(not src:find("row.name = player.Name", 1, true), "own board row uses the display name")
+	assert(not src:find("name = other.Name,", 1, true), "spectate friend list uses the display name")
+	assert(src:find("function Spec.nameFor", 1, true))
+end })
+
 table.insert(tests, { name = "SaveLock and RateLimit: a live lease blocks other servers, stale or own leases do not, release clears it, spam is dropped", fn = function()
 	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
 	local RateLimit = require(script.Parent.Parent.Engine.RateLimit)
