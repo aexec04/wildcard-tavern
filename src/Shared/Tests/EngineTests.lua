@@ -13593,6 +13593,18 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	expectTrue(listed, "All actions lists Card Sets")
 end })
 
+table.insert(tests, { name = "Accessibility: cardLook red and black ink read at 4.5:1 on that set's card paper, and the two inks differ", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local look = CS.cardLook(set)
+		for _, which in ipairs({ "red", "black" }) do
+			expectTrue(CS.contrastRatio(look.ink[which], look.paper) >= 4.5, set.id .. " " .. which .. " ink on card paper")
+		end
+		local r, b = look.ink.red, look.ink.black
+		expectTrue(r[1] ~= b[1] or r[2] ~= b[2] or r[3] ~= b[3], set.id .. " red and black ink differ")
+	end
+end })
+
 table.insert(tests, { name = "HudStyle: Classic frame covers at least 6 percent of the card width on every side", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HudStyle)
 	for _, size in ipairs({ { 100, 140 }, { 120, 168 }, { 80, 112 }, { 200, 280 }, { 64, 90 } }) do

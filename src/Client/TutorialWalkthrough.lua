@@ -445,7 +445,8 @@ return function(deps)
 		for _, f in ipairs(dims) do f.Visible = on end
 		highlight.Visible = on
 		arrow.Visible = on
-		if on then pulse:Play() else pulse:Pause() end
+		-- the looping glow stays still in Calm / Reduce Motion / Reduce Flashing
+		if on and not require(script.Parent.ClientSettings).get("reduceShake") then pulse:Play() else pulse:Pause() end
 	end
 
 	local function stopFollowing()
