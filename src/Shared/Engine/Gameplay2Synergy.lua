@@ -9,9 +9,13 @@
 	                               small screens, the tooltip already names the tag)
 	  completes(tags)            -> true when an offer's synergy tags (Synergy.tagsFor) include one that works with an owned Patron
 	  THREAD_ALPHA               0.55 gold opacity
+	  hint(ownedIds)             -> nil | { text, kind = "set" | "pair", a, b }  one short line for the chip under the Patron row: a formed set
+	                               bonus ("Rare Court: x1.2 Mult") first, else the first neighbouring pair that shares a tag ("Pair: Tips Patrons team up")
+	  hintRect(rects, w, h)      -> { x, y, w, h = 22, size = 16 } | nil  the chip place under the Patron row (the Boss rule plate place), nil without room
 ]]
 
 local PatronTips = require(script.Parent:WaitForChild("PatronTips"))
+local SetBonuses = require(script.Parent:WaitForChild("SetBonuses"))
 
 local M = {}
 
@@ -55,6 +59,27 @@ function M.thread(rects, link)
 		out.label = { x = x0 + math.floor((gap - M.LABEL) / 2), y = y - math.floor(M.LABEL / 2), w = M.LABEL, h = M.LABEL }
 	end
 	return out
+end
+
+M.HINT_SIZE, M.HINT_H = 16, 24
+
+function M.hint(ownedIds)
+	local ids = ownedIds or {}
+	local sets = SetBonuses.formed(ids)
+	if sets[1] then
+		local m = { sets[1].members[1], sets[1].members[2], sets[1].members[3] }
+		table.sort(m)
+		return { text = SetBonuses.lineOf(sets[1]), kind = "set", a = m[1], b = m[3] }
+	end
+	local link = M.links(ids)[1]
+	if link then return { text = "Pair: " .. tostring(link.word) .. " Patrons team up", kind = "pair", a = link.a, b = link.b } end
+	return nil
+end
+
+function M.hintRect(r, w, h)
+	local pr = require(script.Parent:WaitForChild("Gameplay2Moments")).rulePlate(r)
+	if not pr or pr.h < M.HINT_H then return nil end
+	return { x = pr.x, y = pr.y, w = pr.w, h = M.HINT_H, size = M.HINT_SIZE }
 end
 
 function M.completes(tags)

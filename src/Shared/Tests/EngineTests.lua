@@ -41929,6 +41929,52 @@ table.insert(tests, { name = "Moderation checklist lists every Patron, Boss Roun
 	end
 end })
 
+table.insert(tests, { name = "Patron synergy hint chip: a formed set bonus first, else a neighbouring shared tag pair, short kid safe line at 16 px, none on empty seats, static", fn = function()
+	local E = script.Parent.Parent.Engine
+	local G = require(E.Gameplay2Synergy)
+	local Patrons, Bonds = require(E.Patrons), require(E.Bonds)
+	expectEqual(G.hint({}), nil, "no Patrons, no hint")
+	expectEqual(G.hint({ "the_regular" }), nil, "one Patron, no hint")
+	local setSeen, pairSeen = false, false
+	for _, tag in ipairs(Bonds.Tags) do
+		local ids = {}
+		for _, d in ipairs(Patrons.Definitions) do
+			for _, t in ipairs(d.tags or {}) do if t == tag and #ids < 3 then ids[#ids + 1] = d.id end end
+		end
+		if #ids == 3 then
+			local h = G.hint(ids)
+			expectTrue(h ~= nil and h.kind == "set" and h.text:find("Tavern Circle", 1, true) ~= nil, tag .. " three Patrons show the set bonus")
+			if h then expectTrue(#h.text <= 70, "hint line is short") setSeen = true end
+		end
+	end
+	expectTrue(setSeen, "at least one set bonus was checked")
+	local owned = {}
+	for _, d in ipairs(Patrons.Definitions) do
+		if #owned < 2 then owned[#owned + 1] = d.id end
+	end
+	for a = 1, #Patrons.Definitions - 1 do
+		local h = G.hint({ Patrons.Definitions[a].id, Patrons.Definitions[a + 1].id })
+		if h and h.kind == "pair" then
+			pairSeen = true
+			expectTrue(h.text:find("^Pair: ") ~= nil and #h.text <= 70 and not h.text:lower():find("balatro", 1, true), "pair line is plain and short")
+			expectTrue(h.a == 1 and h.b == 2, "the pair names the two seats")
+			break
+		end
+	end
+	expectTrue(pairSeen, "a neighbouring pair gives a hint")
+	local L = require(E.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local r = G.hintRect(L.rects(sz[1], sz[2]))
+		if r then expectTrue(r.size >= 16 and r.h >= r.size and r.x >= 0 and r.x + r.w <= sz[1], sz[1] .. " hint chip fits at 16 px") end
+	end
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2SynergyFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("HintSkin", 1, true) ~= nil and src:find("SynergyHint", 1, true) ~= nil, "chip wears the set plate")
+	expectTrue(not src:find("TweenService", 1, true), "no tween, so Calm mode stays static")
+end })
+
 return tests
 
 
