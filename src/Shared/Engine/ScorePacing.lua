@@ -3,9 +3,9 @@
 	Pure numbers (tested) for how fast a hand's Patron beats play and how big the final flourish is. Presentation only,
 	it never changes a score. Client/ScorePopup reads gap(), Client/Gameplay2ScoreFX reads flourish().
 
-	ScorePacing.GAP = 0.18 s between Patron beats, left to right
-	ScorePacing.gap(repeats, fast, calm) -> seconds between beats. Playing the same hand again and again speeds up: 0.03 s
-	                                        less per repeat, never under 0.06 s. Fast speed caps at 0.12. Calm mode: 0 (instant).
+	ScorePacing.GAP = 0.24 s between Patron beats, left to right
+	ScorePacing.gap(repeats, fast, calm) -> seconds between beats. Playing the same hand again and again speeds up: 0.01 s
+	                                        less per repeat, never under 0.2 s. Fast speed caps at 0.2. Calm mode: 0 (instant).
 	ScorePacing.nextRepeats(lastName, lastCount, name) -> how many times in a row this hand name was just played (1 = first)
 	Beats already run left to right: Scoring applies the Patrons in seat order and PatronEvents keeps that order.
 	ScorePacing.flourish(score, target) -> { level 0..4, burst, peak, extraHold } scaled by how far past the Target the round score is
@@ -14,7 +14,7 @@
 
 local M = {}
 
-M.GAP, M.FLOOR, M.STEP, M.FAST_CAP = 0.18, 0.06, 0.03, 0.12
+M.GAP, M.FLOOR, M.STEP, M.FAST_CAP = 0.24, 0.2, 0.01, 0.2 -- every step stays readable: never under 0.2 s (Calm mode: 0, a tap skips)
 
 function M.gap(repeats, fast, calm)
 	if calm then return 0 end
