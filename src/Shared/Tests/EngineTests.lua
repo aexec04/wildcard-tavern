@@ -37165,4 +37165,27 @@ table.insert(tests, { name = "Safety: no risky word in registry names, descripti
 	end
 end })
 
+table.insert(tests, { name = "Roblox policy: Robux items are fixed (no random or chest wording), packs cost Tips only, no outside links in store text", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	local banned = { "random", "chance", "chest", "crate", "loot", "gacha", "gamble", "jackpot", "lucky", "odds", "spin", "http", "www.", ".com", "discord", "youtube" }
+	local function check(label, text)
+		local lower = tostring(text or ""):lower()
+		for _, w in ipairs(banned) do
+			expectTrue(not lower:find(w, 1, true), label .. " contains '" .. w .. "'")
+		end
+	end
+	for _, item in ipairs(Store.Items) do
+		check("store " .. item.id, (item.name or "") .. " " .. (item.description or "") .. " " .. table.concat(item.perks or {}, " "))
+	end
+	for _, pass in ipairs(GamePasses.Definitions) do check("pass " .. pass.id, pass.name .. " " .. pass.description) end
+	for _, product in ipairs(GamePasses.DeveloperProducts) do check("product " .. product.id, product.name .. " " .. product.description) end
+	for _, pack in ipairs(Packs.Definitions or Packs.Packs or Packs) do
+		if type(pack) == "table" and pack.id then
+			expectTrue(type(pack.price) == "number" and pack.robuxPrice == nil and pack.productId == nil, pack.id .. " is bought with Tips only")
+		end
+	end
+end })
+
 return tests
