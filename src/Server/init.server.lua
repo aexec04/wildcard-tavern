@@ -442,6 +442,7 @@ local function rollShopOffers(session, isReroll)
 	session.shopOffers = offers.patrons
 	session.packOffers = offers.packs
 	session.voucherOffer = offers.voucher
+	session.markOffer = offers.mark -- a mark id or nil
 end
 
 local function openShop(session)
@@ -455,7 +456,7 @@ end
 
 local function serializeCard(card)
 	return {
-		rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp,
+		rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp, mark = card.mark,
 		-- PHASE C ("mind-blowing plan" Signature Mechanic): see
 		-- TrueWildcard.lua. isTrueWildcard marks the one card in this run
 		-- that is (or was) the True Wildcard; wildcardLocked is false right
@@ -535,6 +536,15 @@ local function serializeState(session, player)
 		}
 	end
 
+	local markOffer = nil
+	do
+		local Marks = require(Engine.Marks)
+		local def = session.markOffer and Marks.getById(session.markOffer)
+		if def then
+			markOffer = { id = session.markOffer, name = def.name .. " Mark pack", text = Marks.packText(session.markOffer), price = Marks.price(state) }
+		end
+	end
+
 	local housePassIds = {}
 	for passId in pairs(state.housePasses) do
 		table.insert(housePassIds, passId)
@@ -611,6 +621,7 @@ local function serializeState(session, player)
 		shopOffers = shopOffers,
 		packOffers = packOffers,
 		voucherOffer = voucherOffer,
+		markOffer = markOffer,
 		rerollCost = RunState.rerollCost(state, session.rerollCost or Shop.REROLL_BASE_COST),
 		-- pendingPack is already the lightweight { packId, category, pickCount,
 		-- items = {id,name,icon,description} } shape RunState.openPack builds
@@ -2599,6 +2610,26 @@ Rem.BuyHousePass.OnServerEvent:Connect(function(player, passId)
 	local ok = RunState.buyHousePass(session.state, passId)
 	if ok then
 		session.voucherOffer = nil
+	end
+	pushState(player)
+end)
+
+-- Mark pack: Tips only, the mark is the one on offer, the player picks the deck card by rank and suit.
+Rem.BuyMark.OnServerEvent:Connect(function(player, markId, rank, suit)
+	if not RateLimit.allow(player.UserId, "Rem.BuyMark", os.clock()) then return end
+	local session = sessions[player]
+	if not session or not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+		return
+	end
+	if type(markId) ~= "string" or type(rank) ~= "number" or type(suit) ~= "string" then
+		return
+	end
+	if not session.markOffer or session.markOffer ~= markId then
+		return
+	end
+	local ok = require(Engine.Marks).buy(session.state, markId, math.floor(rank), suit)
+	if ok then
+		session.markOffer = nil
 	end
 	pushState(player)
 end)

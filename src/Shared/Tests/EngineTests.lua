@@ -43501,5 +43501,116 @@ table.insert(tests, { name = "Pre run screen: headers and open pick cards go thr
 	expectTrue(src:find("if not plate and not locked then", 1, true) ~= nil, "locked cards and stake plates keep their own look")
 end })
 
+table.insert(tests, { name = "Set sound identity: every Card Set resolves every UI cue to a real sound, variant when it has one, classic otherwise", fn = function()
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	for _, name in ipairs(SoundIds.SetCueNames) do
+		expectTrue(SoundIds.cueId(name) ~= nil, name .. " has a classic sound to fall back to")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		for _, name in ipairs(SoundIds.SetCueNames) do
+			local cue = SoundIds.cueFor(name, set.id)
+			expectTrue(cue ~= nil and SoundIds.isValidId(cue.id), set.id .. " is not silent on " .. name)
+			expectTrue((cue.volume or 0) <= 0.7, set.id .. " " .. name .. " stays at a UI volume")
+		end
+		for setId, cues in pairs(SoundIds.SetCues) do
+			expectTrue(CosmeticSets.getById(setId) ~= nil, setId .. " override names a real set")
+			for cueName, v in pairs(cues) do
+				expectTrue(SoundIds.isValidId(v.id), setId .. " " .. cueName .. " override id is well formed")
+			end
+		end
+	end
+	expectTrue(SoundIds.cueFor("button_click", nil) == SoundIds.Cues.button_click, "no set means classic")
+	expectTrue(SoundIds.cueFor("button_click", "no_such_set") == SoundIds.Cues.button_click, "unknown set means classic")
+	-- an override wins and inherits what it leaves out; a bad id falls back
+	SoundIds.SetCues.winter_evening = { button_click = { id = "rbxassetid://123" }, scroll_open = { id = "" } }
+	local v = SoundIds.cueFor("button_click", "winter_evening")
+	expectEqual(v.id, "rbxassetid://123")
+	expectEqual(v.volume, SoundIds.Cues.button_click.volume)
+	expectTrue(SoundIds.cueFor("scroll_open", "winter_evening") == SoundIds.Cues.scroll_open, "an empty override falls back to classic")
+	expectTrue(SoundIds.cueFor("button_click", "classic_tavern") == SoundIds.Cues.button_click, "other sets stay classic")
+	SoundIds.SetCues.winter_evening = nil
+end })
+
+table.insert(tests, { name = "Volume panel: sliders snap at 0, 25, 50, 75 and 100, Reset sound asks first and restores the three defaults, 44 px plates, 16 px values", fn = function()
+	local D = require(script.Parent.Parent.Engine.VolumeDetents)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(#D.STOPS, 5)
+	for _, stop in ipairs(D.STOPS) do
+		expectEqual(D.snap(stop), stop)
+		expectEqual(D.snap(stop + D.PULL), stop)
+		if stop > 0 then expectEqual(D.snap(stop - D.PULL), stop) end
+	end
+	expectEqual(D.snap(37), 37)
+	expectEqual(D.snap(23.6), 25)
+	expectEqual(D.snap(-5), 0)
+	expectEqual(D.snap(140), 100)
+	expectEqual(D.snap(nil), 0)
+	expectEqual(D.label(35), "35%")
+	expectEqual(D.label(34.6), "35%")
+	-- Reset only matters when a value differs; it restores music, SFX and mute and nothing else
+	local defaults = PP.defaultSettings()
+	local values = {}
+	for k, v in pairs(defaults) do values[k] = v end
+	local function get(key) return values[key] end
+	expectTrue(not D.needsReset(get, defaults), "fresh settings need no reset")
+	values.sfxVolume = 0.2
+	expectTrue(D.needsReset(get, defaults), "a moved slider needs a reset")
+	values.sfxVolume = defaults.sfxVolume
+	values.muted = true
+	expectTrue(D.needsReset(get, defaults), "mute needs a reset")
+	for _, key in ipairs(D.RESET_KEYS) do expectTrue(defaults[key] ~= nil, key .. " is a real setting") end
+	expectEqual(#D.RESET_KEYS, 3)
+	-- no em dash, calm words, short
+	for _, text in ipairs({ D.RESET_LABEL, D.CONFIRM_MESSAGE, D.CONFIRM_YES, D.CONFIRM_NO }) do
+		expectTrue(not text:find("\226\128\148", 1, true) and not text:lower():find("balatro", 1, true), "clean text")
+	end
+	expectTrue(#D.CONFIRM_YES <= 20 and #D.CONFIRM_NO <= 20, "button words are short")
+	-- wiring (source checks only where files can be read; Studio has no io)
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local vp = read("src/Client/VolumePanel.lua")
+	expectTrue(vp:find("Detents.snap", 1, true) ~= nil, "both sliders snap")
+	expectTrue(vp:find("showConfirmDialog(Detents.CONFIRM_MESSAGE", 1, true) ~= nil, "Reset asks before it changes anything")
+	expectTrue(vp:find("setPlateButton(resetButton", 1, true) ~= nil, "Reset wears the set plate")
+	expectTrue(vp:find('Size = UDim2.new(0.5, -4, 1, 0)', 1, true) ~= nil and vp:find("Size = UDim2.new(1, 0, 0, 44)", 1, true) ~= nil, "plates sit in a 44 px row")
+	local vh = read("src/Client/VisualHelpers.lua")
+	expectTrue(vh:find("snapFn and snapFn(picked)", 1, true) ~= nil, "makeSliderRow applies the snap while dragging")
+	expectTrue(vh:find("valueLabel.TextSize = 16", 1, true) ~= nil, "the value shows at 16 px")
+end })
+
+table.insert(tests, { name = "Reduce motion coverage: every client file that tweens checks Calm mode, Reduce motion or an injected calm()", fn = function()
+	if not (io and io.open and io.popen) then return end
+	local list = io.popen("ls src/Client/*.lua 2>/dev/null")
+	if not list then return end
+	-- a gate is a real check, not a comment: ClientSettings.motionAllowed(), flashesAllowed(), reduceShake, reduceMotion, TavernKit.still() or a calm() passed in
+	local GATES = { "motionAllowed(", "flashesAllowed(", "reduceShake", "reduceMotion", "still()", "calm()", "calm)", "calm,", "calm =", "MotionGate", "particleCount(" }
+	-- files whose tweens run only when their caller allows motion (the caller is gated, the file takes no flag)
+	local CALLER_GATED = { ["src/Client/MenuPlayButton.lua"] = "startLoops is only called when motion is allowed (Menu.lua)" }
+	local scanned, offenders = 0, {}
+	for path in list:lines() do
+		local f = io.open(path, "r")
+		if f then
+			local text = f:read("*a")
+			f:close()
+			if text:find("TweenInfo", 1, true) or text:find(":Create(", 1, true) then
+				scanned = scanned + 1
+				local gated = CALLER_GATED[path] ~= nil
+				for _, token in ipairs(GATES) do
+					if text:find(token, 1, true) then gated = true break end
+				end
+				if not gated then offenders[#offenders + 1] = path end
+			end
+		end
+	end
+	list:close()
+	expectTrue(scanned > 50, "the scan found the tweening client files")
+	expectEqual(#offenders, 0, "ungated tween files: " .. table.concat(offenders, ", "))
+	for path in pairs(CALLER_GATED) do
+		local f = io.open(path, "r")
+		expectTrue(f ~= nil, path .. " still exists")
+		if f then f:close() end
+	end
+end })
+
 return tests
 

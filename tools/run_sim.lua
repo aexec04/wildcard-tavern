@@ -60,7 +60,7 @@ local function parseArgs(argv)
 	}
 	local numbers = {
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
-		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
+		["--bank"] = "bank", ["--marks"] = "marks", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
 		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds",
@@ -118,6 +118,9 @@ local function workerArgs(run, firstRun, count, outPath)
 		"--src", run.src, "--boss-night", run.bossNight,
 		"--runs", count, "--first-run", firstRun, "--worker-out", outPath,
 	}
+	if run.marks then
+		table.insert(parts, "--marks"); table.insert(parts, run.marks)
+	end
 	if run.forceBoss then
 		table.insert(parts, "--force-boss"); table.insert(parts, run.forceBoss)
 	end

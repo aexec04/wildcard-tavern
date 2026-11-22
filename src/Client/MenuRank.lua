@@ -175,7 +175,11 @@ function MenuRank.update(state)
 	local ratio = view.maxed and 1 or math.clamp(view.need > 0 and view.into / view.need or 0, 0, 1)
 	if shown.ratio ~= ratio or shown.rank ~= view.rank then
 		shown.ratio, shown.rank = ratio, view.rank
-		TweenService:Create(ui.fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(ratio, 1) }):Play()
+		if require(script.Parent.ClientSettings).motionAllowed() then
+			TweenService:Create(ui.fill, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(ratio, 1) }):Play()
+		else
+			ui.fill.Size = UDim2.fromScale(ratio, 1) -- Calm and Reduce motion: the bar jumps
+		end
 	end
 end
 

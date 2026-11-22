@@ -192,6 +192,15 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			end
 		end
 
+		local mk = card.mark and Card.Marks[card.mark]
+		if mk then
+			dChips = dChips + (mk.chips or 0)
+			dMult = dMult + (mk.mult or 0)
+			if mk.xmult then
+				dXMult = dXMult * mk.xmult
+			end
+		end
+
 		local st = card.stamp and Card.Stamps[card.stamp]
 		if st and st.scoreTips then
 			dTips = dTips + st.scoreTips

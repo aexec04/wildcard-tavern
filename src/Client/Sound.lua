@@ -817,6 +817,12 @@ return function(deps)
 		end
 		local id = SoundIds.cueId(name)
 		local cue = SoundIds.Cues[name]
+		-- the equipped Card Set may carry its own variant of a UI cue (Engine/SoundIds.SetCues); classic otherwise
+		local okSet, skin = pcall(function() return require(script.Parent.SetSkin).get() end)
+		local variant = okSet and skin and SoundIds.cueFor(name, skin.id) or cue
+		if variant and variant ~= cue and SoundIds.isValidId(variant.id) then
+			id, cue = variant.id, variant
+		end
 		local volume = (cue.volume or 0.5) * (scale or 1)
 		if verdict.speed ~= 1 or layerSpeed ~= 1 then
 			-- a rising coin tick needs its own pitch: play it as a one shot

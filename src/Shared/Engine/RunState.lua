@@ -787,6 +787,7 @@ function RunState.deckView(state)
 			entry.garnish = card.garnish
 			entry.special = card.special
 			entry.stamp = card.stamp
+			entry.mark = card.mark
 		end
 		table.insert(entries, entry)
 	end
@@ -1662,6 +1663,7 @@ function RunState.resolvePack(state, chosenIds, replaceIds)
 					garnish = spec.garnish,
 					special = spec.special,
 					stamp = spec.stamp,
+					mark = spec.mark,
 				})
 				table.insert(state.discardPile, newCard)
 			end

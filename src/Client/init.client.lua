@@ -1119,6 +1119,7 @@ require(script.VolumePanel)({
 	isMusicUnavailable = SoundModule.isMusicUnavailable,
 	onMusicAvailability = SoundModule.onMusicAvailability,
 	makeSliderRow = VisualHelpersModule.makeSliderRow,
+	showConfirmDialog = ConfirmDialogModule.showConfirmDialog, -- Reset sound asks first
 	VOLUME_ICONS = SoundModule.VOLUME_ICONS,
 	popIn = VisualHelpersModule.popIn,
 	popOut = VisualHelpersModule.popOut,
