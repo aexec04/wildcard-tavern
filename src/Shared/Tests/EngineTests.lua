@@ -41172,6 +41172,37 @@ table.insert(tests, { name = "Tutorial time: Menu to the first cleared round tak
 	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
 end })
 
+-- PERFORMANCE BUDGET: a source count of the tween call sites in the files that run on a hand play and on a shop open (the fake
+-- GUI cannot run the live scenes, so this is a ceiling on code, not a runtime count). See claude/PERF-BUDGET.md.
+table.insert(tests, { name = "Performance budget: tween call sites on the hand play and shop open paths stay under their caps, no single file over 18", fn = function()
+	if not (io and io.open) then return end
+	local groups = {
+		hand = { cap = 85, files = { "Gameplay2FeelFX", "Gameplay2ScoreFX", "Gameplay2MomentsFX", "PatronRow", "PatronMotionFX", "ActionButtonFX", "HudTickFX",
+			"Showdown", "HandTouchFX", "DealFlip", "SortGlideFX", "ComboCounter", "GameplayScene", "HandReadout", "DeckWidget", "PatronShineFX", "PatronCalloutFX" } },
+		shop = { cap = 47, files = { "ShopScene", "ShopCards", "PackRevealFX", "RarityFrame", "ChoicePanel", "DeckTracker" } },
+	}
+	for name, g in pairs(groups) do
+		local total = 0
+		for _, file in ipairs(g.files) do
+			local f = io.open("src/Client/" .. file .. ".lua", "r")
+			if f then
+				local count = 0
+				for line in f:lines() do
+					local s = line:gsub("^%s+", "")
+					if s:sub(1, 2) ~= "--" and s:sub(1, 20) ~= "local function tween" then
+						if line:find("TweenService:Create", 1, true) or line:match("^tween%(") or line:match("[^%w_.:]tween%(") then count = count + 1 end
+					end
+				end
+				f:close()
+				expectTrue(count <= 18, file .. " has " .. count .. " tween call sites, the per file cap is 18")
+				total = total + count
+			end
+		end
+		expectTrue(total <= g.cap, name .. " path has " .. total .. " tween call sites, the cap is " .. g.cap)
+		expectTrue(total >= 20, "the " .. name .. " scan really read the files: " .. total)
+	end
+end })
+
 return tests
 
 
