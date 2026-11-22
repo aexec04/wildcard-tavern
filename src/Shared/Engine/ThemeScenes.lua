@@ -72,6 +72,13 @@ local function setArt(setId)
 	return art, painted
 end
 
+-- the one small prop a set's mini table scene shows (Client/CardSetsRoom): candle, lantern, snowflakes or leaves
+local PROP_OF = { snow = "snowflakes", cloud = "snowflakes", lantern = "lantern", mote = "lantern", mist = "lantern", firefly = "lantern", shimmer = "lantern",
+	butterfly = "leaves", leaf = "leaves", ember = "candle", dust = "candle", sand = "candle" }
+function ThemeScenes.propOf(setId)
+	return PROP_OF[ThemeScenes.of(setId).ambient] or "candle"
+end
+
 function ThemeScenes.known(setId)
 	return type(setId) == "string" and DATA[setId] ~= nil
 end

@@ -130,25 +130,104 @@ function CardSetsRoom.new(ctx)
 		return st
 	end
 
-	-- a framed mini table in the set's own felt and rail colours
-	local function miniTable(parent, r, set, owned, z)
+	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+	local PlayRoomArt = require(Engine:WaitForChild("PlayRoomArt"))
+	local ThemeScenes = require(Engine:WaitForChild("ThemeScenes"))
+	local roomImages = {}
+	do -- the set's own table room picture (the same art ThemeScenes and the play table use); classic falls back to the reference tavern
+		local okA, PlaySceneArt = pcall(require, Engine:WaitForChild("PlaySceneArt"))
+		local okT, TableSceneArt = pcall(require, Engine:WaitForChild("TableSceneArt"))
+		function roomImages.of(setId)
+			if not okA then return nil end
+			local _, id = PlayRoomArt.backdrop(setId, PlaySceneArt, okT and TableSceneArt or {})
+			return type(id) == "string" and id ~= "" and id ~= "rbxassetid://0" and id or nil
+		end
+	end
+
+	-- one small prop of the set (candle, lantern, snowflakes, leaves) drawn from plain frames in the band above the table
+	local function prop(parent, kind, r, z)
+		if not r or r.h < 14 or r.w < 14 then return end
+		local function dot(x, y, w, h, color, tr)
+			local f = solid(parent, color, { x = x, y = y, w = w, h = h }, z, 99)
+			f.BackgroundTransparency = tr or 0
+			return f
+		end
+		local cx, base = r.x + math.floor(r.w / 2), r.y + r.h
+		if kind == "snowflakes" then
+			for i, d in ipairs({ { 0.1, 0.2, 5 }, { 0.4, 0.55, 4 }, { 0.7, 0.15, 5 }, { 0.85, 0.6, 3 }, { 0.25, 0.75, 3 } }) do
+				dot(r.x + math.floor(r.w * d[1]), r.y + math.floor(r.h * d[2]), d[3], d[3], Color3.fromRGB(240, 248, 255), 0.05 * i).Name = "PropFlake"
+			end
+		elseif kind == "leaves" then
+			for i, d in ipairs({ { 0.1, 0.5 }, { 0.45, 0.2 }, { 0.75, 0.55 } }) do
+				local f = dot(r.x + math.floor(r.w * d[1]), r.y + math.floor(r.h * d[2]), 8, 5, i == 2 and Color3.fromRGB(214, 120, 40) or Color3.fromRGB(190, 150, 50))
+				f.Rotation = 30 * i
+				f.Name = "PropLeaf"
+			end
+		elseif kind == "lantern" then
+			local h = math.min(r.h - 2, 22)
+			dot(cx - 14, base - h - 8, 28, 28, Color3.fromRGB(255, 190, 90), 0.82).Name = "PropGlow"
+			local body = dot(cx - 7, base - h, 14, h, Color3.fromRGB(70, 44, 24))
+			body.Name = "PropLantern"
+			dot(cx - 5, base - h + 3, 10, h - 6, Color3.fromRGB(255, 205, 110))
+			dot(cx - 8, base - h - 2, 16, 3, Color3.fromRGB(214, 172, 88))
+		else
+			local h = math.min(r.h - 6, 16)
+			dot(cx - 14, base - h - 14, 28, 28, Color3.fromRGB(255, 190, 90), 0.82).Name = "PropGlow"
+			dot(cx - 4, base - h, 8, h, Color3.fromRGB(246, 236, 210)).Name = "PropCandle"
+			dot(cx - 3, base - h - 6, 6, 7, Color3.fromRGB(255, 176, 60))
+		end
+	end
+
+	-- a framed mini table scene: the set's room picture, a rail and felt in its colours, a soft vignette, and a prop (parts from the layout)
+	local function miniScene(parent, scene, sp, set, z, withProp)
 		local tint = ctx.CosmeticSets.tableTintOf(set)
 		local felt = tint and tint.felt or { 52, 110, 78 }
 		local wood = tint and tint.wood or { 150, 104, 60 }
-		local rail = solid(parent, rgb(wood), r, z, 6)
+		local holder = solid(parent, Color3.fromRGB(34, 22, 14), scene, z, 6)
+		holder.Name = "SetScene"
+		holder.ClipsDescendants = true
+		local id = roomImages.of(set.id)
+		if id then
+			local pic = Instance.new("ImageLabel")
+			pic.Name = "SceneRoom"
+			pic.BackgroundTransparency = 1
+			pic.Image = id
+			pic.ScaleType = Enum.ScaleType.Crop
+			pic.Size = UDim2.fromScale(1, 1)
+			pic.ZIndex = z + 1
+			pic.Parent = holder
+			ctx.roundCorner(pic, 6)
+		end
+		local function rel(r) return { x = r.x - scene.x, y = r.y - scene.y, w = r.w, h = r.h } end
+		local rail = solid(holder, rgb(wood), rel(sp.rail), z + 2, 8)
 		rail.Name = "SetSwatch"
-		local inner = solid(rail, rgb(felt), { x = 4, y = 4, w = r.w - 8, h = r.h - 8 }, z + 1, 4)
-		if not owned then rail.BackgroundTransparency = 0.45; inner.BackgroundTransparency = 0.45 end
-		return rail, inner
+		local inner = solid(holder, rgb(felt), rel(sp.felt), z + 3, 5)
+		for k, tr in ipairs({ 0.78, 0.9 }) do -- vignette: dark soft bands just inside the felt edge
+			local v = solid(holder, Color3.fromRGB(0, 0, 0), { x = sp.felt.x - scene.x + 5 * k, y = sp.felt.y - scene.y + 5 * k, w = sp.felt.w - 10 * k, h = sp.felt.h - 10 * k }, z + 3, 5)
+			v.BackgroundTransparency = 1
+			v.Name = "Vignette"
+			local st = stroke(v, Color3.fromRGB(0, 0, 0), 5)
+			st.Transparency = tr
+		end
+		if withProp then prop(holder, ThemeScenes.propOf(set.id), sp.prop and rel(sp.prop) or nil, z + 4) end
+		return holder, inner
 	end
 
-	-- one new ivory card: thin accent edge, accent corner pips, rank in the set's ink (frost sets add a pale inner edge)
-	local function ivoryCard(parent, r, look, rank, red, z, owned)
+	-- a locked picture is dimmed 40 percent (a black veil), never washed grey
+	local function dim(parent, r, z)
+		local v = solid(parent, Color3.fromRGB(0, 0, 0), r, z, 6)
+		v.BackgroundTransparency = 0.6
+		v.Name = "LockedDim"
+		return v
+	end
+
+	-- one new ivory card: thin accent edge, thin accent corner pips, rank in the set's ink (frost sets add a pale inner edge)
+	local function ivoryCard(parent, r, look, rank, red, z)
 		local card = solid(parent, rgb(look.paper), r, z, 4)
 		stroke(card, rgb(look.edge), 1.5)
-		local pip = math.max(3, math.floor(r.w * 0.1))
-		for _, pos in ipairs({ { 3, 3 }, { r.w - 3 - pip, 3 }, { 3, r.h - 3 - pip }, { r.w - 3 - pip, r.h - 3 - pip } }) do
-			solid(card, rgb(look.edge), { x = pos[1], y = pos[2], w = pip, h = pip }, z + 1, 1)
+		local pip = math.max(2, math.min(4, math.floor(r.w * 0.05)))
+		for _, pos in ipairs({ { 4, 4 }, { r.w - 4 - pip, r.h - 4 - pip } }) do
+			solid(card, rgb(look.edge), { x = pos[1], y = pos[2], w = pip, h = pip }, z + 1, pip)
 		end
 		if look.motif == "frost" then
 			local fr = solid(card, Color3.fromRGB(235, 245, 255), { x = 3, y = 3, w = r.w - 6, h = r.h - 6 }, z, 3)
@@ -157,7 +236,6 @@ function CardSetsRoom.new(ctx)
 		end
 		ctx.label(card, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = math.max(11, math.floor(r.h * 0.34)),
 			TextColor3 = rgb(red and look.ink.red or look.ink.black), Text = rank, ZIndex = z + 2 })
-		if not owned then card.BackgroundTransparency = 0.35 end
 		return card
 	end
 
@@ -224,32 +302,34 @@ function CardSetsRoom.new(ctx)
 		ctx.label(plate, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, Text = d.name, ZIndex = z + 2 })
 		local tb = rel(hp.table)
 		local owned = d.owned
+		local sceneSet = entry.set or ctx.CosmeticSets.getById(ctx.getState() and ctx.getState().cosmetics and ctx.getState().cosmetics.equippedSetId or ctx.CosmeticSets.DefaultId) or ctx.CosmeticSets.Definitions[1]
+		local scene = miniScene(frame, tb, { rail = hp.rail and rel(hp.rail), felt = rel(hp.felt), prop = hp.prop and rel(hp.prop) }, sceneSet, z + 1, true)
+		local function inScene(r) return { x = r.x - tb.x, y = r.y - tb.y, w = r.w, h = r.h } end
 		if entry.set then
-			miniTable(frame, tb, entry.set, owned, z + 1)
 			local look = ctx.CosmeticSets.cardLook(entry.set)
 			local ranks = { { "A", false }, { "K", true }, { "Q", false }, { "J", true }, { "10", false } }
 			for i, rk in ipairs(ranks) do
-				local c = ivoryCard(frame, rel(hp.fan[i]), look, rk[1], rk[2], z + 3 + i * 2, owned)
-				c.Rotation = (i - 3) * 5
+				local c = ivoryCard(scene, inScene(rel(hp.fan[i])), look, rk[1], rk[2], 20 + z + i * 2)
+				c.Rotation = (i - 3) * Layout.FAN_ROT
+				c.Name = "FanCard" .. i
 			end
-			local br = rel(hp.back)
-			solid(frame, Color3.fromRGB(34, 22, 14), rel(hp.stand), z + 3, 3)
-			shadowOf(frame, br, z + 3)
+			local br = inScene(rel(hp.back))
+			solid(scene, Color3.fromRGB(34, 22, 14), inScene(rel(hp.stand)), 20 + z, 3).Name = "BackStand"
+			shadowOf(scene, br, 20 + z)
 			local back = ctx.CardBacks.getById(entry.set.cardBackId)
-			local th = ctx.CardBackView.thumb(frame, back, { size = Vector2.new(br.w, br.h), locked = not owned, shimmer = false, zIndex = z + 4 })
+			local th = ctx.CardBackView.thumb(scene, back, { size = Vector2.new(br.w, br.h), locked = false, shimmer = false, zIndex = 21 + z })
 			th.Position = UDim2.fromOffset(br.x, br.y)
 			th.Rotation = 4
 		else
-			local bg = solid(frame, Color3.fromRGB(40, 26, 36), tb, z + 1, 8)
-			stroke(bg, Color3.fromRGB(214, 172, 88), 1.5)
-			local br = rel(hp.big)
-			solid(frame, Color3.fromRGB(34, 22, 14), { x = br.x - 8, y = br.y + br.h, w = br.w + 16, h = 7 }, z + 3, 3)
-			shadowOf(frame, br, z + 3)
-			local th = ctx.CardBackView.thumb(frame, d.shown, { size = Vector2.new(br.w, br.h), equipped = d.equipped, locked = not owned, zIndex = z + 4, isActive = ctx.isOpen })
+			local br = inScene(rel(hp.big))
+			solid(scene, Color3.fromRGB(34, 22, 14), { x = br.x - 8, y = br.y + br.h, w = br.w + 16, h = 7 }, 20 + z, 3)
+			shadowOf(scene, br, 20 + z)
+			local th = ctx.CardBackView.thumb(scene, d.shown, { size = Vector2.new(br.w, br.h), equipped = d.equipped, locked = not owned, zIndex = 21 + z, isActive = ctx.isOpen })
 			th.Position = UDim2.fromOffset(br.x, br.y)
 			th.Rotation = -4
 		end
-		if not owned then padlock(frame, tb.x + tb.w - 24, tb.y + 6, z + 20) end
+		if not owned and entry.set then dim(scene, { x = 0, y = 0, w = tb.w, h = tb.h }, 40 + z) end
+		if not owned then padlock(frame, tb.x + tb.w - 24, tb.y + 6, z + 60) end
 		if hp.desc.h >= 28 then
 			ctx.label(frame, { Position = UDim2.fromOffset(hp.desc.x - hero.x, hp.desc.y - hero.y), Size = UDim2.fromOffset(hp.desc.w, hp.desc.h), Font = Enum.Font.Gotham,
 				TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.desc, ZIndex = z + 2 })
@@ -280,28 +360,29 @@ function CardSetsRoom.new(ctx)
 		local ring = stroke(holder, restColor, d.equipped and 3 or (selected and 2 or 1))
 		local pic = { x = cell.pic.x - cell.tile.x, y = cell.pic.y - cell.tile.y, w = cell.pic.w, h = cell.pic.h }
 		if entry.set then
-			miniTable(holder, pic, entry.set, d.owned, 44)
+			local ts = Layout.tileScene(pic)
+			local scene = miniScene(holder, pic, { rail = ts.rail, felt = ts.felt }, entry.set, 44, false)
 			local look = ctx.CosmeticSets.cardLook(entry.set)
-			local cw = math.floor(math.min(pic.w * 0.22, pic.h * 0.5 * 2 / 3))
-			local ch = math.floor(cw * 3 / 2)
 			for k = 1, 3 do
-				local cx = pic.x + math.floor(pic.w / 2) - cw - math.floor(cw / 4) + (k - 1) * math.floor(cw * 0.75)
-				local c = ivoryCard(holder, { x = cx, y = pic.y + pic.h - ch - 6, w = cw, h = ch }, look, ({ "A", "K", "Q" })[k], k == 2, 46 + k * 2, d.owned)
-				c.Rotation = (k - 2) * 6
+				local cr = ts.cards[k]
+				local c = ivoryCard(scene, { x = cr.x - pic.x, y = cr.y - pic.y, w = cr.w, h = cr.h }, look, ({ "A", "K", "Q" })[k], k == 2, 50 + k * 2)
+				c.Rotation = (k - 2) * 5
 			end
+			prop(scene, ThemeScenes.propOf(entry.set.id), { x = 6, y = 2, w = math.floor(pic.w * 0.3), h = ts.rail.y - pic.y - 4 }, 56)
+			if not d.owned then dim(scene, { x = 0, y = 0, w = pic.w, h = pic.h }, 70) end -- 40 percent veil, not a grey wash
 		else
 			solid(holder, Color3.fromRGB(40, 26, 36), pic, 44, 6)
-			local ch = pic.h - 8
+			local ch = pic.h - 18 -- 9 px clear above and below so the tilted back and its shadow stay inside the picture
 			local cw = math.floor(ch * 2 / 3)
-			local r = { x = pic.x + math.floor((pic.w - cw) / 2), y = pic.y + 4, w = cw, h = ch }
+			local r = { x = pic.x + math.floor((pic.w - cw) / 2), y = pic.y + 9, w = cw, h = ch }
 			shadowOf(holder, r, 45)
 			local th = ctx.CardBackView.thumb(holder, d.shown, { size = Vector2.new(cw, ch), equipped = d.equipped, locked = not d.owned, shimmer = false, zIndex = 46 })
 			th.Position = UDim2.fromOffset(r.x, r.y)
 			th.Rotation = -4
 		end
-		if not d.owned then padlock(holder, pic.x + pic.w - 20, pic.y + 4, 60) end
+		if not d.owned then padlock(holder, pic.x + pic.w - 22, pic.y + 5, 80) end
 		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
-			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = d.owned and CREAM or Color3.fromRGB(190, 175, 150), Text = d.name, ZIndex = 47 })
+			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.name, ZIndex = 47 })
 		addTip(holder, d.tip)
 		holder.MouseButton1Click:Connect(function()
 			ctx.playClickSfx()
@@ -323,11 +404,16 @@ function CardSetsRoom.new(ctx)
 		end
 		tab(pl.tabs[1], "Card Sets", "sets")
 		tab(pl.tabs[2], "Card Backs", "backs")
-		if pages > 1 then -- Prev and Next exist only with more than one page, and only in a direction that goes somewhere
-			plateButton(layer, pl.page, "Page " .. view.page .. " of " .. pages, { cream = true })
-			if view.page > 1 then plateButton(layer, pl.prev, "< Prev", { solid = BROWN, onClick = function() view.page = view.page - 1; room.paint() end }).TextColor3 = CREAM end
-			if view.page < pages then plateButton(layer, pl.next, "Next >", { solid = BROWN, onClick = function() view.page = view.page + 1; room.paint() end }).TextColor3 = CREAM end
+		-- the three plates under the shelf are the page controls: Prev, Page n of m, Next (a direction that goes nowhere is dimmed and inert)
+		local dark = Color3.fromRGB(34, 22, 14)
+		local function arrow(rect, text, ok, step)
+			local b = plateButton(layer, rect, text, { solid = ok and BROWN or dark, onClick = ok and function() view.page = view.page + step; room.paint() end or nil })
+			b.TextColor3 = ok and CREAM or Color3.fromRGB(170, 150, 120)
+			return b
 		end
+		arrow(pl.prev, "< Prev", view.page > 1, -1)
+		plateButton(layer, pl.page, "Page " .. view.page .. " of " .. pages, { solid = dark }).TextColor3 = CREAM
+		arrow(pl.next, "Next >", view.page < pages, 1)
 	end
 
 	function room.paint()
