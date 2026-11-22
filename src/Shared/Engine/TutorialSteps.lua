@@ -205,6 +205,26 @@ function TutorialSteps.estimatedSeconds()
 	return total
 end
 
+-- Seconds from the Menu to the first cleared round (every step before the Counter section) and the longest single step.
+TutorialSteps.MAX_STEP_SECONDS = 20
+function TutorialSteps.secondsToRoundClear()
+	local total = 0
+	for _, step in ipairs(TutorialSteps.Steps) do
+		if step.shop then break end
+		total = total + (TutorialSteps.SECONDS[step.action] or 4)
+	end
+	return total
+end
+
+function TutorialSteps.longestStepSeconds()
+	local longest, which = 0, nil
+	for _, step in ipairs(TutorialSteps.Steps) do
+		local t = TutorialSteps.SECONDS[step.action] or 4
+		if t > longest then longest, which = t, step.id end
+	end
+	return longest, which
+end
+
 -- selected = { [handIndex] = true }; the target cards are hand slots 1..count.
 function TutorialSteps.pickSatisfied(step, detail)
 	detail = detail or {}

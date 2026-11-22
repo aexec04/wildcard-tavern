@@ -41159,6 +41159,19 @@ table.insert(tests, { name = "Repeated runs: 200 runs in one process each start 
 	for i = 1, #before do expectEqual(after[i], before[i], "shared definition table " .. i .. " never grows") end
 end })
 
+table.insert(tests, { name = "Tutorial time: Menu to the first cleared round takes about a minute, no step needs more than 20 s, and the idle waits stay under 20 s", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local toClear = Steps.secondsToRoundClear()
+	expectEqual(toClear, 53, "Menu, Corner Table, four guided hands and the target note")
+	expectTrue(toClear <= 60, "the first Night round clears within a minute of tutorial steps")
+	local longest, which = Steps.longestStepSeconds()
+	expectTrue(longest <= Steps.MAX_STEP_SECONDS, which .. " takes " .. longest .. " s")
+	local idle = 0
+	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id); idle = idle + w.seconds end
+	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
+end })
+
 return tests
 
 
