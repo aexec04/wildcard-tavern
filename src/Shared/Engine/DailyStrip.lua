@@ -22,7 +22,7 @@ M.MAX_W = 620
 M.MARGIN = 12
 
 function M.visible(phase)
-	return phase == "roundSelect" or phase == "gameover"
+	return phase == "roundSelect" -- Run Over hides it: the faded strip showed through under the panel
 end
 
 local function plural(n, word)

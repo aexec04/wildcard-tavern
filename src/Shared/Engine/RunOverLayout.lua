@@ -29,8 +29,9 @@ RunOverLayout.LABEL_H = 24
 RunOverLayout.BTN_TEXT = 16 -- every button label is one line at this size
 RunOverLayout.CAP_PAD = 22 -- the plate caps take this much on each side of a label (polishButton), so the text must fit between them
 RunOverLayout.MIN_BTN_W = 110
+RunOverLayout.BIG_MAX_W = 420 -- the big Play Again plate never stretches past this (its end ornaments stay unstretched)
 RunOverLayout.BIG_H = 56 -- the one big primary button (Play Again) when spec.bigPrimary is set
-RunOverLayout.PILL_H = 44 -- the equal secondary pills when spec.pills is set (the touch minimum)
+RunOverLayout.PILL_H = 52 -- the equal secondary pills when spec.pills is set (the touch minimum)
 RunOverLayout.CARD_W, RunOverLayout.CARD_H = 90, 135 -- a cut Patron card (2:3) when spec.cardSeats is set
 RunOverLayout.CARD_SMALL_W, RunOverLayout.CARD_SMALL_H = 72, 108 -- the same card when more than one row would be needed
 RunOverLayout.TITLE_GAP = 12 -- clear space between the title and anything to its left
@@ -158,7 +159,8 @@ function RunOverLayout.compute(sw, sh, spec)
 
 	-- the primary buttons: one big first button full width, the rest in one equal row under it
 	local function bigPrimary(x, y, w)
-		local cells = { rect(x, y, w, RunOverLayout.BIG_H) }
+		local bw = math.min(w, RunOverLayout.BIG_MAX_W)
+		local cells = { rect(x + math.floor((w - bw) / 2), y, bw, RunOverLayout.BIG_H) }
 		local y2 = y + RunOverLayout.BIG_H + 8
 		if primary > 1 then
 			for _, c in ipairs(row(x, y2, w, RunOverLayout.BTN_H, primary - 1, 8)) do cells[#cells + 1] = c end

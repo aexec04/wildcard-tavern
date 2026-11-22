@@ -226,7 +226,7 @@ return function(deps)
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(84, 58, 34), Visible = false,
 	})
 
-	local continueButton = button(actionsF, "ContinueButton", "One More Round", BRASS, Color3.fromRGB(40, 28, 14), 16)
+	local continueButton = button(actionsF, "ContinueButton", "One More Round", WOOD, GOLD_TEXT, 16)
 	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", GREEN, CREAM, 20)
 	local tavernButton = button(actionsF, "BackToTavern", "Menu", WOOD, CREAM, 16)
 	local shareButton = button(moreF, "ShareResult", "Share", WOOD, CREAM, 16)
@@ -316,7 +316,7 @@ return function(deps)
 		local lines = {}
 		local function add(text, props) lines[#lines + 1] = { text = text, props = props or {} } end
 		local best = summary and summary.bestHand or bestHand
-		if best then add(string.format("\u{26A1} Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
+		if best then add(string.format("Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
 		do
 			local ST = require(Engine:WaitForChild("ScoreText"))
 			add("Final score: " .. ST.short(state.roundScore) .. " / " .. ST.short(state.targetScore))

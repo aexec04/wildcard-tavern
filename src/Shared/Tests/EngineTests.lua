@@ -32712,7 +32712,8 @@ table.insert(tests, { name = "Run Over recap: only a Seed Run's code is tap to c
 	expectTrue(SeedDisplay.label({ isSeeded = true, seedCode = "ABC234" }).shareable)
 	expectTrue(not SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-19" }).shareable)
 	expectEqual(nil, SeedDisplay.label({}))
-	expectTrue(RunOverLayout.PILL_H >= 44 and RunOverLayout.BIG_H >= 44, "button heights")
+	expectTrue(RunOverLayout.PILL_H >= 52 and RunOverLayout.BIG_H >= 44 and RunOverLayout.BIG_MAX_W == 420, "button heights, Play Again plate capped at 420")
+	do local r = RunOverLayout.compute(1920, 1080, { factsH = 330, patrons = 3, primary = 2, more = 5, bigPrimary = true, pills = true, cardSeats = true }); expectTrue(r.primary[1].w <= 420, "Play Again plate max 420 wide") end
 	if not io then return end
 	local f = io.open("src/Client/GameOver.lua", "r")
 	if not f then return end
@@ -33238,7 +33239,7 @@ table.insert(tests, { name = "Daily strip: shows on the Night map and Run Over o
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
 	local LS = require(script.Parent.Parent.Engine.LoginStreak)
 	local Q = require(script.Parent.Parent.Engine.Quests)
-	assert(D.visible("roundSelect") and D.visible("gameover"), "map and Run Over")
+	assert(D.visible("roundSelect") and not D.visible("gameover"), "map only, hidden under Run Over")
 	assert(not D.visible("playing") and not D.visible("shop") and not D.visible("menu"), "never on the table, Counter or menu")
 	-- old save: nothing at all
 	local old = D.view(nil, nil)
