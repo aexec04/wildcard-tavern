@@ -264,3 +264,66 @@ Clear rate before the change (n = 400 on Night 3, 353 on Night 6, 45 on Night 9)
 
 - Nothing is free for a bad bot: the random bot never clears Night 9 and none of its runs reach Night 10. A good bot is not walled: the decent bot clears Nights 9 to 13 between 31 and 60 percent. Night 14 and later had 1 run or none, so those cells say nothing; the curve there is the 1.5x per Night growth from the earlier Endless task.
 - No number changed. The test `Endless curve Night 7 to 20` pins that every round target grows with the Night, the boss round stays above round 2, and the base grows 1.5x per Night from Night 10 on.
+
+## Daily twists: win rate against the no twist baseline
+
+`lua tools/run_sim.lua --daily-twists --runs 500 --jobs 4` (decent bot, same 500 seeds for every row, standard run to Night 10). Baseline with no twist: 42.2 percent. The band is 15 points either way (27.2 to 57.2).
+
+| Twist | win | vs base |
+| --- | --- | --- |
+| short_hands | 45.2 | +3.0 |
+| golden_start | 51.8 | +9.6 |
+| extra_seat | 50.2 | +8.0 |
+| big_box | 42.2 | +0.0 |
+| loud_crowd | 52.2 | +10.0 |
+| spare_cards | 47.8 | +5.6 |
+| quick_deal | 50.4 | +8.2 |
+| wide_table | 38.4 | -3.8 |
+| penny_pincher | 42.4 | +0.2 |
+| solo_star (before) | 0.0 | -42.2 |
+| solo_star (after) | 30.8 | -11.4 |
+| thrifty_table | 47.4 | +5.2 |
+| steady_hands | 51.8 | +9.6 |
+
+- Solo Star was the one outlier: one Patron seat at 2x was worth far less than the 4 to 5 seats a normal run builds, so nobody won (0 of 500). Tried 3.5x (1.3 percent), 4x with +1 Hand and Discard (2.3), 4x with +2 and +2 and one more card (11.0), then 4x with +3 Hands, +4 Discards, +1 card and 8 start Tips: 30.8 percent. Its plate line now reads "One seat, effect counts 4x, +3 Hands, +4 Discards, +8 Tips." (60 characters or less; it still needs a look on the Menu plate at 800x450). Pinned by the test `Daily twists balance pin`.
+- Found by this sim and fixed: Loud Crowd, Penny Pincher and Solo Star multiplied Patron Tips bonuses and left fractional Tips (2 x 1.25 = 2.5), which crashed `%d` text in Recipes (Tip Doubler) and would show wrong numbers elsewhere. A Patron's Tips bonus is now floored in `Scoring.calculate`. Test `Daily twists: Patron power twists never leave fractional Tips`.
+
+## Hand level cost, reroll cost and Patron sell value
+
+Baseline sim (`lua tools/run_sim.lua --runs 600 --jobs 4 --bot decent`): win 43.2 percent, median Night 8, Tips at the Counter mean 8.8 (median 8), 4.78 hand levels and 0.15 rerolls per run.
+
+- Hand levels: every level Recipe costs 3 Tips, the same at every level and for all 9 hands (`Recipes.MenuRecipes`). The first Counter visit has at least 4 Tips, so one level is always affordable and a run is never stuck; the bot buys about 0.7 levels per Night because it spends on Patrons and Packs first. Cost kept flat. Pinned by the test `Hand level and reroll cost curves`.
+- Reroll cost: 5, 7, 9, 11 ... (base 5, +2 per reroll in a visit). The first reroll costs more than a round win pays (4), so it is a choice, and the bot uses 0.15 a run. Frequent Visitor and Bargain Hunter lower it but `RunState.rerollCost` floors it at 1 Tip, so it is never free. No change.
+- Patron sell value: half the list price rounded down. A lasting discount (Regulars' Discount, -2) leaves the buy price at or above the sell value for every Patron (price 4 to 8), so buying and selling in a loop only loses Tips. Only the one shot Sale Day Tag or a haggle can pay back a Tip or two once, and the test `Patron sell value` pins both facts. No change.
+
+## Patron pairs: best and worst by round clear rate
+
+`lua tools/run_sim.lua --pair-rates --runs 14000 --jobs 4 --min-builds 15` (random 4 Patron builds from Night 4, round clear rate of every pair in the build; 85 Patrons give 3,570 pairs, 3,479 had 15 or more builds, so each cell is 15 to 28 builds and noisy). Average round clear 92.4 percent.
+
+| Top 10 pair | builds | clear |
+| --- | --- | --- |
+| full_house_crowd + veterans_table | 28 | 98.0 |
+| rising_dough + stack_of_plates | 28 | 97.7 |
+| full_house_crowd + rising_dough | 21 | 97.0 |
+| lone_wolf + stack_of_plates | 27 | 97.0 |
+| full_house_crowd + pair_parade | 18 | 96.7 |
+| house_tab + veterans_table | 22 | 96.7 |
+| bread_starter + veterans_table | 27 | 96.6 |
+| full_house_crowd + house_tab | 17 | 96.6 |
+| full_house_crowd + second_opinion | 15 | 96.6 |
+| ace_of_the_house + stack_of_plates | 18 | 96.5 |
+
+| Bottom 10 pair | builds | clear |
+| --- | --- | --- |
+| overtime + rainy_day_fund | 16 | 86.6 |
+| lucky_penny_jar + overtime | 22 | 86.5 |
+| bargain_hunter + second_opinion | 18 | 86.2 |
+| house_special + overtime | 26 | 86.0 |
+| ladder_builder + overtime | 17 | 86.0 |
+| overtime + second_opinion | 20 | 85.8 |
+| quick_service + stair_climber | 23 | 85.5 |
+| all_hands_in + overtime | 20 | 85.1 |
+| overtime + tip_jar | 20 | 84.5 |
+| full_suit_feast + meadow_bee | 15 | 84.2 |
+
+- Every pair is within 8.2 points of the average (the outlier line is 15), so no Patron number changed. Overtime is in 6 of the bottom 10, but its single Patron clear rate was within 2.8 points of the average in the earlier Patron rates sweep; it is a mild drag, not an outlier, and a bigger sample would be needed to justify a nudge.

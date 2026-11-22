@@ -38910,6 +38910,76 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Hand level and reroll cost curves: every level Recipe costs 3 (one is affordable at the first Counter), rerolls climb 5, 7, 9 and stay above 0 under every discount", fn = function()
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local firstWin = RunState.DEFAULT_CONFIG and RunState.DEFAULT_CONFIG.tipsPerRoundWin or 4
+	expectEqual(#Recipes.MenuRecipes, 9, "one level Recipe per hand type")
+	for _, recipe in ipairs(Recipes.MenuRecipes) do
+		expectEqual(recipe.price, 3, recipe.id .. " costs 3 Tips at every level")
+		expectTrue(recipe.price <= firstWin, recipe.id .. " is affordable from the first round win")
+	end
+	local state = RunState.new(nil, SeededRng.new(2))
+	local cost, last = Shop.REROLL_BASE_COST, 0
+	for n = 1, 8 do
+		local c = RunState.rerollCost(state, cost)
+		expectEqual(c, 5 + (n - 1) * 2, "reroll " .. n .. " costs " .. 5 + (n - 1) * 2)
+		expectTrue(c > last, "each reroll costs more than the one before")
+		last = c
+		cost = cost + Shop.REROLL_COST_STEP
+	end
+	-- every discount at once (Frequent Visitor, Bargain Hunter, a seated Regular) can lower it but never to free
+	state.housePasses.frequent_visitor = true
+	state.ownedPatrons = { Patrons.getById("bargain_hunter") }
+	for n = 0, 6 do
+		expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST + n * Shop.REROLL_COST_STEP) >= 1, "never a free reroll")
+	end
+	expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST) > 0 and Shop.REROLL_BASE_COST > firstWin, "the first reroll costs more than one round win pays: it is a choice, not a reflex")
+end })
+
+table.insert(tests, { name = "Patron sell value: half the list price rounded down, and no discount stack lets buy then sell make a profit", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	for _, patron in ipairs(Patrons.Definitions) do
+		expectEqual(require(script.Parent.Parent.Engine.PackRoom).sellValue("patron", patron.id), math.floor(patron.price / 2), patron.id .. " sells for half, rounded down")
+		-- every lasting price cut (Regulars' Discount, -2) leaves the price at or above the sell value, so a loop of buy and sell cannot grow Tips
+		for _, regulars in ipairs({ false, true }) do
+			local state = RunState.new(nil, SeededRng.new(3))
+			state.tips = 100
+			state.housePasses.regulars_discount = regulars or nil
+			for loop = 1, 5 do
+				local before = state.tips
+				expectTrue(RunState.buyPatron(state, patron.id))
+				RunState.sellPatron(state, patron.id)
+				expectTrue(state.tips <= before, patron.id .. " buy then sell must not gain Tips (loop " .. loop .. ", Regulars " .. tostring(regulars) .. "): " .. before .. " to " .. state.tips)
+			end
+		end
+		-- the one shot cuts (Sale Day Tag, a haggle) may leave a small gain once, and clear after the visit: the next buy is at full price
+		local state = RunState.new(nil, SeededRng.new(3))
+		state.tips = 100
+		state.nextShopDiscount = 5
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		state.nextShopDiscount = 0 -- what leaving the shop does
+		local before = state.tips
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		expectTrue(state.tips < before, patron.id .. " at full price loses Tips on a round trip")
+	end
+end })
+
+table.insert(tests, { name = "Daily twists balance pin: Solo Star gives one seat at 4x power with 3 extra Hands, 4 extra Discards and 8 Tips (its win rate was 0 percent at 2x), all 12 twists still exist", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	expectEqual(#DM.Definitions, 12)
+	local solo = DM.getById("solo_star")
+	expectEqual(solo.rules.patronPower, 4)
+	expectEqual(solo.setConfig.patronSlotLimit, 1)
+	expectEqual(solo.config.handsPerRound, 3)
+	expectEqual(solo.config.discardsPerRound, 4)
+	expectEqual(solo.startTips, 8)
+	expectTrue(#solo.text <= 60 and solo.text:find("4x", 1, true) ~= nil, "the plate line tells the numbers: " .. solo.text)
+end })
+
 table.insert(tests, { name = "Daily twists: Patron power twists never leave fractional Tips, and every twist plays a seeded run to the end with whole Tips", fn = function()
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
@@ -40199,7 +40269,7 @@ table.insert(tests, { name = "Daily modifiers: 12 kid safe twists, same for ever
 	local short = RunState.new({ dailyModifierId = "short_hands" })
 	expectTrue(short.config.handSize == plain.config.handSize - 1 and short.config.handsPerRound == plain.config.handsPerRound + 1, "Short Hands config")
 	local solo = RunState.new({ dailyModifierId = "solo_star" })
-	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 2 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
+	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 4 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
 	expectTrue(plain.dailyModifier == nil, "normal runs have no daily twist")
 	-- Menu plate and table scroll words
 	local MenuDailyEntry = require(script.Parent.Parent.Engine.MenuDailyEntry)
