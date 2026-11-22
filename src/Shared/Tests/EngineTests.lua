@@ -35710,7 +35710,7 @@ table.insert(tests, { name = "AnalyticsEvents: names stable and unique, payload 
 	expectEqual(log[2][4], 2); expectEqual(log[3][4], 7); expectEqual(log[1][3], log[3][3], "one funnel session id")
 	for i = 1, 3 do a.step(p, AE.Steps[i + 2]) end
 	a.earned(p, "round_clear", 6, 20); a.spent(p, "shop_patron", 5, 15)
-	expectEqual(log[#log][2], "Sink"); expectEqual(log[#log][6], "shop_patron")
+	expectEqual(tostring(log[#log][2]):match("[^%.]+$"), "Sink"); expectEqual(log[#log][6], "shop_patron") -- real Studio passes the Enum item, the plain runner the string
 	a.runEnded(p, 2, 300, "hands"); a.bossLost(p, "the_bouncer")
 	expectEqual(log[#log][2], "boss_lost")
 	expectEqual(#printed > 0, true)

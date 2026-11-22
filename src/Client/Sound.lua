@@ -303,7 +303,16 @@ return function(deps)
 		if game:GetService("RunService"):IsStudio() then
 			local len = 0
 			pcall(function() len = backgroundMusic.TimeLength end)
-			print(string.format("[Music] track %s key=%s length=%.0f", tostring(id), tostring(rotKey), len))
+			print(string.format("[Music] track %s key=%s length=%.0f%s", tostring(id), tostring(rotKey), len, len > 0 and "" or " (loading)"))
+			if len <= 0 then -- not loaded yet: print the real length once the Sound reports it
+				local conn
+				conn = backgroundMusic:GetPropertyChangedSignal("TimeLength"):Connect(function()
+					if backgroundMusic.TimeLength > 0 then
+						conn:Disconnect()
+						if currentTrackId == id then print(string.format("[Music] track %s key=%s length=%.0f (loaded)", tostring(id), tostring(rotKey), backgroundMusic.TimeLength)) end
+					end
+				end)
+			end
 		end
 	end
 	local function swapTo(id)
