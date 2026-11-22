@@ -98,6 +98,15 @@ function ThemeScenes.themeImageId(setId, slot)
 	return require(script.Parent.ContentArt).getImageId(tab, id)
 end
 
+-- The Counter room picture for a set: its own painted shop room (golden_gala) or the classic shop_room_a.
+-- Returns id, own (own is true only when the set has its own picture; Client/ShopBackdrop then hides the classic strip and tavern layer).
+function ThemeScenes.shopRoomId(setId)
+	local ContentArt = require(script.Parent.ContentArt)
+	local own = ThemeScenes.themeImageId(setId, "shopBackdrop")
+	if own then return own, true end
+	return ContentArt.getImageId("shop_scene", "shop_room_a"), false
+end
+
 -- Which set a backdrop (menu, shop, map) shows: a Studio/Card Sets preview wins over the equipped skin, never saved.
 function ThemeScenes.effectiveSetId(skinId, previewId)
 	if previewId ~= nil and ThemeScenes.known(previewId) then return previewId end

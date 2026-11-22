@@ -37593,6 +37593,16 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 	expectTrue(good(TS.themeImageId("golden_gala", "bossTableBackground")) and TS.themeImageId("golden_gala", "bossTableBackground") == TSA.theme_gala_boss, "boss table id")
 	expectTrue(good(TS.themeImageId("golden_gala", "shopBackdrop")) and TS.themeImageId("golden_gala", "shopBackdrop") == SSA.shop_room_gala, "shop room id")
 	expectTrue(good(TS.themeImageId("golden_gala", "tablePlay")) and TS.themeImageId("golden_gala", "tablePlay") == TSA.theme_gala_play, "live play table scene id (Gameplay2 reads this slot)")
+	do -- the Counter's visible room layers (ShopBackdrop Room and CounterFront) come from this function
+		local gid, gown = TS.shopRoomId("golden_gala")
+		local cid, cown = TS.shopRoomId("classic_tavern")
+		expectEqual(gid, SSA.shop_room_gala, "golden_gala Counter room is the palace picture")
+		expectTrue(gown == true and cown == false, "only the set with its own room hides the classic strip")
+		expectEqual(cid, SSA.shop_room_a, "classic Counter room stays shop_room_a")
+		expectTrue(gid ~= cid, "golden_gala and classic draw different Counter rooms")
+		expectEqual(select(1, TS.shopRoomId("winter_evening")), SSA.shop_room_a, "other sets keep the classic room")
+		expectEqual(select(1, TS.shopRoomId(nil)), SSA.shop_room_a, "no set means classic")
+	end
 	expectTrue(TS.themeImageId("winter_evening", "tablePlay") == nil, "winter keeps the classic live table")
 	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop", "tablePlay" }) do
 		expectTrue(TS.themeImageId("classic_tavern", slot) == nil, "classic falls back for " .. slot)

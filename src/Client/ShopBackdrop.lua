@@ -178,6 +178,33 @@ function ShopBackdrop.new(deps)
 	-- Client/PlayScenePaint), so there is no seam between them; it follows a live skin change
 	local gameRoot = deps.shopFrame
 	while gameRoot and gameRoot.Name ~= "GameRoot" and gameRoot.Parent do gameRoot = gameRoot.Parent end
+	-- A Card Set with its own shop room (Golden Gala) draws that picture on Room and CounterFront and hides the classic wooden strip
+	-- (ShopScene CounterStrip) and the tavern layer (TavernScreens TavernScene); classic and every other set keep shop_room_a.
+	local function applyRoomArt()
+		local okS, id, own = pcall(function()
+			local TS = require(Engine:WaitForChild("ThemeScenes"))
+			local skin = require(script.Parent.HudTheme).skin()
+			local previewId
+			local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+			if okV and view and view.previewSetId then previewId = view.previewSetId() end
+			local sid = TS.effectiveSetId(skin and skin.id, previewId)
+			return TS.shopRoomId(sid)
+		end)
+		if not okS or not id then return end
+		if roomImg then roomImg.Image = id end
+		if counterFront then counterFront.Image = id end
+		self.setRoom = own == true
+		for _, d in ipairs(shopFrame:GetDescendants()) do
+			if d.Name == "CounterStrip" or d.Name == "TavernScene" then d.Visible = not self.setRoom end
+		end
+	end
+	applyRoomArt()
+	pcall(function() require(script.Parent.HudTheme).onSkin(applyRoomArt) end)
+	pcall(function() require(script.Parent.CosmeticSetsView).onPreview(applyRoomArt) end)
+	shopFrame.DescendantAdded:Connect(function(d)
+		if self.setRoom and (d.Name == "CounterStrip" or d.Name == "TavernScene") then d.Visible = false end
+	end)
+	shopFrame:GetPropertyChangedSignal("Visible"):Connect(applyRoomArt)
 	local function applyTint()
 		local t = gameRoot and gameRoot:GetAttribute("RoomTint") or Color3.new(1, 1, 1)
 		if roomImg then roomImg.ImageColor3 = t end
