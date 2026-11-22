@@ -45,6 +45,46 @@ function M.hint(guided, handsPlayed, selectedCount, calm)
 	return { line1 = "Play your hand", line2 = "Your best hand scores.", target = "play", pulse = not calm }
 end
 
+local NAME_RANK = { ["High Card"] = 1, ["Pair"] = 2, ["Two Pair"] = 3, ["Three of a Kind"] = 4, ["Straight"] = 5, ["Flush"] = 6, ["Full House"] = 7, ["Four of a Kind"] = 8, ["Straight Flush"] = 9 }
+
+-- bestPlay(hand) -> nil | { indices = {1-based hand positions of the scoring cards, ascending}, name }
+-- The strongest legal hand (1 to 5 cards) in the dealt cards, by the real hand evaluator; ties go to more scoring cards, then higher ranks.
+function M.bestPlay(hand)
+	if type(hand) ~= "table" or #hand == 0 then return nil end
+	local Evaluator = require(script.Parent.HandEvaluator)
+	local n = #hand
+	local best, bestKey
+	local pick = {}
+	local function try()
+		local cards = {}
+		for i, idx in ipairs(pick) do cards[i] = hand[idx] end
+		local ok, res = pcall(Evaluator.evaluate, cards)
+		if not ok or type(res) ~= "table" then return end
+		local sum = 0
+		for _, c in ipairs(res.scoringCards) do sum = sum + (c.rank or 0) end
+		local key = (NAME_RANK[res.name] or 0) * 1000000 + #res.scoringCards * 10000 + sum * 10 - #pick
+		if not bestKey or key > bestKey then
+			bestKey = key
+			local scoring = {}
+			for _, c in ipairs(res.scoringCards) do scoring[c] = true end
+			local idxs = {}
+			for i, idx in ipairs(pick) do if scoring[cards[i]] then idxs[#idxs + 1] = idx end end
+			best = { indices = idxs, name = res.name }
+		end
+	end
+	local function rec(start)
+		if #pick >= 1 then try() end
+		if #pick == 5 then return end
+		for i = start, n do
+			pick[#pick + 1] = i
+			rec(i + 1)
+			pick[#pick] = nil
+		end
+	end
+	rec(1)
+	return best
+end
+
 M.TEXT = { 255, 244, 214 } -- line 1, on the dark plate
 M.TEXT2 = { 235, 218, 180 } -- line 2
 M.PLATE = { 46, 28, 14 }
