@@ -244,6 +244,7 @@ function SeasonPanel.init(deps)
 	local footer = label(panel, {
 		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.new(0, 15, 1, -78), Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "Earn season XP the way you earn Tavern Rank XP. Unclaimed rewards end with the season.",
+		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(110, 34)
@@ -333,6 +334,7 @@ function SeasonPanel.init(deps)
 	end
 
 	local state_tier -- the player's current tier, set by refresh before the tiles are built
+	local state_next -- the first unclaimed tier number, gets a gold ring and a Next tag
 	local function tile(row, prevRow, hasPremium)
 		local t = Instance.new("TextButton")
 		t.Name = "Tier_" .. row.tier
@@ -354,12 +356,20 @@ function SeasonPanel.init(deps)
 			stroke.Thickness = 4
 			t.BackgroundColor3 = Color3.fromRGB(240, 222, 170)
 		end
+		local isNext = state_next ~= nil and row.tier == state_next and not isNow
+		if isNext and not row.reached then
+			stroke.Color = GOLD
+			stroke.Thickness = 3
+		end
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
 		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier) })
 		if isNow then
 			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Now", ZIndex = 47 })
+		end
+		if isNext then
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, isNow and 25 or 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Next", ZIndex = 47 })
 		end
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(92, 92)
@@ -408,6 +418,7 @@ function SeasonPanel.init(deps)
 			nameLabel.Text = "Tavern Season"
 			daysLabel.Text = ""
 			barText.Text = "No season right now. Play a run and check back soon!"
+			footer.Text = ""
 			barFill.Size = UDim2.fromScale(0, 1)
 			claimAll.Visible = false
 			return
@@ -455,6 +466,9 @@ function SeasonPanel.init(deps)
 		end
 		local hasPremium = view.premium ~= nil
 		state_tier = (not view.maxed) and view.tier or nil
+		local nextRow = SeasonTrack.nextTier(view)
+		state_next = nextRow and nextRow.tier or nil
+		footer.Text = SeasonTrack.nextLine(view)
 		for i, row in ipairs(view.tiers) do
 			tile(row, view.tiers[i - 1], hasPremium)
 		end

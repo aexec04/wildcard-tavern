@@ -345,7 +345,7 @@ return function(deps)
 	local function barLine(y, align, width)
 		return label(overallBar, {
 			Size = UDim2.new(width, width >= 1 and -2 * BAR_PAD or -BAR_PAD, 0.5, 0), Position = UDim2.new(align == Enum.TextXAlignment.Right and 1 - width or 0, align == Enum.TextXAlignment.Right and 0 or BAR_PAD, y, 0),
-			Font = Enum.Font.GothamBold, TextSize = 15, ZIndex = 23, TextWrapped = false,
+			Font = Enum.Font.GothamBold, TextSize = RoomLayout.BAR_TEXT, ZIndex = 23, TextWrapped = false,
 			TextColor3 = Color3.fromRGB(245, 232, 200), TextTransparency = 0, TextStrokeTransparency = 1,
 			TextXAlignment = align, Text = "",
 		})
@@ -1192,10 +1192,9 @@ return function(deps)
 		if Gallery.chestApi then Gallery.chestApi.setNext(nextMilestone and ("Next at " .. nextMilestone.percent .. "%") or "All claimed") end
 		-- Next unlock (moved here from the main menu strip)
 		local pick = view.state and view.state.nextUnlock
-		overallUnlock.Text = (pick and pick.label) and ("Next unlock: " .. pick.label) or ""
+		overallUnlock.Text = (pick and pick.label) and ("Next unlock: " .. pick.label) or "Keep playing to find more Patrons and sets"
 		overallNext.Text = nextText
-		overallText.Text = string.format("Overall %d%%  (%d / %d)",
-			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total))
+		overallText.Text = RoomLayout.ownedText(completion.found, completion.total)
 		do -- on a section page the plain count of that page: "Patrons: 23 of 81 found"
 			local counts = mode == "section" and CollectionBook.tabCounts(view.sets)[activeTabId]
 			local tab = counts and CollectionBook.getTab(activeTabId)

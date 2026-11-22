@@ -10301,6 +10301,25 @@ table.insert(tests, { name = "Hints: data table valid, each hint once, never in 
 	expectTrue((s.lastInterest or 0) > 0, "interest at round win is recorded")
 end })
 
+table.insert(tests, { name = "SeasonTrack.nextLine: names the next unclaimed tier and its reward in one short line", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local season = ST.Seasons[1]
+	local day = ST.window(season)
+	local fresh = ST.view({}, day)
+	local row = ST.nextTier(fresh)
+	expectTrue(row and row.tier == 1, "a new player's next tier is tier 1")
+	local line = ST.nextLine(fresh)
+	expectTrue(line:find("Next reward at tier 1: ", 1, true) == 1 and line:find(row.text, 1, true) ~= nil, "line names tier and reward")
+	expectTrue(#line <= ST.NEXT_LINE_MAX + 20 and not line:find("\226\128\148") and not line:find("--", 1, true), "line is short with no dashes")
+	local reached = ST.view({ seasonId = season.id, seasonXp = ST.XP_PER_TIER * 2, seasonClaimed = { [1] = true } }, day)
+	expectTrue(ST.nextTier(reached).tier == 2 and ST.nextLine(reached):find("Tier 2 is ready", 1, true) == 1, "a reached unclaimed tier says it is ready")
+	local all = {}
+	for t2 = 1, ST.TIERS do all[t2] = true end
+	local done = ST.view({ seasonId = season.id, seasonXp = ST.MAX_XP, seasonClaimed = all }, day)
+	expectTrue(ST.nextTier(done) == nil and ST.nextLine(done) == "Every tier claimed. Nice work!", "all claimed has a friendly line")
+	expectTrue(ST.BUTTON_H >= 44, "claim buttons stay 44 px")
+end })
+
 table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new season, claim once, rewards owned for good, safe migration", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
@@ -13334,7 +13353,7 @@ table.insert(tests, { name = "Collection no longer lists run stats; the Tavern L
 	for _, gone in ipairs({ "Runs played", "Runs won", "Best Night:", "profileStats.runs", "statsLabel", "runsStarted", "bestNightReached" }) do
 		expectFalse(collection:find(gone, 1, true) ~= nil, "Collection still has: " .. gone)
 	end
-	expectTrue(collection:find("Overall %d%%", 1, true) ~= nil, "collection progress stays")
+	expectTrue(collection:find("RoomLayout.ownedText(completion.found", 1, true) ~= nil, "collection progress stays")
 	for _, kept in ipairs({ "Runs won", "Runs started", "Best Night", "Win rate", "equippedTitleId", '"Title"' }) do
 		expectTrue(stats:find(kept, 1, true) ~= nil, "Ledger shows: " .. kept)
 	end
@@ -30575,6 +30594,14 @@ table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every grou
 	expectTrue(PanelGroups.contrast(PanelGroups.textOn({ 205, 160, 100 }), { 205, 160, 100 }) >= 4.5, "Back button fill contrast")
 	local RoomLayout = require(script.Parent.Parent.Engine.CollectionRoomLayout)
 	expectTrue(RoomLayout.BAR_PAD >= 16, "progress plate padding is at least 16 px")
+	expectTrue(RoomLayout.BAR_TEXT >= 16 and 2 * RoomLayout.BAR_TEXT <= RoomLayout.BAR.h, "progress plate text is 16 px and two lines fit the bar")
+	expectTrue(RoomLayout.ownedText(12, 81) == "Owned 12 of 81 (14%)", "owned line reads Owned N of M")
+	expectTrue(RoomLayout.ownedText(0, 0) == "Owned 0 of 0 (0%)", "owned line survives an empty collection")
+	expectTrue(RoomLayout.ownedText(1234, 12345) == "Owned 1,234 of 12,345 (9%)", "owned line uses thousands separators")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local r = RoomLayout.panel(size[1], size[2], 32, 0, "room")
+		expectTrue(r.bar.h >= 2 * RoomLayout.BAR_TEXT and r.bar.y + r.bar.h <= r.tabs.y, "progress plate fits its text above the tabs at " .. size[1])
+	end
 end })
 
 table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
