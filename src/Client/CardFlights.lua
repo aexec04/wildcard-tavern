@@ -39,6 +39,16 @@ function M.discard(root, buttons, deckFrame, point)
 			for _, d in ipairs(ghost:GetDescendants()) do
 				if d:IsA("GuiObject") then d.Active = false; d.ZIndex = math.max(d.ZIndex, 90) end
 			end
+			local fades = {} -- slide-and-fade: every visible part fades out over the second half of the flight
+			for _, d in ipairs(ghost:GetDescendants()) do
+				if d:IsA("GuiObject") then
+					local f = { obj = d, bg = d.BackgroundTransparency }
+					if d:IsA("ImageLabel") or d:IsA("ImageButton") then f.img = d.ImageTransparency end
+					if d:IsA("TextLabel") or d:IsA("TextButton") then f.txt = d.TextTransparency; f.stroke = d.TextStrokeTransparency end
+					fades[#fades + 1] = f
+				end
+			end
+			local ghostBg = ghost.BackgroundTransparency
 			local sc = Instance.new("UIScale")
 			sc.Parent = ghost
 			ghost.Parent = root
@@ -55,6 +65,21 @@ function M.discard(root, buttons, deckFrame, point)
 					local x, y = PM.arc(sx, sy, ex, ey, e, p.arc)
 					ghost.Position = UDim2.fromOffset(x, y)
 					sc.Scale = 1 - (1 - p.endScale) * e
+					local a = math.clamp((t - 0.5) * 2, 0, 1) -- 0 until halfway, then to 1
+					if a > 0 then
+						ghost.BackgroundTransparency = ghostBg + (1 - ghostBg) * a
+						for _, f in ipairs(fades) do
+							local o = f.obj
+							if o.Parent then
+								o.BackgroundTransparency = f.bg + (1 - f.bg) * a
+								if f.img then o.ImageTransparency = f.img + (1 - f.img) * a end
+								if f.txt then
+									o.TextTransparency = f.txt + (1 - f.txt) * a
+									o.TextStrokeTransparency = f.stroke + (1 - f.stroke) * a
+								end
+							end
+						end
+					end
 				end)
 			end)
 		end

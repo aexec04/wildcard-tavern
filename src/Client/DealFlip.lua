@@ -25,6 +25,10 @@ function M.play(button, order, backId)
 	if ClientSettings.get("animSpeed") == "fast" then
 		return
 	end
+	if ClientSettings.get("reduceShake") == true then -- calm mode: no flip tween, just the soft deal sound
+		if (order or 1) == 1 then require(script.Parent.Cue).play("card_deal") end
+		return
+	end
 	backId = backId or CardBacks.DefaultId
 	if (order or 1) == 1 then require(script.Parent.Cue).play("card_deal") end -- once per batch
 	local back = CardBacks.getById(backId) or CardBacks.getById(CardBacks.DefaultId)
