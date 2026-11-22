@@ -22970,7 +22970,13 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 		local ok = S.cueId(name) ~= nil or FX.layersFor(name) ~= nil or FX.EMPTY_OK[name]
 		expectTrue(ok, name .. " has an id, explicit layers, or is on the silent list")
 	end
-	expectEqual(table.concat(S.silentCues(), ","), "boss_intro", "boss_intro stays silent (the intro popup is gone); the Backlog 6 cues have ids")
+	expectEqual(table.concat(S.silentCues(), ","), "", "no cue is silent: boss_intro is layered from existing ids")
+	for _, layer in ipairs(FX.layersFor("boss_intro")) do
+		expectTrue((layer.volume or 1) * S.Cues[layer.cue].volume <= 0.4, "boss_intro layer " .. layer.cue .. " stays at SFX 0.4 or less")
+	end
+	for _, m in ipairs(require(script.Parent.Parent.Engine.Gameplay2Sound).MOMENTS) do
+		expectTrue(S.cueId(m.cue) ~= nil or FX.layersFor(m.cue) ~= nil or FX.EMPTY_OK[m.cue], m.moment .. " resolves to a sound")
+	end
 	for name, layers in pairs(FX.Layers) do
 		for _, layer in ipairs(layers) do
 			expectTrue(S.cueId(layer.cue) ~= nil, name .. " layer plays " .. layer.cue .. " which has a working id")
@@ -30518,12 +30524,14 @@ table.insert(tests, { name = "Gameplay v2 pass 21 to 23: GuiObject count under 1
 	local tree = { Children = { { ClassName = "Frame", Visible = true, Children = { { ClassName = "TextLabel", Visible = true, Children = {} }, { ClassName = "UICorner", Children = {} } } },
 		{ ClassName = "Frame", Visible = false, Children = { { ClassName = "TextLabel", Visible = true, Children = {} } } } } }
 	assert(P.count(tree, false) == 4 and P.count(tree, true) == 3, "invisible branches are not counted on screen")
+	for _, m in ipairs(G.LAYERED) do assert(S.Cues[m.cue] and FX.layersFor(m.cue), m.moment .. ": layered cue") end
 	for _, m in ipairs(G.SILENT_OK) do
 		assert(S.Cues[m.cue] and FX.EMPTY_OK[m.cue], m.moment .. ": a real cue that is allowed to stay silent")
 	end
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	for _, m in ipairs(G.SILENT_OK) do assert(read(m.file):find(m.marker, 1, true), m.moment .. ": call site") end
+	for _, m in ipairs(G.LAYERED) do assert(read(m.file):find(m.marker, 1, true), m.moment .. ": call site") end
 	for _, path in ipairs(P.LOOP_FILES) do
 		local src = read(path)
 		local bad = P.forbiddenLoop(src)
