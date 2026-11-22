@@ -65,7 +65,7 @@ ModalGate.STAGES = {
 }
 
 local KIND_TO_STAGE = {
-	modifier = "blessing", blessing = "blessing",
+	modifier = "blessing", blessing = "blessing", boon = "blessing",
 	patron = "draft", rushPatron = "draft", reward = "draft", draft = "draft",
 	pack = "pack", event = "event", road = "road", detail = "detail",
 }

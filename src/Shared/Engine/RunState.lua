@@ -17,6 +17,7 @@ local Patrons = require(script.Parent.Patrons)
 local EndlessRules = require(script.Parent.EndlessRules)
 local RunModes = require(script.Parent.RunModes) -- Quick Run (4 Nights)
 local DeckVariants = require(script.Parent.DeckVariants)
+local NightBoons = require(script.Parent.NightBoons)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
 local Tags = require(script.Parent.Tags)
@@ -489,6 +490,7 @@ function RunState.startRound(state)
 		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
 		+ endlessField(state, "handSizeDelta")
 		+ Strangers.field(state, "handSizeDelta")
+		+ NightBoons.field(state, "handSize")
 	handSize = math.max(5, handSize) -- never fewer than 5 cards
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
@@ -497,6 +499,7 @@ function RunState.startRound(state)
 		+ endlessField(state, "discardsDelta")
 		+ Strangers.field(state, "discardsDelta")
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
+		+ NightBoons.field(state, "discards") + NightBoons.field(state, "bossDiscards")
 	if state.isBossRound and state.housePasses.boss_prep then
 		discards = discards + 1 -- Boss Prep
 	end
@@ -526,6 +529,7 @@ function RunState.startRound(state)
 	handsPerRound = handsPerRound + Patrons.sum(state.ownedPatrons, "handsDelta") -- Overtime
 	handsPerRound = handsPerRound + endlessField(state, "handsDelta")
 	handsPerRound = handsPerRound + Strangers.field(state, "handsDelta")
+	handsPerRound = handsPerRound + NightBoons.field(state, "hands") + NightBoons.field(state, "bossHands")
 	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
 	if state.bonusHandsNight and state.bonusHandsNight == state.night then
 		handsPerRound = handsPerRound + 1
@@ -929,7 +933,7 @@ local function playHandNow(state, cardIndices)
 		end
 		-- boss Chips and Mult factors, Sleepy Cook's first hand, the Dealer's Bargain: one shared function with the preview
 		chips, mult, score = BossRules.finishScore(chips, mult, bossModifier, state.handsRemaining + 1 == state.roundStartHands,
-			Strangers.field(state, "scorePct"))
+			Strangers.field(state, "scorePct") + NightBoons.scorePct(state, state.handsRemaining + 1 == state.roundStartHands))
 	end
 
 	-- What this hand really did, as plain data for the client's score reveal (cards by position, no table references).
@@ -1217,7 +1221,7 @@ function RunState.patronPrice(state, patron)
 	if state.housePasses.regulars_discount then
 		price = price - 2
 	end
-	price = price - (state.nextShopDiscount or 0)
+	price = price - (state.nextShopDiscount or 0) - NightBoons.priceOff(state, "patron")
 	price = math.max(1, price + Haggle.delta(state, "patron", patron.id))
 	local pct = endlessField(state, "patronPricePct")
 	if pct ~= 0 then
@@ -1232,7 +1236,7 @@ function RunState.packPrice(state, pack)
 	if state.housePasses.wholesale_pricing then
 		price = price - 2
 	end
-	price = price - (state.nextShopDiscount or 0)
+	price = price - (state.nextShopDiscount or 0) - NightBoons.priceOff(state, "pack")
 	return math.max(1, price + Haggle.delta(state, "pack", pack.id))
 end
 
@@ -1250,6 +1254,9 @@ function RunState.rerollCost(state, baseCost)
 		cost = cost + state.stakeRules.rerollExtra -- Rush Hour stake
 	end
 	cost = cost + endlessField(state, "rerollExtra") -- Costly Rerolls
+	if NightBoons.freeRerollReady(state) then
+		return 0 -- Free Reroll Night boon
+	end
 	return math.max(1, cost)
 end
 

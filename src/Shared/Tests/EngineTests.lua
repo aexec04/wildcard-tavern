@@ -27281,7 +27281,7 @@ table.insert(tests, { name = "BossRules.finishScore: one function for the boss f
 	local hub = hubFile:read("*a"); hubFile:close()
 	local src = engineFile:read("*a"); engineFile:close()
 	expectTrue(hub:find("Engine.HandPreview", 1, true) ~= nil, "the hub's preview is Engine/HandPreview")
-	expectTrue(src:find("BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the preview finishes the score with the shared function")
+	expectTrue(src:find("BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct + NightBoons.scorePct(view, isFirstHand))", 1, true) ~= nil, "the preview finishes the score with the shared function")
 	expectTrue(src:find('Strangers.field(view, "scorePct")', 1, true) ~= nil, "the preview reads the Dealer's Bargain percent")
 	expectTrue(src:find("PatronEvents.tavernNotes(boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the Bargain pill is shown with the real percent, not a hardcoded 0")
 	expectTrue(src:find("rng = Scoring.noLuck", 1, true) ~= nil, "the preview never rolls luck")
@@ -33575,7 +33575,7 @@ table.insert(tests, { name = "Night clear Patron reward: 3 unowned Patrons, rare
 	local f = io.open("src/Server/init.server.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
-		expectTrue(src:find("RunChoice.rewardDraft(session.state, not fixedRun)", 1, true) ~= nil, "the server opens the reward on a new Night")
+		expectTrue(src:find("RunChoice.afterBoon(session.state, not fixedRun)", 1, true) ~= nil, "the server opens the reward on a new Night (after the boon)")
 	end
 	local g = io.open("src/Client/ChoicePanel.lua", "r")
 	if g then
@@ -42514,9 +42514,129 @@ table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4
 	if pb then expectTrue(pb:find("setPlateButton(plaque", 1, true) ~= nil, "Play hero takes the set plate first") end
 end })
 
+-- ===== NightBoons =====
+local function boonRun(night, round)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = night or 2
+	state.round = round or 1
+	RunState.startRound(state)
+	return state
+end
+
+table.insert(tests, { name = "NightBoons: 12 kid safe boons, each with a name, icon and one short line", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	expectEqual(#NB.Definitions, 12)
+	local seen = {}
+	for _, def in ipairs(NB.Definitions) do
+		expectTrue(not seen[def.id], def.id .. " is unique")
+		seen[def.id] = true
+		expectTrue(#def.name > 0 and #def.icon > 0 and #def.text > 0 and #def.text <= 60, def.id .. " has short texts")
+		local lower = (def.name .. def.text):lower()
+		for _, bad in ipairs({ "balatro", "beer", "wine", "whisky", "ale ", "drunk" }) do
+			expectTrue(lower:find(bad, 1, true) == nil, def.id .. " is kid safe")
+		end
+		expectTrue(not (def.text:find("\226\128\148", 1, true)), def.id .. " has no em dash")
+	end
+end })
+
+table.insert(tests, { name = "NightBoons: offered on Nights 2 to 12 only, three distinct options, never on fixed boards", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	expectTrue(RunChoice.boonDraft(boonRun(1), true) == nil, "not Night 1")
+	expectTrue(RunChoice.boonDraft(boonRun(13), true) == nil, "not past Night 12")
+	expectTrue(RunChoice.boonDraft(boonRun(5), false) == nil, "not on a fixed board")
+	for night = 2, 12 do
+		local choice = RunChoice.boonDraft(boonRun(night), true)
+		expectTrue(choice ~= nil and choice.kind == "boon" and #choice.options == 3, "Night " .. night)
+		local ids = {}
+		for _, o in ipairs(choice.options) do
+			expectTrue(not ids[o.id], "distinct")
+			ids[o.id] = true
+		end
+	end
+end })
+
+table.insert(tests, { name = "NightBoons: Spare Hand and Spare Discard change this Night only", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(2)
+	local hands, discards = state.handsRemaining, state.discardsRemaining
+	expectTrue(NB.apply(state, "extra_hand"))
+	expectEqual(state.handsRemaining, hands + 1, "the dealt round gets it at once")
+	expectEqual(state.roundStartHands, hands + 1)
+	state.round = 2
+	RunState.startRound(state)
+	expectEqual(state.handsRemaining, hands + 1, "later rounds of the Night too")
+	state.round, state.night = 1, 3
+	RunState.startRound(state)
+	expectEqual(state.handsRemaining, hands, "gone on the next Night")
+	local s2 = boonRun(2)
+	expectTrue(NB.apply(s2, "extra_discard"))
+	expectEqual(s2.discardsRemaining, discards + 1)
+end })
+
+table.insert(tests, { name = "NightBoons: Pocket Change pays 3 Tips, a bad id changes nothing", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(4)
+	local tips = state.tips
+	expectEqual((NB.apply(state, "nope")), false)
+	expectEqual(state.tips, tips)
+	expectTrue(state.nightBoon == nil)
+	expectTrue(NB.apply(state, "pocket_change"))
+	expectEqual(state.tips, tips + 3)
+	expectEqual(NB.apply(boonRun(1), "pocket_change"), false, "no boon on Night 1")
+end })
+
+table.insert(tests, { name = "NightBoons: prices, Free Reroll and boss round boons", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local state = boonRun(3)
+	local patron = Patrons.Definitions[1]
+	local base = RunState.patronPrice(state, patron)
+	NB.apply(state, "patron_discount")
+	expectEqual(RunState.patronPrice(state, patron), math.max(1, base - 2))
+	local s2 = boonRun(3)
+	local rc = RunState.rerollCost(s2, 5)
+	NB.apply(s2, "free_reroll")
+	expectEqual(RunState.rerollCost(s2, 5), 0, "free")
+	expectTrue(NB.useFreeReroll(s2))
+	expectEqual(RunState.rerollCost(s2, 5), rc, "paid again once used")
+	expectEqual(NB.useFreeReroll(s2), false)
+	local s3 = boonRun(3, 1)
+	NB.apply(s3, "boss_hand")
+	expectEqual(NB.field(s3, "bossHands"), 0, "not on a normal round")
+	s3.round = s3.config.roundsPerNight
+	RunState.startRound(s3)
+	expectTrue(s3.isBossRound and s3.handsRemaining > boonRun(3, s3.config.roundsPerNight).handsRemaining, "Boss Ready adds a hand on the boss round")
+end })
+
+table.insert(tests, { name = "NightBoons: scoring boons raise the score and the preview agrees", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(2)
+	expectEqual(NB.scorePct(state, true), 0)
+	NB.apply(state, "opening_flourish")
+	expectEqual(NB.scorePct(state, true), 50)
+	expectEqual(NB.scorePct(state, false), 0)
+	NB.apply(state, "warm_welcome")
+	expectEqual(NB.scorePct(state, true), 10, "one boon per Night, the last pick replaces")
+end })
+
+table.insert(tests, { name = "NightBoons: picking runs through RunChoice, validates the id and chains the reward", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local state = boonRun(2)
+	local choice = RunChoice.boonDraft(state, true)
+	expectEqual((RunChoice.pick(state, choice, "not_offered")), false, "an id that was not offered is refused")
+	expectTrue(state.nightBoon == nil)
+	local ok, message = RunChoice.pick(state, choice, choice.options[2].id)
+	expectTrue(ok and #message > 0)
+	expectEqual(state.nightBoon.id, choice.options[2].id)
+	expectEqual(state.nightBoon.night, 2)
+	local server = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if server then
+		local src = server:read("*a")
+		server:close()
+		expectTrue(src:find("RunChoice.boonDraft", 1, true) ~= nil, "the server opens the Night with the boon draft")
+		expectTrue(src:find("useFreeReroll", 1, true) ~= nil, "the server spends the free reroll")
+		expectTrue(src:find("nightBoon = ", 1, true) ~= nil, "the HUD gets the boon view")
+	end
+end })
+
 return tests
-
-
-
-
-

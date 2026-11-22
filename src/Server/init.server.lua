@@ -935,6 +935,7 @@ local function serializeState(session, player)
 			and require(Engine.Regulars).view(profiles[player].lifetime, math.floor(os.time() / 86400)) or nil, -- Menu Regulars
 		isRush = state.rush ~= nil,
 		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
+		nightBoon = require(Engine.NightBoons).view(state), -- this Night's boon (HUD tooltip), nil when none
 		rewardNotice = rewardNotices[player], -- { seq, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -2411,6 +2412,7 @@ Rem.RerollShop.OnServerEvent:Connect(function(player)
 		return
 	end
 	session.state.tips = session.state.tips - cost
+	require(Engine.NightBoons).useFreeReroll(session.state) -- the Free Reroll boon is spent by the first Reroll
 	LaunchLog.spent(player, "reroll", cost, session.state.tips)
 	rollShopOffers(session, true)
 	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
@@ -3049,7 +3051,8 @@ Rem.AdvanceRound.OnServerEvent:Connect(function(player)
 	local fixedRun = session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial
 	if session.state.round == 1 and session.state.night >= 2 then
 		-- a Patron reward for the Night just cleared comes first (Skip allowed); an event, if rolled, follows it
-		session.choice = RunChoice.rewardDraft(session.state, not fixedRun) or RunChoice.rollEvent(session.state, not fixedRun)
+		-- a Night boon (Nights 2 to 12) opens the Night, then the reward and event follow it (RunChoice.pick, kind "boon")
+		session.choice = RunChoice.boonDraft(session.state, not fixedRun) or RunChoice.afterBoon(session.state, not fixedRun)
 	end
 	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
 	if RunService:IsStudio() and not session.choice and not fixedRun then
