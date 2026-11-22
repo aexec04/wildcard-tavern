@@ -23646,8 +23646,37 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 		expectTrue(L.scrimOpacity(L.TOP, 0) <= 0.5 and L.scrimOpacity(L.BOTTOM, 1) <= 0.9, "edges darken to a limit")
 		expectTrue(text:find("DisplayOrder = 1000", 1, true) ~= nil and text:find("ResetOnSpawn = false", 1, true) ~= nil and text:find("IgnoreGuiInset = true", 1, true) ~= nil, "gui settings")
 		expectTrue(text:find("fade.Active = false", 1, true) ~= nil and text:find("gui:Destroy()", 1, true) ~= nil, "it stops blocking clicks and is destroyed")
-		expectTrue(text:find("math.max(15, size)", 1, true) ~= nil, "text is never under 15")
+		expectTrue(text:find("math.max(16, size)", 1, true) ~= nil, "text is never under 16")
 		expectTrue(not text:find("gradient(fade,", 1, true) and not text:find("gradient%(fade%s*[,)]"), "no UIGradient is a direct child of the Fade CanvasGroup (it would tint every child)")
+	end
+end })
+
+table.insert(tests, { name = "LoadingLayout: bar, status, tip, title and Skip never overlap and stay on screen from 800x450 to 1920x957, text is 16 or more, calm mode drops every loop and tween", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LoadingLayout)
+	expectTrue(LL.MIN_TEXT >= 16, "text floor is 16")
+	local function overlap(a, b) return a.x < b.r and b.x < a.r and a.y < b.b and b.y < a.b end
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 800, 450 } }) do
+		local sw, sh = size[1], size[2]
+		local r = LL.rects(sw, sh)
+		local tag = sw .. "x" .. sh
+		for name, rc in pairs(r) do
+			expectTrue(rc.x >= 0 and rc.y >= 0 and rc.r <= sw and rc.b <= sh, name .. " inside the screen at " .. tag)
+		end
+		expectFalse(overlap(r.title, r.bar), "title clear of the bar at " .. tag)
+		expectFalse(overlap(r.bar, r.status), "bar clear of status at " .. tag)
+		expectFalse(overlap(r.status, r.tip), "status clear of tip at " .. tag)
+		expectFalse(overlap(r.tip, r.skip), "tip clear of Skip at " .. tag)
+		expectTrue(r.tip.h >= 2 * LL.MIN_TEXT and r.status.h >= LL.MIN_TEXT, "lines are tall enough for 16 px text at " .. tag)
+	end
+	local calm, normal = LL.motion(true), LL.motion(false)
+	expectTrue(not calm.shimmer and not calm.ember and not calm.tipFade and not calm.readyPulse, "calm mode: no loops, no tip tween, no pulse")
+	expectTrue(normal.shimmer and normal.ember and normal.tipFade and normal.readyPulse, "normal mode keeps the life")
+	expectTrue(LL.fadeTime(true, 0.5) < 0.2 and LL.fadeTime(false, 0.5) == 0.5, "calm mode crossfades quickly, normal keeps 0.5 s")
+	local f = io and io.open and io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("Layout.rects(", 1, true) ~= nil and text:find("motion.shimmer", 1, true) ~= nil and text:find("Layout.fadeTime(", 1, true) ~= nil, "the screen uses the layout and motion rules")
 	end
 end })
 

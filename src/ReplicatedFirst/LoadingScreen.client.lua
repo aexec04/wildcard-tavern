@@ -15,7 +15,7 @@ local shared = ReplicatedStorage:WaitForChild("Shared")
 local Engine = shared:WaitForChild("Engine")
 
 local okUI, UI = pcall(function() return require(script.Parent:WaitForChild("LoadingScreenUI")) end)
-local handle = okUI and UI.show(playerGui, { shared = shared }) or nil
+local handle = okUI and UI.show(playerGui, { shared = shared, calm = player:GetAttribute("CalmMode") == true }) or nil
 pcall(function() ReplicatedFirst:RemoveDefaultLoadingScreen() end)
 if not handle then
 	warn("[LoadingScreen] could not build the screen: " .. tostring(UI))
