@@ -286,6 +286,14 @@ Clear rate before the change (n = 400 on Night 3, 353 on Night 6, 45 on Night 9)
 - Solo Star was the one outlier: one Patron seat at 2x was worth far less than the 4 to 5 seats a normal run builds, so nobody won (0 of 500). Tried 3.5x (1.3 percent), 4x with +1 Hand and Discard (2.3), 4x with +2 and +2 and one more card (11.0), then 4x with +3 Hands, +4 Discards, +1 card and 8 start Tips: 30.8 percent. Its plate line now reads "One seat, effect counts 4x, +3 Hands, +4 Discards, +8 Tips." (60 characters or less; it still needs a look on the Menu plate at 800x450). Pinned by the test `Daily twists balance pin`.
 - Found by this sim and fixed: Loud Crowd, Penny Pincher and Solo Star multiplied Patron Tips bonuses and left fractional Tips (2 x 1.25 = 2.5), which crashed `%d` text in Recipes (Tip Doubler) and would show wrong numbers elsewhere. A Patron's Tips bonus is now floored in `Scoring.calculate`. Test `Daily twists: Patron power twists never leave fractional Tips`.
 
+## Hand level cost, reroll cost and Patron sell value
+
+Baseline sim (`lua tools/run_sim.lua --runs 600 --jobs 4 --bot decent`): win 43.2 percent, median Night 8, Tips at the Counter mean 8.8 (median 8), 4.78 hand levels and 0.15 rerolls per run.
+
+- Hand levels: every level Recipe costs 3 Tips, the same at every level and for all 9 hands (`Recipes.MenuRecipes`). The first Counter visit has at least 4 Tips, so one level is always affordable and a run is never stuck; the bot buys about 0.7 levels per Night because it spends on Patrons and Packs first. Cost kept flat. Pinned by the test `Hand level and reroll cost curves`.
+- Reroll cost: 5, 7, 9, 11 ... (base 5, +2 per reroll in a visit). The first reroll costs more than a round win pays (4), so it is a choice, and the bot uses 0.15 a run. Frequent Visitor and Bargain Hunter lower it but `RunState.rerollCost` floors it at 1 Tip, so it is never free. No change.
+- Patron sell value: half the list price rounded down. A lasting discount (Regulars' Discount, -2) leaves the buy price at or above the sell value for every Patron (price 4 to 8), so buying and selling in a loop only loses Tips. Only the one shot Sale Day Tag or a haggle can pay back a Tip or two once, and the test `Patron sell value` pins both facts. No change.
+
 ## Patron pairs: best and worst by round clear rate
 
 `lua tools/run_sim.lua --pair-rates --runs 14000 --jobs 4 --min-builds 15` (random 4 Patron builds from Night 4, round clear rate of every pair in the build; 85 Patrons give 3,570 pairs, 3,479 had 15 or more builds, so each cell is 15 to 28 builds and noisy). Average round clear 92.4 percent.

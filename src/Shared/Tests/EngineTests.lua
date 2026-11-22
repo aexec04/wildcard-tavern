@@ -38657,6 +38657,33 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Hand level and reroll cost curves: every level Recipe costs 3 (one is affordable at the first Counter), rerolls climb 5, 7, 9 and stay above 0 under every discount", fn = function()
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local firstWin = RunState.DEFAULT_CONFIG and RunState.DEFAULT_CONFIG.tipsPerRoundWin or 4
+	expectEqual(#Recipes.MenuRecipes, 9, "one level Recipe per hand type")
+	for _, recipe in ipairs(Recipes.MenuRecipes) do
+		expectEqual(recipe.price, 3, recipe.id .. " costs 3 Tips at every level")
+		expectTrue(recipe.price <= firstWin, recipe.id .. " is affordable from the first round win")
+	end
+	local state = RunState.new(nil, SeededRng.new(2))
+	local cost, last = Shop.REROLL_BASE_COST, 0
+	for n = 1, 8 do
+		local c = RunState.rerollCost(state, cost)
+		expectEqual(c, 5 + (n - 1) * 2, "reroll " .. n .. " costs " .. 5 + (n - 1) * 2)
+		expectTrue(c > last, "each reroll costs more than the one before")
+		last = c
+		cost = cost + Shop.REROLL_COST_STEP
+	end
+	-- every discount at once (Frequent Visitor, Bargain Hunter, a seated Regular) can lower it but never to free
+	state.housePasses.frequent_visitor = true
+	state.ownedPatrons = { Patrons.getById("bargain_hunter") }
+	for n = 0, 6 do
+		expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST + n * Shop.REROLL_COST_STEP) >= 1, "never a free reroll")
+	end
+	expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST) > 0 and Shop.REROLL_BASE_COST > firstWin, "the first reroll costs more than one round win pays: it is a choice, not a reflex")
+end })
+
 table.insert(tests, { name = "Patron sell value: half the list price rounded down, and no discount stack lets buy then sell make a profit", fn = function()
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
 	local Haggle = require(script.Parent.Parent.Engine.Haggle)
