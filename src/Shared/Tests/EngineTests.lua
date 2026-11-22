@@ -42081,6 +42081,63 @@ table.insert(tests, { name = "Menu first impression: hotspots are 44 px and neve
 	expectTrue(seen >= 20, "the Menu files were scanned")
 end })
 
+table.insert(tests, { name = "Focus order from the live layouts: every Menu hotspot and every Store Buy and Close plate is reachable by D-pad at four sizes, no dead end, a row of Store plates walks end to end, the ring is the set accent", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local F = require(Engine.GamepadFocus)
+	local ML = require(Engine.MenuLayout)
+	local SL = require(Engine.StoreLayout)
+	local CS = require(Engine.CosmeticSets)
+	local function walk(items, dir)
+		local seen, cur, steps = {}, nil, 0
+		for _ = 1, #items * 3 do
+			cur = F.next(items, cur, dir)
+			if not seen[cur] then seen[cur] = true; steps = steps + 1 end
+		end
+		return steps
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local items = {}
+		for _, hs in ipairs(ML.Hotspots) do
+			local l, t, r, b = ML.rect(hs, w, h)
+			items[#items + 1] = { id = hs.id, x = l, y = t, w = r - l, h = b - t }
+		end
+		expectTrue(#items >= 7, "Menu has its hotspots at " .. tag)
+		expectTrue(F.reachable(items), "every Menu hotspot is reachable at " .. tag)
+		for _, it in ipairs(items) do -- no dead end: some D-pad move always leaves the button
+			local out = false
+			for dir in pairs(F.DIRS) do if F.next(items, it.id, dir) ~= it.id then out = true end end
+			expectTrue(out, it.id .. " can be left by D-pad at " .. tag)
+		end
+		local s = SL.scale(w, h)
+		local r = SL.rects(s)
+		local store = {}
+		for i = 1, 4 do
+			store[#store + 1] = { id = "buy" .. i, x = SL.ROW_X + (i - 1) * (SL.CARD_W + SL.CARD_GAP) + r.buy.x, y = SL.ROW_Y + r.buy.y, w = r.buy.w, h = r.buy.h }
+		end
+		store[#store + 1] = { id = "close", x = r.close.x, y = r.close.y, w = r.close.w, h = r.close.h }
+		expectTrue(F.reachable(store), "Store Buy plates and Close are reachable at " .. tag)
+		expectEqual(walk(store, "DPadRight"), #store, "repeated Right visits every Store plate at " .. tag)
+		-- 44 px on screen after the panel scale, so a thumb or a focus ring lands on a real target
+		expectTrue(r.buy.h * s >= 43.5 and r.close.h * s >= 43.5, "Store plates stay 44 px on screen at " .. tag)
+	end
+	for _, set in ipairs(CS.Definitions) do
+		expectTrue(CS.contrastRatio(CS.focusRingOf(set.id), CS.FOCUS_RING_BACKING) >= 3, set.id .. " focus ring reads 3:1")
+	end
+	if not io then return end
+	local f = io.open("src/Client/GamepadMenuNav.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local v = io.open("src/Client/CosmeticSetsView.lua", "r")
+	if v then
+		local vs = v:read("*a"); v:close()
+		expectTrue(vs:find("setRingColor(CosmeticSets.focusRingOf(set.id))", 1, true) ~= nil, "applying a set hands its accent to the focus ring")
+	end
+	expectTrue(src:find("function M.setRingColor", 1, true) ~= nil, "the ring can take a set accent")
+	expectTrue(src:find("topBackdrop", 1, true) ~= nil, "focus stays inside the topmost popup")
+end })
+
 table.insert(tests, { name = "Tavern Map road readability: node names are cream on the dark plate at 7:1, every type tag colour keeps 4.5:1 on the plate and on every set's panel inset, labels are 15 px or more", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local CS = require(Engine.CosmeticSets)
