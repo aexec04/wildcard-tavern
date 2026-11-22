@@ -1,8 +1,8 @@
 --[[
 	Client/PackRevealFX.lua
 	The pack opening moment (numbers and state in Engine/PackReveal): every pick card starts face down on a painted back, a "Tap to open"
-	plate sits over the panel, a tap shakes the cards 0.4 s and flashes gold, then the cards flip one at a time (0.3 s each, card_flip;
-	Rare and above add a sparkle ring and patron_trigger). A Seat or Keep pill under each face-up card picks it, Skip all opens everything.
+	plate sits over the panel, a tap shakes the cards 0.4 s and flashes gold, then the cards flip one at a time (0.25 s each, card_flip;
+	Rare and above add a sparkle ring and patron_trigger). A Seat or Keep pill under each face-up card picks it, Take all opens everything.
 	Calm mode and Reduce motion (reduceShake): nothing is face down, no overlay, no tween, no delayed cue.
 
 	PackRevealFX.attach(panel, row, cards, items, rarities, opts) -> controller
@@ -71,7 +71,7 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	local plan = PackReveal.plan(rarities, isCalm)
 	local z = opts.z or (panel.ZIndex + 20)
 	local ctl = {}
-	local covers, pills = {}, {}
+	local covers, pills, marks = {}, {}, {}
 	local overlay
 
 	local function faceUp(i)
@@ -80,6 +80,7 @@ function M.attach(panel, row, cards, items, rarities, opts)
 		covers[i] = nil
 		state.reveal(i)
 		if pills[i] then pills[i].Visible = true end
+		if marks[i] then marks[i].Visible = true end
 	end
 
 	function ctl.refresh()
@@ -109,6 +110,24 @@ function M.attach(panel, row, cards, items, rarities, opts)
 			if state.canKeep(i) then opts.onPick(i) end
 		end)
 		pills[i] = p
+		-- the Owned or New mark: a small plate on the card's top corner, shown once it is face up
+		local owned = opts.isOwned and opts.isOwned(i) == true
+		local m = Instance.new("TextLabel")
+		m.Name = "OwnedMark"
+		m.AnchorPoint = Vector2.new(0, 0)
+		m.Position = UDim2.fromOffset(4, 4)
+		m.Size = UDim2.fromOffset(64, 24)
+		m.BackgroundColor3 = owned and Color3.fromRGB(70, 60, 55) or Color3.fromRGB(40, 94, 52)
+		m.BorderSizePixel = 0
+		m.Font = Enum.Font.GothamBold
+		m.TextSize = 16
+		m.TextColor3 = CREAM
+		m.Text = PackReveal.markWord(owned)
+		m.ZIndex = z + 2
+		m.Visible = state.isRevealed(i)
+		m.Parent = card.slot
+		corner(m, 6)
+		marks[i] = m
 		if not state.isRevealed(i) then
 			local cover = Instance.new("TextButton") -- a button, so a click on a hidden card is swallowed
 			cover.Name = "PackBack"
@@ -165,7 +184,8 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	tap.Parent = overlay
 	corner(tap, 12)
 	stroke(tap, GOLD, 2)
-	local skip = pill(overlay, "SkipAll", PackReveal.SKIP_WORD, UDim2.fromOffset(140, 44), UDim2.new(0.5, 0, 0.5, 48), z + 6)
+	local takeWord = PackReveal.takeAllWord(opts.pickCount, #items)
+	local skip = pill(overlay, "TakeAll", takeWord, UDim2.fromOffset(160, PackReveal.TAKE_ALL_HEIGHT), UDim2.new(0.5, 0, 0.5, 48), z + 6)
 
 	local started = false
 	local function open()
@@ -242,6 +262,10 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	skip.MouseButton1Click:Connect(function()
 		started = true
 		revealAllNow()
+		if takeWord == PackReveal.SKIP_WORD then -- the pack keeps every card: Take all also picks them
+			for i = 1, #items do if not opts.isPicked(i) then opts.onPick(i) end end
+			ctl.refresh()
+		end
 	end)
 	return ctl
 end

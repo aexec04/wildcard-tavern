@@ -29945,12 +29945,12 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	assert(play:find("Settings", 1, true), "the gear on the play screen opens Settings")
 end })
 
-table.insert(tests, { name = "PackReveal: shake 0.4 s then gold flash, cards flip one at a time 0.3 s apart, Rare and above get a ring and patron_trigger, calm mode opens at once", fn = function()
+table.insert(tests, { name = "PackReveal: shake 0.4 s then gold flash, cards flip one at a time 0.25 s apart, Rare and above get a ring and patron_trigger, calm mode opens at once", fn = function()
 	local R = require(script.Parent.Parent.Engine.PackReveal)
 	local plan = R.plan({ "common", "rare", "legendary" }, false)
 	assert(plan.shake == 0.4 and plan.flash == 0.3 and #plan.flips == 3, "shake, flash, one flip per card")
 	for i, f in ipairs(plan.flips) do
-		assert(f.dur == 0.3 and math.abs(f.at - (0.7 + (i - 1) * 0.3)) < 1e-9, "flips are 0.3 s apart after the flash")
+		assert(f.dur == 0.25 and math.abs(f.at - (0.7 + (i - 1) * 0.25)) < 1e-9, "flips are 0.25 s apart after the flash")
 	end
 	assert(plan.flips[1].cue == "card_flip" and not plan.flips[1].ring, "Common: plain flip")
 	assert(plan.flips[2].cue == "patron_trigger" and plan.flips[2].ring, "Rare: stronger cue and ring")
@@ -29972,6 +29972,8 @@ table.insert(tests, { name = "PackReveal: a card can be kept only once face up, 
 	assert(s.allRevealed() and s.canKeep(1) and s.canKeep(3), "Skip all opens everything at once")
 	assert(R.keepWord("patron", false) == "Seat" and R.keepWord("patron", true) == "Seated", "Patrons are seated")
 	assert(R.keepWord("standard", false) == "Keep" and R.keepWord("house", true) == "Kept", "other picks are kept")
+	assert(R.TAKE_ALL_HEIGHT == 44 and R.takeAllWord(2, 2) == "Take all" and R.takeAllWord(1, 3) == "Reveal all", "Take all is 44 px and only offered when every card can be kept")
+	assert(R.markWord(true) == "Owned" and R.markWord(false) == "New", "face-up cards read Owned or New")
 	assert(R.isStrong("epic") and R.isStrong("mythical") and not R.isStrong("uncommon") and not R.isStrong(nil), "Rare and above are strong")
 end })
 table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, owns no loop, and every plate text is ASCII", fn = function()

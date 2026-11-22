@@ -4,7 +4,7 @@
 	calm = true: the pack opens at once, every card is face up, no tween runs and no cue is delayed.
 
 	PackReveal.plan(rarities, calm) -> nil | { shake, flash, flips = { { index, at, dur, cue, ring } ... } }
-	    rarities = rarity id per card in order ("common" .. "mythical", nil allowed). Cards flip one at a time, 0.3 s each,
+	    rarities = rarity id per card in order ("common" .. "mythical", nil allowed). Cards flip one at a time, 0.25 s each,
 	    after the 0.4 s shake and the gold flash. Rare and above add a sparkle ring and the stronger patron_trigger cue.
 	PackReveal.new(count, calm) -> state: open(), reveal(i), revealAll(), isOpen(), isRevealed(i), allRevealed(), canKeep(i)
 	    A card can be kept (picked) only once it is face up. Skip all reveals everything at once.
@@ -15,11 +15,13 @@ local M = {}
 
 M.SHAKE_SECONDS = 0.4
 M.FLASH_SECONDS = 0.3
-M.FLIP_SECONDS = 0.3
+M.FLIP_SECONDS = 0.25
+M.TAKE_ALL_HEIGHT = 44
 M.SHAKE_PIXELS = 6
 M.FLASH_ALPHA = 0.55 -- peak opacity of the gold flash
 M.TAP_WORD = "Tap to open"
-M.SKIP_WORD = "Skip all"
+M.SKIP_WORD = "Take all"
+M.REVEAL_WORD = "Reveal all"
 
 local STRONG = { rare = true, epic = true, legendary = true, mythical = true }
 
@@ -65,6 +67,17 @@ function M.new(count, calm)
 	function self.canKeep(i) return self.opened and self.face[i] == true end
 	if calm then self.revealAll() end
 	return self
+end
+
+-- Take all picks every card, so it only exists when the pack lets you keep them all; otherwise the button just turns every card face up.
+function M.takeAllWord(pickCount, count)
+	if (tonumber(pickCount) or 0) >= (tonumber(count) or 0) and (tonumber(count) or 0) > 0 then return M.SKIP_WORD end
+	return M.REVEAL_WORD
+end
+
+-- The mark under a face-up card: Owned when you already hold it this run, New when you do not.
+function M.markWord(owned)
+	return owned and "Owned" or "New"
 end
 
 function M.keepWord(category, kept)
