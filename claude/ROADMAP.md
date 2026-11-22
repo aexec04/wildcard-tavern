@@ -67,7 +67,7 @@ Everything below is cosmetic or a tiny convenience, never pay to win. In Studio 
 - [ ] Game Pass "VIP". Paste its id into the `vip` entry of `GamePasses.Definitions` in `src/Shared/Engine/GamePasses.lua`. Perks: gold star beside the name on boards and a second badge slot (no Tips, looks only).
 - [x] Developer Product "One More Round" is already set (`GamePasses.DeveloperProducts`). Game Passes Fast Forward and Golden Gala Set are already set.
 - [ ] Developer Products for Flair and the Season premium track (one time each, ids go into `Store.Items` `productId` in `src/Shared/Engine/Store.lua`): `flair_rainbow_numbers`, `flair_ribbon_trail`, `flair_crown_finisher`, `flair_star_aura`, `flair_bundle`, `premium_harvest_moon`, `premium_winter_welcome`. Prices are read from MarketplaceService; until an id is set the live game says "Coming soon" and Studio grants it free.
-- [ ] Store icons: generate `store_subjects` images (4 bundle cards) and the `menu_icons` `store` icon with the art task, then wire them (emoji until then).
+- [x] Store icons: generate `store_subjects` images (4 bundle cards) and the `menu_icons` `store` icon with the art task, then wire them (emoji until then).
 - [ ] Roblox Badges: create them in Creator Hub and paste the ids into `src/Shared/Engine/BadgeIds.lua` (list in that file).
 
 ## Next ideas after launch
