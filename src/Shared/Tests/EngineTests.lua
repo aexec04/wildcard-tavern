@@ -22452,6 +22452,17 @@ tests[#tests + 1] = ({ name = "DebugGoto: the synth kind has its own branch that
 	expectTrue(src:find("pcall(showSynth, which, variant, page)", 1, true) ~= nil, "showSynth is called once the hand is dealt")
 end })
 
+table.insert(tests, { name = "GameOverTips.forRun: one tip from what happened, order and clean text", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.GameOverTips)
+	expectTrue(Tips.forRun({ patrons = 0, handsPlayed = 6, discardsUsed = 0, bestHandName = "Pair" }, 3, 1) == Tips.FEW_PATRONS, "few Patrons first")
+	expectTrue(Tips.forRun({ patrons = 3, handsPlayed = 6, discardsUsed = 0, bestHandName = "Flush" }, 3, 1) == Tips.UNUSED_DISCARDS, "unused discards")
+	expectTrue(Tips.forRun({ patrons = 3, handsPlayed = 6, discardsUsed = 4, bestHandName = "Pair" }, 3, 1) == Tips.LOW_MULT, "low Mult")
+	expectTrue(Tips.forRun({ patrons = 3, handsPlayed = 6, discardsUsed = 4, bestHandName = "Flush" }, 3, 1) == nil, "nothing to say later in a run")
+	expectTrue(Tips.forRun({}, 1, 0) == Tips.TIPS[1] and Tips.forRun(nil, 2, 0) == nil, "empty facts fall back to the Night 1 pick")
+	for _, t in ipairs({ Tips.FEW_PATRONS, Tips.UNUSED_DISCARDS, Tips.LOW_MULT }) do
+		expectTrue(#t <= 80 and not t:lower():find("balatro", 1, true) and not t:find("\u{2014}", 1, true), "clean one-line tip")
+	end
+end })
 table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varies with the seed, Game Over has Back to Tavern and a full-screen dim", fn = function()
 	local Tips = require(script.Parent.Parent.Engine.GameOverTips)
 	expectTrue(Tips.pick(2, 1) == nil and Tips.pick(5, 0) == nil, "no tip after Night 1")
