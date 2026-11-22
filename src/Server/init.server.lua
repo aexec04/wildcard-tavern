@@ -167,7 +167,17 @@ local profileDirty = {} -- [player] = true once something's changed since the la
 -- FIRST 5 MINUTES: a one-time reward toast (survives the run that earned it) and the funnel logger.
 local function pushRewardNotice(player, notice)
 	rewardSeqCounter = rewardSeqCounter + 1
-	rewardNotices[player] = { seq = rewardSeqCounter, text = notice.text, blessingId = notice.blessingId }
+	rewardNotices[player] = { seq = rewardSeqCounter, text = notice.text, blessingId = notice.blessingId, levelUp = notice.levelUp }
+end
+-- Hand level up moment (Engine/HandLevelMoment): copy the levels before an action, then say what went up after it.
+local function handLevelsBefore(state)
+	local copy = {}
+	for hand, level in pairs(state.handLevels or {}) do copy[hand] = level end
+	return copy
+end
+local function noteHandLevelUp(player, state, before)
+	local moment = require(Engine.HandLevelMoment).notice(before, state.handLevels)
+	if moment then pushRewardNotice(player, moment) end
 end
 local function logStep(player, stepId)
 	local profile = profiles[player]
@@ -2374,11 +2384,13 @@ Rem.UseRecipe.OnServerEvent:Connect(function(player, category, id, cardIndices, 
 		opts.suit = suit
 	end
 
+	local levelsBefore = handLevelsBefore(session.state)
 	local ok, err = pcall(def.use, session.state, id, opts)
 	if not ok then
 		warn("UseRecipe error for " .. player.Name .. ": " .. tostring(err))
 		return
 	end
+	noteHandLevelUp(player, session.state, levelsBefore)
 
 	pushState(player)
 end)
@@ -2582,11 +2594,13 @@ Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds, replaceIds)
 		end
 	end
 
+	local levelsBefore = handLevelsBefore(session.state)
 	local ok, err, message = pcall(RunState.resolvePack, session.state, chosenIds, replaceIds)
 	if not ok then
 		warn("ResolvePack error for " .. player.Name .. ": " .. tostring(err))
 		return
 	end
+	noteHandLevelUp(player, session.state, levelsBefore)
 	if err == false and type(message) == "string" then
 		counterNotice(player, session, message) -- e.g. "Make room first": the pack stays open and the Counter says why
 		return

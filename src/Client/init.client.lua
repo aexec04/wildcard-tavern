@@ -918,6 +918,11 @@ do -- Combo counter (Client/ComboCounter.lua), driven by the score popup
 	if not ok then warn("[Client] ComboCounter failed: " .. tostring(err)) end
 end
 do -- Unlock toast (Client/UnlockToast.lua); fed from render()
+	pcall(function()
+		local ids = SoundModule.SOUND_IDS
+		local key = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandLevelMoment")).SOUND
+		require(script.UnlockToast).setLevelUpSound(function() SoundModule.playSfx(ids[key], 0.6) end)
+	end)
 	local ok, err = pcall(function() require(script.UnlockToast).init(screenGui) end)
 	if not ok then warn("[Client] UnlockToast failed: " .. tostring(err)) end
 end

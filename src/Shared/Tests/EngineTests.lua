@@ -44187,4 +44187,49 @@ table.insert(tests, { name = "Synergy hints: a seated Patron that works with the
 	end
 end })
 
+-- ===== Hand level up moments =====
+table.insert(tests, { name = "HandLevelMoment: a level Recipe gives one toast line of 60 characters or less naming the hand and its gain, and a sound that exists", fn = function()
+	local HLM = require(script.Parent.Parent.Engine.HandLevelMoment)
+	local state = RunState.new(nil, function(n) return 1 end)
+	local before = {}
+	for k, v in pairs(state.handLevels) do before[k] = v end
+	expectEqual(HLM.notice(before, state.handLevels), nil, "no change, no moment")
+	local recipe
+	for _, r in ipairs(require(script.Parent.Parent.Engine.Recipes).MenuRecipes) do
+		if r.handName == "Flush" then recipe = r end
+	end
+	expectTrue(recipe.apply(state))
+	local n = HLM.notice(before, state.handLevels)
+	expectTrue(n ~= nil and n.levelUp.hand == "Flush" and n.levelUp.level == 1)
+	expectTrue(#n.text <= 60 and n.text:find("Flush", 1, true) ~= nil and n.text:find("level 1", 1, true) ~= nil, n.text)
+	local growth = Scoring.HandLevelGrowth["Flush"]
+	expectTrue(n.text:find("+" .. growth.chips .. " Chips", 1, true) ~= nil and n.text:find("+" .. growth.mult .. " Mult", 1, true) ~= nil, "the gain is the real one")
+	for hand in pairs(Scoring.HandBase) do
+		expectTrue(#HLM.line(hand, 12, 99, 99) <= 60, hand .. " line fits at a high level")
+	end
+	-- two hands up at once: the strongest is named
+	local after = { Pair = 1, ["Straight Flush"] = 1 }
+	expectEqual(HLM.notice({}, after).levelUp.hand, "Straight Flush")
+	expectEqual(#HLM.diff({ Pair = 2 }, { Pair = 1 }), 0, "a drop is not a level up")
+	local src = io and io.open and io.open("src/Client/Sound.lua", "r")
+	if src then
+		local text = src:read("*a"); src:close()
+		expectTrue(text:find(HLM.SOUND .. " = ", 1, true) ~= nil, "the sound is an existing Sound id")
+	end
+end })
+
+table.insert(tests, { name = "HandLevelMoment: the server reports level ups after a Recipe and a pack, the toast plays the sound once per notice and adds no tween", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local t = f:read("*a"); f:close(); return t
+	end
+	local server, toast = read("src/Server/init.server.lua"), read("src/Client/UnlockToast.lua")
+	if not server or not toast then return end
+	local _, count = server:gsub("noteHandLevelUp%(player, session%.state, levelsBefore%)", "")
+	expectEqual(count, 2, "after UseRecipe and ResolvePack")
+	expectTrue(server:find("levelUp = notice.levelUp", 1, true) ~= nil)
+	expectTrue(toast:find("reward.levelUp and levelUpSound", 1, true) ~= nil and toast:find("TweenService", 1, true) == nil, "still line, Calm safe")
+end })
+
 return tests
