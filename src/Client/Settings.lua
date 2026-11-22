@@ -247,7 +247,7 @@ return function(deps)
 	makeChoiceRow("reduceMotion", "Reduce Motion", "Calmer scenes with less movement.", OFF_ON)
 	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
 	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
-	makeChoiceRow("largerText", "Larger Text", "Makes text 15 percent bigger where there is room.", OFF_ON)
+	makeChoiceRow("largerText", "Text Size", "Large makes text 15 percent bigger where there is room.", { { false, "Normal" }, { true, "Large" } })
 	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
 
 	-- ===== Sound =====

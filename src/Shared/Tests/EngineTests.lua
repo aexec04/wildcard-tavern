@@ -29980,6 +29980,39 @@ table.insert(tests, { name = "Accessibility: Larger Text grows labels 15 percent
 		end
 	end
 end })
+table.insert(tests, { name = "Accessibility: Text Size is Normal or Large on the saved largerText flag, and the Settings row says so", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	expectEqual(#A.TextSizeChoices, 2, "two choices")
+	expectEqual(A.TextSizeChoices[1][2], "Normal", "first is Normal")
+	expectEqual(A.TextSizeChoices[2][2], "Large", "second is Large")
+	expectEqual(A.textScale({ largerText = A.TextSizeChoices[1][1] }), 1, "Normal is scale 1")
+	expectEqual(A.textScale({ largerText = A.TextSizeChoices[2][1] }), A.TEXT_SCALE, "Large is the larger scale")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('makeChoiceRow("largerText", "Text Size"', 1, true) ~= nil, "Settings row is named Text Size")
+		expectTrue(src:find('{ true, "Large" }', 1, true) ~= nil, "Settings row offers Large")
+	end
+end })
+table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, corner letter and ink, and key text reads at 4.5:1 on card paper", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local FA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local glyphs, letters, inks = {}, {}, {}
+	for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
+		local m = A.SuitMarks[n]
+		expectTrue(m ~= nil, n .. " has a mark")
+		expectTrue(not glyphs[m.glyph] and not letters[m.letter], n .. " glyph and letter are unique")
+		glyphs[m.glyph], letters[m.letter] = true, true
+		local key = m.ink[1] .. "," .. m.ink[2] .. "," .. m.ink[3]
+		expectTrue(not inks[key], n .. " ink is unique")
+		inks[key] = true
+		expectEqual(A.suitMarkByGlyph(m.glyph), m, n .. " found by glyph")
+		expectTrue(CS.contrastRatio(m.ink, FA.FLAT_IVORY) >= 4.5, n .. " ink on ivory paper")
+	end
+	expectTrue(CS.contrastRatio(CS.RED_INK, FA.FLAT_IVORY) >= 4.5, "red ink on ivory")
+	expectTrue(CS.contrastRatio(CS.BLACK_INK, FA.FLAT_IVORY) >= 4.5, "black ink on ivory")
+end })
 table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Settings, then the first Display rows)", fn = function()
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r"))

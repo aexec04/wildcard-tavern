@@ -39,13 +39,12 @@ local GOLD = Color3.fromRGB(205, 170, 95)
 -- Settings > Display > Colorblind Suits: one ink per suit (keyed by the
 -- symbol CardFace is handed) plus a suit letter in the top-right corner,
 -- so suits differ by color AND a second shape cue, not just red/black.
-local COLORBLIND_INK = {
-	["♠"] = Color3.fromRGB(30, 22, 18), -- black
-	["♥"] = Color3.fromRGB(190, 30, 40), -- red
-	["♦"] = Color3.fromRGB(30, 90, 200), -- blue
-	["♣"] = Color3.fromRGB(25, 125, 55), -- green
-}
-local SUIT_LETTER = { ["♠"] = "S", ["♥"] = "H", ["♦"] = "D", ["♣"] = "C" }
+local SuitMarks = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Accessibility")).SuitMarks
+local COLORBLIND_INK, SUIT_LETTER = {}, {}
+for _, m in pairs(SuitMarks) do
+	COLORBLIND_INK[m.glyph] = Color3.fromRGB(m.ink[1], m.ink[2], m.ink[3])
+	SUIT_LETTER[m.glyph] = m.letter
+end
 
 local ClientSettings = require(script.Parent.ClientSettings)
 local HandSizing = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandSizing"))
