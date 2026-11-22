@@ -73,7 +73,7 @@ return function(deps)
 	local settingsTitle = Instance.new("TextLabel")
 	settingsTitle.Size = UDim2.new(1, 0, 0, 40)
 	settingsTitle.BackgroundTransparency = 1
-	settingsTitle.Font = Enum.Font.GothamBold
+	settingsTitle.Font = Enum.Font.Merriweather
 	settingsTitle.TextSize = 22
 	settingsTitle.TextColor3 = TEXT
 	settingsTitle.Text = "Settings"
@@ -91,7 +91,7 @@ return function(deps)
 	runLabel.Size = UDim2.new(1, -40, 0, 22)
 	runLabel.Position = UDim2.new(0, 20, 0, 40)
 	runLabel.BackgroundTransparency = 1
-	runLabel.Font = Enum.Font.GothamBold
+	runLabel.Font = Enum.Font.Merriweather
 	runLabel.TextSize = 16
 	runLabel.TextColor3 = HEADER
 	runLabel.Visible = false
@@ -126,7 +126,7 @@ return function(deps)
 		label.Size = UDim2.new(1, 0, 0, 30)
 		label.LayoutOrder = order()
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
+		label.Font = Enum.Font.Merriweather
 		label.TextSize = 18
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextYAlignment = Enum.TextYAlignment.Bottom
@@ -149,7 +149,7 @@ return function(deps)
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -130, 0, 22)
 		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
+		label.Font = Enum.Font.Merriweather
 		label.TextSize = 15
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = TEXT
@@ -162,7 +162,7 @@ return function(deps)
 		desc.TextYAlignment = Enum.TextYAlignment.Top
 		desc.Position = UDim2.new(0, 0, 0, 22)
 		desc.BackgroundTransparency = 1
-		desc.Font = Enum.Font.Gotham
+		desc.Font = Enum.Font.Merriweather
 		desc.TextSize = 14
 		desc.TextWrapped = true
 		desc.TextXAlignment = Enum.TextXAlignment.Left
@@ -176,7 +176,7 @@ return function(deps)
 		button.Size = isSwitch and UDim2.new(0, SW.w, 0, SW.h) or UDim2.new(0, 110, 0, 44)
 		button.AnchorPoint = Vector2.new(1, 0.5)
 		button.Position = UDim2.new(1, -16, 0.5, 0)
-		button.Font = Enum.Font.GothamBold
+		button.Font = Enum.Font.Merriweather
 		button.TextSize = 16
 		button.TextColor3 = TEXT
 		button.ZIndex = 21
@@ -263,7 +263,7 @@ return function(deps)
 		local t = Instance.new("TextLabel")
 		t.Size = UDim2.new(1, -130, 0, 22)
 		t.BackgroundTransparency = 1
-		t.Font = Enum.Font.GothamBold
+		t.Font = Enum.Font.Merriweather
 		t.TextSize = 16
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.TextColor3 = TEXT
@@ -274,7 +274,7 @@ return function(deps)
 		b.Size = UDim2.new(1, -130, 0, 36)
 		b.Position = UDim2.new(0, 0, 0, 22)
 		b.BackgroundTransparency = 1
-		b.Font = Enum.Font.Gotham
+		b.Font = Enum.Font.Merriweather
 		b.TextSize = 14
 		b.TextWrapped = true
 		b.TextXAlignment = Enum.TextXAlignment.Left
@@ -288,7 +288,7 @@ return function(deps)
 		go.Size = UDim2.new(0, 110, 0, 44)
 		go.AnchorPoint = Vector2.new(1, 0.5)
 		go.Position = UDim2.new(1, -4, 0.5, 0)
-		go.Font = Enum.Font.GothamBold
+		go.Font = Enum.Font.Merriweather
 		go.TextSize = 16
 		go.TextColor3 = TEXT
 		go.BackgroundColor3 = BUTTON
@@ -319,7 +319,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, -130, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -330,7 +330,7 @@ return function(deps)
 		blurb.Size = UDim2.new(1, -130, 0, 36)
 		blurb.Position = UDim2.new(0, 0, 0, 22)
 		blurb.BackgroundTransparency = 1
-		blurb.Font = Enum.Font.Gotham
+		blurb.Font = Enum.Font.Merriweather
 		blurb.TextSize = 14
 		blurb.TextWrapped = true
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
@@ -344,7 +344,7 @@ return function(deps)
 		go.Size = UDim2.new(0, 110, 0, 44)
 		go.AnchorPoint = Vector2.new(1, 0.5)
 		go.Position = UDim2.new(1, -4, 0.5, 0)
-		go.Font = Enum.Font.GothamBold
+		go.Font = Enum.Font.Merriweather
 		go.TextSize = 14
 		go.TextColor3 = TEXT
 		go.BackgroundColor3 = BUTTON
@@ -371,7 +371,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, -130, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -382,7 +382,7 @@ return function(deps)
 		blurb.Size = UDim2.new(1, -130, 0, 36)
 		blurb.Position = UDim2.new(0, 0, 0, 22)
 		blurb.BackgroundTransparency = 1
-		blurb.Font = Enum.Font.Gotham
+		blurb.Font = Enum.Font.Merriweather
 		blurb.TextSize = 14
 		blurb.TextWrapped = true
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
@@ -395,7 +395,7 @@ return function(deps)
 		replay.Size = UDim2.new(0, SettingsLayout.PANEL.replayW, 0, SettingsLayout.PANEL.replayH)
 		replay.AnchorPoint = Vector2.new(1, 0.5)
 		replay.Position = UDim2.new(1, -4, 0.5, 0)
-		replay.Font = Enum.Font.GothamBold
+		replay.Font = Enum.Font.Merriweather
 		replay.TextSize = 14
 		replay.TextColor3 = TEXT
 		replay.BackgroundColor3 = BUTTON
@@ -586,7 +586,7 @@ return function(deps)
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, SettingsLayout.CLOSE.w, 0, SettingsLayout.CLOSE.h)
 	settingsCloseButton.Position = UDim2.new(0.5, -SettingsLayout.CLOSE.w / 2, 1, -(SettingsLayout.CLOSE.h + 8))
-	settingsCloseButton.Font = Enum.Font.GothamBold
+	settingsCloseButton.Font = Enum.Font.Merriweather
 	settingsCloseButton.TextSize = 16
 	settingsCloseButton.Name = "Close" -- code and skins find this button by name; the word is Resume
 	settingsCloseButton.Text = SettingsLayout.PAUSE.resumeText
@@ -672,7 +672,7 @@ return function(deps)
 	blessingRow.Size = UDim2.new(1, 0, 0, 62)
 	blessingRow.LayoutOrder = 0
 	blessingRow.BackgroundTransparency = 1
-	blessingRow.Font = Enum.Font.GothamMedium
+	blessingRow.Font = Enum.Font.Merriweather
 	blessingRow.TextSize = 14
 	blessingRow.RichText = true
 	blessingRow.TextWrapped = true

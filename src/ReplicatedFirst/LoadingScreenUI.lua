@@ -38,7 +38,7 @@ local function label(parent, text, size, color, font)
 	l.Text = text
 	l.TextSize = math.max(16, size)
 	l.TextColor3 = color
-	l.Font = font or Enum.Font.GothamMedium
+	l.Font = font or Enum.Font.Fondamento
 	l.TextWrapped = true
 	l.TextTransparency = 0
 	l.TextStrokeTransparency = 0 -- a 1 px dark outline
@@ -290,7 +290,7 @@ function LoadingScreenUI.show(playerGui, opts)
 	skip.BackgroundColor3 = Color3.fromRGB(70, 46, 26)
 	skip.Text = "Skip"
 	skip.TextSize = 18
-	skip.Font = Enum.Font.GothamMedium
+	skip.Font = Enum.Font.Fondamento
 	skip.TextColor3 = CREAM
 	skip.Visible = false
 	skip.Parent = fade
