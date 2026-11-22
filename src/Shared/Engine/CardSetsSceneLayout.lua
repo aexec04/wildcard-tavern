@@ -136,6 +136,82 @@ function M.grid(areaW, areaH, n, page)
 	return out
 end
 
+-- The room (second pass): one large hero preview on the left (about 40 percent of the width) and a shelf of 5 tile columns on the right,
+-- each row of tiles standing on a drawn shelf board. Single Equip or Buy button under the hero. Everything is drawn in code over the
+-- Collection wall (no grid of identical boxes). Rects are in the area's pixels (the panel body between TOP and BOTTOM).
+-- room(areaW, areaH, n, page) -> { ok, cols, rows, perPage, pages, page, plates = { tabs = {sets, backs}, page, prev, next }, hero, parts, shelf,
+--                                  cells = { { tile, pic, name, board } ... } }
+M.ROOM = { side = 24, gap = 16, tileGap = 10, nameH = 30, boardH = 8, barTop = 8, barH = 40, heroFrac = 0.40, cols = 5 }
+M.ROOM_PANEL_FRAC = { 0.94, 0.94 }
+M.ROOM_PANEL_MAX = { 1500, 900 }
+M.ROOM_MIN = { w = 640, h = 400 }
+
+function M.roomPanel(screenW, screenH)
+	return PS.panelSize(screenW, screenH, M.ROOM_PANEL_FRAC[1], M.ROOM_PANEL_FRAC[2], M.ROOM_PANEL_MAX[1], M.ROOM_PANEL_MAX[2])
+end
+
+-- inside the hero: name plate, a mini table (with a fan of 5 cards and the back on a stand, or one large back), a description, the button
+function M.heroParts(hero)
+	local plate = { x = hero.x + 12, y = hero.y + 10, w = hero.w - 24, h = 34 }
+	local bw = math.min(200, hero.w - 24)
+	local button = { x = hero.x + math.floor((hero.w - bw) / 2), y = hero.y + hero.h - 10 - 38, w = bw, h = 38 }
+	local descH = hero.h < 230 and 0 or 30 -- a short window drops the description line, the table keeps its size
+	local desc = { x = hero.x + 12, y = button.y - 6 - descH, w = hero.w - 24, h = descH }
+	local ty = plate.y + plate.h + 8
+	local tbl = { x = hero.x + 12, y = ty, w = hero.w - 24, h = desc.y - 6 - ty }
+	local cardH = math.floor(math.min(tbl.h * 0.62, tbl.w * 0.221 * 1.5))
+	local cardW = math.floor(cardH * 2 / 3)
+	local step = math.floor(cardW * 0.45)
+	local cy = tbl.y + tbl.h - cardH - 10
+	local fan = {}
+	for i = 1, 5 do fan[i] = { x = tbl.x + 14 + (i - 1) * step, y = cy, w = cardW, h = cardH } end
+	local back = { x = tbl.x + tbl.w - cardW - 14, y = cy, w = cardW, h = cardH }
+	local stand = { x = back.x - 6, y = back.y + back.h, w = cardW + 12, h = 6 }
+	local bigH = tbl.h - 22
+	local big = { x = tbl.x + math.floor((tbl.w - math.floor(bigH * 2 / 3)) / 2), y = tbl.y + 8, w = math.floor(bigH * 2 / 3), h = bigH }
+	return { plate = plate, button = button, desc = desc, table = tbl, fan = fan, back = back, stand = stand, big = big }
+end
+
+function M.room(areaW, areaH, n, page)
+	local R = M.ROOM
+	local top = R.barTop + R.barH + 12
+	local hero = { x = R.side, y = top, w = math.floor(areaW * R.heroFrac) - R.side, h = areaH - top - 10 }
+	local shelf = { x = hero.x + hero.w + R.gap, y = top, w = areaW - R.side - (hero.x + hero.w + R.gap), h = hero.h }
+	local cols = R.cols
+	local tileW = math.floor((shelf.w - (cols - 1) * R.tileGap) / cols)
+	local picH = math.floor(tileW * 0.8)
+	local tileH = picH + R.nameH + 6
+	local rowH = tileH + R.boardH + 8
+	local rows = math.max(0, math.floor(shelf.h / rowH))
+	local parts = M.heroParts(hero)
+	local out = { cols = cols, rows = math.max(rows, 1), hero = hero, shelf = shelf, parts = parts, cells = {} }
+	out.ok = hero.w >= 200 and hero.h >= 160 and tileW >= 60 and rows >= 1 and parts.table.h >= 64
+	out.perPage = cols * out.rows
+	out.pages = math.max(1, math.ceil(n / out.perPage))
+	out.page = math.max(1, math.min(out.pages, page or 1))
+	local first = (out.page - 1) * out.perPage
+	local onPage = math.max(0, math.min(out.perPage, n - first))
+	local x0 = shelf.x + math.floor((shelf.w - (cols * tileW + (cols - 1) * R.tileGap)) / 2)
+	for i = 1, onPage do
+		local r, c = math.floor((i - 1) / cols), (i - 1) % cols
+		local x, y = x0 + c * (tileW + R.tileGap), shelf.y + r * rowH
+		out.cells[i] = {
+			tile = { x = x, y = y, w = tileW, h = tileH },
+			pic = { x = x + 3, y = y + 3, w = tileW - 6, h = picH },
+			name = { x = x + 2, y = y + picH + 5, w = tileW - 4, h = R.nameH },
+			board = { x = shelf.x - 4, y = y + tileH + 1, w = shelf.w + 8, h = R.boardH },
+		}
+	end
+	local bw, cw, y = 150, 104, R.barTop
+	out.plates = {
+		tabs = { { x = R.side, y = y, w = bw, h = R.barH }, { x = R.side + bw + 10, y = y, w = bw, h = R.barH } },
+		page = { x = areaW - R.side - 3 * cw - 20, y = y, w = cw, h = R.barH },
+		prev = { x = areaW - R.side - 2 * cw - 10, y = y, w = cw, h = R.barH },
+		next = { x = areaW - R.side - cw, y = y, w = cw, h = R.barH },
+	}
+	return out
+end
+
 function M.pageCount(n)
 	return math.max(1, math.ceil(n / M.PER_PAGE))
 end
