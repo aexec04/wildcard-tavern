@@ -3470,7 +3470,7 @@ table.insert(tests, { name = "'Empty-Handed' leaves 1 discard and caps hands at 
 	expectEqual(empty.minNight, 6)
 end })
 
-table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
@@ -3479,8 +3479,14 @@ table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gat
 	local resultCut = RunState.playHand(stateCut, { 1, 2 })
 
 	expectEqual(stateCut.bossModifier.minNight, 6)
-	expectEqual(resultCut.chips, resultNormal.chips * 0.68)
-	expectEqual(resultCut.mult, resultNormal.mult * 0.68)
+	expectEqual(resultCut.chips, resultNormal.chips * 0.7)
+	expectEqual(resultCut.mult, resultNormal.mult * 0.7)
+end })
+
+table.insert(tests, { name = "Boss rule sim pin: Big Tab 1.9x target, Everything's Out 0.70 and Bare Bones 0.72 (Night 6 clear rate was under 40%)", fn = function()
+	expectEqual(BossRounds.getById("big_tab").targetScoreMultiplier, 1.9)
+	expectEqual(BossRounds.getById("everythings_out").chipsMultiplier, 0.7)
+	expectEqual(BossRounds.getById("bare_bones").multMultiplier, 0.72)
 end })
 
 table.insert(tests, { name = "BossRounds.Definitions has grown to include this phase's 6 new modifiers", fn = function()
@@ -3638,10 +3644,10 @@ table.insert(tests, { name = "'Rushed Order' caps hands at 3, gated to tier 2", 
 	expectEqual(rushed.minNight, 3)
 end })
 
-table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 28%, gated to tier 3", fn = function()
 	local bareBones = BossRounds.getById("bare_bones")
-	expectEqual(bareBones.chipsMultiplier, 0.7)
-	expectEqual(bareBones.multMultiplier, 0.7)
+	expectEqual(bareBones.chipsMultiplier, 0.72)
+	expectEqual(bareBones.multMultiplier, 0.72)
 	expectEqual(bareBones.minNight, 6)
 end })
 
@@ -4169,7 +4175,7 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
 	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
-	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 2))
+	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 1.9))
 	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).handsRemaining, 3)
@@ -4177,8 +4183,8 @@ end })
 
 table.insert(tests, { name = "Balance: boss descriptions state their tuned numbers", fn = function()
 	local expected = {
-		stale_bread = "25%", bare_bones = "30%", everythings_out = "32%",
-		thin_chips = "40%", flat_mult = "40%", big_tab = "double",
+		stale_bread = "25%", bare_bones = "28%", everythings_out = "30%",
+		thin_chips = "40%", flat_mult = "40%", big_tab = "nearly double",
 		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
 		last_chance = "1 discard", empty_handed = "1 discard",
 	}

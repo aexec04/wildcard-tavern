@@ -190,4 +190,62 @@ After (4262 visits):
 
 - Repeats (3 percent) and owned Patrons (0 percent, the picker already skips them) are under the 10 percent line, so the picker is unchanged for those.
 - Dead picks were the problem: when a seat was free and nothing offered fit the Tips on hand, the shop could still show two Patrons the player could not buy. `Shop.rollOffers` now swaps the last offer for a random Patron that fits when one exists. A full table is left alone. Prices are untouched and nothing is paid for. Pinned by the test `Shop offers: never a Patron already owned, never a dead pick`.
-- The "poor" column is the economy, not the picker: the bot spends everything on sight, so early second and third visits arrive under 4 Tips. See the shop economy section above; no number changed.
+- The "poor" column is the economy, not the picker (see also the Boss rules section below): the bot spends everything on sight, so early second and third visits arrive under 4 Tips. See the shop economy section above; no number changed.
+
+## Boss rules: clear rate per boss on Nights 3, 6 and 9
+
+`lua tools/run_sim.lua --boss-rules --runs 400 --jobs 6` (decent bot, full runs with random Patron buys, the boss forced on that Night; the cell counts only runs that reached the boss, shown as n). About 30 minutes. A start at the Night with 4 fresh Patrons was tried first and rejected: it skips the shop visits and hand levels a real run has, so every boss read 0 to 25 percent whatever its rule.
+
+Clear rate before the change (n = 400 on Night 3, 353 on Night 6, 45 on Night 9):
+
+| Boss | Night 3 | Night 6 | Night 9 |
+| --- | --- | --- | --- |
+| bouncer | 100.0 | 66.3 | 57.8 |
+| short_notice | 100.0 | 76.8 | 68.9 |
+| house_rules | 100.0 | 61.8 | 42.2 |
+| the_tab | 100.0 | 83.6 | 71.1 |
+| thin_soup | 100.0 | 70.5 | 48.9 |
+| slow_simmer | 100.0 | 70.5 | 48.9 |
+| rowdy_crowd | 100.0 | 85.3 | 75.6 |
+| no_repeats | 100.0 | 70.5 | 55.6 |
+| hearts_are_out | 100.0 | 75.6 | 64.4 |
+| spades_are_out | 100.0 | 77.9 | 62.2 |
+| no_vips | 100.0 | 75.9 | 68.9 |
+| empty_pockets | 100.0 | 83.6 | 71.1 |
+| full_table | 100.0 | 87.0 | 75.6 |
+| last_chance | 99.5 | 71.1 | 60.0 |
+| short_staffed | 99.2 | 61.2 | 55.6 |
+| diamonds_are_out | 100.0 | 75.6 | 66.7 |
+| clubs_are_out | 100.0 | 75.9 | 64.4 |
+| steep_tab | 100.0 | 83.6 | 71.1 |
+| thin_chips | 100.0 | 49.3 | 24.4 |
+| flat_mult | 100.0 | 49.3 | 24.4 |
+| double_tab | 100.0 | 73.4 | 53.3 |
+| lights_out | 99.2 | 62.6 | 44.4 |
+| quick_service | 100.0 | 69.1 | 51.1 |
+| stale_bread | 100.0 | 44.5 | 15.6 |
+| one_at_a_time | 100.0 | 56.9 | 80.0 |
+| big_tab | 99.8 | 37.4 | 8.9 |
+| wild_crowd | 100.0 | 88.4 | 68.9 |
+| empty_handed | 98.8 | 52.7 | 42.2 |
+| everythings_out | 99.8 | 32.3 | 8.9 |
+| four_top | 99.5 | 63.5 | 46.7 |
+| slow_night | 100.0 | 84.7 | 66.7 |
+| house_minimum | 100.0 | 73.9 | 53.3 |
+| picked_over | 99.8 | 59.2 | 53.3 |
+| rushed_order | 100.0 | 71.4 | 48.9 |
+| bare_bones | 99.8 | 35.4 | 8.9 |
+| sleepy_cook | 100.0 | 63.5 | 48.9 |
+| cold_start | 100.0 | 83.6 | 71.1 |
+| pair_patrol | 100.0 | 82.7 | 66.7 |
+| heavy_hands | 100.0 | 83.6 | 71.1 |
+| quiet_corner | 99.8 | 71.7 | 66.7 |
+| picky_eater | 100.0 | 66.3 | 51.1 |
+| crowded_counter | 100.0 | 65.4 | 33.3 |
+| penny_wise | 100.0 | 83.6 | 71.1 |
+
+- Night 3 is 98.8 to 100 percent for every boss. That is the welcome ramp (Night 3 clears 100 percent in the pacing sim), not a boss problem, so it was left alone; raising 40 boss numbers to push Night 3 under 95 would undo it.
+- Night 9 reads only 45 runs per boss (few runs get there), so its cells move by about 7 points per run and were not used for changes. They still show the same three Night 6 outliers plus thin_chips, flat_mult, stale_bread and crowded_counter low; worth a re-run with more seeds if Night 9 feels brutal.
+- Night 6 under 40 percent: big_tab 37.4, bare_bones 35.4, everythings_out 32.3. Each got its own number eased by one step: Big Tab target 2.0x to 1.9x ("nearly double"), Everything's Out 0.68 to 0.70 (cut 30 percent), Bare Bones 0.70 to 0.72 (cut 28 percent). The order Stale Bread 0.75, Bare Bones, Everything's Out still holds.
+- After, Night 6: big_tab 40.5, bare_bones 39.1, everythings_out 35.4, stale_bread 44.5 (unchanged). Everything's Out is still 4.6 under the line and Bare Bones 0.9 under (inside sampling noise); one more step would squeeze the three tier 3 cuts into 25, 28 and 30 percent apart, so I stopped at one step. Needs the user only if they want Everything's Out higher: a further step to 0.72 means rebalancing Bare Bones and Stale Bread too.
+- Pinned by the test `Boss rule sim pin` plus the updated Everything's Out, Bare Bones and boss target tests.

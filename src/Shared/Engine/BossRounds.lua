@@ -269,10 +269,10 @@ BossRounds.Definitions = {
 	{
 		id = "big_tab",
 		name = "Big Tab",
-		description = "The target score is double this round.",
+		description = "The target score is nearly double this round.",
 		flavorText = "The bill came back twice as long as expected.",
 		minNight = 6,
-		targetScoreMultiplier = 2,
+		targetScoreMultiplier = 1.9,
 	},
 	{
 		id = "wild_crowd",
@@ -295,11 +295,11 @@ BossRounds.Definitions = {
 	{
 		id = "everythings_out",
 		name = "Everything's Out",
-		description = "Chips and Mult from played hands are reduced by 32% this round.",
+		description = "Chips and Mult from played hands are reduced by 30% this round.",
 		flavorText = "The pantry is almost bare tonight.",
 		minNight = 6,
-		chipsMultiplier = 0.68,
-		multMultiplier = 0.68,
+		chipsMultiplier = 0.7,
+		multMultiplier = 0.7,
 	},
 	{
 		id = "four_top",
@@ -382,14 +382,14 @@ BossRounds.Definitions = {
 	{
 		id = "bare_bones",
 		name = "Bare Bones",
-		description = "Chips and Mult from played hands are reduced by 30% this round.",
+		description = "Chips and Mult from played hands are reduced by 28% this round.",
 		flavorText = "Just the basics tonight. No frills at all.",
 		-- Sits between tier-3 siblings Stale Bread (-25%) and
-		-- Everything's Out (-32%) -- a genuine tier-3-only
+		-- Everything's Out (-30%) -- a genuine tier-3-only
 		-- escalation step, not a new knob.
 		minNight = 6,
-		chipsMultiplier = 0.7,
-		multMultiplier = 0.7,
+		chipsMultiplier = 0.72,
+		multMultiplier = 0.72,
 	},
 
 	-- ===== Phase 3 batch -- 8 new rules, each with a rule no earlier Boss Round had. =====
