@@ -9319,8 +9319,30 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
-	-- 20 quest types, unique ids, never two quests on one counter in a day, deterministic
-	expectEqual(#Quests.Definitions, 20, "20 quest types")
+	-- 24 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 24, "24 quest types")
+	do -- variety: 12+ distinct counters, and no quest repeats inside a UTC week (3 a day, 21 different)
+		local kinds, kindCount = {}, 0
+		for _, def in ipairs(Quests.Definitions) do
+			if not kinds[def.counter] then kinds[def.counter] = true; kindCount = kindCount + 1 end
+			expectTrue(def.tips >= 2 and def.tips <= 5, def.id .. " Tips reward is fair")
+			for _, bad in ipairs({ "beer", "wine", "kill", "blood", "gun", "balat" }) do
+				expectTrue(not (def.name .. " " .. def.desc):lower():find(bad, 1, true), def.id .. " is kid safe")
+			end
+		end
+		expectTrue(kindCount >= 12, "at least 12 distinct quest types: " .. kindCount)
+		for week = 2900, 3100 do
+			local seenInWeek = {}
+			for d = 0, 6 do
+				local ids = Quests.rollFor(week * 7 + d)
+				expectEqual(#ids, 3, "three a day")
+				for _, id in ipairs(ids) do
+					expectTrue(not seenInWeek[id], "week " .. week .. " repeats " .. id)
+					seenInWeek[id] = true
+				end
+			end
+		end
+	end
 	local questIds = {}
 	for _, def in ipairs(Quests.Definitions) do
 		expectTrue(not questIds[def.id], "unique quest id " .. def.id)
