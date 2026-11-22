@@ -41019,6 +41019,43 @@ table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and
 	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
 end })
 
+table.insert(tests, { name = "Soft lock hunt: every deck against every boss rule, random plays and discards always leave a legal action and the round always ends", fn = function()
+	local rounds = 0
+	for deckIndex, deck in ipairs(DeckVariants.Definitions) do
+		for bossIndex, boss in ipairs(BossRounds.Definitions) do
+			for night = 1, 9, 4 do
+				local seed = deckIndex * 1000 + bossIndex * 10 + night
+				local rng = SeededRng.new(seed)
+				local state = RunState.new({ deckVariantId = deck.id }, rng)
+				state.night, state.round, state.nightBossModifier = night, state.config.roundsPerNight, boss
+				RunState.startRound(state)
+				local actions = 0
+				while not state.roundOver do
+					actions = actions + 1
+					expectTrue(actions <= 60, deck.id .. " " .. boss.id .. " round never ended")
+					expectTrue(state.handsRemaining > 0 and RunState.hasLegalPlay(state), deck.id .. " " .. boss.id .. " left no legal play")
+					local need = (state.bossModifier and state.bossModifier.requiredCardsPerHand) or math.max(rng(5), (state.bossModifier and state.bossModifier.minCardsPerHand) or 1)
+					local size = math.min(#state.hand, need)
+					local picks, taken = {}, {}
+					while #picks < size do
+						local i = rng(#state.hand)
+						if not taken[i] then taken[i] = true; table.insert(picks, i) end
+					end
+					local ok, err
+					if state.discardsRemaining > 0 and rng(3) == 1 then
+						ok, err = pcall(RunState.discard, state, picks)
+					else
+						ok, err = pcall(RunState.playHand, state, picks)
+					end
+					expectTrue(ok, deck.id .. " " .. boss.id .. " legal action errored: " .. tostring(err))
+				end
+				rounds = rounds + 1
+			end
+		end
+	end
+	expectTrue(rounds >= 4 * #BossRounds.Definitions * 3 - 1, "swept every deck and boss: " .. rounds)
+end })
+
 return tests
 
 
