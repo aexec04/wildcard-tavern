@@ -26,6 +26,7 @@ M.GAP = 6
 M.AUTO_SECONDS = 4
 M.FADE = 0.2
 M.MAX_STACK = 2 -- never more than two toasts on screen
+M.MAX_QUEUE = 6 -- and a short queue behind them: a flood (a first run unlock burst) drops the oldest waiting notice, so nothing shows minutes late
 M.MIN_SHOW = 2.5 -- every toast stays readable at least this long, even when a smaller slot or a tap-free queue wants the room
 M.CARDS_TOP = 104 -- Round Select's cards start here (RoundSelect.lua panelRow)
 M.LINE_HEIGHT = 17
@@ -144,6 +145,7 @@ function Stack:push(item, now)
 	self.pending[#self.pending + 1] = {
 		order = self.counter, id = item.id, text = text, names = names, group = item.group, icon = item.icon, artId = item.artId, hold = item.hold, rise = item.rise,
 	}
+	while #self.pending > M.MAX_QUEUE do table.remove(self.pending, 1) end
 	return true
 end
 

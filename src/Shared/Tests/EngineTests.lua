@@ -42081,6 +42081,33 @@ table.insert(tests, { name = "Menu first impression: hotspots are 44 px and neve
 	expectTrue(seen >= 20, "the Menu files were scanned")
 end })
 
+table.insert(tests, { name = "Toast queue stacking: a flood of 40 notices never shows more than two at once, keeps a short queue of the newest, every slot clears the corner buttons and its neighbour at four sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	expectEqual(R.MAX_STACK, 2, "two on screen")
+	local st = R.new()
+	for i = 1, 40 do st:push({ id = "f" .. i, text = "Quest " .. i }, 0) end
+	expectEqual(#st.pending, R.MAX_QUEUE, "the queue stays short")
+	expectEqual(st.pending[#st.pending].text, "Quest 40", "the newest notice is kept")
+	expectEqual(st.pending[1].text, "Quest 35", "the oldest waiting ones were dropped")
+	for t = 0, 60, 0.5 do
+		st:tick(t, R.MAX_STACK)
+		expectTrue(#st.visible <= R.MAX_STACK, "never more than two at " .. t .. " s")
+	end
+	expectTrue(st:isEmpty(), "the flood drains by itself")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		for _, screen in ipairs({ "table", "shop", "choice", "roundSelect" }) do
+			local plan = R.plan(screen)
+			local prev
+			for i = 1, plan.maxVisible do
+				local s = R.slot(sz[1], sz[2], plan, i)
+				expectTrue(s.y >= R.TOP - 8 and s.y + s.h <= sz[2] and s.x >= 0, screen .. " slot " .. i .. " is on screen and under the corner buttons at " .. sz[1] .. "x" .. sz[2])
+				if prev then expectTrue(s.y >= prev.y + prev.h, screen .. " slot " .. i .. " clears the one above at " .. sz[1] .. "x" .. sz[2]) end
+				prev = s
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local LL = require(Engine.LoadingLayout)
