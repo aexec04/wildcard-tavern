@@ -37447,6 +37447,19 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	local body = src:sub(at, at + 700)
 	expectTrue(body:find("Enum.Font.Merriweather", 1, true) ~= nil and body:find("ACC.textSize", 1, true) ~= nil, "Account plates use Merriweather at ACCOUNT.textSize")
 	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
+	-- exactly five Account buttons, unique labels, unique icons, one shared painted plate each (3 + 2 grid), one Tavern Map
+	local labels, icons, count = {}, {}, 0
+	for label, icon in src:gmatch('local settings%w+Button = makeAccountButton%(([^,]+), %d, "(%w+)"') do
+		count = count + 1
+		expectTrue(not labels[label], "unique Account label " .. label)
+		expectTrue(not icons[icon], "unique Account icon " .. icon)
+		labels[label], icons[icon] = true, true
+	end
+	expectEqual(count, 5, "exactly five Account buttons")
+	local _, maps = src:gsub('"Tavern Map", %d', "")
+	expectEqual(maps, 1, "one Tavern Map button")
+	expectTrue(src:find("ConceptTSkin).plateButton(button)", 1, true) == nil and src:find("Kit.paintedButton, button, \"secondary\"", 1, true) ~= nil, "Account buttons use the shared painted plate")
+	expectTrue(A.plateH >= 44, "Account plates are 44 px or taller")
 end })
 
 table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
