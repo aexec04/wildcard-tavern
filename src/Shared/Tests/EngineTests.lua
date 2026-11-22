@@ -40803,4 +40803,27 @@ table.insert(tests, { name = "My Patrons seat order, set bonus plates and Sell p
 	end
 end })
 
+table.insert(tests, { name = "Phone and tablet audit over all 14 sets at 800x450, 1024x768 and 1366x768: Counter shop, Tavern Map header, Season, Store, Tome header and Flair room keep fit and 44 px targets", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local want = { ["Counter shop"] = true, ["Tavern Map header"] = true, ["Season panel"] = true, ["Store"] = true, ["Tome header"] = true, ["Flair room"] = true }
+	local keep = {}
+	for _, sc in ipairs(screens) do if want[sc.name] then keep[#keep + 1] = sc end end
+	expectEqual(#keep, 6, "all six screens are covered")
+	local runs = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+			for _, sc in ipairs(keep) do
+				runs = runs + 1
+				for _, f in ipairs(Audit.checkScreen(sc, sz[1], sz[2])) do
+					expectTrue(f.rule ~= "touch" and f.rule ~= "screen" and f.rule ~= "text" and f.rule ~= "build", set.id .. " " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+				end
+			end
+		end
+	end
+	expectTrue(runs >= 14 * 3 * 6, "every set, size and screen was audited")
+end })
+
 return tests

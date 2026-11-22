@@ -498,6 +498,12 @@ function SeasonPanel.init(deps)
 		track.Size = UDim2.new(1, -30, 0, trackH)
 		panel.Size = UDim2.fromOffset(fit.panelW, fit.panelH)
 		panelScale.Scale = fit.scale
+		local bh = SeasonTrack.touchH(fit.scale) -- stays 44 px on screen when a short screen shrinks the panel
+		local by = SeasonTrack.buttonTop(bh)
+		claimAll.Size = UDim2.fromOffset(190, bh)
+		claimAll.Position = UDim2.new(1, -15, 0, by)
+		premiumButton.Size = UDim2.fromOffset(200, bh)
+		premiumButton.Position = UDim2.new(1, -215, 0, by)
 		shadeL.Size = UDim2.new(0, 14, 0, trackH - 12)
 		shadeR.Size = shadeL.Size
 		-- bring the first tile that still needs attention into view
