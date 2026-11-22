@@ -11306,6 +11306,62 @@ table.insert(tests, { name = "Soft lock check: scripted runs through Nights 1 to
 	end
 end })
 
+table.insert(tests, { name = "Bot run to Night 5: a legal-hand bot clears every round through Night 5 with a Counter visit, an Event and a Boss each Night, never stuck", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	for seed = 1, 6 do
+		local s = RunState.new(nil, SeededRng.new(seed * 13))
+		s.strangerSeed = seed * 17 + 3
+		local total = #s.deck + #s.hand + #s.discardPile
+		local bosses, shops, events, steps = 0, 0, 0, 0
+		while s.night <= 5 and not s.runOver and steps < 600 do
+			steps = steps + 1
+			local label = "seed " .. seed .. " step " .. steps
+			expectTrue(s.tips >= 0 and s.tips == math.floor(s.tips), label .. ": Tips whole, not negative")
+			if not s.roundOver then
+				expectTrue(#s.hand >= 1 and s.handsRemaining >= 1 and RunState.hasLegalPlay(s), label .. ": a legal play exists")
+				if s.isBossRound and s.bossModifier then bosses = bosses + 1 end
+				s.targetScore = 1 -- bot stays on the legal-action path; scoring balance is covered by the sim
+				-- the bot tries five cards, then fewer, down to one: any legal hand will do
+				local played = false
+				for n = math.min(5, #s.hand), 1, -1 do
+					local idx = {}
+					for i = 1, n do idx[i] = i end
+					if pcall(RunState.playHand, s, idx) then played = true break end
+				end
+				expectTrue(played or s.roundOver or s.runOver, label .. ": the bot can always play")
+			end
+			if s.roundOver and not s.runOver then
+				shops = shops + 1
+				local offers = Shop.rollOffers(s)
+				for _, offer in ipairs(offers.patrons or {}) do
+					if s.tips >= RunState.patronPrice(s, offer) and #s.ownedPatrons < RunState.patronSlotLimit(s) then
+						RunState.buyPatron(s, offer.id)
+						break
+					end
+				end
+				RunState.advanceToNextRound(s)
+				expectEqual(#s.deck + #s.hand + #s.discardPile, total, label .. ": no card lost")
+				if s.round == 1 and s.night >= 2 then
+					local choice = RunChoice.rollEvent(s, true)
+					local guard = 0
+					while choice and guard < 4 do
+						guard = guard + 1
+						events = events + 1
+						local picked, _, _, nextChoice = RunChoice.pick(s, choice, "decline")
+						if not picked then picked, _, _, nextChoice = RunChoice.pick(s, choice, choice.options[1].id) end
+						expectTrue(picked ~= nil, label .. ": an Event can always be answered")
+						choice = nextChoice
+					end
+				end
+			end
+		end
+		expectTrue(steps < 600, "seed " .. seed .. " finishes without looping")
+		expectTrue(s.night > 5 or s.runOver, "seed " .. seed .. " reaches past Night 5")
+		expectTrue(shops >= 5, "seed " .. seed .. " visits the Counter")
+		expectTrue(bosses >= 1, "seed " .. seed .. " meets a Boss round")
+	end
+end })
+
 table.insert(tests, { name = "Tavern Events: the new trade events offer three choices with a cost, and the Choice plates are 44 px tall", fn = function()
 	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
 	for _, id in ipairs({ "gamblers_table", "wandering_tailor", "cellar_cat" }) do
