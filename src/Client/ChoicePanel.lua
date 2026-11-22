@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
+local PORTRAIT_SCALE = 1.3 -- Patron portraits in the draft rings: enlarged and top anchored so the baked in name is clipped away
 local ClientSettings = require(script.Parent.ClientSettings)
 local ModalStage = require(script.Parent.ModalStage)
 local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
@@ -172,7 +173,22 @@ local function buildCard(choice, option, order)
 	ring.Parent = well
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
 	if choice.kind == "patron" or choice.kind == "rushPatron" or choice.kind == "reward" then
-		PatronPlaque.apply(well, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+		-- Patron art is a full card with its name baked in at the bottom: show it enlarged and anchored to the top, clipped by the
+		-- round well, so only the character shows inside the ring
+		local crop = Instance.new("Frame")
+		crop.Name = "PortraitCrop"
+		crop.Size = UDim2.fromScale(1, 1)
+		crop.BackgroundTransparency = 1
+		crop.BorderSizePixel = 0
+		crop.ClipsDescendants = true
+		crop.ZIndex = 65
+		crop.Parent = well
+		ui.roundCorner(crop, 42)
+		PatronPlaque.apply(crop, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 0,
+			size = UDim2.fromScale(PORTRAIT_SCALE, PORTRAIT_SCALE), position = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0) })
+		if game:GetService("RunService"):IsStudio() then
+			print(("[PortraitCrop] patron=%s scale=%.2f anchor=top"):format(tostring(option.id), PORTRAIT_SCALE))
+		end
 	elseif choice.kind == "modifier" then
 		local artId = ContentArt.getImageId("blessing_icons", option.id)
 		if artId then

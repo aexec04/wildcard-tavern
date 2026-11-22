@@ -65,11 +65,13 @@ end
 
 function M.next(state, seen, opts)
 	if not M.enabledFor(state, opts) then return nil end
-	if opts and opts.panelShowing then return nil end -- at most one tip card on screen: the Patron Power panel is the permanent one
+	local panelShowing = opts and opts.panelShowing
 	seen = type(seen) == "table" and seen or {}
 	local round = tonumber(state.round) or 1
 	for _, e in ipairs(M.ORDER) do
-		if not seen[e.id] then
+		-- the Patron Power panel is the permanent tip card, so later plates wait for it; the pick-your-cards line is the first
+		-- instruction of a new profile and always shows (the client moves the panel aside while it is up)
+		if not seen[e.id] and not (panelShowing and e.id ~= "round_hint_select") then
 			local ok = true
 			if e.id == "round_hint_select" then ok = round == 1 and not M.expired(e.id, state)
 			elseif e.id == "round_hint_tiers" then ok = owned(state) >= 1 and not (opts and opts.panelOwnsTiers) -- the left panel shows it

@@ -347,10 +347,12 @@ end
 -- per card cap: a picked card keeps its top at least PROGRESS_CLEAR px under the bottom of the "N of Target" line
 -- (lift = min(want, restTop - (progressBottom + PROGRESS_CLEAR))), never negative; nil inputs keep the wanted lift
 M.PROGRESS_CLEAR = 10
+-- a picked card under the mouse also takes the 10 px hover lift and grows 4 percent (about 6 px at the top edge): kept free too
+M.HOVER_RESERVE = 16
 function M.capLift(want, restTop, progressBottom)
 	want = want or 28
 	if not (restTop and progressBottom) then return want end
-	return math.max(0, math.min(want, restTop - (progressBottom + M.PROGRESS_CLEAR)))
+	return math.max(0, math.min(want, restTop - (progressBottom + M.PROGRESS_CLEAR + M.HOVER_RESERVE)))
 end
 
 function M.playedBand(r, capH, progH)

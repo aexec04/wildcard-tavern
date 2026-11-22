@@ -32,6 +32,9 @@ local function build(layer)
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
 	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate
+	pcall(function() -- a slow gold pulse so the first instruction is noticed (the whole layer is off in Calm mode, so this never runs there)
+		game:GetService("TweenService"):Create(st, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 4 }):Play()
+	end)
 	local function label(name, y, h, size, color, font)
 		local t = Instance.new("TextLabel")
 		t.Name = name

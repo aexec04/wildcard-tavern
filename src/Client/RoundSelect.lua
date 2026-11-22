@@ -306,7 +306,7 @@ return function(deps)
 		isActionPending = function() return actionPending end,
 	})
 	local function bossPlateText(entry, bossName)
-		local room = '<font size="14">' .. ROOM_CONFIGS[ROUNDS_PER_NIGHT].roomName .. '</font>'
+		local room = '<font size="17">' .. ROOM_CONFIGS[ROUNDS_PER_NIGHT].roomName .. '</font>'
 		return bossName and (room .. "\n" .. bossName) or room
 	end
 	local NO_BUTTON_DROP = 96 -- Select (44) + gap (6) + Skip (40) + margins, see the button positions below
@@ -820,8 +820,8 @@ return function(deps)
 		end
 		tipsChip.Text = string.format("Tips: %d", math.floor(tonumber(state.tips) or 0))
 		subtitleLabel.Text = state.round == 1
-			and "A new Night begins! Play the round you're on, or skip it for a Tag instead."
-			or "Play the round you're on, or skip it for a Tag instead."
+			and "Night begins. Play this round, or skip it for a Tag."
+			or "Play this round, or skip it for a Tag."
 		-- Endless Mode has its own header style (shared with the Journey map).
 		titleLabel.TextColor3 = inEndless and ENDLESS_ACCENT or Color3.fromRGB(250, 240, 220)
 		subtitleLabel.TextColor3 = inEndless and ENDLESS_SUB or Color3.fromRGB(220, 205, 185)

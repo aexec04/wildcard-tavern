@@ -21613,12 +21613,13 @@ end })
 
 table.insert(tests, { name = "Hand: a picked card's lift is capped so its top stays 10 px under the N of Target line; the pick edge is a 3 px gold frame above neighbours", fn = function()
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
-	expectEqual(G.capLift(28, 600, 512), 28, "plenty of room keeps the full lift")
-	expectEqual(G.capLift(28, 530, 512), 8, "the 8 at top 530 lifts 8 so its top is 522")
+	expectEqual(G.capLift(28, 620, 512), 28, "plenty of room keeps the full lift")
+	expectEqual(G.capLift(28, 550, 512), 12, "top 550 lifts 12: 10 clear plus 16 for hover and scale under the line at 512")
 	expectEqual(G.capLift(28, 515, 512), 0, "never negative")
 	expectEqual(G.capLift(28, nil, 512), 28, "unknown rest top keeps the lift")
 	for _, top in ipairs({ 520, 540, 560, 600 }) do
-		expectTrue(top - G.capLift(28, top, 512) >= 522 or G.capLift(28, top, 512) == 0, "picked top clear at rest top " .. top)
+		local lift = G.capLift(28, top, 512)
+		expectTrue(top - lift - 10 - 6 >= 522 or lift == 0, "hovered picked card top clear at rest top " .. top)
 	end
 	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
 	if not f then return end
@@ -31694,7 +31695,8 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 	expectEqual(RH.next(st({ round = 2 }), { round_hint_select = true, round_hint_tiers = true }, on), nil, "no What is Target card any more, the Target is in the top bar")
 	expectTrue(RH.getById("round_hint_target") == nil, "the Target card is removed")
 	local both = st({ ownedPatrons = { { id = "the_regular" } } })
-	expectEqual(RH.next(both, {}, { enabled = true, calm = false, panelShowing = true }), nil, "at most one tip card: the Patron Power panel is showing, so no hint card")
+	expectEqual(RH.next(both, {}, { enabled = true, calm = false, panelShowing = true }).id, "round_hint_select", "the first instruction shows even while the Patron Power panel is up")
+	expectEqual(RH.next(both, { round_hint_select = true }, { enabled = true, calm = false, panelShowing = true }), nil, "later plates still wait for the panel")
 	expectEqual(RH.next(both, {}, { enabled = true, calm = false, panelShowing = false }).id, "round_hint_select", "the panel is off, so the hint card may show")
 	expectEqual(RH.next(st({ round = 4 }), {}, on), nil, "round 4 is past the layer")
 	expectEqual(RH.next(st({ night = 2 }), {}, on), nil, "Night 2 is past the layer")

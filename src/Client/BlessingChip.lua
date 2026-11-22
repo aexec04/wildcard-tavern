@@ -106,6 +106,22 @@ function BlessingChip.init(deps)
 	stroke.Thickness = 2
 	stroke.Parent = chip
 
+	-- Round Select shows the chip over bare wood: its own dark plate (made first, so it sits under the icon and texts)
+	local plate = Instance.new("Frame")
+	plate.Name = "RoundSelectPlate"
+	plate.Size = UDim2.fromScale(1, 1)
+	plate.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	plate.BackgroundTransparency = 0.04
+	plate.BorderSizePixel = 0
+	plate.Active = false
+	plate.Visible = false
+	plate.ZIndex = 7
+	plate.Parent = chip
+	do
+		local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = plate
+		local ps = Instance.new("UIStroke"); ps.Color = Color3.fromRGB(150, 118, 66); ps.Thickness = 1.5; ps.Parent = plate
+	end
+
 	local icon = Instance.new("TextLabel")
 	icon.Name = "Icon"
 	icon.BackgroundTransparency = 1
@@ -124,7 +140,7 @@ function BlessingChip.init(deps)
 	local curse = label(chip, "Curse", 14, RED, 48, 20, Enum.Font.GothamMedium)
 
 	ui = {
-		chip = chip, icon = icon, name = name, blessing = blessing, curse = curse,
+		chip = chip, plate = plate, icon = icon, name = name, blessing = blessing, curse = curse,
 		root = deps.root, addTooltip = deps.addTooltip,
 	}
 end
@@ -201,6 +217,13 @@ function BlessingChip.update(state)
 	end
 	ui.shown = true
 	ui.chip:SetAttribute("Shown", true)
+	do -- Round Select: cream text on the dark plate (all above 4.5:1), the normal ink colours everywhere else
+		local onWood = state.phase == "roundSelect"
+		ui.plate.Visible = onWood
+		ui.name.TextColor3 = onWood and Color3.fromRGB(250, 235, 200) or INK
+		ui.blessing.TextColor3 = onWood and Color3.fromRGB(150, 225, 160) or GREEN
+		ui.curse.TextColor3 = onWood and Color3.fromRGB(255, 160, 150) or RED
+	end
 	ui.crowd = type(state.crowdRules) == "table" and #state.crowdRules > 0
 	if shownId ~= view.id then
 		shownId = view.id
