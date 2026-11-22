@@ -44663,6 +44663,47 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
 end })
 
+table.insert(tests, { name = "MarkTile: the Mark pack and Market tiles wear the set plate at 7:1, the edge at 3:1, text 14 px or more, a 44 px action, and fit four sizes on all 15 sets", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MarkTile)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local MapEvents = require(script.Parent.Parent.Engine.MapEvents)
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local sets = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		sets = sets + 1
+		local s = MT.style(set.id)
+		local ink = CosmeticSets.contrastRatio(s.ink, s.plate)
+		expectTrue(ink >= MT.MIN_INK_CONTRAST, set.id .. " tile ink reads at 7:1, got " .. string.format("%.1f", ink))
+		expectTrue(CosmeticSets.contrastRatio(s.edge, s.plate) >= 3, set.id .. " tile edge reads at 3:1")
+	end
+	expectTrue(sets >= 14, "walked every set, saw " .. sets)
+	local classic = MT.style("classic_tavern")
+	expectTrue(CosmeticSets.contrastRatio(classic.ink, classic.plate) >= 7 and CosmeticSets.contrastRatio(classic.edge, classic.plate) >= 3, "classic tile reads")
+	for _, size in ipairs({ { 800, 450 }, { 1280, 720 }, { 1920, 957 }, { 1920, 1080 } }) do
+		local areaW, areaH = size[1] - 40, math.floor(size[2] * 0.6)
+		local L = MT.layout(areaW, areaH)
+		local tag = size[1] .. "x" .. size[2]
+		expectTrue(L ~= nil, "a tile fits the area at " .. tag)
+		if L then
+			expectTrue(L.w <= areaW and L.h <= areaH, "the tile stays inside its area at " .. tag)
+			expectTrue(L.bodySize >= 14 and L.titleSize >= 14 and L.priceSize >= 14, "every line is 14 px or more at " .. tag)
+			expectTrue(L.actionH >= 44, "the action plate is 44 px at " .. tag)
+			expectTrue(MT.minHeight(L) <= L.h, "the stacked parts fit the tile height at " .. tag .. ": need " .. MT.minHeight(L) .. " of " .. L.h)
+		end
+	end
+	expectTrue(MT.layout(100, 100) == nil, "an area too small for a tile gives no tile")
+	for _, id in ipairs(Card.MarkOrder) do
+		local pack = MT.lines("pack", id, Marks.PRICE)
+		local market = MT.lines("market", id, MapEvents.MARKET_PRICE)
+		expectTrue(pack.title == Card.Marks[id].name .. " Mark" and pack.body == Card.Marks[id].description, id .. " pack tile says exactly which mark you get")
+		expectTrue(pack.price == Marks.PRICE .. " Tips" and market.price == MapEvents.MARKET_PRICE .. " Tips", id .. " tiles show a price in Tips only")
+		expectTrue(#pack.body <= 60 and #market.action <= 20, id .. " tile lines are short")
+		expectTrue(MT.icon(id).letter == Card.Marks[id].icon and MT.icon(id).imageKey == id, id .. " tile icon is the painted badge with the drawn letter fallback")
+	end
+	expectTrue(MT.lines("pack", "nope", 3) == nil and MT.icon("nope") == nil, "an unknown mark has no tile")
+end })
+
 table.insert(tests, { name = "LoadingTips: every Card Set but classic has its own tip (60 characters or less, ASCII, no dashes), classic and junk have none, and the screen shows the set tip first", fn = function()
 	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
 	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
