@@ -4064,6 +4064,21 @@ table.insert(tests, { name = "Balance: boss descriptions state their tuned numbe
 	end
 end })
 
+table.insert(tests, { name = "Economy: a pack costs no more than the first round win pays, and price ranges stay pinned", fn = function()
+	local firstWin = RunState.DEFAULT_CONFIG and RunState.DEFAULT_CONFIG.tipsPerRoundWin or 4
+	local cheapestPack = math.huge
+	for _, pack in ipairs(Packs.Definitions) do
+		cheapestPack = math.min(cheapestPack, pack.price)
+		expectTrue(pack.price >= 4 and pack.price <= 13, pack.id .. " price in 4..13")
+	end
+	expectTrue(cheapestPack <= firstWin, "a pack is affordable with the Tips from the first round win")
+	for _, patron in ipairs(Patrons.Definitions) do
+		expectTrue(patron.price >= 4 and patron.price <= 8, patron.id .. " price in 4..8")
+	end
+	expectEqual(Shop.REROLL_BASE_COST, 5, "reroll base cost")
+	expectEqual(Shop.REROLL_COST_STEP, 2, "reroll cost step")
+end })
+
 table.insert(tests, { name = "Balance: Patron descriptions and prices match their effects", fn = function()
 	local function flat(handResult, played, context)
 		context = context or {}

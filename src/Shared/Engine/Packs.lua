@@ -34,12 +34,12 @@ Packs.Definitions = {
 		description = "Reveals 3 random Patrons, pick 1 to join your table for free.",
 	},
 	{
-		id = "house_pack", name = "House Recipe Pack", icon = "🧃", price = 5,
+		id = "house_pack", name = "House Recipe Pack", icon = "🧃", price = 4,
 		category = "house", size = "normal", revealCount = 3, pickCount = 1,
 		description = "Reveals 3 random House Recipes, pick 1 to keep for free.",
 	},
 	{
-		id = "menu_pack", name = "Menu Recipe Pack", icon = "📖", price = 5,
+		id = "menu_pack", name = "Menu Recipe Pack", icon = "📖", price = 4,
 		category = "menu", size = "normal", revealCount = 3, pickCount = 1,
 		description = "Reveals 3 random Menu Recipes, pick 1 to keep for free.",
 	},
@@ -49,7 +49,7 @@ Packs.Definitions = {
 		description = "Reveals 3 random Secret Recipes, pick 1 to keep for free.",
 	},
 	{
-		id = "standard_pack", name = "Standard Pack", icon = "🎴", price = 5,
+		id = "standard_pack", name = "Standard Pack", icon = "🎴", price = 4,
 		category = "standard", size = "normal", revealCount = 3, pickCount = 1,
 		description = "Reveals 3 random dressed playing cards, pick 1 to add to your deck for free.",
 		short = "Pick 1 of 3 dressed cards for your deck",
