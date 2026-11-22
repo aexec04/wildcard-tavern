@@ -52,6 +52,22 @@ end
 M.SIDE = 15 -- side margin of everything under the title
 M.BAR = { y = 36, h = 40 } -- overall progress bar: two short lines (progress, then next reward and unlock)
 M.BAR_PAD = 16 -- inner padding of the progress plate text, both sides
+M.BAR_TEXT = 16 -- progress plate text size (two lines fit the 40 px bar)
+
+-- Line one of the progress plate: "Owned 12 of 81 (15%)", whole numbers with thousands separators.
+function M.ownedText(found, total)
+	local function n(v)
+		local s = tostring(math.floor((tonumber(v) or 0) + 0.5))
+		while true do
+			local r, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+			s = r
+			if k == 0 then break end
+		end
+		return s
+	end
+	local pct = (total or 0) > 0 and math.floor(found / total * 100) or 0
+	return string.format("Owned %s of %s (%d%%)", n(found), n(total), pct)
+end
 M.TABS = { y = 80, h = 26 } -- the quiet row of small tab plates
 M.AREA_TOP = 94 -- (the old top of the section area; a section now starts under the progress line, see panel)
 M.STRIP_H = 28 -- the slim strip along the bottom of a section: tab plates on the left, the page arrows and plate on the right

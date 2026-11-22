@@ -12583,7 +12583,7 @@ table.insert(tests, { name = "Collection no longer lists run stats; the Tavern L
 	for _, gone in ipairs({ "Runs played", "Runs won", "Best Night:", "profileStats.runs", "statsLabel", "runsStarted", "bestNightReached" }) do
 		expectFalse(collection:find(gone, 1, true) ~= nil, "Collection still has: " .. gone)
 	end
-	expectTrue(collection:find("Overall %d%%", 1, true) ~= nil, "collection progress stays")
+	expectTrue(collection:find("RoomLayout.ownedText(completion.found", 1, true) ~= nil, "collection progress stays")
 	for _, kept in ipairs({ "Runs won", "Runs started", "Best Night", "Win rate", "equippedTitleId", '"Title"' }) do
 		expectTrue(stats:find(kept, 1, true) ~= nil, "Ledger shows: " .. kept)
 	end
@@ -29696,6 +29696,14 @@ table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every grou
 	expectTrue(PanelGroups.contrast(PanelGroups.textOn({ 205, 160, 100 }), { 205, 160, 100 }) >= 4.5, "Back button fill contrast")
 	local RoomLayout = require(script.Parent.Parent.Engine.CollectionRoomLayout)
 	expectTrue(RoomLayout.BAR_PAD >= 16, "progress plate padding is at least 16 px")
+	expectTrue(RoomLayout.BAR_TEXT >= 16 and 2 * RoomLayout.BAR_TEXT <= RoomLayout.BAR.h, "progress plate text is 16 px and two lines fit the bar")
+	expectTrue(RoomLayout.ownedText(12, 81) == "Owned 12 of 81 (14%)", "owned line reads Owned N of M")
+	expectTrue(RoomLayout.ownedText(0, 0) == "Owned 0 of 0 (0%)", "owned line survives an empty collection")
+	expectTrue(RoomLayout.ownedText(1234, 12345) == "Owned 1,234 of 12,345 (9%)", "owned line uses thousands separators")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local r = RoomLayout.panel(size[1], size[2], 32, 0, "room")
+		expectTrue(r.bar.h >= 2 * RoomLayout.BAR_TEXT and r.bar.y + r.bar.h <= r.tabs.y, "progress plate fits its text above the tabs at " .. size[1])
+	end
 end })
 
 table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
