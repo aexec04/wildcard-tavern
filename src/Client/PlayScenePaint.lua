@@ -160,6 +160,10 @@ function PlayScenePaint.install(deps)
 		if bg then
 			local key, bid = PlayRoomArt.backdrop(sid, art, TableSceneArt)
 			bg.Image = bid or bgId
+			if root:GetAttribute("BossRound") then -- the set's own boss table picture (ThemeScenes); other sets keep the room they have
+				local okB, bossId = pcall(function() return require(Engine:WaitForChild("ThemeScenes")).themeImageId(sid, "bossTableBackground") end)
+				if okB and bossId then bg.Image = bossId end
+			end
 			if game:GetService("RunService"):IsStudio() then print(string.format("[PlayTableBg] key=%s id=%s", tostring(key), tostring(bg.Image))) end
 		end
 		-- default look: the wood-only oval front (play_table_front_c) when recorded and the tavern backdrop is there; else the old front
@@ -187,6 +191,7 @@ function PlayScenePaint.install(deps)
 	end
 	HudTheme.onSkin(tint)
 	tint(HudTheme.skin())
+	root:GetAttributeChangedSignal("BossRound"):Connect(function() tint(HudTheme.skin()) end) -- boss rounds draw the set's boss table
 	apply = function()
 		local size = root.AbsoluteSize
 		-- a per-Card-Set room keeps the hand 24 px right of the painted left board (the board is wider than the sidebar)

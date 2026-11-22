@@ -36135,4 +36135,16 @@ table.insert(tests, { name = "ThemeScenes: winter_evening ice tavern ids are rec
 	expectEqual(TS.of("classic_tavern").art.menuBackdrop, "menu_scene:wall", "classic menu key unchanged")
 end })
 
+table.insert(tests, { name = "ThemeScenes: only winter_evening swaps the boss table and map ground, every other set falls back to classic", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS = require(E.ThemeScenes)
+	for _, id in ipairs(TS.ORDER) do
+		if id ~= "winter_evening" then
+			expectTrue(TS.themeImageId(id, "bossTableBackground") == nil, id .. " keeps its own boss table")
+			expectTrue(TS.themeImageId(id, "mapBackdrop") == nil, id .. " keeps the parchment map ground")
+		end
+	end
+	expectTrue(TS.themeImageId(nil, "mapBackdrop") == nil, "no set means classic")
+end })
+
 return tests

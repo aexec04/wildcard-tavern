@@ -700,6 +700,7 @@ return function(deps)
 		if key == "boss" then
 			blindInfoLabel.Text = plainText -- no crown in the text: plain name line plus rule text
 			blindInfoLabel:SetAttribute("Boss", true) -- PlayBoardHud paints the dark red plate and crown from this
+			root:SetAttribute("BossRound", true) -- PlayScenePaint swaps in the equipped set's boss table picture
 		elseif key == "tips" then
 			tipsLabel.Text = plainText
 		elseif key == "hands" then
@@ -707,7 +708,7 @@ return function(deps)
 		end
 	end
 	local function hideLineIcon(key)
-		if key == "boss" then blindInfoLabel:SetAttribute("Boss", nil) end
+		if key == "boss" then blindInfoLabel:SetAttribute("Boss", nil); root:SetAttribute("BossRound", nil) end
 	end
 
 	return {

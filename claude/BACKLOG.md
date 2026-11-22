@@ -32,8 +32,11 @@ Only after the Concept T play screen, Patron cards and pixel fixes are done. Kee
 20. Night cleared and run complete celebration on v2: banner, confetti in gold and purple, coin count up, button Continue, in TavernKit.
    DONE: Night cleared plate (and a bigger Run complete with a gold crown glow) with score, Tips count up, confetti and a Continue plate on a cleared Boss Round (Engine/Gameplay2Moments tested, Client/Gameplay2MomentsFX).
 21. Performance pass on the v2 table: count live Instances at round start and during scoring, remove per frame allocations, make every repeating effect use FxLoop, keep it under 1,500 GuiObjects on screen, record numbers in STATUS.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
 22. Accessibility pass: suits distinguishable without colour (shape plus colour already, check contrast), minimum 12 px text, hit targets at least 44 px, Calm mode and Reduce motion verified on every new effect.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
 23. Sound pass for the new screens (scoring sequence, tooltips, shop buy, boss entrance, round clear, defeat) using the existing cue module and volume rules, silent when an id is missing.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
 
 ## Gameplay v2 backlog (use when QUEUE.md has no [ ] tasks; the old Concept T items above are done)
@@ -60,7 +63,10 @@ Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with 
 20. Night cleared and run complete celebration on v2: banner, confetti in gold and purple, coin count up, button Continue, in TavernKit.
    DONE: Night cleared plate (and a bigger Run complete with a gold crown glow) with score, Tips count up, confetti and a Continue plate on a cleared Boss Round (Engine/Gameplay2Moments tested, Client/Gameplay2MomentsFX).
 21. Performance pass on the v2 table: count live Instances at round start and during scoring, remove per frame allocations, make every repeating effect use FxLoop, keep it under 1,500 GuiObjects on screen, record numbers in STATUS.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
 22. Accessibility pass: suits distinguishable without colour (shape plus colour already, check contrast), minimum 12 px text, hit targets at least 44 px, Calm mode and Reduce motion verified on every new effect.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
 23. Sound pass for the new screens (scoring sequence, tooltips, shop buy, boss entrance, round clear, defeat) using the existing cue module and volume rules, silent when an id is missing.
+   DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
    DONE (21 to 23): Engine/Gameplay2Perf with the limit and a loop lint, the guide pulse on FxLoop, AuditV2 prints the live GuiObject count, boss entrance and tooltip cues wired, tests. The live counts need a Studio run.
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.

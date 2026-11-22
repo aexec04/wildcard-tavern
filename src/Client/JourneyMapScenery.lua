@@ -216,8 +216,16 @@ return function(deps)
 	-- region paintings after it. Without the picture nothing here changes. Props are not drawn on top of it (it has its own scenery).
 	local parchmentHolder = nil
 	local parchmentW = 0
+	-- the equipped Card Set's own painted ground (Engine/ThemeScenes "mapBackdrop", e.g. the ice map); nil for every other set keeps the parchment
+	local function themedGround()
+		local okId, id = pcall(function()
+			local skin = require(script.Parent.HudTheme).skin()
+			return require(game:GetService("ReplicatedStorage").Shared.Engine.ThemeScenes).themeImageId(skin and skin.id, "mapBackdrop")
+		end)
+		return okId and id or nil
+	end
 	local function layoutParchment(canvasW, canvasH, viewW)
-		local id = ContentArt.getImageId("map_paint", "parchment_map")
+		local id = themedGround() or ContentArt.getImageId("map_paint", "parchment_map")
 		if not parchmentHolder then
 			parchmentHolder = Instance.new("Frame")
 			parchmentHolder.Name = "ParchmentPainting"
@@ -378,6 +386,18 @@ return function(deps)
 			math.floor(base.ZIndex), table.concat(tiles, " "), tostring(graphZ), tostring(zOf("Discoveries")), tostring(zOf("FogBand")),
 			math.floor(featherTop.ZIndex), verdict))
 	end
+
+	-- equip, Preview start and Preview stop redraw the ground with the last layout arguments
+	local rawLayout, lastArgs = layout, nil
+	layout = function(...)
+		lastArgs = table.pack(...)
+		return rawLayout(...)
+	end
+	pcall(function()
+		require(script.Parent.HudTheme).onSkin(function()
+			if lastArgs then pcall(rawLayout, table.unpack(lastArgs, 1, lastArgs.n)) end
+		end)
+	end)
 
 	return {
 		layout = layout,
