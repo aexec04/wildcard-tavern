@@ -29528,6 +29528,28 @@ table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style s
 	end
 end })
 
+table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggles live in Settings; deck hint timing", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local ids = {}
+	for _, r in ipairs(G.ROWS) do ids[#ids + 1] = r.id end
+	expectEqual(table.concat(ids, ","), "sound,music,tracks,map,collection,settings,howTo,quit", "gear rows")
+	local H = require(script.Parent.Parent.Engine.HoverIntent)
+	local c = H.new(0.15, 0.2)
+	c:enter(0); expectTrue(not c:poll(0.1), "not before 0.15 s")
+	expectTrue(c:poll(0.16), "shown after resting 0.15 s")
+	c:leave(1); c:enter(1.1); c:leave(1.15)
+	expectTrue(c:poll(1.3), "kept through a small wobble")
+	expectTrue(not c:poll(1.36), "hidden 0.2 s after the pointer left")
+	local d = H.new(0.15, 0.2)
+	d:enter(0); d:leave(0.05)
+	expectTrue(not d:poll(0.5), "a pass-through never shows it")
+	if not io then return end
+	local f = io.open("src/Client/DeckWidget.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("show = 0.15, hide = 0.2", 1, true) ~= nil, "the deck hint uses the intent timing")
+end })
+
 table.insert(tests, { name = "Gear menu: the Collection row is listed and opens the collection opener", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local found
@@ -30712,7 +30734,7 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 	end
 	local ids = {}
 	for _, row in ipairs(G.ROWS) do ids[row.id] = row.kind end
-	expectTrue(ids.sound == "toggle" and ids.music == "toggle" and ids.calm == "toggle" and ids.reduceMotion == "toggle" and ids.hints == "toggle", "five toggles")
+	expectTrue(ids.sound == "toggle" and ids.music == "toggle" and ids.calm == nil and ids.reduceMotion == nil and ids.hints == nil, "two toggles, comfort toggles live in Settings")
 	expectTrue(ids.settings == "action" and ids.howTo == "action" and ids.quit == "action", "three actions")
 	local s = P.defaultSettings()
 	local v = G.view(s)
@@ -35504,7 +35526,7 @@ end })
 table.insert(tests, { name = "Boss round: the unplayed hand hides and returns whether or not the v2 table reports active; the Tavern Map is in the gear menu and Settings", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local row
-	for i, r in ipairs(G.ROWS) do if r.id == "map" then row = r; expectTrue(G.ROWS[i - 1].id == "howTo", "Tavern Map sits right after How to play") end end
+	for i, r in ipairs(G.ROWS) do if r.id == "map" then row = r; expectTrue(G.ROWS[i - 1].id == "tracks", "Tavern Map sits right after Music tracks") end end
 	expectTrue(row ~= nil and row.kind == "action" and row.label == "Tavern Map", "gear menu has a Tavern Map action row")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local m = G.menuRect(sz[1], sz[2])

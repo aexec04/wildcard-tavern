@@ -104,6 +104,7 @@ return function(deps)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
+	scroll.VerticalScrollBarInset = Enum.ScrollBarInset.Always -- the rows end before the bar, 16 px more below
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scroll.ZIndex = 21
@@ -174,7 +175,7 @@ return function(deps)
 		local isSwitch = #choices == 2 and choices[1][1] == false
 		button.Size = isSwitch and UDim2.new(0, SW.w, 0, SW.h) or UDim2.new(0, 110, 0, 44)
 		button.AnchorPoint = Vector2.new(1, 0.5)
-		button.Position = UDim2.new(1, -4, 0.5, 0)
+		button.Position = UDim2.new(1, -16, 0.5, 0)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 16
 		button.TextColor3 = TEXT
@@ -566,6 +567,7 @@ return function(deps)
 		OverlayManager.closeAllExcept("settings")
 		restartRun.refresh()
 		popIn(settingsBackdrop, settingsPanel)
+		pcall(function() require(script.Parent.PopupDismiss).openSettings() end) -- lifted above the table plates (ZIndex is absolute under Global)
 	end
 	deps.settingsButton.MouseButton1Click:Connect(openSettings)
 	if deps.menuSettingsButton then

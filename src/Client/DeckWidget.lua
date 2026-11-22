@@ -121,7 +121,7 @@ return function(deps)
 	deckWidgetButton.Text = ""
 	deckWidgetButton.ZIndex = 3
 	deckWidgetButton.Parent = deckWidget
-	addTooltip(deckWidgetButton, "Click to see your deck")
+	addTooltip(deckWidgetButton, "Click to see your deck", nil, nil, { show = 0.15, hide = 0.2 })
 
 	-- Hover feel like the hand cards: the pile lifts 6px and a gold glow ring fades in; a click gives a small
 	-- shuffle wiggle. Tweens only (no loops); Reduce screen shake keeps the glow and skips the motion. The glow

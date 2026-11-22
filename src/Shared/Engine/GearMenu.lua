@@ -30,13 +30,10 @@ M.ROWS = {
 	{ id = "sound", kind = "toggle", label = "Sound" },
 	{ id = "music", kind = "toggle", label = "Music" },
 	{ id = "tracks", kind = "action", label = "Music tracks" },
-	{ id = "calm", kind = "toggle", label = "Calm mode" },
-	{ id = "reduceMotion", kind = "toggle", label = "Reduce motion" },
-	{ id = "hints", kind = "toggle", label = "Hints" },
-	{ id = "settings", kind = "action", label = "Settings" },
-	{ id = "howTo", kind = "action", label = "How to play" },
 	{ id = "map", kind = "action", label = "Tavern Map" },
 	{ id = "collection", kind = "action", label = "Collection" },
+	{ id = "settings", kind = "action", label = "Settings" },
+	{ id = "howTo", kind = "action", label = "How to play" },
 	{ id = "quit", kind = "action", label = "Quit to Tavern" },
 }
 
@@ -114,7 +111,11 @@ function M.view(settings)
 		reduceMotion = isOn(settings.reduceMotion),
 		hints = settings.roundHints ~= false,
 	}
+	-- comfort toggles are no longer menu rows (Settings owns them) but keep their state words for anything that reads them
 	local out = {}
+	for id, label in pairs({ calm = "Calm mode", reduceMotion = "Reduce motion", hints = "Hints" }) do
+		out[id] = { label = label, on = on[id], state = on[id] and "On" or "Off" }
+	end
 	for _, row in ipairs(M.ROWS) do
 		if row.kind == "toggle" then
 			out[row.id] = { label = row.label, on = on[row.id], state = on[row.id] and "On" or "Off" }

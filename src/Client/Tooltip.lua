@@ -92,8 +92,10 @@ function Tooltip.new(screenGui)
 		if leaveConn then leaveConn:Disconnect() leaveConn = nil end
 	end
 
-	function T.attach(button, text, align, anchor)
-		button.MouseEnter:Connect(function()
+	-- intent (optional {show, hide} seconds): the tip appears after the pointer rests `show` s and goes after it has been away `hide` s,
+	-- so a button that lifts under the pointer cannot make it flicker (rules in Engine/HoverIntent)
+	function T.attach(button, text, align, anchor, intent)
+		local function onEnter()
 			local custom = type(align) == "function" and align or nil -- a placer from the caller (Counter packs)
 			local side = (not custom) and align or nil
 			if side == nil and not custom and (button:FindFirstAncestor("Sidebar") or button:FindFirstAncestor("SidebarBoard")) then
@@ -211,8 +213,26 @@ function Tooltip.new(screenGui)
 				end
 				if not alive then T.hide() end
 			end)
-			leaveConn = button.MouseLeave:Connect(function() T.hide() end)
-		end)
+			if not intent then leaveConn = button.MouseLeave:Connect(function() T.hide() end) end
+		end
+		if not intent then
+			button.MouseEnter:Connect(onEnter)
+			return
+		end
+		local ctl = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HoverIntent")).new(intent.show, intent.hide)
+		local function check()
+			local was = ctl.shown
+			local now = ctl:poll(os.clock())
+			if now and not was then
+				onEnter()
+				if RunService:IsStudio() then print("[DeckHint] show") end
+			elseif was and not now then
+				T.hide()
+				if RunService:IsStudio() then print("[DeckHint] hide") end
+			end
+		end
+		button.MouseEnter:Connect(function() ctl:enter(os.clock()); task.delay(intent.show + 0.01, check) end)
+		button.MouseLeave:Connect(function() ctl:leave(os.clock()); task.delay(intent.hide + 0.01, check) end)
 	end
 
 	return T

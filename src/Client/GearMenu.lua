@@ -112,6 +112,11 @@ function M.install(deps)
 	scroll.Parent = menu
 
 	local rows = {}
+	if game:GetService("RunService"):IsStudio() then
+		local names = {}
+		for _, def in ipairs(G.ROWS) do names[#names + 1] = def.label end
+		print("[GearMenu] rows: " .. table.concat(names, ", "))
+	end
 	for _, def in ipairs(G.ROWS) do
 		local b = Kit.secondaryButton(scroll, def.label)
 		b.Name = "Row_" .. def.id
