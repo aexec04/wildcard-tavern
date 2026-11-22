@@ -9608,6 +9608,32 @@ table.insert(tests, { name = "TavernRank: 30 ranks, rising XP, every rank has a 
 	expectTrue(view.maxed and view.rank == 30 and view.need == 0)
 end })
 
+table.insert(tests, { name = "TavernRank rewards pin: Tips never fall between ranks, no content is given twice, titles have unique kid safe names", fn = function()
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local seen, names, lastTips, tipsTotal = {}, {}, 0, 0
+	for r = 2, TavernRank.MAX_RANK do
+		local reward = TavernRank.Rewards[r]
+		if reward.kind == "tips" then
+			expectTrue(reward.amount >= lastTips, "rank " .. r .. " Tips do not fall below the last Tips reward")
+			lastTips = reward.amount
+			tipsTotal = tipsTotal + reward.amount
+		else
+			local key = reward.kind .. ":" .. reward.id
+			expectTrue(not seen[key], key .. " is given once")
+			seen[key] = true
+		end
+		if reward.kind == "title" then
+			local name = Achievements.getById(reward.id).name
+			expectTrue(not names[name], "unique title " .. name)
+			names[name] = true
+			expectTrue(not name:lower():find("balatro") and not name:find("\226\128\148") and #name <= 24, "safe short title " .. name)
+		end
+	end
+	expectEqual(TavernRank.Rewards[5].id, "table_regular")
+	expectEqual(TavernRank.Rewards[30].id, "grand_host")
+	expectEqual(tipsTotal, 115,"total Tips across all ranks is pinned")
+end })
+
 table.insert(tests, { name = "TavernRank.addXp: rewards are granted once, in order, nothing is lost on a big jump, Tips are capped", fn = function()
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
 	local profile = PlayerProfile.new()
