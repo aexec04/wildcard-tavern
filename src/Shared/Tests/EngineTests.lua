@@ -41108,6 +41108,57 @@ table.insert(tests, { name = "Seeded daily determinism: two players on one date 
 	expectTrue(a ~= playerRun(SeededRng.dailySeed(1788134400 + 2 * 86400), 11), "two dates on differs")
 end })
 
+table.insert(tests, { name = "Repeated runs: 200 runs in one process each start from clean counters, Tips, deck and seats, shared definition tables never grow, and memory stays bounded", fn = function()
+	local function defSizes()
+		return { #Patrons.Definitions, #BossRounds.Definitions, #DeckVariants.Definitions, #Packs.Definitions, #Tags.Definitions or 0, #Recipes.HouseRecipes or 0 }
+	end
+	local function oneRun(i)
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(500 + i))
+		local tipsAtStart = state.tips
+		expectEqual(state.roundsCleared, 0, "run " .. i .. " rounds cleared starts at 0")
+		expectEqual(state.bossesCleared, 0, "run " .. i .. " bosses cleared starts at 0")
+		expectEqual(state.handsPlayedTotal, 0, "run " .. i .. " hands played starts at 0")
+		expectEqual(state.discardsUsedTotal, 0, "run " .. i .. " discards used starts at 0")
+		expectEqual(state.patronsSold, 0, "run " .. i .. " Patrons sold starts at 0")
+		expectEqual(next(state.handStats), nil, "run " .. i .. " hand stats start empty")
+		expectEqual(#state.ownedPatrons, 0, "run " .. i .. " starts with no Patrons")
+		expectEqual(#state.discardPile, 0, "run " .. i .. " starts with an empty discard pile")
+		expectEqual(#state.deck + #state.hand, 52, "run " .. i .. " has a full deck")
+		expectEqual(state.night, 1)
+		expectEqual(state.round, 1)
+		for _ = 1, 3 do
+			local guard = 0
+			while not state.roundOver and guard < 20 do
+				guard = guard + 1
+				state.targetScore = math.min(state.targetScore, 50)
+				RunState.playHand(state, { 1, 2, 3, 4, 5 })
+			end
+			if state.runOver then break end
+			state.tips = state.tips + 30
+			local offers = Shop.rollOffers(state)
+			if offers.patrons[1] then RunState.buyPatron(state, offers.patrons[1].id) end
+			RunState.advanceToNextRound(state)
+		end
+		expectTrue(state.handsPlayedTotal > 0 and state.tips >= 0, "run " .. i .. " actually played")
+		return tipsAtStart
+	end
+	local before = defSizes()
+	local firstTips
+	oneRun(0)
+	collectgarbage() collectgarbage()
+	local base = collectgarbage("count")
+	for i = 1, 200 do
+		local t = oneRun(i)
+		firstTips = firstTips or t
+		expectEqual(t, firstTips, "run " .. i .. " starts with the same Tips as run 1")
+	end
+	collectgarbage() collectgarbage()
+	local grown = collectgarbage("count") - base
+	expectTrue(grown < 4096, "200 runs left " .. math.floor(grown) .. " KB behind")
+	local after = defSizes()
+	for i = 1, #before do expectEqual(after[i], before[i], "shared definition table " .. i .. " never grows") end
+end })
+
 return tests
 
 
