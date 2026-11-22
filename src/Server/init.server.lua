@@ -617,6 +617,7 @@ local function serializeState(session, player)
 		onboardingHint = session.onboardingHint,
 		-- Scaling Patrons' inputs, so computeHandPreview matches playHand.
 		runCounters = RunState.runCounters(state),
+		nightStar = state.nightStar, -- best card or Patron of the Night, for the Night clear toast
 		patronSlotLimit = RunState.patronSlotLimit(state),
 		-- GENRE PARITY: recipeSlotLimit/nightCap are static-per-run
 		-- numbers (same pattern as patronSlotLimit above) -- the client

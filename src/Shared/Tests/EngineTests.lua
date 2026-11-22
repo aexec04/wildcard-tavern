@@ -44663,6 +44663,42 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
 end })
 
+table.insert(tests, { name = "NightStar: the best scoring card or Patron of the Night names itself in one kind line of 60 characters or less on the Night clear toast", fn = function()
+	local NS = require(script.Parent.Parent.Engine.NightStar)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local king = Card.new(13, Card.Suits[1], { mark = "gilded" })
+	local plain = Card.new(5, Card.Suits[2])
+	local state = { night = 2 }
+	local hand = { { kind = "chips", amount = 30, label = "x", source = { type = "card", card = king } }, { kind = "chips", amount = 5, label = "y", source = { type = "card", card = plain } }, { kind = "chips", amount = 90, label = "Hand", source = { type = "hand" } } }
+	NS.record(state, hand, 100, 4)
+	expectTrue(state.nightStar and state.nightStar.name:find("Gilded", 1, true) == 1 and state.nightStar.night == 2, "the marked card with the biggest share is the star, the base hand is never the star")
+	local first = state.nightStar.value
+	NS.record(state, { { kind = "mult", amount = 1, label = "Tiny Patron", source = { type = "patron", patronId = "t" } } }, 100, 4)
+	expectEqual(state.nightStar.value, first, "a smaller contribution never replaces the star in the same Night")
+	NS.record(state, { { kind = "xmult", amount = 2, label = "Lady Marigold", source = { type = "patron", patronId = "m" } } }, 100, 4)
+	expectEqual(state.nightStar.name, "Lady Marigold", "a bigger Patron contribution takes over")
+	state.night = 3
+	NS.record(state, { { kind = "chips", amount = 1, label = "Newcomer", source = { type = "patron", patronId = "n" } } }, 50, 2)
+	expectEqual(state.nightStar.name, "Newcomer", "a new Night starts fresh")
+	local line = NS.line({ name = "Lady Marigold" })
+	expectEqual(line, "Star of the Night: Lady Marigold", "the line reads kindly")
+	expectTrue(#NS.line({ name = string.rep("W", 80) }) <= NS.MAX_LENGTH, "a very long name still fits 60 characters")
+	expectTrue(NS.line(nil) == nil and NS.line({ name = "" }) == nil and NS.line({}) == nil, "no star, no line")
+	NS.record(state, nil, 1, 1)
+	NS.record(nil, {}, 1, 1)
+	NS.record({ night = 1 }, { { kind = "mult", amount = 0 / 0, label = "Bad", source = { type = "patron" } } }, 0 / 0, 1 / 0)
+	local prev = { phase = "playing", targetScore = 130, roundScore = 100, tips = 3, round = 3, night = 3, nightCap = 8, bossModifier = { id = "x" } }
+	local lines = M.clearLines(prev, { phase = "shop", roundScore = 176, tips = 11, nightStar = state.nightStar })
+	expectEqual(M.nightToast(lines), "Night 3 cleared  +8 Tips.  Star of the Night: Newcomer.  Next: visit the Counter", "the toast carries the star")
+	local stale = M.clearLines(prev, { phase = "shop", roundScore = 176, tips = 11, nightStar = { night = 2, name = "Old" } })
+	expectTrue(not M.nightToast(stale):find("Star", 1, true), "a star from another Night is not shown")
+	-- a real run records a star on the first played hand
+	local run = RunState.new(nil, function(n) return n end)
+	RunState.playHand(run, { 1, 2 })
+	expectTrue(run.nightStar == nil or (run.nightStar.night == run.night and #NS.line(run.nightStar) <= 60), "a real hand records a star of this Night with a short line")
+end })
+
 table.insert(tests, { name = "MarkTile: the Mark pack and Market tiles wear the set plate at 7:1, the edge at 3:1, text 14 px or more, a 44 px action, and fit four sizes on all 15 sets", fn = function()
 	local MT = require(script.Parent.Parent.Engine.MarkTile)
 	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)

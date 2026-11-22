@@ -52,6 +52,7 @@ function M.clearLines(prev, now)
 	local earned = math.max(0, floor(now.tips) - floor(prev.tips))
 	local lines = { title = "Target cleared", score = string.format("Score %d of %d", score, target), tips = string.format("Tips +%d", earned), tipsEarned = earned }
 	lines.night = M.nightLines(prev)
+	if now.nightStar and now.nightStar.night == floor(prev.night) then lines.star = require(script.Parent.NightStar).line(now.nightStar) end
 	lines.unlockItems = now.unlockNotice and now.unlockNotice.items or nil
 	lines.summary = { -- the Victory screen's numbers: only what the run really tracks
 		tipsEarned = earned, unlockCount = lines.unlockItems and #lines.unlockItems or 0, score = score,
@@ -92,6 +93,7 @@ function M.nightToast(lines)
 	local tips = floor(lines.tipsEarned)
 	local head = n > 0 and string.format("Night %d cleared", n) or "Night cleared"
 	if tips > 0 then head = string.format("%s  +%d Tips", head, tips) end
+	if lines.star then head = head .. ".  " .. lines.star end -- the best card or Patron of the Night, one kind line
 	return head .. ".  Next: visit the Counter"
 end
 
