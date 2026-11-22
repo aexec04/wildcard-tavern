@@ -186,6 +186,34 @@ function ThemeScenes.effectiveSetId(skinId, previewId)
 	return ThemeScenes.known(skinId) and skinId or ThemeScenes.DEFAULT
 end
 
+-- Score pop-up colours per set: a dark plate (the set tint pulled toward black) and an accent that reads on it at 7:1 or more
+-- (the set accent lifted toward white until it does). Returns nil for classic_tavern, which keeps its own look. Pure.
+ThemeScenes.SCORE_MIN_CONTRAST = 7
+local function lum(c)
+	local function ch(v)
+		v = v / 255
+		return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
+	end
+	return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+end
+local function ratio(a, b)
+	local la, lb = lum(a), lum(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+function ThemeScenes.scoreStyle(setId)
+	local t = ThemeScenes.of(setId)
+	if t.setId == ThemeScenes.DEFAULT then return nil end
+	local plate = { math.floor(t.tint[1] * 0.18), math.floor(t.tint[2] * 0.18), math.floor(t.tint[3] * 0.18) }
+	local accent = { t.accent[1], t.accent[2], t.accent[3] }
+	local step = 0
+	while ratio(accent, plate) < ThemeScenes.SCORE_MIN_CONTRAST and step < 20 do
+		step = step + 1
+		for i = 1, 3 do accent[i] = math.floor(accent[i] + (255 - accent[i]) * 0.2) end
+	end
+	return { plate = plate, accent = accent, ratio = ratio(accent, plate) }
+end
+
 function ThemeScenes.known(setId)
 	return type(setId) == "string" and DATA[setId] ~= nil
 end

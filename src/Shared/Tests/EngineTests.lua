@@ -40118,4 +40118,26 @@ table.insert(tests, { name = "Settings, Store and Card Sets primary buttons wear
 	expectTrue(settings:find("button.ZIndex = 24", 1, true) ~= nil, "Settings Account buttons keep ZIndex 24 over the plate backing")
 end })
 
+table.insert(tests, { name = "ThemeScenes.scoreStyle: every set but classic gets a plate and an accent at 7:1 or more, classic is unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	expectTrue(TS.scoreStyle("classic_tavern") == nil, "classic keeps its own look")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			local st = TS.scoreStyle(def.id)
+			expectTrue(st ~= nil, def.id .. " has a score style")
+			expectTrue(CS.contrastRatio(st.accent, st.plate) >= 7, def.id .. " accent on plate is 7:1, got " .. tostring(st and CS.contrastRatio(st.accent, st.plate)))
+			for i = 1, 3 do
+				expectTrue(st.accent[i] >= 0 and st.accent[i] <= 255 and st.plate[i] >= 0 and st.plate[i] <= 255, def.id .. " colours in range")
+			end
+		end
+	end
+	local f = io and io.open and io.open("src/Client/ScorePopup.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("scoreStyle", 1, true) ~= nil and src:find("SetOutline", 1, true) ~= nil, "ScorePopup draws the set outline and plate")
+	end
+end })
+
 return tests
