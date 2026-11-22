@@ -32,13 +32,14 @@ for _, bot in ipairs(bots) do
 	results[bot] = t
 	add(string.format("## %s bot (win rate %.1f%%)", bot, t.wins / runs * 100))
 	add("")
-	add("| Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target |")
-	add("|---|---|---|---|---|")
+	add("| Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target | Boss Round cleared (of those faced) |")
+	add("|---|---|---|---|---|---|")
 	for n = 1, 8 do
 		local row = t.nights[n]
-		add(string.format("| %d | %d | %d | %.1f%% | %s |", n, row.reached, row.cleared,
+		add(string.format("| %d | %d | %d | %.1f%% | %s | %s |", n, row.reached, row.cleared,
 			NightTable.clearShare(t, n) * 100,
-			row.rounds > 0 and string.format("%.0f%%", row.pctSum / row.rounds * 100) or "n/a"))
+			row.rounds > 0 and string.format("%.0f%%", row.pctSum / row.rounds * 100) or "n/a",
+			row.bossPlayed > 0 and string.format("%.0f%% (%d)", row.bossCleared / row.bossPlayed * 100, row.bossPlayed) or "n/a"))
 	end
 	add("")
 end

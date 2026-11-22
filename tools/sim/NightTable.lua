@@ -12,7 +12,7 @@ function NightTable.collect(Sim, bot, runs, seed)
 	local cfg = { bot = bot, maxNight = 10, bank = 0, difficulty = "standard", deck = "standard" }
 	local nights = {}
 	for n = 1, MAX_NIGHT do
-		nights[n] = { reached = 0, cleared = 0, pctSum = 0, rounds = 0 }
+		nights[n] = { reached = 0, cleared = 0, pctSum = 0, rounds = 0, bossPlayed = 0, bossCleared = 0 }
 	end
 	local patrons, wins = {}, 0
 	for k = 0, runs - 1 do
@@ -23,6 +23,10 @@ function NightTable.collect(Sim, bot, runs, seed)
 			if row then
 				row.pctSum = row.pctSum + rd.pct
 				row.rounds = row.rounds + 1
+				if rd.boss then
+					row.bossPlayed = row.bossPlayed + 1
+					if rd.cleared then row.bossCleared = row.bossCleared + 1 end
+				end
 				local p = perNight[rd.night]
 				if not p then
 					p = { all = true }
