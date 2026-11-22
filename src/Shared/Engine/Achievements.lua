@@ -777,6 +777,19 @@ addWave("hand_thousand", "Thousand Hands", "🎴", "Thousand Hands", "Play 1000 
 	function(p) return stat(p, "handsPlayedTotal") >= 1000 end)
 addWave("map_spots", "Corner Peeker", "🔍", "Corner Peeker", "Find 3 hidden spots on the Tavern Map.", "You always check behind the barrel.",
 	function(p) return countOf(p.discoveries) >= 3 end)
+-- new modes: Night boons, starting decks, Endless Night 10
+addWave("boon_first", "Boon Taker", "✨", "Boon Taker", "Pick your first Night boon.", "A small gift for a good night.",
+	function(p) return stat(p, "boonsPicked") >= 1 end)
+addWave("boon_ten", "Boon Collector", "🎁", "Boon Collector", "Pick 10 Night boons.", "Your pockets rattle with good luck.",
+	function(p) return stat(p, "boonsPicked") >= 10 end)
+addWave("deck_lucky", "Lucky Draw", "🍀", "Lucky Draw", "Start a run with the Lucky Deck.", "Four extra Kings and a grin.",
+	function(p) return stat(p, "luckyRuns") >= 1 end)
+addWave("deck_slim", "Light Hands", "✂️", "Light Hands", "Start a run with the Slim Deck.", "No small cards, no small plans.",
+	function(p) return stat(p, "slimRuns") >= 1 end)
+addWave("deck_trio", "Deck Explorer", "🃏", "Deck Explorer", "Start runs with the Lucky and the Slim Deck.", "You have shuffled every deck in the house.",
+	function(p) return stat(p, "luckyRuns") >= 1 and stat(p, "slimRuns") >= 1 end)
+addWave("endless_ten", "Tenth Lantern", "🏮", "Tenth Lantern", "Reach Night 10 in Endless.", "Past the last stop, still walking.",
+	function(p) return math.max(stat(p, "bestNightReached"), bestEndless(p)) >= 10 end)
 -- Tavern Season titles (Engine/SeasonTrack.lua tier 25): granted into rewardTitleIds when the tier is claimed
 local function seasonTitle(id, name, icon, flavor)
 	table.insert(Achievements.Definitions, {

@@ -5039,6 +5039,7 @@ local function unlockAllRegularTitles(profile)
 	profile.stats.runsWon = 20
 	profile.stats.bestNightReached = 40
 	profile.stats.handsPlayedTotal = 5000
+	profile.stats.boonsPicked, profile.stats.luckyRuns, profile.stats.slimRuns = 10, 1, 1
 	profile.highestStakeUnlocked = 8
 	profile.bestLoginStreak = 30
 	profile.questsDone = 100
@@ -9982,7 +9983,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 98, "53 original + 30 new + 2 invite + 4 season (2 free, 2 premium) + 6 Collection completion + 3 Legend titles")
+	expectEqual(#Defs, 104, "53 original + 30 new + 6 mode titles + 2 invite + 4 season (2 free, 2 premium) + 6 Collection completion + 3 Legend titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -43142,6 +43143,62 @@ table.insert(tests, { name = "DailyShare: the Share button on a Daily run uses t
 	local src = f:read("*a")
 	f:close()
 	expectTrue(src:find("DailyShare", 1, true) ~= nil and src:find("lastState.isDaily", 1, true) ~= nil)
+end })
+
+-- ===== Mode titles (boons, starting decks, Endless Night 10) =====
+table.insert(tests, { name = "Mode titles: six kid safe titles unlock at their thresholds and the new stats save and load", fn = function()
+	local ids = { "boon_first", "boon_ten", "deck_lucky", "deck_slim", "deck_trio", "endless_ten" }
+	local profile = PlayerProfile.new()
+	for _, id in ipairs(ids) do
+		local a
+		for _, def in ipairs(Achievements.Definitions) do if def.id == id then a = def end end
+		expectTrue(a ~= nil, id .. " exists")
+		expectTrue(#a.title > 0 and #a.description > 0 and #a.flavorText > 0 and #a.icon > 0, id .. " has its texts")
+		local text = (a.name .. a.title .. a.description .. a.flavorText):lower()
+		for _, bad in ipairs({ "balatro", "beer", "wine", "booze", "whiskey", "drunk" }) do
+			expectTrue(text:find(bad, 1, true) == nil, id .. " is kid safe")
+		end
+		expectTrue(not (a.description .. a.flavorText):find("\226\128\148", 1, true), id .. " has no em dash")
+		expectFalse(Achievements.isUnlocked(profile, id), id .. " starts locked")
+	end
+	PlayerProfile.recordBoonPicked(profile)
+	expectTrue(Achievements.isUnlocked(profile, "boon_first"))
+	expectFalse(Achievements.isUnlocked(profile, "boon_ten"))
+	for _ = 1, 9 do PlayerProfile.recordBoonPicked(profile) end
+	expectTrue(Achievements.isUnlocked(profile, "boon_ten"))
+	PlayerProfile.recordStartingDeck(profile, "classic")
+	expectFalse(Achievements.isUnlocked(profile, "deck_lucky"), "Classic counts for nothing")
+	PlayerProfile.recordStartingDeck(profile, "lucky")
+	expectTrue(Achievements.isUnlocked(profile, "deck_lucky"))
+	expectFalse(Achievements.isUnlocked(profile, "deck_trio"))
+	PlayerProfile.recordStartingDeck(profile, "slim")
+	expectTrue(Achievements.isUnlocked(profile, "deck_slim") and Achievements.isUnlocked(profile, "deck_trio"))
+	expectFalse(Achievements.isUnlocked(profile, "endless_ten"))
+	profile.stats.bestNightReached = 10
+	expectTrue(Achievements.isUnlocked(profile, "endless_ten"))
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.stats.boonsPicked, 10)
+	expectEqual(loaded.stats.luckyRuns, 1)
+	expectEqual(loaded.stats.slimRuns, 1)
+	local junk = PlayerProfile.migrate({ stats = { boonsPicked = -4, luckyRuns = "x", slimRuns = 2.7 } })
+	expectEqual(junk.stats.boonsPicked, 0)
+	expectEqual(junk.stats.luckyRuns, 0)
+	expectEqual(junk.stats.slimRuns, 2)
+end })
+
+table.insert(tests, { name = "Mode titles: each has an art prompt and the server counts boons and decks", fn = function()
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end
+	local json = f:read("*a")
+	f:close()
+	for _, id in ipairs({ "boon_first", "boon_ten", "deck_lucky", "deck_slim", "deck_trio", "endless_ten" }) do
+		expectTrue(json:find('"' .. id .. '": "an avatar', 1, true) ~= nil, id .. " has a title prompt")
+	end
+	local sf = io.open("src/Server/init.server.lua", "r")
+	local src = sf:read("*a")
+	sf:close()
+	expectTrue(src:find("PlayerProfile.recordBoonPicked(profiles[player])", 1, true) ~= nil, "a boon pick is counted")
+	expectTrue(src:find("PlayerProfile.recordStartingDeck(profile", 1, true) ~= nil, "a deck start is counted")
 end })
 
 return tests

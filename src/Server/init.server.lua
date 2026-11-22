@@ -1855,6 +1855,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		PlayerProfile.recordStartingDeck(profile, sessions[player].state.startingDeckId)
 		if welcomeEase then WelcomeEase.recordRun(profile) end
 		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
 		Analytics.runStart(player, stake, seedMode or "normal")
@@ -3380,6 +3381,7 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	local wasModifier = session.choice.kind == "modifier"
 	local wasReward = session.choice.kind == "reward"
+	local wasBoon = session.choice.kind == "boon" and profiles[player] ~= nil
 	local tipsBefore, wasEvent = session.state.tips or 0, session.choice.kind == "event"
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
 	if ok and wasEvent then
@@ -3387,6 +3389,10 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	if ok and wasReward and not (session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial) then
 		nextChoice = RunChoice.rollEvent(session.state, true) -- the between-Nights event the reward put off
+	end
+	if ok and wasBoon then
+		PlayerProfile.recordBoonPicked(profiles[player])
+		profileDirty[player] = true
 	end
 	if ok then
 		session.choice = nextChoice
