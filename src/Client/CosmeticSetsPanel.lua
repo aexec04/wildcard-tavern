@@ -194,18 +194,9 @@ return function(deps)
 	deps.addButtonHoverScale(closeButton)
 
 	-- Short unlock hint for a locked back tile (kept under ~28 characters so it fits at 15px).
+	local LockedHints = require(Engine:WaitForChild("LockedHints"))
 	local function backUnlockHint(back)
-		for _, set in ipairs(CosmeticSets.Definitions) do
-			if set.cardBackId == back.id then
-				return "Comes with " .. set.name
-			end
-		end
-		for _, entry in ipairs(JourneyMap.Nights) do
-			if entry.reward.kind == "cardBack" and entry.reward.id == back.id then
-				return "Journey reward: clear Night " .. entry.night
-			end
-		end
-		return "Collection milestone"
+		return LockedHints.forBack(back)
 	end
 
 	-- Small round lock badge pinned to a corner of a thumbnail.

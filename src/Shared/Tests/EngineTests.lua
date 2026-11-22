@@ -8984,6 +8984,30 @@ table.insert(tests, { name = "Stakes: every stake has a stake_subjects art promp
 	end
 end })
 
+-- ===== Locked item hints =====
+
+table.insert(tests, { name = "LockedHints: every locked Card Set, Card Back, Patron, Recipe and House Pass has a short friendly hint", fn = function()
+	local LockedHints = require(script.Parent.Parent.Engine.LockedHints)
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local function check(label, text)
+		expectTrue(type(text) == "string" and #text > 0, label .. " has a hint")
+		expectTrue(#text < LockedHints.MAX_LENGTH, label .. " hint under 60 characters: " .. tostring(text))
+		expectFalse(text:find("_", 1, true) ~= nil, label .. " hint shows a raw id: " .. tostring(text))
+		expectFalse(text:find("?", 1, true) ~= nil, label .. " hint has a question mark: " .. tostring(text))
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		check("set " .. set.id, LockedHints.forSet(set))
+	end
+	for _, back in ipairs(CardBacks.Definitions) do
+		check("back " .. back.id, LockedHints.forBack(back))
+	end
+	for kind, rules in pairs(Unlocks.Rules) do
+		for id in pairs(rules) do
+			check(kind .. " " .. id, LockedHints.forContent(kind, id))
+		end
+	end
+end })
+
 -- ===== Unlock drip =====
 
 table.insert(tests, { name = "Unlocks: every rule names real content, hints are short, Menu Recipes are never gated", fn = function()
