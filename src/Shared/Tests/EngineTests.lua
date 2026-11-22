@@ -22474,7 +22474,7 @@ table.insert(tests, { name = "RunOverLayout: one panel, two columns wide and one
 			end
 		end
 	end
-	expectEqual(L.TEXT_MIN, 15, "text is 15 px or more")
+	expectEqual(L.TEXT_MIN, 16, "text is 16 px or more")
 	expectEqual(L.estimateLines("", 200, 16), 0, "no text, no lines")
 	expectTrue(L.estimateLines(string.rep("a", 100), 200, 16) >= 3, "long text wraps")
 end })
@@ -35097,7 +35097,7 @@ table.insert(tests, { name = "Assets: id 203785492 (wrong-type ContentId warning
 	expectTrue(out == "", "no source file holds 203785492, found: " .. out)
 end })
 
-table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 14 px or more, only real rewards and stats", fn = function()
+table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 16 px or more, only real rewards and stats", fn = function()
 	local Look = require(script.Parent.Parent.Engine.VictoryLook)
 	local function inside(r, w, h, what) expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, what .. " inside the screen") end
 	local function apart(a, b, what) expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, what .. " do not overlap") end
@@ -35112,7 +35112,7 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 				inside(r, w, h, mode .. " plate " .. i .. " at " .. w)
 				for j = i + 1, #list do apart(r, list[j], mode .. " plates " .. i .. "," .. j .. " at " .. w) end
 			end
-			expectTrue(Look.fontSize(22, L.scale) >= 14 and Look.fontSize(1, L.scale) == 14, "text floor is 14 px at " .. w)
+			expectTrue(Look.fontSize(22, L.scale) >= 16 and Look.fontSize(1, L.scale) == 16, "text floor is 16 px at " .. w)
 		end
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
@@ -35578,6 +35578,24 @@ table.insert(tests, { name = "Every pack id resolves to pack art or base art plu
 	expectEqual(base, "house_pack")
 	expectEqual(tag, "MEGA")
 	expectEqual(tier, "epic")
+end })
+
+table.insert(tests, { name = "Victory and Run Over polish: serif 16 px text, 44 px buttons at 800x450 and 1920x1080, tally one line at a time, static in Calm", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectTrue(L.TEXT_MIN >= 16 and L.SMALL_H >= 44 and L.BTN_H >= 44 and L.PILL_H >= 44, "text 16 and buttons 44")
+	for _, sz in ipairs({ { 800, 450 }, { 1920, 1080 } }) do
+		local r = L.compute(sz[1], sz[2], { factsH = 200, patrons = 3, primary = 3, more = 4, primaryLabels = { "Play Again", "Continue", "Tavern" }, moreLabels = { "Share", "Challenge", "Invite", "Save" } })
+		expectTrue(r.panel.w <= sz[1] and r.panel.h <= sz[2] + 0.5, "panel fits at " .. sz[1])
+		expectTrue(r.scale == nil or r.scale > 0.4, "no extreme shrink at " .. sz[1])
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(not src:find("Enum.Font.Gotham", 1, true), "Run Over uses the painted serif")
+		expectTrue(not src:find("TextSize = 1[0-5]%f[%D]"), "no Run Over text under 16 px")
+		expectTrue(src:find("task.delay(0.18 * (i - 1)", 1, true) ~= nil and src:find('ClientSettings.get("reduceShake") ~= true', 1, true) ~= nil, "tally reveals line by line, not in Calm mode")
+	end
 end })
 
 return tests

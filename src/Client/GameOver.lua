@@ -144,7 +144,7 @@ return function(deps)
 	local function label(parent, props)
 		local l = Instance.new("TextLabel")
 		l.BackgroundTransparency = 1
-		l.Font = Enum.Font.GothamBold
+		l.Font = Enum.Font.Merriweather
 		l.TextSize = FACT_SIZE
 		l.TextColor3 = CREAM
 		l.TextTransparency = 0
@@ -161,7 +161,7 @@ return function(deps)
 		local b = Instance.new("TextButton")
 		b.Name = name
 		b.Text = text
-		b.Font = Enum.Font.GothamBold
+		b.Font = Enum.Font.Merriweather
 		b.TextSize = size or 16
 		b.TextWrapped = false
 		b.TextTruncate = Enum.TextTruncate.None
@@ -187,7 +187,7 @@ return function(deps)
 	})
 	local revivedBadge = label(titleF, {
 		Name = "RevivedBadge", AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(110, 26), Position = UDim2.new(1, 0, 0, 0),
-		BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(70, 120, 150), TextSize = 15, Text = "\u{1F4AB} Revived",
+		BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(70, 120, 150), TextSize = 16, Text = "\u{1F4AB} Revived",
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
 	})
 	polishPanel(revivedBadge, 13)
@@ -216,13 +216,13 @@ return function(deps)
 	pk.Parent = patronsF
 	local noPatrons = label(patronsF, {
 		Size = UDim2.new(1, -24, 1, 0), Position = UDim2.fromOffset(12, 0), Text = "No Patrons this time.", TextSize = 16,
-		Font = Enum.Font.GothamMedium, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
+		Font = Enum.Font.Merriweather, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
 	})
 	local actionsF = frame("Actions")
 	local moreF = frame("More")
 	-- one ink line on the paper under the content (the free sheet above the seal), only while the scroll is drawn
 	local flavorLabel = label(panel, {
-		Name = "Flavor", Text = "The house thanks you for the night.", TextSize = 18, Font = Enum.Font.GothamMedium, TextWrapped = true,
+		Name = "Flavor", Text = "The house thanks you for the night.", TextSize = 18, Font = Enum.Font.Merriweather, TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(84, 58, 34), Visible = false,
 	})
 
@@ -243,8 +243,8 @@ return function(deps)
 	shareBox.Name = "ShareSeedBox"
 	shareBox.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
 	shareBox.BorderSizePixel = 0
-	shareBox.Font = Enum.Font.GothamBold
-	shareBox.TextSize = 15
+	shareBox.Font = Enum.Font.Merriweather
+	shareBox.TextSize = 16
 	shareBox.TextColor3 = Color3.fromRGB(255, 232, 160)
 	shareBox.TextEditable = false
 	shareBox.ClearTextOnFocus = false
@@ -259,7 +259,7 @@ return function(deps)
 		shareBox.SelectionStart = 1
 		shareBox.CursorPosition = #shareBox.Text + 1
 	end)
-	local shareHint = label(moreF, { Name = "ShareHint", Text = "Select the line, then press Ctrl+C.", TextSize = 15, Font = Enum.Font.GothamMedium, Visible = false })
+	local shareHint = label(moreF, { Name = "ShareHint", Text = "Select the line, then press Ctrl+C.", TextSize = 16, Font = Enum.Font.Merriweather, Visible = false })
 
 	local lastState, lastSummary
 	local layoutNow -- set below; re-lays the panel out for the current screen size
@@ -323,7 +323,7 @@ return function(deps)
 			add("Road taken", { tone = "gold" })
 			local names = {}
 			for _, stop in ipairs(summary.route or {}) do names[#names + 1] = stop.name or stop.id end
-			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" })
+			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" })
 			if summary.blessing then add("Blessing: " .. summary.blessing.name) end
 			if summary.finalBoss then add("Final boss defeated: " .. summary.finalBoss.name, { tone = "gold" }) end
 		end
@@ -337,14 +337,14 @@ return function(deps)
 		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
 		local seedInfo = SeedDisplay.label(state)
 		if seedInfo then -- a Seed Run's code is tappable: the share box opens with the code selected, ready to copy
-			add(seedInfo.text .. (seedInfo.shareable and "  (tap to copy)" or ""), { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft", copy = seedInfo.shareable and seedInfo.value or nil })
+			add(seedInfo.text .. (seedInfo.shareable and "  (tap to copy)" or ""), { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft", copy = seedInfo.shareable and seedInfo.value or nil })
 		end
 		if summary then
 			local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)
-			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
+			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" }) end
 		end
 		local hint = (not isWin) and GameOverTips.pick(state.night, state.round) or nil
-		if hint then add("Tip: " .. hint, { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
+		if hint then add("Tip: " .. hint, { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" }) end
 		return lines
 	end
 
@@ -368,10 +368,16 @@ return function(deps)
 			local size = line.props.TextSize or FACT_SIZE
 			local n = RunOverLayout.estimateLines(line.text, width, size)
 			local h = n * (size + 3) + LINE_PAD
-			label(factsF, {
+			local factLabel = label(factsF, {
 				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(width, h),
-				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
+				TextSize = size, Font = line.props.Font or Enum.Font.Merriweather, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
 			})
+			if i > 1 and ClientSettings.get("reduceShake") ~= true then -- the tally reads one line at a time (a static list in Calm mode)
+				factLabel.TextTransparency = 1
+				task.delay(0.18 * (i - 1), function()
+					if factLabel.Parent then factLabel.TextTransparency = 0 end
+				end)
+			end
 			if line.props.copy then
 				local tap = Instance.new("TextButton")
 				tap.Name = "CopySeed"
@@ -478,12 +484,12 @@ return function(deps)
 			ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- never Contextual: it would stroke the text too
 			ring.Parent = seat
 			local emoji = label(seat, {
-				Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 8), Text = patron.icon or "?", TextSize = 24, Font = Enum.Font.GothamMedium, ZIndex = 25,
+				Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 8), Text = patron.icon or "?", TextSize = 24, Font = Enum.Font.Merriweather, ZIndex = 25,
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = false, TextColor3 = INK,
 			})
 			local nameLabel = label(seat, {
-				Text = patron.name or patron.id, Position = UDim2.fromOffset(2, 52), Size = UDim2.new(1, -4, 1, -54), TextSize = 15,
-				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 25, TextColor3 = INK,
+				Text = patron.name or patron.id, Position = UDim2.fromOffset(2, 52), Size = UDim2.new(1, -4, 1, -54), TextSize = 16,
+				Font = Enum.Font.Merriweather, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 25, TextColor3 = INK,
 			})
 			nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 			local art = PatronPlaque.apply(seat, patron.id, { zIndex = 26, cornerRadius = 8 })
@@ -516,7 +522,7 @@ return function(deps)
 		local state = current.state
 		local primaryList = {}
 		local function textW(text)
-			local ok, size = pcall(function() return TextService:GetTextSize(text, RunOverLayout.BTN_TEXT, Enum.Font.GothamBold, Vector2.new(1000, 100)) end)
+			local ok, size = pcall(function() return TextService:GetTextSize(text, RunOverLayout.BTN_TEXT, Enum.Font.Merriweather, Vector2.new(1000, 100)) end)
 			return ok and size and size.X or 0
 		end
 		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"

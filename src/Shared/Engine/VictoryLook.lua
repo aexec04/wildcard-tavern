@@ -12,7 +12,7 @@
 
 local M = {}
 
-M.MIN_TEXT = 14
+M.MIN_TEXT = 16
 M.DESIGN_W, M.DESIGN_H = 1280, 720
 
 -- opaque area of each picture (x0, y0, x1, y1 as fractions), measured from the generated PNGs
