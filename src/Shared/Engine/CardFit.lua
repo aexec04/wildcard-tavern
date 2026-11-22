@@ -3,7 +3,7 @@
 	Pure sizing for the three Round Select cards (tested). The screen is full width, so the cards may
 	grow above 1x on big viewports, and shrink to fit phone widths.
 
-	  scale(vpY, rowW, rowH, cardH, cardW, maxFit) -> number in [0.6, maxFit]
+	  scale(vpY, rowW, rowH, cardH, cardW, maxFit) -> number in [minFit or 0.6, maxFit]
 ]]
 
 local CardFit = {}
@@ -26,7 +26,8 @@ function CardFit.shortfall(measuredGap)
 	return math.max(0, CardFit.MIN_GAP - measuredGap)
 end
 
-function CardFit.scale(vpY, rowW, rowH, cardH, cardW, maxFit)
+-- minFit (default 0.6) lets a very short screen shrink the cards further so they never run off the bottom.
+function CardFit.scale(vpY, rowW, rowH, cardH, cardW, maxFit, minFit)
 	local h = math.min(cardH * maxFit, 0.80 * vpY)
 	-- ~5% headroom so a hovered (1.04x) card never clips.
 	if rowH > 0 then h = math.min(h, (rowH - 8) / 1.05) end
@@ -34,7 +35,7 @@ function CardFit.scale(vpY, rowW, rowH, cardH, cardW, maxFit)
 		local w = (rowW - CardFit.MIN_GAP * (CardFit.COUNT - 1)) / CardFit.COUNT / 1.05
 		h = math.min(h, w / cardW * cardH)
 	end
-	return math.max(0.6, math.min(maxFit, h / cardH))
+	return math.max(minFit or 0.6, math.min(maxFit, h / cardH))
 end
 
 return CardFit

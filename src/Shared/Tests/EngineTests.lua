@@ -45095,5 +45095,51 @@ table.insert(tests, { name = "Night boon picker: Choose plate is 44 px on screen
 	expectTrue(count >= 14, "every Card Set was checked: " .. count)
 end })
 
+table.insert(tests, { name = "RoundSelectLayout: at four sizes no clickable rect overlaps another, nothing leaves the screen, the Skip tooltip never covers Select", fn = function()
+	local L = require(script.Parent.Parent.Engine.RoundSelectLayout)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h, true)
+		local clicks, all = {}, {}
+		for i, c in ipairs(r.cards) do
+			expectTrue(c.panel.x >= 0 and c.panel.x + c.panel.w <= w, "card " .. i .. " inside the width at " .. w)
+			expectTrue(c.panel.y + c.panel.h <= h, "card " .. i .. " inside the height at " .. w .. "x" .. h)
+			for _, k in ipairs({ "select", "skip", "target" }) do
+				local p = c[k]
+				expectTrue(p.x >= c.panel.x and p.y >= c.panel.y and p.x + p.w <= c.panel.x + c.panel.w + 0.01 and p.y + p.h <= c.panel.y + c.panel.h + 0.01, k .. " stays inside card " .. i .. " at " .. w)
+				all[#all + 1] = p
+			end
+			clicks[#clicks + 1] = c.select
+			clicks[#clicks + 1] = c.skip
+			expectTrue(not hit(c.select, c.skip) and not hit(c.select, c.target) and not hit(c.skip, c.target), "plates of card " .. i .. " do not overlap at " .. w)
+			if i > 1 then expectTrue(c.panel.x - (r.cards[i - 1].panel.x + r.cards[i - 1].panel.w) >= 24 * 0.99 or r.scale < 1, "cards keep a gap at " .. w) end
+		end
+		clicks[#clicks + 1] = r.tips
+		for i = 1, #clicks do
+			for j = i + 1, #clicks do expectTrue(not hit(clicks[i], clicks[j]), "no two clickable rects overlap at " .. w .. " (" .. i .. "," .. j .. ")") end
+		end
+		expectTrue(not hit(r.tips, r.cards[3].panel) or r.tips.y + r.tips.h <= L.ROW_TOP, "Tips chip sits above the cards at " .. w)
+		local rects = { r.tips }
+		for _, c in ipairs(r.cards) do rects[#rects + 1] = c.panel end
+		for _, c in ipairs(r.cards) do for _, k in ipairs({ "select", "skip", "target" }) do rects[#rects + 1] = c[k] end end
+		local strip = D.rectBelow(w, h, D.lowestBottom(rects))
+		if strip then
+			expectTrue(not D.overlapsAny(strip, rects), "Daily strip overlaps nothing at " .. w .. "x" .. h)
+		end
+		for i, c in ipairs(r.cards) do
+			local tw, th = 260, 70
+			local x, y = L.tipSpot(w, h, c, tw, th)
+			local tip = { x = x, y = y, w = tw, h = th }
+			expectTrue(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, "Skip tooltip on screen for card " .. i .. " at " .. w .. "x" .. h)
+			expectTrue(not hit(tip, c.select) and not hit(tip, c.skip) and not hit(tip, c.target), "Skip tooltip covers no plate of card " .. i .. " at " .. w .. "x" .. h)
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/RoundSelect.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("RoundSelectLayout", 1, true) and c:find("CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT, 0.4)", 1, true), "the client uses the tested layout and the short screen scale")
+end })
+
 return tests
 

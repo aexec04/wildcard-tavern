@@ -722,7 +722,7 @@ return function(deps)
 		local vpY = cam and cam.ViewportSize.Y or 720
 		local rowH = panelRow.AbsoluteSize.Y
 		local rowW = panelRow.AbsoluteSize.X
-		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT)
+		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT, 0.4)
 		fx.setFit(scale)
 		-- The layout spaces by the scaled card size, so Padding is the on-screen gap (never below 28px).
 		panelRowLayout.Padding = UDim.new(0, CardFit.padding(scale, CARD_W))
@@ -1022,6 +1022,17 @@ return function(deps)
 					return describeTag(latestState.currentRoundSkipTag)
 				end
 				return "Skip this round for a Tag instead of playing it."
+			end, function(pos, size, tipSize, screenSize)
+				-- Under Skip (or above the Target plate): the default spot above Skip covered the Select plate.
+				local L = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundSelectLayout"))
+				local sel = entry.selectButton
+				local card = {
+					skip = { x = pos.X, y = pos.Y, w = size.X, h = size.Y },
+					select = { x = sel.AbsolutePosition.X, y = sel.AbsolutePosition.Y, w = sel.AbsoluteSize.X, h = sel.AbsoluteSize.Y },
+					target = { x = entry.targetLabel.AbsolutePosition.X, y = entry.targetLabel.AbsolutePosition.Y, w = entry.targetLabel.AbsoluteSize.X, h = entry.targetLabel.AbsoluteSize.Y },
+				}
+				local x, y = L.tipSpot(screenSize.X, screenSize.Y, card, tipSize.X, tipSize.Y)
+				return x, y, "skip tip kept off Select"
 			end)
 		end
 	end
