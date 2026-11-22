@@ -10,5 +10,4 @@ return {
 	["victory_banner"] = "rbxassetid://86666441243547",
 	["victory_button"] = "rbxassetid://130327274014835",
 	["victory_chest"] = "rbxassetid://87016507272103",
-	["victory_hero"] = "rbxassetid://128993997399942",
 }
