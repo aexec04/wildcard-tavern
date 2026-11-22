@@ -40263,6 +40263,40 @@ table.insert(tests, { name = "Popup title band follows the Card Set accent, crea
 	end
 end })
 
+table.insert(tests, { name = "Tooltips, guided hint and Next goal banner wear the set ink and plate at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps its plates")
+	expectEqual(CS.hintStyleOf(nil), nil, "no set keeps its plates")
+	local n, seen = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil, set.id .. " has a hint style")
+			if h then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " ink keeps 7:1 on the hint plate")
+				seen[h.edge[1] .. "," .. h.edge[2] .. "," .. h.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a hint style")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local hs = read("HintSkin")
+	if hs then
+		expectTrue(hs:find("CS.hintStyleOf(", 1, true) ~= nil and hs:find("classic.plate", 1, true) ~= nil, "HintSkin asks the pure rule and restores classic")
+	end
+	for _, name in ipairs({ "Tooltip", "GuidedHint", "NextGoalBanner" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("HintSkin", 1, true) ~= nil, name .. " binds the hint skin") end
+	end
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)

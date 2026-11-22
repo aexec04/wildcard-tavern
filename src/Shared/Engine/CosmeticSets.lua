@@ -739,6 +739,13 @@ function CosmeticSets.closeDiscOf(setId)
 	return { rest = c, hover = mix(c, { 255, 255, 255 }, 0.18) }
 end
 
+-- Hint plates (tooltips, the guided hint, the Next goal banner): the same dark accent tint and cream ink, 7:1. nil for classic.
+function CosmeticSets.hintStyleOf(setId)
+	local b = CosmeticSets.titleBandOf(setId)
+	if not b then return nil end
+	return { plate = b.fill, edge = b.edge, ink = b.ink }
+end
+
 -- Popup title band: a dark strip tinted toward the equipped set accent behind a cream title, edge in the accent. Cream text keeps 7:1 on the fill.
 -- nil for classic or an unknown set so classic popups stay as they are.
 CosmeticSets.TITLE_INK = { 250, 240, 220 }
