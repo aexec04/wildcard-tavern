@@ -451,7 +451,7 @@ function SeasonPanel.init(deps)
 			setBanner(nil)
 			nameLabel.Text = "Tavern Season"
 			daysLabel.Text = ""
-			barText.Text = "No season right now. Play a run and check back soon!"
+			barText.Text = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("EmptyStates")).screenLine("season")
 			footer.Text = ""
 			barFill.Size = UDim2.fromScale(0, 1)
 			claimAll.Visible = false

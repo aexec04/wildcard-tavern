@@ -42081,6 +42081,32 @@ table.insert(tests, { name = "Menu first impression: hotspots are 44 px and neve
 	expectTrue(seen >= 20, "the Menu files were scanned")
 end })
 
+table.insert(tests, { name = "Empty state lines audit: every screen line is drawn somewhere or held with a reason, the drawn ones really use it, every line is short and kind", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	local drawn, held = 0, 0
+	for key, line in pairs(ES.Screens) do
+		expectTrue(#line <= 60 and #line >= 8, key .. " is one short line")
+		expectTrue(not line:find("--", 1, true) and not line:find("\226\128\148", 1, true) and not line:lower():find("balatro", 1, true), key .. " has no dashes")
+		expectTrue(not line:lower():find("error") and not line:lower():find("fail") and not line:lower():find("empty"), key .. " stays kind, no error words")
+		local where = ES.Used[key]
+		expectTrue(type(where) == "string", key .. " says where it is drawn or why it is held")
+		if where and where:sub(1, 5) == "held:" then
+			held = held + 1
+		elseif where then
+			drawn = drawn + 1
+			if io then
+				local f = io.open(where, "r")
+				if f then
+					local src = f:read("*a"); f:close()
+					expectTrue(src:find("EmptyStates", 1, true) ~= nil, where .. " uses the EmptyStates table for " .. key)
+				end
+			end
+		end
+	end
+	for key in pairs(ES.Used) do expectTrue(ES.Screens[key] ~= nil, key .. " in Used names a real line") end
+	expectTrue(drawn >= 9 and held >= 1, "the audit knows what is drawn and what is held")
+end })
+
 table.insert(tests, { name = "Toast queue stacking: a flood of 40 notices never shows more than two at once, keeps a short queue of the newest, every slot clears the corner buttons and its neighbour at four sizes", fn = function()
 	local R = require(script.Parent.Parent.Engine.CornerToastRules)
 	expectEqual(R.MAX_STACK, 2, "two on screen")

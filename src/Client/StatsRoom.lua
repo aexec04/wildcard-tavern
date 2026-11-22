@@ -119,7 +119,7 @@ function StatsRoom.new(ctx)
 			local fit = Layout.rowsFit(rp.h - 30, Layout.ROW_H)
 			text(layer, { x = rp.x + inset, y = rp.y + 4, w = innerW, h = 24 }, { Text = "Recent Runs", TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
 			if #c.runs == 0 then
-				text(layer, { x = rp.x + inset, y = rp.y + 34, w = innerW, h = 48 }, { Text = "Nothing written yet. Go lose gracefully.", Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left })
+				text(layer, { x = rp.x + inset, y = rp.y + 34, w = innerW, h = 48 }, { Text = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("EmptyStates")).screenLine("ledgerRuns"), Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left })
 			end
 			for i = 1, math.min(fit, #c.runs) do
 				text(layer, { x = rp.x + inset, y = rp.y + 30 + (i - 1) * Layout.ROW_H, w = innerW, h = Layout.ROW_H },
