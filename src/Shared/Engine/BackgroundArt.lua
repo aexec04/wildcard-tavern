@@ -13,7 +13,7 @@ return {
 	["challenge_bg"] = "rbxassetid://72724201558556",
 	["collection_bg"] = "rbxassetid://112056399596251",
 	["game_over_lose_bg"] = "rbxassetid://77944036575980",
-	["game_over_win_bg"] = "rbxassetid://94887773574028",
+	["game_over_win_bg"] = "rbxassetid://117659847927542",
 	["how_to_play_bg"] = "rbxassetid://102369388069654",
 	["journey_map"] = "rbxassetid://140481956278965",
 	["menu_bg"] = "rbxassetid://71959374981817",

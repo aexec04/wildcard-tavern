@@ -78,7 +78,7 @@ return {
 	["tasting_menu"] = "rbxassetid://84051134610947",
 	["the_apprentice"] = "rbxassetid://70731588374108",
 	["the_bard"] = "rbxassetid://70627903678835",
-	["the_regular"] = "rbxassetid://78123482769613",
+	["the_regular"] = "rbxassetid://125692650327200",
 	["the_understudy"] = "rbxassetid://73555152998814",
 	["threes_company"] = "rbxassetid://86207911470150",
 	["tip_jar"] = "rbxassetid://91253804880538",

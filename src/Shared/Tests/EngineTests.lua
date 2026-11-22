@@ -35339,13 +35339,21 @@ table.insert(tests, { name = "No art prompt in prompts.json holds a banned safet
 	if not f then return end
 	local text = f:read("a"):lower(); f:close()
 	expectTrue(#text > 100000, "read the prompts file")
-	local banned = { "beer", "ale", "wine", "whiskey", "rum", "liquor", "cigar", "cigarette", "tobacco", "skull", "blood", "gun" }
+	local banned = { "beer", "ale", "wine", "whiskey", "rum", "liquor", "cigar", "cigarette", "tobacco", "skull", "blood", "gun",
+		"tankard", "tankards", "stein", "steins", "mug", "mugs", "beers" }
 	for _, word in ipairs(banned) do
 		local at = text:find("%f[%a]" .. word .. "%f[%A]")
 		local near = at and text:sub(math.max(1, at - 40), at + 30) or ""
 		expectTrue(at == nil, "prompts.json holds banned word '" .. word .. "' near: " .. near)
 	end
 	expectTrue(not text:find("pipe smoke", 1, true), "prompts.json holds 'pipe smoke'")
+end })
+
+table.insert(tests, { name = "The Regular and the win background use the regenerated safe art ids", fn = function()
+	local PatronArt = require(script.Parent.Parent.Engine.PatronArt)
+	local BackgroundArt = require(script.Parent.Parent.Engine.BackgroundArt)
+	expectEqual(PatronArt.the_regular, "rbxassetid://125692650327200")
+	expectEqual(BackgroundArt.game_over_win_bg, "rbxassetid://117659847927542")
 end })
 
 table.insert(tests, { name = "Every pack id resolves to pack art or base art plus a size tag, never an emoji", fn = function()
