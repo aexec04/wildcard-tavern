@@ -259,8 +259,13 @@ return function(deps)
 		if g then table.insert(extras, g.name) end
 		if s then table.insert(extras, s.name) end
 		if m then table.insert(extras, m.name) end
+		local mk = entry.mark and Card.Marks[entry.mark]
+		if mk then extras = { mk.name .. " Mark" } end -- a marked card keeps line one short; its other finishes show as the icons
 		if #extras > 0 then
 			text = text .. "  (" .. table.concat(extras, ", ") .. ")"
+		end
+		if mk then -- a marked card also says what the mark does, on a second 16 px line
+			text = text .. "\n" .. require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MarkBadge")).caption(entry.mark)
 		end
 		return text
 	end
@@ -308,7 +313,7 @@ return function(deps)
 				entry
 			)
 			-- special cards (Garnish / Special / Stamp) glow so the player can see where they are in the deck
-			if entry.garnish or entry.special or entry.stamp then
+			if entry.garnish or entry.special or entry.stamp or entry.mark then
 				local glow = Instance.new("UIStroke")
 				glow.Name = "SpecialGlow"
 				glow.Color = Color3.fromRGB(255, 226, 140)
@@ -331,6 +336,37 @@ return function(deps)
 					glow.Parent = ring
 				else
 					glow.Parent = card
+				end
+			end
+			-- a card mark: a small code drawn corner badge (one letter, dark plate, the Card Set accent edge), static
+			do
+				local accent
+				pcall(function()
+					local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+					local theme = CS.themeOf(CS.getById(require(script.Parent.TavernKit).plateSetId()))
+					accent = theme and theme.accent
+				end)
+				local spec = entry.mark and require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MarkBadge")).spec(entry.mark, accent)
+				if spec then
+					local badge = Instance.new("Frame")
+					badge.Name = "MarkBadge"
+					badge.Size = UDim2.fromOffset(18, 18)
+					badge.Position = UDim2.fromOffset(2, 2)
+					badge.BackgroundColor3 = Color3.fromRGB(spec.fill[1], spec.fill[2], spec.fill[3])
+					badge.BorderSizePixel = 0
+					badge.Active = false
+					badge.ZIndex = 27
+					badge.Parent = card
+					roundCorner(badge, 4)
+					local bs = Instance.new("UIStroke")
+					bs.Color = Color3.fromRGB(spec.edge[1], spec.edge[2], spec.edge[3])
+					bs.Thickness = 1.5
+					bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					bs.Parent = badge
+					label(badge, {
+						Size = UDim2.fromScale(1, 1), ZIndex = 28, TextSize = 14, Text = spec.letter,
+						TextColor3 = Color3.fromRGB(spec.ink[1], spec.ink[2], spec.ink[3]), TextStrokeTransparency = 1,
+					})
 				end
 			end
 			local icons = iconsFor(entry)
@@ -370,10 +406,19 @@ return function(deps)
 			})
 		end
 
+		local function showCaption()
+			captionLabel.Text = captionFor(entry)
+			-- two lines for a marked card: 16 px, wrapped, a little taller (the single line stays 18 px)
+			captionLabel.TextWrapped = entry.mark ~= nil
+			captionLabel.TextSize = entry.mark and 16 or 18
+			captionLabel.Size = UDim2.new(1, -300, 0, entry.mark and 44 or 28)
+			captionLabel.Position = UDim2.new(0, 15, 1, entry.mark and -58 or -50)
+		end
 		card.MouseEnter:Connect(function()
 			TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1.14 }):Play()
-			captionLabel.Text = captionFor(entry)
+			showCaption()
 		end)
+		card.Activated:Connect(showCaption) -- a tap on a phone shows the same tooltip
 		card.MouseLeave:Connect(function()
 			TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
 			if captionLabel.Text == captionFor(entry) then

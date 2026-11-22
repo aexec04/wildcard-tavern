@@ -6,6 +6,20 @@
 ]]
 
 return {
+	["back_closing_time"] = "rbxassetid://120939852131370",
+	["back_dune_market"] = "rbxassetid://118892281852957",
+	["back_festival_night"] = "rbxassetid://74821469410949",
+	["back_golden_gala"] = "rbxassetid://90605498691778",
+	["back_harbor_lights"] = "rbxassetid://102035040535109",
+	["back_harvest_table"] = "rbxassetid://92016729233619",
+	["back_marsh_lanterns"] = "rbxassetid://116505099949574",
+	["back_meadow_picnic"] = "rbxassetid://71594410695487",
+	["back_riverside_evening"] = "rbxassetid://102924860347417",
+	["back_snowy_hearth"] = "rbxassetid://118486673685534",
+	["back_summit_camp"] = "rbxassetid://124633638753480",
+	["back_tavern_feast"] = "rbxassetid://117281373947736",
+	["back_winter_evening"] = "rbxassetid://125540486024719",
+	["back_winter_table"] = "rbxassetid://74944742531716",
 	["classic"] = "rbxassetid://111262009384494",
 	["closing_lantern"] = "rbxassetid://139393984601071",
 	["dune_gold"] = "rbxassetid://84274424798939",

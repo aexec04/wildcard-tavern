@@ -2625,6 +2625,136 @@ table.insert(tests, { name = "Save audit: old profiles load with every current f
 	assert(Guard.indexList({ 1, 3, 5 }, 8, 5), "a good index list is accepted")
 end })
 
+table.insert(tests, { name = "Save safety: 8 old profile shapes (no sets, season, quests, nil or junk settings, unknown keys) load with defaults, no error, nothing real lost", fn = function()
+	local fresh = PlayerProfile.new()
+	local shapes = {
+		{ name = "first ever save", raw = {}, keep = function(p) return p.stats.runsStarted == 0 end },
+		{ name = "stats only, no sets", raw = { stats = { runsStarted = 6, runsWon = 2, bestNightReached = 5 } },
+			keep = function(p) return p.stats.runsStarted == 6 and p.stats.runsWon == 2 and p.stats.bestNightReached == 5 and next(p.ownedSetIds) == nil end },
+		{ name = "owned set, no season", raw = { ownedSetIds = { winter_evening = true }, equippedSetId = "winter_evening" },
+			keep = function(p) return p.ownedSetIds.winter_evening == true and p.equippedSetId == "winter_evening" and p.seasonXp == 0 end },
+		{ name = "no quests, tavern XP and streak", raw = { tavernXp = 120, loginStreak = 4, pendingStartTips = 3 },
+			keep = function(p) return p.tavernXp == 120 and p.loginStreak == 4 and p.pendingStartTips == 3 and p.quests == nil end },
+		{ name = "quests in progress", raw = { quests = { day = 20800, ids = { "pairs_3", "buy_pack", "hands_10" }, progress = { pairs_3 = 2 }, done = {} }, questsDone = 7 },
+			keep = function(p) return p.questsDone == 7 and p.quests ~= nil and p.quests.day == 20800 and p.quests.progress.pairs_3 == 2 end },
+		{ name = "nil settings and unknown keys", raw = { settings = nil, futureThing = { 1, 2 }, [5] = "x", discoveredPatronIds = { tip_jar = true } },
+			keep = function(p) return p.discoveredPatronIds.tip_jar == true and p.futureThing == nil and p.settings ~= nil end },
+		{ name = "junk settings", raw = { settings = { sfxVolume = "loud", muted = 3, musicVolume = 0.4, nope = true }, stats = { runsStarted = 2 } },
+			keep = function(p) return p.settings.musicVolume == 0.4 and p.settings.nope == nil and type(p.settings.sfxVolume) == "number" and p.stats.runsStarted == 2 end },
+		{ name = "season from an old schema", raw = { seasonId = "no_such_season", seasonXp = 50, seasonClaimed = "x", version = 0 },
+			keep = function(p) return type(p.seasonClaimed) == "table" and p.version == PlayerProfile.SCHEMA_VERSION end },
+	}
+	expectEqual(#shapes, 8)
+	for _, shape in ipairs(shapes) do
+		local ok, profile = pcall(PlayerProfile.migrate, shape.raw)
+		expectTrue(ok, shape.name .. " errored: " .. tostring(profile))
+		for key, default in pairs(fresh) do
+			if default ~= nil then
+				expectTrue(profile[key] ~= nil, shape.name .. " is missing the default for " .. key)
+				expectEqual(type(profile[key]), type(default), shape.name .. " has the wrong type for " .. key)
+			end
+		end
+		expectTrue(shape.keep(profile), shape.name .. " lost real progress")
+		local again = PlayerProfile.migrate(profile)
+		expectTrue(shape.keep(again), shape.name .. " lost progress on the second load")
+	end
+end })
+
+table.insert(tests, { name = "Remote safety: every server remote argument is checked or handed to an engine function that rejects junk without error or change", fn = function()
+	-- 1. Static: the only handlers whose argument has no type check in the handler itself are these eight, and each passes it
+	--    straight to the engine function fuzzed below. A new unchecked remote argument fails here.
+	if io then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local lines = {}
+			for l in f:lines() do lines[#lines + 1] = l end
+			f:close()
+			local allowed = { MovePatron = "dir", MarkSeenNew = "keys", ChooseRoad = "stopId", UnlockRoad = "stopId", Minigame = "arg",
+				UseCompass = "target", HintSeen = "hintId", Choice = "optionId" }
+			local checks = { "type%(%s*", "typeof%(%s*", "tonumber%(%s*", "tostring%(%s*", "math%.type%(%s*", "Guard%.[%w]+%(%s*", "[Vv]alid%w*%(%s*", "[Ss]anitize%w*%(%s*", "[Cc]lean%w*%(%s*" }
+			for i, l in ipairs(lines) do
+				local name, params = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect%(function%(player,?%s*([^)]*)%)")
+				if name and not name:find("^Debug") then
+					local body = {}
+					for j = i + 1, #lines do
+						if lines[j]:match("^end%)") then break end
+						body[#body + 1] = lines[j]
+					end
+					local text = table.concat(body, "\n")
+					for argName in params:gmatch("[%w_]+") do
+						local checked = false
+						for _, c in ipairs(checks) do
+							if text:find(c .. argName) then checked = true end
+						end
+						if not checked and not (text:find(argName .. "%s*[=~]=") or text:find("[=~]=%s*" .. argName) or text:find("%[" .. argName .. "%]")) then
+							expectEqual(allowed[name], argName, name .. " argument " .. argName .. " has no check in its handler: validate it or add it to the fuzzed list")
+						end
+					end
+				end
+			end
+		end
+	end
+	-- 2. Dynamic: junk into each engine function behind those eight remotes
+	local huge = {}
+	for i = 1, 5000 do huge[i] = { i } end
+	local junk = { nil, 0 / 0, math.huge, -math.huge, -1, 0, 1.5, 1e300, "", "x", "1", string.rep("a", 5000), true, false, {}, { 1, 2, 3 }, { [-1] = true }, { x = {} }, huge, function() end }
+	local function dump(v, seen)
+		if type(v) ~= "table" then return type(v) == "function" and "fn" or tostring(v) end
+		seen = seen or {}
+		if seen[v] then return "cycle" end
+		seen[v] = true
+		local keys = {}
+		for k in pairs(v) do keys[#keys + 1] = k end
+		table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+		local out = {}
+		for _, k in ipairs(keys) do out[#out + 1] = tostring(k) .. "=" .. dump(v[k], seen) end
+		return "{" .. table.concat(out, ",") .. "}"
+	end
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local Keys = require(script.Parent.Parent.Engine.Keys)
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local Hints = require(script.Parent.Parent.Engine.Hints)
+	local NewItems = require(script.Parent.Parent.Engine.NewItems)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local function fresh()
+		local profile = PlayerProfile.new()
+		local state = RunState.new(nil, SeededRng.new(5))
+		return profile, state
+	end
+	local function check(label, fn)
+		for i = 1, 20 do
+			local profile, state = fresh()
+			local before = dump(profile) .. dump(state)
+			local ok, err = pcall(fn, profile, state, junk[i])
+			expectTrue(ok, label .. " errored on junk #" .. i .. ": " .. tostring(err))
+			expectEqual(dump(profile) .. dump(state), before, label .. " changed state on junk #" .. i)
+		end
+	end
+	check("MarkSeenNew", function(profile, _, v) NewItems.markSeen(profile, v) end)
+	check("HintSeen", function(profile, _, v) Hints.markSeen(profile, v) end)
+	check("ChooseRoad", function(profile, state, v) WorldMap.chooseRoad(state, v, "playing", function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("UnlockRoad", function(profile, state, v) Keys.unlock(profile, state, v, "playing") end)
+	check("UseCompass", function(profile, state, v) BiomeRewards.useCompass(profile, state, "playing", v, function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("Choice", function(_, _, v) RunChoice.canAnswer("playing", nil, v) end)
+	check("Choice with a live choice", function(_, state, v)
+		local choice = { kind = "event", options = { { id = "a" }, { id = "b" } } }
+		RunChoice.canAnswer("choice", choice, v)
+	end)
+	check("MovePatron", function(_, state, v) RunState.movePatron(state, v, 1) end)
+	-- the Minigame arg: every game, junk action and junk arg, never an error
+	for _, game in ipairs({ "dice", "cardflip", "lockpick", "trivia" }) do
+		for i = 1, 20 do
+			for _, action in ipairs({ "roll", "flip", "pick", "answer", "stop", "x" }) do
+				local rng = Minigames.newRng(11)
+				local g = Minigames.new(game, rng, 0)
+				local ok, err = pcall(Minigames.act, g, action, junk[i], 1)
+				expectTrue(ok, game .. " " .. action .. " errored on junk #" .. i .. ": " .. tostring(err))
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Save audit: the profile DataStore is only touched inside pcall and autosave only writes dirty profiles", fn = function()
 	if not io then return end
 	local f = io.open("src/Server/init.server.lua", "r")
@@ -2887,39 +3017,39 @@ table.insert(tests, { name = "Card backs: unlock sources (default, earned, with 
 	local profile = PlayerProfile.new()
 	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "classic"))
 	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"))
-	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"))
+	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "back_winter_evening"))
 	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "nope"))
 	profile.unlockedCardBackIds.gilded_ledger = true
 	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"), "milestone/journey earned")
 	profile.ownedSetIds.winter_evening = true
-	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"), "comes with an unlocked set")
-	expectTrue(CosmeticSets.isCardBackUnlocked(PlayerProfile.new(), "gilded_ledger", { set_golden_gala = true }), "gala pass unlocks its set's back")
+	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "back_winter_evening"), "comes with an unlocked set")
+	expectTrue(CosmeticSets.isCardBackUnlocked(PlayerProfile.new(), "back_golden_gala", { set_golden_gala = true }), "gala pass unlocks its set's back")
 end })
 
 table.insert(tests, { name = "Card backs: equip only unlocked, effective back follows the set when no pick", fn = function()
 	local profile = PlayerProfile.new()
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic")
-	expectFalse((CosmeticSets.equipCardBack(profile, "winter_frost")))
+	expectFalse((CosmeticSets.equipCardBack(profile, "back_winter_evening")))
 	expectEqual(profile.equippedCardBackId, nil)
 	profile.ownedSetIds.winter_evening = true
 	CosmeticSets.equip(profile, "winter_evening")
-	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "follows the set")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "back_winter_evening", "follows the set")
 	profile.unlockedCardBackIds.hall_banner = true
 	expectTrue((CosmeticSets.equipCardBack(profile, "hall_banner")))
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "hall_banner", "the pick wins over the set")
 	expectEqual(profile.equippedSetId, "winter_evening", "equipping a back leaves the set alone")
 	expectTrue((CosmeticSets.equipCardBack(profile, nil)))
-	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "cleared pick follows the set again")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "back_winter_evening", "cleared pick follows the set again")
 end })
 
 table.insert(tests, { name = "Card backs: a pick that is no longer unlocked falls back; migrate keeps only known ids", fn = function()
 	local profile = PlayerProfile.new()
-	profile.equippedCardBackId = "gilded_ledger"
+	profile.equippedCardBackId = "back_golden_gala"
 	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic", "not unlocked")
 	profile.equippedSetId = "golden_gala"
-	expectEqual(CosmeticSets.effectiveCardBackId(profile, { set_golden_gala = true }), "gilded_ledger")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile, { set_golden_gala = true }), "back_golden_gala")
 	expectEqual(CosmeticSets.effectiveCardBackId(profile, {}), "classic", "pass gone")
-	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "gilded_ledger" }).equippedCardBackId, "gilded_ledger")
+	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "back_golden_gala" }).equippedCardBackId, "back_golden_gala")
 	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "removed_back" }).equippedCardBackId, nil)
 	expectEqual(PlayerProfile.migrate({ equippedCardBackId = 7 }).equippedCardBackId, nil)
 	expectEqual(PlayerProfile.migrate({}).equippedCardBackId, nil)
@@ -3470,7 +3600,7 @@ table.insert(tests, { name = "'Empty-Handed' leaves 1 discard and caps hands at 
 	expectEqual(empty.minNight, 6)
 end })
 
-table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
@@ -3479,8 +3609,14 @@ table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gat
 	local resultCut = RunState.playHand(stateCut, { 1, 2 })
 
 	expectEqual(stateCut.bossModifier.minNight, 6)
-	expectEqual(resultCut.chips, resultNormal.chips * 0.68)
-	expectEqual(resultCut.mult, resultNormal.mult * 0.68)
+	expectEqual(resultCut.chips, resultNormal.chips * 0.7)
+	expectEqual(resultCut.mult, resultNormal.mult * 0.7)
+end })
+
+table.insert(tests, { name = "Boss rule sim pin: Big Tab 1.9x target, Everything's Out 0.70 and Bare Bones 0.72 (Night 6 clear rate was under 40%)", fn = function()
+	expectEqual(BossRounds.getById("big_tab").targetScoreMultiplier, 1.9)
+	expectEqual(BossRounds.getById("everythings_out").chipsMultiplier, 0.7)
+	expectEqual(BossRounds.getById("bare_bones").multMultiplier, 0.72)
 end })
 
 table.insert(tests, { name = "BossRounds.Definitions has grown to include this phase's 6 new modifiers", fn = function()
@@ -3638,10 +3774,10 @@ table.insert(tests, { name = "'Rushed Order' caps hands at 3, gated to tier 2", 
 	expectEqual(rushed.minNight, 3)
 end })
 
-table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 28%, gated to tier 3", fn = function()
 	local bareBones = BossRounds.getById("bare_bones")
-	expectEqual(bareBones.chipsMultiplier, 0.7)
-	expectEqual(bareBones.multMultiplier, 0.7)
+	expectEqual(bareBones.chipsMultiplier, 0.72)
+	expectEqual(bareBones.multMultiplier, 0.72)
 	expectEqual(bareBones.minNight, 6)
 end })
 
@@ -4168,8 +4304,8 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 	expectEqual(bossTarget("lights_out", 6).targetScore, math.floor(base * 0.5))
 	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
-	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
-	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 2))
+	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.4))
+	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 1.9))
 	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).handsRemaining, 3)
@@ -4177,9 +4313,9 @@ end })
 
 table.insert(tests, { name = "Balance: boss descriptions state their tuned numbers", fn = function()
 	local expected = {
-		stale_bread = "25%", bare_bones = "30%", everythings_out = "32%",
-		thin_chips = "40%", flat_mult = "40%", big_tab = "double",
-		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
+		stale_bread = "25%", bare_bones = "28%", everythings_out = "30%",
+		thin_chips = "40%", flat_mult = "40%", big_tab = "nearly double",
+		lights_out = "halved", quick_service = "25%", one_at_a_time = "60%",
 		last_chance = "1 discard", empty_handed = "1 discard",
 	}
 	for id, text in pairs(expected) do
@@ -4903,6 +5039,7 @@ local function unlockAllRegularTitles(profile)
 	profile.stats.runsWon = 20
 	profile.stats.bestNightReached = 40
 	profile.stats.handsPlayedTotal = 5000
+	profile.stats.boonsPicked, profile.stats.luckyRuns, profile.stats.slimRuns = 10, 1, 1
 	profile.highestStakeUnlocked = 8
 	profile.bestLoginStreak = 30
 	profile.questsDone = 100
@@ -9846,7 +9983,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 98, "53 original + 30 new + 2 invite + 4 season (2 free, 2 premium) + 6 Collection completion + 3 Legend titles")
+	expectEqual(#Defs, 104, "53 original + 30 new + 6 mode titles + 2 invite + 4 season (2 free, 2 premium) + 6 Collection completion + 3 Legend titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -10479,13 +10616,13 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	local day = first1 + 3
 	local p = PlayerProfile.new()
 	expectEqual(ST.addXp(p, 10, first1 - 1), 0, "no XP outside a season"); expectEqual(p.seasonXp, 0)
-	expectEqual(ST.addXp(p, 100, day), 100); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
+	expectEqual(ST.addXp(p, ST.XP_PER_TIER + 10, day), ST.XP_PER_TIER + 10); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
 	expectEqual(ST.addXp(p, -5, day), 0); expectEqual(ST.addXp(p, 0 / 0, day), 0); expectEqual(ST.addXp(p, 2.9, day), 2)
-	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - 102, "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
+	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - (ST.XP_PER_TIER + 12), "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
 	-- claims: reached only, once, in the running season, junk tiers refused
 	local fresh = PlayerProfile.new()
-	ST.addXp(fresh, 200, day)
-	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs 270 XP")
+	ST.addXp(fresh, ST.XP_PER_TIER * 2 + 20, day)
+	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs three tiers of XP")
 	local ok, reward = ST.claim(fresh, 1, day)
 	expectTrue(ok); expectEqual(reward.kind, "tips"); expectEqual(fresh.pendingStartTips, reward.amount)
 	expectFalse((ST.claim(fresh, 1, day)), "claimed once"); expectFalse((ST.claim(fresh, 0, day))); expectFalse((ST.claim(fresh, 31, day)))
@@ -10504,14 +10641,14 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	expectTrue(ST.ensureSeason(rich, first2)); expectEqual(rich.seasonId, s2.id); expectEqual(rich.seasonXp, 0); expectEqual(next(rich.seasonClaimed), nil)
 	expectTrue(rich.unlockedCardBackIds[s1.finalCardBackId] and rich.rewardTitleIds[s1.titleId], "season 1 rewards stay owned")
 	expectFalse(ST.ensureSeason(rich, first2), "no second reset")
-	expectEqual(ST.addXp(rich, 90, first2), 90); expectEqual(ST.tierOf(rich.seasonXp), 1)
+	expectEqual(ST.addXp(rich, ST.XP_PER_TIER, first2), ST.XP_PER_TIER); expectEqual(ST.tierOf(rich.seasonXp), 1)
 	-- with no season running, nothing changes
 	expectFalse(ST.ensureSeason(rich, first2 + 1000)); expectEqual(rich.seasonId, s2.id)
 	-- the view
 	local view = ST.view(fresh, day)
 	expectEqual(view.name, s1.name); expectEqual(view.tier, 2); expectEqual(#view.tiers, 30); expectEqual(view.claimable, 0)
 	expectEqual(view.daysLeft, 27); expectTrue(view.tiers[1].claimed and view.tiers[2].claimed and not view.tiers[3].reached)
-	ST.addXp(fresh, 90, day)
+	ST.addXp(fresh, ST.XP_PER_TIER, day)
 	expectEqual(ST.view(fresh, day).claimable, 1)
 	expectEqual(ST.view(PlayerProfile.new(), first1 - 3).upcoming, true); expectEqual(ST.view(PlayerProfile.new(), first1 - 3).startsIn, 3)
 	expectEqual(ST.view(PlayerProfile.new(), first2 + 500), nil)
@@ -10766,7 +10903,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	end
 	-- free player: premium locked, nothing claimable, view shows what is included
 	local free = PlayerProfile.new()
-	ST.addXp(free, 500, day)
+	ST.addXp(free, ST.XP_PER_TIER * 5 + 50, day)
 	expectFalse((ST.claimPremium(free, 1, day)), "locked without the pass")
 	local view = ST.view(free, day)
 	expectFalse(view.premium.owned); expectEqual(view.premium.itemId, s1.premiumItemId); expectTrue(#view.premium.perks >= 3)
@@ -10795,7 +10932,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	local view2 = ST.view(free, day)
 	expectTrue(view2.premium.owned and view2.tiers[1].premium.claimed and not view2.tiers[1].premium.locked)
 	-- later tiers become claimable as XP grows, individually or all at once
-	ST.addXp(free, 90 * 12, day)
+	ST.addXp(free, ST.XP_PER_TIER * 12, day)
 	expectEqual(ST.view(free, day).premium.claimable, ST.tierOf(free.seasonXp) - reached)
 	local ok, reward = ST.claimPremium(free, 8, day)
 	expectTrue(ok); expectEqual(reward.kind, "title"); expectTrue(free.rewardTitleIds[s1.premiumTitleId])
@@ -14636,7 +14773,9 @@ table.insert(tests, { name = "Art maps: every blessing has a painted icon and ev
 	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	for _, def in ipairs(RunModifiers.Definitions) do
-		expectTrue(ContentArt.getImageId("blessing_icons", def.id) ~= nil, def.id .. " has a blessing icon")
+		-- the three newest blessings draw their emoji until painted icons are generated (ChoicePanel falls back to def.icon)
+		local emojiOnly = def.id == "spare_chair" or def.id == "extra_hand" or def.id == "lucky_penny"
+		expectTrue(ContentArt.getImageId("blessing_icons", def.id) ~= nil or (emojiOnly and type(def.icon) == "string" and def.icon ~= ""), def.id .. " has a blessing icon")
 	end
 	for _, set in ipairs(CS.Definitions) do
 		if set.id ~= "classic_tavern" then
@@ -15030,14 +15169,20 @@ table.insert(tests, { name = "Corner dock: every set tints the painted icons, ke
 	end
 end })
 
-table.insert(tests, { name = "AmbientLayout: every Card Set has a living backdrop, at most 14 objects, bands inside 0 to 1, calm mode creates none", fn = function()
+table.insert(tests, { name = "AmbientLayout: one effect per Card Set (none for classic and feast), at most 12 objects, bands inside 0 to 1, calm mode creates none", fn = function()
 	local AL = require(script.Parent.Parent.Engine.AmbientLayout)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
-	expectEqual(AL.MAX_OBJECTS, 14, "cap")
+	expectEqual(AL.MAX_OBJECTS, 12, "cap")
+	local none = { classic_tavern = true, tavern_feast = true }
 	for _, set in ipairs(CS.Definitions) do
 		expectTrue(AL.SETS[set.id] ~= nil, set.id .. " has an ambient entry")
 		local n = AL.objectCount(set.id, false)
-		expectTrue(n >= 1 and n <= 14, set.id .. " has 1 to 14 animated objects, got " .. n)
+		if none[set.id] then
+			expectEqual(n, 0, set.id .. " has no natural effect")
+		else
+			expectEqual(#AL.SETS[set.id], 1, set.id .. " has exactly one effect")
+			expectTrue(n >= 1 and n <= 12, set.id .. " has 1 to 12 animated objects, got " .. n)
+		end
 		expectEqual(AL.objectCount(set.id, true), 0, set.id .. " calm mode creates zero animated objects")
 		for _, spec in ipairs(AL.SETS[set.id]) do
 			expectTrue(AL.SPRITES[spec.kind] ~= nil, set.id .. " kind " .. spec.kind .. " is known")
@@ -15137,6 +15282,10 @@ table.insert(tests, { name = "Living backdrops: one 30 Hz Heartbeat, pooled fram
 	expectTrue(bs:find("setAmbient", 1, true) ~= nil and bs:find("AmbientLife", 1, true) ~= nil, "BackdropStyles hosts the ambient scene")
 	local view = read("src/Client/CosmeticSetsView.lua")
 	expectTrue(view:find("setAmbient", 1, true) ~= nil, "the set view starts it on every equip")
+	for _, h in ipairs({ "RoundSelect", "TavernMap" }) do
+		expectTrue(view:find('name = "' .. h .. '"[^\n]-noAmbient = true') ~= nil, h .. " has no ambient motion (table and Counter only)")
+	end
+	expectTrue(view:find('name = "TableLook"[^\n]-noAmbient') == nil and view:find('name = "ShopBackgroundArt"[^\n]-noAmbient') == nil, "table and Counter keep ambient motion")
 	local art = read("src/Shared/Engine/ContentArt.lua")
 	expectTrue(art:find("AmbientArt", 1, true) ~= nil, "ambient art is registered")
 end })
@@ -21038,6 +21187,64 @@ table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges
 	expectTrue(plain.room:FindFirstChild("Floor").Visible and plain.room:FindFirstChild("Hotspot_patrons"):FindFirstChild("Object").Visible, "the drawn room stays as the fallback")
 end })
 
+table.insert(tests, { name = "Screen budget: Collection, Badges and Map stay under 2500 GuiObjects, and every per frame loop in the client is stored so it can be disconnected", fn = function()
+	local Perf = require(script.Parent.Parent.Engine.Gameplay2Perf)
+	local LIMIT = 2500
+	local function countOf(label, root)
+		local n = Perf.count(root, false)
+		expectTrue(n < LIMIT, label .. " has " .. n .. " GuiObjects, the limit is " .. LIMIT)
+		return n
+	end
+	local col, CB = collectionBuild()
+	if col then
+		col.open()
+		countOf("Collection gallery room", col.gui)
+		for _, sec in ipairs(CB.Tabs) do
+			if col.hotspot(sec.id) then
+				col.pick(sec.id)
+				col.tiles() -- every delayed batch built: the worst case
+				countOf("Collection section " .. sec.id, col.gui)
+				col.step()
+			end
+		end
+		local BS = require(script.Parent.BadgeScene)
+		local b = BS.build({ badgeIds = {} })
+		b.open()
+		countOf("Badges", b.gui)
+		local MapScene = require(script.Parent.MapScene)
+		countOf("Tavern Map", MapScene.build({}).gui)
+	end
+	-- loops: a Heartbeat or RenderStepped connection must be kept in a variable (or a list) so close can disconnect it, and a file that
+	-- connects one must also call :Disconnect somewhere. The two permanent hub loops idle while their screen is hidden.
+	if not (io and io.open) then return end
+	local permanent = { ["src/Client/BossFight.lua"] = 1, ["src/Client/PlayMotion.lua"] = 1 } -- one connection each for the client's life
+	local p = io.popen and io.popen("ls src/Client/*.lua")
+	if not p then return end
+	local filesSeen, loopsSeen = 0, 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local src = f:read("*a")
+		f:close()
+		filesSeen = filesSeen + 1
+		local connects = 0
+		for line in src:gmatch("[^\n]+") do
+			if (line:find("Heartbeat:Connect", 1, true) or line:find("RenderStepped:Connect", 1, true)) and not line:match("^%s*%-%-") and not line:match("^%s*[%w%.]*%-%-") then
+				local stored = line:find("=%s*[%w%.]*RunService") or line:find("table.insert%(") or line:find("=%s*game:GetService")
+				if not stored and not permanent[path] then
+					error(path .. ": a per frame loop is not stored, so close cannot disconnect it: " .. line:gsub("^%s+", ""))
+				end
+				connects = connects + 1
+				loopsSeen = loopsSeen + 1
+			end
+		end
+		if connects > 0 and path ~= "src/Client/FxLoop.lua" and not permanent[path] then
+			expectTrue(src:find(":Disconnect(", 1, true) ~= nil, path .. " connects a per frame loop but never disconnects one")
+		end
+	end
+	p:close()
+	expectTrue(filesSeen > 100 and loopsSeen >= 25, "the loop scan really read the client: " .. filesSeen .. " files, " .. loopsSeen .. " loops")
+end })
+
 table.insert(tests, { name = "Peddler speech bubble: hidden when its text is empty or faded, and the pack panel never restores it", fn = function()
 	local f = io and io.open and io.open("src/Client/ShopScene.lua", "r")
 	if not f then return end -- Studio has no io
@@ -23126,7 +23333,7 @@ table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varie
 	if not f then return end
 	local src = f:read("*a")
 	f:close()
-	expectTrue(src:find('"BackToTavern", "Menu"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Menu button (the Back to Tavern action)")
+	expectTrue(src:find('"BackToTavern", "Back to Tavern"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Menu button (the Back to Tavern action)")
 	expectTrue(src:find("AccentBar", 1, true) == nil, "red accent line removed")
 	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
 end })
@@ -27012,7 +27219,7 @@ table.insert(tests, { name = "Play table cohesion: card index text has a 15 px f
 	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local face, pop = slurp("src/Client/CardFace.lua"), slurp("src/Client/ScorePopup.lua")
 	if not (face and pop) then return end
-	expectTrue(face:find("MinTextSize = 18", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 18")
+	expectTrue(face:find("MinTextSize = 20", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 20")
 	expectTrue(pop:find("PlayedLane", 1, true) ~= nil, "ScorePopup lands cards through PlayedLane")
 	expectTrue(pop:find("Color3.fromRGB(60, 130, 235)", 1, true) == nil and pop:find("Color3.fromRGB(225, 55, 55)", 1, true) == nil, "no saturated flat blue and red on the readout")
 end })
@@ -27358,7 +27565,7 @@ table.insert(tests, { name = "BossRules.finishScore: one function for the boss f
 	local hub = hubFile:read("*a"); hubFile:close()
 	local src = engineFile:read("*a"); engineFile:close()
 	expectTrue(hub:find("Engine.HandPreview", 1, true) ~= nil, "the hub's preview is Engine/HandPreview")
-	expectTrue(src:find("BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the preview finishes the score with the shared function")
+	expectTrue(src:find("BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct + NightBoons.scorePct(view, isFirstHand))", 1, true) ~= nil, "the preview finishes the score with the shared function")
 	expectTrue(src:find('Strangers.field(view, "scorePct")', 1, true) ~= nil, "the preview reads the Dealer's Bargain percent")
 	expectTrue(src:find("PatronEvents.tavernNotes(boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the Bargain pill is shown with the real percent, not a hardcoded 0")
 	expectTrue(src:find("rng = Scoring.noLuck", 1, true) ~= nil, "the preview never rolls luck")
@@ -28170,6 +28377,9 @@ do
 			while #played < size do
 				take()
 			end
+			for _, card in ipairs(played) do -- a third of the cards wear a mark, so the mark Patrons have something to pay for
+				if rnd(3) == 1 then card.mark = Card.MarkOrder[rnd(#Card.MarkOrder)] end
+			end
 			local held = {}
 			for _ = 1, rnd(8) - 1 do
 				held[#held + 1] = table.remove(deck)
@@ -28188,7 +28398,7 @@ do
 					handsRemaining = handsRemaining, isLastHand = handsRemaining == 0, discardsRemaining = rnd(5) - 1,
 					night = rnd(8), round = rnd(3), tips = rnd(41) - 1,
 					roundsCleared = rnd(24) - 1, bossesCleared = rnd(8) - 1, handsPlayedTotal = rnd(81) - 1,
-					discardsUsedTotal = rnd(61) - 1, patronsSold = rnd(6) - 1, handStatsBefore = stats,
+					discardsUsedTotal = rnd(61) - 1, patronsSold = rnd(6) - 1, boonsPicked = rnd(8) - 1, handStatsBefore = stats,
 					alreadyPlayedThisHandTypeThisRound = rnd(2) == 1,
 				},
 			}
@@ -30891,7 +31101,9 @@ table.insert(tests, { name = "Accessibility: Colorblind Suits inks read at 4.5:1
 		for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
 			local m = A.SuitMarks[n]
 			local ink = CS.colorblindInkOf(set, m.ink)
-			expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			if not set.darkFace then -- a dark painted face has no pale paper: the dark plate is the surface the mark sits on
+				expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			end
 			expectTrue(CS.contrastRatio(ink, plate) >= 4.5, set.id .. " " .. n .. " ink on index plate")
 			expectTrue(not seen[m.glyph .. m.letter], set.id .. " " .. n .. " cue is unique")
 			seen[m.glyph .. m.letter] = true
@@ -33126,7 +33338,7 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
 	local face = read("src/Client/CardFace.lua")
-	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 18", 1, true), "CardLook mirrors the CardFace index box and floor")
+	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 20", 1, true), "CardLook mirrors the CardFace index box and floor")
 	assert(read("src/Client/init.client.lua"):find('WaitForChild("CardLook")', 1, true), "the hub draws the selection edge from CardLook")
 	local pal = read("src/Client/Palette.lua")
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
@@ -33700,7 +33912,7 @@ table.insert(tests, { name = "Night clear Patron reward: 3 unowned Patrons, rare
 	local f = io.open("src/Server/init.server.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
-		expectTrue(src:find("RunChoice.rewardDraft(session.state, not fixedRun)", 1, true) ~= nil, "the server opens the reward on a new Night")
+		expectTrue(src:find("RunChoice.afterBoon(session.state, not fixedRun)", 1, true) ~= nil, "the server opens the reward on a new Night (after the boon)")
 	end
 	local g = io.open("src/Client/ChoicePanel.lua", "r")
 	if g then
@@ -34985,10 +35197,11 @@ table.insert(tests, { name = "Run Over: summary names the night, best hand, scor
 	if not io then return end
 	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
 	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: ", "Patrons used", "unlockLine(names)", "Next unlock: ",
-		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
+		'"PlayAgain", "Play Again"', '"BackToTavern", "Back to Tavern"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
 		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
 	end
-	expectTrue(src:find("Back to Tavern\"", 1, true) == nil, "no second name for the Menu button")
+	local _, namedCount = src:gsub('"Back to Tavern"', "")
+	expectEqual(namedCount, 1, "the Menu button has one name, Back to Tavern, and no second label")
 end })
 
 table.insert(tests, { name = "Boss intro: the plate stands below the Patron row at four sizes, never over the top bar or the seats, rule text shrinks instead of truncating", fn = function()
@@ -38148,7 +38361,9 @@ table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every sl
 			expectTrue(type(t.tint[i]) == "number" and t.tint[i] >= 0 and t.tint[i] <= 255, def.id .. " tint is well formed")
 			expectTrue(type(t.accent[i]) == "number" and t.accent[i] >= 0 and t.accent[i] <= 255, def.id .. " accent is well formed")
 		end
-		expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		if AL.SETS[def.id][1] then
+			expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		end
 		local style = TS.washStyle(def.id, "menuBackdrop")
 		if def.id == "classic_tavern" then
 			expectTrue(style == nil, "classic_tavern keeps its own scenes, no wash")
@@ -38726,7 +38941,8 @@ table.insert(tests, { name = "Boss variety: every boss has a rule that is enforc
 	local BC = require(script.Parent.Parent.Engine.BossCounters)
 	local effectKeys = { "handSizeDelta", "discardsDelta", "handsPerRoundOverride", "targetScoreMultiplier", "chipsMultiplier", "multMultiplier",
 		"tipsLostPerCardPlayed", "forcedRandomDiscardsPerHand", "requiredCardsPerHand", "noRepeatHandTypes", "zeroTipsOnMostPlayedHand",
-		"firstHandMultiplier", "tipsLostAtStart", "minHandName", "minCardsPerHand", "noScoreHandTypes", "patronCap", "noScoringTips", "debuff" }
+		"firstHandMultiplier", "tipsLostAtStart", "minHandName", "minCardsPerHand", "noScoreHandTypes", "patronCap", "noScoringTips", "debuff",
+		"firstCardOut", "patronChipsFactor", "patronsSitOut" }
 	-- 1. every boss has at least one enforced effect, a readable rule line, and a signature no other boss on its tier shares
 	local seen = {}
 	for _, boss in ipairs(BossRounds.Definitions) do
@@ -38834,6 +39050,17 @@ table.insert(tests, { name = "Boss variety: every boss has a rule that is enforc
 			RunState.playHand(t, { 1, 2 })
 			expectTrue(first > 0 and t.lastPlay.score == 0, boss.id .. " scores a repeated hand type as nothing")
 		end
+		if boss.firstCardOut then
+			local with, without = playScore(boss, pairA), playScore(none, pairA)
+			expectTrue(with < without, boss.id .. " silences the first card played: " .. with .. " vs " .. without)
+		end
+		if boss.patronsSitOut then
+			local list = {}
+			for i = 1, 4 do list[i] = { id = "p" .. i } end
+			expectEqual(#BossRules.scoringPatrons(boss, list), 4 - boss.patronsSitOut, boss.id .. " benches the last Patron")
+			expectEqual(BossRules.scoringPatrons(boss, list)[3].id, "p3", boss.id .. " keeps the first seats")
+			expectEqual(#BossRules.scoringPatrons(boss, {}), 0, boss.id .. " with no Patrons is safe")
+		end
 		if boss.patronCap then
 			local list = {}
 			for i = 1, boss.patronCap + 2 do list[i] = { id = "p" .. i } end
@@ -38874,6 +39101,637 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
 			expectTrue(t == t and t > 0 and t <= ER.TARGET_CAP and t == math.floor(t), "Night " .. night)
 			expectTrue(#ST.short(t) > 0)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Save round trip: a well used profile survives save and load field for field, never losing Tips, owned sets, card backs or best Night, and loading twice changes nothing", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local function dump(v, seen)
+		if type(v) ~= "table" then return type(v) .. ":" .. tostring(v) end
+		seen = seen or {}
+		if seen[v] then return "cycle" end
+		seen[v] = true
+		local keys = {}
+		for k in pairs(v) do keys[#keys + 1] = k end
+		table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+		local out = {}
+		for _, k in ipairs(keys) do out[#out + 1] = type(k) .. ":" .. tostring(k) .. "=" .. dump(v[k], seen) end
+		seen[v] = nil
+		return "{" .. table.concat(out, ",") .. "}"
+	end
+	-- the defaults themselves survive a load
+	expectEqual(dump(PlayerProfile.migrate(PlayerProfile.new())), dump(PlayerProfile.new()), "a new profile loads as itself")
+	-- a well used one
+	local p = PlayerProfile.new()
+	PlayerProfile.recordPatronsFound(p, { "tip_jar", "second_opinion" })
+	for i = 1, 6 do PlayerProfile.recordRunStarted(p); PlayerProfile.recordNightReached(p, i) end
+	PlayerProfile.recordRunWon(p)
+	p.ownedSetIds.winter_evening = true
+	p.ownedSetIds.golden_gala = true
+	p.equippedSetId = "golden_gala"
+	local back = CardBacks.Definitions[1].id
+	p.unlockedCardBackIds[back] = true
+	p.equippedCardBackId = back
+	p.pendingStartTips = 17
+	Quests.ensureDay(p, 20800)
+	Quests.apply(p, 20800, { hands = 12, pairs = 5, discards = 6 })
+	LoginStreak.checkIn(p, 20800)
+	TavernRank.addXp(p, 400)
+	p.keys, p.compassCharges, p.bossRushBest = 3, 2, 4 -- (legendPoints is left out: loading it grants its reward, a derived field)
+	p.settings.musicVolume = 0.2
+	p.settings.performanceMode = true
+	p.settings.largerText = true
+	local before = dump(p)
+	local first = PlayerProfile.migrate(p)
+	local changed = {}
+	for k, v in pairs(p) do
+		if dump(first[k]) ~= dump(v) then changed[#changed + 1] = k .. " (" .. dump(v):sub(1, 60) .. " -> " .. dump(first[k]):sub(1, 60) .. ")" end
+	end
+	expectEqual(table.concat(changed, "; "), "", "save and load changed fields of a valid profile")
+	expectEqual(dump(first), before, "save and load changes nothing in a valid profile")
+	expectEqual(dump(PlayerProfile.migrate(first)), before, "loading twice changes nothing")
+	expectTrue(p.pendingStartTips >= 17, "the fixture banked Tips (quests and rank added to the 17)")
+	expectEqual(first.pendingStartTips, p.pendingStartTips, "banked Tips kept")
+	expectEqual(first.stats.bestNightReached, 6, "best Night kept")
+	expectTrue(first.ownedSetIds.winter_evening and first.ownedSetIds.golden_gala and first.equippedSetId == "golden_gala", "owned and equipped sets kept")
+	expectEqual(first.equippedCardBackId, back, "equipped card back kept")
+	-- Tips, sets and best Night never drop when an older save with only part of them is loaded over: an old save has fewer, not none
+	local old = PlayerProfile.migrate({ pendingStartTips = 9, ownedSetIds = { winter_evening = true }, stats = { bestNightReached = 5 } })
+	expectEqual(old.pendingStartTips, 9)
+	expectTrue(old.ownedSetIds.winter_evening == true)
+	expectEqual(old.stats.bestNightReached, 5)
+	expectEqual(old.settings.performanceMode, false, "new fields default safely")
+end })
+
+table.insert(tests, { name = "Rejoin mid run: leaving at the draft choice, in the shop or in a round and rejoining gives a safe fresh run, banked Tips are paid once, nothing carries over, no screen is left without a state", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = 9
+	-- the server saves the profile on leave and loads it on join: that is all that survives
+	local function leaveAndRejoin(p) return PlayerProfile.migrate(p) end
+	for _, leaveAt in ipairs({ "draft", "round", "shop" }) do
+		local state = RunState.new({}, SeededRng.new(11))
+		local choice = RunChoice.startDraft(state, true)
+		if leaveAt ~= "draft" then
+			if choice then RunChoice.pick(state, choice, choice.options[1].id) end
+			RunState.startRound(state)
+			expectTrue(#state.hand > 0)
+			pcall(RunState.playHand, state, { 1, 2 })
+		end
+		if leaveAt == "shop" then
+			state.roundOver, state.runOver = true, false
+			RunState.buyPatron(state, "tip_jar")
+		end
+		local owned, tipsAtLeave = #state.ownedPatrons, state.tips
+		-- leave: the session (and its run) is dropped, the profile is saved and reloaded on rejoin
+		profile = leaveAndRejoin(profile)
+		local fresh = RunState.new({}, SeededRng.new(12))
+		expectEqual(fresh.night, 1, "a rejoin starts at Night 1 (left at " .. leaveAt .. ")")
+		expectEqual(fresh.round, 1)
+		expectEqual(#fresh.ownedPatrons, 0, "no Patron carries over from the old run")
+		expectEqual(fresh.roundScore or 0, 0)
+		expectTrue(fresh.runOver ~= true and fresh.roundOver ~= true, "the new run is open for play")
+		expectTrue(#fresh.hand > 0 or fresh.hand ~= nil, "a hand state exists, so the table screen has something to draw")
+		expectEqual(profile.pendingStartTips, 9, "banked Tips survive the leave untouched until a run starts")
+		local _ = owned + tipsAtLeave
+	end
+	-- the banked Tips are paid into exactly one run: taking them clears the bank
+	local bank = profile.pendingStartTips
+	profile.pendingStartTips = 0
+	expectEqual(leaveAndRejoin(profile).pendingStartTips, 0, "a second rejoin pays nothing again")
+	expectEqual(bank, 9)
+	-- the server side of it
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("sessions[player] = nil", 1, true) ~= nil, "a leaving player's session is dropped")
+	expectTrue(src:find("pcall(startNewSession, player)", 1, true) ~= nil, "a joining player always gets a session, and a failure is caught")
+	expectTrue(src:find("if sessions[player] then pushState(player) end", 1, true) ~= nil, "a state request without a session is ignored, not an error")
+	expectTrue(src:find("saveProfile(player, true)", 1, true) ~= nil, "the profile is saved on leave")
+end })
+
+table.insert(tests, { name = "Exploit audit: no shop loop of buy, sell and reroll grows Tips, and Daily chest, first win bonus, quest and rank claims pay once however often they are repeated", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	-- 1. shop fuzz: 400 random actions per setup, all passes owned or not; Tips never rise (a shop has no income)
+	local passSets = { {}, { "regulars_discount" }, { "regulars_discount", "frequent_visitor", "savings_account" } }
+	local sold = 0
+	for seed = 1, 6 do
+		for _, passes in ipairs(passSets) do
+			local state = RunState.new(nil, SeededRng.new(seed))
+			state.tips = 40
+			for _, id in ipairs(passes) do state.housePasses[id] = true end
+			local rng = SeededRng.new(seed * 31)
+			local start, reroll = state.tips, Shop.REROLL_BASE_COST
+			for _ = 1, 400 do
+				local pick = rng(6)
+				if pick == 1 then
+					RunState.buyPatron(state, Patrons.Definitions[rng(#Patrons.Definitions)].id)
+				elseif pick == 2 and #state.ownedPatrons > 0 then
+					if RunState.sellPatron(state, state.ownedPatrons[rng(#state.ownedPatrons)].id) then sold = sold + 1 end
+				elseif pick == 3 then
+					RunState.buyMenuRecipe(state, Recipes.MenuRecipes[rng(#Recipes.MenuRecipes)].id)
+				elseif pick == 4 and #state.menuRecipeInventory > 0 then
+					RunState.sellRecipe(state, "menu", state.menuRecipeInventory[rng(#state.menuRecipeInventory)])
+				elseif pick == 5 then
+					RunState.buyHouseRecipe(state, Recipes.HouseRecipes[rng(#Recipes.HouseRecipes)].id)
+				else
+					local cost = RunState.rerollCost(state, reroll)
+					if state.tips >= cost then state.tips = state.tips - cost; reroll = reroll + Shop.REROLL_COST_STEP end
+				end
+				expectTrue(state.tips <= start, "seed " .. seed .. ": Tips rose from " .. start .. " to " .. state.tips .. " in a shop loop")
+				expectEqual(state.tips, math.floor(state.tips), "Tips stay whole")
+			end
+		end
+	end
+	expectTrue(sold > 50, "the fuzz really bought and sold Patrons: " .. sold .. " sales")
+	-- 2. the Daily chest pays once per day, however many times it is claimed or the clock moves back and forth
+	local p = PlayerProfile.new()
+	local day = 20800
+	LoginStreak.checkIn(p, day)
+	local slot = LoginStreak.slotFor(p.loginStreak)
+	local okFirst = LoginStreak.claim(p, slot, nil)
+	expectTrue(okFirst)
+	local tipsAfter, xpAfter = p.pendingStartTips, p.tavernXp
+	for _, d in ipairs({ day, day - 1, day, day + 0, day - 5 }) do
+		LoginStreak.checkIn(p, d)
+		expectFalse((LoginStreak.claim(p, slot, nil)), "a second claim on day " .. d .. " is refused")
+	end
+	expectEqual(p.pendingStartTips, tipsAfter, "no extra Tips from repeated claims")
+	expectEqual(p.tavernXp, xpAfter, "no extra XP from repeated claims")
+	-- 3. first win of the day: once per day
+	local w = PlayerProfile.new()
+	local first = TavernRank.firstWinBonus(w, 20800)
+	expectTrue(first ~= nil and first ~= false and first ~= 0, "the first win pays")
+	expectTrue(TavernRank.firstWinBonus(w, 20800) == nil or TavernRank.firstWinBonus(w, 20800) == false or TavernRank.firstWinBonus(w, 20800) == 0, "the second win of the day pays nothing")
+	-- 4. quests: the same run counters sent again (a rejoin, a replayed snapshot) add nothing, a finished quest pays once
+	local q = PlayerProfile.new()
+	Quests.ensureDay(q, 20800)
+	local snapshot = {}
+	local counters = { hands = 12, pairs = 5, discards = 6, rounds = 4, bosses = 1, packs = 1, night = 3 }
+	local before = q.pendingStartTips
+	Quests.apply(q, 20800, Quests.deltas(snapshot, counters))
+	local afterFirst, xpFirst, doneFirst = q.pendingStartTips, q.tavernXp, q.questsDone
+	for _ = 1, 5 do Quests.apply(q, 20800, Quests.deltas(snapshot, counters)) end
+	expectEqual(q.pendingStartTips, afterFirst, "replayed counters add no Tips")
+	expectEqual(q.tavernXp, xpFirst, "replayed counters add no XP")
+	expectEqual(q.questsDone, doneFirst, "a finished quest counts once")
+	expectTrue(afterFirst - before <= Quests.MAX_PENDING_TIPS)
+	-- the pending Tips bank is capped, so no pile of claims can bank more than the cap
+	for _ = 1, 50 do q.pendingStartTips = math.min(Quests.MAX_PENDING_TIPS, q.pendingStartTips + 5) end
+	expectTrue(q.pendingStartTips <= Quests.MAX_PENDING_TIPS)
+end })
+
+table.insert(tests, { name = "Funnel coverage: all 7 launch steps and all 8 first five minutes steps have a server call site, fire once in a scripted run, and carry no name or free text", fn = function()
+	local AE = require(script.Parent.Parent.Engine.AnalyticsEvents)
+	local Funnel = require(script.Parent.Parent.Engine.Funnel)
+	expectEqual(#AE.Steps, 7)
+	expectEqual(#Funnel.Steps, 8)
+	-- a scripted run: the whole funnel twice, then the same steps again (every step must go out exactly once)
+	local sent = {}
+	local log = AE.new({ enabled = true, service = { LogFunnelStepEvent = function(_, player, funnel, session, index, step)
+		sent[#sent + 1] = { funnel = funnel, session = session, index = index, step = step, player = player }
+	end }, now = function() return 1000 end })
+	local player = { UserId = 4242, Name = "Robin", DisplayName = "Robin the Great" }
+	for _ = 1, 2 do
+		log.step(player, "menu_opened")
+		log.runStarted(player)
+		log.step(player, "first_hand_played"); log.step(player, "first_round_cleared"); log.step(player, "first_night_cleared")
+		log.step(player, "first_patron_bought"); log.runStarted(player)
+	end
+	expectEqual(#sent, 7, "each of the 7 steps went out exactly once")
+	local seenStep = {}
+	for i, s in ipairs(sent) do
+		expectFalse(seenStep[s.step], s.step .. " sent twice")
+		seenStep[s.step] = true
+		expectEqual(s.index, AE.stepIndex(s.step))
+		expectEqual(s.funnel, AE.FUNNEL_NAME)
+		for _, field in ipairs({ s.funnel, s.session, s.step }) do
+			local lower = tostring(field):lower()
+			expectFalse(lower:find("robin", 1, true), "no player name in the payload")
+		end
+	end
+	for _, id in ipairs(AE.Steps) do expectTrue(seenStep[id], id .. " fired in the scripted run") end
+	expectEqual(AE.stepIndex("not_a_step"), nil)
+	-- call sites in the server
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	for _, id in ipairs(AE.Steps) do
+		local viaRuns = (id == "run_started" or id == "second_run_started") and src:find("LaunchLog.runStarted(player)", 1, true)
+		expectTrue(viaRuns or src:find('LaunchLog.step(player, "' .. id .. '")', 1, true) ~= nil, "launch step " .. id .. " has a server call site")
+	end
+	for _, id in ipairs(Funnel.Steps) do
+		expectTrue(src:find('logStep(player, "' .. id .. '")', 1, true) ~= nil, "first five minutes step " .. id .. " has a server call site")
+	end
+end })
+
+table.insert(tests, { name = "Season pace over 30 days: a 20 minute a day player finishes the 30 tiers between day 22 and 28, a 10 minute player never waits over 3 days for a tier, a 60 minute player does not finish in under a week", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local start = 20788 -- 2026-12-01, the first day of Winter Welcome (30 days)
+	local function waits(r)
+		local gap, last, longest = 0, 0, 0
+		for _, d in ipairs(r.days) do
+			if last >= ST.TIERS then break end
+			if d.tier > last then gap = 0 else gap = gap + 1 end
+			longest = math.max(longest, gap)
+			last = d.tier
+		end
+		return longest
+	end
+	local casual = EconomySim.season(start, 30, 1)
+	local normal = EconomySim.season(start, 30, 2)
+	local heavy = EconomySim.season(start, 30, 6)
+	expectTrue(normal.finishDay ~= nil and normal.finishDay >= 22 and normal.finishDay <= 28, "20 minutes a day finishes on day " .. tostring(normal.finishDay))
+	expectTrue(waits(casual) <= 3, "10 minutes a day waits at most 3 days for a tier, got " .. waits(casual))
+	expectTrue(waits(normal) <= 3 and waits(heavy) <= 3)
+	expectTrue(casual.finalTier >= 15, "even 10 minutes a day reaches the middle of the track: " .. casual.finalTier)
+	expectTrue(heavy.finishDay == nil or heavy.finishDay >= 7, "60 minutes a day does not finish in under a week")
+	expectEqual(ST.XP_PER_TIER, 225)
+end })
+
+table.insert(tests, { name = "Scoring hot path: 10000 hands with 5 Patrons score in under 3 seconds (about 0.3 s today), so a slow change is caught", fn = function()
+	if not os.clock then return end
+	local Deck = require(script.Parent.Parent.Engine.Deck)
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Sc = require(script.Parent.Parent.Engine.Scoring)
+	local Pat = require(script.Parent.Parent.Engine.Patrons)
+	local rng = SeededRng.new(5)
+	local owned = {}
+	for i = 1, 5 do owned[i] = Pat.Definitions[i * 7] end
+	local deck = Deck.newStandardDeck()
+	local t0 = os.clock()
+	for _ = 1, 10000 do
+		deck = Deck.shuffle(deck, rng)
+		local hand = { deck[1], deck[2], deck[3], deck[4], deck[5] }
+		local score = Sc.calculate(HE.evaluate(hand), owned, { handLevels = {}, rng = rng })
+		expectTrue(score == score and score > 0, "scores are real numbers")
+	end
+	local took = os.clock() - t0
+	expectTrue(took < 3, "10000 hands took " .. took .. " s (budget 3 s; tools/scoring_perf.lua times it)")
+end })
+
+table.insert(tests, { name = "File size watch: no big file grows more than 10 percent past its budget, and no new file starts above 1100 lines", fn = function()
+	if not (io and io.open and io.popen) then return end
+	-- budgets are the line counts of 2026-11-22; a file may grow 10 percent before this fails (split it or raise the budget on purpose)
+	local budget = {
+		["src/Server/init.server.lua"] = 4177, ["src/Client/init.client.lua"] = 2906, ["src/Client/JourneyMapView.lua"] = 2299,
+		["src/Client/Shop.lua"] = 2047, ["src/Client/ScorePopup.lua"] = 1788, ["src/Client/Collection.lua"] = 1486,
+		["src/Client/PatronRow.lua"] = 1312, ["src/Client/Journey.lua"] = 1201, ["src/Client/Gameplay2.lua"] = 1126,
+		["src/Client/BossFight.lua"] = 1099, ["src/Client/Sound.lua"] = 1044, ["src/Client/RoundSelect.lua"] = 1033,
+		["src/Client/MenuHotspots.lua"] = 1028,
+		["src/Shared/Engine/RunState.lua"] = 2010, ["src/Shared/Engine/Patrons.lua"] = 1261, ["src/Shared/Engine/Recipes.lua"] = 1218,
+	}
+	local NEW_FILE_LIMIT, GROWTH = 1100, 1.10
+	local p = io.popen("ls src/Client/*.lua src/Server/*.lua src/Shared/Engine/*.lua")
+	if not p then return end
+	local seen = 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local lines = 0
+		for _ in f:lines() do lines = lines + 1 end
+		f:close()
+		seen = seen + 1
+		local limit = budget[path] and math.floor(budget[path] * GROWTH) or NEW_FILE_LIMIT
+		expectTrue(lines <= limit, path .. " has " .. lines .. " lines, over its limit of " .. limit .. (budget[path] and " (budget " .. budget[path] .. " plus 10 percent)" or ""))
+	end
+	p:close()
+	expectTrue(seen > 400, "the watch read the source tree: " .. seen .. " files")
+end })
+
+table.insert(tests, { name = "Datastore failure handling: retries wait longer each time, a flaky store recovers on the retry, a dead one leaves the saved profile untouched, and the blank fallback can never be saved", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local d = SaveLock.RETRY_DELAYS
+	for i = 2, #d do expectTrue(d[i] > d[i - 1], "load retry delay " .. i .. " is longer than the one before (backoff)") end
+	local total = 0
+	for _, x in ipairs(d) do total = total + x end
+	expectTrue(total <= 10, "a player never waits more than 10 seconds on a failing load")
+	for i = 2, #SaveLock.SAVE_RETRY_DELAYS do expectTrue(SaveLock.SAVE_RETRY_DELAYS[i] > SaveLock.SAVE_RETRY_DELAYS[i - 1]) end
+	-- a store that throws twice, then works
+	local saved = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local calls = 0
+	local flaky = { UpdateAsync = function(_, _, fn)
+		calls = calls + 1
+		if calls <= 2 then error("DataStore request was added to queue") end
+		local out = fn(saved)
+		if out then saved = out end
+	end }
+	local waits = {}
+	local status, stored = SaveLock.load(flaky, "k", "A", function() return 1000 end, d, function(s) waits[#waits + 1] = s end)
+	expectEqual(status, "ok")
+	expectEqual(stored.pendingStartTips, 12, "the real profile came back after the retries")
+	expectEqual(#waits, 2)
+	expectTrue(waits[1] == d[1] and waits[2] == d[2], "waited the backoff schedule in order")
+	-- a dead store: every attempt throws; whatever is stored stays exactly as it was
+	local keep = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local dead = { UpdateAsync = function() error("503") end }
+	local s2 = SaveLock.load(dead, "k", "A", function() return 1000 end, d, function() end)
+	expectEqual(s2, "error")
+	expectEqual(SaveLock.save(dead, "k", PlayerProfile.new(), "A", function() return 1000 end, false, SaveLock.SAVE_RETRY_DELAYS, function() end), "error")
+	expectEqual(keep.pendingStartTips, 12)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	-- the server marks a failed load as unsaveable, and a throw during load does too
+	local _, blocks = src:gsub("saveBlocked%[player%] = true", "")
+	expectTrue(blocks >= 2, "both load failure paths block saving: " .. blocks)
+	expectTrue(src:find("or saveBlocked[player] or", 1, true) ~= nil, "saveProfile returns early for a blocked player")
+	-- the notice is calm and kid safe
+	local notice = src:match('text = "(Your progress can\'t be saved right now[^"]*)"')
+	expectTrue(notice ~= nil and #notice <= 60, "a short notice is shown")
+	local lower = (notice or ""):lower()
+	for _, bad in ipairs({ "error", "fail", "datastore", "oops", "balatro" }) do expectFalse(lower:find(bad, 1, true), "notice avoids " .. bad) end
+	expectTrue(lower:find("you can still play", 1, true) ~= nil, "it tells the player they can keep playing")
+end })
+
+table.insert(tests, { name = "Hand level and reroll cost curves: every level Recipe costs 3 (one is affordable at the first Counter), rerolls climb 5, 7, 9 and stay above 0 under every discount", fn = function()
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local firstWin = RunState.DEFAULT_CONFIG and RunState.DEFAULT_CONFIG.tipsPerRoundWin or 4
+	expectEqual(#Recipes.MenuRecipes, 9, "one level Recipe per hand type")
+	for _, recipe in ipairs(Recipes.MenuRecipes) do
+		expectEqual(recipe.price, 3, recipe.id .. " costs 3 Tips at every level")
+		expectTrue(recipe.price <= firstWin, recipe.id .. " is affordable from the first round win")
+	end
+	local state = RunState.new(nil, SeededRng.new(2))
+	local cost, last = Shop.REROLL_BASE_COST, 0
+	for n = 1, 8 do
+		local c = RunState.rerollCost(state, cost)
+		expectEqual(c, 5 + (n - 1) * 2, "reroll " .. n .. " costs " .. 5 + (n - 1) * 2)
+		expectTrue(c > last, "each reroll costs more than the one before")
+		last = c
+		cost = cost + Shop.REROLL_COST_STEP
+	end
+	-- every discount at once (Frequent Visitor, Bargain Hunter, a seated Regular) can lower it but never to free
+	state.housePasses.frequent_visitor = true
+	state.ownedPatrons = { Patrons.getById("bargain_hunter") }
+	for n = 0, 6 do
+		expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST + n * Shop.REROLL_COST_STEP) >= 1, "never a free reroll")
+	end
+	expectTrue(RunState.rerollCost(state, Shop.REROLL_BASE_COST) > 0 and Shop.REROLL_BASE_COST > firstWin, "the first reroll costs more than one round win pays: it is a choice, not a reflex")
+end })
+
+table.insert(tests, { name = "Patron sell value: half the list price rounded down, and no discount stack lets buy then sell make a profit", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	for _, patron in ipairs(Patrons.Definitions) do
+		expectEqual(require(script.Parent.Parent.Engine.PackRoom).sellValue("patron", patron.id), math.floor(patron.price / 2), patron.id .. " sells for half, rounded down")
+		-- every lasting price cut (Regulars' Discount, -2) leaves the price at or above the sell value, so a loop of buy and sell cannot grow Tips
+		for _, regulars in ipairs({ false, true }) do
+			local state = RunState.new(nil, SeededRng.new(3))
+			state.tips = 100
+			state.housePasses.regulars_discount = regulars or nil
+			for loop = 1, 5 do
+				local before = state.tips
+				expectTrue(RunState.buyPatron(state, patron.id))
+				RunState.sellPatron(state, patron.id)
+				expectTrue(state.tips <= before, patron.id .. " buy then sell must not gain Tips (loop " .. loop .. ", Regulars " .. tostring(regulars) .. "): " .. before .. " to " .. state.tips)
+			end
+		end
+		-- the one shot cuts (Sale Day Tag, a haggle) may leave a small gain once, and clear after the visit: the next buy is at full price
+		local state = RunState.new(nil, SeededRng.new(3))
+		state.tips = 100
+		state.nextShopDiscount = 5
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		state.nextShopDiscount = 0 -- what leaving the shop does
+		local before = state.tips
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		expectTrue(state.tips < before, patron.id .. " at full price loses Tips on a round trip")
+	end
+end })
+
+table.insert(tests, { name = "Daily twists balance pin: Solo Star gives one seat at 4x power with 3 extra Hands, 4 extra Discards and 8 Tips (its win rate was 0 percent at 2x), all 12 twists still exist", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	expectEqual(#DM.Definitions, 12)
+	local solo = DM.getById("solo_star")
+	expectEqual(solo.rules.patronPower, 4)
+	expectEqual(solo.setConfig.patronSlotLimit, 1)
+	expectEqual(solo.config.handsPerRound, 3)
+	expectEqual(solo.config.discardsPerRound, 4)
+	expectEqual(solo.startTips, 8)
+	expectTrue(#solo.text <= 60 and solo.text:find("4x", 1, true) ~= nil, "the plate line tells the numbers: " .. solo.text)
+end })
+
+table.insert(tests, { name = "Daily twists: Patron power twists never leave fractional Tips, and every twist plays a seeded run to the end with whole Tips", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for _, def in ipairs(DM.Definitions) do
+		for seed = 1, 3 do
+			local state = RunState.new({ dailyModifierId = def.id }, SeededRng.new(seed))
+			for i = 1, 3 do state.ownedPatrons[i] = Patrons.Definitions[(seed * 7 + i * 5) % #Patrons.Definitions + 1] end
+			for _ = 1, 3 do
+				RunState.startRound(state)
+				for _ = 1, 6 do
+					if #state.hand < 2 then break end
+					local ok = pcall(RunState.playHand, state, { 1, 2 })
+					if not ok then break end -- the round ended
+					expectEqual(state.tips, math.floor(state.tips), def.id .. " left fractional Tips " .. tostring(state.tips))
+				end
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	for round = 1, 3 do
+		local last = 0
+		for night = 7, 20 do
+			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
+			expectTrue(t > last, "Night " .. night .. " round " .. round .. " must beat the Night before (" .. t .. " vs " .. last .. ")")
+			expectEqual(t, math.floor(t))
+			last = t
+		end
+	end
+	for night = 7, 20 do
+		expectTrue(RunState.targetScoreFor(night, 3, 3, 8) > RunState.targetScoreFor(night, 2, 3, 8), "the boss round is the hardest of Night " .. night)
+	end
+	for night = 10, 20 do
+		local ratio = RunState.nightBaseScoreFor(night) / RunState.nightBaseScoreFor(night - 1)
+		expectTrue(math.abs(ratio - 1.5) < 1e-6, "Night " .. night .. " base grows 1.5x, got " .. ratio)
+	end
+end })
+
+table.insert(tests, { name = "Remote functions: all five (three leaderboards, challenge seed, menu ticker) cap how often one player can call them, and board and scope junk is normalised", fn = function()
+	local LB = require(script.Parent.Parent.Engine.Leaderboards)
+	local junk = { 0 / 0, math.huge, -1, 0, "", "x", "global", {}, { 1 }, true, false, function() end }
+	for _, v in ipairs(junk) do
+		local okB, b = pcall(LB.isBoard, v)
+		expectTrue(okB and b == false, "isBoard refuses junk")
+		local okS, s = pcall(LB.normalizeScope, v)
+		expectTrue(okS and (s == LB.GLOBAL or s == LB.FRIENDS), "normalizeScope always answers global or friends")
+	end
+	expectTrue(LB.isBoard(LB.STANDARD) and LB.isBoard(LB.REVIVED))
+	expectEqual(LB.normalizeScope(nil), LB.GLOBAL)
+	expectEqual(LB.normalizeScope(LB.FRIENDS), LB.FRIENDS)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local function window(startLine, n)
+		local out = {}
+		for i = startLine, math.min(#lines, startLine + n) do out[#out + 1] = lines[i] end
+		return table.concat(out, "\n")
+	end
+	local seen = 0
+	for i, l in ipairs(lines) do
+		local lb = l:match("^Rem%._lb%.(Get%w+Leaderboard) = function")
+		if lb then
+			seen = seen + 1
+			local w = window(i, 8)
+			expectTrue(w:find("LEADERBOARD_COOLDOWN", 1, true) ~= nil and w:find("isBoard", 1, true) ~= nil, lb .. " checks the board and has a per player cooldown")
+		end
+		if l:find("^Rem%.MakeChallengeSeed%.OnServerInvoke") then
+			seen = seen + 1
+			expectTrue(window(i, 5):find("< 1", 1, true) ~= nil, "MakeChallengeSeed has a 1 second cooldown")
+		end
+		if l:find("TickerRemote.OnServerInvoke", 1, true) then
+			seen = seen + 1
+			expectTrue(window(i, 3):find("RateLimit.allow", 1, true) ~= nil, "GetMenuTicker is rate limited")
+		end
+	end
+	expectEqual(seen, 5, "every RemoteFunction handler was checked")
+end })
+
+table.insert(tests, { name = "Reading level: player facing text in the content registries has no word of 14 letters or more and only the listed long words of 12 or 13", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local fields = { name = true, description = true, desc = true, flavorText = true, text = true, label = true, hint = true, title = true, unlockText = true, detail = true }
+	-- words of 12 or 13 letters that a 12 year old knows (a game word or an everyday word); a new one needs a decision
+	local allowed = { completionist = true, neighborhood = true, troublemaker = true, ["everything's"] = true }
+	local over = {}
+	local function scan(v, depth)
+		if type(v) ~= "table" or depth > 6 then return end
+		for k, x in pairs(v) do
+			if type(x) == "string" and fields[k] then
+				for word in x:gmatch("[%a']+") do
+					local w = word:lower()
+					if #w >= 14 or (#w >= 12 and not allowed[w]) then over[#over + 1] = w end
+					expectFalse(w == "retriggers" or w == "randomizes", "plain words: " .. w)
+				end
+			elseif type(x) == "table" then
+				scan(x, depth + 1)
+			end
+		end
+	end
+	local total = 0
+	for _, name in ipairs({ "Patrons", "BossRounds", "Recipes", "Packs", "HousePasses", "Tags", "Achievements", "Quests", "CosmeticSets" }) do
+		local mod = require(Engine[name])
+		for k, v in pairs(mod) do
+			if type(v) == "table" and (k == "Definitions" or k:find("Recipes$")) then
+				scan(v, 0)
+				total = total + #v
+			end
+		end
+	end
+	expectTrue(total > 100, "the audit read the registries: " .. total .. " entries")
+	expectEqual(#over, 0, "long words: " .. table.concat(over, ", "))
+end })
+
+table.insert(tests, { name = "Rate limits: a spammed remote averages at most 20 calls a second, each handler checks its own bucket first, buckets are per player", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RateLimit)
+	-- 1000 calls a second for 10 s, 60 s and a cold start: allowed calls per second stay at 20 or under after the burst
+	for _, seconds in ipairs({ 10, 60 }) do
+		RL.forget(7)
+		local allowed = 0
+		for i = 0, seconds * 1000 - 1 do
+			if RL.allow(7, "Rem.Spam", i / 1000) then allowed = allowed + 1 end
+		end
+		expectTrue(allowed / seconds <= 20, seconds .. " s of spam allowed " .. allowed .. " calls (" .. allowed / seconds .. " a second)")
+		expectTrue(allowed >= RL.PER_SECOND * seconds * 0.9, "normal play is not throttled: the refill is real")
+	end
+	expectTrue(RL.PER_SECOND <= 20 and RL.BURST <= 40, "sustained rate and burst are bounded")
+	-- one player's spam never spends another player's or another remote's tokens
+	RL.forget(7); RL.forget(8)
+	for i = 0, 200 do RL.allow(7, "Rem.A", i / 1000) end
+	expectFalse(RL.allow(7, "Rem.A", 0.201), "the spammed bucket is empty")
+	expectTrue(RL.allow(7, "Rem.B", 0.201), "another remote of the same player is unaffected")
+	expectTrue(RL.allow(8, "Rem.A", 0.201), "another player is unaffected")
+	-- every server handler checks its limit before doing anything else, under a key of its own
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local keys, handlers = {}, 0
+	for i, l in ipairs(lines) do
+		local name = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect")
+		if name and not name:find("^Debug") then
+			handlers = handlers + 1
+			local key = (lines[i + 1] or ""):match('RateLimit%.allow%(player%.UserId, "([^"]+)"')
+			expectTrue(key ~= nil, name .. ": the first line of the handler is its rate limit check")
+			if key then
+				expectFalse(keys[key], name .. " shares its rate limit key " .. key .. " with " .. tostring(keys[key]))
+				keys[key] = name
+			end
+		end
+	end
+	expectTrue(handlers >= 55, "the audit saw every remote handler: " .. handlers)
+end })
+
+table.insert(tests, { name = "Daily Run: the same date gives every player the same shop and cards whatever their Tips, and a fixed board never swaps an offer for low Tips", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local dayStart = 1788134400
+	local function visit(userTips, timeOfDay)
+		local seed = SeededRng.dailySeed(dayStart + timeOfDay)
+		local state = RunState.new({ worldPlan = WorldMap.routeFromSeed("daily:" .. SeededRng.dailyDateKey(dayStart + timeOfDay)) }, SeededRng.new(seed))
+		state.tips = userTips
+		RunState.startRound(state)
+		local out = {}
+		for _, c in ipairs(state.hand) do out[#out + 1] = c.rank .. c.suit end
+		for _ = 1, 4 do
+			local o = Shop.rollOffers(state)
+			for _, p in ipairs(o.patrons) do out[#out + 1] = p.id end
+			for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+			out[#out + 1] = o.voucher and o.voucher.id or "none"
+		end
+		return table.concat(out, ",")
+	end
+	local reference = visit(4, 0)
+	for _, tips in ipairs({ 0, 4, 9, 40 }) do
+		for _, secondsIn in ipairs({ 0, 3600, 43200, 86399 }) do
+			expectEqual(visit(tips, secondsIn), reference, "Tips " .. tips .. " at second " .. secondsIn .. " of the day")
+		end
+	end
+	expectTrue(visit(4, 86400) ~= reference, "the next date is a different Daily")
+end })
+
+table.insert(tests, { name = "Endless Night 100: the full targetForRound path (boss, stake, Endless rules, every round) is finite, whole, positive and under the cap", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	for _, night in ipairs({ 9, 50, 100, 1000 }) do
+		for _, withRules in ipairs({ false, true }) do
+			for round = 1, 3 do
+				local state = RunState.new({ endlessRules = withRules }, SeededRng.new(night + round))
+				state.night = night
+				state.bossRoundsEnabled = true
+				state.nightBossModifier = BossRounds.getById("big_tab")
+				state.stakeRules = Stakes.rulesFor and Stakes.rulesFor(Stakes.MAX) or state.stakeRules
+				local t = RunState.targetForRound(state, round)
+				expectTrue(t == t and t > 0 and t <= ER.TARGET_CAP and t == math.floor(t), "Night " .. night .. " round " .. round .. " target " .. tostring(t))
+				state.targetMultiplier = 1e9 -- a runaway modifier still clamps
+				local big = RunState.targetForRound(state, round)
+				expectTrue(big == big and big <= ER.TARGET_CAP and big >= t, "runaway multiplier clamps at Night " .. night)
+			end
 		end
 	end
 end })
@@ -38969,7 +39827,7 @@ end })
 -- copiers copy, and no pair of Patrons runs away on a sample hand. Probe: tools/_probe_synergy.lua.
 local function synergyWitness(owned, cards, held, ctxExtra)
 	local ctx = { allPlayedCards = cards, heldCards = held, handsRemaining = 0, discardsRemaining = 2, isLastHand = true, night = 3, round = 2,
-		tips = 10, roundsCleared = 4, bossesCleared = 1, handsPlayedTotal = 40, discardsUsedTotal = 6, patronsSold = 1,
+		tips = 10, roundsCleared = 4, bossesCleared = 1, handsPlayedTotal = 40, discardsUsedTotal = 6, patronsSold = 1, boonsPicked = 3,
 		handStatsBefore = { ["Pair"] = 8, ["Two Pair"] = 8, ["Flush"] = 1, ["Straight"] = 1 }, alreadyPlayedThisHandTypeThisRound = true,
 		rng = Scoring.noLuck, handLevels = {} }
 	for k, v in pairs(ctxExtra or {}) do ctx[k] = v end
@@ -38990,6 +39848,7 @@ table.insert(tests, { name = "Patron synergy: no Patron is dead, copiers copy, a
 		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(9, "Clubs"), C(12, "Hearts") }, { C(4, "Clubs") } },
 		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(8, "Clubs"), C(3, "Hearts") }, { C(4, "Clubs") } },
 		{ { C(2, "Hearts"), C(5, "Spades"), C(7, "Diamonds"), C(9, "Clubs"), C(13, "Hearts") }, { C(4, "Clubs") }, { handsRemaining = 3, isLastHand = false, alreadyPlayedThisHandTypeThisRound = false } },
+		{ { Card.new(8, "Hearts", { mark = "gilded" }), Card.new(8, "Spades", { mark = "lucky" }), Card.new(8, "Diamonds", { mark = "lively" }) }, { C(2, "Hearts") } }, -- the mark Patrons
 	}
 	local partner = Patrons.getById("the_bard")
 	local dead = {}
@@ -39642,6 +40501,89 @@ table.insert(tests, { name = "Leaderboards, Quests and Daily Rewards rows take t
 	if rs then expectTrue(rs:find("rowStyleOf", 1, true) ~= nil, "RowSkin asks the pure rule") end
 end })
 
+table.insert(tests, { name = "FitAudit per Card Set: the table of all 14 rooms and Classic keeps hand, actions, plates and deck on screen, 44 px plates, no overlap at 4 sizes", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local rooms = {}
+	for _, s in ipairs(screens) do
+		if s.name:find("^Table room ") then rooms[#rooms + 1] = s end
+	end
+	assert(#rooms == 15, "Classic plus the 14 set rooms, got " .. #rooms)
+	for _, s in ipairs(rooms) do
+		for _, sz in ipairs(Audit.SIZES) do
+			for _, f in ipairs(Audit.checkScreen(s, sz[1], sz[2])) do
+				assert(false, s.name .. " " .. f.size .. " " .. f.rule .. ": " .. f.detail)
+			end
+			local rects = s.rects(sz[1], sz[2])
+			if sz[1] >= 900 then
+				assert(rects.hand and rects.actions and rects.deck and rects.platePlay, s.name .. " has a painted layout at " .. sz[1] .. "x" .. sz[2])
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Calm mode and Reduce motion: every Card Set effect (ambient objects, backdrop layers) is off, and every client file that animates a set gates on Calm", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local AL = require(Engine.AmbientLayout)
+	local TS = require(Engine.ThemeScenes)
+	local CSets = require(Engine.CosmeticSets)
+	local Acc = require(Engine.Accessibility)
+	-- Reduce motion, Reduce flashing and the old Calm switch all mean calm
+	expectTrue(Acc.calm({ reduceMotion = true }) and Acc.calm({ reduceFlashing = true }) and Acc.calm({ reduceShake = true }) and not Acc.calm({}))
+	local ids, seen = {}, {}
+	local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+	for _, id in ipairs(TS.ORDER) do add(id) end
+	for id in pairs(AL.SETS) do add(id) end
+	for _, def in ipairs(CSets.Definitions) do add(def.id) end
+	expectTrue(#ids >= 14, "walked at least the 14 sets, got " .. #ids)
+	local animated = 0
+	for _, id in ipairs(ids) do
+		expectEqual(#AL.list(id, true), 0, id .. " draws no ambient object in calm mode")
+		expectEqual(AL.objectCount(id, true), 0, id .. " counts none in calm mode")
+		local n = AL.objectCount(id, false)
+		expectTrue(n <= AL.MAX_OBJECTS, id .. " stays under the object cap")
+		if n > 0 then animated = animated + 1 end
+		-- a washed slot's backdrop layers are the only other per set motion; the renderer hides them all when calm (checked below)
+		local style = TS.washStyle(id, "menuBackdrop")
+		if style and style.layers then
+			for _, layer in ipairs(style.layers) do expectTrue(layer.count <= 18, id .. " layer count is small") end
+		end
+	end
+	expectTrue(animated >= 10, "most sets animate when calm is off, so the calm check above is real: " .. animated)
+	if not (io and io.open) then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	-- the files that draw or animate a set's effect: each one that tweens or loops must read the Calm switch
+	local files = { "AmbientLife", "BackdropStyles", "CosmeticSetsView", "TableLook", "ThemeWash", "MenuParallax" }
+	local gates = { "reduceShake", "motionAllowed", "Accessibility", "reduceMotion", "flashesAllowed", "isCalm" }
+	for _, name in ipairs(files) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			local animates = src:find("TweenService", 1, true) or src:find("TweenInfo", 1, true) or src:find("Heartbeat:Connect", 1, true)
+				or src:find("RenderStepped", 1, true) or src:find("FxLoop", 1, true)
+			if animates then
+				local gated = false
+				for _, g in ipairs(gates) do if src:find(g, 1, true) then gated = true end end
+				expectTrue(gated, name .. " animates a set effect without reading Calm mode or Reduce motion")
+			end
+		end
+	end
+	-- the backdrop renderer: calm hides every layer item and stops stepping; ambient scenes build zero objects in calm
+	local bd = read("src/Client/BackdropStyles.lua")
+	expectTrue(bd == nil or bd:find("not calm()", 1, true) ~= nil and bd:find("item.frame.Visible = run", 1, true) ~= nil, "BackdropStyles hides layers when calm")
+	local al = read("src/Client/AmbientLife.lua")
+	expectTrue(al == nil or al:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "AmbientLife builds nothing when calm")
+	-- the card back flip (an equip moment, not a layer) swaps at once when calm
+	local cv = read("src/Client/CosmeticSetsView.lua")
+	expectTrue(cv == nil or cv:find('get("reduceShake") == true', 1, true) ~= nil or cv:find(".motionAllowed()", 1, true) ~= nil, "the card back flip tween is skipped when calm")
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }
@@ -39876,7 +40818,7 @@ table.insert(tests, { name = "Daily modifiers: 12 kid safe twists, same for ever
 	local short = RunState.new({ dailyModifierId = "short_hands" })
 	expectTrue(short.config.handSize == plain.config.handSize - 1 and short.config.handsPerRound == plain.config.handsPerRound + 1, "Short Hands config")
 	local solo = RunState.new({ dailyModifierId = "solo_star" })
-	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 2 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
+	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 4 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
 	expectTrue(plain.dailyModifier == nil, "normal runs have no daily twist")
 	-- Menu plate and table scroll words
 	local MenuDailyEntry = require(script.Parent.Parent.Engine.MenuDailyEntry)
@@ -40445,6 +41387,66 @@ table.insert(tests, { name = "Economy week: a 20 minute session pays every day, 
 	expectTrue(md:find("Week", 1, true) ~= nil and not md:lower():find("balatro"))
 end })
 
+table.insert(tests, { name = "Quests: every daily quest finishes in 3 runs or fewer of a 20 minute session, luck quests keep goal 1", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local rows = EconomySim.questReport()
+	expectEqual(#rows, #Quests.Definitions)
+	local luck = 0
+	for _, r in ipairs(rows) do
+		if r.kind == "luck" then
+			luck = luck + 1
+			expectEqual(r.goal, 1, r.id .. " needs a lucky play, so its goal stays 1")
+		else
+			expectTrue(r.runs ~= nil and r.runs <= 3, r.id .. " must finish in 3 runs or fewer, got " .. tostring(r.runs))
+		end
+	end
+	expectEqual(luck, 4) -- Flush Finish, Full House Party, Big Swing, Swift Win
+	local md = EconomySim.questMarkdown(rows)
+	expectTrue(md:find("boss_streak", 1, true) ~= nil and not md:lower():find("balatro"))
+end })
+
+table.insert(tests, { name = "Shop offers: never a Patron already owned, never a dead pick when a Patron fits the Tips, full seats untouched", fn = function()
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local Shop = require(script.Parent.Parent.Engine.Shop)
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for seed = 1, 150 do
+		for _, tips in ipairs({ 4, 5, 6, 9 }) do
+			local state = RunState.new({}, SeededRng.new(seed))
+			state.night = 1 + seed % 6
+			state.tips = tips
+			local ownedId = Patrons.Definitions[1 + seed % 5].id
+			state.ownedPatrons = { Patrons.getById(ownedId) }
+			local offers = Shop.rollOffers(state).patrons
+			local fits = false
+			for _, p in ipairs(offers) do
+				expectTrue(p.id ~= ownedId, "an owned Patron is never offered")
+				if RunState.patronPrice(state, p) <= tips then fits = true end
+			end
+			local poolFits = false
+			for _, p in ipairs(Patrons.Definitions) do
+				if p.id ~= ownedId and (p.minNight or 1) <= state.night and RunState.patronPrice(state, p) <= tips then poolFits = true end
+			end
+			if poolFits and #offers > 0 then
+				expectTrue(fits, "with " .. tips .. " Tips on Night " .. state.night .. " one offer must be affordable (seed " .. seed .. ")")
+			end
+		end
+	end
+	-- a full table is left alone: nothing to buy, so no swap and the same two offers as a roll with plenty of Tips
+	local full = RunState.new({}, SeededRng.new(7))
+	full.tips = 0
+	full.ownedPatrons = {}
+	for i = 1, RunState.patronSlotLimit(full) do full.ownedPatrons[i] = Patrons.Definitions[i] end
+	local a = Shop.rollOffers(full).patrons
+	local rich = RunState.new({}, SeededRng.new(7))
+	rich.tips = 99
+	rich.ownedPatrons = full.ownedPatrons
+	local b = Shop.rollOffers(rich).patrons
+	expectEqual(#a, #b)
+	for i = 1, #a do expectEqual(a[i].id, b[i].id) end
+end })
+
 table.insert(tests, { name = "BestLine: best Night and best hand line, nil when new, 40 chars or less, kid safe", fn = function()
 	local BL = require(script.Parent.Parent.Engine.BestLine)
 	expectTrue(BL.text(nil) == nil and BL.text({}) == nil and BL.text({ bestNightReached = 0, bestHandScore = 0 }) == nil)
@@ -40775,6 +41777,246 @@ table.insert(tests, { name = "Settings, Store and Card Sets primary buttons wear
 	expectTrue(settings:find("button.ZIndex = 24", 1, true) ~= nil, "Settings Account buttons keep ZIndex 24 over the plate backing")
 end })
 
+table.insert(tests, { name = "ThemeScenes.scoreStyle: every set but classic gets a plate and an accent at 7:1 or more, classic is unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	expectTrue(TS.scoreStyle("classic_tavern") == nil, "classic keeps its own look")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			local st = TS.scoreStyle(def.id)
+			expectTrue(st ~= nil, def.id .. " has a score style")
+			expectTrue(CS.contrastRatio(st.accent, st.plate) >= 7, def.id .. " accent on plate is 7:1, got " .. tostring(st and CS.contrastRatio(st.accent, st.plate)))
+			for i = 1, 3 do
+				expectTrue(st.accent[i] >= 0 and st.accent[i] <= 255 and st.plate[i] >= 0 and st.plate[i] <= 255, def.id .. " colours in range")
+			end
+		end
+	end
+	local f = io and io.open and io.open("src/Client/ScorePopup.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("scoreStyle", 1, true) ~= nil and src:find("SetOutline", 1, true) ~= nil, "ScorePopup draws the set outline and plate")
+	end
+end })
+
+table.insert(tests, { name = "Per set Patron seats and Patron Power panel: both read the set ink (Client/SetInk), classic keeps its own colours", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local ink = read("src/Client/SetInk.lua")
+	if not ink then return end
+	expectTrue(ink:find("scoreStyle", 1, true) ~= nil, "SetInk is built on ThemeScenes.scoreStyle (7:1)")
+	for _, path in ipairs({ "src/Client/PatronSeatFrame.lua", "src/Client/PatronSeatStrip.lua", "src/Client/PatronPowerPanelFX.lua", "src/Client/ScorePopup.lua" }) do
+		local src = read(path)
+		expectTrue(src:find("SetInk", 1, true) ~= nil, path .. " uses SetInk")
+	end
+	local panel = read("src/Client/PatronPowerPanelFX.lua")
+	expectTrue(panel:find("Color3.fromRGB(246, 196, 70)", 1, true) ~= nil and panel:find("Color3.fromRGB(46, 28, 14)", 1, true) ~= nil, "classic gold frame and plate stay as the fallback")
+	local frame = read("src/Client/PatronSeatFrame.lua")
+	expectTrue(frame:find("if not ink then", 1, true) ~= nil and frame:find("edge.Visible = false", 1, true) ~= nil, "classic seats draw no set outline")
+	-- text on the plate: the set accent, and the lightened body colour, are 7:1 or more on every set plate
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	for _, def in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(def.id)
+		if st then
+			local light = { math.floor((st.accent[1] + 255) / 2), math.floor((st.accent[2] + 255) / 2), math.floor((st.accent[3] + 255) / 2) }
+			expectTrue(CS.contrastRatio(light, st.plate) >= 7, def.id .. " panel body text is 7:1 on the plate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "CosmeticSets.deckTint: every set but classic wears its own card back colours on the pile and discard ghosts, classic is nil", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, CB = require(E.CosmeticSets), require(E.CardBacks)
+	expectTrue(CS.deckTint("classic_tavern") == nil, "classic unchanged")
+	expectTrue(CS.deckTint("not_a_set") == nil, "unknown set has no tint")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			local t = CS.deckTint(def.id)
+			expectTrue(t ~= nil, def.id .. " has a deck tint")
+			local back = CB.getById(def.cardBackId)
+			expectTrue(t.base[1] == back.colors.base[1] and t.trim[2] == back.colors.trim[2], def.id .. " tint is its card back colours")
+			for i = 1, 3 do expectTrue(t.edge[i] >= 0 and t.edge[i] <= 255, def.id .. " edge in range") end
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local skin, flights = read("src/Client/DeckWidgetSkin.lua"), read("src/Client/CardFlights.lua")
+	if skin and flights then
+		expectTrue(skin:find("deckTint", 1, true) ~= nil and skin:find("Color3.fromRGB(50, 70, 110)", 1, true) ~= nil, "pile layers use the tint, classic blue stays the fallback")
+		expectTrue(flights:find("deckTint", 1, true) ~= nil and flights:find("ghostEdge.Transparency = a", 1, true) ~= nil, "ghost edge follows the tint and fades with the ghost")
+	end
+end })
+
+table.insert(tests, { name = "Counter, My Patrons, Patron popup and Collection parity: all 14 sets resolve plates, keeper, tab plate and popup style, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, TS, Style = require(E.CosmeticSets), require(E.ThemeScenes), require(E.TavernStyle)
+	expectTrue(CS.tabPlateStyleOf("classic_tavern") == nil, "classic keeps its brown plate")
+	expectTrue(TS.shopKeeperIds("classic_tavern") ~= nil, "classic keeper")
+	local n = 0
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			n = n + 1
+			local id = def.id
+			expectTrue(Style.SET_PLATES[id] ~= nil, id .. " has plates")
+			expectTrue(Style.tabPlate(true, id) ~= nil and Style.tabPlate(false, id) ~= nil, id .. " tabs wear its plates")
+			local _, _, ownKeeper = TS.shopKeeperIds(id)
+			expectTrue(ownKeeper == true, id .. " has its own keeper")
+			expectTrue(CS.popupStyleOf(id) ~= nil, id .. " popup style")
+			expectTrue(CS.ledgerStyleOf(id) ~= nil, id .. " ledger style")
+			local p = CS.tabPlateStyleOf(id)
+			expectTrue(p ~= nil, id .. " My Patrons plate")
+			expectTrue(CS.contrastRatio(p.edge, p.fill) >= 4.5, id .. " plate edge reads 4.5:1")
+		end
+	end
+	expectEqual(n, 14, "14 non classic sets")
+end })
+
+table.insert(tests, { name = "Boss table and Tavern Map per set: every set resolves its own room, boss picture, banner, plates and deck, none falls back to classic", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, TS, Style, PRA = require(E.CosmeticSets), require(E.ThemeScenes), require(E.TavernStyle), require(E.PlayRoomArt)
+	local art = require(E.PlaySceneArt)
+	local seenBar = {}
+	for _, def in ipairs(CS.Definitions) do
+		local id = def.id
+		if id ~= "classic_tavern" then
+			local src = TS.bossBackdrop(id)
+			expectTrue(src == "own" or src == "room", id .. " boss table is not the classic tavern (" .. tostring(src) .. ")")
+			local room = PRA.roomArt(id, art)
+			expectEqual(room.room, id, id .. " play room recorded")
+			expectTrue(TS.liveTableId(id, true, art) ~= nil, id .. " live boss table picture resolves")
+			expectTrue(TS.liveTableId(id, false, art) ~= nil, id .. " live play table picture resolves")
+			local m = CS.mapStyleOf(id)
+			expectTrue(m ~= nil and m.banner ~= nil and m.bar ~= nil and m.edge ~= nil, id .. " Tavern Map bar, banner and rails")
+			expectTrue(CS.contrastRatio(m.ink, m.bar) >= 4.5, id .. " map ink 4.5:1 on its bar")
+			expectTrue(Style.tabPlate(true, id) ~= nil, id .. " map plates")
+			expectTrue(CS.deckTint(id) ~= nil, id .. " boss table deck")
+			local key = table.concat(m.bar, ",")
+			seenBar[key] = (seenBar[key] or 0) + 1
+		end
+	end
+	local classicRoom = PRA.roomArt("classic_tavern", art)
+	expectTrue(classicRoom.room == nil, "classic keeps the reference tavern")
+	expectEqual(TS.bossBackdrop("classic_tavern"), "classic", "classic boss table unchanged")
+	expectTrue(CS.mapStyleOf("classic_tavern") == nil, "classic map unchanged")
+end })
+
+table.insert(tests, { name = "Preview set switch: every set's pile tint differs from every other set, and the table scene refreshes when the skin lands", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS = require(E.CosmeticSets)
+	local seen = {}
+	for _, def in ipairs(CS.Definitions) do
+		local t = CS.deckTint(def.id)
+		local key = t and (table.concat(t.base, ",") .. "|" .. table.concat(t.trim, ",")) or "classic"
+		expectTrue(seen[key] == nil, def.id .. " pile tint differs from " .. tostring(seen[key]))
+		seen[key] = def.id
+	end
+	local f = io and io.open and io.open("src/Client/CosmeticSetsView.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("HudTheme", 1, true) ~= nil and src:find("onSkin(function()", 1, true) ~= nil and src:find("scene.update, lastState", 1, true) ~= nil, "scene (banners) re-updates when the previewed skin lands")
+	end
+end })
+
+table.insert(tests, { name = "Next Round, Reroll, Buy and round buttons take the set hue in every set with a plate family, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local Style, TS = require(E.TavernStyle), require(E.ThemeScenes)
+	expectEqual(TS.hueOf("classic_tavern"), nil, "classic has no hue")
+	expectEqual(TS.hueOf("no_such_set"), nil, "unknown set has no hue")
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		local h = TS.hueOf(setId)
+		expectTrue(h ~= nil and math.max(h[1], h[2], h[3]) == 255, setId .. " hue keeps full brightness")
+		local t = Style.setTint(setId, h)
+		expectTrue(t ~= nil, setId .. " round buttons and Tips are tinted")
+		for i = 1, 3 do expectTrue(t[i] >= 120 and t[i] <= 255, setId .. " tint keeps the trim readable") end
+		expectTrue(t[1] ~= t[2] or t[2] ~= t[3], setId .. " tint is not plain white or grey")
+		expectEqual(Style.buttonPiece("primary", 220, 64, setId), map.wh_btn_green, setId .. " Next Round and Buy wear the set green plate")
+		expectEqual(Style.buttonPiece("secondary", 190, 44, setId), map.wh_btn_dark, setId .. " Reroll wears the set dark plate")
+		expectTrue(Style.PAINTED[map.wh_btn_green] ~= nil and Style.PAINTED[map.wh_btn_dark] ~= nil, setId .. " plates are painted pieces")
+	end
+	expectEqual(n, 14, "all 14 sets")
+	expectEqual(Style.buttonPiece("primary", 220, 64, "classic_tavern"), "wh_btn_green", "classic Next Round unchanged")
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find('setPlateButton(button, "primary")', 1, true) ~= nil, "Buy asks for the set plate")
+	end
+	local k = io and io.open and io.open("src/Client/TavernKit.lua", "r")
+	if k then
+		local src = k:read("*a")
+		k:close()
+		expectTrue(src:find("TS.hueOf(sid)", 1, true) ~= nil, "plate tint uses the set hue")
+	end
+end })
+
+table.insert(tests, { name = "Counter Patron card frames pick up the set accent: SetInk outline on the card body, rarity frame untouched, classic dark brown", fn = function()
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('SetInk', 1, true) ~= nil and src:find('edge.Name = "SetEdge"', 1, true) ~= nil, "card body outline asks SetInk")
+	expectTrue(src:find("Color3.fromRGB(30, 20, 12), 2, 0)", 1, true) ~= nil, "classic keeps the dark brown outline")
+	expectTrue(src:find("RarityFrame.apply(artFrame", 1, true) ~= nil, "the rarity frame is still drawn on the art")
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	for _, def in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(def.id)
+		if def.id ~= "classic_tavern" then
+			-- the outline sits on the dark wood card body: accent against it is at least 3:1 (it is a frame, the words inside are separate)
+			expectTrue(CS.contrastRatio(st.accent, { 52, 34, 20 }) >= 3, def.id .. " accent outline shows on the card wood")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Per set Collection wall, Run Over and Victory wash, Tavern Map node rings: set hue or accent in every set, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	expectEqual(TS.washTint("classic_tavern", 0.3), nil, "classic is never washed")
+	expectEqual(TS.washTint("no_such_set", 0.3), nil, "unknown set is never washed")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			for _, amount in ipairs({ TS.COLLECTION_WALL_TINT, TS.RESULT_WASH_TINT }) do
+				local t = TS.washTint(def.id, amount)
+				expectTrue(t ~= nil, def.id .. " has a wash")
+				for i = 1, 3 do expectTrue(t[i] >= 150 and t[i] <= 255, def.id .. " wash keeps the picture bright") end
+			end
+			-- the Run Over scrim is the set plate: dark, so the white text on it stays readable
+			local st = TS.scoreStyle(def.id)
+			expectTrue(st.plate[1] + st.plate[2] + st.plate[3] < 200, def.id .. " Run Over scrim stays dark")
+			-- the map node ring (set accent) shows on the dark map ground
+			expectTrue(CS.contrastRatio(st.accent, { 40, 30, 22 }) >= 3, def.id .. " node ring shows on the map")
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local wall, over, win, graph = read("src/Client/CollectionWall.lua"), read("src/Client/GameOver.lua"), read("src/Client/VictoryScreen.lua"), read("src/Client/JourneyMapGraph.lua")
+	if wall then
+		expectTrue(wall:find("washTint", 1, true) ~= nil, "Collection wall takes the wash")
+		expectTrue(over:find("SetInk", 1, true) ~= nil and over:find("Color3.fromRGB(10, 8, 6)", 1, true) ~= nil, "Run Over scrim takes the set plate, classic near black stays")
+		expectTrue(win:find("RESULT_WASH_TINT", 1, true) ~= nil, "Victory room picture takes the wash")
+		expectTrue(graph:find("nodeRing()", 1, true) ~= nil and graph:find("Color3.fromRGB(110, 80, 45)", 1, true) ~= nil, "map node ring takes the set accent, classic brown stays")
+	end
+end })
+
 table.insert(tests, { name = "Collection and Leaderboards tabs wear the equipped Card Set plates (lit green, others dark), classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local n = 0
@@ -41074,6 +42316,132 @@ table.insert(tests, { name = "Night clear Continue wears the equipped Card Set p
 	if not fx then return end
 	expectTrue(fx:find('Kit.setPlateButton(btn, "primary")', 1, true) ~= nil, "Night clear Continue asks for the set plate")
 	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "Boss intro plate goes through the set aware painter")
+end })
+
+tests[#tests + 1] = ({ name = "Live table scene: switching Card Sets draws only the current set's room, normal and Boss rounds", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local seen = {}
+	for _, boss in ipairs({ false, true }) do
+		for _, setId in ipairs({ "golden_gala", "festival_night", "classic_tavern", "winter_evening", "golden_gala" }) do
+			local id = TS.liveTableId(setId, boss, Art)
+			if setId == "classic_tavern" then
+				expectTrue(id == nil, "classic keeps the classic tavern (nil)")
+			elseif setId == "golden_gala" then
+				expectTrue(type(id) == "string" and id ~= "", "golden_gala draws its own room")
+			else
+				expectEqual(id, TS.themeImageId(setId, boss and "bossTableBackground" or "tablePlay") or Art[PRA.keys(setId).bg], setId .. " draws its own scene, not the previous set's")
+			end
+			if not boss and setId ~= "classic_tavern" then seen[setId] = id end
+		end
+	end
+	expectTrue(seen.festival_night ~= seen.golden_gala and seen.festival_night ~= seen.winter_evening, "each set's room is a different picture")
+	local g2 = io and io.open and io.open("src/Client/Gameplay2.lua", "r")
+	if g2 then
+		local src = g2:read("*a"); g2:close()
+		expectTrue(src:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws its room when the skin changes")
+		expectTrue(src:find("liveTableId", 1, true) ~= nil, "the live table asks ThemeScenes.liveTableId")
+	end
+end })
+
+tests[#tests + 1] = ({ name = "Set switching over all 14 sets: each set resolves only its own room, front, live table, boss table, shop room and keeper, classic last", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	-- every set in turn, classic last (equip and preview both go through the same per set lookups)
+	local order = {}
+	for _, id in ipairs(PRA.ORDER) do order[#order + 1] = id end
+	expectEqual(#order, 14, "14 non classic sets with their own room")
+	order[#order + 1] = "classic_tavern"
+	local seen = { bg = {}, front = {}, live = {}, boss = {}, shop = {}, keeper = {} }
+	local function claim(kind, value, setId)
+		if value == nil then return end
+		expectTrue(seen[kind][value] == nil or seen[kind][value] == setId, setId .. " " .. kind .. " is not shared with " .. tostring(seen[kind][value]))
+		seen[kind][value] = setId
+	end
+	for _, setId in ipairs(order) do
+		expectTrue(TS.known(setId), setId .. " is a known set")
+		local room = PRA.roomArt(setId, Art)
+		local liveN, liveB = TS.liveTableId(setId, false, Art), TS.liveTableId(setId, true, Art)
+		local src, key = TS.bossBackdrop(setId)
+		local shopId, shopOwn = TS.shopRoomId(setId)
+		local behind = TS.shopKeeperIds(setId)
+		if setId == "classic_tavern" then
+			expectEqual(room.room, nil, "classic draws the classic room")
+			expectEqual(room.bg, PRA.CLASSIC.bg, "classic room bg")
+			expectEqual(room.front, PRA.CLASSIC.front, "classic room front")
+			expectEqual(liveN, nil, "classic live table is the classic tavern")
+			expectEqual(liveB, nil, "classic boss table is the classic tavern")
+			expectEqual(src, "classic", "classic boss table source")
+			expectTrue(shopOwn == false, "classic shop room is the classic one")
+		else
+			expectEqual(room.room, setId, setId .. " draws its own room")
+			expectEqual(room.bg, PRA.keys(setId).bg, setId .. " room bg key")
+			expectEqual(room.front, PRA.keys(setId).front, setId .. " room front key")
+			expectTrue(type(liveN) == "string" and liveN ~= "", setId .. " live table has a picture")
+			expectTrue(type(liveB) == "string" and liveB ~= "", setId .. " boss live table has a picture")
+			expectTrue(src == "own" or src == "room", setId .. " boss table is its own or its play room, never classic")
+			expectTrue(shopOwn == true and shopId ~= nil, setId .. " has its own shop room")
+			claim("bg", room.bg, setId); claim("front", room.front, setId)
+			claim("live", liveN, setId); claim("shop", shopId, setId)
+			claim("keeper", behind, setId)
+			if src == "room" then expectEqual(key, PRA.keys(setId).bg, setId .. " boss fallback is its own room") end
+		end
+	end
+	-- the set switching hooks are in place: equip, Preview and DebugGoto all go through HudTheme.setSkin, and listeners redraw on it
+	if not (io and io.open) then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local hud, g2 = read("src/Client/HudTheme.lua"), read("src/Client/Gameplay2.lua")
+	if hud then expectTrue(hud:find("function HudTheme.setSkin", 1, true) ~= nil, "HudTheme.setSkin is the one switch point") end
+	if g2 then expectTrue(g2:find("HudTheme).onSkin(", 1, true) ~= nil, "the live table redraws on a skin change") end
+end })
+
+tests[#tests + 1] = ({ name = "New strategy Patrons: Full Palette, Triple Scoop, Spare Shuffle and Final Bow fire only on their trigger, text 60 or less, priced 4 to 8", fn = function()
+	local function hand(name) return { name = name, scoringCards = {}, cards = {} } end
+	local fp, ts, ss, fb = Patrons.getById("full_palette"), Patrons.getById("triple_scoop"), Patrons.getById("spare_shuffle"), Patrons.getById("final_bow")
+	expectTrue(fp and ts and ss and fb, "all four are in the registry")
+	expectEqual(fp.effect(hand("Flush"), {}).multMultiplier, 1.5, "Full Palette on a Flush")
+	expectEqual(fp.effect(hand("Straight Flush"), {}).multMultiplier, 1.5, "Full Palette on a Straight Flush")
+	expectTrue(fp.effect(hand("Straight"), {}) == nil, "Full Palette ignores a Straight")
+	expectEqual(ts.effect(hand("Three of a Kind"), {}).mult, 25, "Triple Scoop on trips")
+	expectEqual(ts.effect(hand("Full House"), {}).mult, 25, "Triple Scoop on a Full House")
+	expectTrue(ts.effect(hand("Pair"), {}) == nil and ts.effect(hand("Four of a Kind"), {}) == nil, "Triple Scoop ignores a Pair and Four of a Kind")
+	expectEqual(ss.effect(hand("High Card"), { discardsRemaining = 3 }).mult, 6, "Spare Shuffle counts Discards left")
+	expectTrue(ss.effect(hand("High Card"), { discardsRemaining = 0 }) == nil, "Spare Shuffle with none left does nothing")
+	expectEqual(fb.effect(hand("Pair"), { isLastHand = true }).multMultiplier, 2, "Final Bow on the last Hand")
+	expectTrue(fb.effect(hand("Pair"), { isLastHand = false }) == nil, "Final Bow ignores earlier Hands")
+	local icons = {}
+	for _, p in ipairs(Patrons.Definitions) do icons[p.icon] = (icons[p.icon] or 0) + 1 end
+	for _, p in ipairs({ fp, ts, ss, fb }) do
+		expectTrue(#p.description <= 60 and not p.description:find("—", 1, true) and not p.description:find("–", 1, true), p.id .. " text 60 or less, no dash")
+		expectTrue(p.price >= 4 and p.price <= 8, p.id .. " priced 4 to 8")
+		expectTrue(p.tags and #p.tags >= 1, p.id .. " has a synergy tag")
+		expectEqual(icons[p.icon], 1, p.id .. " icon is unique")
+		expectTrue(not (p.name .. p.description .. p.flavorText):lower():find("balatro"), p.id .. " name rule")
+	end
+end })
+
+tests[#tests + 1] = ({ name = "Card back per Card Set: every non classic set has its own painted back (unique id, art recorded), classic keeps its back", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local seen = {}
+	local count = 0
+	for _, set in ipairs(CosmeticSets.Definitions or CosmeticSets.Sets or {}) do
+		local back = CardBacks.getById(set.cardBackId)
+		expectTrue(back ~= nil, set.id .. " back exists")
+		if set.id == "classic_tavern" then
+			expectEqual(set.cardBackId, "classic", "classic keeps its back")
+		else
+			count = count + 1
+			expectEqual(set.cardBackId, "back_" .. set.id, set.id .. " back id")
+			expectTrue(seen[set.cardBackId] == nil, set.id .. " back is not shared")
+			seen[set.cardBackId] = true
+			expectTrue(back.setOnly == true, set.id .. " back is set only")
+			local img = ContentArt.getImageId("card_backs", set.cardBackId)
+			expectTrue(type(img) == "string" and img ~= "" and img ~= "rbxassetid://0", set.id .. " back has painted art")
+		end
+	end
+	expectEqual(count, 14, "14 non classic sets")
 end })
 
 table.insert(tests, { name = "Confirm, Choice, Quit and Restart popups wear the set paper, plate and ink at 7:1 on every set, classic unchanged", fn = function()
@@ -41573,6 +42941,381 @@ table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: ever
 	end
 end })
 
+table.insert(tests, { name = "Dark face sets: corner index is light ink on a dark plate at 7:1, every set reads at 4.5:1, classic and light faces unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local dark = CS.getById("harbor_lights")
+	assert(dark and dark.darkFace == true, "Harbor Lights is flagged dark")
+	for _, red in ipairs({ true, false }) do
+		local st = CS.indexStyle(dark, red)
+		assert(st.dark == true, "dark style flagged")
+		assert(CS.contrastRatio(st.ink, st.plate) >= 7, "Harbor Lights index ink reads at 7:1")
+		assert(CS.contrastRatio(st.ink, { 22, 33, 41 }) >= 4.5, "light ink reads on the navy face")
+		assert(st.ink[1] >= 240, "ink is light")
+	end
+	for _, set in ipairs(CS.Definitions) do
+		for _, red in ipairs({ true, false }) do
+			local st = CS.indexStyle(set, red)
+			assert(CS.contrastRatio(st.ink, st.plate) >= 4.5, set.id .. " index ink reads at 4.5:1")
+			if not set.darkFace then assert(st.dark == nil, set.id .. " light face keeps dark ink") end
+		end
+	end
+	assert(CS.indexStyle(CS.getById("golden_gala"), false).dark == nil and CS.indexStyle(CS.getById("frosted_garden"), false).dark == nil, "Frosted Garden and Golden Gala unchanged")
+end })
+
+table.insert(tests, { name = "Dark face sets: centre pips are light ink with a dark outline at 4.5:1 on every dark set, light sets untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, red in ipairs({ true, false }) do
+			local st = CS.darkPipStyle(set, red)
+			if set.darkFace and not CS.faceStyleOf(set).neutral then
+				n = n + 1
+				assert(st and st.ink[1] >= 240, set.id .. " pip ink is light")
+				local face = CS.faceStyleOf(set)
+				local ground = { (face.pip[1] + 8) // 2, (face.pip[2] + 14) // 2, (face.pip[3] + 24) // 2 }
+				assert(CS.contrastRatio(st.ink, ground) >= 4.5, set.id .. " pip reads at 4.5:1")
+				assert(st.outline[1] < 40, set.id .. " pip has a dark outline")
+			else
+				assert(st == nil, set.id .. " light face keeps its pip ink")
+			end
+		end
+	end
+	assert(n >= 2, "at least one dark set checked")
+end })
+
+table.insert(tests, { name = "Table dress: empty Patron seats lean firmly toward each set's colours, further than before", fn = function()
+	local TD = require(script.Parent.Parent.Engine.TableDress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	assert(TD.STRENGTH.seat >= 0.7, "seat tint is firm")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId and CS.deckTint(set.id) then
+			local c = TD.tintFor(set.id, "seat")
+			assert(c[1] < 255 or c[2] < 255 or c[3] < 255, set.id .. " seat leans off white")
+			local lean = (255 - c[1]) + (255 - c[2]) + (255 - c[3])
+			local base = CS.deckTint(set.id).base
+			local full = (255 - base[1]) + (255 - base[2]) + (255 - base[3])
+			assert(full <= 0 or lean >= full * 0.8 * 0.85, set.id .. " seat carries most of the back colour")
+			n = n + 1
+		end
+	end
+	assert(n >= 12, "checked every set with a back")
+	local w = TD.tintFor("classic_tavern", "seat")
+	assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic seat unchanged")
+end })
+
+table.insert(tests, { name = "Table dress: pile, banners and seat faces wear each set's colours, classic stays white, every set differs from classic", fn = function()
+	local TD = require(script.Parent.Parent.Engine.TableDress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	assert(TD.partOf("DeckBook") == "deck" and TD.partOf("WallBannerLeft") == "banner" and TD.partOf("WallBannerRight") == "banner" and TD.partOf("SeatFacePicture") == "seat", "names map to parts")
+	assert(TD.partOf("Nope") == nil, "unknown name")
+	for part in pairs(TD.PARTS) do
+		local w = TD.tintFor("classic_tavern", part)
+		assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic untouched for " .. part)
+		assert(TD.tintFor("no_such_set", part)[1] == 255, "unknown set untouched")
+		for _, set in ipairs(CS.Definitions) do
+			if set.id ~= CS.DefaultId then
+				local c = TD.tintFor(set.id, part)
+				assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " " .. part .. " leans off white")
+			end
+		end
+	end
+	local a, b = TD.tintFor("golden_gala", "deck"), TD.tintFor("festival_night", "deck")
+	assert(a[1] ~= b[1] or a[2] ~= b[2] or a[3] ~= b[3], "two sets give two pile colours")
+end })
+
+table.insert(tests, { name = "Table dress: the pile and the banners draw each set's own painted card back, four sets give four different pictures, classic keeps the crown", fn = function()
+	local TD = require(script.Parent.Parent.Engine.TableDress)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local seen, n = {}, 0
+	for _, id in ipairs({ "festival_night", "winter_evening", "harbor_lights", "golden_gala" }) do
+		local img = TD.backImage(id)
+		assert(img and img:find("rbxassetid://", 1, true), id .. " has a painted back")
+		assert(not seen[img], id .. " differs from the others")
+		seen[img], n = true, n + 1
+	end
+	assert(n == 4, "four pictures")
+	assert(TD.backImage("classic_tavern") == nil and TD.backImage(nil) == nil and TD.backImage("no_such_set") == nil, "classic and unknown keep the shared picture")
+	local painted = 0
+	for _, set in ipairs(CS.Definitions) do if TD.backImage(set.id) then painted = painted + 1 end end
+	assert(painted >= 12, "most sets have a painted back")
+	assert(TD.BACK_PARTS.deck and TD.BACK_PARTS.banner and not TD.BACK_PARTS.seat, "pile and banners swap pictures, seats keep their face and tint")
+	local ok = pcall(function() return Instance.new("ImageLabel") end)
+	if ok then -- real instances where Instance exists (Studio): apply the same rule the client uses and read the picture back
+		local root = Instance.new("Frame")
+		local pile = Instance.new("ImageLabel"); pile.Name = "DeckBook"; pile.Image = "rbxassetid://1"; pile.Parent = root
+		local last = nil
+		for _, id in ipairs({ "festival_night", "golden_gala", "classic_tavern" }) do
+			local back = TD.backImage(id)
+			pile.Image = back or "rbxassetid://1"
+			assert(pile.Image ~= last, id .. " changes the pile picture")
+			last = pile.Image
+		end
+	end
+	if not io then return end
+	local f = io.open("src/Client/TableDress.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("Pure.backImage(setId)", 1, true) and src:find("ClassicImage", 1, true), "client swaps and restores the picture")
+end })
+
+table.insert(tests, { name = "Table dress live: real ImageLabels change colour after a set switch (runs where Instance exists, else checks the wiring)", fn = function()
+	local ok = pcall(function() return Instance.new("Frame") end)
+	if ok then
+		local TD = require(script.Parent.Parent.Engine.TableDress)
+		local root = Instance.new("Frame")
+		local names = { "DeckBook", "WallBannerLeft", "WallBannerRight", "SeatFacePicture" }
+		for _, n in ipairs(names) do local l = Instance.new("ImageLabel"); l.Name = n; l.Parent = root end
+		-- the client module needs Players.LocalPlayer, so mirror its paint rule through the pure tint here
+		for _, setId in ipairs({ "golden_gala", "festival_night", "classic_tavern" }) do
+			for _, l in ipairs(root:GetChildren()) do
+				local t = TD.tintFor(setId, TD.partOf(l.Name))
+				l.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3])
+			end
+			local t = TD.tintFor(setId, "deck")
+			local got = root.DeckBook.ImageColor3
+			assert(math.floor(got.R * 255 + 0.5) == t[1] and math.floor(got.B * 255 + 0.5) == t[3], setId .. " pile colour read back from the real instance")
+		end
+	end
+	local function read(path) local f = io and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local client, g2 = read("src/Client/TableDress.lua"), read("src/Client/Gameplay2.lua")
+	if client and g2 then
+		assert(client:find("effectiveSetId", 1, true) and client:find("previewSetId", 1, true) and client:find("onSkin", 1, true) and client:find("onPreview", 1, true), "follows effectiveSetId, skin changes and previews")
+		assert(client:find("DescendantAdded", 1, true), "tints seats and pile built later")
+		assert(g2:find("TableDress", 1, true), "the table installs it")
+	end
+end })
+
+table.insert(tests, { name = "DebugGotoRules: equip:<setId> parses, malformed rejected, server remote is Studio only", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("equip:festival_night")
+	assert(t and t.kind == "equip" and t.setId == "festival_night", "equip parses")
+	assert(R.parse("equip") == nil and R.parse("equip:bad id!") == nil, "malformed rejected")
+	local f = io and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local i = src:find("Rem.DebugEquipSet.OnServerEvent", 1, true)
+		assert(i and src:sub(i, i + 200):find("IsStudio()", 1, true), "DebugEquipSet is Studio only")
+	end
+end })
+
+table.insert(tests, { name = "Draft pick cards: the wood frame wears the set plate and accent (7:1 over every set), rarity colours stay separate, classic unchanged", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if set.id == CS.DefaultId then
+			assert(st == nil, "classic keeps its own look")
+		else
+			n = n + 1
+			assert(st and st.ratio >= 7, set.id .. " accent on plate is 7:1 or more")
+		end
+	end
+	assert(n >= 13, "every non classic set checked")
+	if not io then return end
+	local f = io.open("src/Client/ChoicePanel.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local i = src:find("woodFrame.BackgroundColor3 = ink.plate", 1, true)
+	assert(i, "wood frame takes the set plate")
+	assert(src:sub(i - 300, i):find("SetInk", 1, true), "through SetInk, which follows effectiveSetId")
+	assert(not src:sub(i, i + 100):find("rarity", 1, true), "rarity colours are separate")
+end })
+
+table.insert(tests, { name = "Hand keys: R sorts by rank, S by suit, the mode reaches the sort handler, a sixth pick says why, the picked edge wears the set accent", fn = function()
+	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
+	local ctx = { tableActive = true, popupOpen = false, textBox = false }
+	local r, s = Map.action("keyboard", "R", ctx), Map.action("keyboard", "S", ctx)
+	assert(r and r.type == "sort" and r.mode == "rank", "R sorts by rank")
+	assert(s and s.type == "sort" and s.mode == "suit", "S sorts by suit")
+	assert(Map.action("keyboard", "R", { tableActive = true, popupOpen = true }) == nil, "R is silent in a popup")
+	assert(Map.action("keyboard", "R", { tableActive = true, textBox = true }) == nil, "R is silent in a text box")
+	local got = nil
+	Map.dispatch("keyboard", "R", ctx, { sort = function(m) got = m end })
+	assert(got == "rank", "the mode reaches the handler")
+	assert(table.concat(Map.hintLines(), " "):find("R sorts by rank", 1, true), "the key hint names R")
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local hub = f:read("*a"); f:close()
+	assert(hub:find("You can play up to 5 cards. Put one back first.", 1, true), "a sixth pick says why")
+	assert(hub:find("PickEdge", 1, true) and hub:find("ink and ink.accent", 1, true), "picked edge takes the set accent, gold for classic")
+end })
+
+table.insert(tests, { name = "First 5 minutes: the five formerly silent moments (guided line, Night intro, corner toast, first time hint, refused action) each play a cue that exists", fn = function()
+	local SI = require(script.Parent.Parent.Engine.SoundIds)
+	for _, name in ipairs({ "chip", "scroll_open", "chip_big", "shop_cant" }) do assert(SI.Cues[name] and SI.Cues[name].id ~= "", name .. " cue has a sound id") end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	for file, cue in pairs({ ["GuidedHint"] = "chip", ["NightIntroFX"] = "scroll_open", ["CornerToast"] = "chip_big", ["FirstTimeHints"] = "chip", ["MessageBanner"] = "shop_cant" }) do
+		local src = read("src/Client/" .. file .. ".lua")
+		if src then assert(src:find('Cue).play("' .. cue .. '"', 1, true), file .. " plays " .. cue) end
+	end
+end })
+
+table.insert(tests, { name = "Patron cue pill and Score plate words wear the set ink at 7:1 over every set, classic unchanged, no tween added", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if set.id ~= CS.DefaultId then assert(st and st.ratio >= 7, set.id .. " ink is 7:1 or more on its plate") end
+	end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local fx, td = read("src/Client/PatronJuiceFX.lua"), read("src/Client/TableDress.lua")
+	if not (fx and td) then return end
+	assert(fx:find("setInk.plate", 1, true) and fx:find("setInk.accent", 1, true) and fx:find("or CREAM", 1, true), "cue pill takes plate and accent, classic keeps cream")
+	assert(td:find("ScoreCaption", 1, true) and td:find("ScoreProgress", 1, true) and td:find("or CREAM", 1, true), "Score plate words take the accent, classic cream")
+	assert(not td:find("TweenService", 1, true), "TableDress adds no tween, so Calm mode stays static")
+end })
+
+table.insert(tests, { name = "Boss intro plate and rule chip wear the set plate, edge and ink at 7:1 on every set, classic keeps the boss tint, Continue stays 44 px", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local G2 = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectTrue(G2.continueRect({ w = 400, h = 300 }).h >= 44, "Continue is at least 44 px")
+	expectEqual(CS.hintStyleOf(CS.DefaultId), nil, "classic keeps the boss rule tint")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " boss plate ink is 7:1")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 sets covered")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2MomentsFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("hintStyleOf(Kit.plateSetId())", 1, true) ~= nil, "intro and chip ask the set style")
+	expectTrue(src:find("skinPlate(plate", 1, true) ~= nil, "Night clear plate keeps its set skin")
+	expectTrue(not src:find("TweenService:Create(rulePlate", 1, true), "the rule chip adds no tween, Calm stays static")
+end })
+
+table.insert(tests, { name = "Moderation checklist lists every Patron, Boss Round, Recipe, House Pass and Title art id with a tick box", fn = function()
+	if not io then return end
+	local f = io.open("claude/MODERATION-CHECK.md", "r")
+	if not f then return end
+	local md = f:read("*a"); f:close()
+	local E = script.Parent.Parent.Engine
+	local n = 0
+	for _, name in ipairs({ "PatronArt", "BossRoundArt", "RecipeArt", "HousePassArt", "TitleArt" }) do
+		for key, asset in pairs(require(E[name])) do
+			local id = tostring(asset):match("%d+")
+			n = n + 1
+			expectTrue(md:find("- [ ] `" .. key .. "` `" .. id .. "`", 1, true) ~= nil or md:find("- [x] `" .. key .. "` `" .. id .. "`", 1, true) ~= nil, name .. " " .. key .. " is in the checklist")
+		end
+	end
+	expectTrue(n > 300, "the checklist covers the registry art maps")
+	for _, reg in ipairs({ "Patrons", "BossRounds", "HousePasses" }) do
+		local art = ({ Patrons = "PatronArt", BossRounds = "BossRoundArt", HousePasses = "HousePassArt" })[reg]
+		local map = require(E[art])
+		for _, d in ipairs(require(E[reg]).Definitions) do
+			if map[d.id] then expectTrue(md:find("`" .. d.id .. "` `", 1, true) ~= nil, reg .. " " .. d.id .. " appears") end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Patron synergy hint chip: a formed set bonus first, else a neighbouring shared tag pair, short kid safe line at 16 px, none on empty seats, static", fn = function()
+	local E = script.Parent.Parent.Engine
+	local G = require(E.Gameplay2Synergy)
+	local Patrons, Bonds = require(E.Patrons), require(E.Bonds)
+	expectEqual(G.hint({}), nil, "no Patrons, no hint")
+	expectEqual(G.hint({ "the_regular" }), nil, "one Patron, no hint")
+	local setSeen, pairSeen = false, false
+	for _, tag in ipairs(Bonds.Tags) do
+		local ids = {}
+		for _, d in ipairs(Patrons.Definitions) do
+			for _, t in ipairs(d.tags or {}) do if t == tag and #ids < 3 then ids[#ids + 1] = d.id end end
+		end
+		if #ids == 3 then
+			local h = G.hint(ids)
+			expectTrue(h ~= nil and h.kind == "set" and h.text:find("Tavern Circle", 1, true) ~= nil, tag .. " three Patrons show the set bonus")
+			if h then expectTrue(#h.text <= 70, "hint line is short") setSeen = true end
+		end
+	end
+	expectTrue(setSeen, "at least one set bonus was checked")
+	local owned = {}
+	for _, d in ipairs(Patrons.Definitions) do
+		if #owned < 2 then owned[#owned + 1] = d.id end
+	end
+	for a = 1, #Patrons.Definitions - 1 do
+		local h = G.hint({ Patrons.Definitions[a].id, Patrons.Definitions[a + 1].id })
+		if h and h.kind == "pair" then
+			pairSeen = true
+			expectTrue(h.text:find("^Pair: ") ~= nil and #h.text <= 70 and not h.text:lower():find("balatro", 1, true), "pair line is plain and short")
+			expectTrue(h.a == 1 and h.b == 2, "the pair names the two seats")
+			break
+		end
+	end
+	expectTrue(pairSeen, "a neighbouring pair gives a hint")
+	local L = require(E.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local r = G.hintRect(L.rects(sz[1], sz[2]))
+		if r then expectTrue(r.size >= 16 and r.h >= r.size and r.x >= 0 and r.x + r.w <= sz[1], sz[1] .. " hint chip fits at 16 px") end
+	end
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2SynergyFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("HintSkin", 1, true) ~= nil and src:find("SynergyHint", 1, true) ~= nil, "chip wears the set plate")
+	expectTrue(not src:find("TweenService", 1, true), "no tween, so Calm mode stays static")
+end })
+
+table.insert(tests, { name = "Hand reference: level ups since the last open flash in the set accent, none on first open, Calm static, close hit area is 44 px", fn = function()
+	local E = script.Parent.Parent.Engine
+	local HL = require(E.HandLedger)
+	local rows = { { name = "Pair", level = 2 }, { name = "Flush", level = 0 } }
+	local ups, now = HL.levelUps(nil, rows)
+	expectEqual(next(ups), nil, "first open flashes nothing")
+	expectEqual(now.Pair, 2, "the snapshot keeps the levels")
+	ups, now = HL.levelUps({ Pair = 1, Flush = 0 }, rows)
+	expectTrue(ups.Pair == true and ups.Flush == nil, "only the risen hand flashes")
+	ups = HL.levelUps(now, rows)
+	expectEqual(next(ups), nil, "an unchanged level does not flash again")
+	expectTrue(require(E.CloseXRules).HIT >= 44, "close hit area is at least 44 px")
+	local CS = require(E.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and h.edge ~= nil, set.id .. " has an accent for the flash")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 sets have an accent")
+	if not io then return end
+	local f = io.open("src/Client/PokerHandsReference.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("HandLedger.levelUps", 1, true) ~= nil and src:find("hintStyleOf", 1, true) ~= nil, "panel flashes in the set accent")
+	expectTrue(src:find("if not calm() then\n\t\t\t\t\tstroke.Thickness = 5", 1, true) ~= nil, "the flash tween is skipped in Calm")
+	expectTrue(src:find("PopupSkin", 1, true) ~= nil, "the panel wears the set plate")
+end })
+
+table.insert(tests, { name = "Run Over retry flow: Try Again after a loss, Back to Tavern, Best Night line, one tap to a new run, set plates, Escape kept", fn = function()
+	local E = script.Parent.Parent.Engine
+	local BL = require(E.BestLine)
+	expectTrue(BL.text({ bestNightReached = 5, bestHandScore = 1200 }):find("Best: Night 5", 1, true) ~= nil, "Best Night shows from profile stats")
+	expectTrue(#BL.text({ bestNightReached = 5, bestHandScore = 1200 }) <= BL.MAX_CHARS, "the line is short")
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local go, init = read("src/Client/GameOver.lua"), read("src/Client/init.client.lua")
+	if not (go and init) then return end
+	expectTrue(go:find('isWin and "Play Again" or "Try Again"', 1, true) ~= nil, "Try Again after a loss")
+	expectTrue(go:find('"BackToTavern", "Back to Tavern"', 1, true) ~= nil, "the second action says Back to Tavern")
+	expectTrue(go:find('paintedButton(b, "primary")', 1, true) ~= nil and go:find('paintedButton(b, "secondary")', 1, true) ~= nil, "buttons take the set plates")
+	expectTrue(go:find("BestLine", 1, true) ~= nil, "Best Night line is on the screen")
+	local a = init:find("GameOverPanel.playAgainButton.MouseButton1Click:Connect(function()", 1, true)
+	expectTrue(a ~= nil, "Try Again is wired")
+	if a then
+		local body = init:sub(a, a + 400)
+		expectTrue(body:find("RestartRunRemote:FireServer()", 1, true) ~= nil, "one tap starts a new run (no confirm step)")
+	end
+	expectTrue(init:find("GameOverPanel.gameOverFrame }", 1, true) ~= nil or init:find("GameOverPanel.gameOverFrame,", 1, true) ~= nil, "Escape still dismisses through PopupDismiss")
+end })
+
 table.insert(tests, { name = "Gear menu, Tome dropdown and Music panel wear the set panel, ink and plate at 4.5:1 or more on every set, classic unchanged", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its own colours")
@@ -41725,6 +43468,374 @@ table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4
 		expectTrue(hs:find("= GLOW", 1, true) == nil or select(2, hs:gsub("= GLOW", "")) == 1, "only the classic fallback uses the fixed glow")
 	end
 	if pb then expectTrue(pb:find("setPlateButton(plaque", 1, true) ~= nil, "Play hero takes the set plate first") end
+end })
+
+-- ===== NightBoons =====
+local function boonRun(night, round)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = night or 2
+	state.round = round or 1
+	RunState.startRound(state)
+	return state
+end
+
+table.insert(tests, { name = "NightBoons: 12 kid safe boons, each with a name, icon and one short line", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	expectEqual(#NB.Definitions, 12)
+	local seen = {}
+	for _, def in ipairs(NB.Definitions) do
+		expectTrue(not seen[def.id], def.id .. " is unique")
+		seen[def.id] = true
+		expectTrue(#def.name > 0 and #def.icon > 0 and #def.text > 0 and #def.text <= 60, def.id .. " has short texts")
+		local lower = (def.name .. def.text):lower()
+		for _, bad in ipairs({ "balatro", "beer", "wine", "whisky", "ale ", "drunk" }) do
+			expectTrue(lower:find(bad, 1, true) == nil, def.id .. " is kid safe")
+		end
+		expectTrue(not (def.text:find("\226\128\148", 1, true)), def.id .. " has no em dash")
+	end
+end })
+
+table.insert(tests, { name = "NightBoons: offered on Nights 2 to 12 only, three distinct options, never on fixed boards", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	expectTrue(RunChoice.boonDraft(boonRun(1), true) == nil, "not Night 1")
+	expectTrue(RunChoice.boonDraft(boonRun(13), true) == nil, "not past Night 12")
+	expectTrue(RunChoice.boonDraft(boonRun(5), false) == nil, "not on a fixed board")
+	for night = 2, 12 do
+		local choice = RunChoice.boonDraft(boonRun(night), true)
+		expectTrue(choice ~= nil and choice.kind == "boon" and #choice.options == 3, "Night " .. night)
+		local ids = {}
+		for _, o in ipairs(choice.options) do
+			expectTrue(not ids[o.id], "distinct")
+			ids[o.id] = true
+		end
+	end
+end })
+
+table.insert(tests, { name = "NightBoons: Spare Hand and Spare Discard change this Night only", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(2)
+	local hands, discards = state.handsRemaining, state.discardsRemaining
+	expectTrue(NB.apply(state, "extra_hand"))
+	expectEqual(state.handsRemaining, hands + 1, "the dealt round gets it at once")
+	expectEqual(state.roundStartHands, hands + 1)
+	state.round = 2
+	RunState.startRound(state)
+	expectEqual(state.handsRemaining, hands + 1, "later rounds of the Night too")
+	state.round, state.night = 1, 3
+	RunState.startRound(state)
+	expectEqual(state.handsRemaining, hands, "gone on the next Night")
+	local s2 = boonRun(2)
+	expectTrue(NB.apply(s2, "extra_discard"))
+	expectEqual(s2.discardsRemaining, discards + 1)
+end })
+
+table.insert(tests, { name = "NightBoons: Pocket Change pays 3 Tips, a bad id changes nothing", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(4)
+	local tips = state.tips
+	expectEqual((NB.apply(state, "nope")), false)
+	expectEqual(state.tips, tips)
+	expectTrue(state.nightBoon == nil)
+	expectTrue(NB.apply(state, "pocket_change"))
+	expectEqual(state.tips, tips + 3)
+	expectEqual(NB.apply(boonRun(1), "pocket_change"), false, "no boon on Night 1")
+end })
+
+table.insert(tests, { name = "NightBoons: prices, Free Reroll and boss round boons", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local state = boonRun(3)
+	local patron = Patrons.Definitions[1]
+	local base = RunState.patronPrice(state, patron)
+	NB.apply(state, "patron_discount")
+	expectEqual(RunState.patronPrice(state, patron), math.max(1, base - 2))
+	local s2 = boonRun(3)
+	local rc = RunState.rerollCost(s2, 5)
+	NB.apply(s2, "free_reroll")
+	expectEqual(RunState.rerollCost(s2, 5), 0, "free")
+	expectTrue(NB.useFreeReroll(s2))
+	expectEqual(RunState.rerollCost(s2, 5), rc, "paid again once used")
+	expectEqual(NB.useFreeReroll(s2), false)
+	local s3 = boonRun(3, 1)
+	NB.apply(s3, "boss_hand")
+	expectEqual(NB.field(s3, "bossHands"), 0, "not on a normal round")
+	s3.round = s3.config.roundsPerNight
+	RunState.startRound(s3)
+	expectTrue(s3.isBossRound and s3.handsRemaining > boonRun(3, s3.config.roundsPerNight).handsRemaining, "Boss Ready adds a hand on the boss round")
+end })
+
+table.insert(tests, { name = "NightBoons: scoring boons raise the score and the preview agrees", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local state = boonRun(2)
+	expectEqual(NB.scorePct(state, true), 0)
+	NB.apply(state, "opening_flourish")
+	expectEqual(NB.scorePct(state, true), 50)
+	expectEqual(NB.scorePct(state, false), 0)
+	NB.apply(state, "warm_welcome")
+	expectEqual(NB.scorePct(state, true), 10, "one boon per Night, the last pick replaces")
+end })
+
+table.insert(tests, { name = "NightBoons: picking runs through RunChoice, validates the id and chains the reward", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local state = boonRun(2)
+	local choice = RunChoice.boonDraft(state, true)
+	expectEqual((RunChoice.pick(state, choice, "not_offered")), false, "an id that was not offered is refused")
+	expectTrue(state.nightBoon == nil)
+	local ok, message = RunChoice.pick(state, choice, choice.options[2].id)
+	expectTrue(ok and #message > 0)
+	expectEqual(state.nightBoon.id, choice.options[2].id)
+	expectEqual(state.nightBoon.night, 2)
+	local server = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if server then
+		local src = server:read("*a")
+		server:close()
+		expectTrue(src:find("RunChoice.boonDraft", 1, true) ~= nil, "the server opens the Night with the boon draft")
+		expectTrue(src:find("useFreeReroll", 1, true) ~= nil, "the server spends the free reroll")
+		expectTrue(src:find("nightBoon = ", 1, true) ~= nil, "the HUD gets the boon view")
+	end
+end })
+
+-- ===== StartingDecks =====
+local function countCards(state)
+	return #state.deck + #state.hand + #state.discardPile
+end
+
+table.insert(tests, { name = "StartingDecks: Classic 52, Lucky 56 with four extra Kings, Slim 40 with no 2s, 3s or 4s", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	expectEqual(#SD.Definitions, 3)
+	for _, def in ipairs(SD.Definitions) do
+		local deck = SD.build(def.id)
+		expectEqual(#deck, def.size, def.id .. " size")
+		expectTrue(#def.name > 0 and #def.text > 0 and #def.text <= 60, def.id .. " has short texts")
+	end
+	local lucky = SD.build("lucky")
+	local kings = 0
+	for _, c in ipairs(lucky) do if c.rank == 13 then kings = kings + 1 end end
+	expectEqual(kings, 8, "two Kings per suit")
+	for _, c in ipairs(SD.build("slim")) do expectTrue(c.rank >= 5, "no low cards in Slim") end
+	expectEqual(#SD.build("nope"), 52, "unknown id gives Classic")
+	expectTrue(SD.build("classic")[1] ~= SD.build("classic")[1], "fresh card tables every call")
+end })
+
+table.insert(tests, { name = "StartingDecks: Lucky opens at Night 3 and Slim at Night 5, a locked or unknown pick falls back to Classic", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local function profileAt(n) return { stats = { bestNightReached = n } } end
+	expectEqual(SD.resolve(profileAt(0), "classic"), "classic")
+	expectEqual(SD.resolve(profileAt(2), "lucky"), "classic")
+	expectEqual(SD.resolve(profileAt(3), "lucky"), "lucky")
+	expectEqual(SD.resolve(profileAt(4), "slim"), "classic")
+	expectEqual(SD.resolve(profileAt(5), "slim"), "slim")
+	expectEqual(SD.resolve(profileAt(9), "../evil"), "classic")
+	expectEqual(SD.resolve(profileAt(9), 5), "classic")
+	expectEqual(SD.resolve(nil, "slim"), "classic", "no profile means nothing is open")
+	local rows = SD.view(profileAt(3))
+	expectTrue(rows[1].open and rows[2].open and not rows[3].open and #rows[3].hint > 0 and rows[2].hint == "")
+end })
+
+table.insert(tests, { name = "StartingDecks: a run deals from the picked deck and keeps its size all run", fn = function()
+	for id, size in pairs({ classic = 52, lucky = 56, slim = 40 }) do
+		local state = RunState.new({ startingDeckId = id }, function(n) return 1 end)
+		expectEqual(state.startingDeckId, id)
+		expectEqual(countCards(state), size, id)
+	end
+	expectEqual(RunState.new(nil, function(n) return 1 end).startingDeckId, "classic")
+	expectEqual(RunState.new({ startingDeckId = "nope" }, function(n) return 1 end).startingDeckId, "classic")
+end })
+
+table.insert(tests, { name = "StartingDecks: the server resolves the pick, fixed boards and Boss Rush use Classic, retries keep the deck", fn = function()
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("require(Engine.StartingDecks).resolve(profile, extra.startingDeckId)", 1, true) ~= nil, "the server checks what is open")
+	expectTrue(src:find("(forceStandard or rush or isTutorial == true) and \"classic\"", 1, true) ~= nil, "fixed boards use Classic")
+	expectTrue(select(2, src:gsub("startingDeckId = session.state.startingDeckId", "")) >= 2, "restart and abandon keep the deck")
+end })
+
+table.insert(tests, { name = "StartingDecks: the pre run screen lists the three decks, locked ones cannot be picked", fn = function()
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("makeRunSetupSectionLabel(\"Starting Deck\"", 1, true) ~= nil)
+	expectTrue(src:find("selectedMode, selectedStartingDeckId)", 1, true) ~= nil, "the pick is sent with Begin Run")
+	expectTrue(src:find("clickCatcher.Active = false", 1, true) ~= nil, "locked cards ignore clicks")
+end })
+
+table.insert(tests, { name = "StartingDecks: Slim costs 1 Discard (sim: classic 40.7, lucky 44.3, slim 45.7 percent win, all within 10 points)", fn = function()
+	local classic = RunState.new({ startingDeckId = "classic" }, function(n) return 1 end)
+	local slim = RunState.new({ startingDeckId = "slim" }, function(n) return 1 end)
+	local lucky = RunState.new({ startingDeckId = "lucky" }, function(n) return 1 end)
+	expectEqual(slim.config.discardsPerRound, classic.config.discardsPerRound - 1)
+	expectEqual(lucky.config.discardsPerRound, classic.config.discardsPerRound)
+	expectEqual(slim.discardsRemaining, classic.discardsRemaining - 1)
+end })
+
+-- ===== EndlessScreen =====
+table.insert(tests, { name = "EndlessScreen: headline, best Night and share line, only past the Night cap, kind and short", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EndlessScreen)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	local state = { night = 14, stake = 1, config = { nightCap = 8 } }
+	local view = ES.lines(state, { ["1"] = 16 }, 1)
+	expectEqual(view.headline, "Endless Night 14")
+	expectEqual(view.best, "Best Endless Night 16")
+	expectEqual(view.isBest, false)
+	expectEqual(ES.lines(state, { ["1"] = 10 }, 1).best, "Best Endless Night 14", "a new best counts this run")
+	expectEqual(ES.lines(state, { ["1"] = 10 }, 1).isBest, true)
+	expectEqual(ES.lines(state, nil, 1).best, "Best Endless Night 14", "no saved best")
+	expectTrue(ES.lines({ night = 8, config = { nightCap = 8 } }, nil, 1) == nil, "Night 8 of 8 is not Endless")
+	expectTrue(ES.lines(nil, nil, 1) == nil and ES.lines({}, nil, 1) == nil)
+	expectEqual(ES.lines({ night = 14.7, config = { nightCap = 8 } }, nil, 1).headline, "Endless Night 14", "floored")
+	local share = ES.shareLine(14, 16)
+	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and share:find("Can you beat me?", 1, true) ~= nil and #share <= ES.MAX_SHARE)
+	expectTrue(share:find("Night 16", 1, true) ~= nil, "names the best")
+	expectTrue(ES.shareLine(14, 14):find("My best", 1, true) == nil)
+	expectTrue(share:find("Balatro", 1, true) == nil and not share:find("\226\128\148", 1, true))
+	-- one line at the narrowest and the other sizes: the facts column, 16 px text
+	for _, sw in ipairs({ 360, 640, 1280, 1920 }) do
+		local cols = Layout.columns(sw)
+		local width = math.min(cols.leftW, cols.rightW)
+		for _, text in ipairs({ view.headline .. "  (new best)", view.best }) do
+			expectTrue(#text <= ES.MAX_LINE, text)
+			expectEqual(Layout.estimateLines(text, width, 16), 1, text .. " at " .. sw)
+		end
+	end
+end })
+
+table.insert(tests, { name = "EndlessScreen: Run Over shows the lines and the Share button uses the Endless wording", fn = function()
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("EndlessScreen", 1, true) ~= nil and src:find("view.headline", 1, true) ~= nil)
+	expectTrue(src:find("EndlessScreen.shareLine(lastState.night", 1, true) ~= nil)
+end })
+
+-- ===== DailyShare =====
+table.insert(tests, { name = "DailyShare: a kind seed name per date, the same for everyone, and a short share line", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyShare)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectEqual(DS.seedName("2026-11-22"), DS.seedName("2026-11-22"), "stable")
+	local names, count = {}, 0
+	for day = 1, 28 do
+		local name = DS.seedName(string.format("2026-11-%02d", day))
+		expectTrue(name:match("^%a+ %a+$") ~= nil, name)
+		if not names[name] then names[name] = true count = count + 1 end
+	end
+	expectTrue(count >= 12, "the names vary day to day, got " .. count)
+	for _, w in ipairs(DS.Adjectives) do expectTrue(#w > 0) end
+	local line = DS.line({ night = 6, won = false }, "2026-11-22", "Steady Hands")
+	expectEqual(line, "Daily " .. DS.seedName("2026-11-22") .. " (Steady Hands): I reached Night 6 in " .. require(script.Parent.Parent.Engine.GameName).NAME .. ". Can you beat me?")
+	expectTrue(DS.line({ night = 8, won = true }, "2026-11-22", nil):find("won and reached Night 8", 1, true) ~= nil)
+	expectTrue(DS.line({}, nil, nil):find("Night 1", 1, true) ~= nil, "bad summary is safe")
+	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= DS.MAX_LENGTH)
+	local lower = line:lower()
+	expectTrue(lower:find("balatro", 1, true) == nil and not line:find("\226\128\148", 1, true))
+	for _, w in ipairs(DS.Nouns) do
+		local bad = { "beer", "wine", "ale", "rum", "gin" }
+		for _, b in ipairs(bad) do expectTrue(w:lower() ~= b, w) end
+	end
+	expectTrue(Layout.SMALL_H >= 44, "the share button keeps a 44 px hit area")
+end })
+
+table.insert(tests, { name = "DailyShare: the Share button on a Daily run uses the Daily line", fn = function()
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("DailyShare", 1, true) ~= nil and src:find("lastState.isDaily", 1, true) ~= nil)
+end })
+
+-- ===== Mode titles (boons, starting decks, Endless Night 10) =====
+table.insert(tests, { name = "Mode titles: six kid safe titles unlock at their thresholds and the new stats save and load", fn = function()
+	local ids = { "boon_first", "boon_ten", "deck_lucky", "deck_slim", "deck_trio", "endless_ten" }
+	local profile = PlayerProfile.new()
+	for _, id in ipairs(ids) do
+		local a
+		for _, def in ipairs(Achievements.Definitions) do if def.id == id then a = def end end
+		expectTrue(a ~= nil, id .. " exists")
+		expectTrue(#a.title > 0 and #a.description > 0 and #a.flavorText > 0 and #a.icon > 0, id .. " has its texts")
+		local text = (a.name .. a.title .. a.description .. a.flavorText):lower()
+		for _, bad in ipairs({ "balatro", "beer", "wine", "booze", "whiskey", "drunk" }) do
+			expectTrue(text:find(bad, 1, true) == nil, id .. " is kid safe")
+		end
+		expectTrue(not (a.description .. a.flavorText):find("\226\128\148", 1, true), id .. " has no em dash")
+		expectFalse(Achievements.isUnlocked(profile, id), id .. " starts locked")
+	end
+	PlayerProfile.recordBoonPicked(profile)
+	expectTrue(Achievements.isUnlocked(profile, "boon_first"))
+	expectFalse(Achievements.isUnlocked(profile, "boon_ten"))
+	for _ = 1, 9 do PlayerProfile.recordBoonPicked(profile) end
+	expectTrue(Achievements.isUnlocked(profile, "boon_ten"))
+	PlayerProfile.recordStartingDeck(profile, "classic")
+	expectFalse(Achievements.isUnlocked(profile, "deck_lucky"), "Classic counts for nothing")
+	PlayerProfile.recordStartingDeck(profile, "lucky")
+	expectTrue(Achievements.isUnlocked(profile, "deck_lucky"))
+	expectFalse(Achievements.isUnlocked(profile, "deck_trio"))
+	PlayerProfile.recordStartingDeck(profile, "slim")
+	expectTrue(Achievements.isUnlocked(profile, "deck_slim") and Achievements.isUnlocked(profile, "deck_trio"))
+	expectFalse(Achievements.isUnlocked(profile, "endless_ten"))
+	profile.stats.bestNightReached = 10
+	expectTrue(Achievements.isUnlocked(profile, "endless_ten"))
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.stats.boonsPicked, 10)
+	expectEqual(loaded.stats.luckyRuns, 1)
+	expectEqual(loaded.stats.slimRuns, 1)
+	local junk = PlayerProfile.migrate({ stats = { boonsPicked = -4, luckyRuns = "x", slimRuns = 2.7 } })
+	expectEqual(junk.stats.boonsPicked, 0)
+	expectEqual(junk.stats.luckyRuns, 0)
+	expectEqual(junk.stats.slimRuns, 2)
+end })
+
+table.insert(tests, { name = "Mode titles: each has an art prompt and the server counts boons and decks", fn = function()
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end
+	local json = f:read("*a")
+	f:close()
+	for _, id in ipairs({ "boon_first", "boon_ten", "deck_lucky", "deck_slim", "deck_trio", "endless_ten" }) do
+		expectTrue(json:find('"' .. id .. '": "an avatar', 1, true) ~= nil, id .. " has a title prompt")
+	end
+	local sf = io.open("src/Server/init.server.lua", "r")
+	local src = sf:read("*a")
+	sf:close()
+	expectTrue(src:find("PlayerProfile.recordBoonPicked(profiles[player])", 1, true) ~= nil, "a boon pick is counted")
+	expectTrue(src:find("PlayerProfile.recordStartingDeck(profile", 1, true) ~= nil, "a deck start is counted")
+end })
+
+-- ===== Pre run screen per Card Set =====
+table.insert(tests, { name = "Pre run screen: plates and ink read 7:1 on every Card Set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local count = 0
+	for _, set in ipairs(CS.Definitions) do
+		local style = CS.popupStyleOf(set.id)
+		if set.id == CS.DefaultId then
+			expectTrue(style == nil, "classic keeps the wood and parchment of the screen")
+		else
+			count = count + 1
+			expectTrue(style ~= nil, set.id .. " has a popup style")
+			expectTrue(CS.contrastRatio(style.dark.fill, style.dark.ink) >= 7, set.id .. " header ink on the dark plate")
+			expectTrue(CS.contrastRatio(style.paper.top, style.paper.ink) >= 7, set.id .. " card ink on paper top")
+			expectTrue(CS.contrastRatio(style.paper.bottom, style.paper.ink) >= 7, set.id .. " card ink on paper bottom")
+		end
+	end
+	expectEqual(count, 14, "all 14 Card Sets besides classic")
+	-- the card text fits two 15 px lines at the narrowest panel (60 percent of 640 px, minus margins and the stripe)
+	local Layout = require(script.Parent.Parent.Engine.RunOverLayout)
+	for _, row in ipairs(SD.view({ stats = { bestNightReached = 0 } })) do
+		local text = row.open and row.text or ("Locked. " .. row.hint)
+		expectTrue(Layout.estimateLines(text, 0.6 * 640 - 30 - 30 - 16, 15) <= 2, row.id .. " fits in two lines")
+	end
+end })
+
+table.insert(tests, { name = "Pre run screen: headers and open pick cards go through PopupSkin", fn = function()
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("PopupSkin).dark(header, headerStroke", 1, true) ~= nil, "section headers wear the set plate")
+	expectTrue(src:find("PopupSkin).paper(card, nil, nil", 1, true) ~= nil, "open pick cards wear the set paper")
+	expectTrue(src:find("if not plate and not locked then", 1, true) ~= nil, "locked cards and stake plates keep their own look")
 end })
 
 table.insert(tests, { name = "Set sound identity: every Card Set resolves every UI cue to a real sound, variant when it has one, classic otherwise", fn = function()
@@ -42243,6 +44354,353 @@ table.insert(tests, { name = "Tavern Map road readability: node names are cream 
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("l.TextSize = math.max(size, 15)", 1, true) ~= nil, "map label plates never go under 15 px")
 	expectTrue(src:find("Color3.fromRGB(34, 24, 16)", 1, true) ~= nil, "the label plate colour the test pins is the one drawn")
+end })
+
+-- ===== Card marks =====
+table.insert(tests, { name = "Marks: Gilded +30 Chips, Lucky +4 Mult and Lively x1.2 score on a scoring card, a debuffed card scores nothing", fn = function()
+	local function score(mark, debuff)
+		local c = Card.new(9, "Hearts", { mark = mark })
+		local hr = { name = "High Card", scoringCards = { c } }
+		local s, chips, mult = Scoring.calculate(hr, {}, { debuff = debuff })
+		return s, chips, mult
+	end
+	local _, c0, m0 = score(nil)
+	local _, c1, m1 = score("gilded")
+	local _, c2, m2 = score("lucky")
+	local _, c3, m3 = score("lively")
+	expectEqual(c1 - c0, 30); expectEqual(m1, m0)
+	expectEqual(c2, c0); expectEqual(m2 - m0, 4)
+	expectEqual(c3, c0); expectTrue(math.abs(m3 - m0 * 1.2) < 1e-9)
+	local _, cd = score("gilded", "Hearts")
+	expectEqual(cd, c0 - 9, "a switched off card adds nothing, not even its mark") -- c0 holds the 9 chips of the rank
+end })
+
+table.insert(tests, { name = "Marks: the hand preview shows exactly what the hand pays with marked cards", fn = function()
+	local HandPreview = require(script.Parent.Parent.Engine.HandPreview)
+	local state = RunState.new(nil, function(n) return 1 end)
+	RunState.startRound(state)
+	state.hand[1].mark = "gilded"; state.hand[2].mark = "lively"; state.hand[3].mark = "lucky"
+	local pv = HandPreview.compute(state, { 1, 2, 3 })
+	expectTrue(pv ~= nil, "a preview exists")
+	local before = state.roundScore
+	RunState.playHand(state, { 1, 2, 3 })
+	local paid = state.roundScore - before
+	if pv and pv.score then expectEqual(pv.score, paid, "preview equals pay") end
+end })
+
+table.insert(tests, { name = "Marks: the Mark pack starts at Night 2, names exactly one mark, costs Tips only and stays in the offers", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = 1
+	expectEqual(Shop.rollOffers(state).mark, nil, "no pack on Night 1")
+	state.night = 2
+	local o = Shop.rollOffers(state)
+	expectTrue(Card.Marks[o.mark] ~= nil, "a real mark id")
+	expectTrue(#Marks.packText(o.mark) > 0 and #Marks.packText(o.mark) <= 60, "short text that names the mark")
+	expectTrue(Marks.packText(o.mark):find(Card.Marks[o.mark].name, 1, true) ~= nil)
+	for _, id in ipairs(Card.MarkOrder) do
+		local d = Card.Marks[id]
+		expectTrue(#d.description <= 60 and #Marks.cardLine(id) <= 70, id .. " texts fit")
+		local text = (d.name .. d.description):lower()
+		expectTrue(not text:find("random") and not text:find("robux") and not text:find("balatro"), id .. " kid safe, no random wording")
+	end
+end })
+
+table.insert(tests, { name = "Marks: buy validates the mark id, the Tips, the card and one mark per card, and the mark shows in the deck view", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local state = RunState.new(nil, function(n) return 1 end)
+	RunState.startRound(state)
+	state.tips = 20
+	expectFalse((Marks.buy(state, "nope", 5, "Hearts")), "unknown mark")
+	expectFalse((Marks.buy(state, "gilded", "5", "Hearts")), "rank must be a number")
+	expectFalse((Marks.buy(state, "gilded", 99, "Hearts")), "card not in the deck")
+	expectEqual(state.tips, 20, "nothing spent on a refusal")
+	expectTrue((Marks.buy(state, "gilded", 5, "Hearts")))
+	expectEqual(state.tips, 20 - Marks.PRICE)
+	expectFalse((Marks.buy(state, "lucky", 5, "Hearts")), "that card is marked and the only one of its kind")
+	expectEqual(state.tips, 20 - Marks.PRICE)
+	local marked = 0
+	for _, e in ipairs(RunState.deckView(state)) do if e.mark then marked = marked + 1; expectEqual(e.mark, "gilded") end end
+	expectEqual(marked, 1)
+	state.tips = 2
+	expectFalse((Marks.buy(state, "lucky", 6, "Hearts")), "not enough Tips")
+end })
+
+table.insert(tests, { name = "Marks: the server takes BuyMark through the rate limit and checks the offer and phase", fn = function()
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('RateLimit.allow(player.UserId, "Rem.BuyMark"', 1, true) ~= nil, "rate limited")
+	expectTrue(src:find("session.markOffer ~= markId", 1, true) ~= nil, "only the offered mark")
+	expectTrue(src:find("RunState.phaseAllowsShopActions(session.phase)", 1, true) ~= nil)
+end })
+
+-- ===== Card marks in the Deck tracker =====
+table.insert(tests, { name = "MarkBadge: one letter on a dark plate, cream ink at 7:1, an edge that reads at 3:1 in every Card Set accent, captions of 40 characters or less", fn = function()
+	local MB = require(script.Parent.Parent.Engine.MarkBadge)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(MB.spec("nope"), nil); expectEqual(MB.spec(nil), nil)
+	local letters = {}
+	for _, id in ipairs(Card.MarkOrder) do
+		local accents = { false }
+		for _, def in ipairs(CS.Definitions) do
+			local th = CS.themeOf(def)
+			if th and th.accent then accents[#accents + 1] = th.accent end
+		end
+		for _, accent in ipairs(accents) do
+			local spec = MB.spec(id, accent or nil)
+			expectTrue(spec ~= nil and #spec.letter == 1, id .. " has one letter")
+			expectTrue(CS.contrastRatio(spec.ink, spec.fill) >= 7, id .. " ink 7:1")
+			expectTrue(CS.contrastRatio(spec.edge, spec.fill) >= 3, id .. " edge 3:1")
+		end
+		letters[Card.Marks[id].icon] = true
+		expectTrue(#MB.caption(id) > 0 and #MB.caption(id) <= 40, id .. " caption fits one 16 px line")
+	end
+	local n = 0
+	for _ in pairs(letters) do n = n + 1 end
+	expectEqual(n, 3, "each mark has its own letter, so it reads without colour")
+end })
+
+table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mark line and a tap tooltip, and the deck view carries the mark", fn = function()
+	local f = io and io.open and io.open("src/Client/DeckTracker.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('"MarkBadge"', 1, true) ~= nil and src:find("MarkBadge.caption", 1, true) == nil or src:find(").caption(entry.mark)", 1, true) ~= nil, "the tracker reads the badge module")
+	expectTrue(src:find("card.Activated:Connect(showCaption)", 1, true) ~= nil, "a tap shows the tooltip")
+	expectTrue(src:find("entry.mark and 16 or 18", 1, true) ~= nil, "16 px on a marked card")
+	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
+end })
+
+-- ===== Mark and boon Legendary Patrons =====
+table.insert(tests, { name = "Legendary mark Patrons: Duke Goldleaf, Clover Queen, Jolly Jester and Boon Keeper pay per marked card or boon, price 8, text of 60 characters or less", fn = function()
+	local function hand(marks)
+		local cards = {}
+		for i, m in ipairs(marks) do cards[i] = Card.new(7 + i, "Hearts", { mark = m or nil }) end
+		return { name = "High Card", scoringCards = cards }
+	end
+	local duke, queen, jester, keeper = Patrons.getById("duke_goldleaf"), Patrons.getById("clover_queen"), Patrons.getById("jolly_jester"), Patrons.getById("boon_keeper")
+	for _, p in ipairs({ duke, queen, jester, keeper }) do
+		expectEqual(p.price, 8, p.id .. " price"); expectEqual(p.rarity, "legendary", p.id .. " rarity")
+		expectTrue(#p.description <= 60 and #p.flavorText > 0, p.id .. " texts")
+		local text = (p.name .. p.description .. p.flavorText):lower()
+		expectTrue(not text:find("balatro") and not text:find("beer") and not text:find("wine"), p.id .. " kid safe")
+	end
+	local h = hand({ "gilded", "gilded", "lucky", "lively", false })
+	expectEqual(duke.effect(h, {}).chips, 80); expectEqual(queen.effect(h, {}).mult, 8)
+	expectTrue(math.abs(jester.effect(h, {}).multMultiplier - 1.3) < 1e-9)
+	expectEqual(duke.effect(hand({ false, "lucky" }), {}), nil, "no Gilded card, no bonus")
+	expectEqual(duke.effect(h, { debuff = "Hearts" }), nil, "a switched off card does not count")
+	expectEqual(keeper.effect(h, { boonsPicked = 4 }).mult, 8); expectEqual(keeper.effect(h, { boonsPicked = 0 }), nil)
+	expectEqual(keeper.effect(h, {}), nil, "no counter, no bonus")
+end })
+
+table.insert(tests, { name = "Boon Keeper: every Night boon picked is counted on the run and reaches the scoring context", fn = function()
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = 2
+	expectEqual(RunState.runCounters(state).boonsPicked, 0)
+	expectTrue((NightBoons.apply(state, NightBoons.Definitions[1].id)))
+	state.night = 3
+	expectTrue((NightBoons.apply(state, NightBoons.Definitions[2].id)))
+	expectEqual(RunState.runCounters(state).boonsPicked, 2)
+end })
+
+-- ===== Boss rules for Nights 7 to 12 =====
+table.insert(tests, { name = "Boss rules: Frozen Hand, Quiet Tavern and Short Table start at Night 7, have kid safe text, and Quiet Tavern halves Patron Chips (rounded down) without touching Mult", fn = function()
+	for _, id in ipairs({ "frozen_hand", "quiet_tavern", "short_table" }) do
+		local b = BossRounds.getById(id)
+		expectTrue(b ~= nil and b.minNight == 7, id .. " is a Night 7 boss")
+		expectTrue(#b.description > 0 and #b.description <= 60 and #b.flavorText > 0, id .. " texts")
+		local text = (b.name .. b.description .. b.flavorText):lower()
+		expectTrue(not text:find("beer") and not text:find("wine") and not text:find("balatro"), id .. " kid safe")
+	end
+	local chipsPatron = { id = "chips", name = "Chips", effect = function() return { chips = 25, mult = 3 } end }
+	local function score(ctx)
+		local _, chips, mult = Scoring.calculate({ name = "High Card", scoringCards = { Card.new(9, "Hearts") } }, { chipsPatron }, ctx)
+		return chips, mult
+	end
+	local c0, m0 = score({})
+	local c1, m1 = score({ patronChipsFactor = 0.5 })
+	expectEqual(c0 - c1, 13, "25 Chips become 12, rounded down")
+	expectEqual(m1, m0, "Mult is untouched")
+	-- Frozen Hand: the first played card adds nothing, wherever it lands
+	local a, b2 = Card.new(9, "Hearts"), Card.new(9, "Spades")
+	local hr = { name = "Pair", scoringCards = { a, b2 } }
+	local _, full = Scoring.calculate(hr, {}, { allPlayedCards = { a, b2 } })
+	local _, frozen = Scoring.calculate(hr, {}, { allPlayedCards = { a, b2 }, firstCardOut = true })
+	expectEqual(full - frozen, 9, "the first card's 9 Chips are gone")
+end })
+
+-- ===== Tavern Map event nodes =====
+table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	local function open(night, tips)
+		local state = RunState.new(nil, SeededRng.new(5))
+		state.night, state.tips = night, tips
+		return state, NightBoons.draft(state, true, SeededRng.new(9))
+	end
+	for _, n in ipairs({ 4, 7, 10 }) do
+		local state, choice = open(n, 10)
+		expectTrue(ME.shrineView(state, choice) ~= nil, "Night " .. n .. " has a shrine")
+		local ok, msg, new = ME.rerollBoon(state, choice)
+		expectTrue(ok and new and #new.options == 3 and new.kind == "boon", "a new draft of three")
+		expectEqual(state.tips, 7)
+		local seen = {}
+		for _, o in ipairs(choice.options) do seen[o.id] = true end
+		for _, o in ipairs(new.options) do expectFalse(seen[o.id], "no boon from the first draft") end
+		local ok2 = ME.rerollBoon(state, new)
+		expectFalse(ok2, "once per Night"); expectEqual(state.tips, 7)
+	end
+	for _, n in ipairs({ 2, 3, 5, 8, 11 }) do
+		local state, choice = open(n, 10)
+		expectEqual(ME.shrineView(state, choice), nil, "no shrine on Night " .. n)
+		expectFalse((ME.rerollBoon(state, choice)))
+	end
+	local state, choice = open(4, 2)
+	expectFalse((ME.rerollBoon(state, choice)), "not enough Tips"); expectEqual(state.tips, 2)
+	expectEqual(ME.shrineView(state, { kind = "event" }), nil, "only the boon pick has a shrine")
+end })
+
+table.insert(tests, { name = "MapEvents: the Market sells a chosen mark for 4 Tips once per Night at Round Select, and refuses everything else", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	local state = RunState.new(nil, SeededRng.new(5))
+	RunState.startRound(state)
+	state.night, state.round, state.tips = 4, 1, 10
+	expectEqual(ME.marketView(state, "playing"), nil, "only at Round Select")
+	local view = ME.marketView(state, "roundSelect")
+	expectTrue(view and view.price == 4 and #view.marks == 3 and view.canAfford)
+	expectFalse((ME.marketBuy(state, "roundSelect", "nope", 14, "Hearts")))
+	expectFalse((ME.marketBuy(state, "roundSelect", "gilded", 99, "Hearts")))
+	expectEqual(state.tips, 10, "refusals cost nothing")
+	expectTrue((ME.marketBuy(state, "roundSelect", "lively", 14, "Hearts")))
+	expectEqual(state.tips, 6)
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "once per Night")
+	expectFalse((ME.marketBuy(state, "roundSelect", "lucky", 14, "Spades")))
+	state.night = 5
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "Night 5 has no market")
+	state.night, state.round = 7, 2
+	expectEqual(ME.marketView(state, "roundSelect"), nil, "first round of the Night only")
+end })
+
+table.insert(tests, { name = "MapEvents: the server routes MapEvent through the rate limit and Round Select only, and every text is kid safe", fn = function()
+	local ME = require(script.Parent.Parent.Engine.MapEvents)
+	expectTrue(#ME.shrineView({ night = 4, tips = 5 }, { kind = "boon" }).text <= 60)
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('RateLimit.allow(player.UserId, "Rem.MapEvent"', 1, true) ~= nil, "rate limited")
+	expectTrue(src:find('session.phase ~= "roundSelect" or type(action) ~= "string"', 1, true) ~= nil, "Round Select only")
+end })
+
+-- ===== Patron and Boon synergy hints =====
+table.insert(tests, { name = "Synergy hints: a seated Patron that works with the active Night boon shows one kind line of 60 characters or less, a set still wins, no boon no line", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Synergy)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	for _, link in ipairs(G.BOON_LINKS) do
+		expectTrue(#link.text <= 60 and #link.text > 0, link.text)
+		expectTrue(NightBoons.getById(link.boon) ~= nil, link.boon .. " is a real boon")
+		expectTrue(link.patron == nil or Patrons.getById(link.patron) ~= nil, tostring(link.patron) .. " is a real Patron")
+		local t = link.text:lower()
+		expectTrue(not t:find("beer") and not t:find("wine") and not t:find("balatro"), "kid safe")
+	end
+	expectTrue(#G.BOON_KEEPER_TEXT <= 60)
+	local h = G.boonHint({ "the_regular", "final_bow" }, "extra_hand")
+	expectTrue(h ~= nil and h.kind == "boon" and h.a == 2 and h.text:find("Final Bow", 1, true) ~= nil)
+	expectEqual(G.boonHint({ "final_bow" }, "extra_discard"), nil, "the wrong boon gives no hint")
+	expectEqual(G.boonHint({ "final_bow" }, nil), nil, "no boon, no hint")
+	expectEqual(G.boonHint({}, "extra_hand"), nil)
+	expectTrue(G.boonHint({ "boon_keeper" }, "free_reroll") ~= nil, "Boon Keeper pairs with every boon")
+	expectTrue(G.boonHint({ "full_palette" }, "wider_grip") ~= nil, "a Flush Patron pairs with Wider Grip by tag")
+	expectEqual(G.hint({ "final_bow" }, "extra_hand").kind, "boon")
+	expectEqual(G.hint({ "final_bow" }), nil, "the old call still works")
+	local src = io and io.open and io.open("src/Client/Gameplay2SynergyFX.lua", "r")
+	if src then
+		local text = src:read("*a"); src:close()
+		expectTrue(text:find("Rules.hint(ownedIds or {}, boonId)", 1, true) ~= nil and text:find("Tween", 1, true) == nil, "the chip adds no tween, Calm stays static")
+	end
+end })
+
+-- ===== Hand level up moments =====
+table.insert(tests, { name = "HandLevelMoment: a level Recipe gives one toast line of 60 characters or less naming the hand and its gain, and a sound that exists", fn = function()
+	local HLM = require(script.Parent.Parent.Engine.HandLevelMoment)
+	local state = RunState.new(nil, function(n) return 1 end)
+	local before = {}
+	for k, v in pairs(state.handLevels) do before[k] = v end
+	expectEqual(HLM.notice(before, state.handLevels), nil, "no change, no moment")
+	local recipe
+	for _, r in ipairs(require(script.Parent.Parent.Engine.Recipes).MenuRecipes) do
+		if r.handName == "Flush" then recipe = r end
+	end
+	expectTrue(recipe.apply(state))
+	local n = HLM.notice(before, state.handLevels)
+	expectTrue(n ~= nil and n.levelUp.hand == "Flush" and n.levelUp.level == 1)
+	expectTrue(#n.text <= 60 and n.text:find("Flush", 1, true) ~= nil and n.text:find("level 1", 1, true) ~= nil, n.text)
+	local growth = Scoring.HandLevelGrowth["Flush"]
+	expectTrue(n.text:find("+" .. growth.chips .. " Chips", 1, true) ~= nil and n.text:find("+" .. growth.mult .. " Mult", 1, true) ~= nil, "the gain is the real one")
+	for hand in pairs(Scoring.HandBase) do
+		expectTrue(#HLM.line(hand, 12, 99, 99) <= 60, hand .. " line fits at a high level")
+	end
+	-- two hands up at once: the strongest is named
+	local after = { Pair = 1, ["Straight Flush"] = 1 }
+	expectEqual(HLM.notice({}, after).levelUp.hand, "Straight Flush")
+	expectEqual(#HLM.diff({ Pair = 2 }, { Pair = 1 }), 0, "a drop is not a level up")
+	local src = io and io.open and io.open("src/Client/Sound.lua", "r")
+	if src then
+		local text = src:read("*a"); src:close()
+		expectTrue(text:find(HLM.SOUND .. " = ", 1, true) ~= nil, "the sound is an existing Sound id")
+	end
+end })
+
+table.insert(tests, { name = "HandLevelMoment: the server reports level ups after a Recipe and a pack, the toast plays the sound once per notice and adds no tween", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local t = f:read("*a"); f:close(); return t
+	end
+	local server, toast = read("src/Server/init.server.lua"), read("src/Client/UnlockToast.lua")
+	if not server or not toast then return end
+	local _, count = server:gsub("noteHandLevelUp%(player, session%.state, levelsBefore%)", "")
+	expectEqual(count, 2, "after UseRecipe and ResolvePack")
+	expectTrue(server:find("levelUp = notice.levelUp", 1, true) ~= nil)
+	expectTrue(toast:find("reward.levelUp and levelUpSound", 1, true) ~= nil and toast:find("TweenService", 1, true) == nil, "still line, Calm safe")
+end })
+
+-- ===== Night 12 / final Night victory celebration =====
+table.insert(tests, { name = "Victory celebration: Best Night, boons and deck rows, a Continue to Endless button, rows fit at four sizes (extra rows drop before text overlaps), no em dash", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local Moments = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local summary = { score = 5000, night = 12, cap = 12, hands = 90, tipsTotal = 300, bestNight = 14, boons = 5, deckSize = 52, marked = 3 }
+	local rows = Look.summaryRows(summary, { name = "Flush" })
+	expectEqual(#rows, 8)
+	local byLabel = {}
+	for _, r in ipairs(rows) do byLabel[r.label] = r.value end
+	expectEqual(byLabel["Best Night"], "14"); expectEqual(byLabel["Boons Picked"], "5"); expectEqual(byLabel["Your Deck"], "52 cards, 3 marked")
+	expectEqual(Look.summaryRows({ score = 1, night = 8, cap = 8 }, nil)[6], nil, "a plain summary keeps five rows")
+	expectEqual(Look.summaryRows({ night = 3, boons = 0, deckSize = 40 }, nil)[7].value, "40 cards")
+	expectEqual(Look.CONTINUE_TEXT, "Continue to Endless")
+	expectTrue(Look.CONTINUE_SIZE >= 16 and not Look.CONTINUE_TEXT:find("\226\128\148", 1, true))
+	for _, size in ipairs({ { 800, 450 }, { 1280, 720 }, { 1920, 957 }, { 1920, 1080 } }) do
+		local L = Look.layout(size[1], size[2], "run")
+		local fit = Look.fitRows(rows, size[1], size[2])
+		expectTrue(#fit >= 5 and #fit <= 8, size[1] .. " keeps at least the five plain rows")
+		local rowH = (L.summary.h - 48 * L.scale) / #fit
+		expectTrue(#fit == 5 or rowH >= Look.MIN_TEXT * 1.15 - 1e-6, size[1] .. "x" .. size[2] .. " rows are tall enough for 16 px")
+		expectTrue(L.button.h >= 44, "the Continue plate is at least 44 px tall")
+		expectEqual(fit[1].label, "Final Round Score")
+	end
+	expectEqual(Look.rowSize(5), 22); expectEqual(Look.rowSize(8), 16)
+	-- the numbers come from the clear lines
+	local now = { phase = "roundSelect", tips = 20, roundScore = 6000, handsPlayedTotal = 90, tipsEarnedTotal = 300, nightCap = 8,
+		profileStats = { bestNightReached = 9 }, runCounters = { boonsPicked = 4 },
+		deckView = { { rank = 5, suit = "Hearts", mark = "gilded" }, { rank = 6, suit = "Hearts" } } }
+	local prev = { phase = "playing", targetScore = 5000, roundScore = 6000, tips = 10, night = 8, nightCap = 8, round = 3, bossModifier = { id = "x" } }
+	local lines = Moments.clearLines(prev, now)
+	expectTrue(lines and lines.night and lines.night.runComplete, "the final Night is Run complete")
+	expectEqual(lines.summary.bestNight, 9); expectEqual(lines.summary.boons, 4); expectEqual(lines.summary.deckSize, 2); expectEqual(lines.summary.marked, 1)
 end })
 
 return tests

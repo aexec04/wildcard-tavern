@@ -43,7 +43,7 @@ local function copyRun()
 end
 
 -- Plays one session on `day`. Returns { tips, xp, seasonXp, chest, quests }.
-local function playSession(profile, day)
+local function playSession(profile, day, runs)
 	local before = { xp = profile.tavernXp or 0, season = profile.seasonXp or 0, pending = profile.pendingStartTips or 0 }
 	local row = { chest = nil, quests = 0 }
 	-- the chest
@@ -54,7 +54,7 @@ local function playSession(profile, day)
 		row.chest = reward.label
 	end
 	-- the runs
-	for _ = 1, EconomySim.RunsPerSession do
+	for _ = 1, runs or EconomySim.RunsPerSession do
 		local snap = {}
 		local result = AccountProgress.sync(profile, snap, copyRun(), day, false)
 		row.quests = row.quests + #result.quests
@@ -66,6 +66,26 @@ local function playSession(profile, day)
 	row.xp = (profile.tavernXp or 0) - before.xp
 	row.seasonXp = (profile.seasonXp or 0) - before.season
 	return row
+end
+
+-- A player who plays `runsPerDay` runs every day for `count` days from `startDay` (a season is 30 days). Returns one row per day
+-- { day, seasonXp (running total), tier (reached), newTiers } plus finishDay (first day the whole track is reached, or nil)
+-- and longestGap (most days in a row without a new tier). Season XP only counts inside a running season.
+function EconomySim.season(startDay, count, runsPerDay)
+	local SeasonTrack = require(script.Parent.SeasonTrack)
+	local profile = PlayerProfile.new()
+	profile.hasSeenTutorial = true
+	local rows, lastTier, gap, longestGap, finishDay = {}, 0, 0, 0, nil
+	for i = 0, count - 1 do
+		playSession(profile, startDay + i, runsPerDay)
+		local tier = SeasonTrack.tierOf(profile.seasonXp or 0)
+		if tier > lastTier then gap = 0 else gap = gap + 1 end
+		longestGap = math.max(longestGap, gap)
+		if tier >= SeasonTrack.TIERS and not finishDay then finishDay = i + 1 end
+		rows[#rows + 1] = { day = i + 1, seasonXp = profile.seasonXp or 0, tier = tier, newTiers = tier - lastTier }
+		lastTier = tier
+	end
+	return { days = rows, finishDay = finishDay, longestGap = longestGap, finalTier = lastTier }
 end
 
 -- A week of sessions from `startDay` (a UTC day number). Returns { days = { {day, tips, xp, seasonXp, chest, quests} }, flags = { text } }.
@@ -108,6 +128,40 @@ function EconomySim.markdown(result)
 		t.tips, t.xp, t.seasonXp = t.tips + row.tips, t.xp + row.xp, t.seasonXp + row.seasonXp
 	end
 	lines[#lines + 1] = string.format("| Week | | | %d | %d | %d |", t.tips, t.xp, t.seasonXp)
+	return table.concat(lines, "\n")
+end
+
+-- Per quest: how many runs of the session model finish it. kind = "steady" (the model run earns the counter, so a normal
+-- player finishes it in `runs` runs), "luck" (the model run earns none; a Flush finish, Full House, 500 hand or 2 hand win
+-- happens by play, so the goal must stay 1) or "night" (a highest Night goal, met in one run when the run gets that far).
+function EconomySim.questReport()
+	local Quests = require(script.Parent.Quests)
+	local perRun = Quests.countersOf(copyRun())
+	local rows = {}
+	for _, def in ipairs(Quests.Definitions) do
+		local per = perRun[def.counter] or 0
+		local row = { id = def.id, counter = def.counter, goal = def.goal, perRun = per }
+		if def.counter == "night" then
+			row.kind, row.runs = "night", per >= def.goal and 1 or nil
+		elseif per <= 0 then
+			row.kind = "luck"
+		else
+			row.kind, row.runs = "steady", math.ceil(def.goal / per)
+		end
+		rows[#rows + 1] = row
+	end
+	return rows
+end
+
+function EconomySim.questMarkdown(rows)
+	local lines = {
+		"| Quest | Counter | Goal | Per model run | Runs to finish |",
+		"| --- | --- | --- | --- | --- |",
+	}
+	for _, r in ipairs(rows) do
+		local runs = r.kind == "luck" and "by play (goal 1)" or tostring(r.runs or "never")
+		lines[#lines + 1] = string.format("| %s | %s | %d | %d | %s |", r.id, r.counter, r.goal, r.perRun, runs)
+	end
 	return table.concat(lines, "\n")
 end
 

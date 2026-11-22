@@ -401,7 +401,7 @@ function SetSkin.indexInfo(isRed, skin)
 	local style = skin.index and (isRed and skin.index.red or skin.index.black)
 	if not style then return nil end
 	local win = SkinSlice.indexWindow(skin.images.faceFrame and SkinSlice.metrics(skin.id, "face_frame") or nil)
-	return { ink = rgb(style.ink), stroke = rgb(style.plate), layout = SkinSlice.indexLayout(win) }
+	return { ink = rgb(style.ink), stroke = rgb(style.plate), dark = style.dark == true, layout = SkinSlice.indexLayout(win) }
 end
 
 -- True when the equipped skin shows the painted ivory face alone (CardFace then uses CardFaceArt.IVORY_LAYOUT).

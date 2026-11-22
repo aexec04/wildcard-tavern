@@ -136,3 +136,218 @@ Tips on arrival at each Counter visit and Patrons already held on arrival, 200 s
 - Never a dead shop: the lowest average on arrival is 4.0 (the Night 1 start, exactly the cheapest Patron), and every later visit averages 6.8 or more.
 - Patrons by Night 4: the bot holds 5.0 on arrival, above the 2 to 3 target. By Night 8 it holds about 5.3 (the seat limit is 5, extra seats come from a voucher), which is the 4 to 5 target.
 - Why no change: the bot buys every affordable Patron on sight and never keeps Tips back, so it fills the 5 seats by Night 3. A real player picks and saves, and the first visit of a run is exactly 4 Tips with the cheapest Patron at 4, so lowering the round Tips payout or raising rerolls by even one Tip would make the first shops dead or the Night 1 buy impossible. The 5 seat cap, not income, is what bounds Patron count, so nothing here makes later Nights richer. No payout or reroll number changed. If real players show Night 4 with 5 Patrons, the lever is seat count or Patron price, a design call.
+
+## Quests: can a 20 minute session finish each one?
+
+`lua tools/quest_report.lua` (Engine/EconomySim `questReport`, pinned by the test `Quests: every daily quest finishes in 3 runs or fewer`). The session model is two runs of 12 hands, 5 discards, 4 rounds, 1 Boss Round, Night 3, one Pack, one House Pass, one Recipe. A session is 2 runs, so a quest that needs 3 runs or fewer is finishable in one or two sittings.
+
+| Quest | Counter | Goal | Per model run | Runs to finish |
+| --- | --- | --- | --- | --- |
+| pairs_3 | pairs | 3 | 4 | 1 |
+| flush_clear | flushWins | 1 | 0 | by play (goal 1) |
+| buy_pack | packs | 1 | 1 | 1 |
+| discard_5 | discards | 5 | 5 | 1 |
+| boss_win | bosses | 1 | 1 | 1 |
+| hands_10 | hands | 10 | 12 | 1 |
+| straight_play | straights | 1 | 1 | 1 |
+| full_house_play | fullHouses | 1 | 0 | by play (goal 1) |
+| trips_play | trips | 2 | 1 | 2 |
+| big_swing | bigHands | 1 | 0 | by play (goal 1) |
+| tips_left | richClears | 1 | 1 | 1 |
+| quick_win | quickClears | 1 | 0 | by play (goal 1) |
+| buy_pass | housePasses | 1 | 1 | 1 |
+| use_recipe | recipes | 1 | 1 | 1 |
+| discard_cards_10 | cardsDiscarded | 10 | 10 | 1 |
+| boss_streak | bosses | 2 | 1 | 2 |
+| hands_15 | hands | 15 | 12 | 2 |
+| reach_night_3 | night | 3 | 3 | 1 |
+| rounds_5 | rounds | 5 | 4 | 2 |
+| pairs_8 | pairs | 8 | 4 | 2 |
+| discard_8 | discards | 8 | 5 | 2 |
+| straight_2 | straights | 2 | 1 | 2 |
+| packs_2 | packs | 2 | 1 | 2 |
+| rounds_3 | rounds | 3 | 4 | 1 |
+
+Result: no quest needs more than 2 runs, so no goal was lowered and no Tips or XP reward changed. Four quests (Flush Finish, Full House Party, Big Swing, Swift Win) depend on the hand you draw, not on volume. Their goal is already 1 and cannot go lower, so a player gets them by play. The model run earns none of those four, so the table calls them "by play".
+
+## Patron offers: repeats, owned and dead picks
+
+`lua tools/run_sim.lua --offers --runs 200 --jobs 4` (decent bot, first Patron roll of every Counter visit, Night 1 to 8). "same offer" is the exact same Patrons as the previous visit, "any repeated" is at least one Patron seen on the previous visit, "nothing affordable" is a visit where every offer cost more than the Tips on hand although a cheaper Patron existed in the pool (a picker fault). "poor" is a visit where Tips were under the cheapest Patron of the whole pool, which no picker can fix.
+
+Before the fix (one combined count, 4362 visits): repeats 3.2 percent, owned 0.0 percent, nothing affordable 28.2 percent.
+
+After (4262 visits):
+
+| Night | visits | same offer | any repeated | owned | nothing affordable | poor |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 600 | 0.0% | 2.8% | 0.0% | 0.0% | 33.3% |
+| 2 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 17.2% |
+| 3 | 600 | 0.0% | 2.5% | 0.0% | 0.0% | 12.6% |
+| 4 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 9.1% |
+| 5 | 595 | 0.0% | 2.2% | 0.0% | 0.0% | 0.0% |
+| 6 | 562 | 0.0% | 3.7% | 0.0% | 0.0% | 0.0% |
+| 7 | 465 | 0.0% | 3.4% | 0.0% | 0.0% | 0.0% |
+| 8 | 240 | 0.0% | 5.0% | 0.0% | 0.0% | 0.0% |
+| all | 4262 | 0.0% | 3.1% | 0.0% | 0.0% | 23.3% |
+
+- Repeats (3 percent) and owned Patrons (0 percent, the picker already skips them) are under the 10 percent line, so the picker is unchanged for those.
+- Dead picks were the problem: when a seat was free and nothing offered fit the Tips on hand, the shop could still show two Patrons the player could not buy. `Shop.rollOffers` now swaps the last offer for a random Patron that fits when one exists. A full table is left alone. Prices are untouched and nothing is paid for. Pinned by the test `Shop offers: never a Patron already owned, never a dead pick`.
+- The "poor" column is the economy, not the picker (see also the Boss rules section below): the bot spends everything on sight, so early second and third visits arrive under 4 Tips. See the shop economy section above; no number changed.
+
+## Boss rules: clear rate per boss on Nights 3, 6 and 9
+
+`lua tools/run_sim.lua --boss-rules --runs 400 --jobs 6` (decent bot, full runs with random Patron buys, the boss forced on that Night; the cell counts only runs that reached the boss, shown as n). About 30 minutes. A start at the Night with 4 fresh Patrons was tried first and rejected: it skips the shop visits and hand levels a real run has, so every boss read 0 to 25 percent whatever its rule.
+
+Clear rate before the change (n = 400 on Night 3, 353 on Night 6, 45 on Night 9):
+
+| Boss | Night 3 | Night 6 | Night 9 |
+| --- | --- | --- | --- |
+| bouncer | 100.0 | 66.3 | 57.8 |
+| short_notice | 100.0 | 76.8 | 68.9 |
+| house_rules | 100.0 | 61.8 | 42.2 |
+| the_tab | 100.0 | 83.6 | 71.1 |
+| thin_soup | 100.0 | 70.5 | 48.9 |
+| slow_simmer | 100.0 | 70.5 | 48.9 |
+| rowdy_crowd | 100.0 | 85.3 | 75.6 |
+| no_repeats | 100.0 | 70.5 | 55.6 |
+| hearts_are_out | 100.0 | 75.6 | 64.4 |
+| spades_are_out | 100.0 | 77.9 | 62.2 |
+| no_vips | 100.0 | 75.9 | 68.9 |
+| empty_pockets | 100.0 | 83.6 | 71.1 |
+| full_table | 100.0 | 87.0 | 75.6 |
+| last_chance | 99.5 | 71.1 | 60.0 |
+| short_staffed | 99.2 | 61.2 | 55.6 |
+| diamonds_are_out | 100.0 | 75.6 | 66.7 |
+| clubs_are_out | 100.0 | 75.9 | 64.4 |
+| steep_tab | 100.0 | 83.6 | 71.1 |
+| thin_chips | 100.0 | 49.3 | 24.4 |
+| flat_mult | 100.0 | 49.3 | 24.4 |
+| double_tab | 100.0 | 73.4 | 53.3 |
+| lights_out | 99.2 | 62.6 | 44.4 |
+| quick_service | 100.0 | 69.1 | 51.1 |
+| stale_bread | 100.0 | 44.5 | 15.6 |
+| one_at_a_time | 100.0 | 56.9 | 80.0 |
+| big_tab | 99.8 | 37.4 | 8.9 |
+| wild_crowd | 100.0 | 88.4 | 68.9 |
+| empty_handed | 98.8 | 52.7 | 42.2 |
+| everythings_out | 99.8 | 32.3 | 8.9 |
+| four_top | 99.5 | 63.5 | 46.7 |
+| slow_night | 100.0 | 84.7 | 66.7 |
+| house_minimum | 100.0 | 73.9 | 53.3 |
+| picked_over | 99.8 | 59.2 | 53.3 |
+| rushed_order | 100.0 | 71.4 | 48.9 |
+| bare_bones | 99.8 | 35.4 | 8.9 |
+| sleepy_cook | 100.0 | 63.5 | 48.9 |
+| cold_start | 100.0 | 83.6 | 71.1 |
+| pair_patrol | 100.0 | 82.7 | 66.7 |
+| heavy_hands | 100.0 | 83.6 | 71.1 |
+| quiet_corner | 99.8 | 71.7 | 66.7 |
+| picky_eater | 100.0 | 66.3 | 51.1 |
+| crowded_counter | 100.0 | 65.4 | 33.3 |
+| penny_wise | 100.0 | 83.6 | 71.1 |
+
+- Night 3 is 98.8 to 100 percent for every boss. That is the welcome ramp (Night 3 clears 100 percent in the pacing sim), not a boss problem, so it was left alone; raising 40 boss numbers to push Night 3 under 95 would undo it.
+- Night 9 reads only 45 runs per boss (few runs get there), so its cells move by about 7 points per run and were not used for changes. They still show the same three Night 6 outliers plus thin_chips, flat_mult, stale_bread and crowded_counter low; worth a re-run with more seeds if Night 9 feels brutal.
+- Night 6 under 40 percent: big_tab 37.4, bare_bones 35.4, everythings_out 32.3. Each got its own number eased by one step: Big Tab target 2.0x to 1.9x ("nearly double"), Everything's Out 0.68 to 0.70 (cut 30 percent), Bare Bones 0.70 to 0.72 (cut 28 percent). The order Stale Bread 0.75, Bare Bones, Everything's Out still holds.
+- After, Night 6: big_tab 40.5, bare_bones 39.1, everythings_out 35.4, stale_bread 44.5 (unchanged). Everything's Out is still 4.6 under the line and Bare Bones 0.9 under (inside sampling noise); one more step would squeeze the three tier 3 cuts into 25, 28 and 30 percent apart, so I stopped at one step. Needs the user only if they want Everything's Out higher: a further step to 0.72 means rebalancing Bare Bones and Stale Bread too.
+- Pinned by the test `Boss rule sim pin` plus the updated Everything's Out, Bare Bones and boss target tests.
+
+## Endless curve, Night 7 to 20, three bots
+
+`lua tools/run_sim.lua --endless --max-night 20 --runs 600 --bot <random|greedy|decent>` (random Patron buys, Night clear rate among runs that entered the Night; "in" is how many runs got there).
+
+| Bot | median Night | past Night 8 | Night 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| random | 3 | 3 of 600 | 50.0 (in 24) | 25.0 (12) | 0.0 (3) | none | | | |
+| greedy | 6 | 30 of 600 | 47.5 (179) | 35.3 (85) | 43.3 (30) | 38.5 (13) | 20.0 (5) | 0.0 (1) | none |
+| decent | 7 | 72 of 600 | 48.8 (361) | 40.9 (176) | 44.4 (72) | 50.0 (32) | 31.2 (16) | 60.0 (5) | 33.3 (3) |
+
+- Nothing is free for a bad bot: the random bot never clears Night 9 and none of its runs reach Night 10. A good bot is not walled: the decent bot clears Nights 9 to 13 between 31 and 60 percent. Night 14 and later had 1 run or none, so those cells say nothing; the curve there is the 1.5x per Night growth from the earlier Endless task.
+- No number changed. The test `Endless curve Night 7 to 20` pins that every round target grows with the Night, the boss round stays above round 2, and the base grows 1.5x per Night from Night 10 on.
+
+## Daily twists: win rate against the no twist baseline
+
+`lua tools/run_sim.lua --daily-twists --runs 500 --jobs 4` (decent bot, same 500 seeds for every row, standard run to Night 10). Baseline with no twist: 42.2 percent. The band is 15 points either way (27.2 to 57.2).
+
+| Twist | win | vs base |
+| --- | --- | --- |
+| short_hands | 45.2 | +3.0 |
+| golden_start | 51.8 | +9.6 |
+| extra_seat | 50.2 | +8.0 |
+| big_box | 42.2 | +0.0 |
+| loud_crowd | 52.2 | +10.0 |
+| spare_cards | 47.8 | +5.6 |
+| quick_deal | 50.4 | +8.2 |
+| wide_table | 38.4 | -3.8 |
+| penny_pincher | 42.4 | +0.2 |
+| solo_star (before) | 0.0 | -42.2 |
+| solo_star (after) | 30.8 | -11.4 |
+| thrifty_table | 47.4 | +5.2 |
+| steady_hands | 51.8 | +9.6 |
+
+- Solo Star was the one outlier: one Patron seat at 2x was worth far less than the 4 to 5 seats a normal run builds, so nobody won (0 of 500). Tried 3.5x (1.3 percent), 4x with +1 Hand and Discard (2.3), 4x with +2 and +2 and one more card (11.0), then 4x with +3 Hands, +4 Discards, +1 card and 8 start Tips: 30.8 percent. Its plate line now reads "One seat, effect counts 4x, +3 Hands, +4 Discards, +8 Tips." (60 characters or less; it still needs a look on the Menu plate at 800x450). Pinned by the test `Daily twists balance pin`.
+- Found by this sim and fixed: Loud Crowd, Penny Pincher and Solo Star multiplied Patron Tips bonuses and left fractional Tips (2 x 1.25 = 2.5), which crashed `%d` text in Recipes (Tip Doubler) and would show wrong numbers elsewhere. A Patron's Tips bonus is now floored in `Scoring.calculate`. Test `Daily twists: Patron power twists never leave fractional Tips`.
+
+## Hand level cost, reroll cost and Patron sell value
+
+Baseline sim (`lua tools/run_sim.lua --runs 600 --jobs 4 --bot decent`): win 43.2 percent, median Night 8, Tips at the Counter mean 8.8 (median 8), 4.78 hand levels and 0.15 rerolls per run.
+
+- Hand levels: every level Recipe costs 3 Tips, the same at every level and for all 9 hands (`Recipes.MenuRecipes`). The first Counter visit has at least 4 Tips, so one level is always affordable and a run is never stuck; the bot buys about 0.7 levels per Night because it spends on Patrons and Packs first. Cost kept flat. Pinned by the test `Hand level and reroll cost curves`.
+- Reroll cost: 5, 7, 9, 11 ... (base 5, +2 per reroll in a visit). The first reroll costs more than a round win pays (4), so it is a choice, and the bot uses 0.15 a run. Frequent Visitor and Bargain Hunter lower it but `RunState.rerollCost` floors it at 1 Tip, so it is never free. No change.
+- Patron sell value: half the list price rounded down. A lasting discount (Regulars' Discount, -2) leaves the buy price at or above the sell value for every Patron (price 4 to 8), so buying and selling in a loop only loses Tips. Only the one shot Sale Day Tag or a haggle can pay back a Tip or two once, and the test `Patron sell value` pins both facts. No change.
+
+## Season track over 30 days
+
+`EconomySim.season(startDay, 30, runsPerDay)` (the same 20 minute session model as the week table, two runs a session; Winter Welcome from 2026-12-01, a 30 tier track). Season XP comes from run XP and quests, about 270 a day for the 20 minute player.
+
+| Player | runs a day | track finished | tier on day 30 | longest wait for a tier |
+| --- | --- | --- | --- | --- |
+| 10 minutes | 1 | not finished | 19 | 1 day |
+| 20 minutes | 2 | day 25 | 30 | 1 day |
+| 60 minutes | 6 | day 13 | 30 | 0 days |
+
+- Before: 90 XP a tier. The 20 minute player finished all 30 tiers on day 10 (the 60 minute player on day 6) and then had nothing to chase for 20 days; the 10 minute player finished on day 19. Pace was fast, not steady.
+- Change: `SeasonTrack.XP_PER_TIER` 90 to 225 (track 2,250 to 6,750 XP). No tier gate is over 1 day for any of the three players, the usual player finishes with five days to spare, and the casual player still reaches the middle of the track. Rewards, Tips and tier count are unchanged. Hard coded 90s in six Season tests now read the constant.
+- Pinned by the test `Season pace over 30 days`. A live Season would need its players warned: the game is unpublished, so no save holds old tiers (a profile with seasonXp above 2,250 simply sits at tier 10 or higher on the new scale).
+
+## Boss rule fairness, Nights 7 to 12
+
+`lua tools/run_sim.lua --boss-late --runs 1000 --jobs 6 --bot greedy` (about 40 minutes). The greedy bot is the middle skill (random: median Night 3, decent: median Night 7 with 43 percent wins). Each boss is forced on every boss round from Night 7 up in full Endless runs with random Patron buys; a cell counts only runs that reached that boss. Cells past Night 10 hold under 30 runs and say little, so the band is read on the Night 7 to 12 total (n 215 to 551 per boss).
+
+Clear rate over Nights 7 to 12, greedy bot, lowest to highest: bare_bones 39, everythings_out 40, big_tab 40, crowded_counter 39, stale_bread 42, lights_out 43, house_rules 44, thin_chips 44, flat_mult 44, quick_service 44, empty_handed 45, no_repeats 46, rushed_order 46, thin_soup 48, slow_simmer 48, house_minimum 50, double_tab 51, picked_over 52, sleepy_cook 53, short_staffed 53, bouncer 54, hearts_are_out 56, spades_are_out 56, no_vips 56, diamonds_are_out 57, clubs_are_out 57, steep_tab 57, the_tab 58, empty_pockets 58, pair_patrol 58, last_chance 58, short_notice 59, four_top 59, cold_start 61, penny_wise 61, picky_eater 57, rowdy_crowd 62, slow_night 62, quiet_corner 55, heavy_hands 64, wild_crowd 66, full_table 68, one_at_a_time 85.
+
+- Nothing is under 15 percent (the lowest is 39) and one rule sat at the top of the band: One at a Time, 85 percent overall and 87 to 100 percent on Nights 8 to 12 (play one card, target 65 percent lower). Its own number was eased one step: target multiplier 0.35 to 0.40 (60 percent lower, description updated). After: 80 percent overall (79, 82, 79, 86, 79, 78 by Night).
+- The other 42 rules are between 39 and 68 percent for the middle bot, so none needed a change. The bottom group (Bare Bones, Everything's Out, Big Tab, Crowded Counter, Stale Bread) is the Night 6 tier 3 group tuned in the boss rules section above.
+- Not run: the random bot (it reaches Night 7 in 4 percent of runs, too few for a cell) and the decent bot (its Night 7 and later runs were checked in the Endless table; a per boss decent sweep would take another 40 minutes). Pinned by the updated `One at a Time` target test.
+
+## Patron pairs: best and worst by round clear rate
+
+`lua tools/run_sim.lua --pair-rates --runs 14000 --jobs 4 --min-builds 15` (random 4 Patron builds from Night 4, round clear rate of every pair in the build; 85 Patrons give 3,570 pairs, 3,479 had 15 or more builds, so each cell is 15 to 28 builds and noisy). Average round clear 92.4 percent.
+
+| Top 10 pair | builds | clear |
+| --- | --- | --- |
+| full_house_crowd + veterans_table | 28 | 98.0 |
+| rising_dough + stack_of_plates | 28 | 97.7 |
+| full_house_crowd + rising_dough | 21 | 97.0 |
+| lone_wolf + stack_of_plates | 27 | 97.0 |
+| full_house_crowd + pair_parade | 18 | 96.7 |
+| house_tab + veterans_table | 22 | 96.7 |
+| bread_starter + veterans_table | 27 | 96.6 |
+| full_house_crowd + house_tab | 17 | 96.6 |
+| full_house_crowd + second_opinion | 15 | 96.6 |
+| ace_of_the_house + stack_of_plates | 18 | 96.5 |
+
+| Bottom 10 pair | builds | clear |
+| --- | --- | --- |
+| overtime + rainy_day_fund | 16 | 86.6 |
+| lucky_penny_jar + overtime | 22 | 86.5 |
+| bargain_hunter + second_opinion | 18 | 86.2 |
+| house_special + overtime | 26 | 86.0 |
+| ladder_builder + overtime | 17 | 86.0 |
+| overtime + second_opinion | 20 | 85.8 |
+| quick_service + stair_climber | 23 | 85.5 |
+| all_hands_in + overtime | 20 | 85.1 |
+| overtime + tip_jar | 20 | 84.5 |
+| full_suit_feast + meadow_bee | 15 | 84.2 |
+
+- Every pair is within 8.2 points of the average (the outlier line is 15), so no Patron number changed. Overtime is in 6 of the bottom 10, but its single Patron clear rate was within 2.8 points of the average in the earlier Patron rates sweep; it is a mild drag, not an outlier, and a bigger sample would be needed to justify a nudge.

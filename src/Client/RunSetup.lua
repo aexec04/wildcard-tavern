@@ -172,6 +172,11 @@ return function(deps)
 		label.Text = text -- plain text: no emoji in headers
 		label.ZIndex = 27
 		label.Parent = header
+		-- the set plate: the header takes the equipped Card Set's fill, edge and cream ink (7:1), classic keeps its wood and gold
+		pcall(function()
+			require(script.Parent.PopupSkin).dark(header, headerStroke, { { label, Color3.fromRGB(250, 235, 200) } },
+				{ plate = Color3.fromRGB(86, 58, 34), edge = GOLD })
+		end)
 		return header
 	end
 
@@ -187,6 +192,13 @@ return function(deps)
 	local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
 
 	makeRunSetupSectionLabel("Deck Variant", "", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
+
+	-- STARTING DECK (Engine/StartingDecks.lua): Classic 52, Lucky 56, Slim 40. The server decides what is open and re-checks the pick.
+	local StartingDecks = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StartingDecks"))
+	local START_DECK_HEADER_ORDER, START_DECK_CARD_BASE = 500, 500
+	local selectedStartingDeckId = StartingDecks.DefaultId
+	local startingDeckCards = {}
+	makeRunSetupSectionLabel("Starting Deck", "", START_DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
 	makeRunSetupSectionLabel("Difficulty", "", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
 
 	-- STAKES (Engine/Stakes.lua): eight tiers, each adds one rule. Win a run on a stake to open the next.
@@ -300,6 +312,14 @@ return function(deps)
 		clickCatcher.Parent = card
 		addButtonHoverScale(clickCatcher, { hoverScale = 1.02, pressScale = 0.98 })
 
+		-- the set plate: an open pick card takes the Card Set's paper and dark ink (7:1); locked and stake plate cards keep their own look
+		if not plate and not locked then
+			pcall(function()
+				require(script.Parent.PopupSkin).paper(card, nil, nil, { { nameLabel, INK }, { descLabel, INK } },
+					{ fill = card.BackgroundColor3, edge = GOLD })
+			end)
+		end
+
 		return card, clickCatcher
 	end
 
@@ -308,6 +328,32 @@ return function(deps)
 	-- reselect must NOT re-trigger the cascade.
 	local function refreshRunSetupCards(reveal)
 		local newlyBuiltCards = {}
+
+		for _, child in ipairs(startingDeckCards) do
+			child:Destroy()
+		end
+		startingDeckCards = {}
+		do
+			local latest = deps.getLatestState and deps.getLatestState()
+			local rows = latest and latest.startingDecks or StartingDecks.view(nil)
+			for i, row in ipairs(rows) do
+				local locked = not row.open
+				local card, clickCatcher = makePickCard(runSetupScroll, START_DECK_CARD_BASE + i, row.icon .. " " .. row.name,
+					locked and ("Locked. " .. row.hint) or row.text, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked)
+				table.insert(startingDeckCards, card)
+				table.insert(newlyBuiltCards, card)
+				if locked then
+					clickCatcher.Active = false
+					if row.id == selectedStartingDeckId then selectedStartingDeckId = StartingDecks.DefaultId end
+				else
+					clickCatcher.MouseButton1Click:Connect(function()
+						playClickSfx(0.4)
+						selectedStartingDeckId = row.id
+						refreshRunSetupCards()
+					end)
+				end
+			end
+		end
 
 		for _, child in ipairs(deckVariantCards) do
 			child:Destroy()
@@ -515,7 +561,7 @@ return function(deps)
 		if onBeginRun then
 			onBeginRun()
 		end
-		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake, selectedChallengeId, selectedMode)
+		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake, selectedChallengeId, selectedMode, selectedStartingDeckId)
 		popOut(runSetupBackdrop, runSetupPanel, nil, function()
 			menuFrame.Visible = false
 			root.Visible = true

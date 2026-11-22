@@ -202,6 +202,7 @@ local function scorePlay(state, hand, combo, patrons)
 		handLevels = state.handLevels,
 		ownedPatronSpecials = state.ownedPatronSpecials,
 		debuff = boss and boss.debuff,
+		firstCardOut = boss and boss.firstCardOut, patronChipsFactor = boss and boss.patronChipsFactor,
 		tips = state.tips,
 		alreadyPlayedThisHandTypeThisRound = alreadyPlayed,
 		handsRemaining = handsLeft,
@@ -1019,6 +1020,29 @@ function Sim.shopVisit(state, cfg, rng, rec)
 	useHeldRecipes(state, rec)
 	local rerollCost = E.Shop.REROLL_BASE_COST
 	local offers = E.Shop.rollOffers(state)
+	do -- offer audit: the first Patron roll of the visit against the previous visit's
+		local visit = rec.shopVisits[#rec.shopVisits]
+		local ids, owned, cheapest = {}, {}, nil
+		for _, o in ipairs(state.ownedPatrons) do owned[o.id] = true end
+		visit.offerIds, visit.offerOwned = ids, 0
+		for _, patron in ipairs(offers.patrons) do
+			ids[#ids + 1] = patron.id
+			if owned[patron.id] then visit.offerOwned = visit.offerOwned + 1 end
+			local price = E.RunState.patronPrice(state, patron)
+			if not cheapest or price < cheapest then cheapest = price end
+		end
+		visit.cheapest = cheapest or 0
+		-- the cheapest price in the whole pool this Night (a visit with Tips under it cannot be fixed by the picker)
+		local floor
+		for _, patron in ipairs(E.loadEngineModule("Unlocks").filter(state, "patron", E.Patrons.Definitions)) do
+			if not owned[patron.id] and (patron.minNight or 1) <= state.night then
+				local price = E.RunState.patronPrice(state, patron)
+				if not floor or price < floor then floor = price end
+			end
+		end
+		visit.poolFloor = floor or 0
+		visit.seatsFull = #state.ownedPatrons >= E.RunState.patronSlotLimit(state)
+	end
 	for rerolls = 0, MAX_REROLLS_PER_VISIT do
 		buyVoucher(state, offers, cfg, rec)
 		buyPatrons(state, offers, cfg, rng, rec)
@@ -1031,6 +1055,14 @@ function Sim.shopVisit(state, cfg, rng, rec)
 		rerollCost = rerollCost + E.Shop.REROLL_COST_STEP
 		offers = E.Shop.rollOffers(state)
 		rec.rerolls = rec.rerolls + 1
+	end
+	if cfg.marks == 1 and offers.mark then -- the bot marks an Ace with leftover Tips only, after Patrons and packs (--marks 1)
+		local M = E.loadEngineModule("Marks")
+		if state.tips - cfg.bank >= M.price(state) + RICH_MARGIN then -- only a real surplus; Tips also buy Patrons
+			for _, suit in ipairs(E.Card.Suits) do
+				if M.buy(state, offers.mark, 14, suit) then break end
+			end
+		end
 	end
 end
 
@@ -1060,7 +1092,7 @@ local function installBossOverride(cfg)
 	local originalPick = E.BossRounds.pick
 	E.BossRounds.pick = function(rng, night)
 		local picked = originalPick(rng, night)
-		if cfg.forceBoss and night == cfg.forceBossNight then
+		if cfg.forceBoss and (night == cfg.forceBossNight or (cfg.bossFrom and night >= cfg.bossFrom)) then
 			return E.BossRounds.getById(cfg.forceBoss)
 		end
 		return picked
@@ -1078,11 +1110,13 @@ function Sim.runOne(cfg, seed)
 
 	local state = E.RunState.new({
 		deckVariantId = cfg.deck,
+		startingDeckId = cfg.startDeck,
 		difficultyId = cfg.difficulty,
 		nightOneBonusDiscards = cfg.nightOneDiscards,
 		stakeId = cfg.stake,
 		mode = cfg.mode,
 		welcomeEase = cfg.welcome == true,
+		dailyModifierId = cfg.dailyTwist,
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec

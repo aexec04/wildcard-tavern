@@ -247,7 +247,7 @@ end
 function CornerToast.show(item)
 	if not holder then return false end
 	local taken = stack:push(item, os.clock())
-	if taken then CornerToast.refresh() end
+	if taken then CornerToast.refresh(); pcall(function() require(script.Parent.Cue).play("chip_big", 0.5) end) end -- a quiet chime so an unlock or Night clear is heard, not only seen
 	return taken
 end
 

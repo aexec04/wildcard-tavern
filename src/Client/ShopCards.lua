@@ -317,7 +317,11 @@ function ShopCards.new(deps)
 			local hs = stroke(body, Color3.fromRGB(246, 196, 70), 4, 0)
 			hs.Name = "FirstBuyOutline"
 		else
-			stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+			local edge = stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+			pcall(function() -- a Card Set's accent outline on the card body (the rarity frame inside keeps its own colour); classic stays dark brown
+				local ink = require(script.Parent.SetInk).get()
+				if ink then edge.Name = "SetEdge"; edge.Color = ink.accent end
+			end)
 		end
 		card.body = body
 
@@ -545,7 +549,12 @@ function ShopCards.new(deps)
 			stroke(button, enabled and GOLD or Color3.fromRGB(110, 96, 84), 2, 0)
 			if enabled then
 				pcall(function() require(script.Parent.ConceptTSkin).plateButton(button) end) -- the one green plate style
-				pcall(function() require(script.Parent.TavernKit).setPlateButton(button, "primary") end) -- Sell and Buy: the equipped Card Set's plate; classic keeps the green
+				pcall(function() -- a Card Set with its own plates: the set's green plate replaces the classic green (classic and plateless sets unchanged)
+					if require(script.Parent.TavernKit).setPlateButton(button, "primary") then
+						local classicPlate = button:FindFirstChild("ConceptTPlate")
+						if classicPlate then classicPlate.Visible = false end
+					end
+				end)
 			end
 		end
 

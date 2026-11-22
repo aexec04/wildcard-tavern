@@ -24,7 +24,7 @@ local TavernRank = require(script.Parent.TavernRank)
 local SeasonTrack = {}
 
 SeasonTrack.TIERS = 30
-SeasonTrack.XP_PER_TIER = 90
+SeasonTrack.XP_PER_TIER = 225 -- a 20 minute a day player (about 270 Season XP a day) finishes the 30 tiers around day 25 of the 30 day Season
 SeasonTrack.MAX_XP = SeasonTrack.TIERS * SeasonTrack.XP_PER_TIER
 
 -- EDIT ME. Dates are UTC and both days count. `finalCardBackId` and `titleId` must exist in CardBacks and Achievements.

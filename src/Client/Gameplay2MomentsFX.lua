@@ -284,13 +284,24 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 		return t
 	end
 	local nameRow, ruleRow, rewardRow = Rules.bossIntroRows(textRect)
-	line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
-	line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
+	local nameL = line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
+	local ruleL = line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
+	local rewardL
 	do -- the reward mirrors the payout of a Boss round (the Sidebar shows the same number)
 		local cfg = require(Engine:WaitForChild("RunState")).DefaultConfig
 		local rewardText = Rules.bossRewardLine((cfg.tipsPerRoundWin or 0) * 2)
-		if rewardText then line("Reward", rewardText, 16, "gold", Style.FONTS.ui, rewardRow.y, rewardRow.h) end
+		if rewardText then rewardL = line("Reward", rewardText, 16, "gold", Style.FONTS.ui, rewardRow.y, rewardRow.h) end
 	end
+	-- the intro plate wears the equipped Card Set plate, accent edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the boss rule tint
+	pcall(function()
+		local style = require(Engine:WaitForChild("CosmeticSets")).hintStyleOf(Kit.plateSetId())
+		if not style then return end
+		local ink = Color3.fromRGB(style.ink[1], style.ink[2], style.ink[3])
+		plate.BackgroundColor3 = Color3.fromRGB(style.plate[1], style.plate[2], style.plate[3])
+		st.Color = Color3.fromRGB(style.edge[1], style.edge[2], style.edge[3])
+		chip.BackgroundColor3 = st.Color
+		for _, l in ipairs({ nameL, ruleL, rewardL }) do if l then l.TextColor3 = ink end end
+	end)
 	TweenService:Create(dim, TweenInfo.new(timing.slide), { BackgroundTransparency = timing.dim }):Play()
 	TweenService:Create(plate, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
 	task.delay(timing.slide + timing.hold, function()
@@ -377,6 +388,15 @@ function M.boss(layer, rects, state, w, h)
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
 		rulePlate.Edge.Color = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
+		-- the slim rule chip wears the Card Set plate, edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the boss rule tint
+		rulePlate.TextColor3 = color("cream")
+		pcall(function()
+			local style = require(Engine:WaitForChild("CosmeticSets")).hintStyleOf(Kit.plateSetId())
+			if not style then return end
+			rulePlate.BackgroundColor3 = Color3.fromRGB(style.plate[1], style.plate[2], style.plate[3])
+			rulePlate.Edge.Color = Color3.fromRGB(style.edge[1], style.edge[2], style.edge[3])
+			rulePlate.TextColor3 = Color3.fromRGB(style.ink[1], style.ink[2], style.ink[3])
+		end)
 	end
 	if not tint then
 		tint = Instance.new("Frame")

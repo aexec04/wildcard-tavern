@@ -27,6 +27,12 @@ function CollectionWall.mount(panel)
 	wall.BorderSizePixel = 0
 	wall.Image = id
 	wall.ScaleType = Enum.ScaleType.Crop
+	pcall(function() -- the equipped Card Set's hue over the wall (30 percent; classic keeps the plain wall)
+		local TS = require(Engine:WaitForChild("ThemeScenes"))
+		local skin = require(script.Parent.HudTheme).skin()
+		local t = TS.washTint(TS.effectiveSetId(skin and skin.id, nil), TS.COLLECTION_WALL_TINT)
+		if t then wall.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3]) end
+	end)
 	wall.Active = false
 	wall.ZIndex = panel.ZIndex
 	wall.Parent = panel

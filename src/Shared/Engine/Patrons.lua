@@ -1153,7 +1153,92 @@ local depthPatrons = {
 			return others > 0 and { mult = 3 * others } or nil
 		end,
 	},
+	-- New strategies: a flush engine, a trips engine, a discard engine and a last hand engine.
+	{
+		id = "full_palette", name = "Full Palette", icon = "🌈", price = 8, rarity = "uncommon",
+		description = "x1.5 Mult if the hand is a Flush or Straight Flush.",
+		flavorText = "Paints the whole table one bright color.",
+		effect = function(handResult, _context)
+			if handResult.name == "Flush" or handResult.name == "Straight Flush" then return { multMultiplier = 1.5 } end
+			return nil
+		end,
+	},
+	{
+		id = "triple_scoop", name = "Triple Scoop", icon = "🍨", price = 7, rarity = "uncommon",
+		description = "+25 Mult if the hand is Three of a Kind or Full House.",
+		flavorText = "Always asks for one more of the same.",
+		effect = function(handResult, _context)
+			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then return { mult = 25 } end
+			return nil
+		end,
+	},
+	{
+		id = "spare_shuffle", name = "Spare Shuffle", icon = "🔀", price = 6, rarity = "common",
+		description = "+2 Mult for each Discard you have left.",
+		flavorText = "Keeps the deck moving and the cards fresh.",
+		effect = function(_handResult, context)
+			local left = context.discardsRemaining or 0
+			return left > 0 and { mult = 2 * left } or nil
+		end,
+	},
+	{
+		id = "final_bow", name = "Final Bow", icon = "🔔", price = 8, rarity = "uncommon",
+		description = "x2 Mult on the last Hand of a round.",
+		flavorText = "Saves the best act for the end of the night.",
+		effect = function(_handResult, context)
+			return context.isLastHand and { multMultiplier = 2 } or nil
+		end,
+	},
 }
+-- Legendary Patrons for run depth: card marks (Engine/Marks) and Night boons (Engine/NightBoons). Price 8.
+local function countMarked(handResult, context, markId)
+	local n = 0
+	for _, card in ipairs(handResult.scoringCards or {}) do
+		if card.mark == markId and not Card.isOut(card, context.debuff) then n = n + 1 end
+	end
+	return n
+end
+local markPatrons = {
+	{
+		id = "duke_goldleaf", name = "Duke Goldleaf", icon = "🏅", price = 8, rarity = "legendary",
+		description = "+40 Chips for each scoring Gilded card.",
+		flavorText = "Polishes every coin before supper.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "gilded")
+			return n > 0 and { chips = 40 * n } or nil
+		end,
+	},
+	{
+		id = "clover_queen", name = "Clover Queen", icon = "☘️", price = 8, rarity = "legendary",
+		description = "+8 Mult for each scoring Lucky card.",
+		flavorText = "Every four leaf clover bows to her.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "lucky")
+			return n > 0 and { mult = 8 * n } or nil
+		end,
+	},
+	{
+		id = "jolly_jester", name = "Jolly Jester", icon = "🤹", price = 8, rarity = "legendary",
+		description = "x1.3 Mult for each scoring Lively card.",
+		flavorText = "Juggles the whole deck and never drops one.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "lively")
+			return n > 0 and { multMultiplier = 1.3 ^ n } or nil
+		end,
+	},
+	{
+		id = "boon_keeper", name = "Boon Keeper", icon = "🎁", price = 8, rarity = "legendary",
+		description = "+2 Mult for each Night boon you have picked.",
+		flavorText = "Keeps every small gift in a tidy jar.",
+		effect = function(_handResult, context)
+			local n = math.floor(tonumber(context.boonsPicked) or 0)
+			return n > 0 and { mult = 2 * n } or nil
+		end,
+	},
+}
+for _, patron in ipairs(markPatrons) do
+	table.insert(depthPatrons, patron)
+end
 for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
 end
@@ -1183,7 +1268,9 @@ local PATRON_TAGS = {
 	ladder_builder = { "straight" }, royal_road = { "straight" }, savings_club = { "economy" }, bargain_hunter = { "economy" },
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
+	duke_goldleaf = { "marks" }, clover_queen = { "marks" }, jolly_jester = { "marks" }, boon_keeper = { "scaling" },
 	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
+	full_palette = { "flush" }, triple_scoop = { "pairs" }, spare_shuffle = { "flat" }, final_bow = { "flat" },
 }
 -- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
 local PATRON_COUNTERS = {

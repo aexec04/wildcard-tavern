@@ -328,7 +328,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "encore_order", name = "Encore, Please", icon = "🔁", price = 6,
 		cardCount = { min = 1, max = 1 },
-		description = "Adds an Encore Stamp (retriggers this card's Garnish/Special/Stamp one extra time) to 1 selected card.",
+		description = "Adds an Encore Stamp (this card's Garnish, Special or Stamp counts one extra time) to 1 selected card.",
 		flavorText = "The crowd shouts for more, so you do it again.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -402,7 +402,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "wildcard_swap", name = "Wildcard Swap", icon = "🎲", price = 4,
 		cardCount = { min = 1, max = 1 },
-		description = "Randomizes both the rank and suit of 1 selected card.",
+		description = "Changes both the rank and suit of 1 selected card to a random one.",
 		flavorText = "Close your eyes and pick a new card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)

@@ -19,6 +19,8 @@ local Patrons = require(script.Parent.Patrons)
 local Packs = require(script.Parent.Packs)
 local HousePasses = require(script.Parent.HousePasses)
 local Unlocks = require(script.Parent.Unlocks) -- the unlock drip filters the Patron pool
+local Marks = require(script.Parent.Marks) -- the Mark pack offer
+local RunState = require(script.Parent.RunState) -- prices and seat limit for the affordable offer rule
 
 local Shop = {}
 
@@ -50,6 +52,25 @@ local function rollPatronOffers(state)
 	for _ = 1, math.min(Shop.OFFER_COUNT, #available) do
 		local i = rng(#available)
 		table.insert(offers, table.remove(available, i))
+	end
+	-- Never a dead pick: if nothing offered fits the Tips on hand but some other Patron does, the last offer becomes one
+	-- that does (a free seat only; a full table has nothing to buy anyway). Price still decides, nothing is hidden or paid for.
+	-- (Daily, Weekly and Seed runs walk a fixed board, state.worldPlan: every player sees the same shop, so Tips never change it)
+	if #offers > 0 and state.worldPlan == nil and #state.ownedPatrons < RunState.patronSlotLimit(state) then
+		local tips = state.tips or 0
+		local fits = false
+		for _, patron in ipairs(offers) do
+			if RunState.patronPrice(state, patron) <= tips then fits = true end
+		end
+		if not fits then
+			local cheap = {}
+			for _, patron in ipairs(available) do
+				if RunState.patronPrice(state, patron) <= tips then table.insert(cheap, patron) end
+			end
+			if #cheap > 0 then
+				offers[#offers] = cheap[rng(#cheap)]
+			end
+		end
 	end
 	return offers
 end
@@ -103,7 +124,8 @@ function Shop.rollOffers(state)
 	local patrons = rollPatronOffers(state)
 	local packs = rollPackOffers(state)
 	local voucher = rollVoucherOffer(state)
-	return { patrons = patrons, packs = packs, voucher = voucher }
+	-- rolled last, so the other offers of a seeded board stay exactly as they were
+	return { patrons = patrons, packs = packs, voucher = voucher, mark = Marks.rollOffer(state) }
 end
 
 return Shop

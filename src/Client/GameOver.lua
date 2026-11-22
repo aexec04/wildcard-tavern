@@ -73,6 +73,11 @@ return function(deps)
 	local clearWash -- removes the defeat wash when the screen closes
 	dim:GetPropertyChangedSignal("Visible"):Connect(function()
 		if not dim.Visible and clearWash then clearWash(); clearWash = nil end
+		if dim.Visible then -- the scrim takes a dark version of the equipped Card Set's colour (classic keeps its near black)
+			local ink = nil
+			pcall(function() ink = require(script.Parent.SetInk).get() end)
+			dim.BackgroundColor3 = ink and ink.plate or Color3.fromRGB(10, 8, 6)
+		end
 		local bar = root:FindFirstChild("MessageBar")
 		if dim.Visible and bar then bar.Visible = false end
 	end)
@@ -228,7 +233,7 @@ return function(deps)
 
 	local continueButton = button(actionsF, "ContinueButton", "One More Round", WOOD, GOLD_TEXT, 16)
 	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", GREEN, CREAM, 20)
-	local tavernButton = button(actionsF, "BackToTavern", "Menu", WOOD, CREAM, 16)
+	local tavernButton = button(actionsF, "BackToTavern", "Back to Tavern", WOOD, CREAM, 16)
 	local shareButton = button(moreF, "ShareResult", "Share", WOOD, CREAM, 16)
 	local challengeButton = button(moreF, "ChallengeFriend", "Challenge", WOOD, CREAM, 16)
 	local inviteButton = button(moreF, "InviteFriends", "Invite", WOOD, CREAM, 16)
@@ -276,7 +281,18 @@ return function(deps)
 	shareButton.MouseButton1Click:Connect(function()
 		click()
 		local seedInfo = SeedDisplay.label(lastState)
-		showBox(ShareResult.line(lastSummary, seedInfo and seedInfo.kind == "seed" and seedInfo.value or nil))
+		if lastState and lastState.isDaily then -- a Daily shares its seed name and twist, never a code to type
+			local twist = type(lastState.dailyModifierInfo) == "table" and lastState.dailyModifierInfo.name or nil
+			showBox(require(Engine:WaitForChild("DailyShare")).line(lastSummary, lastState.dailyDateKey, twist))
+			return
+		end
+		local EndlessScreen = require(Engine:WaitForChild("EndlessScreen"))
+		local view = EndlessScreen.lines(lastState, lastSummary and lastSummary.endlessBestByStake, lastSummary and lastSummary.stake or (lastState and lastState.stake))
+		if view then
+			showBox(EndlessScreen.shareLine(lastState.night, tonumber(view.best:match("(%d+)$")))) -- the Endless Night, not the plain Night line
+		else
+			showBox(ShareResult.line(lastSummary, seedInfo and seedInfo.kind == "seed" and seedInfo.value or nil))
+		end
 	end)
 	challengeButton.MouseButton1Click:Connect(function()
 		click()
@@ -349,6 +365,13 @@ return function(deps)
 		local seedInfo = SeedDisplay.label(state)
 		if seedInfo then -- a Seed Run's code is tappable: the share box opens with the code selected, ready to copy
 			add(seedInfo.text .. (seedInfo.shareable and "  (tap to copy)" or ""), { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft", copy = seedInfo.shareable and seedInfo.value or nil })
+		end
+		do -- Endless: this run's Night, the best Night and a kind share line (Engine/EndlessScreen)
+			local okE, view = pcall(function() return require(Engine:WaitForChild("EndlessScreen")).lines(state, summary and summary.endlessBestByStake, summary and summary.stake or state.stake) end)
+			if okE and view then
+				add(view.headline .. (view.isBest and "  (new best)" or ""), { TextSize = 16, tone = "gold" })
+				add(view.best, { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" })
+			end
 		end
 		if summary then
 			local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)

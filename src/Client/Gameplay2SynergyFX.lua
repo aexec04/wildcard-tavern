@@ -45,7 +45,45 @@ local function piece(layer, i)
 	return f
 end
 
-function M.update(layer, rects, ownedIds)
+-- the hint chip under the Patron row wears the equipped Card Set plate, edge and ink at 7:1 (HintSkin), static like the threads
+local function chip(layer)
+	local c = layer:FindFirstChild("SynergyHint")
+	if c then return c end
+	c = Instance.new("TextLabel")
+	c.Name = "SynergyHint"
+	c.BorderSizePixel = 0
+	c.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	c.BackgroundTransparency = 0.1
+	c.Font = Enum.Font.GothamBold
+	c.TextColor3 = GOLD
+	c.TextTransparency = 0
+	c.TextStrokeTransparency = 1
+	c.TextTruncate = Enum.TextTruncate.AtEnd
+	c.Active = false
+	c.ZIndex = Z + 1
+	local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 6); cc.Parent = c
+	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 1; st.Transparency = 0.3; st.Parent = c
+	c.Parent = layer
+	pcall(function()
+		require(script.Parent.HintSkin).bind(c, st, { c }, { plate = c.BackgroundColor3, edge = GOLD, ink = GOLD })
+	end)
+	return c
+end
+
+function M.update(layer, rects, ownedIds, boonId)
+	local hint = Rules.hint(ownedIds or {}, boonId)
+	local hr = hint and Rules.hintRect(rects)
+	if hint and hr then
+		local c = chip(layer)
+		c.Visible = true
+		c.Position = UDim2.fromOffset(hr.x, hr.y)
+		c.Size = UDim2.fromOffset(math.min(hr.w, math.ceil(#hint.text * hr.size * 0.6) + 16), hr.h)
+		c.TextSize = hr.size
+		c.Text = hint.text
+	else
+		local c = layer:FindFirstChild("SynergyHint")
+		if c then c.Visible = false end
+	end
 	local links = Rules.links(ownedIds or {})
 	local used = 0
 	for _, link in ipairs(links) do

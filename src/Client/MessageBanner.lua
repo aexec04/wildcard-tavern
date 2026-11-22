@@ -165,6 +165,7 @@ return function(deps)
 			messageBar.Visible = false
 			return
 		end
+		if messageLabel.Text ~= text or not messageBar.Visible then pcall(function() require(script.Parent.Cue).play("shop_cant", 1) end) end -- a refused action is heard (soft), not only read
 		messageLabel.Text = text
 		local myToken = (messageBar:GetAttribute("MessageToken") or 0) + 1
 		messageBar:SetAttribute("MessageToken", myToken)

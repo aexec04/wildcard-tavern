@@ -359,6 +359,11 @@ function DebugGoto.init(deps)
 				OverlayManager.closeAllExcept("")
 				showMenu()
 				require(script.Parent.NewsPanel).open()
+			elseif target.kind == "equip" then
+				if not require(ReplicatedStorage.Shared.Engine.CosmeticSets).getById(target.setId) then error("unknown card set " .. target.setId) end
+				pcall(function() require(script.Parent.CosmeticSetsView).stopPreview() end)
+				remotes:WaitForChild("DebugEquipSet"):FireServer(target.setId)
+				print("[DebugGoto] equipped set=" .. target.setId .. " (server equip, no preview)")
 			elseif target.kind == "round1" or target.kind == "synth" then
 				synthWhich = (target.kind == "synth") and target.which or nil
 				synthVariant, synthPage = target.variant, target.page

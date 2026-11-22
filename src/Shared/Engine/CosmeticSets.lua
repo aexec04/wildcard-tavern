@@ -72,7 +72,7 @@ CosmeticSets.Definitions = {
 		name = "Frosted Garden",
 		icon = "❄",
 		description = "Frost on the garden path and lanterns glowing in the snow.",
-		cardBackId = "winter_frost",
+		cardBackId = "back_winter_evening",
 		-- readable card: the painted ivory face stands alone (classicFace, same big indices as Golden Gala), deep navy ink at 7:1 on ivory
 		face = { paper = { 248, 246, 236 }, border = { 150, 195, 235 }, pip = { 18, 34, 84 } },
 		classicFace = true,
@@ -94,7 +94,7 @@ CosmeticSets.Definitions = {
 		name = "Mountain Festival",
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
-		cardBackId = "festival_ribbon",
+		cardBackId = "back_festival_night",
 		-- same readable card as Frosted Garden: ivory face alone, warm cream paper, deep brown ink at 7:1
 		face = { paper = { 252, 242, 218 }, border = { 240, 160, 80 }, pip = { 96, 40, 20 }, foil = true },
 		classicFace = true,
@@ -119,7 +119,7 @@ CosmeticSets.Definitions = {
 		name = "Closing Time",
 		icon = "🏮",
 		description = "Dim lamps and a quiet room as the night winds down.",
-		cardBackId = "closing_lantern",
+		cardBackId = "back_closing_time",
 		-- same readable card: ivory face alone, a lamp-lit cream paper, dark umber ink at 7:1
 		face = { paper = { 240, 228, 204 }, border = { 150, 105, 60 }, pip = { 60, 40, 28 } },
 		classicFace = true,
@@ -139,7 +139,7 @@ CosmeticSets.Definitions = {
 		name = "Golden Gala",
 		icon = "✨",
 		description = "The tavern dressed in gold for a grand evening.",
-		cardBackId = "gilded_ledger",
+		cardBackId = "back_golden_gala",
 		backdropImage = BackgroundArt.backdrop_golden_gala or "rbxassetid://0",
 		-- No painted backdrop yet, so the style carries the look: a warm gold wash, gold drapes along the
 		-- top, a dark gilded vignette and drifting gold sparks. Gold-edged ivory faces with gold pips.
@@ -165,7 +165,7 @@ CosmeticSets.Definitions = {
 		name = "Meadow Picnic",
 		icon = "🧺",
 		description = "A Map reward for finishing the Wildflower Meadow road for the first time.",
-		cardBackId = "kitchen_checks",
+		cardBackId = "back_meadow_picnic",
 		backdropImage = SetBackdropArt.meadow_picnic or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 236, 240, 205 },
@@ -180,7 +180,7 @@ CosmeticSets.Definitions = {
 		name = "Riverside Evening",
 		icon = "🌉",
 		description = "A Map reward for finishing the Willow River road for the first time.",
-		cardBackId = "winter_frost",
+		cardBackId = "back_riverside_evening",
 		backdropImage = SetBackdropArt.riverside_evening or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 210, 232, 228 },
@@ -196,7 +196,7 @@ CosmeticSets.Definitions = {
 		name = "Summit Camp",
 		icon = "⛺",
 		description = "A Map reward for finishing the Mountain Peaks road for the first time.",
-		cardBackId = "hall_banner",
+		cardBackId = "back_summit_camp",
 		backdropImage = SetBackdropArt.summit_camp or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 225, 228, 220 },
@@ -211,7 +211,7 @@ CosmeticSets.Definitions = {
 		name = "Dune Market",
 		icon = "🏜",
 		description = "A Map reward for finishing the Golden Dunes road for the first time.",
-		cardBackId = "dune_gold",
+		cardBackId = "back_dune_market",
 		backdropImage = SetBackdropArt.dune_market or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 236, 200 },
@@ -227,7 +227,7 @@ CosmeticSets.Definitions = {
 		name = "Marsh Lanterns",
 		icon = "🏮",
 		description = "A Map reward for finishing the Misty Marsh road for the first time.",
-		cardBackId = "lilypad_green",
+		cardBackId = "back_marsh_lanterns",
 		backdropImage = SetBackdropArt.marsh_lanterns or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 200, 225, 195 },
@@ -242,7 +242,7 @@ CosmeticSets.Definitions = {
 		name = "Snowy Hearth",
 		icon = "🔥",
 		description = "A Map reward for finishing the Frosty Hills road for the first time.",
-		cardBackId = "frost_walker",
+		cardBackId = "back_snowy_hearth",
 		backdropImage = SetBackdropArt.snowy_hearth or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 215, 230, 250 },
@@ -257,7 +257,7 @@ CosmeticSets.Definitions = {
 		name = "Harbor Lights",
 		icon = "⚓",
 		description = "A Map reward for finishing the Lantern Coast road for the first time.",
-		cardBackId = "shell_pearl",
+		cardBackId = "back_harbor_lights",
 		backdropImage = SetBackdropArt.harbor_lights or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 205, 228, 235 },
@@ -266,6 +266,7 @@ CosmeticSets.Definitions = {
 			layers = { { kind = "sparks", count = 8, speed = 0.5 } },
 		},
 		face = { paper = { 220, 234, 248 }, border = { 140, 183, 200 }, pip = { 22, 33, 41 } }, -- pale harbor blue paper
+		darkFace = true, -- the painted face art is dark navy: the index wears light ink on a dark plate (see indexStyle)
 		unlock = { kind = "biome", region = "coast" },
 	},
 	{
@@ -273,7 +274,7 @@ CosmeticSets.Definitions = {
 		name = "Tavern Feast",
 		icon = "🍲",
 		description = "A Map reward for finishing the Tavern road for the first time.",
-		cardBackId = "gala",
+		cardBackId = "back_tavern_feast",
 		backdropImage = SetBackdropArt.tavern_feast or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 232, 196 },
@@ -290,7 +291,7 @@ CosmeticSets.Definitions = {
 		name = "Harvest Table",
 		icon = "🌕",
 		description = "A Tavern Season premium reward: a table dressed for the Harvest Moon.",
-		cardBackId = "harvest_premium",
+		cardBackId = "back_harvest_table",
 		face = { paper = { 248, 228, 192 }, border = { 214, 140, 60 }, pip = { 150, 80, 30 } },
 		accent = { 220, 150, 70 },
 		backdropImage = SetBackdropArt.harvest_table or "rbxassetid://0",
@@ -307,7 +308,7 @@ CosmeticSets.Definitions = {
 		name = "Winter Welcome Table",
 		icon = "🧣",
 		description = "A Tavern Season premium reward: a cozy table for the snowy months.",
-		cardBackId = "winter_premium",
+		cardBackId = "back_winter_table",
 		face = { paper = { 214, 232, 250 }, border = { 120, 160, 215 }, pip = { 50, 80, 140 } },
 		accent = { 120, 165, 220 },
 		backdropImage = SetBackdropArt.winter_table or "rbxassetid://0",
@@ -619,6 +620,17 @@ function CosmeticSets.pileStyleOf(set, back)
 	return { rim = mix(pile.rim, accent, 0.35), plate = pile.plate, glow = mix(pile.glow, accent, 0.35) }
 end
 
+-- The tint the draw pile layers and the discard ghosts wear: the set's own card back colours ({ base, trim, edge } as rgb triples).
+-- nil for the default set (classic is unchanged) or a set without a known back. Pure.
+function CosmeticSets.deckTint(setId)
+	if setId == nil or setId == CosmeticSets.DefaultId then return nil end
+	local set = CosmeticSets.getById(setId)
+	local back = set and CardBacks.getById(set.cardBackId)
+	local colors = back and back.colors
+	if not colors then return nil end
+	return { base = colors.base, trim = colors.trim, edge = mix(colors.base, { 14, 10, 7 }, 0.55) }
+end
+
 CosmeticSets.SKIN_SLOTS = {
 	{ slot = "faceFrame", key = "face_frame" },
 	{ slot = "facePaper", key = "face_paper" },
@@ -858,6 +870,14 @@ function CosmeticSets.mapTagOn(color, setId)
 	return c
 end
 
+-- The dark plate behind the Counter's My Patrons and My Recipes tabs: the set's map bar as fill and its lifted edge as the rim (edge reads 4.5:1
+-- on the fill). nil for classic, which keeps its brown plate and gold rim.
+function CosmeticSets.tabPlateStyleOf(setId)
+	local m = CosmeticSets.mapStyleOf(setId)
+	if not m then return nil end
+	return { fill = m.bar, edge = m.edge }
+end
+
 -- Tavern Ledger: the desk, leather cover, bookmark ribbons and run rows take the set. Ribbons keep cream ink at 4.5:1 (open one lighter), the
 -- two run-row papers keep the soft ledger ink (70,48,28) at 4.5:1. nil for classic so the ledger keeps its leather, red silk and cream paper.
 CosmeticSets.LEDGER_INK = { 70, 48, 28 }
@@ -948,6 +968,17 @@ function CosmeticSets.indexStyle(set, isRed)
 		plate = face.paper -- the paper colour itself (field name kept: it is the surface the ink sits on)
 		ink = mix(base, face.pip, isRed and 0.2 or 0.5)
 	end
+	if set and set.darkFace and not face.neutral then
+		-- dark painted face: light ink (cream, a warm coral for red suits) on the face's own deep tone, 7:1 at least
+		plate = mix(face.pip, { 8, 14, 24 }, 0.5)
+		ink = isRed and { 255, 176, 160 } or { 250, 244, 226 }
+		local lift = 0
+		while CosmeticSets.contrastRatio(ink, plate) < math.max(7, CosmeticSets.minContrastOf(set)) and lift < 10 do
+			plate = mix(plate, { 0, 0, 0 }, 0.25)
+			lift = lift + 1
+		end
+		return { plate = plate, ink = ink, edge = mix(plate, ink, 0.35), dark = true }
+	end
 	local dark = CosmeticSets.BLACK_INK
 	local steps = 0
 	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.minContrastOf(set) and steps < 10 do
@@ -955,6 +986,22 @@ function CosmeticSets.indexStyle(set, isRed)
 		steps = steps + 1
 	end
 	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
+end
+
+-- Centre pip look on a dark painted face: { ink, outline } (light ink, dark outline) with ink at 4.5:1 or more against the
+-- face's deep tone. Returns nil for classic and light faces (they keep the set pip ink).
+function CosmeticSets.darkPipStyle(set, isRed)
+	if not (set and set.darkFace) then return nil end
+	local face = CosmeticSets.faceStyleOf(set)
+	if face.neutral then return nil end
+	local ground = mix(face.pip, { 8, 14, 24 }, 0.5)
+	local ink = isRed and { 255, 176, 160 } or { 250, 244, 226 }
+	local n = 0
+	while CosmeticSets.contrastRatio(ink, ground) < 4.5 and n < 10 do
+		ink = mix(ink, { 255, 255, 255 }, 0.2)
+		n = n + 1
+	end
+	return { ink = ink, outline = { 8, 14, 24 } }
 end
 
 -- Gamepad focus ring colour for a set: the set accent lightened toward white until it keeps 3:1 against the dark wood behind buttons;
@@ -980,6 +1027,15 @@ function CosmeticSets.colorblindInkOf(set, markInk)
 	local paper = CosmeticSets.cardLook(set).paper
 	local plate = CosmeticSets.indexStyle(set, false).plate
 	local need = math.max(4.5, CosmeticSets.minContrastOf(set))
+	if set and set.darkFace then
+		-- dark painted face: lighten toward cream until the mark reads on the dark plate
+		local light, n = markInk, 0
+		while CosmeticSets.contrastRatio(light, plate) < need and n < 12 do
+			light = mix(light, { 250, 244, 226 }, 0.2)
+			n = n + 1
+		end
+		return light
+	end
 	local ink, steps = markInk, 0
 	while (CosmeticSets.contrastRatio(ink, paper) < need or CosmeticSets.contrastRatio(ink, plate) < need) and steps < 12 do
 		ink = mix(ink, CosmeticSets.BLACK_INK, 0.2)

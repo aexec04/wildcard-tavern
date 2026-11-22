@@ -167,7 +167,17 @@ local profileDirty = {} -- [player] = true once something's changed since the la
 -- FIRST 5 MINUTES: a one-time reward toast (survives the run that earned it) and the funnel logger.
 local function pushRewardNotice(player, notice)
 	rewardSeqCounter = rewardSeqCounter + 1
-	rewardNotices[player] = { seq = rewardSeqCounter, text = notice.text, blessingId = notice.blessingId }
+	rewardNotices[player] = { seq = rewardSeqCounter, text = notice.text, blessingId = notice.blessingId, levelUp = notice.levelUp }
+end
+-- Hand level up moment (Engine/HandLevelMoment): copy the levels before an action, then say what went up after it.
+local function handLevelsBefore(state)
+	local copy = {}
+	for hand, level in pairs(state.handLevels or {}) do copy[hand] = level end
+	return copy
+end
+local function noteHandLevelUp(player, state, before)
+	local moment = require(Engine.HandLevelMoment).notice(before, state.handLevels)
+	if moment then pushRewardNotice(player, moment) end
 end
 local function logStep(player, stepId)
 	local profile = profiles[player]
@@ -442,6 +452,7 @@ local function rollShopOffers(session, isReroll)
 	session.shopOffers = offers.patrons
 	session.packOffers = offers.packs
 	session.voucherOffer = offers.voucher
+	session.markOffer = offers.mark -- a mark id or nil
 end
 
 local function openShop(session)
@@ -455,7 +466,7 @@ end
 
 local function serializeCard(card)
 	return {
-		rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp,
+		rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp, mark = card.mark,
 		-- PHASE C ("mind-blowing plan" Signature Mechanic): see
 		-- TrueWildcard.lua. isTrueWildcard marks the one card in this run
 		-- that is (or was) the True Wildcard; wildcardLocked is false right
@@ -535,6 +546,15 @@ local function serializeState(session, player)
 		}
 	end
 
+	local markOffer = nil
+	do
+		local Marks = require(Engine.Marks)
+		local def = session.markOffer and Marks.getById(session.markOffer)
+		if def then
+			markOffer = { id = session.markOffer, name = def.name .. " Mark pack", text = Marks.packText(session.markOffer), price = Marks.price(state) }
+		end
+	end
+
 	local housePassIds = {}
 	for passId in pairs(state.housePasses) do
 		table.insert(housePassIds, passId)
@@ -611,6 +631,11 @@ local function serializeState(session, player)
 		shopOffers = shopOffers,
 		packOffers = packOffers,
 		voucherOffer = voucherOffer,
+		markOffer = markOffer,
+		mapEvents = {
+			shrine = require(Engine.MapEvents).shrineView(state, session.choice),
+			market = require(Engine.MapEvents).marketView(state, session.phase),
+		},
 		rerollCost = RunState.rerollCost(state, session.rerollCost or Shop.REROLL_BASE_COST),
 		-- pendingPack is already the lightweight { packId, category, pickCount,
 		-- items = {id,name,icon,description} } shape RunState.openPack builds
@@ -663,6 +688,8 @@ local function serializeState(session, player)
 			}
 		end)(),
 		deckVariantId = state.deckVariantId,
+		startingDeckId = state.startingDeckId,
+		startingDecks = require(Engine.StartingDecks).view(profiles[player]), -- the pre run screen deck cards, with what is open
 		difficultyId = state.difficultyId,
 		stake = state.stake,
 		highestStakeUnlocked = Stakes.highestUnlocked(profiles[player]),
@@ -935,6 +962,7 @@ local function serializeState(session, player)
 			and require(Engine.Regulars).view(profiles[player].lifetime, math.floor(os.time() / 86400)) or nil, -- Menu Regulars
 		isRush = state.rush ~= nil,
 		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
+		nightBoon = require(Engine.NightBoons).view(state), -- this Night's boon (HUD tooltip), nil when none
 		rewardNotice = rewardNotices[player], -- { seq, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -1786,6 +1814,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 	sessions[player] = {
 		state = RunState.new({
 			deckVariantId = forceStandard and "standard" or deckVariantId,
+			-- STARTING DECK (Engine/StartingDecks.lua): only an open deck is honored; fixed boards, Boss Rush and the tutorial use Classic
+			startingDeckId = (forceStandard or rush or isTutorial == true) and "classic" or require(Engine.StartingDecks).resolve(profile, extra.startingDeckId),
 			difficultyId = forceStandard and "standard" or difficultyId,
 			stakeId = stake,
 			endlessRules = seededRng == nil and isTutorial ~= true and not rush and challengeId == nil, -- Crowd Rules: normal runs only
@@ -1850,6 +1880,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		PlayerProfile.recordStartingDeck(profile, sessions[player].state.startingDeckId)
 		if welcomeEase then WelcomeEase.recordRun(profile) end
 		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
 		Analytics.runStart(player, stake, seedMode or "normal")
@@ -2353,11 +2384,13 @@ Rem.UseRecipe.OnServerEvent:Connect(function(player, category, id, cardIndices, 
 		opts.suit = suit
 	end
 
+	local levelsBefore = handLevelsBefore(session.state)
 	local ok, err = pcall(def.use, session.state, id, opts)
 	if not ok then
 		warn("UseRecipe error for " .. player.Name .. ": " .. tostring(err))
 		return
 	end
+	noteHandLevelUp(player, session.state, levelsBefore)
 
 	pushState(player)
 end)
@@ -2411,6 +2444,7 @@ Rem.RerollShop.OnServerEvent:Connect(function(player)
 		return
 	end
 	session.state.tips = session.state.tips - cost
+	require(Engine.NightBoons).useFreeReroll(session.state) -- the Free Reroll boon is spent by the first Reroll
 	LaunchLog.spent(player, "reroll", cost, session.state.tips)
 	rollShopOffers(session, true)
 	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
@@ -2560,11 +2594,13 @@ Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds, replaceIds)
 		end
 	end
 
+	local levelsBefore = handLevelsBefore(session.state)
 	local ok, err, message = pcall(RunState.resolvePack, session.state, chosenIds, replaceIds)
 	if not ok then
 		warn("ResolvePack error for " .. player.Name .. ": " .. tostring(err))
 		return
 	end
+	noteHandLevelUp(player, session.state, levelsBefore)
 	if err == false and type(message) == "string" then
 		counterNotice(player, session, message) -- e.g. "Make room first": the pack stays open and the Counter says why
 		return
@@ -2592,6 +2628,51 @@ Rem.BuyHousePass.OnServerEvent:Connect(function(player, passId)
 	local ok = RunState.buyHousePass(session.state, passId)
 	if ok then
 		session.voucherOffer = nil
+	end
+	pushState(player)
+end)
+
+-- Tavern Map event nodes on Nights 4, 7 and 10 (Engine/MapEvents.lua): "shrine" rerolls the open boon draft once,
+-- "market" sells a mark of your choice. Every rule and refusal lives in the engine.
+Rem.MapEvent.OnServerEvent:Connect(function(player, action, markId, rank, suit)
+	if not RateLimit.allow(player.UserId, "Rem.MapEvent", os.clock()) then return end
+	local session = sessions[player]
+	if not session or session.phase ~= "roundSelect" or type(action) ~= "string" then
+		return
+	end
+	local MapEvents = require(Engine.MapEvents)
+	if action == "shrine" then
+		if session.choice then
+			local ok, message, newChoice = MapEvents.rerollBoon(session.state, session.choice)
+			if ok then
+				session.choice = newChoice
+				RunState.refreshSnapshot(session.state)
+			end
+			pushRewardNotice(player, { text = message })
+		end
+	elseif action == "market" and type(markId) == "string" and type(rank) == "number" and type(suit) == "string" and not session.choice then
+		local _, message = MapEvents.marketBuy(session.state, session.phase, markId, math.floor(rank), suit)
+		pushRewardNotice(player, { text = message })
+	end
+	pushState(player)
+end)
+
+-- Mark pack: Tips only, the mark is the one on offer, the player picks the deck card by rank and suit.
+Rem.BuyMark.OnServerEvent:Connect(function(player, markId, rank, suit)
+	if not RateLimit.allow(player.UserId, "Rem.BuyMark", os.clock()) then return end
+	local session = sessions[player]
+	if not session or not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+		return
+	end
+	if type(markId) ~= "string" or type(rank) ~= "number" or type(suit) ~= "string" then
+		return
+	end
+	if not session.markOffer or session.markOffer ~= markId then
+		return
+	end
+	local ok = require(Engine.Marks).buy(session.state, markId, math.floor(rank), suit)
+	if ok then
+		session.markOffer = nil
 	end
 	pushState(player)
 end)
@@ -2955,6 +3036,16 @@ Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto equip:<setId> really equips the set (no ownership check) so the equipped path can be checked on the table.
+Rem.DebugEquipSet.OnServerEvent:Connect(function(player, setId)
+	if not RunService:IsStudio() then return end
+	local profile = profiles[player]
+	if not profile or type(setId) ~= "string" or not CosmeticSets.getById(setId) then return end
+	profile.equippedSetId = setId
+	profileDirty[player] = true
+	pushState(player)
+end)
+
 Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
 	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
 	player:SetAttribute("PreviewMode", on == true or nil)
@@ -3039,7 +3130,8 @@ Rem.AdvanceRound.OnServerEvent:Connect(function(player)
 	local fixedRun = session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial
 	if session.state.round == 1 and session.state.night >= 2 then
 		-- a Patron reward for the Night just cleared comes first (Skip allowed); an event, if rolled, follows it
-		session.choice = RunChoice.rewardDraft(session.state, not fixedRun) or RunChoice.rollEvent(session.state, not fixedRun)
+		-- a Night boon (Nights 2 to 12) opens the Night, then the reward and event follow it (RunChoice.pick, kind "boon")
+		session.choice = RunChoice.boonDraft(session.state, not fixedRun) or RunChoice.afterBoon(session.state, not fixedRun)
 	end
 	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
 	if RunService:IsStudio() and not session.choice and not fixedRun then
@@ -3363,6 +3455,7 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	local wasModifier = session.choice.kind == "modifier"
 	local wasReward = session.choice.kind == "reward"
+	local wasBoon = session.choice.kind == "boon" and profiles[player] ~= nil
 	local tipsBefore, wasEvent = session.state.tips or 0, session.choice.kind == "event"
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
 	if ok and wasEvent then
@@ -3370,6 +3463,10 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	if ok and wasReward and not (session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial) then
 		nextChoice = RunChoice.rollEvent(session.state, true) -- the between-Nights event the reward put off
+	end
+	if ok and wasBoon then
+		PlayerProfile.recordBoonPicked(profiles[player])
+		profileDirty[player] = true
 	end
 	if ok then
 		session.choice = nextChoice
@@ -3435,7 +3532,7 @@ Rem.RestartRun.OnServerEvent:Connect(function(player)
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
 	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake,
-		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil, quick = session.state.quickRun == true })
+		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil, quick = session.state.quickRun == true, startingDeckId = session.state.startingDeckId })
 end)
 
 -- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
@@ -3449,7 +3546,7 @@ Rem.AbandonRun.OnServerEvent:Connect(function(player)
 		return
 	end
 	profileDirty[player] = true
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake)
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake, { startingDeckId = session.state.startingDeckId })
 end)
 
 -- The ONLY way a tutorial run begins: the Tutorial tile on the main menu. Scripted hands, no profile writes.
@@ -3462,7 +3559,7 @@ Rem.StartTutorial.OnServerEvent:Connect(function(player)
 	logStep(player, "tutorial_started")
 end)
 
-Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode)
+Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode, startingDeckId)
 	if not RateLimit.allow(player.UserId, "Rem.StartRun", os.clock()) then return end
 	if not sessions[player] then
 		return
@@ -3479,7 +3576,7 @@ Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId,
 	if type(challengeId) ~= "string" then
 		challengeId = nil
 	end
-	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush", quick = mode == "quick" })
+	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush", quick = mode == "quick", startingDeckId = type(startingDeckId) == "string" and startingDeckId or nil })
 end)
 
 -- ===== One More Round (see the section next to ProcessReceipt) =====

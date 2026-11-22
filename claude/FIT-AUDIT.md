@@ -6,5 +6,11 @@ Covered (layout modules in Engine/): Menu, Loading, Settings panel, Store, Table
 Not covered: Quests, Season, Victory, Tome tabs, Tavern Map and Round Select have no pure rect layout to read (they size in Client code), and no layout module publishes text sizes, so text size is held by `tools/lint_text_size.lua` (14 px minimum in src). Rects of art layers (Counter shop scene) overlap by design and are listed as intended in `src/Shared/Tests/FitScreens.lua`.
 Result: every shared screen fits at all four sizes (tested in EngineTests, `FitAudit`). Nothing needed a code fix in shared files.
 
-## Failures
-None. Store Buy and Close plates now grow in panel pixels (StoreLayout.touchH) so they stay 44 px on screen when the panel shrinks at 800x450. The Table ringRow is the Patron seat container, so its overlap with the painted Hands and Discards slots is listed as intended.
+## Failures in shared screens
+None.
+
+## for the other lane: menu
+None.
+
+## for the other lane: table
+None.

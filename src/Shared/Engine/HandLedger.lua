@@ -81,6 +81,17 @@ function HandLedger.build(input)
 end
 
 -- Which hand the detail card shows first: the one the selected cards make, else the one just played, else the top earner, else the first.
+-- Hands whose level rose since the panel was last open: prev = { [handName] = level } or nil (first open, nothing to flash).
+-- Returns { [handName] = true } and the new snapshot, so the caller keeps it for the next open.
+function HandLedger.levelUps(prev, rows)
+	local ups, now = {}, {}
+	for _, row in ipairs(rows or {}) do
+		now[row.name] = row.level or 0
+		if prev and (row.level or 0) > (prev[row.name] or 0) then ups[row.name] = true end
+	end
+	return ups, now
+end
+
 function HandLedger.defaultSelection(ledger, highlighted)
 	local function has(name)
 		for _, row in ipairs(ledger.rows) do

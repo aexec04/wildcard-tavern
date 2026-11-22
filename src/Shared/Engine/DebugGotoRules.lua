@@ -189,6 +189,7 @@ end
 
 function DebugGotoRules.parse(value)
 	local head, setId = DebugGotoRules.splitSet(value)
+	if setId and head == "equip" then return { kind = "equip", setId = setId } end
 	if setId then
 		local target, why = DebugGotoRules.parseCore(head)
 		if not target then return nil, why end
@@ -203,6 +204,7 @@ function DebugGotoRules.parseCore(value)
 		return nil, "empty value"
 	end
 	local text = value:lower():gsub("%s+", "")
+	if text == "equip" then return nil, "equip needs a card set id (equip:<setId>)" end
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
 	end
@@ -298,6 +300,10 @@ function DebugGotoRules.parseCore(value)
 	local parts = {}
 	for part in text:gmatch("[^:]+") do
 		parts[#parts + 1] = part
+	end
+	-- equip:<cardSetId> really equips that set (Studio only server remote), so the true equipped path can be checked
+	if parts[1] == "equip" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then
+		return { kind = "equip", setId = parts[2] }
 	end
 	-- round1:<cardSetId> starts round 1 with that Card Set shown as a local preview (ids are snake_case, checked by the client)
 	if parts[1] == "round1" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then

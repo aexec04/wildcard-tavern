@@ -11,8 +11,19 @@ MAIN=concept-t-2d
 CUR=$(git rev-parse --abbrev-ref HEAD)
 if [ "$CUR" != "$MAIN" ] && git rev-parse --verify -q "$MAIN" >/dev/null; then
   if git diff --quiet && git diff --cached --quiet; then
-    git -c user.name=queue -c user.email=queue@local merge --no-edit "$MAIN" >/dev/null 2>&1 \
-      && echo "synced $CUR with $MAIN" || { git merge --abort >/dev/null 2>&1; echo "sync with $MAIN had conflicts, aborted"; }
+    # untracked files that main now tracks would block the merge: park them first
+    mkdir -p art-wip/aside
+    for f in $(git ls-tree -r --name-only "$MAIN" 2>/dev/null | grep -v ' '); do
+      if [ -e "$f" ] && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        mkdir -p "art-wip/aside/$(dirname "$f")"; mv "$f" "art-wip/aside/$f"; echo "parked untracked $f in art-wip/aside"
+      fi
+    done
+    if git -c user.name=queue -c user.email=queue@local merge --no-edit "$MAIN" >/dev/null 2>&1; then
+      echo "synced $CUR with $MAIN"
+    else
+      git merge --abort >/dev/null 2>&1 || true
+      echo "sync with $MAIN failed, skipped"
+    fi
   else
     echo "sync skipped: uncommitted changes in $CUR"
   fi

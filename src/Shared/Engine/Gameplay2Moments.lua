@@ -56,6 +56,13 @@ function M.clearLines(prev, now)
 	lines.summary = { -- the Victory screen's numbers: only what the run really tracks
 		tipsEarned = earned, unlockCount = lines.unlockItems and #lines.unlockItems or 0, score = score,
 		night = floor(prev.night), cap = floor(prev.nightCap), hands = floor(now.handsPlayedTotal), tipsTotal = floor(now.tipsEarnedTotal),
+		-- Run complete extras: best Night on the profile, Night boons picked and the deck at the end (cards, and how many wear a mark)
+		bestNight = floor(now.profileStats and now.profileStats.bestNightReached), boons = floor(now.runCounters and now.runCounters.boonsPicked),
+		deckSize = #(now.deckView or {}), marked = (function()
+			local n = 0
+			for _, e in ipairs(now.deckView or {}) do if e.mark then n = n + 1 end end
+			return n
+		end)(),
 	}
 	return lines
 end

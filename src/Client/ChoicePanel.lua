@@ -138,6 +138,15 @@ local function buildCard(choice, option, order)
 	woodEdge.Thickness = 2
 	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	woodEdge.Parent = woodFrame
+	if not isDecline then -- the equipped Card Set's plate family frames the pick card (rarity gem, rim and name plate keep their tier colours)
+		pcall(function()
+			local ink = require(script.Parent.SetInk).get()
+			if ink then
+				woodFrame.BackgroundColor3 = ink.plate
+				woodEdge.Color = ink.accent
+			end
+		end)
+	end
 	for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
 		local stud = Instance.new("Frame")
 		stud.Name = "WoodStud" .. i

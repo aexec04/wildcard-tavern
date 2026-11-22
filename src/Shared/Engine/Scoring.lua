@@ -159,8 +159,10 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 	table.insert(breakdown, { kind = "mult", amount = mult, label = handResult.name, source = handSource })
 
 	local debuff = context.debuff
+	-- Frozen Hand: the first card you play each hand scores nothing (the first of context.allPlayedCards, which keeps hand order)
+	local frozenCard = context.firstCardOut and context.allPlayedCards and context.allPlayedCards[1] or nil
 	local function isDebuffed(card)
-		return Card.isOut(card, debuff)
+		return card == frozenCard or Card.isOut(card, debuff)
 	end
 
 	-- Scores ONE trigger of a single card's own rank + Garnish + Special +
@@ -189,6 +191,15 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			dMult = dMult + (s.mult or 0)
 			if s.xmult then
 				dXMult = dXMult * s.xmult
+			end
+		end
+
+		local mk = card.mark and Card.Marks[card.mark]
+		if mk then
+			dChips = dChips + (mk.chips or 0)
+			dMult = dMult + (mk.mult or 0)
+			if mk.xmult then
+				dXMult = dXMult * mk.xmult
 			end
 		end
 
@@ -263,12 +274,17 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		local patronSource = { type = "patron", patronId = patron.id, patron = patron }
 		local bonus = patron.effect(handResult, context) or {}
 		patronBonuses[i] = bonus
+		local chipsFactor = context.patronChipsFactor -- Quiet Tavern: a Patron's Chips bonus is cut (rounded down)
+		if chipsFactor and chipsFactor ~= 1 and bonus.chips then
+			bonus = { chips = math.floor(bonus.chips * chipsFactor), mult = bonus.mult, multMultiplier = bonus.multMultiplier, tips = bonus.tips }
+		end
 		local power = context.patronPower -- Challenge "One Seat": every Patron effect counts double
 		if power and power ~= 1 then
 			bonus = {
 				chips = bonus.chips and bonus.chips * power or nil, mult = bonus.mult and bonus.mult * power or nil,
 				multMultiplier = bonus.multMultiplier and ((bonus.multMultiplier - 1) * power + 1) or nil,
-				tips = bonus.tips and bonus.tips * power or nil,
+				-- Tips stay whole (Loud Crowd's 1.25x would leave 2.5 Tips, which breaks every %d text and the banked total)
+				tips = bonus.tips and (bonus.tips >= 0 and math.floor(bonus.tips * power) or math.ceil(bonus.tips * power)) or nil,
 			}
 		end
 		chips = chips + (bonus.chips or 0)
