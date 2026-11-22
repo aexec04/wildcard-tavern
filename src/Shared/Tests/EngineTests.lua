@@ -11903,6 +11903,25 @@ table.insert(tests, { name = "LiveEvents windows: both end days count, active an
 	expectEqual(SeededRng.dailySeed(first * 86400), SeededRng.dailySeed(first * 86400), "the daily seed is a pure function of the day")
 end })
 
+table.insert(tests, { name = "LiveEvents Harvest Week: one free card back, claimed once, data only, banner key set on every event", fn = function()
+	local L = require(script.Parent.Parent.Engine.LiveEvents)
+	local first, last = L.dayNumberOf("2026-11-16"), L.dayNumberOf("2026-11-22")
+	local profile = PlayerProfile.new()
+	expectEqual((L.claim(profile, "harvest_week", first - 1)), false, "before the week")
+	local ok, result = L.claim(profile, "harvest_week", first + 1, { cardBackName = function(id) return "B-" .. id end })
+	expectTrue(ok and #result.texts == 1 and result.texts[1] == "Card back: B-festival_ribbon")
+	expectTrue(profile.unlockedCardBackIds.festival_ribbon)
+	expectEqual((L.claim(profile, "harvest_week", first + 2)), false, "once only")
+	expectTrue((L.claim(PlayerProfile.new(), "harvest_week", last)), "last day counts")
+	expectEqual(L.dailyLabel(first + 1), "Harvest Week", "daily text still themed")
+	for _, event in ipairs(L.Definitions) do
+		expectTrue(type(event.bannerKey) == "string" and event.bannerKey ~= "", event.id .. " has a banner key")
+		for _, r in ipairs(event.rewards or {}) do
+			expectTrue(r.kind ~= "xp" and r.kind ~= "power", "event rewards are cosmetic or Tips only")
+		end
+	end
+end })
+
 table.insert(tests, { name = "LiveEvents rewards: claimed once, only while the event runs, banked Tips capped, the view shows the right rows", fn = function()
 	local L = require(script.Parent.Parent.Engine.LiveEvents)
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
