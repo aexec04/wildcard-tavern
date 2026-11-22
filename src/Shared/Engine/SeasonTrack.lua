@@ -413,6 +413,33 @@ function SeasonTrack.view(profile, day, lookup)
 	}
 end
 
+-- The first tier whose free reward is not claimed yet (nil when every tier is claimed).
+function SeasonTrack.nextTier(view)
+	for _, row in ipairs(view and view.tiers or {}) do
+		if not row.claimed then return row end
+	end
+	return nil
+end
+
+-- One short line for the footer: what the next unclaimed tier gives, plus its Premium reward when Premium is not owned and it fits.
+SeasonTrack.NEXT_LINE_MAX = 80
+function SeasonTrack.nextLine(view)
+	local row = SeasonTrack.nextTier(view)
+	if not row then return "Every tier claimed. Nice work!" end
+	local line
+	if row.reached then
+		line = "Tier " .. row.tier .. " is ready: " .. row.text .. ". Tap it to claim."
+	else
+		line = "Next reward at tier " .. row.tier .. ": " .. row.text .. "."
+	end
+	local prem = row.premium
+	if prem and prem.locked and prem.text and prem.text ~= "" then
+		local more = line .. " Premium adds " .. prem.text .. "."
+		if #more <= SeasonTrack.NEXT_LINE_MAX then line = more end
+	end
+	return line
+end
+
 -- Registry check used by the tests: dates parse, seasons do not overlap, rewards reference real content ids lookups.
 function SeasonTrack.validate()
 	local problems = {}
