@@ -917,6 +917,23 @@ local function buyPatrons(state, offers, cfg, rng, rec)
 	if #offers.patrons == 0 then
 		return
 	end
+	if cfg.randomPatrons then -- variety audit: buy whatever is on offer in a random order, never sell, no value judgement
+		for i = #offers.patrons, 2, -1 do
+			local j = rng(i)
+			offers.patrons[i], offers.patrons[j] = offers.patrons[j], offers.patrons[i]
+		end
+		local left = {}
+		for _, patron in ipairs(offers.patrons) do
+			local price = E.RunState.patronPrice(state, patron)
+			if state.tips - cfg.bank >= price and #state.ownedPatrons < E.RunState.patronSlotLimit(state) and E.RunState.buyPatron(state, patron.id) then
+				rec.patronsBought[patron.id] = true
+			else
+				table.insert(left, patron)
+			end
+		end
+		offers.patrons = left
+		return
+	end
 	local gains, probe, samples, base = patronGains(state, rng, offers.patrons)
 	table.sort(offers.patrons, function(a, b)
 		if gains[a.id] ~= gains[b.id] then

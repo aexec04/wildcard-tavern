@@ -84,8 +84,8 @@ function M.nightToast(lines)
 	local n = floor(lines.night.sub and tonumber(string.match(lines.night.sub, "%d+")) or 0)
 	local tips = floor(lines.tipsEarned)
 	local head = n > 0 and string.format("Night %d cleared", n) or "Night cleared"
-	if tips > 0 then return string.format("%s  +%d Tips", head, tips) end
-	return head
+	if tips > 0 then head = string.format("%s  +%d Tips", head, tips) end
+	return head .. ".  Next: visit the Counter"
 end
 
 function M.nightPlate(w, h, runComplete)

@@ -67,7 +67,7 @@ local function parseArgs(argv)
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos",
 	}
 	local i = 1
 	while i <= #argv do
@@ -132,6 +132,7 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.stake then table.insert(parts, "--stake"); table.insert(parts, run.stake) end
 	if run.mode then table.insert(parts, "--mode"); table.insert(parts, run.mode) end
 	if run.endless then table.insert(parts, "--endless") end
+	if run.randomPatrons then table.insert(parts, "--random-patrons") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
 	if run.packOffers then table.insert(parts, "--pack-offers"); table.insert(parts, run.packOffers) end
 	if run.voucherChance then table.insert(parts, "--voucher-chance"); table.insert(parts, run.voucherChance) end
@@ -276,6 +277,43 @@ elseif cfg.bosses then
 	for _, row in ipairs(rows) do
 		print(string.format("%-20s %8d %9d %7.1f%% %10.2f", row.id, row.minNight, row.tries, 100 * row.rate, row.rate / math.max(0.0001, average)))
 	end
+elseif cfg.combos then
+	-- Patron variety audit: random Patron buys, report picks, pairs and any Patron or pair that wins more than 90 percent
+	cfg.randomPatrons = true
+	local records = collect(runConfig())
+	local wins, single, pairsT = 0, {}, {}
+	for _, rec in ipairs(records) do
+		if rec.won then wins = wins + 1 end
+		local ids = rec.finalPatrons or {}
+		table.sort(ids)
+		for a = 1, #ids do
+			local s = single[ids[a]] or { n = 0, w = 0 }
+			s.n, s.w = s.n + 1, s.w + (rec.won and 1 or 0)
+			single[ids[a]] = s
+			for b = a + 1, #ids do
+				local key = ids[a] .. " + " .. ids[b]
+				local c = pairsT[key] or { n = 0, w = 0 }
+				c.n, c.w = c.n + 1, c.w + (rec.won and 1 or 0)
+				pairsT[key] = c
+			end
+		end
+	end
+	local function rows(t, minN)
+		local out = {}
+		for k, v in pairs(t) do if v.n >= minN then out[#out + 1] = { key = k, n = v.n, rate = v.w / v.n } end end
+		table.sort(out, function(x, y) if x.n ~= y.n then return x.n > y.n end return x.key < y.key end)
+		return out
+	end
+	print(string.format("Random Patron picks, bot %s, %d runs: win rate %.1f%%", cfg.bot, #records, 100 * wins / math.max(1, #records)))
+	print("Most picked Patrons (in the final seats):")
+	for i, r in ipairs(rows(single, 1)) do if i <= 10 then print(string.format("  %-22s %4d runs  win %5.1f%%", r.key, r.n, 100 * r.rate)) end end
+	print("Most picked pairs:")
+	for i, r in ipairs(rows(pairsT, 1)) do if i <= 10 then print(string.format("  %-40s %4d runs  win %5.1f%%", r.key, r.n, 100 * r.rate)) end end
+	print("Over 90 percent (at least 5 runs):")
+	local flagged = 0
+	for _, r in ipairs(rows(single, 5)) do if r.rate > 0.9 then flagged = flagged + 1; print(string.format("  Patron %s %d runs %.1f%%", r.key, r.n, 100 * r.rate)) end end
+	for _, r in ipairs(rows(pairsT, 5)) do if r.rate > 0.9 then flagged = flagged + 1; print(string.format("  Pair %s %d runs %.1f%%", r.key, r.n, 100 * r.rate)) end end
+	if flagged == 0 then print("  none") end
 elseif cfg.patronLift then
 	local control = Report.aggregate(collect(runConfig()))
 	print(Report.summaryLine("control (no free Patron)", control))

@@ -43,6 +43,7 @@ function M.layout(w, h, mode)
 		hero = R(20, 300, 280, 407),
 		chest = R(990, 430, 240, 276),
 		button = R(510, 540, 260, 96),
+		nextStep = R(320, 648, 640, 30),
 	}
 	out.title = { x = out.banner.x + round(out.banner.w * 0.2), y = out.banner.y + round(out.banner.h * 0.18), w = round(out.banner.w * 0.6), h = round(out.banner.h * 0.64) }
 	if mode == "pick" then
@@ -97,6 +98,8 @@ end
 
 M.INVITE_TEXT = "Invite a friend"
 
+M.NEXT_SIZE = 16
+M.NEXT_RUN = "Next: start a new run from the Menu."
 M.SUBTITLE_RUN = "The Tavern celebrates your triumph!"
 M.SUBTITLE_PICK = "A thank you from the tavern."
 

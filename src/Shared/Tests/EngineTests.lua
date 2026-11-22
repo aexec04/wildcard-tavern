@@ -37217,16 +37217,31 @@ table.insert(tests, { name = "Night clear: a normal Night is one toast line with
 	local lines = M.clearLines(prev, now)
 	expectTrue(lines ~= nil and lines.night ~= nil and lines.night.title == "Night cleared", "nightLines kept")
 	expectTrue(not M.nightPopup(lines), "no popup on a normal Night")
-	expectEqual(M.nightToast(lines), "Night 1 cleared  +8 Tips", "toast text with the Tips paid")
+	expectEqual(M.nightToast(lines), "Night 1 cleared  +8 Tips.  Next: visit the Counter", "toast text with the Tips paid")
 	expectTrue(not M.nightToast(lines):find("--", 1, true), "no double dashes in the toast")
 	prev.night = 8
 	local last = M.clearLines(prev, now)
 	expectTrue(M.nightPopup(last) and last.night.runComplete and M.nightToast(last) == nil, "popup on the final Night, no toast")
 	prev.night, now.tips = 2, 3
-	expectEqual(M.nightToast(M.clearLines(prev, now)), "Night 2 cleared", "no Tips, no suffix")
+	expectEqual(M.nightToast(M.clearLines(prev, now)), "Night 2 cleared.  Next: visit the Counter", "no Tips, still a next step")
 	if not io then return end
 	local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f and f:read("*a") or ""; if f then f:close() end
 	expectTrue(src:find("Moments.nightPopup(lines)", 1, true) ~= nil and src:find("CornerToast", 1, true) ~= nil, "Gameplay2 routes a normal clear to the toast")
+end })
+
+table.insert(tests, { name = "Victory screen: next step line is 16 px, inside the screen and clear of the Continue plate at four sizes; Night toast names the next step", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	expectTrue(Look.NEXT_SIZE >= 16 and not Look.NEXT_RUN:find("\226\128\148", 1, true) and not Look.NEXT_RUN:lower():find("balatro"), "16 px, no em dash")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local L = Look.layout(sz[1], sz[2], "run")
+		local r, b = L.nextStep, L.button
+		expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], "next step on screen at " .. sz[1])
+		expectTrue(r.y >= b.y + b.h - 1, "next step below the Continue plate at " .. sz[1])
+		expectTrue(Look.fontSize(Look.NEXT_SIZE, L.scale) >= 14, "readable")
+		expectTrue(b.h >= 44 or sz[1] > 800, "44 px Continue")
+	end
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectTrue(#M.nightToast({ night = { sub = "Night 3 of 8" }, tipsEarned = 12 }) <= 60, "toast stays short")
 end })
 
 table.insert(tests, { name = "Patron tip plate: on screen and clear of the HUD for every seat at four sizes, picture and text never overlap, no emoji or badge, one layer above the seats", fn = function()
