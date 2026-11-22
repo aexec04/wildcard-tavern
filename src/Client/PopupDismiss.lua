@@ -117,6 +117,13 @@ local function topmostEntry()
 	return best and best.entry or nil
 end
 
+-- The backdrop of the topmost visible registered popup, or nil (Client/GamepadMenuNav scopes D-pad focus to it).
+function PopupDismiss.topBackdrop()
+	local entry = topmostEntry()
+	if entry and entry.backdrop and shown(entry.backdrop) then return entry.backdrop end
+	return nil
+end
+
 function PopupDismiss.openSettings()
 	local entry = byId.settings
 	if not entry then return false end

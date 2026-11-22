@@ -33166,6 +33166,46 @@ table.insert(tests, { name = "First five minutes: no wait over 20 s, and the gui
 	end
 end })
 
+table.insert(tests, { name = "GamepadFocus: D-pad moves to the nearest button, wraps, starts top left, reaches every button of a menu and a popup grid", fn = function()
+	local F = require(script.Parent.Parent.Engine.GamepadFocus)
+	expectEqual(F.next({}, nil, "DPadDown"), nil, "no buttons, no focus")
+	local menu = { -- a Menu column with a side rail
+		{ id = 1, x = 400, y = 200, w = 200, h = 60 }, { id = 2, x = 400, y = 280, w = 200, h = 60 },
+		{ id = 3, x = 400, y = 360, w = 200, h = 60 }, { id = 4, x = 20, y = 200, w = 60, h = 60 }, { id = 5, x = 20, y = 300, w = 60, h = 60 },
+	}
+	expectEqual(F.next(menu, nil, "DPadDown"), 4, "nothing focused: the top left button (same row, left first)")
+	expectEqual(F.next(menu, 1, "DPadDown"), 2)
+	expectEqual(F.next(menu, 2, "DPadUp"), 1)
+	expectEqual(F.next(menu, 3, "DPadDown"), 1, "wraps from the bottom to the top of the column")
+	expectEqual(F.next(menu, 1, "DPadLeft"), 4, "left reaches the rail")
+	expectEqual(F.next(menu, 4, "DPadRight"), 1)
+	expectEqual(F.next(menu, 2, "NotAKey"), 4, "an unknown key falls back to the first button")
+	expectTrue(F.reachable(menu), "every menu button is reachable")
+	local grid = {}
+	for row = 0, 2 do for col = 0, 3 do grid[#grid + 1] = { id = #grid + 1, x = 100 + col * 120, y = 80 + row * 90, w = 100, h = 60 } end end
+	expectTrue(F.reachable(grid), "a 4 x 3 Collection grid is reachable")
+	expectEqual(F.next(grid, 1, "DPadRight"), 2)
+	expectEqual(F.next(grid, 1, "DPadDown"), 5)
+	expectEqual(F.RING.color[1], 246, "gold ring")
+	expectTrue(F.RING.thickness >= 3, "visible ring")
+end })
+
+table.insert(tests, { name = "GamepadMenuNav: wired once from the hub, scoped to the top popup or the menu, never over the table hand or a text box, A presses and B closes", fn = function()
+	local f = io and io.open and io.open("src/Client/GamepadMenuNav.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("topBackdrop", 1, true) ~= nil, "scoped to the topmost popup")
+	expectTrue(src:find("GetFocusedTextBox", 1, true) ~= nil, "never on a text box")
+	expectTrue(src:find("tableActive", 1, true) ~= nil, "leaves the hand to TableKeys")
+	expectTrue(src:find(":Activate()", 1, true) ~= nil, "A presses through the normal click")
+	expectFalse(src:find("FireServer", 1, true) ~= nil, "sends nothing itself")
+	local hub = io.open("src/Client/init.client.lua", "r"):read("*a")
+	expectTrue(hub:find('require(script.GamepadMenuNav).install', 1, true) ~= nil, "installed from the hub")
+	local tk = io.open("src/Shared/Engine/TableKeyMap.lua", "r"):read("*a")
+	expectTrue(tk:find('ButtonB = "back"', 1, true) ~= nil, "B goes back through PopupDismiss while a popup is open")
+	for _, text in ipairs({ src }) do expectFalse(text:find("\226\128\148") ~= nil, "no em dash") end
+end })
+
 table.insert(tests, { name = "Gameplay2Tier: quiet, pulse, burst and OVERKILL by hand total versus Target, Combo pill from 3 triggers, Calm mode one static label, everything inside the centre block", fn = function()
 	local T = require(script.Parent.Parent.Engine.Gameplay2Tier)
 	expectEqual(T.tierOf(99, 100), 0, "under 1x is quiet")
