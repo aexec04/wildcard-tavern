@@ -535,3 +535,8 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Daily return: tomorrow's reward on the Menu (2026-11-22)
 - The Daily Challenge note on the Notice Board shows a gold "Tomorrow: 40 XP" line from the Daily Rewards ladder (`MenuDailyEntry.tomorrowLine`, hidden until a streak exists, loops after slot 7). The line and the Play Daily plate are 44 px targets; tapping the line opens the Daily Rewards panel. Not screenshotted (no Studio session here).
+
+## Sim and safety audits (2026-11-22)
+- Sim modes in `tools/run_sim.lua`: `--boss-rules` (clear rate per boss on Nights 3, 6, 9) and `--offers` (Patron offer repeats, owned, dead picks); `tools/quest_report.lua` lists runs to finish per quest. Tables in `claude/ECONOMY.md`.
+- Balance changes: Big Tab target 1.9x, Everything's Out cuts 30 percent, Bare Bones cuts 28 percent (Night 6 clear rates were under 40). A free seat never gets an offer of only unaffordable Patrons (`Shop.rollOffers`). All 24 daily quests finish in 2 runs or fewer of the session model.
+- Safety tests: 8 old profile shapes load with defaults; every server remote argument is checked or fuzzed with junk; GuiObject counts for Collection (max 1711), Badges and Map are under 2500 and every per frame loop is stored; the fit audit covers the table of all 14 Card Set rooms (0 failures); every set effect is off in Calm mode and the card back flip skips its tween. Menu, table, Counter and Settings cannot be built on the fake GUI, so their instance counts are not measured here.
