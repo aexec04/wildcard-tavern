@@ -39735,8 +39735,13 @@ end })
 table.insert(tests, { name = "Quests and Music: Claimed plate, 44 px reward plate, Now playing line fits every screen size", fn = function()
 	local P = require(script.Parent.Parent.Engine.MusicPicker)
 	expectEqual(P.nowPlaying("auto", false), "Now playing: Tavern Mix", "default track named")
-	for _, t in ipairs(P.TRACKS) do -- the first listed free track that is not the default mix
-		if t.id ~= "auto" and not t.pack then expectEqual(P.nowPlaying(t.id, false), "Now playing: " .. t.name, "chosen free track named"); break end
+	-- Name whichever free track the picker really lists (the library state decides which ids exist), not a fixed one.
+	for _, t in ipairs(P.TRACKS) do
+		if not t.pack then
+			local eff = P.effective(t.id, false)
+			local want = "Now playing: " .. (eff == t.id and t.name or "Tavern Mix")
+			expectEqual(P.nowPlaying(t.id, false), want, "free track " .. t.id .. " named as the menu picks it")
+		end
 	end
 	expectEqual(P.nowPlaying("nonsense", false), "Now playing: Tavern Mix", "unknown falls back to auto")
 	for _, t in ipairs(P.TRACKS) do
