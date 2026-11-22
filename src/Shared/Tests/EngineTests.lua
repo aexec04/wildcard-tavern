@@ -39571,4 +39571,19 @@ table.insert(tests, { name = "Economy fairness: cheapest Patron is affordable fr
 	expectTrue(Shop.REROLL_BASE_COST >= 1 and Shop.REROLL_BASE_COST <= 6, "reroll stays a small price")
 end })
 
+table.insert(tests, { name = "JourneyMap.rewardSentence: one short sentence per reward, fits two 16 px lines", fn = function()
+	expectEqual(JourneyMap.rewardSentence({ kind = "cardBack", id = "ember_hours" }, nil, true), "You won the card back Ember Hours!")
+	expectEqual(JourneyMap.rewardSentence({ kind = "cardBack", id = "ember_hours" }, nil, false), "Clear this stop to win the card back Ember Hours.")
+	for night = 1, 40 do
+		local node = JourneyMap.getNight(night)
+		if node and node.reward then
+			for _, earned in ipairs({ true, false }) do
+				local line = JourneyMap.rewardSentence(node.reward, nil, earned)
+				expectTrue(#line <= 66, "night " .. night .. " sentence fits two lines: " .. line)
+				expectTrue(not line:find("%-%-"), "no double dash")
+			end
+		end
+	end
+end })
+
 return tests
