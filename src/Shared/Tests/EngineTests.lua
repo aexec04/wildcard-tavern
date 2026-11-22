@@ -32441,19 +32441,6 @@ table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked)
 	local P, GP = require(E.MusicPicker), require(E.GamePasses)
 	expectEqual(#P.SHOP_TRACKS, 0, "the three placeholder rows are real free tracks now; the pack section waits for new ones")
 	expectEqual(#P.shopRows(false), 0, "no shop rows")
-end })
-
-	expectEqual(#P.SHOP_TRACKS, 3, "three shop rows")
-	expectEqual(P.SHOP_TRACKS[1].name, "Lantern Waltz", "first shop name")
-	expectEqual(P.SHOP_TRACKS[2].name, "Midnight Fiddle", "second shop name")
-	expectEqual(P.SHOP_TRACKS[3].name, "Harvest Jig", "third shop name")
-	for _, r in ipairs(P.shopRows(false)) do
-		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Music pack", r.id .. " locked and unplayable without the pack")
-	end
-	for _, r in ipairs(P.shopRows(true)) do
-		expectTrue(r.locked and not r.playable and r.tag == "Coming soon", r.id .. " owned but no real id: Coming soon, still locked")
-	end
-	expectEqual(GP.MUSIC_PACK, 0, "the pass id is 0")
 	local b0 = P.buyButton(GP.MUSIC_PACK, false)
 	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "pass id 0: Coming soon, disabled")
 	local b1 = P.buyButton(4242, false)
@@ -38937,7 +38924,7 @@ table.insert(tests, { name = "StoreLayout.touchH: Buy and Close plates measure a
 		local r = L.rects(sc)
 		expectTrue(sc * r.close.h >= 44 - 0.001, "Close " .. size[1] .. "x" .. size[2])
 		expectTrue(sc * r.buy.h >= 44 - 0.001, "Buy " .. size[1] .. "x" .. size[2])
-		expectTrue(r.row.y + r.row.h <= r.close.y, "row above Close at " .. size[1] .. "x" .. size[2])
+		-- the text Close plate is retired by the round X (CloseX.retire), so it may sit over the card row's lower margin
 		expectTrue(r.price.y + r.price.h <= r.buy.y, "price above Buy at " .. size[1] .. "x" .. size[2])
 	end
 	expectEqual(L.touchH(1), 44)
