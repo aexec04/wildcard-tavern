@@ -14398,6 +14398,24 @@ table.insert(tests, { name = "ThumbReach: Play Hand, Discard, Rank and Suit sort
 	expectEqual(#TR.audit(1024, 768), 0, "the layout is restored")
 end })
 
+table.insert(tests, { name = "EmptyStates for the new screens: the Daily twist popup and the Tavern Map boss rule have a safe line from the one table, the popup falls back to it for a bad day, held screens listed", fn = function()
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	local TP = require(script.Parent.Parent.Engine.TwistPreview)
+	local MR = require(script.Parent.Parent.Engine.MapSelectRules)
+	for _, k in ipairs({ "twistNone", "twistFailed", "bossUnknown" }) do
+		local t = ES.Screens[k]
+		expectTrue(type(t) == "string" and #t > 0 and #t <= 60, k .. " is short: " .. tostring(t))
+		expectTrue(not t:find("\226\128\148") and not t:find("%-%-") and not t:lower():find("balat") and not t:lower():find("beer"), k .. " is plain and safe")
+	end
+	expectEqual(TP.EMPTY, ES.Screens.twistNone, "the twist popup empty line comes from the table")
+	expectEqual(MR.BOSS_SURPRISE, ES.Screens.bossUnknown, "the boss rule fallback comes from the table")
+	expectEqual(TP.view("garbage").line, ES.Screens.twistNone, "a bad day shows the empty line, never blank")
+	expectEqual(TP.view(nil).line, ES.Screens.twistNone, "no day shows the empty line")
+	expectEqual(MR.bossLine(5, 2, nil), ES.Screens.bossUnknown, "an unknown boss shows the safe line")
+	expectEqual(MR.bossLine(2, 2, { description = "" }), ES.Screens.bossUnknown, "a blank rule shows the safe line")
+	expectEqual(ES.screenLine("twistFailed"), ES.Screens.twistFailed, "the failed line is reachable")
+end })
+
 table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
 	local TP = require(script.Parent.Parent.Engine.TwistPreview)
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)

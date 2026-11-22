@@ -8,12 +8,13 @@
 ]]
 
 local DailyModifiers = require(script.Parent.DailyModifiers)
+local EmptyStates = require(script.Parent.EmptyStates)
 
 local M = {}
 
 M.TITLE = "Today's twist"
 M.CLOSE = "Got it"
-M.EMPTY = "No twist today. Enjoy a normal Daily."
+M.EMPTY = EmptyStates.screenLine("twistNone") -- one editable table for every empty or failed line
 
 function M.next(dateKey)
 	local day = DailyModifiers.dayNumber(dateKey)

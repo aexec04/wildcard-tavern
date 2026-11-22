@@ -16,6 +16,7 @@
 ]]
 
 local TypeRules = require(script.Parent.MapNodeRules)
+local EmptyStates = require(script.Parent.EmptyStates)
 
 local M = {}
 
@@ -25,7 +26,7 @@ M.PAD = 16 -- clear inner padding: text never reaches the gold trim
 
 -- The boss rule line of a Night stop. The boss is picked per run, so only the current Night's boss is known; every other Night says it is a
 -- surprise. Kid safe, one sentence, 60 characters or less after "Boss rule: " is NOT required for the surprise; the real rule is cut at a word.
-M.BOSS_SURPRISE = "Boss rule: a surprise waits at the end."
+M.BOSS_SURPRISE = EmptyStates.screenLine("bossUnknown") -- the safe line when the Night has no known boss
 M.BOSS_MAX = 70
 function M.bossLine(night, currentNight, bossModifier)
 	if night ~= nil and night == currentNight and type(bossModifier) == "table" and type(bossModifier.description) == "string" and bossModifier.description ~= "" then
