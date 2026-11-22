@@ -315,6 +315,14 @@ function M.bossIntroParts(plate)
 	return portrait, { x = tx, y = 10, w = plate.w - tx - 12, h = plate.h - 20 }
 end
 
+-- the name row and the rule row inside the text column ({ y, h } each): the name is up to 34 px, but gives way on a short plate so the rule
+-- always keeps room for two 14 px lines (34 px) and the name for one 18 px line
+function M.bossIntroRows(text)
+	local nameH = math.max(22, math.min(34, text.h - 38))
+	local ruleY = nameH + 4
+	return { y = 0, h = nameH }, { y = ruleY, h = math.max(20, text.h - ruleY) }
+end
+
 function M.bossEntranceKey(state)
 	if not state or not state.bossModifier then return nil end
 	return string.format("%s:%s:%s", tostring(state.night or 0), tostring(state.round or 0), tostring(state.bossModifier.id or state.bossModifier.name))

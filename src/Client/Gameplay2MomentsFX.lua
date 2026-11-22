@@ -270,8 +270,9 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 		t.Parent = plate
 		return t
 	end
-	line("Name", name, 28, "gold", Style.FONTS.title, 0, 34)
-	line("Rule", rule, 17, "cream", Style.FONTS.ui, 38, math.max(20, textRect.h - 38))
+	local nameRow, ruleRow = Rules.bossIntroRows(textRect)
+	line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
+	line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
 	TweenService:Create(dim, TweenInfo.new(timing.slide), { BackgroundTransparency = timing.dim }):Play()
 	TweenService:Create(plate, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
 	task.delay(timing.slide + timing.hold, function()

@@ -476,3 +476,8 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Gamepad menu navigation (2026-11-22)
 - `Engine/GamepadFocus` (pure, tested) picks the next button for a D-pad move; `Client/GamepadMenuNav` draws a gold ring on it, A presses it with the normal click, B closes the top popup (through `TableKeys` and `PopupDismiss`). It covers the Menu and every registered popup (Settings, Store, Collection), only while the last input was a gamepad, never over the table hand or a text box. Not tried with a real controller or in Studio.
+
+## Boss intro and win moment feel (2026-11-22)
+- Tests: 1438 passed, 0 failed.
+- The Boss intro name row gives way on a short plate (Engine/Gameplay2Moments.bossIntroRows), so the rule keeps two 14 px lines at 800x450 (it had 30 px). Night clear Continue is 48 px, cues are wired, Calm mode is static. A test covers 800x450, 1024x768 and 1920x1080.
+- Known: many Boss rules run past one line (up to about 85 letters), so the intro shows two lines. Not viewed in Studio.
