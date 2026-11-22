@@ -67,7 +67,7 @@ local function parseArgs(argv)
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -352,6 +352,33 @@ elseif cfg.late then
 			cells[#cells + 1] = string.format("%6.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
 		end
 		print(string.format("%-9d %s", count, table.concat(cells, " ")))
+	end
+elseif cfg.patronRates then
+	-- Per Patron clear rate: random 4 Patron builds from Night 4, score = share of Night 4 to 8 rounds cleared by builds holding the Patron
+	local records = collect(runConfig({ lateStart = 4, lateCount = 4, maxNight = 8 }))
+	local per, total, totalRounds = {}, 0, 0
+	for _, rec in ipairs(records) do
+		local cleared, played = 0, 0
+		for _, r in ipairs(rec.rounds or {}) do
+			played = played + 1
+			if r.cleared then cleared = cleared + 1 end
+		end
+		total, totalRounds = total + cleared, totalRounds + played
+		for _, id in ipairs(rec.startPatrons or {}) do
+			local s = per[id] or { builds = 0, cleared = 0, played = 0, nights = 0 }
+			s.builds, s.cleared, s.played = s.builds + 1, s.cleared + cleared, s.played + played
+			s.nights = s.nights + (rec.won and 1 or 0)
+			per[id] = s
+		end
+	end
+	local avg = 100 * total / math.max(1, totalRounds)
+	local rows = {}
+	for id, s in pairs(per) do rows[#rows + 1] = { id = id, s = s, rate = 100 * s.cleared / math.max(1, s.played) } end
+	table.sort(rows, function(a, b) return a.rate > b.rate end)
+	print(string.format("Patron rates, bot %s, %d builds of 4 from Night 4, average round clear %.1f%%", cfg.bot, #records, avg))
+	print(string.format("%-22s %7s %9s %8s", "Patron", "builds", "clear", "vs avg"))
+	for _, r in ipairs(rows) do
+		print(string.format("%-22s %7d %8.1f%% %+7.1f%s", r.id, r.s.builds, r.rate, r.rate - avg, math.abs(r.rate - avg) > 15 and "  <-- outlier" or ""))
 	end
 elseif cfg.combos then
 	-- Patron variety audit: random Patron buys, report picks, pairs and any Patron or pair that wins more than 90 percent

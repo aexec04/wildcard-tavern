@@ -1096,6 +1096,8 @@ function Sim.runOne(cfg, seed)
 		for _ = 1, math.min(cfg.lateCount or 4, #pool) do
 			table.insert(state.ownedPatrons, table.remove(pool, rng(#pool)))
 		end
+		rec.startPatrons = {}
+		for _, patron in ipairs(state.ownedPatrons) do table.insert(rec.startPatrons, patron.id) end
 		state.night, state.round = cfg.lateStart, 1
 		state.tips = math.max(state.tips, 10)
 		E.RunState.startRound(state)

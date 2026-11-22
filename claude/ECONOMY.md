@@ -105,3 +105,14 @@ Welcome ease on (Nights 1 and 2 targets x0.85), 200 seeds, a bot that always pla
 
 The `builder` bot gives the same numbers. A bot that plays random cards (`--bot random`, a floor, not a player) clears 27 / 16 / 9 percent with 3.3 / 2.6 / 2.6 hands per round.
 Night 1 is over the 90 percent goal. Night 3 is at 100 percent, above the 60 to 85 percent band, but WelcomeEase only touches Nights 1 and 2 and can only make targets easier, so no WelcomeEase number was changed. The best-play bot is stronger than a new player, and Night 3 was already raised 20 percent. If real first runs show Night 3 as too easy, that is a Night 3 target step (NIGHT_TUNE), a design call for the user.
+
+## Patron balance: clear rate per Patron (`lua tools/run_sim.lua --patron-rates --runs 800 --bot decent --jobs 4`)
+800 random builds of 4 Patrons start at Night 4 and play to Night 8. Each Patron is scored by the share of Night 4 to 8 rounds cleared by builds that started with it. The average is 92.4 percent. Each Patron appears in 27 to 46 builds, so one Patron's number carries about 2 points of noise.
+
+| Patron group | Clear rate | vs average |
+|---|---|---|
+| Best 5 (full_house_crowd, good_company, rising_dough, tip_jar, vip_table) | 94.4 to 95.2% | +2.0 to +2.8 |
+| Middle 70 or so | 90.5 to 93.6% | -1.9 to +1.2 |
+| Worst 3 (second_opinion, color_matcher, long_road) | 89.7 to 90.2% | -2.2 to -2.7 |
+
+No Patron is more than 15 points from the average (the widest gap is 2.8). Builds are random, so every Patron appears in about the same share of builds; none is picked under 5 or over 40 percent. No Patron number or price changed. Round clear is a gentle measure; the `--late` table above shows the per Night picture.
