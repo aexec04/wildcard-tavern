@@ -29,9 +29,15 @@ local function expected(setId, part)
 	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
+local CREAM = Color3.fromRGB(250, 240, 220)
 local function paint(inst, setId)
 	local part = Pure.partOf(inst.Name)
 	if part and inst:IsA("ImageLabel") then inst.ImageColor3 = expected(setId, part) end
+	if (inst.Name == "ScoreCaption" or inst.Name == "ScoreProgress") and inst:IsA("TextLabel") then -- Score plate words wear the set accent (7:1 on its plate), classic keeps cream
+		local ink = nil
+		pcall(function() ink = require(script.Parent.SetInk).get() end)
+		inst.TextColor3 = ink and ink.accent or CREAM
+	end
 end
 
 function TableDress.applyTo(root, setId)
@@ -65,7 +71,7 @@ function TableDress.install()
 	local g = gui()
 	if g then
 		g.DescendantAdded:Connect(function(d)
-			if Pure.partOf(d.Name) then task.defer(function() if d.Parent then paint(d, shownSetId()) end end) end
+			if Pure.partOf(d.Name) or d.Name == "ScoreCaption" or d.Name == "ScoreProgress" then task.defer(function() if d.Parent then paint(d, shownSetId()) end end) end
 		end)
 	end
 	pcall(function() require(script.Parent.HudTheme).onSkin(TableDress.refresh) end)

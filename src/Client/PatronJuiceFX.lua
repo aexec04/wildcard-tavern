@@ -67,7 +67,10 @@ local function pill(slot, text, rim, calm, spec)
 	p.BackgroundTransparency = 0.08
 	p.BackgroundColor3 = DARK
 	corner(p, 14)
-	local rimStroke = stroke(p, rim or GOLD, 2, 0)
+	local setInk = nil
+	pcall(function() setInk = require(script.Parent.SetInk).get() end) -- the shown Card Set's plate and accent (7:1), nil for classic
+	if setInk then p.BackgroundColor3 = setInk.plate end
+	local rimStroke = stroke(p, rim or (setInk and setInk.accent) or GOLD, 2, 0)
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 12), UDim.new(0, 12)
 	pad.Parent = p
@@ -77,7 +80,7 @@ local function pill(slot, text, rim, calm, spec)
 	t.Size = UDim2.new(0, 0, 1, 0)
 	t.Font = Enum.Font.Merriweather
 	t.TextSize = 16
-	t.TextColor3 = CREAM
+	t.TextColor3 = setInk and setInk.accent or CREAM
 	t.TextTransparency = 0
 	t.TextStrokeColor3 = DARK
 	t.TextStrokeTransparency = 0.3

@@ -41800,6 +41800,22 @@ table.insert(tests, { name = "Draft pick cards: the wood frame wears the set pla
 	assert(not src:sub(i, i + 100):find("rarity", 1, true), "rarity colours are separate")
 end })
 
+table.insert(tests, { name = "Patron cue pill and Score plate words wear the set ink at 7:1 over every set, classic unchanged, no tween added", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if set.id ~= CS.DefaultId then assert(st and st.ratio >= 7, set.id .. " ink is 7:1 or more on its plate") end
+	end
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local fx, td = read("src/Client/PatronJuiceFX.lua"), read("src/Client/TableDress.lua")
+	if not (fx and td) then return end
+	assert(fx:find("setInk.plate", 1, true) and fx:find("setInk.accent", 1, true) and fx:find("or CREAM", 1, true), "cue pill takes plate and accent, classic keeps cream")
+	assert(td:find("ScoreCaption", 1, true) and td:find("ScoreProgress", 1, true) and td:find("or CREAM", 1, true), "Score plate words take the accent, classic cream")
+	assert(not td:find("TweenService", 1, true), "TableDress adds no tween, so Calm mode stays static")
+end })
+
 return tests
 
 
