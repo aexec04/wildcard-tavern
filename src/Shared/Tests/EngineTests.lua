@@ -41697,4 +41697,34 @@ table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4
 	if pb then expectTrue(pb:find("setPlateButton(plaque", 1, true) ~= nil, "Play hero takes the set plate first") end
 end })
 
+table.insert(tests, { name = "Set sound identity: every Card Set resolves every UI cue to a real sound, variant when it has one, classic otherwise", fn = function()
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	for _, name in ipairs(SoundIds.SetCueNames) do
+		expectTrue(SoundIds.cueId(name) ~= nil, name .. " has a classic sound to fall back to")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		for _, name in ipairs(SoundIds.SetCueNames) do
+			local cue = SoundIds.cueFor(name, set.id)
+			expectTrue(cue ~= nil and SoundIds.isValidId(cue.id), set.id .. " is not silent on " .. name)
+			expectTrue((cue.volume or 0) <= 0.7, set.id .. " " .. name .. " stays at a UI volume")
+		end
+		for setId, cues in pairs(SoundIds.SetCues) do
+			expectTrue(CosmeticSets.getById(setId) ~= nil, setId .. " override names a real set")
+			for cueName, v in pairs(cues) do
+				expectTrue(SoundIds.isValidId(v.id), setId .. " " .. cueName .. " override id is well formed")
+			end
+		end
+	end
+	expectTrue(SoundIds.cueFor("button_click", nil) == SoundIds.Cues.button_click, "no set means classic")
+	expectTrue(SoundIds.cueFor("button_click", "no_such_set") == SoundIds.Cues.button_click, "unknown set means classic")
+	-- an override wins and inherits what it leaves out; a bad id falls back
+	SoundIds.SetCues.winter_evening = { button_click = { id = "rbxassetid://123" }, scroll_open = { id = "" } }
+	local v = SoundIds.cueFor("button_click", "winter_evening")
+	expectEqual(v.id, "rbxassetid://123")
+	expectEqual(v.volume, SoundIds.Cues.button_click.volume)
+	expectTrue(SoundIds.cueFor("scroll_open", "winter_evening") == SoundIds.Cues.scroll_open, "an empty override falls back to classic")
+	expectTrue(SoundIds.cueFor("button_click", "classic_tavern") == SoundIds.Cues.button_click, "other sets stay classic")
+	SoundIds.SetCues.winter_evening = nil
+end })
+
 return tests

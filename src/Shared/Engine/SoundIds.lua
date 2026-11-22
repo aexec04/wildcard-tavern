@@ -136,6 +136,29 @@ function SoundIds.cueId(name)
 	return nil
 end
 
+-- Per Card Set sound identity. SetCues[setId][cueName] = { id =, volume =, maxLength = } overrides that cue for one set (any field
+-- left out comes from the classic cue). No set has an override yet: never invent ids, paste them from the Roblox audio library.
+-- Only the UI cues below may be varied, so a set can never silence a game sound.
+SoundIds.SetCues = {}
+SoundIds.SetCueNames = { "button_click", "scroll_open", "scroll_close" } -- single id cues only; layered cues (reward_claim, night_clear) are built from these in Engine/SoundFX
+
+-- The cue table to play for `name` while `setId` is equipped: the set's own variant when it has a valid id, otherwise the classic cue.
+function SoundIds.cueFor(name, setId)
+	local base = SoundIds.Cues[name]
+	local set = setId and SoundIds.SetCues[setId]
+	local variant = set and set[name]
+	if base and variant and SoundIds.isValidId(variant.id) then
+		return {
+			id = variant.id,
+			volume = variant.volume or base.volume,
+			maxLength = variant.maxLength or base.maxLength,
+			startAt = variant.startAt or base.startAt,
+			fade = variant.fade or base.fade,
+		}
+	end
+	return base
+end
+
 -- Music key for a gameplay table in `regionId`; falls back to "gameplay" when that region has no track.
 function SoundIds.regionMusicKey(regionId)
 	local key = "region_" .. tostring(regionId)
