@@ -49,6 +49,9 @@ M.PAUSE = {
 -- Play Hand and Discard buttons. The Resume button is retired (the X closes), so the scroll ends 16 px above the panel bottom.
 M.PANEL = { fw = 0.5, fy = 0.115, fh = 0.773, sidePad = 20, top = 48, bottomReserve = 16, rowH = 62, textGutter = 130, replayW = 110, replayH = 44 }
 -- Account plates: painted serif plates 56 px tall, three in the first row, two (Daily Rewards, Tavern Map) in the second.
+-- Plate picture for every Settings button: the finished whole picture (TavernStyle wh_btn_dark, drawn Stretch, no nine-slice), so the centre
+-- always fills. The ornate nine-slice orn_btn_dark drew only its corners at 228x56 and 110x44 (live, Nov 22).
+M.PLATE = "wh_btn_dark"
 M.ACCOUNT = { plateH = 56, gap = 10, textSize = 18, perRow = 3, secondRow = 2 }
 
 -- Rects of the five Account plates relative to the scroll canvas (x from its left edge, y from the top of the first Account row).
