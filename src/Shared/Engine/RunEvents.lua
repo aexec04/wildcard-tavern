@@ -40,11 +40,11 @@ end
 
 RunEvents.Definitions = {
 	{
-		id = "stranger_wager", name = "A Stranger's Wager", icon = "🎲", minNight = 2,
-		text = "A cheerful stranger rolls a die across the table. \"Double or nothing?\"",
+		id = "stranger_wager", name = "The Dice Stranger", icon = "🎲", minNight = 2,
+		text = "A cheerful stranger rolls a die across the table. \"Care for a lucky roll?\"",
 		available = function(state) return state.tips >= 4 end,
 		options = {
-			{ id = "bet", label = "Take the bet", detail = "Half the time win 8 Tips, otherwise lose 4.", resolve = function(state, rng)
+			{ id = "bet", label = "Take the roll", detail = "Half the time win 8 Tips, otherwise lose 4.", resolve = function(state, rng)
 				if rng(2) == 1 then
 					state.tips = state.tips + 8
 					return true, "You won the roll! +8 Tips."
@@ -134,7 +134,7 @@ RunEvents.Definitions = {
 		},
 	},
 	{
-		id = "gamblers_table", name = "The Gambler's Table", icon = "🪙", minNight = 1,
+		id = "gamblers_table", name = "The Trading Table", icon = "🪙", minNight = 1,
 		text = "A friendly dealer offers a trade across the table: coins for cards, or cards for coins.",
 		available = function(state) return state.tips >= 5 end,
 		options = {

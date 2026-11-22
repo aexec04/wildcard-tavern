@@ -37122,4 +37122,32 @@ table.insert(tests, { name = "Every pack id resolves to pack art or base art plu
 	expectEqual(tier, "epic")
 end })
 
+table.insert(tests, { name = "Safety: no risky word in registry names, descriptions, flavor or event text", fn = function()
+	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
+	local banned = { "balatro", "ale", "beer", "wine", "whiskey", "whisky", "rum", "brew", "drunk", "tipsy", "booze", "liquor", "cocktail",
+		"cigar", "cigarette", "tobacco", "smoking", "drug", "drugs", "gamble", "gambler", "gambling", "wager", "jackpot", "casino", "bet", "bets",
+		"kill", "killed", "blood", "bloody", "dead", "death", "skull", "gun", "murder", "corpse", "stab", "slay" }
+	local bannedSet = {}
+	for _, w in ipairs(banned) do bannedSet[w] = true end
+	local skipKey = { id = true, icon = true, image = true, art = true, OPTION_KINDS = true }
+	local seen = {}
+	local function walk(v, path, depth)
+		if depth > 6 then return end
+		if type(v) == "string" then
+			for word in v:lower():gmatch("%a+") do
+				expectFalse(bannedSet[word] == true, "risky word '" .. word .. "' in " .. path .. ": " .. v)
+			end
+		elseif type(v) == "table" and not seen[v] then
+			seen[v] = true
+			for k, child in pairs(v) do
+				if not skipKey[k] then walk(child, path .. "." .. tostring(k), depth + 1) end
+			end
+		end
+	end
+	for name, reg in pairs({ Patrons = Patrons, CosmeticSets = CosmeticSets, DeckVariants = DeckVariants, BossRounds = BossRounds,
+		Recipes = Recipes, HousePasses = HousePasses, Packs = Packs, Tags = Tags, Achievements = Achievements, RunEvents = RunEvents }) do
+		walk(reg, name, 0)
+	end
+end })
+
 return tests
