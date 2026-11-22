@@ -256,6 +256,7 @@ function M.show(screenGui, lines)
 	local ic = Instance.new("UICorner"); ic.CornerRadius = UDim.new(0, 10); ic.Parent = inv
 	local ist = Instance.new("UIStroke"); ist.Color = GOLD; ist.Thickness = 2; ist.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ist.Parent = inv
 	pcall(function() require(script.Parent.InvitePrompt).bind(inv) end)
+	pcall(function() require(script.Parent.PopupSkin).dark(inv, ist, { { inv, GOLD } }, { plate = PURPLE_DARK, edge = GOLD }) end) -- the equipped set's fill, edge and ink (7:1); classic keeps purple and gold
 	local shareBox = Instance.new("TextBox")
 	shareBox.Name = "ShareLine"
 	shareBox.Position = UDim2.fromOffset(L.share.x, L.share.y)
@@ -272,6 +273,7 @@ function M.show(screenGui, lines)
 	shareBox.Text = Look.shareLine(summary, best)
 	shareBox.ZIndex = zc + 2
 	shareBox.Parent = gui
+	pcall(function() require(script.Parent.PopupSkin).dark(shareBox, nil, { { shareBox, GOLD } }, { plate = PURPLE_DARK }) end)
 	local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, 8); sc.Parent = shareBox
 	shareBox.Focused:Connect(function()
 		shareBox.SelectionStart = 1
@@ -322,6 +324,7 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 		pick.Parent = card
 		local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pick
 		local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 2; ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ps.Parent = pick
+		pcall(function() require(script.Parent.PopupSkin).dark(pick, ps, { { pick, GOLD } }, { plate = PURPLE, edge = GOLD }) end)
 		pick.MouseButton1Click:Connect(function() if onPick then onPick(option.id) end end)
 	end
 	if choice.skip then

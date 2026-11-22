@@ -624,6 +624,13 @@ return function(deps)
 			b.Position = UDim2.fromOffset(math.floor(c.x - mx + 0.5), math.floor(c.y - my + 0.5))
 			b.Size = UDim2.fromOffset(math.floor(c.w + 0.5), math.floor(c.h + 0.5))
 		end
+		-- the equipped Card Set's own plates on every Run Over button (primary green for Play Again, dark for the rest); classic keeps the painted kit plates
+		for _, b in ipairs(primaryList) do
+			pcall(function() require(script.Parent.TavernKit).setPlateButton(b, b == playAgainButton and "primary" or "secondary") end)
+		end
+		for _, b in ipairs(moreList) do
+			pcall(function() require(script.Parent.TavernKit).setPlateButton(b, "secondary") end)
+		end
 		-- the share box covers the first row of three; the hint takes the free cells after the last button
 		local row1 = { r.more[1], r.more[math.max(1, math.min(#r.more, r.morePerRow or (r.columns.mode == "wide" and 3 or 2)))] }
 		shareBox.Position = UDim2.fromOffset(math.floor(row1[1].x - mx + 0.5), math.floor(row1[1].y - my + 0.5))

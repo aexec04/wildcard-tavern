@@ -40953,4 +40953,31 @@ table.insert(tests, { name = "Collection progress plaque, filter plate, tiles an
 	end
 end })
 
+table.insert(tests, { name = "Run Over and Victory screens: every button, invite, share line and pick wears the set plate and ink at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a dark style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " result screen ink keeps 4.5:1 on the set fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local go, vs = src("src/Client/GameOver.lua"), src("src/Client/VictoryScreen.lua")
+	if go then
+		expectTrue(go:find('b == playAgainButton and "primary" or "secondary"', 1, true) ~= nil, "Run Over primary buttons take the set plate")
+		expectTrue(go:find('setPlateButton(b, "secondary")', 1, true) ~= nil, "Run Over more buttons take the set plate")
+	end
+	if vs then
+		expectTrue(vs:find("PopupSkin).dark(inv", 1, true) ~= nil and vs:find("PopupSkin).dark(shareBox", 1, true) ~= nil and vs:find("PopupSkin).dark(pick", 1, true) ~= nil, "Victory invite, share line and Choose bind the set")
+		expectTrue(vs:find('resultPlate("primary"', 1, true) ~= nil, "Victory Continue keeps the set plate")
+	end
+end })
+
 return tests
