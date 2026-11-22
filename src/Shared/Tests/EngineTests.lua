@@ -27048,7 +27048,7 @@ table.insert(tests, { name = "First session polish: one sign per blessing line, 
 	local choicePanel, scout, board = read("src/Client/ChoicePanel.lua"), read("src/Client/BossScout.lua"), read("src/Client/MenuBoard.lua")
 	local shop, stage, scene = read("src/Client/Shop.lua"), read("src/Client/ShopStage.lua"), read("src/Client/ShopScene.lua")
 	if not (choicePanel and scout and board and shop and stage and scene) then return end
-	expectTrue(choicePanel:find("backButton.Position = UDim2.fromOffset(12, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(12, 12))", 1, true) ~= nil)
+	expectTrue(choicePanel:find("backButton.Position = UDim2.fromOffset(256, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(12, 12))", 1, true) ~= nil)
 	expectFalse(choicePanel:find("backButton.Position = UDim2.fromOffset(12, 12)", 1, true) ~= nil, "not under the top bar")
 	expectTrue(scout:find("tokenChip.Position = UDim2.new(1, -78, 0, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(0, 82))", 1, true) ~= nil)
 	expectFalse(scout:find("tokenChip.Position = UDim2.new(1, -8, 0, 8)", 1, true) ~= nil)
