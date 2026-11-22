@@ -17,9 +17,14 @@ function MenuPlayButton.style(plaque, loops, TweenService)
 	if plaque:FindFirstChild("ConceptTArt") then return end
 	local id = Art.ct_btn_blank -- the text-free plate; ct_btn_play_a has "Play Hand" baked in
 	-- first choice: the lit ornate green button every other screen uses (sibling picture, so it gets its own pulse scale below)
-	local okKit, ornate = pcall(function() return require(script.Parent.TavernKit).paintedButton(plaque, "primary") end)
+	-- the equipped Card Set's own green plate first (same family as the table buttons); classic and plateless sets keep the ornate green below
+	local Kit = require(script.Parent.TavernKit)
+	local okSet, drawn = pcall(function() return Kit.setPlateButton(plaque, "primary") end)
+	local setDrawn = okSet and drawn == true
+	local okKit, ornate = false, nil
+	if not setDrawn then okKit, ornate = pcall(function() return Kit.paintedButton(plaque, "primary") end) end
 	if not okKit or not ornate then ornate = nil end
-	if not ornate and (not id or id == "") then return end -- no art at all: keep the wood plate
+	if not ornate and not setDrawn and (not id or id == "") then return end -- no art at all: keep the wood plate
 	plaque.BackgroundTransparency = 1
 	local rim = plaque:FindFirstChild("Rim")
 	if rim then rim.Enabled = false end
@@ -28,7 +33,7 @@ function MenuPlayButton.style(plaque, loops, TweenService)
 	end
 	local art = Instance.new("ImageLabel")
 	art.Name = "ConceptTArt"
-	if ornate then art.Visible = false end -- marker only; the ornate picture is the plate
+	if ornate or setDrawn then art.Visible = false end -- marker only; the ornate picture is the plate
 	art.BackgroundTransparency = 1
 	art.Size = UDim2.fromScale(1, 1)
 	art.Image = id or ""

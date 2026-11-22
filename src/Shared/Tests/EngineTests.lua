@@ -40980,4 +40980,30 @@ table.insert(tests, { name = "Run Over and Victory screens: every button, invite
 	end
 end })
 
+table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4.5:1 on the plaque, Play hero takes the set plate, on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p, t = CS.popupStyleOf(set.id), TS.of(set.id)
+			expectTrue(p ~= nil and t.accent ~= nil, set.id .. " has a plaque style and a glow accent")
+			if p and t.accent then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " hover plaque ink keeps 7:1")
+				expectTrue(CS.contrastRatio(p.dark.fill, t.accent) >= 4.5, set.id .. " glow accent keeps 4.5:1 on the plaque fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set is checked")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local hs, pb = src("src/Client/MenuHotspots.lua"), src("src/Client/MenuPlayButton.lua")
+	if hs then
+		expectTrue(hs:find("PopupSkin).dark(plaque", 1, true) ~= nil and hs:find("glowColor()", 1, true) ~= nil, "plaque and glow follow the set")
+		expectTrue(hs:find("= GLOW", 1, true) == nil or select(2, hs:gsub("= GLOW", "")) == 1, "only the classic fallback uses the fixed glow")
+	end
+	if pb then expectTrue(pb:find("setPlateButton(plaque", 1, true) ~= nil, "Play hero takes the set plate first") end
+end })
+
 return tests
