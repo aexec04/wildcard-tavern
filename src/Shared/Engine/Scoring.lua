@@ -268,7 +268,8 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			bonus = {
 				chips = bonus.chips and bonus.chips * power or nil, mult = bonus.mult and bonus.mult * power or nil,
 				multMultiplier = bonus.multMultiplier and ((bonus.multMultiplier - 1) * power + 1) or nil,
-				tips = bonus.tips and bonus.tips * power or nil,
+				-- Tips stay whole (Loud Crowd's 1.25x would leave 2.5 Tips, which breaks every %d text and the banked total)
+				tips = bonus.tips and (bonus.tips >= 0 and math.floor(bonus.tips * power) or math.ceil(bonus.tips * power)) or nil,
 			}
 		end
 		chips = chips + (bonus.chips or 0)

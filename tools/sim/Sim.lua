@@ -1106,6 +1106,7 @@ function Sim.runOne(cfg, seed)
 		stakeId = cfg.stake,
 		mode = cfg.mode,
 		welcomeEase = cfg.welcome == true,
+		dailyModifierId = cfg.dailyTwist,
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec

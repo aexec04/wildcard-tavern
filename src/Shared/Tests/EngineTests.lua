@@ -38716,6 +38716,151 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Save round trip: a well used profile survives save and load field for field, never losing Tips, owned sets, card backs or best Night, and loading twice changes nothing", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local function dump(v, seen)
+		if type(v) ~= "table" then return type(v) .. ":" .. tostring(v) end
+		seen = seen or {}
+		if seen[v] then return "cycle" end
+		seen[v] = true
+		local keys = {}
+		for k in pairs(v) do keys[#keys + 1] = k end
+		table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+		local out = {}
+		for _, k in ipairs(keys) do out[#out + 1] = type(k) .. ":" .. tostring(k) .. "=" .. dump(v[k], seen) end
+		seen[v] = nil
+		return "{" .. table.concat(out, ",") .. "}"
+	end
+	-- the defaults themselves survive a load
+	expectEqual(dump(PlayerProfile.migrate(PlayerProfile.new())), dump(PlayerProfile.new()), "a new profile loads as itself")
+	-- a well used one
+	local p = PlayerProfile.new()
+	PlayerProfile.recordPatronsFound(p, { "tip_jar", "second_opinion" })
+	for i = 1, 6 do PlayerProfile.recordRunStarted(p); PlayerProfile.recordNightReached(p, i) end
+	PlayerProfile.recordRunWon(p)
+	p.ownedSetIds.winter_evening = true
+	p.ownedSetIds.golden_gala = true
+	p.equippedSetId = "golden_gala"
+	local back = CardBacks.Definitions[1].id
+	p.unlockedCardBackIds[back] = true
+	p.equippedCardBackId = back
+	p.pendingStartTips = 17
+	Quests.ensureDay(p, 20800)
+	Quests.apply(p, 20800, { hands = 12, pairs = 5, discards = 6 })
+	LoginStreak.checkIn(p, 20800)
+	TavernRank.addXp(p, 400)
+	p.keys, p.compassCharges, p.bossRushBest = 3, 2, 4 -- (legendPoints is left out: loading it grants its reward, a derived field)
+	p.settings.musicVolume = 0.2
+	p.settings.performanceMode = true
+	p.settings.largerText = true
+	local before = dump(p)
+	local first = PlayerProfile.migrate(p)
+	local changed = {}
+	for k, v in pairs(p) do
+		if dump(first[k]) ~= dump(v) then changed[#changed + 1] = k .. " (" .. dump(v):sub(1, 60) .. " -> " .. dump(first[k]):sub(1, 60) .. ")" end
+	end
+	expectEqual(table.concat(changed, "; "), "", "save and load changed fields of a valid profile")
+	expectEqual(dump(first), before, "save and load changes nothing in a valid profile")
+	expectEqual(dump(PlayerProfile.migrate(first)), before, "loading twice changes nothing")
+	expectTrue(p.pendingStartTips >= 17, "the fixture banked Tips (quests and rank added to the 17)")
+	expectEqual(first.pendingStartTips, p.pendingStartTips, "banked Tips kept")
+	expectEqual(first.stats.bestNightReached, 6, "best Night kept")
+	expectTrue(first.ownedSetIds.winter_evening and first.ownedSetIds.golden_gala and first.equippedSetId == "golden_gala", "owned and equipped sets kept")
+	expectEqual(first.equippedCardBackId, back, "equipped card back kept")
+	-- Tips, sets and best Night never drop when an older save with only part of them is loaded over: an old save has fewer, not none
+	local old = PlayerProfile.migrate({ pendingStartTips = 9, ownedSetIds = { winter_evening = true }, stats = { bestNightReached = 5 } })
+	expectEqual(old.pendingStartTips, 9)
+	expectTrue(old.ownedSetIds.winter_evening == true)
+	expectEqual(old.stats.bestNightReached, 5)
+	expectEqual(old.settings.performanceMode, false, "new fields default safely")
+end })
+
+table.insert(tests, { name = "Daily twists: Patron power twists never leave fractional Tips, and every twist plays a seeded run to the end with whole Tips", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for _, def in ipairs(DM.Definitions) do
+		for seed = 1, 3 do
+			local state = RunState.new({ dailyModifierId = def.id }, SeededRng.new(seed))
+			for i = 1, 3 do state.ownedPatrons[i] = Patrons.Definitions[(seed * 7 + i * 5) % #Patrons.Definitions + 1] end
+			for _ = 1, 3 do
+				RunState.startRound(state)
+				for _ = 1, 6 do
+					if #state.hand < 2 then break end
+					local ok = pcall(RunState.playHand, state, { 1, 2 })
+					if not ok then break end -- the round ended
+					expectEqual(state.tips, math.floor(state.tips), def.id .. " left fractional Tips " .. tostring(state.tips))
+				end
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	for round = 1, 3 do
+		local last = 0
+		for night = 7, 20 do
+			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
+			expectTrue(t > last, "Night " .. night .. " round " .. round .. " must beat the Night before (" .. t .. " vs " .. last .. ")")
+			expectEqual(t, math.floor(t))
+			last = t
+		end
+	end
+	for night = 7, 20 do
+		expectTrue(RunState.targetScoreFor(night, 3, 3, 8) > RunState.targetScoreFor(night, 2, 3, 8), "the boss round is the hardest of Night " .. night)
+	end
+	for night = 10, 20 do
+		local ratio = RunState.nightBaseScoreFor(night) / RunState.nightBaseScoreFor(night - 1)
+		expectTrue(math.abs(ratio - 1.5) < 1e-6, "Night " .. night .. " base grows 1.5x, got " .. ratio)
+	end
+end })
+
+table.insert(tests, { name = "Remote functions: all five (three leaderboards, challenge seed, menu ticker) cap how often one player can call them, and board and scope junk is normalised", fn = function()
+	local LB = require(script.Parent.Parent.Engine.Leaderboards)
+	local junk = { 0 / 0, math.huge, -1, 0, "", "x", "global", {}, { 1 }, true, false, function() end }
+	for _, v in ipairs(junk) do
+		local okB, b = pcall(LB.isBoard, v)
+		expectTrue(okB and b == false, "isBoard refuses junk")
+		local okS, s = pcall(LB.normalizeScope, v)
+		expectTrue(okS and (s == LB.GLOBAL or s == LB.FRIENDS), "normalizeScope always answers global or friends")
+	end
+	expectTrue(LB.isBoard(LB.STANDARD) and LB.isBoard(LB.REVIVED))
+	expectEqual(LB.normalizeScope(nil), LB.GLOBAL)
+	expectEqual(LB.normalizeScope(LB.FRIENDS), LB.FRIENDS)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local function window(startLine, n)
+		local out = {}
+		for i = startLine, math.min(#lines, startLine + n) do out[#out + 1] = lines[i] end
+		return table.concat(out, "\n")
+	end
+	local seen = 0
+	for i, l in ipairs(lines) do
+		local lb = l:match("^Rem%._lb%.(Get%w+Leaderboard) = function")
+		if lb then
+			seen = seen + 1
+			local w = window(i, 8)
+			expectTrue(w:find("LEADERBOARD_COOLDOWN", 1, true) ~= nil and w:find("isBoard", 1, true) ~= nil, lb .. " checks the board and has a per player cooldown")
+		end
+		if l:find("^Rem%.MakeChallengeSeed%.OnServerInvoke") then
+			seen = seen + 1
+			expectTrue(window(i, 5):find("< 1", 1, true) ~= nil, "MakeChallengeSeed has a 1 second cooldown")
+		end
+		if l:find("TickerRemote.OnServerInvoke", 1, true) then
+			seen = seen + 1
+			expectTrue(window(i, 3):find("RateLimit.allow", 1, true) ~= nil, "GetMenuTicker is rate limited")
+		end
+	end
+	expectEqual(seen, 5, "every RemoteFunction handler was checked")
+end })
+
 table.insert(tests, { name = "Reading level: player facing text in the content registries has no word of 14 letters or more and only the listed long words of 12 or 13", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local fields = { name = true, description = true, desc = true, flavorText = true, text = true, label = true, hint = true, title = true, unlockText = true, detail = true }
