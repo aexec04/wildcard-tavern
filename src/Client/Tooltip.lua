@@ -34,7 +34,7 @@ function Tooltip.new(screenGui)
 	frame.Name = "Tooltip"
 	frame.AutomaticSize = Enum.AutomaticSize.XY
 	frame.Size = UDim2.fromOffset(0, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(26, 19, 13)
+	frame.BackgroundColor3 = Color3.fromRGB(Spec.backColor[1], Spec.backColor[2], Spec.backColor[3])
 	frame.BackgroundTransparency = 0.04
 	frame.BorderSizePixel = 0
 	frame.Visible = false
@@ -70,9 +70,9 @@ function Tooltip.new(screenGui)
 	label.Size = UDim2.fromOffset(0, 0)
 	label.BackgroundTransparency = 1
 	label.BorderSizePixel = 0
-	label.Font = Enum.Font.Gotham
+	label.Font = Enum.Font[Spec.fontName]
 	label.TextSize = Spec.textSize
-	label.TextColor3 = Color3.fromRGB(250, 240, 220)
+	label.TextColor3 = Color3.fromRGB(Spec.textColor[1], Spec.textColor[2], Spec.textColor[3])
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.RichText = false
