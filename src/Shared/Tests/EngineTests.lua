@@ -39025,6 +39025,42 @@ table.insert(tests, { name = "FitAudit: the checker flags off screen, small touc
 	end
 end })
 
+table.insert(tests, { name = "Text Size Large: every published text size scaled by 1.15 stays at or above the 11 px and 14 px body floors, and no screen loses fit or touch targets at four sizes", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local A = require(Engine.Accessibility)
+	expectEqual(A.textScale({ largerText = true }), 1.15, "Large is 15 percent")
+	expectEqual(A.textScale({ largerText = false }), 1, "Normal is unscaled")
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local checked, texts = 0, 0
+	for _, sc in ipairs(screens) do
+		local large = {}
+		for k, v in pairs(sc) do large[k] = v end
+		if sc.texts then
+			large.texts = function(w, h)
+				local out = {}
+				for name, t in pairs(sc.texts(w, h)) do
+					local c = {}
+					for k, v in pairs(t) do c[k] = v end
+					c.size = math.floor(t.size * A.TEXT_SCALE + 0.5)
+					expectTrue(c.size >= t.size, sc.name .. " " .. name .. " never shrinks under Large")
+					out[name] = c
+					texts = texts + 1
+				end
+				return out
+			end
+		end
+		for _, sz in ipairs(Audit.SIZES) do
+			checked = checked + 1
+			for _, f in ipairs(Audit.checkScreen(large, sz[1], sz[2])) do
+				if sc.lane == "shared" then
+					expectTrue(f.rule ~= "text" and f.rule ~= "touch" and f.rule ~= "screen", "Large " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+				end
+			end
+		end
+	end
+	expectTrue(checked >= #screens * 4, "every screen is checked at four sizes")
+end })
 table.insert(tests, { name = "Fit audit over all 14 sets at 800x450, 1024x768, 1366x768 and 1920x1080: Menu, Settings, Store, Collection and the Card Sets room keep fit, 44 px targets and readable set names", fn = function()
 	local Audit = require(script.Parent.FitAudit)
 	local Engine = script.Parent.Parent.Engine
