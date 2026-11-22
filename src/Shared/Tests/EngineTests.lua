@@ -44232,4 +44232,38 @@ table.insert(tests, { name = "HandLevelMoment: the server reports level ups afte
 	expectTrue(toast:find("reward.levelUp and levelUpSound", 1, true) ~= nil and toast:find("TweenService", 1, true) == nil, "still line, Calm safe")
 end })
 
+-- ===== Night 12 / final Night victory celebration =====
+table.insert(tests, { name = "Victory celebration: Best Night, boons and deck rows, a Continue to Endless button, rows fit at four sizes (extra rows drop before text overlaps), no em dash", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local Moments = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local summary = { score = 5000, night = 12, cap = 12, hands = 90, tipsTotal = 300, bestNight = 14, boons = 5, deckSize = 52, marked = 3 }
+	local rows = Look.summaryRows(summary, { name = "Flush" })
+	expectEqual(#rows, 8)
+	local byLabel = {}
+	for _, r in ipairs(rows) do byLabel[r.label] = r.value end
+	expectEqual(byLabel["Best Night"], "14"); expectEqual(byLabel["Boons Picked"], "5"); expectEqual(byLabel["Your Deck"], "52 cards, 3 marked")
+	expectEqual(Look.summaryRows({ score = 1, night = 8, cap = 8 }, nil)[6], nil, "a plain summary keeps five rows")
+	expectEqual(Look.summaryRows({ night = 3, boons = 0, deckSize = 40 }, nil)[7].value, "40 cards")
+	expectEqual(Look.CONTINUE_TEXT, "Continue to Endless")
+	expectTrue(Look.CONTINUE_SIZE >= 16 and not Look.CONTINUE_TEXT:find("\226\128\148", 1, true))
+	for _, size in ipairs({ { 800, 450 }, { 1280, 720 }, { 1920, 957 }, { 1920, 1080 } }) do
+		local L = Look.layout(size[1], size[2], "run")
+		local fit = Look.fitRows(rows, size[1], size[2])
+		expectTrue(#fit >= 5 and #fit <= 8, size[1] .. " keeps at least the five plain rows")
+		local rowH = (L.summary.h - 48 * L.scale) / #fit
+		expectTrue(#fit == 5 or rowH >= Look.MIN_TEXT * 1.15 - 1e-6, size[1] .. "x" .. size[2] .. " rows are tall enough for 16 px")
+		expectTrue(L.button.h >= 44, "the Continue plate is at least 44 px tall")
+		expectEqual(fit[1].label, "Final Round Score")
+	end
+	expectEqual(Look.rowSize(5), 22); expectEqual(Look.rowSize(8), 16)
+	-- the numbers come from the clear lines
+	local now = { phase = "roundSelect", tips = 20, roundScore = 6000, handsPlayedTotal = 90, tipsEarnedTotal = 300, nightCap = 8,
+		profileStats = { bestNightReached = 9 }, runCounters = { boonsPicked = 4 },
+		deckView = { { rank = 5, suit = "Hearts", mark = "gilded" }, { rank = 6, suit = "Hearts" } } }
+	local prev = { phase = "playing", targetScore = 5000, roundScore = 6000, tips = 10, night = 8, nightCap = 8, round = 3, bossModifier = { id = "x" } }
+	local lines = Moments.clearLines(prev, now)
+	expectTrue(lines and lines.night and lines.night.runComplete, "the final Night is Run complete")
+	expectEqual(lines.summary.bestNight, 9); expectEqual(lines.summary.boons, 4); expectEqual(lines.summary.deckSize, 2); expectEqual(lines.summary.marked, 1)
+end })
+
 return tests

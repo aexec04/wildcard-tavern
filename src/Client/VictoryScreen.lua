@@ -232,19 +232,20 @@ function M.show(screenGui, lines)
 	local sm = parchment(gui, "Summary", L.summary, zc, s)
 	text(sm, "Heading", "Run Summary", Look.fontSize(26, s), INK, serif(), zc + 1, 0, math.floor(6 * s), L.summary.w, math.floor(36 * s))
 	local best = bestProvider and bestProvider() or nil
-	local rows = Look.summaryRows(summary, best)
+	local rows = Look.fitRows(Look.summaryRows(summary, best), size.X, size.Y)
 	local rowH = (L.summary.h - 48 * s) / #rows
 	for i, row in ipairs(rows) do
 		local y = 46 * s + (i - 1) * rowH
-		text(sm, "Row" .. i, row.label, Look.fontSize(22, s), INK, Enum.Font.GothamMedium, zc + 1, 14 * s, y, L.summary.w * 0.55, rowH, Enum.TextXAlignment.Left)
-		text(sm, "Val" .. i, row.value, Look.fontSize(22, s), INK, Enum.Font.GothamBold, zc + 1, L.summary.w * 0.5, y, L.summary.w * 0.5 - 14 * s, rowH, Enum.TextXAlignment.Right)
+		local rowFont = Look.rowSize(#rows)
+		text(sm, "Row" .. i, row.label, Look.fontSize(rowFont, s), INK, Enum.Font.GothamMedium, zc + 1, 14 * s, y, L.summary.w * 0.55, rowH, Enum.TextXAlignment.Left)
+		text(sm, "Val" .. i, row.value, Look.fontSize(rowFont, s), INK, Enum.Font.GothamBold, zc + 1, L.summary.w * 0.5, y, L.summary.w * 0.5 - 14 * s, rowH, Enum.TextXAlignment.Right)
 		if i < #rows then frame(sm, "Rule" .. i, { x = 14 * s, y = y + rowH - 1, w = L.summary.w - 28 * s, h = 1 }, zc + 1, PARCH_EDGE) end
 	end
 	local function close()
 		M.hide()
 	end
 	text(gui, "NextStep", Look.NEXT_RUN, Look.fontSize(Look.NEXT_SIZE, s), CREAM, Enum.Font.GothamMedium, zc + 2, L.nextStep.x, L.nextStep.y, L.nextStep.w, L.nextStep.h)
-	local btn = plateButton(gui, "Continue", L.button, "Continue", Look.fontSize(30, s), zc + 2, close)
+	local btn = plateButton(gui, "Continue", L.button, Look.CONTINUE_TEXT, Look.fontSize(Look.CONTINUE_SIZE, s), zc + 2, close)
 	btn.Parent.Name = "Continue"
 	-- Invite a friend (Roblox's own invite sheet only) and a plain text share line to copy
 	local inv = Instance.new("TextButton")
