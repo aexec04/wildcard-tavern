@@ -844,6 +844,40 @@ function CosmeticSets.mapStyleOf(setId)
 	}
 end
 
+-- Tavern Ledger: the desk, leather cover, bookmark ribbons and run rows take the set. Ribbons keep cream ink at 4.5:1 (open one lighter), the
+-- two run-row papers keep the soft ledger ink (70,48,28) at 4.5:1. nil for classic so the ledger keeps its leather, red silk and cream paper.
+CosmeticSets.LEDGER_INK = { 70, 48, 28 }
+CosmeticSets.LEDGER_TAB_INK = { 255, 236, 190 }
+function CosmeticSets.ledgerStyleOf(setId)
+	local band = CosmeticSets.titleBandOf(setId)
+	local popup = CosmeticSets.popupStyleOf(setId)
+	if not band or not popup then return nil end
+	local function darkenFor(c, ink, minRatio)
+		local guard = 0
+		while CosmeticSets.contrastRatio(c, ink) < minRatio and guard < 40 do
+			c = mix(c, { 20, 14, 10 }, 0.12)
+			guard = guard + 1
+		end
+		return c
+	end
+	local function lightenFor(c, ink, minRatio)
+		local guard = 0
+		while CosmeticSets.contrastRatio(c, ink) < minRatio and guard < 40 do
+			c = mix(c, { 250, 244, 226 }, 0.12)
+			guard = guard + 1
+		end
+		return c
+	end
+	local tabOff = darkenFor(mix({ 108, 34, 34 }, band.edge, 0.3), CosmeticSets.LEDGER_TAB_INK, CosmeticSets.MAP_MIN_CONTRAST)
+	local tabOn = darkenFor(mix({ 150, 44, 44 }, band.edge, 0.35), CosmeticSets.LEDGER_TAB_INK, CosmeticSets.MAP_MIN_CONTRAST)
+	return {
+		deskTop = mix({ 86, 58, 36 }, band.edge, 0.22), deskFoot = mix({ 36, 24, 16 }, band.edge, 0.12), leather = mix({ 88, 52, 30 }, band.edge, 0.3),
+		tabOn = tabOn, tabOff = tabOff, tabInk = CosmeticSets.LEDGER_TAB_INK,
+		row = lightenFor(popup.paper.top, CosmeticSets.LEDGER_INK, CosmeticSets.MAP_MIN_CONTRAST),
+		rowOpen = lightenFor(popup.paper.bottom, CosmeticSets.LEDGER_INK, CosmeticSets.MAP_MIN_CONTRAST), edge = band.edge,
+	}
+end
+
 -- The Tavern Map road: the sandy dash and its edge tinted toward the set accent, edge kept 3:1 under the fill. nil for classic.
 function CosmeticSets.mapPathOf(setId, fill, edge)
 	local band = CosmeticSets.titleBandOf(setId)

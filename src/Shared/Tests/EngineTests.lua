@@ -40614,4 +40614,46 @@ table.insert(tests, { name = "Tavern Map header, banners, select panel, Go plate
 	if jv then expectTrue(jv:find("mapPathOf(", 1, true) ~= nil, "the road asks the pure rule") end
 end })
 
+table.insert(tests, { name = "Tome Flair, Legend and Ledger tabs wear the set plates and ink at 4.5:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.ledgerStyleOf("classic_tavern"), nil, "classic keeps the leather ledger")
+	expectEqual(CS.ledgerStyleOf(nil), nil, "no set keeps the leather ledger")
+	local n, seen = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h, r, l = CS.hintStyleOf(set.id), CS.rowStyleOf(set.id), CS.ledgerStyleOf(set.id)
+			expectTrue(h ~= nil and r ~= nil and l ~= nil, set.id .. " has header, row and ledger styles")
+			if h and r and l then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " Tome header ink keeps 7:1")
+				expectTrue(CS.contrastRatio(r.row, r.ink) >= 7 and CS.contrastRatio(r.hot, r.ink) >= 7, set.id .. " Flair and Legend row ink keeps 7:1")
+				expectTrue(CS.contrastRatio(r.row, r.sub) >= 4.5 and CS.contrastRatio(r.hot, r.sub) >= 4.5, set.id .. " locked marks keep 4.5:1")
+				expectTrue(CS.contrastRatio(r.row, r.badge) >= 4.5 or CS.contrastRatio(r.badge, r.badgeInk) >= 4.5, set.id .. " counters stay readable")
+				expectTrue(CS.contrastRatio(l.tabOn, l.tabInk) >= 4.5 and CS.contrastRatio(l.tabOff, l.tabInk) >= 4.5, set.id .. " ribbon words keep 4.5:1")
+				expectTrue(CS.contrastRatio(l.row, CS.LEDGER_INK) >= 4.5 and CS.contrastRatio(l.rowOpen, CS.LEDGER_INK) >= 4.5, set.id .. " run rows keep ledger ink 4.5:1")
+				seen[l.leather[1] .. "," .. l.leather[2] .. "," .. l.leather[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has the three styles")
+	local count = 0
+	for _ in pairs(seen) do count = count + 1 end
+	expectTrue(count >= 10, "the ledger leather differs across sets")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "FlairDressingRoom", "LegendPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("RowSkin", 1, true) ~= nil, name .. " binds the row skin") end
+	end
+	local th = read("TomeHeaderPlate")
+	if th then expectTrue(th:find("HintSkin", 1, true) ~= nil, "Tome header plates bind the hint skin") end
+	local lb = read("LedgerBook")
+	if lb then expectTrue(lb:find("ledgerStyleOf(", 1, true) ~= nil, "the Ledger asks the pure rule") end
+end })
+
 return tests

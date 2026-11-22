@@ -42,6 +42,7 @@ function FlairDressingRoom.build(deps, panel)
 	local GREEN = Color3.fromRGB(86, 140, 80)
 	local PLATE = Color3.fromRGB(38, 28, 22)
 	local TILE = Color3.fromRGB(52, 38, 28)
+	local function rowSkin() return require(script.Parent.RowSkin).get() end -- the equipped Card Set's row plate and ink (nil for classic)
 	local PARCHMENT = Color3.fromRGB(226, 208, 170)
 	local Z = 43
 
@@ -479,7 +480,8 @@ function FlairDressingRoom.build(deps, panel)
 		for _, t in ipairs(tiles) do
 			local sel = t.itemId == chosenId
 			t.ring.Enabled = sel
-			t.frame.BackgroundColor3 = sel and Color3.fromRGB(74, 54, 36) or TILE
+			local rs = rowSkin()
+			t.frame.BackgroundColor3 = sel and (rs and rs.hot or Color3.fromRGB(74, 54, 36)) or (rs and rs.row or TILE)
 			if R.sceneOn then t.frame.BackgroundTransparency = sel and 0.55 or 1 end
 		end
 	end
@@ -488,12 +490,13 @@ function FlairDressingRoom.build(deps, panel)
 		local cellSize = (R.sceneOn and R.cubbies[1]) and Scene.cell(R.cubbies[1].w, R.cubbies[1].h) or Layout.cell(R.compact)
 		local med = cellSize.med
 		local locked = item.state == "locked"
-		local f = make("TextButton", gridFrame, { Name = "Tile_" .. item.id, Text = "", AutoButtonColor = false, BackgroundColor3 = TILE, BackgroundTransparency = 0, ZIndex = Z + 1 })
+		local rs = rowSkin()
+		local f = make("TextButton", gridFrame, { Name = "Tile_" .. item.id, Text = "", AutoButtonColor = false, BackgroundColor3 = rs and rs.row or TILE, BackgroundTransparency = 0, ZIndex = Z + 1 })
 		round(f, 10)
 		if R.sceneOn then
 			stroke(f, GOLD, item.state == "equipped" and 2 or 0)
 		else
-			stroke(f, item.state == "equipped" and GOLD or Color3.fromRGB(86, 66, 44), item.state == "equipped" and 2.5 or 1)
+			stroke(f, item.state == "equipped" and (rs and rs.edge or GOLD) or (rs and rs.edge:Lerp(rs.row, 0.5) or Color3.fromRGB(86, 66, 44)), item.state == "equipped" and 2.5 or 1)
 		end
 		local sel = stroke(f, CREAM, 2)
 		sel.Enabled = false
@@ -514,14 +517,14 @@ function FlairDressingRoom.build(deps, panel)
 		if R.sceneOn and okSize and nameBounds.Y > cellSize.nameH then truncatedLabels = truncatedLabels + 1 end
 		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.new(1, -8, 0, cellSize.nameH), Text = item.name,
 			TextSize = 14, TextWrapped = true, TextTruncate = R.sceneOn and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
-			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
+			TextColor3 = locked and (rs and rs.sub or Color3.fromRGB(176, 164, 140)) or (rs and rs.ink or CREAM) })
 		local status, statusColor
 		if item.state == "equipped" then
 			status, statusColor = "Equipped", Color3.fromRGB(150, 214, 140)
 		elseif item.state == "owned" then
-			status, statusColor = (firstSightOwned and not firstSightOwned[item.id]) and "New" or "Unlocked", GOLD
+			status, statusColor = (firstSightOwned and not firstSightOwned[item.id]) and "New" or "Unlocked", rs and rs.badge or GOLD
 		else
-			status, statusColor = item.tag or "Locked", Color3.fromRGB(190, 160, 110)
+			status, statusColor = item.tag or "Locked", rs and rs.sub or Color3.fromRGB(190, 160, 110)
 		end
 		if cellSize.showTag == false then
 			status = nil -- a short cubby gives its height to the name; the ring and the lock already say equipped or locked
@@ -558,23 +561,24 @@ function FlairDressingRoom.build(deps, panel)
 		tabButtons = {}
 		for _, d in ipairs(drawers) do
 			local on = d.id == openSlot
-			local b = make("TextButton", tabsHolder, { Name = "Tab_" .. d.id, Text = "", AutoButtonColor = false, BackgroundColor3 = on and Color3.fromRGB(86, 62, 38) or TILE, BackgroundTransparency = 0 })
+			local rs = rowSkin()
+			local b = make("TextButton", tabsHolder, { Name = "Tab_" .. d.id, Text = "", AutoButtonColor = false, BackgroundColor3 = rs and (on and rs.hot or rs.row) or (on and Color3.fromRGB(86, 62, 38) or TILE), BackgroundTransparency = 0 })
 			round(b, 8)
 			if sceneOn then
 				-- the painted plate is the button: a faint gold wash and a gold edge only on the open tab
 				b.BackgroundTransparency = on and 0.7 or 1
 				stroke(b, GOLD, on and 2.5 or 0)
 			else
-				stroke(b, on and GOLD or Color3.fromRGB(86, 66, 44), on and 2.5 or 1)
+				stroke(b, on and (rs and rs.edge or GOLD) or (rs and rs.edge:Lerp(rs.row, 0.5) or Color3.fromRGB(86, 66, 44)), on and 2.5 or 1)
 			end
 			local name = make("TextLabel", b, { Text = d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
-				TextColor3 = on and CREAM or Color3.fromRGB(210, 194, 164) })
+				TextColor3 = rs and (on and rs.ink or rs.sub) or (on and CREAM or Color3.fromRGB(210, 194, 164)) })
 			local nameLimit = Instance.new("UITextSizeConstraint")
 			nameLimit.MinTextSize, nameLimit.MaxTextSize = 14, 16
 			nameLimit.Parent = name
 			local sub = make("TextLabel", b, { Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -16, 0, 18), Font = Enum.Font.GothamMedium, TextSize = 14,
 				Text = d.ownedCount .. " of " .. d.total .. " unlocked", TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-				TextColor3 = GOLD, ZIndex = Z + 1 })
+				TextColor3 = rs and rs.badge or GOLD, ZIndex = Z + 1 })
 			b.MouseButton1Click:Connect(function()
 				deps.playClickSfx()
 				openSlot = d.id

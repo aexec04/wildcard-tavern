@@ -465,16 +465,17 @@ function LegendPanel.init(deps)
 					if row and (c == 1 or level ~= lv[1]) then
 						local r = pp[c]
 						local isNext = row.level == nextLevel
+						local rs = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, rank badge and claim chip (nil for classic)
 						local m = Instance.new("Frame")
 						m.Name = "Level_" .. row.level
 						m.Position, m.Size = UDim2.fromOffset(r.medal.x, r.medal.y), UDim2.fromOffset(r.medal.w, r.medal.h)
-						m.BackgroundColor3 = row.reached and BURGUNDY_DEEP or DIM
+						m.BackgroundColor3 = row.reached and (rs and rs.row or BURGUNDY_DEEP) or (rs and rs.row:Lerp(Color3.new(0, 0, 0), 0.35) or DIM)
 						m.BorderSizePixel = 0
 						m.ZIndex = 44
 						m.Parent = box
 						deps.roundCorner(m, r.medal.w / 2)
 						local ring = Instance.new("UIStroke")
-						ring.Color = (row.reached or isNext) and BRIGHT or Color3.fromRGB(70, 56, 48)
+						ring.Color = (row.reached or isNext) and (rs and rs.edge or BRIGHT) or (rs and rs.edge:Lerp(rs.row, 0.6) or Color3.fromRGB(70, 56, 48))
 						ring.Thickness = (row.reached or isNext) and 3 or 1.5
 						ring.Parent = m
 						local glyph = label(m, { Size = UDim2.fromScale(1, 1), TextSize = math.max(14, math.floor(r.medal.w * 0.55)), Text = row.icon or (row.kind == "cardBack" and "🂠" or "🏷️"),
@@ -488,15 +489,15 @@ function LegendPanel.init(deps)
 							label(m, { Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 3, 1, 3), TextSize = 14, Text = "🔒", ZIndex = 50 })
 						else
 							local check = label(m, { Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 3, 0, -3), TextSize = 14,
-								Text = "✓", TextColor3 = BURGUNDY_DEEP, BackgroundTransparency = 0, BackgroundColor3 = BRIGHT, ZIndex = 50 })
+								Text = "✓", TextColor3 = rs and rs.chipInk or BURGUNDY_DEEP, BackgroundTransparency = 0, BackgroundColor3 = rs and rs.chip or BRIGHT, ZIndex = 50 })
 							deps.roundCorner(check, 8)
 						end
 						-- cream on a small dark pill (cream straight on the brass is only 3.8:1)
 						local lc = Scene.COLORS
 						local pillW = math.min(r.num.w - 4, 46)
 						local pill = label(box, { Name = "Lv" .. row.level, Position = UDim2.fromOffset(r.num.x + math.floor((r.num.w - pillW) / 2), r.num.y), Size = UDim2.fromOffset(pillW, r.num.h), TextSize = 14,
-							Text = "Lv " .. row.level, TextColor3 = Color3.fromRGB(lc.lvInk[1], lc.lvInk[2], lc.lvInk[3]), ZIndex = 44,
-							BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(lc.lvPill[1], lc.lvPill[2], lc.lvPill[3]) })
+							Text = "Lv " .. row.level, TextColor3 = rs and rs.badgeInk or Color3.fromRGB(lc.lvInk[1], lc.lvInk[2], lc.lvInk[3]), ZIndex = 44,
+							BackgroundTransparency = 0.1, BackgroundColor3 = rs and rs.badge or Color3.fromRGB(lc.lvPill[1], lc.lvPill[2], lc.lvPill[3]) })
 						deps.roundCorner(pill, r.num.h // 2)
 						deps.addTooltip(m, row.text .. (row.reached and "" or (" at Legend level " .. row.level)))
 					end
