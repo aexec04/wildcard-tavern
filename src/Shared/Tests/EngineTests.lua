@@ -2625,6 +2625,136 @@ table.insert(tests, { name = "Save audit: old profiles load with every current f
 	assert(Guard.indexList({ 1, 3, 5 }, 8, 5), "a good index list is accepted")
 end })
 
+table.insert(tests, { name = "Save safety: 8 old profile shapes (no sets, season, quests, nil or junk settings, unknown keys) load with defaults, no error, nothing real lost", fn = function()
+	local fresh = PlayerProfile.new()
+	local shapes = {
+		{ name = "first ever save", raw = {}, keep = function(p) return p.stats.runsStarted == 0 end },
+		{ name = "stats only, no sets", raw = { stats = { runsStarted = 6, runsWon = 2, bestNightReached = 5 } },
+			keep = function(p) return p.stats.runsStarted == 6 and p.stats.runsWon == 2 and p.stats.bestNightReached == 5 and next(p.ownedSetIds) == nil end },
+		{ name = "owned set, no season", raw = { ownedSetIds = { winter_evening = true }, equippedSetId = "winter_evening" },
+			keep = function(p) return p.ownedSetIds.winter_evening == true and p.equippedSetId == "winter_evening" and p.seasonXp == 0 end },
+		{ name = "no quests, tavern XP and streak", raw = { tavernXp = 120, loginStreak = 4, pendingStartTips = 3 },
+			keep = function(p) return p.tavernXp == 120 and p.loginStreak == 4 and p.pendingStartTips == 3 and p.quests == nil end },
+		{ name = "quests in progress", raw = { quests = { day = 20800, ids = { "pairs_3", "buy_pack", "hands_10" }, progress = { pairs_3 = 2 }, done = {} }, questsDone = 7 },
+			keep = function(p) return p.questsDone == 7 and p.quests ~= nil and p.quests.day == 20800 and p.quests.progress.pairs_3 == 2 end },
+		{ name = "nil settings and unknown keys", raw = { settings = nil, futureThing = { 1, 2 }, [5] = "x", discoveredPatronIds = { tip_jar = true } },
+			keep = function(p) return p.discoveredPatronIds.tip_jar == true and p.futureThing == nil and p.settings ~= nil end },
+		{ name = "junk settings", raw = { settings = { sfxVolume = "loud", muted = 3, musicVolume = 0.4, nope = true }, stats = { runsStarted = 2 } },
+			keep = function(p) return p.settings.musicVolume == 0.4 and p.settings.nope == nil and type(p.settings.sfxVolume) == "number" and p.stats.runsStarted == 2 end },
+		{ name = "season from an old schema", raw = { seasonId = "no_such_season", seasonXp = 50, seasonClaimed = "x", version = 0 },
+			keep = function(p) return type(p.seasonClaimed) == "table" and p.version == PlayerProfile.SCHEMA_VERSION end },
+	}
+	expectEqual(#shapes, 8)
+	for _, shape in ipairs(shapes) do
+		local ok, profile = pcall(PlayerProfile.migrate, shape.raw)
+		expectTrue(ok, shape.name .. " errored: " .. tostring(profile))
+		for key, default in pairs(fresh) do
+			if default ~= nil then
+				expectTrue(profile[key] ~= nil, shape.name .. " is missing the default for " .. key)
+				expectEqual(type(profile[key]), type(default), shape.name .. " has the wrong type for " .. key)
+			end
+		end
+		expectTrue(shape.keep(profile), shape.name .. " lost real progress")
+		local again = PlayerProfile.migrate(profile)
+		expectTrue(shape.keep(again), shape.name .. " lost progress on the second load")
+	end
+end })
+
+table.insert(tests, { name = "Remote safety: every server remote argument is checked or handed to an engine function that rejects junk without error or change", fn = function()
+	-- 1. Static: the only handlers whose argument has no type check in the handler itself are these eight, and each passes it
+	--    straight to the engine function fuzzed below. A new unchecked remote argument fails here.
+	if io then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local lines = {}
+			for l in f:lines() do lines[#lines + 1] = l end
+			f:close()
+			local allowed = { MovePatron = "dir", MarkSeenNew = "keys", ChooseRoad = "stopId", UnlockRoad = "stopId", Minigame = "arg",
+				UseCompass = "target", HintSeen = "hintId", Choice = "optionId" }
+			local checks = { "type%(%s*", "typeof%(%s*", "tonumber%(%s*", "tostring%(%s*", "math%.type%(%s*", "Guard%.[%w]+%(%s*", "[Vv]alid%w*%(%s*", "[Ss]anitize%w*%(%s*", "[Cc]lean%w*%(%s*" }
+			for i, l in ipairs(lines) do
+				local name, params = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect%(function%(player,?%s*([^)]*)%)")
+				if name and not name:find("^Debug") then
+					local body = {}
+					for j = i + 1, #lines do
+						if lines[j]:match("^end%)") then break end
+						body[#body + 1] = lines[j]
+					end
+					local text = table.concat(body, "\n")
+					for argName in params:gmatch("[%w_]+") do
+						local checked = false
+						for _, c in ipairs(checks) do
+							if text:find(c .. argName) then checked = true end
+						end
+						if not checked and not (text:find(argName .. "%s*[=~]=") or text:find("[=~]=%s*" .. argName) or text:find("%[" .. argName .. "%]")) then
+							expectEqual(allowed[name], argName, name .. " argument " .. argName .. " has no check in its handler: validate it or add it to the fuzzed list")
+						end
+					end
+				end
+			end
+		end
+	end
+	-- 2. Dynamic: junk into each engine function behind those eight remotes
+	local huge = {}
+	for i = 1, 5000 do huge[i] = { i } end
+	local junk = { nil, 0 / 0, math.huge, -math.huge, -1, 0, 1.5, 1e300, "", "x", "1", string.rep("a", 5000), true, false, {}, { 1, 2, 3 }, { [-1] = true }, { x = {} }, huge, function() end }
+	local function dump(v, seen)
+		if type(v) ~= "table" then return type(v) == "function" and "fn" or tostring(v) end
+		seen = seen or {}
+		if seen[v] then return "cycle" end
+		seen[v] = true
+		local keys = {}
+		for k in pairs(v) do keys[#keys + 1] = k end
+		table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+		local out = {}
+		for _, k in ipairs(keys) do out[#out + 1] = tostring(k) .. "=" .. dump(v[k], seen) end
+		return "{" .. table.concat(out, ",") .. "}"
+	end
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local Keys = require(script.Parent.Parent.Engine.Keys)
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local Hints = require(script.Parent.Parent.Engine.Hints)
+	local NewItems = require(script.Parent.Parent.Engine.NewItems)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local function fresh()
+		local profile = PlayerProfile.new()
+		local state = RunState.new(nil, SeededRng.new(5))
+		return profile, state
+	end
+	local function check(label, fn)
+		for i = 1, 20 do
+			local profile, state = fresh()
+			local before = dump(profile) .. dump(state)
+			local ok, err = pcall(fn, profile, state, junk[i])
+			expectTrue(ok, label .. " errored on junk #" .. i .. ": " .. tostring(err))
+			expectEqual(dump(profile) .. dump(state), before, label .. " changed state on junk #" .. i)
+		end
+	end
+	check("MarkSeenNew", function(profile, _, v) NewItems.markSeen(profile, v) end)
+	check("HintSeen", function(profile, _, v) Hints.markSeen(profile, v) end)
+	check("ChooseRoad", function(profile, state, v) WorldMap.chooseRoad(state, v, "playing", function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("UnlockRoad", function(profile, state, v) Keys.unlock(profile, state, v, "playing") end)
+	check("UseCompass", function(profile, state, v) BiomeRewards.useCompass(profile, state, "playing", v, function(id) return Keys.isRoadOpen(profile, id) end) end)
+	check("Choice", function(_, _, v) RunChoice.canAnswer("playing", nil, v) end)
+	check("Choice with a live choice", function(_, state, v)
+		local choice = { kind = "event", options = { { id = "a" }, { id = "b" } } }
+		RunChoice.canAnswer("choice", choice, v)
+	end)
+	check("MovePatron", function(_, state, v) RunState.movePatron(state, v, 1) end)
+	-- the Minigame arg: every game, junk action and junk arg, never an error
+	for _, game in ipairs({ "dice", "cardflip", "lockpick", "trivia" }) do
+		for i = 1, 20 do
+			for _, action in ipairs({ "roll", "flip", "pick", "answer", "stop", "x" }) do
+				local rng = Minigames.newRng(11)
+				local g = Minigames.new(game, rng, 0)
+				local ok, err = pcall(Minigames.act, g, action, junk[i], 1)
+				expectTrue(ok, game .. " " .. action .. " errored on junk #" .. i .. ": " .. tostring(err))
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Save audit: the profile DataStore is only touched inside pcall and autosave only writes dirty profiles", fn = function()
 	if not io then return end
 	local f = io.open("src/Server/init.server.lua", "r")
@@ -3470,7 +3600,7 @@ table.insert(tests, { name = "'Empty-Handed' leaves 1 discard and caps hands at 
 	expectEqual(empty.minNight, 6)
 end })
 
-table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
@@ -3479,8 +3609,14 @@ table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gat
 	local resultCut = RunState.playHand(stateCut, { 1, 2 })
 
 	expectEqual(stateCut.bossModifier.minNight, 6)
-	expectEqual(resultCut.chips, resultNormal.chips * 0.68)
-	expectEqual(resultCut.mult, resultNormal.mult * 0.68)
+	expectEqual(resultCut.chips, resultNormal.chips * 0.7)
+	expectEqual(resultCut.mult, resultNormal.mult * 0.7)
+end })
+
+table.insert(tests, { name = "Boss rule sim pin: Big Tab 1.9x target, Everything's Out 0.70 and Bare Bones 0.72 (Night 6 clear rate was under 40%)", fn = function()
+	expectEqual(BossRounds.getById("big_tab").targetScoreMultiplier, 1.9)
+	expectEqual(BossRounds.getById("everythings_out").chipsMultiplier, 0.7)
+	expectEqual(BossRounds.getById("bare_bones").multMultiplier, 0.72)
 end })
 
 table.insert(tests, { name = "BossRounds.Definitions has grown to include this phase's 6 new modifiers", fn = function()
@@ -3638,10 +3774,10 @@ table.insert(tests, { name = "'Rushed Order' caps hands at 3, gated to tier 2", 
 	expectEqual(rushed.minNight, 3)
 end })
 
-table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 28%, gated to tier 3", fn = function()
 	local bareBones = BossRounds.getById("bare_bones")
-	expectEqual(bareBones.chipsMultiplier, 0.7)
-	expectEqual(bareBones.multMultiplier, 0.7)
+	expectEqual(bareBones.chipsMultiplier, 0.72)
+	expectEqual(bareBones.multMultiplier, 0.72)
 	expectEqual(bareBones.minNight, 6)
 end })
 
@@ -4169,7 +4305,7 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
 	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
-	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 2))
+	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 1.9))
 	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).handsRemaining, 3)
@@ -4177,8 +4313,8 @@ end })
 
 table.insert(tests, { name = "Balance: boss descriptions state their tuned numbers", fn = function()
 	local expected = {
-		stale_bread = "25%", bare_bones = "30%", everythings_out = "32%",
-		thin_chips = "40%", flat_mult = "40%", big_tab = "double",
+		stale_bread = "25%", bare_bones = "28%", everythings_out = "30%",
+		thin_chips = "40%", flat_mult = "40%", big_tab = "nearly double",
 		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
 		last_chance = "1 discard", empty_handed = "1 discard",
 	}
@@ -20711,6 +20847,64 @@ table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges
 	require(Engine.CollectionSceneArt)["collection_room"] = saved
 	expectTrue(plain.room:FindFirstChild("Painting") == nil, "no id, no Painting")
 	expectTrue(plain.room:FindFirstChild("Floor").Visible and plain.room:FindFirstChild("Hotspot_patrons"):FindFirstChild("Object").Visible, "the drawn room stays as the fallback")
+end })
+
+table.insert(tests, { name = "Screen budget: Collection, Badges and Map stay under 2500 GuiObjects, and every per frame loop in the client is stored so it can be disconnected", fn = function()
+	local Perf = require(script.Parent.Parent.Engine.Gameplay2Perf)
+	local LIMIT = 2500
+	local function countOf(label, root)
+		local n = Perf.count(root, false)
+		expectTrue(n < LIMIT, label .. " has " .. n .. " GuiObjects, the limit is " .. LIMIT)
+		return n
+	end
+	local col, CB = collectionBuild()
+	if col then
+		col.open()
+		countOf("Collection gallery room", col.gui)
+		for _, sec in ipairs(CB.Tabs) do
+			if col.hotspot(sec.id) then
+				col.pick(sec.id)
+				col.tiles() -- every delayed batch built: the worst case
+				countOf("Collection section " .. sec.id, col.gui)
+				col.step()
+			end
+		end
+		local BS = require(script.Parent.BadgeScene)
+		local b = BS.build({ badgeIds = {} })
+		b.open()
+		countOf("Badges", b.gui)
+		local MapScene = require(script.Parent.MapScene)
+		countOf("Tavern Map", MapScene.build({}).gui)
+	end
+	-- loops: a Heartbeat or RenderStepped connection must be kept in a variable (or a list) so close can disconnect it, and a file that
+	-- connects one must also call :Disconnect somewhere. The two permanent hub loops idle while their screen is hidden.
+	if not (io and io.open) then return end
+	local permanent = { ["src/Client/BossFight.lua"] = 1, ["src/Client/PlayMotion.lua"] = 1 } -- one connection each for the client's life
+	local p = io.popen and io.popen("ls src/Client/*.lua")
+	if not p then return end
+	local filesSeen, loopsSeen = 0, 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local src = f:read("*a")
+		f:close()
+		filesSeen = filesSeen + 1
+		local connects = 0
+		for line in src:gmatch("[^\n]+") do
+			if (line:find("Heartbeat:Connect", 1, true) or line:find("RenderStepped:Connect", 1, true)) and not line:match("^%s*%-%-") and not line:match("^%s*[%w%.]*%-%-") then
+				local stored = line:find("=%s*[%w%.]*RunService") or line:find("table.insert%(") or line:find("=%s*game:GetService")
+				if not stored and not permanent[path] then
+					error(path .. ": a per frame loop is not stored, so close cannot disconnect it: " .. line:gsub("^%s+", ""))
+				end
+				connects = connects + 1
+				loopsSeen = loopsSeen + 1
+			end
+		end
+		if connects > 0 and path ~= "src/Client/FxLoop.lua" and not permanent[path] then
+			expectTrue(src:find(":Disconnect(", 1, true) ~= nil, path .. " connects a per frame loop but never disconnects one")
+		end
+	end
+	p:close()
+	expectTrue(filesSeen > 100 and loopsSeen >= 25, "the loop scan really read the client: " .. filesSeen .. " files, " .. loopsSeen .. " loops")
 end })
 
 table.insert(tests, { name = "Peddler speech bubble: hidden when its text is empty or faded, and the pack panel never restores it", fn = function()
@@ -38415,6 +38609,131 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Reading level: player facing text in the content registries has no word of 14 letters or more and only the listed long words of 12 or 13", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local fields = { name = true, description = true, desc = true, flavorText = true, text = true, label = true, hint = true, title = true, unlockText = true, detail = true }
+	-- words of 12 or 13 letters that a 12 year old knows (a game word or an everyday word); a new one needs a decision
+	local allowed = { completionist = true, neighborhood = true, troublemaker = true, ["everything's"] = true }
+	local over = {}
+	local function scan(v, depth)
+		if type(v) ~= "table" or depth > 6 then return end
+		for k, x in pairs(v) do
+			if type(x) == "string" and fields[k] then
+				for word in x:gmatch("[%a']+") do
+					local w = word:lower()
+					if #w >= 14 or (#w >= 12 and not allowed[w]) then over[#over + 1] = w end
+					expectFalse(w == "retriggers" or w == "randomizes", "plain words: " .. w)
+				end
+			elseif type(x) == "table" then
+				scan(x, depth + 1)
+			end
+		end
+	end
+	local total = 0
+	for _, name in ipairs({ "Patrons", "BossRounds", "Recipes", "Packs", "HousePasses", "Tags", "Achievements", "Quests", "CosmeticSets" }) do
+		local mod = require(Engine[name])
+		for k, v in pairs(mod) do
+			if type(v) == "table" and (k == "Definitions" or k:find("Recipes$")) then
+				scan(v, 0)
+				total = total + #v
+			end
+		end
+	end
+	expectTrue(total > 100, "the audit read the registries: " .. total .. " entries")
+	expectEqual(#over, 0, "long words: " .. table.concat(over, ", "))
+end })
+
+table.insert(tests, { name = "Rate limits: a spammed remote averages at most 20 calls a second, each handler checks its own bucket first, buckets are per player", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RateLimit)
+	-- 1000 calls a second for 10 s, 60 s and a cold start: allowed calls per second stay at 20 or under after the burst
+	for _, seconds in ipairs({ 10, 60 }) do
+		RL.forget(7)
+		local allowed = 0
+		for i = 0, seconds * 1000 - 1 do
+			if RL.allow(7, "Rem.Spam", i / 1000) then allowed = allowed + 1 end
+		end
+		expectTrue(allowed / seconds <= 20, seconds .. " s of spam allowed " .. allowed .. " calls (" .. allowed / seconds .. " a second)")
+		expectTrue(allowed >= RL.PER_SECOND * seconds * 0.9, "normal play is not throttled: the refill is real")
+	end
+	expectTrue(RL.PER_SECOND <= 20 and RL.BURST <= 40, "sustained rate and burst are bounded")
+	-- one player's spam never spends another player's or another remote's tokens
+	RL.forget(7); RL.forget(8)
+	for i = 0, 200 do RL.allow(7, "Rem.A", i / 1000) end
+	expectFalse(RL.allow(7, "Rem.A", 0.201), "the spammed bucket is empty")
+	expectTrue(RL.allow(7, "Rem.B", 0.201), "another remote of the same player is unaffected")
+	expectTrue(RL.allow(8, "Rem.A", 0.201), "another player is unaffected")
+	-- every server handler checks its limit before doing anything else, under a key of its own
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local keys, handlers = {}, 0
+	for i, l in ipairs(lines) do
+		local name = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect")
+		if name and not name:find("^Debug") then
+			handlers = handlers + 1
+			local key = (lines[i + 1] or ""):match('RateLimit%.allow%(player%.UserId, "([^"]+)"')
+			expectTrue(key ~= nil, name .. ": the first line of the handler is its rate limit check")
+			if key then
+				expectFalse(keys[key], name .. " shares its rate limit key " .. key .. " with " .. tostring(keys[key]))
+				keys[key] = name
+			end
+		end
+	end
+	expectTrue(handlers >= 55, "the audit saw every remote handler: " .. handlers)
+end })
+
+table.insert(tests, { name = "Daily Run: the same date gives every player the same shop and cards whatever their Tips, and a fixed board never swaps an offer for low Tips", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local dayStart = 1788134400
+	local function visit(userTips, timeOfDay)
+		local seed = SeededRng.dailySeed(dayStart + timeOfDay)
+		local state = RunState.new({ worldPlan = WorldMap.routeFromSeed("daily:" .. SeededRng.dailyDateKey(dayStart + timeOfDay)) }, SeededRng.new(seed))
+		state.tips = userTips
+		RunState.startRound(state)
+		local out = {}
+		for _, c in ipairs(state.hand) do out[#out + 1] = c.rank .. c.suit end
+		for _ = 1, 4 do
+			local o = Shop.rollOffers(state)
+			for _, p in ipairs(o.patrons) do out[#out + 1] = p.id end
+			for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+			out[#out + 1] = o.voucher and o.voucher.id or "none"
+		end
+		return table.concat(out, ",")
+	end
+	local reference = visit(4, 0)
+	for _, tips in ipairs({ 0, 4, 9, 40 }) do
+		for _, secondsIn in ipairs({ 0, 3600, 43200, 86399 }) do
+			expectEqual(visit(tips, secondsIn), reference, "Tips " .. tips .. " at second " .. secondsIn .. " of the day")
+		end
+	end
+	expectTrue(visit(4, 86400) ~= reference, "the next date is a different Daily")
+end })
+
+table.insert(tests, { name = "Endless Night 100: the full targetForRound path (boss, stake, Endless rules, every round) is finite, whole, positive and under the cap", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	for _, night in ipairs({ 9, 50, 100, 1000 }) do
+		for _, withRules in ipairs({ false, true }) do
+			for round = 1, 3 do
+				local state = RunState.new({ endlessRules = withRules }, SeededRng.new(night + round))
+				state.night = night
+				state.bossRoundsEnabled = true
+				state.nightBossModifier = BossRounds.getById("big_tab")
+				state.stakeRules = Stakes.rulesFor and Stakes.rulesFor(Stakes.MAX) or state.stakeRules
+				local t = RunState.targetForRound(state, round)
+				expectTrue(t == t and t > 0 and t <= ER.TARGET_CAP and t == math.floor(t), "Night " .. night .. " round " .. round .. " target " .. tostring(t))
+				state.targetMultiplier = 1e9 -- a runaway modifier still clamps
+				local big = RunState.targetForRound(state, round)
+				expectTrue(big == big and big <= ER.TARGET_CAP and big >= t, "runaway multiplier clamps at Night " .. night)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "First hand guidance: wrong inputs never advance or trap the tutorial, Skip works at every step, text names only controls on its screen", fn = function()
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
@@ -39141,6 +39460,89 @@ table.insert(tests, { name = "Leaderboards, Quests and Daily Rewards rows take t
 	end
 	local rs = read("RowSkin")
 	if rs then expectTrue(rs:find("rowStyleOf", 1, true) ~= nil, "RowSkin asks the pure rule") end
+end })
+
+table.insert(tests, { name = "FitAudit per Card Set: the table of all 14 rooms and Classic keeps hand, actions, plates and deck on screen, 44 px plates, no overlap at 4 sizes", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local rooms = {}
+	for _, s in ipairs(screens) do
+		if s.name:find("^Table room ") then rooms[#rooms + 1] = s end
+	end
+	assert(#rooms == 15, "Classic plus the 14 set rooms, got " .. #rooms)
+	for _, s in ipairs(rooms) do
+		for _, sz in ipairs(Audit.SIZES) do
+			for _, f in ipairs(Audit.checkScreen(s, sz[1], sz[2])) do
+				assert(false, s.name .. " " .. f.size .. " " .. f.rule .. ": " .. f.detail)
+			end
+			local rects = s.rects(sz[1], sz[2])
+			if sz[1] >= 900 then
+				assert(rects.hand and rects.actions and rects.deck and rects.platePlay, s.name .. " has a painted layout at " .. sz[1] .. "x" .. sz[2])
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Calm mode and Reduce motion: every Card Set effect (ambient objects, backdrop layers) is off, and every client file that animates a set gates on Calm", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local AL = require(Engine.AmbientLayout)
+	local TS = require(Engine.ThemeScenes)
+	local CSets = require(Engine.CosmeticSets)
+	local Acc = require(Engine.Accessibility)
+	-- Reduce motion, Reduce flashing and the old Calm switch all mean calm
+	expectTrue(Acc.calm({ reduceMotion = true }) and Acc.calm({ reduceFlashing = true }) and Acc.calm({ reduceShake = true }) and not Acc.calm({}))
+	local ids, seen = {}, {}
+	local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+	for _, id in ipairs(TS.ORDER) do add(id) end
+	for id in pairs(AL.SETS) do add(id) end
+	for _, def in ipairs(CSets.Definitions) do add(def.id) end
+	expectTrue(#ids >= 14, "walked at least the 14 sets, got " .. #ids)
+	local animated = 0
+	for _, id in ipairs(ids) do
+		expectEqual(#AL.list(id, true), 0, id .. " draws no ambient object in calm mode")
+		expectEqual(AL.objectCount(id, true), 0, id .. " counts none in calm mode")
+		local n = AL.objectCount(id, false)
+		expectTrue(n <= AL.MAX_OBJECTS, id .. " stays under the object cap")
+		if n > 0 then animated = animated + 1 end
+		-- a washed slot's backdrop layers are the only other per set motion; the renderer hides them all when calm (checked below)
+		local style = TS.washStyle(id, "menuBackdrop")
+		if style and style.layers then
+			for _, layer in ipairs(style.layers) do expectTrue(layer.count <= 18, id .. " layer count is small") end
+		end
+	end
+	expectTrue(animated >= 10, "most sets animate when calm is off, so the calm check above is real: " .. animated)
+	if not (io and io.open) then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	-- the files that draw or animate a set's effect: each one that tweens or loops must read the Calm switch
+	local files = { "AmbientLife", "BackdropStyles", "CosmeticSetsView", "TableLook", "ThemeWash", "MenuParallax" }
+	local gates = { "reduceShake", "motionAllowed", "Accessibility", "reduceMotion", "flashesAllowed", "isCalm" }
+	for _, name in ipairs(files) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			local animates = src:find("TweenService", 1, true) or src:find("TweenInfo", 1, true) or src:find("Heartbeat:Connect", 1, true)
+				or src:find("RenderStepped", 1, true) or src:find("FxLoop", 1, true)
+			if animates then
+				local gated = false
+				for _, g in ipairs(gates) do if src:find(g, 1, true) then gated = true end end
+				expectTrue(gated, name .. " animates a set effect without reading Calm mode or Reduce motion")
+			end
+		end
+	end
+	-- the backdrop renderer: calm hides every layer item and stops stepping; ambient scenes build zero objects in calm
+	local bd = read("src/Client/BackdropStyles.lua")
+	expectTrue(bd == nil or bd:find("not calm()", 1, true) ~= nil and bd:find("item.frame.Visible = run", 1, true) ~= nil, "BackdropStyles hides layers when calm")
+	local al = read("src/Client/AmbientLife.lua")
+	expectTrue(al == nil or al:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "AmbientLife builds nothing when calm")
+	-- the card back flip (an equip moment, not a layer) swaps at once when calm
+	local cv = read("src/Client/CosmeticSetsView.lua")
+	expectTrue(cv == nil or cv:find('get("reduceShake") == true', 1, true) ~= nil, "the card back flip tween is skipped when calm")
 end })
 
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()

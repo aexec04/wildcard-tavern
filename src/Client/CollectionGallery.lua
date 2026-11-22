@@ -520,7 +520,8 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 	local last = 0
 	local t0 = os.clock()
 	local wasHidden = false
-	RunService.Heartbeat:Connect(function()
+	local lanternConn
+	lanternConn = RunService.Heartbeat:Connect(function()
 		if not backdrop.Visible then
 			if not wasHidden then -- reset once on the way out; a hidden Collection costs nothing per frame
 				wasHidden = true
@@ -571,6 +572,7 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 			end
 		end
 	end)
+	backdrop.Destroying:Connect(function() lanternConn:Disconnect() end) -- the loop never outlives the panel
 end
 
 return CollectionGallery

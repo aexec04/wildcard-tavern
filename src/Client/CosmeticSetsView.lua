@@ -290,7 +290,7 @@ function M.apply(state)
 					applyArt(stack)
 				end
 			end
-			if lastBackId == nil then
+			if lastBackId == nil or require(script.Parent.ClientSettings).get("reduceShake") == true then -- Calm mode and Reduce motion: swap at once, no tween
 				applyArt(cardArt)
 			else
 				-- Equip moment: flip the pile (scale X 1 -> 0 -> 1 over 0.35s), swapping the art at the midpoint.
