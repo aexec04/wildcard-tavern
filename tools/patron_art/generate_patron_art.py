@@ -328,6 +328,16 @@ for _s in ("frost", "fest", "close"):
         CATEGORY_OPTS["shop_scene"]["references"]["shop_marlo_%s_%s" % (_s, _p)] = "art-wip/shop_scene/shop_marlo_%s.png" % _p
     for _p in ("dark", "green"):
         CATEGORY_OPTS["painted_kit"]["references"]["pk_%s_btn_%s" % (_s, _p)] = "art-wip/painted_kit/pk_w_btn_%s.png" % _p
+# ten more card sets identity: shop room, keeper pieces and two plates per set
+for _s in ("dune", "marsh", "hearth", "harbor", "feast", "harvest", "wtable", "meadow", "river", "summit"):
+    CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_" + _s)
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_" + _s] = "1536x1024"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_" + _s] = "art-wip/shop_scene/shop_room_a.png"
+    for _p in ("behind", "wave"):
+        CATEGORY_OPTS["shop_scene"]["sizes"]["shop_marlo_%s_%s" % (_s, _p)] = "1024x1536"
+        CATEGORY_OPTS["shop_scene"]["references"]["shop_marlo_%s_%s" % (_s, _p)] = "art-wip/shop_scene/shop_marlo_%s.png" % _p
+    for _p in ("dark", "green"):
+        CATEGORY_OPTS["painted_kit"]["references"]["pk_%s_btn_%s" % (_s, _p)] = "art-wip/painted_kit/pk_w_btn_%s.png" % _p
 # deck tray and bottom rail: edits of crops of the table reference (made by _add_table_art_prompts.py)
 CATEGORY_OPTS["concept_t"]["sizes"].update({"ct_deck_tray": "1024x1024", "ct_rail_strip": "1536x1024"})
 CATEGORY_OPTS["concept_t"]["references"].update({"ct_deck_tray": "art-wip/table_art/ref_tray.png", "ct_rail_strip": "art-wip/table_art/ref_rail.png"})

@@ -15908,6 +15908,10 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true, shop_room_gala = true, shop_marlo_gala_behind = true, shop_marlo_gala_wave = true,
 		shop_room_frost = true, shop_room_fest = true, shop_room_close = true, shop_marlo_frost_behind = true, shop_marlo_frost_wave = true, shop_marlo_fest_behind = true,
 		shop_marlo_fest_wave = true, shop_marlo_close_behind = true, shop_marlo_close_wave = true,
+		shop_room_dune = true, shop_room_marsh = true, shop_room_hearth = true, shop_room_harbor = true, shop_room_feast = true, shop_room_harvest = true, shop_room_wtable = true, shop_room_meadow = true, shop_room_river = true, shop_room_summit = true,
+		shop_marlo_dune_behind = true, shop_marlo_dune_wave = true, shop_marlo_marsh_behind = true, shop_marlo_marsh_wave = true, shop_marlo_hearth_behind = true, shop_marlo_hearth_wave = true, shop_marlo_harbor_behind = true, shop_marlo_harbor_wave = true,
+		shop_marlo_feast_behind = true, shop_marlo_feast_wave = true, shop_marlo_harvest_behind = true, shop_marlo_harvest_wave = true, shop_marlo_wtable_behind = true, shop_marlo_wtable_wave = true, shop_marlo_meadow_behind = true, shop_marlo_meadow_wave = true,
+		shop_marlo_river_behind = true, shop_marlo_river_wave = true, shop_marlo_summit_behind = true, shop_marlo_summit_wave = true,
 		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
@@ -21498,13 +21502,14 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows", "HudStyle" }) do map[n] = require(E[n]) end
 	local stubs = {}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
 	local UDim2 = env.UDim2
 	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 	stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+	stubs.HudTheme = { setId = function() return nil end, skin = function() return { colors = nil } end, onSkin = function() end }
 	local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
 	local PlayDeckPaint = FakeGui.load("src/Client/PlayDeckPaint.lua", env)
 	local function mk(class, name, parent, order)
@@ -32028,7 +32033,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 33, "thirty three painted pieces (six more: two plates each for Frosted Garden, Mountain Festival and Closing Time), and before them: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice), the nine whole-picture plates and the three Golden Gala palace plates")
+	expectTrue(n == 53, "fifty three painted pieces (twenty more: two plates each for ten more card sets), and before them: six for Frosted Garden, Mountain Festival and Closing Time, the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice), the nine whole-picture plates and the three Golden Gala palace plates")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -37733,7 +37738,7 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 		expectTrue(gown == true and cown == false, "only the set with its own room hides the classic strip")
 		expectEqual(cid, SSA.shop_room_a, "classic Counter room stays shop_room_a")
 		expectTrue(gid ~= cid, "golden_gala and classic draw different Counter rooms")
-		expectEqual(select(1, TS.shopRoomId("meadow_picnic")), SSA.shop_room_a, "other sets keep the classic room")
+		expectEqual(select(1, TS.shopRoomId("classic_tavern")), SSA.shop_room_a, "classic keeps the classic room")
 		expectEqual(select(1, TS.shopRoomId(nil)), SSA.shop_room_a, "no set means classic")
 		do -- the keeper: courtier for golden_gala, classic Marlo everywhere else (ShopBackdrop applies this on build, skin change and preview)
 			local gb, gw, gown = TS.shopKeeperIds("golden_gala")
@@ -37744,7 +37749,7 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 			expectEqual(cb, SSA.shop_marlo_behind, "classic keeper unchanged")
 			expectEqual(cw, SSA.shop_marlo_wave, "classic keeper wave unchanged")
 			expectTrue(gb ~= cb and gw ~= cw, "gala and classic keepers differ")
-			expectEqual(select(1, TS.shopKeeperIds("meadow_picnic")), SSA.shop_marlo_behind, "other sets keep Marlo")
+			expectEqual(select(1, TS.shopKeeperIds("classic_tavern")), SSA.shop_marlo_behind, "classic keeps Marlo")
 			expectEqual(select(1, TS.shopKeeperIds(nil)), SSA.shop_marlo_behind, "no set means Marlo")
 		end
 		local full = { 240, 235, 215 }
@@ -39862,11 +39867,54 @@ table.insert(tests, { name = "Card set identity: Frosted Garden, Mountain Festiv
 			seen[Art[p.art]] = true
 		end
 	end
-	for _, setId in ipairs({ nil, "classic_tavern", "meadow_picnic", "riverside_evening" }) do
+	for _, setId in ipairs({ nil, "classic_tavern", "no_such_set" }) do
 		expectEqual(select(1, TS.shopRoomId(setId)), SSA.shop_room_a, tostring(setId) .. " keeps the classic room")
 		expectEqual(select(1, TS.shopKeeperIds(setId)), SSA.shop_marlo_behind, tostring(setId) .. " keeps Marlo")
 		expectEqual(Style.buttonPiece("primary", 310, 80, setId), "wh_btn_green", tostring(setId) .. " keeps the classic plate")
 	end
 end })
 
+table.insert(tests, { name = "Card set identity: the ten biome and seasonal sets each have their own Counter room, keeper and plates, all ids unique", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local SSA = require(script.Parent.Parent.Engine.ShopSceneArt)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	local function good(id) return type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0" end
+	local cases = {
+		dune_market = "dune", marsh_lanterns = "marsh", snowy_hearth = "hearth", harbor_lights = "harbor", tavern_feast = "feast",
+		harvest_table = "harvest", winter_table = "wtable", meadow_picnic = "meadow", riverside_evening = "river", summit_camp = "summit",
+	}
+	local seen = {}
+	local function unique(id, what)
+		expectTrue(good(id), what .. " is a well formed id")
+		expectTrue(not seen[id], what .. " is unique")
+		seen[id] = true
+	end
+	for setId, key in pairs(cases) do
+		local rid, own = TS.shopRoomId(setId)
+		expectEqual(rid, SSA["shop_room_" .. key], setId .. " room is its own picture")
+		expectTrue(own == true, setId .. " own room flag")
+		expectEqual(TS.shopTableShown(own, true, false), false, setId .. " hides the drawn green table")
+		unique(rid, setId .. " room")
+		local b, w, kown = TS.shopKeeperIds(setId)
+		expectEqual(b, SSA["shop_marlo_" .. key .. "_behind"], setId .. " keeper behind piece")
+		expectEqual(w, SSA["shop_marlo_" .. key .. "_wave"], setId .. " keeper wave piece")
+		expectTrue(kown == true and b ~= SSA.shop_marlo_behind and w ~= SSA.shop_marlo_wave, setId .. " keeper differs from Marlo")
+		unique(b, setId .. " keeper behind")
+		unique(w, setId .. " keeper wave")
+		expectEqual(Style.buttonPiece("primary", 310, 80, setId), key .. "_wh_btn_green", setId .. " primary plate")
+		expectEqual(Style.buttonPiece("secondary", 310, 80, setId), key .. "_wh_btn_dark", setId .. " secondary plate")
+		expectEqual(Style.buttonPiece("primary", 900, 44, setId), "orn_btn_green", setId .. " Select bar stays classic")
+		for classic, mine in pairs(Style.SET_PLATES[setId]) do
+			local cp, p = Style.PAINTED[classic], Style.PAINTED[mine]
+			expectEqual(p.src[1], cp.src[1], mine .. " width matches " .. classic)
+			expectEqual(p.src[2], cp.src[2], mine .. " height matches " .. classic)
+			expectEqual(p.whole, cp.whole, mine .. " whole flag matches")
+			expectTrue(Art[p.art] ~= Art[cp.art], mine .. " differs from the classic plate")
+			unique(Art[p.art], mine .. " plate")
+		end
+	end
+end })
+
 return tests
+

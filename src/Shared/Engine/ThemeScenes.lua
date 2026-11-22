@@ -66,6 +66,16 @@ local THEME_ART = {
 	winter_evening = { menuBackdrop = "table_scene:theme_ice_menu", bossTableBackground = "table_scene:theme_ice_boss", mapBackdrop = "table_scene:theme_ice_map", shopBackdrop = "shop_scene:shop_room_frost" },
 	festival_night = { shopBackdrop = "shop_scene:shop_room_fest" },
 	closing_time = { shopBackdrop = "shop_scene:shop_room_close" },
+	dune_market = { shopBackdrop = "shop_scene:shop_room_dune" },
+	marsh_lanterns = { shopBackdrop = "shop_scene:shop_room_marsh" },
+	snowy_hearth = { shopBackdrop = "shop_scene:shop_room_hearth" },
+	harbor_lights = { shopBackdrop = "shop_scene:shop_room_harbor" },
+	tavern_feast = { shopBackdrop = "shop_scene:shop_room_feast" },
+	harvest_table = { shopBackdrop = "shop_scene:shop_room_harvest" },
+	winter_table = { shopBackdrop = "shop_scene:shop_room_wtable" },
+	meadow_picnic = { shopBackdrop = "shop_scene:shop_room_meadow" },
+	riverside_evening = { shopBackdrop = "shop_scene:shop_room_river" },
+	summit_camp = { shopBackdrop = "shop_scene:shop_room_summit" },
 	golden_gala = { menuBackdrop = "table_scene:theme_gala_menu", bossTableBackground = "table_scene:theme_gala_boss", tablePlay = "table_scene:theme_gala_play", shopBackdrop = "shop_scene:shop_room_gala" },
 }
 
@@ -116,6 +126,16 @@ local KEEPER_OF = {
 	winter_evening = { behind = "shop_marlo_frost_behind", wave = "shop_marlo_frost_wave" },
 	festival_night = { behind = "shop_marlo_fest_behind", wave = "shop_marlo_fest_wave" },
 	closing_time = { behind = "shop_marlo_close_behind", wave = "shop_marlo_close_wave" },
+	dune_market = { behind = "shop_marlo_dune_behind", wave = "shop_marlo_dune_wave" },
+	marsh_lanterns = { behind = "shop_marlo_marsh_behind", wave = "shop_marlo_marsh_wave" },
+	snowy_hearth = { behind = "shop_marlo_hearth_behind", wave = "shop_marlo_hearth_wave" },
+	harbor_lights = { behind = "shop_marlo_harbor_behind", wave = "shop_marlo_harbor_wave" },
+	tavern_feast = { behind = "shop_marlo_feast_behind", wave = "shop_marlo_feast_wave" },
+	harvest_table = { behind = "shop_marlo_harvest_behind", wave = "shop_marlo_harvest_wave" },
+	winter_table = { behind = "shop_marlo_wtable_behind", wave = "shop_marlo_wtable_wave" },
+	meadow_picnic = { behind = "shop_marlo_meadow_behind", wave = "shop_marlo_meadow_wave" },
+	riverside_evening = { behind = "shop_marlo_river_behind", wave = "shop_marlo_river_wave" },
+	summit_camp = { behind = "shop_marlo_summit_behind", wave = "shop_marlo_summit_wave" },
 }
 function ThemeScenes.shopKeeperIds(setId)
 	local ContentArt = require(script.Parent.ContentArt)

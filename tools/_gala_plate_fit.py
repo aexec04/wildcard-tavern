@@ -6,7 +6,7 @@ from PIL import Image
 
 R = pathlib.Path(__file__).resolve().parents[1] / "art-wip" / "painted_kit"
 WANT = {"pk_gala_btn_dark": (1382, 402), "pk_gala_btn_green": (1498, 410), "pk_gala_orn_btn_green": (1348, 562)}
-for _s in ("frost", "fest", "close"):  # Frosted Garden, Mountain Festival, Closing Time plates
+for _s in ("frost", "fest", "close", "dune", "marsh", "hearth", "harbor", "feast", "harvest", "wtable", "meadow", "river", "summit"):  # per set plates
     WANT["pk_%s_btn_dark" % _s] = (1382, 402)
     WANT["pk_%s_btn_green" % _s] = (1498, 410)
 if len(sys.argv) > 1:  # optional name filters, e.g. frost fest close
