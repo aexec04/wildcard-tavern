@@ -37278,4 +37278,199 @@ table.insert(tests, { name = "Roblox policy: Robux items are fixed (no random or
 	end
 end })
 
+table.insert(tests, { name = "Automated new player run: fresh profile, Night 1 to 2 with a legal-hand bot, late load, leave and rejoin; rewards once, progress saved, Tavern Map advances", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local clock = 1000
+	local function now() return clock end
+	local waits = 0
+	local function wait(s) waits = waits + 1; clock = clock + s end
+	-- a fake DataStore: fails its first `failFirst` calls, then behaves like UpdateAsync
+	local function fakeStore(initial, failFirst)
+		local f = { value = initial, writes = 0, left = failFirst or 0 }
+		function f:UpdateAsync(_, fn)
+			if self.left > 0 then
+				self.left = self.left - 1
+				error("DataStore request timed out")
+			end
+			local new = fn(self.value)
+			if new ~= nil then
+				-- a real store serialises: copy so later in-memory edits do not leak into the saved copy
+				local copy = {}
+				for k, v in pairs(new) do copy[k] = v end
+				self.value = copy
+				self.writes = self.writes + 1
+			end
+		end
+		return f
+	end
+	-- server side: load the profile the way Server/init.server.lua does (blocked = playing on a profile that is never saved)
+	local function join(store, jobId)
+		local status, stored = SaveLock.load(store, "p1", jobId, now, SaveLock.RETRY_DELAYS, wait)
+		local player = { jobId = jobId, status = status, blocked = status ~= "ok" }
+		player.profile = status == "ok" and PlayerProfile.migrate(stored) or PlayerProfile.new()
+		return player
+	end
+	local function save(store, player, release)
+		if player.blocked then return "blocked" end
+		return SaveLock.save(store, "p1", player.profile, player.jobId, now, release, SaveLock.SAVE_RETRY_DELAYS, wait)
+	end
+	-- the same module calls syncProfileFromSession makes after every state push
+	local function sync(player, session)
+		local s, profile = session.state, player.profile
+		PlayerProfile.recordNightReached(profile, s.night)
+		if s.wonRun and not session.lastKnownWonRun then
+			session.lastKnownWonRun = true
+			PlayerProfile.recordRunWon(profile)
+		end
+		local cleared = JourneyMap.nightsClearedFor(s)
+		local _, counted = PlayerProfile.recordWorldProgress(profile, s.worldRoute, cleared, session.worldCounted)
+		session.worldCounted = counted
+		for _, night in ipairs(JourneyMap.recordNightsCleared(profile, cleared)) do
+			session.granted[night] = (session.granted[night] or 0) + 1
+		end
+	end
+	local function startRun(player, seed)
+		local session = { state = RunState.new(nil, SeededRng.new(seed)), phase = "roundSelect", granted = {} }
+		PlayerProfile.recordRunStarted(player.profile)
+		return session
+	end
+	local function cardCount(s) return #s.deck + #s.hand + #s.discardPile end
+	-- a bot that only ever plays a legal hand; returns true when the round was cleared
+	local function playRound(player, session)
+		local s = session.state
+		local total = cardCount(s)
+		s.targetScore = 1 -- an easy target so the script always reaches the Counter
+		local guard = 0
+		while not s.roundOver and not s.runOver and guard < 12 do
+			guard = guard + 1
+			expectTrue(#s.hand >= 1 and RunState.hasLegalPlay(s), "a legal play always exists")
+			local ok = pcall(RunState.playHand, s, { 1 })
+			if not ok then ok = pcall(RunState.playHand, s, { 1, 2, 3, 4, 5 }) end
+			expectTrue(ok or s.roundOver or s.runOver, "the bot's legal hand is accepted")
+			sync(player, session)
+		end
+		expectEqual(cardCount(s), total, "no card is lost in the round")
+		expectTrue(guard < 12, "the round ends, no soft lock")
+		return s.roundOver and not s.runOver
+	end
+	local function shopAndAdvance(player, session)
+		local s = session.state
+		local offers = Shop.rollOffers(s)
+		for _, offer in ipairs(offers.patrons or {}) do
+			if s.tips >= RunState.patronPrice(s, offer) and #s.ownedPatrons < RunState.patronSlotLimit(s) then
+				RunState.buyPatron(s, offer.id)
+				break
+			end
+		end
+		expectTrue(s.tips >= 0, "Tips never negative after the shop")
+		RunState.advanceToNextRound(s)
+		sync(player, session)
+	end
+	local function playNight(player, session)
+		local s = session.state
+		local night = s.night
+		for r = 1, s.config.roundsPerNight do
+			expectEqual(s.night, night, "still on the same Night")
+			expectEqual(s.round, r, "rounds come in order")
+			expectTrue(playRound(player, session), "round " .. r .. " is cleared")
+			shopAndAdvance(player, session)
+		end
+		expectEqual(s.night, night + 1, "the Night advances after its boss round")
+	end
+	local function rewardCount(profile)
+		local n = 0
+		for _, t in ipairs({ profile.unlockedCardBackIds, profile.ownedSetIds, profile.rewardTitleIds }) do
+			for _ in pairs(t) do n = n + 1 end
+		end
+		return n
+	end
+
+	-- 1. fresh profile, good store: Night 1 then Night 2, saved after each Night
+	local store = fakeStore(nil)
+	local p = join(store, "A")
+	expectEqual(p.status, "ok")
+	expectEqual(p.profile.stats.runsStarted, 0)
+	local session = startRun(p, 11)
+	expectEqual(p.profile.stats.runsStarted, 1)
+	expectTrue(next(p.profile.clearedNightIds) == nil, "a new player has cleared no Night")
+	playNight(p, session)
+	expectEqual(save(store, p, false), "ok")
+	expectTrue(p.profile.clearedNightIds[1] == true, "Night 1 is on the Tavern Map")
+	expectEqual(session.granted[1], 1, "the Night 1 reward is granted exactly once")
+	local rewards1 = rewardCount(p.profile)
+	for _ = 1, 5 do sync(p, session) end -- repeated pushes change nothing
+	expectEqual(rewardCount(p.profile), rewards1, "repeat pushes never grant twice")
+	expectEqual(session.granted[1], 1)
+	clock = clock + SaveLock.MIN_SAVE_GAP
+	playNight(p, session)
+	expectEqual(save(store, p, false), "ok")
+	expectTrue(p.profile.clearedNightIds[2] == true, "the map advances to Night 2")
+	expectEqual(session.granted[2], 1)
+	local roadClears = 0
+	for _, n in pairs(p.profile.worldBiomeClears) do roadClears = roadClears + n end
+	expectTrue(roadClears >= 1 and next(p.profile.worldSeenStopIds) ~= nil, "the road on the Tavern Map records the cleared stops")
+	expectEqual(session.granted[1], 1, "Night 1 is not granted again")
+	expectTrue(p.profile.stats.bestNightReached >= 3, "best Night reached is recorded")
+	expectEqual(save(store, p, true), "ok")
+	expectEqual(store.value.sessionLock, nil, "leaving releases the lease")
+	expectTrue(store.value.clearedNightIds[1] and store.value.clearedNightIds[2], "progress is in the saved copy")
+
+	-- 2. leave and rejoin on another server: progress kept, a new run starts, nothing granted twice
+	local rejoin = join(store, "B")
+	expectEqual(rejoin.status, "ok")
+	expectTrue(rejoin.profile.clearedNightIds[1] and rejoin.profile.clearedNightIds[2], "rejoin sees both cleared Nights")
+	expectEqual(rejoin.profile.stats.runsStarted, 1)
+	local rewardsSaved = rewardCount(rejoin.profile)
+	local run2 = startRun(rejoin, 12)
+	expectEqual(rejoin.profile.stats.runsStarted, 2)
+	clock = clock + SaveLock.MIN_SAVE_GAP
+	playNight(rejoin, run2)
+	expectEqual(run2.granted[1], nil, "replaying Night 1 grants nothing new")
+	expectEqual(rewardCount(rejoin.profile), rewardsSaved, "rewards stay granted once across runs")
+	expectEqual(save(store, rejoin, false), "ok")
+
+	-- 3. leave mid round without the final save (a crash): the last good save survives, the lease expires, a rejoin works
+	local mid = fakeStore(nil)
+	local m = join(mid, "A")
+	local ms = startRun(m, 13)
+	playNight(m, ms)
+	expectEqual(save(mid, m, false), "ok")
+	local lastGood = mid.value.clearedNightIds[1]
+	expectTrue(playRound(m, ms)) -- mid Night 2, never saved
+	local blockedJoin = join(mid, "B")
+	expectEqual(blockedJoin.status, "locked")
+	expectEqual(save(mid, blockedJoin, false), "blocked", "a locked profile is never written")
+	expectEqual(mid.value.clearedNightIds[1], lastGood, "the other server did not overwrite the last good save")
+	clock = clock + SaveLock.LEASE + 1
+	local back = join(mid, "B")
+	expectEqual(back.status, "ok")
+	expectTrue(back.profile.clearedNightIds[1], "after the lease expires the player gets the last good save")
+
+	-- 4. profile loads late: the first calls time out, the retry delays wait, then it loads and play is normal
+	local late = fakeStore({ clearedNightIds = { [1] = true }, stats = { runsStarted = 4, bestNightReached = 3 } }, 2)
+	waits = 0
+	local l = join(late, "A")
+	expectEqual(l.status, "ok")
+	expectEqual(waits, 2, "two retries before the profile loaded")
+	expectEqual(l.profile.stats.runsStarted, 4, "the real stored profile is used, not a blank one")
+	local lr = startRun(l, 14)
+	expectEqual(l.profile.stats.runsStarted, 5)
+	playNight(l, lr)
+	expectEqual(lr.granted[1], nil, "Night 1 reward was already earned before the late load")
+	expectEqual(save(late, l, true), "ok")
+	expectEqual(late.value.stats.runsStarted, 5)
+
+	-- 5. the profile never loads: the player still plays a full Night, nothing is ever written over the real save
+	local dead = fakeStore({ clearedNightIds = { [1] = true }, stats = { runsStarted = 9 } }, 99)
+	local d = join(dead, "A")
+	expectEqual(d.status, "error")
+	expectTrue(d.blocked)
+	local dr = startRun(d, 15)
+	playNight(d, dr)
+	expectEqual(save(dead, d, false), "blocked")
+	expectEqual(save(dead, d, true), "blocked")
+	expectEqual(dead.writes, 0, "a failed load never writes")
+	expectEqual(dead.value.stats.runsStarted, 9, "the real save is untouched")
+end })
+
 return tests
