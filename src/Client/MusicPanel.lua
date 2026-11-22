@@ -359,6 +359,16 @@ function M.install(root)
 		warn("MUSIC_PACK game pass id not set (src/Shared/Engine/GamePasses.lua)")
 	end
 
+	-- the equipped Card Set dresses the panel: fill, gold edge, title, Now playing and track names at 7:1 (CosmeticSets.popupStyleOf); classic unchanged
+	do
+		local labels = { { title, rgb("cream") }, { nowLabel, GOLD }, { sTitle, rgb("cream") }, { sLine, rgb("creamSoft") } }
+		for _, row in ipairs(rowsHost:GetChildren()) do
+			local nm = row:IsA("TextButton") and row:FindFirstChildWhichIsA("TextLabel")
+			if nm then labels[#labels + 1] = { nm, CREAM } end
+		end
+		pcall(function() require(script.Parent.PopupSkin).dark(panel, ps, labels, { plate = rgb("plateDark"), edge = rgb("goldTrim") }) end)
+	end
+
 	local function close() backdrop.Visible = false end
 	pcall(function() require(script.Parent.CloseX).attach(panel, close, { inset = 8, top = 8, z = Z + 6 }) end)
 	backdrop.MouseButton1Click:Connect(close)

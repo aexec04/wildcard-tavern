@@ -326,12 +326,10 @@ return function(deps)
 	overallBar.ZIndex = 21
 	overallBar.Parent = panel
 	roundCorner(overallBar, 6)
-	do -- the progress line sits on a brass-edged plaque under the sign (dark inside, so the text keeps its contrast)
-		local plaque = Instance.new("UIStroke")
-		plaque.Color = Color3.fromRGB(190, 146, 64)
-		plaque.Thickness = 2
-		plaque.Parent = overallBar
-	end
+	local plaque = Instance.new("UIStroke") -- the progress line sits on a brass-edged plaque under the sign (dark inside, so the text keeps its contrast)
+	plaque.Color = Color3.fromRGB(190, 146, 64)
+	plaque.Thickness = 2
+	plaque.Parent = overallBar
 
 	local overallFill = Instance.new("Frame")
 	overallFill.Size = UDim2.fromScale(0, 1)
@@ -353,6 +351,23 @@ return function(deps)
 	local overallText = barLine(0, Enum.TextXAlignment.Left, 0.3)
 	local overallNext = barLine(0, Enum.TextXAlignment.Right, 0.7)
 	local overallUnlock = barLine(0.5, Enum.TextXAlignment.Left, 1)
+	-- the equipped Card Set dresses the progress plaque, the filter plate and the tiles: fill, edge and ink at 7:1 (CosmeticSets.popupStyleOf); classic unchanged
+	local function setDark() -- { fill, edge, ink } of the equipped set, or nil for classic
+		local d
+		pcall(function()
+			local CS = require(Engine:WaitForChild("CosmeticSets"))
+			local st = CS.popupStyleOf(require(script.Parent.TavernKit).plateSetId())
+			d = st and st.dark
+		end)
+		return d
+	end
+	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	pcall(function()
+		local PS = require(script.Parent.PopupSkin)
+		local cream = Color3.fromRGB(245, 232, 200)
+		PS.dark(overallBar, plaque, { { overallText, cream }, { overallNext, cream }, { overallUnlock, cream } },
+			{ plate = Color3.fromRGB(35, 26, 18), edge = Color3.fromRGB(190, 146, 64) })
+	end)
 
 	-- Tabs: the gallery room is the way in, so these are only a quiet row of small plates (for the keyboard and for phones). They scroll
 	-- sideways when the panel is narrower than the row.
@@ -389,8 +404,10 @@ return function(deps)
 	legendRow.ZIndex = 21
 	legendRow.Parent = panel
 	roundCorner(legendRow, 8)
+	local legendRim
 	do
 		local rim = Instance.new("UIStroke")
+		legendRim = rim
 		rim.Color = Color3.fromRGB(196, 156, 74)
 		rim.Thickness = 1.5
 		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -447,7 +464,8 @@ return function(deps)
 			-- unchecked: dark swatch, no tick, dim name (the ring keeps the tier color)
 			swatch.BackgroundColor3 = on and tierColor or Color3.fromRGB(34, 26, 18)
 			check.Visible = on
-			name.TextColor3 = on and SOFT_CREAM or Color3.fromRGB(176, 164, 148) -- an unchecked tier is dimmer but still 5:1 on the wooden plate
+			local d = setDark()
+			name.TextColor3 = on and (d and c3(d.ink) or SOFT_CREAM) or Color3.fromRGB(176, 164, 148) -- an unchecked tier is dimmer but still 5:1 on the wooden plate
 		end
 		paint()
 		chip.MouseButton1Click:Connect(function()
@@ -458,6 +476,7 @@ return function(deps)
 		end)
 	end
 
+	pcall(function() require(script.Parent.PopupSkin).dark(legendRow, legendRim, {}, { plate = Color3.fromRGB(62, 42, 26), edge = Color3.fromRGB(196, 156, 74) }) end)
 	local furniture = Gallery.mountFurniture(panel) -- the tab's painted board or shelf, behind the grid (made before it)
 	Gallery.chestApi = Gallery.mountChest(panel) -- milestone chest on the floor, bottom right
 	local scroll = Instance.new("ScrollingFrame")
@@ -972,6 +991,11 @@ return function(deps)
 		end
 		if not framed and not fxKind then
 			roundCorner(tile, 8)
+			local d = setDark() -- a set tile takes the set fill (a locked one at 55 percent of it) and its ink; the rarity frame below is untouched
+			if d then
+				local f = c3(d.fill)
+				tile.BackgroundColor3 = found and f or f:Lerp(Color3.fromRGB(0, 0, 0), 0.45)
+			end
 			-- Rarity glow: a colored stroke plus a soft wash behind the icon.
 			-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
 			RarityFrame.apply(tile, CollectionBook.rarityOf(item), {
@@ -1049,6 +1073,8 @@ return function(deps)
 				TextColor3 = found and CREAM or DIM,
 				Text = shownName(item),
 			})
+			local d = setDark()
+			if d and found and not fxKind then nameLabel.TextColor3 = c3(d.ink) end
 		end
 
 		-- hand-hung: a fixed tiny tilt and offset per Patron (the "New" tag and the drop-in follow it)

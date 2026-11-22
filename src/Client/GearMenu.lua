@@ -185,6 +185,19 @@ function M.install(deps)
 		label.Position = UDim2.fromOffset(18, 0)
 		tomeRows[def.id] = { button = b, def = def }
 	end
+	-- the equipped Card Set dresses both dropdowns: panel fill, gold edge and row ink at 7:1 (CosmeticSets.popupStyleOf); classic keeps its colours
+	do
+		local PopupSkin = require(script.Parent.PopupSkin)
+		local classic = { plate = rgb("plateDark"), edge = rgb("goldTrim") }
+		local mLabels, tLabels = {}, {}
+		for _, r in pairs(rows) do mLabels[#mLabels + 1] = { r.label, rgb("cream") } end
+		for _, r in pairs(tomeRows) do
+			local l = r.button:FindFirstChildWhichIsA("TextLabel", true)
+			if l then tLabels[#tLabels + 1] = { l, rgb("cream") } end
+		end
+		pcall(PopupSkin.dark, menu, ms, mLabels, classic)
+		pcall(PopupSkin.dark, tomeMenu, tomeMenu:FindFirstChildOfClass("UIStroke"), tLabels, classic)
+	end
 	if game:GetService("RunService"):IsStudio() then
 		local names = {}
 		for _, def in ipairs(G.TOME_ROWS) do names[#names + 1] = def.label end
@@ -244,6 +257,7 @@ function M.install(deps)
 			local r = tomeRows[rr.id]
 			r.button.Position = UDim2.fromOffset(rr.x, rr.y)
 			r.button.Size = UDim2.fromOffset(rr.w - (tr.scroll and 6 or 0), rr.h)
+			pcall(Kit.setPlateButton, r.button, "secondary") -- the set's own dark plate; classic keeps the painted secondary plate
 		end
 		local mr = G.menuRect(size.X, size.Y)
 		menu.Position = UDim2.fromOffset(mr.x, mr.y)
@@ -254,6 +268,7 @@ function M.install(deps)
 			local r = rows[rr.id]
 			r.button.Position = UDim2.fromOffset(rr.x, rr.y)
 			r.button.Size = UDim2.fromOffset(rr.w - (mr.scroll and 6 or 0), rr.h)
+			pcall(Kit.setPlateButton, r.button, "secondary")
 		end
 	end
 

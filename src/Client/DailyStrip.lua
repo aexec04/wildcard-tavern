@@ -177,6 +177,7 @@ function M.update(state)
 			if remote and chest:GetAttribute("State") == "ready" and day then
 				chest:SetAttribute("State", "opened") -- one click per day; the server decides the rest
 				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
+				pcall(function() require(script.Parent.ClaimGlow).glow(chest) end)
 				remote:FireServer(day)
 			end
 		end)

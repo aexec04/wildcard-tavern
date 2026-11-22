@@ -5143,6 +5143,79 @@ table.insert(tests, { name = "BossOutfits: every boss has a valid outfit (known 
 	checkOutfit("unknown", BossOutfits.resolve("no_such_boss", false)) -- falls back to Default
 end })
 
+table.insert(tests, { name = "ClaimMoment: every set gets the claim cue and a 0.4 s accent glow at 3:1, Calm mode gets the cue and no glow, claim sites call it", fn = function()
+	local CM = require(script.Parent.Parent.Engine.ClaimMoment)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local colours = {}
+	for _, set in ipairs(CS.Definitions) do
+		local plan = CM.plan(set.id, false)
+		expectEqual(plan.cue, "reward_claim", set.id .. " plays the existing claim cue")
+		expectTrue(plan.glow ~= nil and plan.glow.seconds == 0.4, set.id .. " glows for 0.4 s")
+		expectTrue(CS.contrastRatio(plan.glow.color, CS.FOCUS_RING_BACKING) >= 3, set.id .. " glow reads on the dark wood")
+		local calm = CM.plan(set.id, true)
+		expectEqual(calm.cue, "reward_claim", set.id .. " keeps the cue in Calm mode")
+		expectEqual(calm.glow, nil, set.id .. " has no glow in Calm mode")
+		colours[table.concat(plan.glow.color, ",")] = true
+	end
+	local n = 0
+	for _ in pairs(colours) do n = n + 1 end
+	expectTrue(n >= 10, "sets glow in their own colours")
+	if io and io.open then
+		for _, file in ipairs({ "src/Client/SeasonPanel.lua", "src/Client/DailyStrip.lua" }) do
+			local f = assert(io.open(file, "r"))
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("ClaimGlow", 1, true) ~= nil, file .. " glows on claim")
+		end
+		local f = assert(io.open("src/Client/ClaimGlow.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("plan.glow", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil, "ClaimGlow asks the calm switch before it tweens")
+	end
+end })
+table.insert(tests, { name = "Strings: every id has safe English text (no em dash, no double dash, no banned word), unknown ids echo, and Settings uses ids for the moved lines", fn = function()
+	local Strings = require(script.Parent.Parent.Engine.Strings)
+	local n = 0
+	for id, text in pairs(Strings.en) do
+		n = n + 1
+		expectTrue(type(text) == "string" and #text > 0, id .. " has text")
+		expectTrue(not text:find("\226\128\148", 1, true) and not text:find("--", 1, true), id .. " has no em dash or double dash")
+		expectTrue(not text:lower():find("balatro", 1, true), id .. " has no banned word")
+		expectEqual(Strings.get(id), text, id .. " resolves")
+	end
+	expectTrue(n >= 16, "the moved Settings lines are present")
+	expectEqual(Strings.get("no.such.id"), "no.such.id", "unknown id echoes")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		for id in pairs(Strings.en) do
+			expectTrue(src:find('S("' .. id .. '")', 1, true) ~= nil, "Settings uses " .. id)
+		end
+	end
+end })
+table.insert(tests, { name = "Image count audit: the menu preloads under 150 images, no url is loaded twice across phases, per set art stays lazy", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local seen, perPhase, total = {}, {}, 0
+	for _, phase in ipairs(ContentArt.PreloadPlan) do
+		local urls = ContentArt.collectUrls(phase.items)
+		local fresh = 0
+		for _, u in ipairs(urls) do
+			if not seen[u] then seen[u] = true; fresh = fresh + 1 end -- ContentArt.preload skips a url that an earlier phase asked for
+		end
+		perPhase[#perPhase + 1] = phase.name .. "=" .. fresh
+		total = total + fresh
+	end
+	print("[ImageCount] new images per phase: " .. table.concat(perPhase, " ") .. " total=" .. total)
+	local menu = ContentArt.collectUrls(ContentArt.PreloadPlan[1].items)
+	expectTrue(#menu < 150, "the menu phase loads under 150 images, got " .. #menu)
+	expectTrue(#menu + #ContentArt.collectUrls(ContentArt.PreloadPlan[2].items) < 150 or ContentArt.PreloadPlan[2].delay >= 2, "the next phase waits 2 s")
+	local lazy = {}
+	for _, c in ipairs(ContentArt.LazyCategories) do lazy[c] = true end
+	expectTrue(lazy.set_backdrops and lazy.scenes and lazy.rooms, "set backdrops, scenes and rooms stay lazy, so a set only loads its own art")
+	for _, phase in ipairs(ContentArt.PreloadPlan) do
+		for _, item in ipairs(phase.items) do
+			expectTrue(not lazy[item[1]], item[1] .. " is not in the eager plan")
+		end
+	end
+end })
 table.insert(tests, { name = "ContentArt: background preload plan starts with the menu and leaves scenes and map art lazy", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local plan = ContentArt.PreloadPlan
@@ -30699,6 +30772,26 @@ table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, 
 	expectTrue(CS.contrastRatio(CS.RED_INK, FA.FLAT_IVORY) >= 4.5, "red ink on ivory")
 	expectTrue(CS.contrastRatio(CS.BLACK_INK, FA.FLAT_IVORY) >= 4.5, "black ink on ivory")
 end })
+table.insert(tests, { name = "Accessibility: Colorblind Suits inks read at 4.5:1 on every Card Set paper and stay unique, glyph and letter cues need no colour", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local count = 0
+	for _, set in ipairs(CS.Definitions) do
+		count = count + 1
+		local paper = CS.cardLook(set).paper
+		local plate = CS.indexStyle(set, false).plate
+		local seen = {}
+		for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
+			local m = A.SuitMarks[n]
+			local ink = CS.colorblindInkOf(set, m.ink)
+			expectTrue(CS.contrastRatio(ink, paper) >= 4.5, set.id .. " " .. n .. " ink on paper")
+			expectTrue(CS.contrastRatio(ink, plate) >= 4.5, set.id .. " " .. n .. " ink on index plate")
+			expectTrue(not seen[m.glyph .. m.letter], set.id .. " " .. n .. " cue is unique")
+			seen[m.glyph .. m.letter] = true
+		end
+	end
+	expectTrue(count >= 14, "all sets checked")
+end })
 table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Settings, then the first Display rows)", fn = function()
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r"))
@@ -34088,6 +34181,19 @@ table.insert(tests, { name = "First five minutes: no timed step that is not a ch
 	expectEqual(M2.nightIntro(true, false), nil, "Calm mode has no timed intro")
 end })
 
+table.insert(tests, { name = "GamepadFocus: the focus ring takes the Card Set accent at 3:1 or more on the dark wood, classic keeps gold, every set has one", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.focusRingOf(CS.DefaultId), CS.FOCUS_RING_GOLD, "classic keeps the gold ring")
+	expectEqual(CS.focusRingOf("no_such_set"), CS.FOCUS_RING_GOLD, "unknown set keeps gold")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		n = n + 1
+		local c = CS.focusRingOf(set.id)
+		expectTrue(type(c) == "table" and #c == 3, set.id .. " has a ring colour")
+		expectTrue(CS.contrastRatio(c, CS.FOCUS_RING_BACKING) >= 3, set.id .. " ring reads at 3:1 on the dark wood")
+	end
+	expectTrue(n >= 14, "all sets checked")
+end })
 table.insert(tests, { name = "GamepadFocus: D-pad moves to the nearest button, wraps, starts top left, reaches every button of a menu and a popup grid", fn = function()
 	local F = require(script.Parent.Parent.Engine.GamepadFocus)
 	expectEqual(F.next({}, nil, "DPadDown"), nil, "no buttons, no focus")
@@ -39339,6 +39445,42 @@ table.insert(tests, { name = "FitAudit: the checker flags off screen, small touc
 	end
 end })
 
+table.insert(tests, { name = "Text Size Large: every published text size scaled by 1.15 stays at or above the 11 px and 14 px body floors, and no screen loses fit or touch targets at four sizes", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local A = require(Engine.Accessibility)
+	expectEqual(A.textScale({ largerText = true }), 1.15, "Large is 15 percent")
+	expectEqual(A.textScale({ largerText = false }), 1, "Normal is unscaled")
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local checked, texts = 0, 0
+	for _, sc in ipairs(screens) do
+		local large = {}
+		for k, v in pairs(sc) do large[k] = v end
+		if sc.texts then
+			large.texts = function(w, h)
+				local out = {}
+				for name, t in pairs(sc.texts(w, h)) do
+					local c = {}
+					for k, v in pairs(t) do c[k] = v end
+					c.size = math.floor(t.size * A.TEXT_SCALE + 0.5)
+					expectTrue(c.size >= t.size, sc.name .. " " .. name .. " never shrinks under Large")
+					out[name] = c
+					texts = texts + 1
+				end
+				return out
+			end
+		end
+		for _, sz in ipairs(Audit.SIZES) do
+			checked = checked + 1
+			for _, f in ipairs(Audit.checkScreen(large, sz[1], sz[2])) do
+				if sc.lane == "shared" then
+					expectTrue(f.rule ~= "text" and f.rule ~= "touch" and f.rule ~= "screen", "Large " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+				end
+			end
+		end
+	end
+	expectTrue(checked >= #screens * 4, "every screen is checked at four sizes")
+end })
 table.insert(tests, { name = "Fit audit over all 14 sets at 800x450, 1024x768, 1366x768 and 1920x1080: Menu, Settings, Store, Collection and the Card Sets room keep fit, 44 px targets and readable set names", fn = function()
 	local Audit = require(script.Parent.FitAudit)
 	local Engine = script.Parent.Parent.Engine
@@ -42027,6 +42169,160 @@ table.insert(tests, { name = "Run Over retry flow: Try Again after a loss, Back 
 		expectTrue(body:find("RestartRunRemote:FireServer()", 1, true) ~= nil, "one tap starts a new run (no confirm step)")
 	end
 	expectTrue(init:find("GameOverPanel.gameOverFrame }", 1, true) ~= nil or init:find("GameOverPanel.gameOverFrame,", 1, true) ~= nil, "Escape still dismisses through PopupDismiss")
+end })
+
+table.insert(tests, { name = "Gear menu, Tome dropdown and Music panel wear the set panel, ink and plate at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its own colours")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " row and title ink keeps 4.5:1 on the dropdown panel")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local f = io.open("src/Client/GearMenu.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PopupSkin.dark", 1, true) ~= nil and src:find("setPlateButton, r.button", 1, true) ~= nil, "gear and Tome dropdowns bind the set panel and row plates")
+	end
+	local m = io.open("src/Client/MusicPanel.lua", "r")
+	if m then
+		local src = m:read("*a"); m:close()
+		expectTrue(src:find("PopupSkin", 1, true) ~= nil, "Music panel binds the set panel and ink")
+	end
+end })
+
+table.insert(tests, { name = "Toasts, warning strip and Next goal banner wear the set plate and ink at 7:1 on every set, classic unchanged, no new tweens", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps the brass toast")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h, p = CS.hintStyleOf(set.id), CS.popupStyleOf(set.id)
+			expectTrue(h ~= nil and p ~= nil, set.id .. " has toast and strip styles")
+			if h and p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " toast ink keeps 7:1 on the plate")
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " warning strip ink keeps 7:1 on the paper")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has styles")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local toast, banner, goal = src("src/Client/CornerToast.lua"), src("src/Client/MessageBanner.lua"), src("src/Client/NextGoalBanner.lua")
+	if toast then expectTrue(toast:find("HintSkin", 1, true) ~= nil and toast:find("row.skin()", 1, true) ~= nil, "toasts bind the set plate and keep the ink on re-assert") end
+	if banner then expectTrue(banner:find("popupStyleOf", 1, true) ~= nil and banner:find("onSkin", 1, true) ~= nil, "warning strip follows the set") end
+	if goal then expectTrue(goal:find("HintSkin", 1, true) ~= nil, "Next goal banner binds the set plate") end
+end })
+
+table.insert(tests, { name = "Collection progress plaque, filter plate, tiles and chips wear the set fill, edge and ink at 4.5:1 or more on every set, locked tiles dimmed, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its wood")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a dark style")
+			if p then
+				n = n + 1
+				local f = p.dark.fill
+				local locked = { f[1] * 0.55, f[2] * 0.55, f[3] * 0.55 } -- the locked tile fill is 45 percent darker, so ink and DIM only gain contrast
+				expectTrue(CS.contrastRatio(f, p.dark.ink) >= 4.5, set.id .. " tile name and chip ink keeps 4.5:1")
+				expectTrue(CS.contrastRatio(locked, p.dark.ink) >= CS.contrastRatio(f, p.dark.ink), set.id .. " locked tile keeps the ink readable")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local fh = io.open("src/Client/Collection.lua", "r")
+	if fh then
+		local src = fh:read("*a"); fh:close()
+		expectTrue(src:find("PS.dark(overallBar", 1, true) ~= nil and src:find(".dark(legendRow", 1, true) ~= nil, "progress plaque and filter plate bind the set")
+		expectTrue(src:find("setDark()", 1, true) ~= nil and src:find("f:Lerp(Color3.fromRGB(0, 0, 0), 0.45)", 1, true) ~= nil, "tiles take the set fill, locked ones dimmed")
+	end
+end })
+
+table.insert(tests, { name = "Run Over and Victory screens: every button, invite, share line and pick wears the set plate and ink at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a dark style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " result screen ink keeps 4.5:1 on the set fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local go, vs = src("src/Client/GameOver.lua"), src("src/Client/VictoryScreen.lua")
+	if go then
+		expectTrue(go:find('b == playAgainButton and "primary" or "secondary"', 1, true) ~= nil, "Run Over primary buttons take the set plate")
+		expectTrue(go:find('setPlateButton(b, "secondary")', 1, true) ~= nil, "Run Over more buttons take the set plate")
+	end
+	if vs then
+		expectTrue(vs:find("PopupSkin).dark(inv", 1, true) ~= nil and vs:find("PopupSkin).dark(shareBox", 1, true) ~= nil and vs:find("PopupSkin).dark(pick", 1, true) ~= nil, "Victory invite, share line and Choose bind the set")
+		expectTrue(vs:find('resultPlate("primary"', 1, true) ~= nil, "Victory Continue keeps the set plate")
+	end
+end })
+
+table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store, season and collection each take a :<setId> suffix for every set", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(#R.SET_SCREENS, 8, "eight screens are listed")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, screen in ipairs(R.SET_SCREENS) do
+			local t, why = R.parse(screen .. ":" .. set.id)
+			expectTrue(t ~= nil, screen .. ":" .. set.id .. " parses (" .. tostring(why) .. ")")
+			if t then
+				n = n + 1
+				expectEqual(t.setId, set.id, screen .. " carries the set " .. set.id)
+			end
+		end
+	end
+	expectEqual(n, 8 * #CS.Definitions, "every screen and set pair parsed")
+	local season, coll = R.parse("season"), R.parse("collection")
+	expectTrue(season and season.kind == "tome" and season.page == "season" and season.setId == nil, "season alone opens the Season panel")
+	expectTrue(coll and coll.kind == "tome" and coll.page == "collection", "collection alone opens the Collection")
+	expectTrue(R.parse("season:no_such_set") == nil, "an unknown set is still an error")
+end })
+
+table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4.5:1 on the plaque, Play hero takes the set plate, on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p, t = CS.popupStyleOf(set.id), TS.of(set.id)
+			expectTrue(p ~= nil and t.accent ~= nil, set.id .. " has a plaque style and a glow accent")
+			if p and t.accent then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " hover plaque ink keeps 7:1")
+				expectTrue(CS.contrastRatio(p.dark.fill, t.accent) >= 4.5, set.id .. " glow accent keeps 4.5:1 on the plaque fill")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set is checked")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local hs, pb = src("src/Client/MenuHotspots.lua"), src("src/Client/MenuPlayButton.lua")
+	if hs then
+		expectTrue(hs:find("PopupSkin).dark(plaque", 1, true) ~= nil and hs:find("glowColor()", 1, true) ~= nil, "plaque and glow follow the set")
+		expectTrue(hs:find("= GLOW", 1, true) == nil or select(2, hs:gsub("= GLOW", "")) == 1, "only the classic fallback uses the fixed glow")
+	end
+	if pb then expectTrue(pb:find("setPlateButton(plaque", 1, true) ~= nil, "Play hero takes the set plate first") end
 end })
 
 return tests

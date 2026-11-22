@@ -170,6 +170,9 @@ function DebugGotoRules.isFullScreenSize(xs, xo, ys, yo)
 	return xs >= 0.95 and ys >= 0.95 and math.abs(xo) <= 64 and math.abs(yo) <= 64
 end
 
+-- Screens a set suffix is meant for (one per screen to check per set): menu, haggle, round1, boss1, map, store, season, collection.
+DebugGotoRules.SET_SCREENS = { "menu", "haggle", "round1", "boss1", "map", "store", "season", "collection" }
+
 -- Any jump may end in :<cardSetId> (haggle:winter_evening, haggle:good:golden_gala, boss1:dune_market, menu:meadow_picnic, map:harbor_lights ...).
 -- The suffix is split off first, the rest parses as before, and the target gets setId so the client previews that set for the room, shop,
 -- keeper, plates, menu and boss table through the Card Sets Preview path. The id must be a real Card Set (checked here, not in the client).
@@ -216,6 +219,12 @@ function DebugGotoRules.parseCore(value)
 	end
 	if text == "store" then -- the Tavern Store panel, opened from the Menu like the Tome pages
 		return { kind = "tome", page = "store" }
+	end
+	if text == "season" then -- the Season track panel (same opener path as store)
+		return { kind = "tome", page = "season" }
+	end
+	if text == "collection" then -- short for tome:collection
+		return { kind = "tome", page = "collection" }
 	end
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }

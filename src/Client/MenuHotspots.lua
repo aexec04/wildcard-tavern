@@ -57,6 +57,20 @@ local function applyZ(button, z)
 	end
 end
 
+-- the hover glow: the equipped Card Set's text accent (ThemeScenes), the warm lantern glow for classic (and when anything fails)
+local function glowColor()
+	local c = GLOW
+	pcall(function()
+		local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+		local sid = require(script.Parent.TavernKit).plateSetId()
+		if sid and sid ~= require(Engine:WaitForChild("CosmeticSets")).DefaultId then
+			local a = require(Engine:WaitForChild("ThemeScenes")).of(sid).accent
+			if a then c = Color3.fromRGB(a[1], a[2], a[3]) end
+		end
+	end)
+	return c
+end
+
 local function off(instance, n)
 	instance:SetAttribute("ZOff", n)
 	return instance
@@ -120,6 +134,8 @@ local function newPlaque(parent)
 	desc.Active = false
 	desc.Parent = plaque
 	off(desc, 3)
+	-- the equipped Card Set dresses the hover plaque: fill, edge and ink at 7:1 (CosmeticSets.popupStyleOf); classic keeps wood, brass and cream
+	pcall(function() require(script.Parent.PopupSkin).dark(plaque, stroke, { { name, CREAM }, { desc, CREAM_DIM } }, { plate = WOOD, edge = BRASS }) end)
 	return plaque, name, desc
 end
 
@@ -531,7 +547,7 @@ function Hotspots.build(opts)
 		if Layout.roomPainted and not ui.strip then -- the painted room: a soft warm glow on the prop and its name plate above it, nothing at rest
 			local object = ui.frame:FindFirstChild("Object")
 			if object then
-				object.BackgroundColor3 = GLOW
+				object.BackgroundColor3 = glowColor()
 				TweenService:Create(object, TweenInfo.new(calm() and 0 or 0.15), { BackgroundTransparency = on and 0.85 or 1 }):Play()
 			end
 			local plate = ui.frame:FindFirstChild("NamePlate")
@@ -691,7 +707,7 @@ function Hotspots.build(opts)
 		round(object, UDim.new(0.28, 0))
 		local rim = Instance.new("UIStroke")
 		rim.Name = "Glow"
-		rim.Color = GLOW
+		rim.Color = glowColor()
 		rim.Thickness = hotspot.lit and 3 or 2
 		rim.Transparency = Layout.roomPainted and 1 or 0.7 -- painted room: no outline at rest, hover glows the Object fill instead
 		rim.Parent = object
@@ -913,7 +929,7 @@ function Hotspots.build(opts)
 				local plate = f:FindFirstChild("NamePlate")
 				if Layout.roomPainted then
 					if object then
-						object.BackgroundColor3 = strip and Color3.fromRGB(84, 56, 34) or GLOW
+						object.BackgroundColor3 = strip and Color3.fromRGB(84, 56, 34) or glowColor()
 						object.BackgroundTransparency = strip and 0.12 or 1
 						for _, d in ipairs(object:GetChildren()) do
 							if d.Name == "Glyph" or d.Name == "Art" then d.Visible = strip end
