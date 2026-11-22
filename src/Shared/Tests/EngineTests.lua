@@ -40874,4 +40874,32 @@ table.insert(tests, { name = "Calm mode, Reduce motion and Reduce flashing: ever
 	end
 end })
 
+table.insert(tests, { name = "Gear menu, Tome dropdown and Music panel wear the set panel, ink and plate at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its own colours")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " row and title ink keeps 4.5:1 on the dropdown panel")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local f = io.open("src/Client/GearMenu.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PopupSkin.dark", 1, true) ~= nil and src:find("setPlateButton, r.button", 1, true) ~= nil, "gear and Tome dropdowns bind the set panel and row plates")
+	end
+	local m = io.open("src/Client/MusicPanel.lua", "r")
+	if m then
+		local src = m:read("*a"); m:close()
+		expectTrue(src:find("PopupSkin", 1, true) ~= nil, "Music panel binds the set panel and ink")
+	end
+end })
+
 return tests
