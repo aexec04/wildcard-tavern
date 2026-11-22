@@ -268,6 +268,7 @@ function LoadingScreenUI.show(playerGui, opts)
 	tip.Name = "Tip"
 	tip.AnchorPoint = Vector2.new(0, 0)
 	tip.TextYAlignment = Enum.TextYAlignment.Top
+	local tipPlate -- built under applyLayout, which places it
 	-- status and tip sit under the bar in pixels from LoadingLayout, so nothing overlaps at any size
 	local function applyLayout()
 		local sz = fade.AbsoluteSize
@@ -277,10 +278,32 @@ function LoadingScreenUI.show(playerGui, opts)
 		status.Size = UDim2.fromOffset(r.status.w, r.status.h)
 		tip.Position = UDim2.fromOffset(r.tip.x, r.tip.y)
 		tip.Size = UDim2.fromOffset(r.tip.w, r.tip.h)
+		if tipPlate then
+			tipPlate.Position = UDim2.fromOffset(r.tip.x - 8, r.tip.y - 4)
+			tipPlate.Size = UDim2.fromOffset(r.tip.w + 16, r.tip.h + 8)
+		end
 	end
 	fade:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyLayout)
 	applyLayout()
 	tip.TextTransparency = 0
+	-- a plate behind the tip, drawn only when an equipped Card Set is known (see handle.setSet); classic leaves it hidden
+	tipPlate = Instance.new("Frame")
+	tipPlate.Name = "TipPlate"
+	tipPlate.Visible = false
+	tipPlate.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
+	tipPlate.BorderSizePixel = 0
+	tipPlate.ZIndex = math.max(1, tip.ZIndex - 1)
+	tipPlate.Parent = fade
+	do
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 8)
+		c.Parent = tipPlate
+	end
+	local tipPlateStroke = Instance.new("UIStroke")
+	tipPlateStroke.Thickness = 2
+	tipPlateStroke.Color = BRASS
+	tipPlateStroke.Parent = tipPlate
+	applyLayout()
 
 	local skip = Instance.new("TextButton")
 	skip.Name = "Skip"
@@ -304,6 +327,34 @@ function LoadingScreenUI.show(playerGui, opts)
 
 	-- state
 	local handle = { gui = gui }
+
+	-- The equipped Card Set tints the tip plate, Skip plate and bar trim (colours only, no tween, so Calm mode is unchanged). nil restores classic.
+	function handle.setSet(setId)
+		local style
+		pcall(function()
+			local CS = Engine and Engine:FindFirstChild("CosmeticSets") and require(Engine.CosmeticSets)
+			style = CS and CS.loadingStyleOf(setId)
+		end)
+		local edge, ink = BRASS, CREAM
+		tipPlate.Visible = style ~= nil
+		if style then
+			local p = style.plate
+			tipPlate.BackgroundColor3 = Color3.fromRGB(p[1], p[2], p[3])
+			tipPlate.BackgroundTransparency = style.tipAlpha
+			edge = Color3.fromRGB(style.edge[1], style.edge[2], style.edge[3])
+			ink = Color3.fromRGB(style.ink[1], style.ink[2], style.ink[3])
+			skip.BackgroundColor3 = Color3.fromRGB(p[1], p[2], p[3])
+		else
+			skip.BackgroundColor3 = Color3.fromRGB(70, 46, 26)
+		end
+		tipPlateStroke.Color = edge
+		sks.Color = edge
+		ps.Color = edge
+		tip.TextColor3 = ink
+		status.TextColor3 = ink
+		skip.TextColor3 = ink
+	end
+	if opts.setId then handle.setSet(opts.setId) end
 	local alive = true
 	local startClock = os.clock()
 	local target = 0

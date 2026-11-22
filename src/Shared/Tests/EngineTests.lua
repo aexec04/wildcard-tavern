@@ -38019,7 +38019,7 @@ table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles
 	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
 	local q = read("src/Client/QuestsPanel.lua")
 	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
-	expectTrue(q:find("TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
+	expectTrue(q:find("TextSize = 14, TextColor3 = skin and skin.sub or INK, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
 	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
 	local d = read("src/Client/DailyRewardsPanel.lua")
 	expectTrue(d:find("DailyRewardsPanel.PANEL_H = 360", 1, true) ~= nil, "Daily panel is 360 px")
@@ -39015,6 +39015,130 @@ table.insert(tests, { name = "FitAudit: the checker flags off screen, small touc
 	for _, f in ipairs(res.failures) do
 		assert(f.lane ~= "shared", "shared screen does not fit: " .. f.screen .. " " .. f.size .. " " .. f.detail)
 	end
+end })
+
+table.insert(tests, { name = "Fit audit over all 14 sets at 800x450, 1024x768, 1366x768 and 1920x1080: Menu, Settings, Store, Collection and the Card Sets room keep fit, 44 px targets and readable set names", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local CSL = require(Engine.CardSetsSceneLayout)
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local keep = {}
+	for _, sc in ipairs(screens) do
+		if sc.name == "Menu" or sc.name == "Settings" or sc.name == "Store" or sc.name == "Collection" then keep[#keep + 1] = sc end
+	end
+	assert(#keep == 4, "Menu, Settings, Store and Collection are covered")
+	keep[#keep + 1] = {
+		name = "Card Sets room", lane = "menu",
+		rects = function(w, h)
+			local pw, ph = CSL.roomPanel(w, h)
+			local r = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, #CS.Definitions, 1)
+			local out = { hero = r.hero, shelf = r.shelf, prevButton = r.plates.prev, nextButton = r.plates.next }
+			for i, c in ipairs(r.cells) do out["name" .. i] = c.name end
+			return out
+		end,
+	}
+	local sets, runs = 0, 0
+	for _, set in ipairs(CS.Definitions) do
+		sets = sets + 1
+		-- the equipped set only changes colours, plates and art: rects come from layouts that never read it, so the audit must hold for each set
+		for _, sz in ipairs(Audit.SIZES) do
+			for _, sc in ipairs(keep) do
+				runs = runs + 1
+				if sc.name ~= "Card Sets room" or CSL.roomPanel(sz[1], sz[2]) >= CSL.ROOM_MIN.w then
+					for _, f in ipairs(Audit.checkScreen(sc, sz[1], sz[2])) do
+						assert(f.rule ~= "touch" and f.rule ~= "screen" and f.rule ~= "text", set.id .. " " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+					end
+				end
+			end
+			-- the set name has to fit its tile name box in two lines at 14 px (about 0.55 em per letter)
+			local pw, ph = CSL.roomPanel(sz[1], sz[2])
+			if pw >= CSL.ROOM_MIN.w and ph >= CSL.ROOM_MIN.h then
+				local r = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, #CS.Definitions, 1)
+				local c = r.cells[1]
+				if c then
+					assert(#set.name * 14 * 0.55 <= 2 * (c.name.w - 4), set.id .. " name fits two lines at " .. sz[1] .. "x" .. sz[2])
+					assert(c.name.h >= 28, "two 14 px lines fit the name box")
+				end
+			end
+		end
+	end
+	assert(sets >= 14 and runs >= 14 * 4 * 5, "every set, size and screen was audited")
+end })
+
+table.insert(tests, { name = "Loading screen and Night clear frame take the equipped Card Set plate, edge and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.loadingStyleOf("classic_tavern"), nil, "classic keeps the painted loading screen")
+	expectEqual(CS.loadingStyleOf(nil), nil, "a first join with no profile keeps it too")
+	expectEqual(CS.loadingStyleOf("no_such_set"), nil, "unknown id keeps it")
+	local n, edges = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local st = CS.loadingStyleOf(set.id)
+			expectTrue(st ~= nil, set.id .. " has a loading style")
+			if st then
+				n = n + 1
+				expectTrue(CS.contrastRatio(st.plate, st.ink) >= 7, set.id .. " tip ink keeps 7:1 on the loading plate")
+				expectTrue(st.tipAlpha >= 0 and st.tipAlpha < 1, "tip plate is visible")
+				edges[st.edge[1] .. "," .. st.edge[2] .. "," .. st.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a loading style")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local ui = read("src/ReplicatedFirst/LoadingScreenUI.lua")
+	if ui then
+		expectTrue(ui:find("loadingStyleOf", 1, true) ~= nil and ui:find("function handle.setSet", 1, true) ~= nil, "loading UI asks the pure rule")
+		expectTrue(ui:find("local tipPlate", 1, true) < ui:find("local function applyLayout", 1, true), "tip plate is declared before the layout closure uses it")
+	end
+	local cs = read("src/ReplicatedFirst/LoadingScreen.client.lua")
+	if cs then expectTrue(cs:find("EquippedCardSet", 1, true) ~= nil, "loading script reads the equipped set attribute") end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	if fx then expectTrue(fx:find("skinPlate(plate", 1, true) ~= nil and fx:find("HintSkin", 1, true) ~= nil, "Night clear plates bind the hint skin") end
+end })
+
+table.insert(tests, { name = "Leaderboards, Quests and Daily Rewards rows take the set plate, ink, badge and chip at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.rowStyleOf("classic_tavern"), nil, "classic keeps its parchment and brown rows")
+	expectEqual(CS.rowStyleOf(nil), nil, "no set keeps them too")
+	local n, rows = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local st = CS.rowStyleOf(set.id)
+			expectTrue(st ~= nil, set.id .. " has a row style")
+			if st then
+				n = n + 1
+				expectTrue(CS.contrastRatio(st.row, st.ink) >= 7 and CS.contrastRatio(st.hot, st.ink) >= 7, set.id .. " name ink keeps 7:1 on the row and the you row")
+				expectTrue(CS.contrastRatio(st.row, st.sub) >= 4.5 and CS.contrastRatio(st.hot, st.sub) >= 4.5, set.id .. " second line keeps 4.5:1")
+				expectTrue(CS.contrastRatio(st.badge, st.badgeInk) >= 4.5, set.id .. " rank badge keeps 4.5:1")
+				expectTrue(CS.contrastRatio(st.chip, st.chipInk) >= 4.5, set.id .. " claim chip keeps 4.5:1")
+				rows[st.row[1] .. "," .. st.row[2] .. "," .. st.row[3] .. "|" .. st.badge[1] .. "," .. st.badge[2] .. "," .. st.badge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a row style")
+	local distinct = 0
+	for _ in pairs(rows) do distinct = distinct + 1 end
+	expectTrue(distinct >= 10, "sets read differently in the rows")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("RowSkin", 1, true) ~= nil, name .. " reads the row skin") end
+	end
+	local rs = read("RowSkin")
+	if rs then expectTrue(rs:find("rowStyleOf", 1, true) ~= nil, "RowSkin asks the pure rule") end
 end })
 
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
@@ -40414,7 +40538,7 @@ table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use
 	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
 	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
 	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
-	expectTrue(daily:find("TextColor3 = INK, TextWrapped = true", 1, true) ~= nil or daily:find("TextColor3 = INK", 1, true) ~= nil, "Daily text stays dark ink")
+	expectTrue(daily:find("skin and skin.ink or INK", 1, true) ~= nil, "Daily text is dark ink on classic parchment and the set ink on a set row")
 end })
 
 table.insert(tests, { name = "Menu wordmark takes the Card Set accent, 7:1 against its outline on every set, classic untouched, no layout change", fn = function()
@@ -40535,6 +40659,29 @@ table.insert(tests, { name = "Tooltips, guided hint and Next goal banner wear th
 	for _, name in ipairs({ "Tooltip", "GuidedHint", "NextGoalBanner" }) do
 		local src = read(name)
 		if src then expectTrue(src:find("HintSkin", 1, true) ~= nil, name .. " binds the hint skin") end
+	end
+end })
+
+table.insert(tests, { name = "Tutorial ribbon and How to play wear the set plate and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = CS.hintStyleOf(set.id)
+		if set.id == CS.DefaultId then
+			expectTrue(st == nil, "classic keeps its own colours")
+		elseif st then
+			n = n + 1
+			expectTrue(CS.contrastRatio(st.plate, st.ink) >= 7, set.id .. " tutorial ink is 7:1")
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a hint style")
+	if not io then return end
+	for file, needle in pairs({ TutorialWalkthrough = "HintSkin", HowToPlay = "HintSkin" }) do
+		local f = io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find(needle, 1, true) ~= nil and src:find(".bind(", 1, true) ~= nil, file .. " binds the hint skin")
+		end
 	end
 end })
 

@@ -651,6 +651,7 @@ local function serializeState(session, player)
 					table.insert(backs, back.id)
 				end
 			end
+			pcall(function() player:SetAttribute("EquippedCardSet", CosmeticSets.effectiveId(profile, passes)) end) -- the loading screen reads it
 			return {
 				equippedSetId = CosmeticSets.effectiveId(profile, passes),
 				unlockedSetIds = unlocked,

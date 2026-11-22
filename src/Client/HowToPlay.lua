@@ -395,6 +395,8 @@ return function(deps)
 		pageIndicator.TextColor3 = Color3.fromRGB(235, 225, 210)
 		pageIndicator.ZIndex = Z
 		pageIndicator.Parent = howToPlayPanel
+		-- panel fill, title and page line wear the equipped Card Set (7:1 ink); classic keeps its colours
+		require(script.Parent.HintSkin).bind(howToPlayPanel, nil, { howToPlayTitle, pageIndicator }, { plate = Color3.fromRGB(40, 30, 22), edge = GOLD, ink = CREAM })
 
 		showPage = function(n)
 			currentPage = math.clamp(n, 1, #pages)

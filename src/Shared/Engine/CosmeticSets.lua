@@ -779,6 +779,41 @@ function CosmeticSets.hintStyleOf(setId)
 	return { plate = b.fill, edge = b.edge, ink = b.ink }
 end
 
+-- List rows (Leaderboards, Quests, Daily Rewards): a dark set-tinted row plate with cream ink (7:1), a lighter "you or today" row, a muted
+-- second line and a rank badge in the accent (each 4.5:1 or more on its own fill), and a claim chip in the control accent with white text.
+-- nil for classic so the parchment and brown rows stay as they are.
+CosmeticSets.ROW_MIN_CONTRAST = 4.5
+function CosmeticSets.rowStyleOf(setId)
+	local band = CosmeticSets.titleBandOf(setId)
+	local control = CosmeticSets.controlAccentOf(setId)
+	if not band or not control then return nil end
+	local row, ink = band.fill, band.ink
+	local hot = mix(row, band.edge, 0.22)
+	local guard = 0
+	while CosmeticSets.contrastRatio(hot, ink) < CosmeticSets.TITLE_MIN_CONTRAST and guard < 40 do
+		hot = mix(hot, { 20, 14, 10 }, 0.15)
+		guard = guard + 1
+	end
+	local sub = mix(ink, row, 0.25)
+	guard = 0
+	while (CosmeticSets.contrastRatio(sub, row) < CosmeticSets.ROW_MIN_CONTRAST or CosmeticSets.contrastRatio(sub, hot) < CosmeticSets.ROW_MIN_CONTRAST) and guard < 40 do
+		sub = mix(sub, ink, 0.2)
+		guard = guard + 1
+	end
+	local badge = band.edge
+	local dark, light = { 12, 8, 6 }, { 255, 255, 255 }
+	local badgeInk = CosmeticSets.contrastRatio(badge, dark) >= CosmeticSets.contrastRatio(badge, light) and dark or light
+	return { row = row, hot = hot, ink = ink, sub = sub, edge = band.edge, badge = badge, badgeInk = badgeInk, chip = control.onFill, chipInk = control.onText }
+end
+
+-- Loading screen: the equipped set's dark plate, accent edge and cream ink (7:1) for the tip plate, Skip plate and bar trim. nil for classic,
+-- an unknown id or no id (a first join has no profile yet), so the screen keeps its painted look.
+function CosmeticSets.loadingStyleOf(setId)
+	local h = CosmeticSets.hintStyleOf(setId)
+	if not h then return nil end
+	return { plate = h.plate, edge = h.edge, ink = h.ink, tipAlpha = 0.35 }
+end
+
 -- Popup title band: a dark strip tinted toward the equipped set accent behind a cream title, edge in the accent. Cream text keeps 7:1 on the fill.
 -- nil for classic or an unknown set so classic popups stay as they are.
 CosmeticSets.TITLE_INK = { 250, 240, 220 }

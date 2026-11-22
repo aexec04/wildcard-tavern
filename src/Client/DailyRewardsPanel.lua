@@ -75,12 +75,13 @@ local function refresh()
 	for _, r in ipairs(login.rewards) do
 		if not nextRow and r.day == ((login.today % #login.rewards) + 1) then nextRow = r end
 	end
+	local skin = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, ink and chip; nil keeps the parchment
 	for i, r in ipairs(login.rewards) do
 		local tile = Instance.new("Frame")
 		tile.Name = "Day" .. i
 		tile.LayoutOrder = i
 		tile.Size = UDim2.new(1 / 7, -8, 1, 0)
-		tile.BackgroundColor3 = r.claimed and GREEN or (r.today and PARCHMENT or PARCHMENT_DIM)
+		tile.BackgroundColor3 = skin and (r.today and skin.hot or skin.row) or (r.claimed and GREEN or (r.today and PARCHMENT or PARCHMENT_DIM))
 		tile.ZIndex = 32
 		tile.Parent = ui.row
 		ui.roundCorner(tile, 10)
@@ -89,7 +90,7 @@ local function refresh()
 		s.Thickness = r.today and 3.5 or 1.5
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = tile
-		label(tile, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 4), Text = "Day " .. r.day, TextSize = 15, TextColor3 = INK })
+		label(tile, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 4), Text = "Day " .. r.day, TextSize = 15, TextColor3 = skin and skin.ink or INK })
 		local icon = label(tile, {
 			Size = UDim2.new(1, 0, 0, 56), Position = UDim2.fromOffset(0, 30), Text = r.icon or "🎁", TextSize = 34, ZIndex = 33,
 		})
@@ -101,12 +102,12 @@ local function refresh()
 		end
 		label(tile, {
 			Size = UDim2.new(1, -8, 0, 40), Position = UDim2.new(0, 4, 1, -46), Text = r.label or "", TextSize = 14,
-			TextColor3 = INK, TextWrapped = true,
+			TextColor3 = skin and skin.ink or INK, TextWrapped = true,
 		})
 		if r.claimed then
 			local tick = label(tile, {
 				Name = "Tick", Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 2), Text = "✔", TextSize = 22,
-				TextColor3 = CREAM, BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(56, 104, 56), ZIndex = 36,
+				TextColor3 = skin and skin.chipInk or CREAM, BackgroundTransparency = 0, BackgroundColor3 = skin and skin.chip or Color3.fromRGB(56, 104, 56), ZIndex = 36,
 			})
 			ui.roundCorner(tick, 14)
 		end

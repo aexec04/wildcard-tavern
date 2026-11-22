@@ -141,7 +141,7 @@ end
 -- Collection wall (no grid of identical boxes). Rects are in the area's pixels (the panel body between TOP and BOTTOM).
 -- room(areaW, areaH, n, page) -> { ok, cols, rows, perPage, pages, page, plates = { tabs = {sets, backs}, page, prev, next }, hero, parts, shelf,
 --                                  cells = { { tile, pic, name, board } ... } }
-M.ROOM = { side = 24, gap = 16, tileGap = 10, nameH = 30, boardH = 8, barTop = 8, barH = 40, heroFrac = 0.40, cols = 5 }
+M.ROOM = { side = 24, gap = 16, tileGap = 10, nameH = 30, boardH = 8, barTop = 4, barH = 44, heroFrac = 0.40, cols = 5 }
 M.ROOM_PANEL_FRAC = { 0.94, 0.94 }
 M.ROOM_PANEL_MAX = { 1500, 900 }
 M.ROOM_MIN = { w = 640, h = 400 }
@@ -219,7 +219,7 @@ end
 
 function M.room(areaW, areaH, n, page)
 	local R = M.ROOM
-	local top = R.barTop + R.barH + 12
+	local top = R.barTop + R.barH + 8
 	local hero = { x = R.side, y = top, w = math.floor(areaW * R.heroFrac) - R.side, h = areaH - top - 10 }
 	local shelf = { x = hero.x + hero.w + R.gap, y = top, w = areaW - R.side - (hero.x + hero.w + R.gap), h = hero.h - R.barH - 8 } -- the page plates take the foot
 	local cols = R.cols
