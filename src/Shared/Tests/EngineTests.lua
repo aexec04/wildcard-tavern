@@ -41850,4 +41850,38 @@ table.insert(tests, { name = "Name and title display: a 20 character name clips 
 	expectTrue(select(2, sp:gsub("NameFit.clip%(", "")) >= 3, "Spectate clips the title, the viewers and the hover names")
 end })
 
+table.insert(tests, { name = "Leaderboard loading and empty states: three 44 px placeholder rows, a still shimmer in Calm mode, the empty line comes from EmptyStates, every set row plate reads", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local ES = require(script.Parent.Parent.Engine.EmptyStates)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(LT.ROW_H, 44)
+	expectEqual(LT.SKELETON_ROWS, 3)
+	expectTrue(LT.SHIMMER_SECONDS >= 1, "the sweep is slow, well under 3 flashes a second")
+	expectEqual(LT.empty(false), ES.Screens.leaderboard)
+	expectEqual(LT.empty(true), ES.Screens.friends)
+	expectEqual(LT.empty(false, "today"), ES.Screens.leaderboard, "the period argument is ignored now")
+	for _, line in ipairs({ LT.empty(false), LT.empty(true), LT.LOADING, LT.OFFLINE, LT.TOP_FAILED }) do
+		expectTrue(#line > 0 and #line <= 80, "short line")
+		expectTrue(not line:find("\226\128\148", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "clean line")
+	end
+	-- a placeholder row must read on every set: its plate is the same one the real rows use
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local row = CS.rowStyleOf(set.id)
+			expectTrue(row ~= nil and row.row ~= nil, set.id .. " has a row plate for the placeholder rows")
+		end
+	end
+	-- rows fit: three placeholders plus the line stay inside the scroll at 800x450
+	local L = LT.layout(800, 450)
+	expectTrue(L.scroll.h >= 3 * LT.ROW_H, "three rows are visible without scrolling at 800x450")
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local src = read("src/Client/DailyLeaderboard.lua")
+	expectTrue(src:find("makeSkeletonRows()", 1, true) ~= nil, "loading draws the placeholder rows")
+	local _, gates = src:gsub("ClientSettings%)%.motionAllowed%(%)", "")
+	expectTrue(gates >= 2, "the shimmer starts and loops only when motion is allowed")
+	expectTrue(src:find("animate and 0.9 or 1", 1, true) ~= nil, "Calm mode leaves the strip invisible")
+	expectTrue(src:find("Completed:Wait", 1, true) == nil or src:find("not Completed:Wait()", 1, true) ~= nil, "no tween wait left hanging")
+end })
+
 return tests

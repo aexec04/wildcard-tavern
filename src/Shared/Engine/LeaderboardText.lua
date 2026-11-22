@@ -1,7 +1,13 @@
 -- Wording and sizes for the Daily, Weekly and Endless boards (Client/DailyLeaderboard.lua).
 -- Pure data and functions so tests can check them. Never errors on nil or odd input.
 
+local EmptyStates = require(script.Parent.EmptyStates)
+
 local LeaderboardText = {}
+
+LeaderboardText.ROW_H = 44 -- a board row, real or placeholder
+LeaderboardText.SKELETON_ROWS = 3 -- placeholder rows shown while the board loads
+LeaderboardText.SHIMMER_SECONDS = 1.2 -- one light sweep; not played at all in Calm mode or Reduce motion
 
 LeaderboardText.MIN_TEXT = 14
 LeaderboardText.MIN_PANEL_W = 620 -- six tab buttons share one row, they need this much
@@ -52,11 +58,9 @@ function LeaderboardText.yourBest(endless, period, ok, best)
 		.. ", " .. LeaderboardText.fmt(best.tips) .. " Tips"
 end
 
-function LeaderboardText.empty(friends, period)
-	if friends then
-		return "None of your friends have a score " .. period .. " yet. Be the first!"
-	end
-	return "No scores " .. period .. " yet. Be the first on the board!"
+-- The line for a board with no rows. It comes from Engine/EmptyStates so every empty page speaks the same way.
+function LeaderboardText.empty(friends)
+	return friends and EmptyStates.Screens.friends or EmptyStates.Screens.leaderboard
 end
 
 -- Panel size in pixels for a viewport: half the width and 65 percent of the height, never below the minimum.

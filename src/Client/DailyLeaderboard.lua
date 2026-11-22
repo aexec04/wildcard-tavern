@@ -225,7 +225,7 @@ return function(deps)
 	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou, flair)
 		local skin = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, ink and rank badge; nil keeps the brown rows
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 34)
+		row.Size = UDim2.new(1, 0, 0, LBText.ROW_H)
 		row.BackgroundColor3 = skin and (isYou and skin.hot or skin.row) or (isYou and Color3.fromRGB(80, 60, 32) or Color3.fromRGB(50, 42, 34))
 		row.LayoutOrder = order
 		row.ZIndex = 21
@@ -243,7 +243,7 @@ return function(deps)
 		rankLabel.Text = rankText
 		if skin then -- an accent rank badge with ink at 4.5:1
 			rankLabel.Size = UDim2.new(0, 36, 0, 22)
-			rankLabel.Position = UDim2.new(0, 8, 0, 6)
+			rankLabel.Position = UDim2.new(0, 8, 0, math.floor((LBText.ROW_H - 22) / 2))
 			rankLabel.BackgroundTransparency = 0
 			rankLabel.BackgroundColor3 = skin.badge
 			rankLabel.TextColor3 = skin.badgeInk
@@ -279,6 +279,44 @@ return function(deps)
 		statsLabel.Text = LBText.stats(endlessBoard, depth, tips)
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
+	end
+
+	-- Loading: three placeholder rows on the set's row plate (RowSkin; classic keeps the brown rows). A light strip sweeps across each
+	-- once per LBText.SHIMMER_SECONDS, only when ClientSettings.motionAllowed(); in Calm mode and Reduce motion the rows stay still.
+	local function makeSkeletonRows()
+		local skin = require(script.Parent.RowSkin).get()
+		local animate = require(script.Parent.ClientSettings).motionAllowed()
+		for i = 1, LBText.SKELETON_ROWS do
+			local row = Instance.new("Frame")
+			row.Name = "LoadingRow"
+			row.Size = UDim2.new(1, 0, 0, LBText.ROW_H)
+			row.BackgroundColor3 = skin and skin.row or Color3.fromRGB(50, 42, 34)
+			row.ClipsDescendants = true
+			row.LayoutOrder = i
+			row.ZIndex = 21
+			row.Parent = leaderboardScroll
+			polishPanel(row, 8)
+			local strip = Instance.new("Frame")
+			strip.Name = "Shimmer"
+			strip.Size = UDim2.new(0.25, 0, 1, 0)
+			strip.Position = UDim2.fromScale(-0.3, 0)
+			strip.BackgroundColor3 = skin and skin.ink or Color3.fromRGB(250, 240, 220)
+			strip.BackgroundTransparency = animate and 0.9 or 1
+			strip.BorderSizePixel = 0
+			strip.ZIndex = 22
+			strip.Parent = row
+			if animate then
+				task.spawn(function()
+					task.wait((i - 1) * 0.15)
+					while strip.Parent and require(script.Parent.ClientSettings).motionAllowed() do
+						strip.Position = UDim2.fromScale(-0.3, 0)
+						local sweep = game:GetService("TweenService"):Create(strip, TweenInfo.new(LBText.SHIMMER_SECONDS, Enum.EasingStyle.Sine), { Position = UDim2.fromScale(1.05, 0) })
+						sweep:Play()
+						task.wait(LBText.SHIMMER_SECONDS + 0.3) -- not Completed:Wait(), so a destroyed row never leaves a thread waiting
+					end
+				end)
+			end
+		end
 	end
 
 	local function makeLeaderboardMessage(text)
@@ -329,6 +367,7 @@ return function(deps)
 		yourBestLabel.Text = ""
 		revivedBadge.Visible = false
 		makeLeaderboardMessage(LBText.LOADING)
+		makeSkeletonRows()
 		updateTabHighlight()
 
 		local remote = (activeBoard == "weekly") and GetWeeklyLeaderboardRemote or GetDailyLeaderboardRemote
@@ -384,7 +423,7 @@ return function(deps)
 
 			local top = result.top or {}
 			if #top == 0 then
-				makeLeaderboardMessage(LBText.empty(requestedScope == Leaderboards.FRIENDS, period))
+				makeLeaderboardMessage(LBText.empty(requestedScope == Leaderboards.FRIENDS))
 				return
 			end
 
