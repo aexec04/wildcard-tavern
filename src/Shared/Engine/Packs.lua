@@ -151,6 +151,19 @@ function Packs.shelfName(name)
 	return short
 end
 
+-- Jumbo and Mega packs have no art of their own: they draw their family's base pack art with a size tag.
+-- Returns baseId, tag ("JUMBO", "MEGA" or nil) and the reveal rarity tier.
+function Packs.sizeInfo(packId)
+	if type(packId) == "string" then
+		if packId:sub(-6) == "_jumbo" then
+			return packId:sub(1, -7), "JUMBO", "rare"
+		elseif packId:sub(-5) == "_mega" then
+			return packId:sub(1, -6), "MEGA", "epic"
+		end
+	end
+	return packId, nil, "common"
+end
+
 function Packs.getById(id)
 	for _, pack in ipairs(Packs.Definitions) do
 		if pack.id == id then
