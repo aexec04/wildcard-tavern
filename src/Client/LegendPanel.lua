@@ -254,9 +254,10 @@ function LegendPanel.init(deps)
 	ladder.Parent = panel
 
 	local closeButton = Instance.new("TextButton")
-	closeButton.Size = UDim2.fromOffset(120, 38)
+	local GuideSpec = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LegendGuide"))
+	closeButton.Size = UDim2.fromOffset(GuideSpec.CLOSE_W, GuideSpec.BUTTON_H)
 	closeButton.AnchorPoint = Vector2.new(0.5, 1)
-	closeButton.Position = UDim2.new(0.5, 0, 1, -14)
+	closeButton.Position = UDim2.new(0.5, 0, 1, -GuideSpec.BOTTOM_GAP)
 	closeButton.Font = Enum.Font.GothamBold
 	closeButton.TextSize = 18
 	closeButton.TextColor3 = CREAM
@@ -266,6 +267,26 @@ function LegendPanel.init(deps)
 	closeButton.Parent = panel
 	deps.polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
+
+	-- the guide plate beside Close: one kind entry each for Marks and Night boons (Engine/LegendGuide), in the shared popup
+	local guideButton = Instance.new("TextButton")
+	guideButton.Name = "GuideButton"
+	guideButton.Size = UDim2.fromOffset(GuideSpec.GUIDE_W, GuideSpec.BUTTON_H)
+	guideButton.AnchorPoint = Vector2.new(0, 1)
+	guideButton.Position = UDim2.new(0.5, GuideSpec.CLOSE_W / 2 + GuideSpec.GAP, 1, -GuideSpec.BOTTOM_GAP)
+	guideButton.Font = Enum.Font.GothamBold
+	guideButton.TextSize = GuideSpec.TEXT_SIZE
+	guideButton.TextColor3 = CREAM
+	guideButton.BackgroundColor3 = Color3.fromRGB(96, 64, 36)
+	guideButton.Text = GuideSpec.BUTTON
+	guideButton.ZIndex = 43
+	guideButton.Parent = panel
+	deps.polishButton(guideButton, 8)
+	pcall(function() require(script.Parent.TavernKit).setPlateButton(guideButton, "primary") end)
+	guideButton.MouseButton1Click:Connect(function()
+		deps.playClickSfx()
+		pcall(function() require(script.Parent.BoonsPage).openView(GuideSpec.view()) end)
+	end)
 
 	local NODE = 84
 	local ROW_H = 126

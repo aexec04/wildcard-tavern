@@ -159,7 +159,7 @@ function M.openView(view)
 		host.ZIndex = 6004
 		host.Parent = tile
 		pcall(function()
-			local img = require(script.Parent.ArtIcon).apply(host, "boon_icons", row.id, icon, { cornerRadius = 8 })
+			local img = require(script.Parent.ArtIcon).apply(host, row.art or "boon_icons", row.artKey or row.id, icon, { cornerRadius = 8 })
 			if img and not row.seen then img.ImageColor3 = Color3.fromRGB(130, 130, 130) end -- dimmed, never black
 		end)
 		local name = label(tile, "Name", Page.TEXT_SIZE, row.seen and CREAM or SOFT, Enum.Font.GothamBold, 6004)

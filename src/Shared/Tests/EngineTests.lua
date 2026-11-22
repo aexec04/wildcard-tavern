@@ -45022,6 +45022,45 @@ table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Pat
 	end
 end })
 
+table.insert(tests, { name = "Tome Legend tab guide: one short kind entry each for Marks and Night boons with an icon, Close and the guide plate are 44 px and never overlap at four sizes, the popup fits, ink 4.5:1 on every set plate", fn = function()
+	local G = require(script.Parent.Parent.Engine.LegendGuide)
+	local Scene = require(script.Parent.Parent.Engine.LegendSceneLayout)
+	local Page = require(script.Parent.Parent.Engine.BoonsPage)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local view = G.view()
+	expectEqual(#view.rows, 2)
+	expectEqual(view.rows[1].name, "Marks")
+	expectEqual(view.rows[2].name, "Night boons")
+	for _, row in ipairs(view.rows) do
+		expectTrue(row.icon ~= "" and row.seen == true, row.id .. " has an icon and reads bright")
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " is short: " .. row.line)
+		expectTrue(not row.line:find("%d") and not row.line:lower():find("balatro") and not row.line:find("\xE2\x80\x94"), row.id .. " has no numbers to drift and no dash")
+	end
+	expectTrue(#view.title <= 40 and #view.count <= 60 and #G.BUTTON <= 20)
+	expectTrue(G.TEXT_SIZE >= 16 and G.BUTTON_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local pw, ph = Scene.panel(sz[1], sz[2])
+		pw = math.max(640, pw) -- the scene is only drawn at 640 px or wider; the plain layout is at least 0.8 of the screen
+		local label = sz[1] .. "x" .. sz[2]
+		local f = G.footer(pw, ph)
+		for name, r in pairs(f) do
+			expectTrue(r.h >= 44 and r.x >= 0 and r.y >= 0 and r.x + r.w <= pw and r.y + r.h <= ph, label .. " " .. name .. " plate is 44 px and inside the panel")
+		end
+		expectTrue(f.guide.x >= f.close.x + f.close.w + 8, label .. " the guide plate clears Close")
+		expectTrue(f.close.y >= ph - Scene.BOTTOM, label .. " the plates sit in the footer band")
+		local L = Page.layout(sz[1], sz[2])
+		expectTrue(L.rowsFit >= 2 or L.list.h >= 2 * L.rowH, label .. " both guide rows are reachable in the popup")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " guide ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Season tier rewards audit: all 30 tiers of both seasons, free and premium, have an icon and a name that fits two 16 px lines, claimed and locked states differ, the panel fits four sizes", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	local RewardArt = require(script.Parent.Parent.Engine.RewardArt)
