@@ -4662,8 +4662,8 @@ table.insert(tests, { name = "Login streak: advance, grace day, reset, 7-slot la
 	LoginStreak.checkIn(fresh, 10)
 	expectTrue((LoginStreak.claim(fresh, 1, nil)))
 	expectEqual(fresh.pendingStartTips, 3)
-	-- A clock that went backwards also restarts instead of crashing.
-	expectTrue(LoginStreak.checkIn(profile, 50))
+	-- A clock that went backwards changes nothing (no crash, no second claim).
+	expectTrue(not LoginStreak.checkIn(profile, 50))
 	expectEqual(profile.loginStreak, 1)
 	-- XP slot, card back slot (then Tips once it is owned) and the loop back to slot 1 on day 8.
 	local p2 = PlayerProfile.new()
@@ -31364,6 +31364,52 @@ table.insert(tests, { name = "Shop buy UX: Buy plate says Need N when Tips are s
 	assert(src:find("ShopBuyUX", 1, true) and src:find("reduceShake", 1, true), "ShopCards uses the shake and checks Calm mode")
 end })
 
+table.insert(tests, { name = "Counter shop: Reroll is grey with a reason when Tips are short, wood brown when affordable, and a Patron sell confirm names the refund", fn = function()
+	local M = require(script.Parent.Parent.Engine.ShopBuyUX)
+	local short = M.rerollView(3, 1)
+	assert(not short.affordable and short.text == "Reroll 3, 2 short" and short.reason == "Need 2 more Tips to reroll.")
+	assert(short.fill[1] < 118, "grey, not the wood brown")
+	local ok = M.rerollView(3, 3)
+	assert(ok.affordable and ok.reason == nil and ok.text == "Reroll 3" and ok.fill[1] == 118)
+	assert(M.rerollView(3).affordable, "unknown Tips never greys the button")
+	local copy = require(script.Parent.Parent.Engine.ConfirmCopy).sell("The Regular", 3)
+	assert(copy.message:find("3 tips back", 1, true) and copy.yesText == "Sell it" and copy.noText == "Keep it")
+	assert(require(script.Parent.Parent.Engine.PatronSeats).sellLabel(3) == "Sell +3")
+	assert(not short.reason:lower():find("random", 1, true) and not short.reason:lower():find("luck", 1, true), "no gambling wording")
+	if not io then return end
+	local f = assert(io.open("src/Client/Shop.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("rerollView", 1, true), "the Counter draws the Reroll button from rerollView")
+end })
+
+table.insert(tests, { name = "Daily streak safety: one claim per day across rejoin and date changes, a missed day resets, a backwards clock and a save round trip never allow a second claim", fn = function()
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local p = PlayerProfile.new()
+	assert(LoginStreak.checkIn(p, 500) and p.loginStreak == 1)
+	assert(LoginStreak.claim(p, 1, nil))
+	assert(not LoginStreak.claim(p, 1, nil), "no second claim the same day")
+	assert(not LoginStreak.checkIn(p, 500), "a rejoin the same day changes nothing")
+	assert(not LoginStreak.canClaim(p, 1))
+	local tipsAfter = p.pendingStartTips
+	-- Clock goes back a day, then forward again: nothing to claim twice, streak intact.
+	assert(not LoginStreak.checkIn(p, 499))
+	assert(p.loginStreak == 1 and p.lastLoginDay == 500 and not LoginStreak.canClaim(p, 1))
+	assert(not LoginStreak.checkIn(p, 500) and not LoginStreak.canClaim(p, 1))
+	assert(p.pendingStartTips == tipsAfter)
+	-- Save round trip (JSON like) keeps the claimed mark.
+	local copy = {}
+	for k, v in pairs(p) do copy[k] = v end
+	assert(not LoginStreak.canClaim(copy, 1) and not LoginStreak.claim(copy, 1, nil))
+	-- Next day: streak 2, one new claim.
+	assert(LoginStreak.checkIn(p, 501) and p.loginStreak == 2)
+	assert(LoginStreak.canClaim(p, 2) and LoginStreak.claim(p, 2, nil) and not LoginStreak.claim(p, 2, nil))
+	-- One missed day is forgiven, two reset.
+	assert(LoginStreak.checkIn(p, 503) and p.loginStreak == 3)
+	assert(LoginStreak.checkIn(p, 506) and p.loginStreak == 1 and p.bestLoginStreak == 3)
+	-- Non-number days are ignored.
+	assert(not LoginStreak.checkIn(p, nil) and not LoginStreak.checkIn(p, "x"))
+end })
+
 table.insert(tests, { name = "Gameplay v2 Night cleared and Run complete: only a cleared Boss Round, Run complete on the last Night, plates inside the screen with a 48 px Continue", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local boss = { phase = "playing", targetScore = 100, roundScore = 120, tips = 5, round = 3, night = 2, nightCap = 8, bossModifier = { id = "bouncer" } }
@@ -39211,6 +39257,26 @@ table.insert(tests, { name = "PatronCardSpec: Counter art is a clipped Crop wind
 	if row then
 		expectTrue(row:find("NameFit.MAX_SIZE", 1, true) ~= nil, "My Patrons seats use PatronNameFit, whose max is the shared 16")
 	end
+end })
+
+table.insert(tests, { name = "Golden Gala: premium classic card, ink 7:1, other sets 4.5:1, face art not drawn, Patron Power text clears the X", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local PPP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	for _, set in ipairs(CS.Definitions) do
+		local need = set.id == "golden_gala" and 7 or 4.5
+		expectTrue(CS.indexContrast(set) >= need, set.id .. " index ink contrast " .. need)
+		local look = CS.cardLook(set)
+		for _, k in ipairs({ "red", "black" }) do
+			expectTrue(CS.contrastRatio(look.ink[k], look.paper) >= need, set.id .. " " .. k .. " ink on card paper " .. need)
+		end
+	end
+	local gala = CS.getById("golden_gala")
+	local skin = CS.skinOf(gala)
+	expectTrue(skin.classicFace == true, "gala shows the classic face")
+	expectTrue(CFA.ivoryAlone(skin, "rbxassetid://1"), "gala draws no paper tile, court or drape frame")
+	expectFalse(CFA.ivoryAlone(CS.skinOf(CS.getById("winter_evening")), "rbxassetid://1"), "other sets keep their layers")
+	expectTrue(PPP.X_CLEAR >= 52, "Patron Power text keeps clear of the 44 px X plus its 8 px inset")
 end })
 
 return tests

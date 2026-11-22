@@ -1451,8 +1451,9 @@ return function(deps)
 		rerollButton.TextSize = 16
 		rerollButton.Text = require(Engine:WaitForChild("ShopBuyUX")).rerollText(state.rerollCost, state.tips) -- "Reroll 3" or "Reroll 3, 2 short": the price is on the control
 		rerollButton.Name = "Reroll"
-		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
-		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)
+		local rerollView = require(Engine:WaitForChild("ShopBuyUX")).rerollView(state.rerollCost, state.tips)
+		rerollButton.BackgroundColor3 = Color3.fromRGB(table.unpack(rerollView.fill))
+		rerollButton.TextColor3 = Color3.fromRGB(table.unpack(rerollView.textColor)) -- grey when the Tips are short
 		rerollButton.ZIndex = 6
 		rerollButton:SetAttribute("FlatFace", true) -- same wood plate as Next Round
 		rerollButton.Parent = rerollRow
@@ -1495,7 +1496,7 @@ return function(deps)
 			local latestState = getLatestState()
 			if not latestState or latestState.tips < (latestState.rerollCost or 0) then
 				ShopTrace.log("Reroll refused here: tips %s, cost %s", tostring(latestState and latestState.tips), tostring(latestState and latestState.rerollCost))
-				showWarning(ShopRefusal.REASONS.tips)
+				showWarning(require(Engine:WaitForChild("ShopBuyUX")).rerollView(latestState and latestState.rerollCost, latestState and latestState.tips).reason or ShopRefusal.REASONS.tips)
 				playClickSfx()
 				if shopScene then shopScene.onCantAfford() end
 				return

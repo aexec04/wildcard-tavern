@@ -31,6 +31,18 @@ function M.rerollText(cost, tips)
 	return string.format("Reroll %d", c)
 end
 
+-- The Reroll button's whole look: grey with a reason when the Tips are short, wood brown otherwise.
+-- Only Tips are spent here, nothing random about the price.
+function M.rerollView(cost, tips)
+	local c = num(cost)
+	local need = tips == nil and 0 or M.shortBy(c, tips)
+	if need > 0 then
+		return { affordable = false, text = M.rerollText(c, tips), reason = string.format("Need %d more Tips to reroll.", need),
+			fill = { 92, 86, 80 }, textColor = { 185, 178, 168 } }
+	end
+	return { affordable = true, text = M.rerollText(c, tips), reason = nil, fill = { 118, 82, 48 }, textColor = { 250, 235, 200 } }
+end
+
 function M.shake(calm, fast)
 	if calm or fast then return nil end
 	return { offsets = { -6, 6, -4, 4, -2, 0 }, step = 0.05 }
