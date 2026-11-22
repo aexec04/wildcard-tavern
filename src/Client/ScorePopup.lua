@@ -298,18 +298,13 @@ return function(deps)
 		handPill.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
 		scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
 		pcall(function()
-			local TS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
-			local skin = require(script.Parent.HudTheme).skin()
-			local previewId = nil
-			local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
-			if okV and view and view.previewSetId then previewId = view.previewSetId() end
-			local st = TS.scoreStyle(TS.effectiveSetId(skin and skin.id, previewId))
+			local st = require(script.Parent.SetInk).get() -- Client/SetInk: the set's plate and accent, nil for classic
 			if not st then return end
-			setInkAccent = Color3.fromRGB(st.accent[1], st.accent[2], st.accent[3])
-			handPill.BackgroundColor3 = Color3.fromRGB(st.plate[1], st.plate[2], st.plate[3])
-			handSetEdge.Color = setInkAccent
+			setInkAccent = st.accent
+			handPill.BackgroundColor3 = st.plate
+			handSetEdge.Color = st.accent
 			handSetEdge.Enabled = true
-			scorePopupHandName.TextColor3 = setInkAccent
+			scorePopupHandName.TextColor3 = st.accent
 		end)
 	end
 

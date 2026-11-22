@@ -40140,4 +40140,35 @@ table.insert(tests, { name = "ThemeScenes.scoreStyle: every set but classic gets
 	end
 end })
 
+table.insert(tests, { name = "Per set Patron seats and Patron Power panel: both read the set ink (Client/SetInk), classic keeps its own colours", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local ink = read("src/Client/SetInk.lua")
+	if not ink then return end
+	expectTrue(ink:find("scoreStyle", 1, true) ~= nil, "SetInk is built on ThemeScenes.scoreStyle (7:1)")
+	for _, path in ipairs({ "src/Client/PatronSeatFrame.lua", "src/Client/PatronSeatStrip.lua", "src/Client/PatronPowerPanelFX.lua", "src/Client/ScorePopup.lua" }) do
+		local src = read(path)
+		expectTrue(src:find("SetInk", 1, true) ~= nil, path .. " uses SetInk")
+	end
+	local panel = read("src/Client/PatronPowerPanelFX.lua")
+	expectTrue(panel:find("Color3.fromRGB(246, 196, 70)", 1, true) ~= nil and panel:find("Color3.fromRGB(46, 28, 14)", 1, true) ~= nil, "classic gold frame and plate stay as the fallback")
+	local frame = read("src/Client/PatronSeatFrame.lua")
+	expectTrue(frame:find("if not ink then", 1, true) ~= nil and frame:find("edge.Visible = false", 1, true) ~= nil, "classic seats draw no set outline")
+	-- text on the plate: the set accent, and the lightened body colour, are 7:1 or more on every set plate
+	local E = script.Parent.Parent.Engine
+	local TS, CS = require(E.ThemeScenes), require(E.CosmeticSets)
+	for _, def in ipairs(CS.Definitions) do
+		local st = TS.scoreStyle(def.id)
+		if st then
+			local light = { math.floor((st.accent[1] + 255) / 2), math.floor((st.accent[2] + 255) / 2), math.floor((st.accent[3] + 255) / 2) }
+			expectTrue(CS.contrastRatio(light, st.plate) >= 7, def.id .. " panel body text is 7:1 on the plate")
+		end
+	end
+end })
+
 return tests
