@@ -19,7 +19,7 @@ M.DESIGN_W, M.DESIGN_H = 1280, 720
 M.BBOX = {
 	victory_banner = { 0.009, 0.236, 0.991, 0.723 },
 	victory_button = { 0.007, 0.222, 0.993, 0.770 },
-	victory_hero = { 0.005, 0.049, 0.985, 1.0 },
+	victory_hero = { 0.0, 0.094, 1.0, 1.0 },
 	victory_chest = { 0.127, 0.096, 0.860, 0.938 },
 }
 

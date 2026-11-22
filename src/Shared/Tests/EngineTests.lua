@@ -37096,6 +37096,21 @@ table.insert(tests, { name = "Generated art registries never hold a placeholder 
 	expectTrue(checked > 40, "scanned the art registries")
 end })
 
+table.insert(tests, { name = "No art prompt in prompts.json holds a banned safety word", fn = function()
+	if not io or not io.open then return end
+	local f = io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end
+	local text = f:read("a"):lower(); f:close()
+	expectTrue(#text > 100000, "read the prompts file")
+	local banned = { "beer", "ale", "wine", "whiskey", "rum", "liquor", "cigar", "cigarette", "tobacco", "skull", "blood", "gun" }
+	for _, word in ipairs(banned) do
+		local at = text:find("%f[%a]" .. word .. "%f[%A]")
+		local near = at and text:sub(math.max(1, at - 40), at + 30) or ""
+		expectTrue(at == nil, "prompts.json holds banned word '" .. word .. "' near: " .. near)
+	end
+	expectTrue(not text:find("pipe smoke", 1, true), "prompts.json holds 'pipe smoke'")
+end })
+
 table.insert(tests, { name = "Every pack id resolves to pack art or base art plus a size tag, never an emoji", fn = function()
 	local PackArt = require(script.Parent.Parent.Engine.PackArt)
 	local PacksMod = require(script.Parent.Parent.Engine.Packs)

@@ -7,7 +7,7 @@
 
 return {
 	["big_swing"] = "rbxassetid://119810957801054",
-	["boss_streak"] = "rbxassetid://103836513468188",
+	["boss_streak"] = "rbxassetid://134021347918651",
 	["boss_win"] = "rbxassetid://84501764472708",
 	["buy_pack"] = "rbxassetid://132769021310255",
 	["buy_pass"] = "rbxassetid://78086309306243",
