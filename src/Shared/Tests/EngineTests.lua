@@ -5007,6 +5007,26 @@ table.insert(tests, { name = "BossOutfits: every boss has a valid outfit (known 
 	checkOutfit("unknown", BossOutfits.resolve("no_such_boss", false)) -- falls back to Default
 end })
 
+table.insert(tests, { name = "Strings: every id has safe English text (no em dash, no double dash, no banned word), unknown ids echo, and Settings uses ids for the moved lines", fn = function()
+	local Strings = require(script.Parent.Parent.Engine.Strings)
+	local n = 0
+	for id, text in pairs(Strings.en) do
+		n = n + 1
+		expectTrue(type(text) == "string" and #text > 0, id .. " has text")
+		expectTrue(not text:find("\226\128\148", 1, true) and not text:find("--", 1, true), id .. " has no em dash or double dash")
+		expectTrue(not text:lower():find("balatro", 1, true), id .. " has no banned word")
+		expectEqual(Strings.get(id), text, id .. " resolves")
+	end
+	expectTrue(n >= 16, "the moved Settings lines are present")
+	expectEqual(Strings.get("no.such.id"), "no.such.id", "unknown id echoes")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		for id in pairs(Strings.en) do
+			expectTrue(src:find('S("' .. id .. '")', 1, true) ~= nil, "Settings uses " .. id)
+		end
+	end
+end })
 table.insert(tests, { name = "Image count audit: the menu preloads under 150 images, no url is loaded twice across phases, per set art stays lazy", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local seen, perPhase, total = {}, {}, 0

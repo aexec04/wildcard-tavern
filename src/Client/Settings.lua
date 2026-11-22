@@ -35,6 +35,7 @@ local HEADER = Color3.fromRGB(255, 214, 130)
 local SUBTLE = Color3.fromRGB(190, 175, 155)
 local BUTTON = Color3.fromRGB(70, 45, 25)
 local ON = Color3.fromRGB(70, 110, 60)
+local S = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Strings")).get -- player facing text by id
 
 return function(deps)
 	local polishButton = deps.polishButton
@@ -275,7 +276,7 @@ return function(deps)
 
 	-- ===== Comfort (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
 	makeHeader("Comfort")
-	makeChoiceRow("calmMode", "Calm Mode", "Turns on Reduce Motion, Reduce Flashing and Reduce Screen Shake together.", OFF_ON, {
+	makeChoiceRow("calmMode", "Calm Mode", S("settings.calm.hint"), OFF_ON, {
 		keys = { reduceMotion = true, reduceFlashing = true, reduceShake = true },
 		get = function()
 			return SettingsLayout.calmValue({ reduceMotion = ClientSettings.getRaw("reduceMotion"), reduceFlashing = ClientSettings.getRaw("reduceFlashing"), reduceShake = ClientSettings.getRaw("reduceShake") })
@@ -284,11 +285,11 @@ return function(deps)
 			for k, v in pairs(SettingsLayout.calmWrites(on)) do ClientSettings.set(k, v) end
 		end,
 	})
-	makeChoiceRow("reduceMotion", "Reduce Motion", "Calmer scenes with less movement.", OFF_ON)
-	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
-	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
-	makeChoiceRow("largerText", "Text Size", "Large makes text 15 percent bigger where there is room.", { { false, "Normal" }, { true, "Large" } })
-	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
+	makeChoiceRow("reduceMotion", "Reduce Motion", S("settings.reduceMotion.hint"), OFF_ON)
+	makeChoiceRow("reduceFlashing", "Reduce Flashing", S("settings.reduceFlashing.hint"), OFF_ON)
+	makeChoiceRow("reduceShake", "Reduce Screen Shake", S("settings.reduceShake.hint"), OFF_ON)
+	makeChoiceRow("largerText", "Text Size", S("settings.largerText.hint"), { { false, "Normal" }, { true, "Large" } })
+	makeChoiceRow("colorblindSuits", "Colorblind Suits", S("settings.colorblindSuits.hint"), OFF_ON)
 
 	-- ===== Sound =====
 	makeHeader("Sound")
@@ -307,7 +308,7 @@ return function(deps)
 		t.TextSize = 16
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.TextColor3 = TEXT
-		t.Text = "Music and Sound Effects"
+		t.Text = S("settings.sound.title")
 		t.ZIndex = 21
 		t.Parent = row
 		local b = Instance.new("TextLabel")
@@ -320,7 +321,7 @@ return function(deps)
 		b.TextXAlignment = Enum.TextXAlignment.Left
 		b.TextYAlignment = Enum.TextYAlignment.Top
 		b.TextColor3 = SUBTLE
-		b.Text = "Sliders for music and effects, and Mute."
+		b.Text = S("settings.sound.blurb")
 		b.ZIndex = 21
 		b.Parent = row
 		local go = Instance.new("TextButton")
@@ -376,7 +377,7 @@ return function(deps)
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
 		blurb.TextYAlignment = Enum.TextYAlignment.Top
 		blurb.TextColor3 = SUBTLE
-		blurb.Text = "Walk through the first hands again. You can skip it at any time."
+		blurb.Text = S("settings.tutorial.blurb")
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local go = Instance.new("TextButton")
@@ -428,7 +429,7 @@ return function(deps)
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
 		blurb.TextYAlignment = Enum.TextYAlignment.Top
 		blurb.TextColor3 = SUBTLE
-		blurb.Text = "Show the short tips again as you meet each part of the game."
+		blurb.Text = S("settings.hints.blurb")
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local replay = Instance.new("TextButton")
@@ -558,18 +559,18 @@ return function(deps)
 
 	-- ===== Display =====
 	makeHeader("Display")
-	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward owners get extra speed.", {
+	makeChoiceRow("animSpeed", "Animation Speed", S("settings.animSpeed.hint"), {
 		{ "normal", "Normal" },
 		{ "fast", "Fast" },
 	})
-	makeChoiceRow("performanceMode", "Performance Mode", "For slower devices: turns off the edge shading, soft glows and sparkles.", OFF_ON)
+	makeChoiceRow("performanceMode", "Performance Mode", S("settings.performanceMode.hint"), OFF_ON)
 
 	-- ===== Gameplay =====
 	makeHeader("Gameplay")
-	makeChoiceRow("roundHints", "Round Hints", "Short hint plates in the first rounds. Turn off to hide them.", { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
-	makeChoiceRow("allowSpectators", "Allow Spectators", "Friends in your server can watch your run. Turn off to stop them.", { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
+	makeChoiceRow("roundHints", "Round Hints", S("settings.roundHints.hint"), { { false, "Off" }, { true, "On" } })
+	makeChoiceRow("confirmDiscard", "Confirm Before Discard", S("settings.confirmDiscard.hint"), OFF_ON)
+	makeChoiceRow("allowSpectators", "Allow Spectators", S("settings.allowSpectators.hint"), { { false, "Off" }, { true, "On" } })
+	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", S("settings.holdConfirm.hint"), {
 		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
 	})
 	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
