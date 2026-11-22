@@ -26,7 +26,7 @@ DailyModifiers.Definitions = {
 	{ id = "quick_deal", name = "Quick Deal", icon = "⚡", text = "1 extra Hand, 1 fewer Discard.", config = { handsPerRound = 1, discardsPerRound = -1 } },
 	{ id = "wide_table", name = "Wide Table", icon = "🍽️", text = "Draw 2 extra cards but play 1 fewer Hand.", config = { handSize = 2, handsPerRound = -1 } },
 	{ id = "penny_pincher", name = "Penny Pincher", icon = "🪙", text = "Tips pay 75%, Patron effects count 50% more.", rules = { tipsPercent = 75, patronPower = 1.5 } },
-	{ id = "solo_star", name = "Solo Star", icon = "⭐", text = "One Patron seat, but its effect counts double.", setConfig = { patronSlotLimit = 1 }, rules = { patronPower = 2 } },
+	{ id = "solo_star", name = "Solo Star", icon = "⭐", text = "One seat, effect counts 4x, +3 Hands, +4 Discards, +8 Tips.", setConfig = { patronSlotLimit = 1 }, startTips = 8, config = { handsPerRound = 3, discardsPerRound = 4, handSize = 1 }, rules = { patronPower = 4 } },
 	{ id = "thrifty_table", name = "Thrifty Table", icon = "🥣", text = "Start with 4 extra Tips and 1 extra Discard.", startTips = 4, config = { discardsPerRound = 1 } },
 	{ id = "steady_hands", name = "Steady Hands", icon = "🤝", text = "1 extra Hand every round.", config = { handsPerRound = 1 } },
 }

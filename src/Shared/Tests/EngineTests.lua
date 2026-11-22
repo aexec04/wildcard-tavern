@@ -38657,6 +38657,18 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Daily twists balance pin: Solo Star gives one seat at 4x power with 3 extra Hands, 4 extra Discards and 8 Tips (its win rate was 0 percent at 2x), all 12 twists still exist", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	expectEqual(#DM.Definitions, 12)
+	local solo = DM.getById("solo_star")
+	expectEqual(solo.rules.patronPower, 4)
+	expectEqual(solo.setConfig.patronSlotLimit, 1)
+	expectEqual(solo.config.handsPerRound, 3)
+	expectEqual(solo.config.discardsPerRound, 4)
+	expectEqual(solo.startTips, 8)
+	expectTrue(#solo.text <= 60 and solo.text:find("4x", 1, true) ~= nil, "the plate line tells the numbers: " .. solo.text)
+end })
+
 table.insert(tests, { name = "Daily twists: Patron power twists never leave fractional Tips, and every twist plays a seeded run to the end with whole Tips", fn = function()
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
@@ -39786,7 +39798,7 @@ table.insert(tests, { name = "Daily modifiers: 12 kid safe twists, same for ever
 	local short = RunState.new({ dailyModifierId = "short_hands" })
 	expectTrue(short.config.handSize == plain.config.handSize - 1 and short.config.handsPerRound == plain.config.handsPerRound + 1, "Short Hands config")
 	local solo = RunState.new({ dailyModifierId = "solo_star" })
-	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 2 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
+	expectTrue(solo.config.patronSlotLimit == 1 and solo.dailyModifier.patronPower == 4 and solo.challenge == nil, "Solo Star keeps challenge nil so Daily stays ranked")
 	expectTrue(plain.dailyModifier == nil, "normal runs have no daily twist")
 	-- Menu plate and table scroll words
 	local MenuDailyEntry = require(script.Parent.Parent.Engine.MenuDailyEntry)
