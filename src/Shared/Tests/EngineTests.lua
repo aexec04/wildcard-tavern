@@ -21160,9 +21160,29 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 			expectFalse(hit(t.face, t.back), "face and back do not overlap")
 			expectFalse(hit(t.face, t.name) or hit(t.back, t.name) or hit(t.name, t.preview), "name sits between the cards and the Preview plate")
 			expectTrue(t.name.h >= 36 and t.preview.h >= 24 and t.cardH >= 48, "two name lines, a Preview plate and cards big enough to see")
+			if t.swatch then
+				expectTrue(inside(t.swatch, rel), "frame " .. i .. " swatch inside the frame")
+				expectFalse(hit(t.swatch, t.face) or hit(t.swatch, t.back) or hit(t.swatch, t.name), "the mini table swatch sits between the cards and the name")
+			end
 		end
 		-- soft vignette only where the picture leaves an edge
 		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "plain fade strip") end
+	end
+	-- the live grid at 1920x957, 1280x720, 1024x768 and 800x450: every cell's parts (cards, swatch, name, Preview) stay inside its frame, and the cells stay inside the area
+	for _, screen in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.panel(screen[1], screen[2])
+		local g = L.grid(pw, ph - L.TOP - L.BOTTOM, 15, 1)
+		for i, cell in ipairs(g.cells) do
+			local f = cell.frame
+			local t = L.tileParts(f)
+			local rel = { x = 0, y = 0, w = f.w, h = f.h }
+			local function within(a, b) return a.x >= b.x and a.y >= b.y and a.x + a.w <= b.x + b.w and a.y + a.h <= b.y + b.h end
+			for _, k in ipairs({ "face", "back", "name", "preview", "swatch" }) do
+				if t[k] then expectTrue(within(t[k], rel), "grid " .. screen[1] .. "x" .. screen[2] .. " cell " .. i .. " " .. k .. " inside its frame") end
+			end
+			if t.swatch then expectTrue(t.swatch.y >= t.face.y + t.face.h and t.name.y >= t.swatch.y + t.swatch.h, "swatch sits between cards and name") end
+			expectTrue(f.x >= 0 and f.x + f.w <= pw and cell.plaque.y + cell.plaque.h <= ph, "cell " .. i .. " is on the panel at " .. screen[1] .. "x" .. screen[2])
+		end
 	end
 	-- paging: every set and every back (plus Match my set) is reachable
 	local function reach(n)

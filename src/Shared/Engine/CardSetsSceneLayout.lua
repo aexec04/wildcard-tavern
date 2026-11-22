@@ -71,19 +71,23 @@ end
 function M.tileParts(f)
 	local pad, gap = 4, 6
 	local nameH, btnH = 37, 24
-	local cardH = math.max(48, f.h - (pad + 4 + nameH + 3 + btnH + pad))
+	local avail = f.h - (pad + 4 + nameH + 3 + btnH + pad)
+	local swatchH = avail >= 48 + 20 and 18 or 0 -- a mini table swatch under the cards (Card Sets), only when it fits
+	local cardH = math.max(48, avail - (swatchH > 0 and swatchH + 2 or 0))
 	local cardW = math.floor(math.min((f.w - 2 * pad - gap) / 2, cardH * 2 / 3))
 	cardH = math.floor(cardW * 3 / 2)
 	local top = pad
 	local rowW = cardW * 2 + gap
 	local x0 = math.floor((f.w - rowW) / 2)
-	local nameY = top + cardH + 4
+	local swatch = swatchH > 0 and { x = x0, y = top + cardH + 3, w = cardW * 2 + gap, h = swatchH } or nil
+	local nameY = top + cardH + 4 + (swatch and swatchH + 2 or 0)
 	local single = { x = math.floor((f.w - cardW) / 2), y = top, w = cardW, h = cardH }
 	return {
 		cardW = cardW, cardH = cardH,
 		face = { x = x0, y = top, w = cardW, h = cardH },
 		back = { x = x0 + cardW + gap, y = top, w = cardW, h = cardH },
 		single = single,
+		swatch = swatch,
 		name = { x = 4, y = nameY, w = f.w - 8, h = nameH },
 		preview = { x = 8, y = f.h - pad - btnH, w = f.w - 16, h = btnH },
 	}

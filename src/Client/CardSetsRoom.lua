@@ -132,6 +132,29 @@ function CardSetsRoom.new(ctx)
 		ctx.label(face, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = Color3.fromRGB(60, 40, 22), Text = "K", ZIndex = 46 })
 		local thumb = ctx.CardBackView.thumb(frame, back, { size = Vector2.new(parts.back.w, parts.back.h), locked = not owned, shimmer = false, zIndex = 44 })
 		thumb.Position = UDim2.fromOffset(parts.back.x, parts.back.y)
+		if parts.swatch then -- a framed mini table in this set's own felt and rail colours
+			local tint = ctx.CosmeticSets.tableTintOf(set)
+			local felt = tint and tint.felt or { 52, 110, 78 }
+			local wood = tint and tint.wood or { 150, 104, 60 }
+			local rail = Instance.new("Frame")
+			rail.Name = "SetSwatch"
+			rail.BorderSizePixel = 0
+			rail.BackgroundColor3 = Color3.fromRGB(wood[1], wood[2], wood[3])
+			rail.ZIndex = 44
+			rail.Position, rail.Size = rectProps(parts.swatch)
+			rail.Parent = frame
+			ctx.roundCorner(rail, 5)
+			local inner = Instance.new("Frame")
+			inner.BorderSizePixel = 0
+			inner.BackgroundColor3 = Color3.fromRGB(felt[1], felt[2], felt[3])
+			inner.AnchorPoint = Vector2.new(0.5, 0.5)
+			inner.Position = UDim2.fromScale(0.5, 0.5)
+			inner.Size = UDim2.new(1, -6, 1, -6)
+			inner.ZIndex = 45
+			inner.Parent = rail
+			ctx.roundCorner(inner, 3)
+			if not owned then rail.BackgroundTransparency = 0.45; inner.BackgroundTransparency = 0.45 end
+		end
 	end
 
 	local function paintTile(i, entry, frame, plaque, state)
@@ -178,6 +201,26 @@ function CardSetsRoom.new(ctx)
 			local thumb = ctx.CardBackView.thumb(holder, shown, { size = Vector2.new(parts.single.w, parts.single.h), equipped = equipped, locked = not owned, zIndex = 44,
 				isActive = ctx.isOpen })
 			thumb.Position = UDim2.fromOffset(parts.single.x, parts.single.y)
+			do -- stands on the shelf: tilted, with a soft shadow; equipped gets a gold glow ring
+				thumb.Rotation = -4
+				local sh = Instance.new("Frame")
+				sh.Name = "BackShadow"
+				sh.BorderSizePixel = 0
+				sh.BackgroundColor3 = Color3.fromRGB(10, 6, 3)
+				sh.BackgroundTransparency = 0.6
+				sh.ZIndex = 43
+				sh.Position = UDim2.fromOffset(parts.single.x + 4, parts.single.y + 5)
+				sh.Size = UDim2.fromOffset(parts.single.w, parts.single.h)
+				sh.Parent = holder
+				ctx.roundCorner(sh, 6)
+				if equipped then
+					local glow = Instance.new("UIStroke")
+					glow.Color = GOLD
+					glow.Thickness = 3
+					glow.Transparency = 0.1
+					glow.Parent = thumb
+				end
+			end
 			if equipped then
 				actionText = "Equipped"
 			elseif owned then
@@ -192,6 +235,19 @@ function CardSetsRoom.new(ctx)
 			end
 		end
 
+		if entry.set then -- the name sits on a plate in the set's accent, lightened so the ink stays readable
+			local acc = ctx.CosmeticSets.accentOf(entry.set) or { 205, 170, 95 }
+			local function toCream(v, c) return math.floor(v + (c - v) * 0.6 + 0.5) end
+			local plate = Instance.new("Frame")
+			plate.Name = "NamePlate"
+			plate.BorderSizePixel = 0
+			plate.BackgroundColor3 = Color3.fromRGB(toCream(acc[1], 250), toCream(acc[2], 240), toCream(acc[3], 220))
+			plate.BackgroundTransparency = owned and 0.1 or 0.5
+			plate.ZIndex = 44
+			plate.Position, plate.Size = rectProps(parts.name)
+			plate.Parent = holder
+			ctx.roundCorner(plate, 4)
+		end
 		-- name on two lines in the velvet, whole (a 38 px box fits two 14 px lines), no dots
 		ctx.label(holder, { Position = UDim2.fromOffset(parts.name.x, parts.name.y), Size = UDim2.fromOffset(parts.name.w, parts.name.h), Font = Enum.Font.GothamBold, TextSize = 15,
 			TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = owned and INK or DIM_INK, Text = name, ZIndex = 45 })
@@ -202,6 +258,11 @@ function CardSetsRoom.new(ctx)
 			pb.TextStrokeTransparency = 1
 		end
 		addTip(holder, tipText)
+		do -- hover lifts the tile 6 px (set directly, no tween, so calm mode needs nothing extra)
+			local base = holder.Position
+			holder.MouseEnter:Connect(function() holder.Position = UDim2.new(base.X.Scale, base.X.Offset, base.Y.Scale, base.Y.Offset - 6) end)
+			holder.MouseLeave:Connect(function() holder.Position = base end)
+		end
 		-- the action lives on the brass plaque under the frame
 		local pr = { x = plaque.x - 0, y = plaque.y, w = plaque.w, h = plaque.h }
 		local pill = actionText == "Locked" or string.sub(actionText, 1, 3) == "Buy" -- cream on a dark pill; Equip and Equipped stay ink on the brass
