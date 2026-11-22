@@ -34,6 +34,15 @@ function ConfirmCopy.sell(name, refund)
 	}
 end
 
+-- Skipping for a RARE Tag only (Tags.rare): the Tag name and its one kind line, a calm brass Yes.
+function ConfirmCopy.skip(name, short)
+	local body = tostring(short or "")
+	return {
+		message = string.format("Skip for %s?", tostring(name)) .. (body ~= "" and ("\n\n" .. body) or ""),
+		yesText = "Skip it", noText = "Play it", danger = false,
+	}
+end
+
 function ConfirmCopy.discard(count)
 	count = math.floor(tonumber(count) or 0)
 	return {

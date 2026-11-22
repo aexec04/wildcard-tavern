@@ -766,7 +766,13 @@ local function serializeState(session, player)
 					table.insert(cardBacks, id)
 				end
 			end
-			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks }
+			local boonsSeen = {}
+			for id in pairs(profile and profile.seenBoonIds or {}) do boonsSeen[#boonsSeen + 1] = id end
+			table.sort(boonsSeen)
+			local marksSeen = {}
+			for id in pairs(profile and profile.seenMarkIds or {}) do marksSeen[#marksSeen + 1] = id end
+			table.sort(marksSeen)
+			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks, boonsSeen = boonsSeen, marksSeen = marksSeen }
 		end)(),
 		-- One-shot: milestone ids claimed since the last push (nil otherwise).
 		collectionMilestoneNotice = session.collectionMilestoneNotice,
@@ -964,6 +970,7 @@ local function serializeState(session, player)
 		isRush = state.rush ~= nil,
 		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
 		nightBoon = require(Engine.NightBoons).view(state), -- this Night's boon (HUD tooltip), nil when none
+		boonsTaken = require(Engine.NightBoons).history(state), -- every boon taken this run (the Run Over chip strip)
 		rewardNotice = rewardNotices[player], -- { seq, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -1579,6 +1586,9 @@ local function pushState(player)
 		return
 	end
 	syncProfileFromSession(player)
+	if session.markOffer and profiles[player] and PlayerProfile.recordMarksSeen(profiles[player], { session.markOffer }) > 0 then
+		profileDirty[player] = true -- the Collection Marks page lists the Marks the Counter has offered
+	end
 	trackDailyProgress(player)
 	trackWeeklyProgress(player)
 	trackEndlessProgress(player)
@@ -3133,6 +3143,11 @@ Rem.AdvanceRound.OnServerEvent:Connect(function(player)
 		-- a Patron reward for the Night just cleared comes first (Skip allowed); an event, if rolled, follows it
 		-- a Night boon (Nights 2 to 12) opens the Night, then the reward and event follow it (RunChoice.pick, kind "boon")
 		session.choice = RunChoice.boonDraft(session.state, not fixedRun) or RunChoice.afterBoon(session.state, not fixedRun)
+		if session.choice and session.choice.kind == "boon" and profiles[player] then -- the Collection Boons page lists what was offered
+			local offered = {}
+			for _, option in ipairs(session.choice.options or {}) do offered[#offered + 1] = option.id end
+			if PlayerProfile.recordBoonsSeen(profiles[player], offered) > 0 then profileDirty[player] = true end
+		end
 	end
 	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
 	if RunService:IsStudio() and not session.choice and not fixedRun then

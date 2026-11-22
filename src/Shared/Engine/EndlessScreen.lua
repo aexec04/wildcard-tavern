@@ -4,7 +4,7 @@
 	short kind share line. A run is in Endless once its Night passes the Night cap. Pure Lua, no Roblox APIs.
 
 	lines(state, bests, stake)   { headline = "Endless Night 14", best = "Best Endless Night 16", isBest = bool } or nil
-	shareLine(night, best)       "I reached Endless Night 14 in <game>. Can you beat me?"
+	shareLine(night, best)       "I reached Endless Night 14 in <game>. Can you beat me?" (one of three variants, 80 characters or less)
 
 	Every line is short (under MAX_LINE characters) so it fits one row at the smallest screen, and none carries a number
 	that is not floored first.
@@ -42,13 +42,7 @@ end
 
 function EndlessScreen.shareLine(night, best)
 	night = math.max(1, whole(night))
-	local text = string.format("I reached Endless Night %d in %s.", night, GameName.NAME)
-	if best and whole(best) > night then
-		text = text .. string.format(" My best is Night %d.", whole(best))
-	end
-	text = text .. " Can you beat me?"
-	if #text > EndlessScreen.MAX_SHARE then text = text:sub(1, EndlessScreen.MAX_SHARE - 3) .. "..." end
-	return text
+	return require(script.Parent.ShareVariants).line("endless", { night = night }, night + whole(best)) -- one of three variants, 80 characters or less
 end
 
 return EndlessScreen

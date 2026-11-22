@@ -1387,6 +1387,7 @@ local RoundSelectOverlay = require(script.RoundSelect)({
 	RunStateEngine = RunStateEngine,
 	SelectRoundRemote = SelectRoundRemote,
 	SkipRoundRemote = SkipRoundRemote,
+	showConfirmDialog = ConfirmDialogModule.showConfirmDialog, -- a rare Tag asks before the skip
 	showRoundReward = RoundRewardPopupModule.showRoundReward,
 	showUnlockPopup = UnlockPopupModule.showUnlockPopup,
 	showWarning = showWarning,

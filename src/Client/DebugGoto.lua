@@ -359,6 +359,12 @@ function DebugGoto.init(deps)
 				OverlayManager.closeAllExcept("")
 				showMenu()
 				require(script.Parent.NewsPanel).open()
+			elseif target.kind == "boon" then -- boon or boon:<setId>: the Night boon picker with three sample boons, over the table
+				OverlayManager.closeAllExcept("")
+				hideMenu()
+				local NB = require(ReplicatedStorage.Shared.Engine.NightBoons)
+				local draft = NB.draft({ night = 3, rng = function() return 1 end }, true)
+				require(script.Parent.ChoicePanel).update({ choice = draft })
 			elseif target.kind == "equip" then
 				if not require(ReplicatedStorage.Shared.Engine.CosmeticSets).getById(target.setId) then error("unknown card set " .. target.setId) end
 				pcall(function() require(script.Parent.CosmeticSetsView).stopPreview() end)
@@ -396,7 +402,7 @@ function DebugGoto.init(deps)
 				error(target.kind .. " is not reachable from script (needs a second player)")
 			end
 			-- menu:<setId>, map:<setId>, tome:<page>:<setId>, news:<setId>: preview that set over whatever is equipped
-			if target.setId and (target.kind == "menu" or target.kind == "tome" or target.kind == "map" or target.kind == "news") then
+			if target.setId and (target.kind == "menu" or target.kind == "tome" or target.kind == "map" or target.kind == "news" or target.kind == "boon") then
 				local set = require(ReplicatedStorage.Shared.Engine.CosmeticSets).getById(target.setId)
 				if not set then error("unknown card set " .. target.setId) end
 				local View = require(script.Parent.CosmeticSetsView)

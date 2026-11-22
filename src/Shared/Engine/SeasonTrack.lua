@@ -342,6 +342,50 @@ function SeasonTrack.rewardText(reward, lookup)
 	return TavernRank.rewardText(reward, lookup)
 end
 
+-- The name shown on a tile at 16 px (two lines at most): the reward's own name, since the painted icon already says what kind it is.
+-- "+3 Tips", "Season Stamp", or a card back, title, Card Set or Flair name. Falls back to the long text when a name is unknown.
+function SeasonTrack.shortText(reward, lookup)
+	if not reward then return "" end
+	lookup = lookup or {}
+	local name
+	if reward.kind == "tips" then
+		return "+" .. reward.amount .. " Tips"
+	elseif reward.kind == "stamp" then
+		return "Season Stamp"
+	elseif reward.kind == "title" then
+		name = lookup.titleName and lookup.titleName(reward.id)
+	elseif reward.kind == "cardBack" then
+		name = lookup.cardBackName and lookup.cardBackName(reward.id)
+	elseif reward.kind == "set" then
+		name = lookup.setName and lookup.setName(reward.id)
+	elseif reward.kind == "flair" then
+		local option = require(script.Parent.Flair).getById(reward.id)
+		name = option and option.name
+	end
+	return name or SeasonTrack.rewardText(reward, lookup)
+end
+
+-- Tile text rules (Client/SeasonPanel): reward names are 16 px, in a box 122 px wide and 38 px tall (two lines).
+SeasonTrack.NAME_SIZE, SeasonTrack.NAME_W, SeasonTrack.NAME_LINES = 16, 122, 2
+-- How many lines `text` needs at that size, wrapping at spaces, with a cautious 0.56 em average glyph width (GothamMedium is narrower).
+function SeasonTrack.nameLines(text, size, width)
+	size, width = size or SeasonTrack.NAME_SIZE, width or SeasonTrack.NAME_W
+	local perLine = math.max(1, math.floor(width / (size * 0.56)))
+	local lines, cur = 1, 0
+	for word in tostring(text):gmatch("%S+") do
+		local len = #word
+		if cur == 0 then
+			cur = len
+		elseif cur + 1 + len <= perLine then
+			cur = cur + 1 + len
+		else
+			lines, cur = lines + 1, len
+		end
+		while cur > perLine do lines, cur = lines + 1, cur - perLine end -- a very long word breaks across lines
+	end
+	return lines
+end
+
 -- Cleans saved values: junk dropped, an unknown season id resets so renamed content never breaks a profile.
 function SeasonTrack.cleanSaved(rawId, rawXp, rawClaimed)
 	local id = type(rawId) == "string" and SeasonTrack.getById(rawId) and rawId or nil
@@ -406,9 +450,9 @@ function SeasonTrack.view(profile, day, lookup)
 		local premiumDone = premiumClaimed[tier] == true
 		if premiumOwned and isReached and not premiumDone then premiumClaimable = premiumClaimable + 1 end
 		tiers[tier] = {
-			tier = tier, need = tier * SeasonTrack.XP_PER_TIER, reward = reward, text = SeasonTrack.rewardText(reward, lookup),
+			tier = tier, need = tier * SeasonTrack.XP_PER_TIER, reward = reward, text = SeasonTrack.rewardText(reward, lookup), short = SeasonTrack.shortText(reward, lookup),
 			reached = isReached, claimed = isClaimed,
-			premium = { reward = premiumReward, text = SeasonTrack.rewardText(premiumReward, lookup), claimed = premiumDone, locked = not premiumOwned },
+			premium = { reward = premiumReward, text = SeasonTrack.rewardText(premiumReward, lookup), short = SeasonTrack.shortText(premiumReward, lookup), claimed = premiumDone, locked = not premiumOwned },
 		}
 	end
 	return {

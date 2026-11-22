@@ -225,6 +225,11 @@ local function buildCard(choice, option, order)
 				end)
 			end
 		end
+	elseif choice.kind == "boon" then -- the painted boon icon (Engine/BoonIconArt), the emoji stays as the fallback
+		local artId = ContentArt.getImageId("boon_icons", option.id)
+		if artId then
+			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 8 })
+		end
 	elseif choice.kind == "modifier" then
 		local artId = ContentArt.getImageId("blessing_icons", option.id)
 		if artId then

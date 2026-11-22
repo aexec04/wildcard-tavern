@@ -82,4 +82,17 @@ function StartingDecks.view(profile)
 	return rows
 end
 
+-- The tile icon is an existing card back picture (CardBackArt keys), no new art: Classic the classic back, Lucky the green lily pad back,
+-- Slim the hall banner back. A deck with no entry here keeps its emoji.
+StartingDecks.IconBacks = { classic = "classic", lucky = "lilypad_green", slim = "hall_banner" }
+function StartingDecks.iconBack(id) return StartingDecks.IconBacks[id] end
+
+-- What one pick tile says: the title with the card count, and one line (the rule, or the unlock rule while locked). Nothing else is drawn.
+StartingDecks.TILE_HEIGHT = 66 -- design px of a pre run pick card, 44 px or more at every window size the setup scroll allows
+function StartingDecks.tile(row)
+	local title = tostring(row.icon or "") .. " " .. tostring(row.name) .. ", " .. tostring(row.size) .. " cards"
+	local line = row.open and row.text or ("Locked. " .. tostring(row.hint))
+	return title, line
+end
+
 return StartingDecks

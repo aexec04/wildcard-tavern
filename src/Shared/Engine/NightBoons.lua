@@ -114,6 +114,11 @@ function NightBoons.apply(state, id)
 	if not def then return false, "Unknown boon" end
 	if not NightBoons.offeredAt(state.night) then return false, "No boons this Night" end
 	state.nightBoon = { id = def.id, night = state.night }
+	state.boonLog = state.boonLog or {} -- every boon taken this run, for the Run Over strip; one entry per Night
+	for i = #state.boonLog, 1, -1 do
+		if state.boonLog[i].night == state.night then table.remove(state.boonLog, i) end
+	end
+	state.boonLog[#state.boonLog + 1] = { id = def.id, night = state.night }
 	state.boonsPicked = (state.boonsPicked or 0) + 1 -- Boon Keeper counts these
 	if def.tips then state.tips = (state.tips or 0) + def.tips end
 	-- the round that is already dealt (Round Select) gets its hands and discards at once
@@ -127,6 +132,15 @@ function NightBoons.apply(state, id)
 		state.roundStartDiscards = (state.roundStartDiscards or state.discardsRemaining) + discards
 	end
 	return true, def.name .. ": " .. def.text .. "."
+end
+
+-- The boons taken so far this run, oldest first: { { id, night }, ... } (what the Run Over screen sends and reads).
+function NightBoons.history(state)
+	local out = {}
+	for _, rec in ipairs(type(state) == "table" and state.boonLog or {}) do
+		if type(rec) == "table" and NightBoons.getById(rec.id) then out[#out + 1] = { id = rec.id, night = math.floor(tonumber(rec.night) or 0) } end
+	end
+	return out
 end
 
 -- Display data for the HUD tooltip (nil when no boon is active this Night).

@@ -147,6 +147,8 @@ PlayerProfile.ID_SET_FIELDS = {
 	"discoveredBossIds",
 	"discoveredHousePassIds",
 	"discoveredBondIds", -- Patron Bonds formed (Engine/Bonds.lua)
+	"seenBoonIds", -- Night boons offered at least once (Engine/NightBoons.lua, the Collection Boons page)
+	"seenMarkIds", -- Marks offered in a Counter pack at least once (Engine/Marks.lua, the Collection Marks page)
 	"claimedMilestoneIds",
 	"rewardTitleIds",
 	"unlockedCardBackIds",
@@ -184,6 +186,8 @@ function PlayerProfile.new()
 		discoveredBossIds = {}, -- [bossRoundId] = true
 		discoveredHousePassIds = {}, -- [housePassId] = true
 		discoveredBondIds = {}, -- [Bonds id] = true
+		seenBoonIds = {}, -- [NightBoons id] = true
+		seenMarkIds = {}, -- [Card.Marks id] = true
 		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
@@ -650,6 +654,32 @@ end
 -- up), so the caller doesn't need to check a return value here.
 function PlayerProfile.recordRunStarted(profile)
 	profile.stats.runsStarted = profile.stats.runsStarted + 1
+end
+
+-- Night boons were offered on a pick card: remember them for the Collection Boons page. Returns how many were new.
+function PlayerProfile.recordBoonsSeen(profile, ids)
+	profile.seenBoonIds = profile.seenBoonIds or {}
+	local fresh = 0
+	for _, id in ipairs(ids or {}) do
+		if type(id) == "string" and not profile.seenBoonIds[id] then
+			profile.seenBoonIds[id] = true
+			fresh = fresh + 1
+		end
+	end
+	return fresh
+end
+
+-- A Mark pack was offered at the Counter: remember it for the Collection Marks page. Returns how many were new.
+function PlayerProfile.recordMarksSeen(profile, ids)
+	profile.seenMarkIds = profile.seenMarkIds or {}
+	local fresh = 0
+	for _, id in ipairs(ids or {}) do
+		if type(id) == "string" and require(script.Parent.Card).Marks[id] and not profile.seenMarkIds[id] then
+			profile.seenMarkIds[id] = true
+			fresh = fresh + 1
+		end
+	end
+	return fresh
 end
 
 -- A Night boon was picked (feeds the boon titles).

@@ -63,6 +63,7 @@ local ContentArt = {
 	option_icons = require(Engine:WaitForChild("OptionArt")),         -- keyed by event option kind (RunEvents.OPTION_KINDS)
 	blessing_icons = require(Engine:WaitForChild("BlessingIconArt")), -- keyed by RunModifiers id (Choice cards, Blessing chip)
 	mark_badges  = require(Engine:WaitForChild("MarkBadgeArt")),      -- keyed by Card.Marks id (corner badge of a marked card; the drawn letter badge is the fallback)
+	boon_icons   = require(Engine:WaitForChild("BoonIconArt")),       -- keyed by NightBoons id (boon pick cards, boon chip); emoji until an id is recorded
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
 	menu_bayou   = require(Engine:WaitForChild("BayouArt")),          -- bayou_sky ... bayou_willow_fg (Menu bayou backdrop, empty until Image ids are recorded)
 	logo         = require(Engine:WaitForChild("LogoArt")),           -- logo_wordmark, logo_emblem (Menu title; empty until Image ids are recorded)

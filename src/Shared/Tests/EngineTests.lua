@@ -9855,8 +9855,8 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
-	-- 24 quest types, unique ids, never two quests on one counter in a day, deterministic
-	expectEqual(#Quests.Definitions, 24, "24 quest types")
+	-- 31 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 31, "31 quest types")
 	do -- variety: 12+ distinct counters, and no quest repeats inside a UTC week (3 a day, 21 different)
 		local kinds, kindCount = {}, 0
 		for _, def in ipairs(Quests.Definitions) do
@@ -9971,6 +9971,7 @@ table.insert(tests, { name = "AccountProgress: counters become XP and quest prog
 	state.handStats = { Pair = 20, Straight = 20, ["Full House"] = 20, ["Three of a Kind"] = 20 }
 	state.bigHands, state.richClears, state.quickClears, state.housePassesBought = 5, 5, 5, 5
 	state.recipesUsed, state.cardsDiscarded, state.night, state.roundsCleared = 5, 40, 5, 40
+	state.boonsPicked, state.marksBought, state.startingDeckId = 5, 5, "slim" -- the boon, Mark and deck quests too
 	local r3 = AccountProgress.sync(profile, snap, state, 20000, false)
 	for _, id in ipairs(ids) do
 		expectTrue(profile.quests.done[id], id .. " completes once its counter is high enough")
@@ -12707,7 +12708,7 @@ table.insert(tests, { name = "ShareResult: a short result line and a challenge l
 	expectTrue(line:find("Night 6", 1, true) and line:find("Flush (1240)", 1, true) and line:find("Seed: ABC234", 1, true) and line:find("beat me", 1, true))
 	expectTrue(#line <= ShareResult.MAX_LENGTH)
 	expectTrue(not ShareResult.line(summary, nil):find("Seed", 1, true), "no seed for an ordinary run")
-	expectTrue(ShareResult.line({ night = 8, won = true }, nil):find("won and reached Night 8", 1, true))
+	expectTrue(ShareResult.line({ night = 8, won = true }, nil):find("Night 8", 1, true), "an ordinary win names its Night")
 	local long = ShareResult.line({ night = 9, bestHand = { name = string.rep("x", 400), score = 1 } }, "ABC234")
 	expectEqual(#long, ShareResult.MAX_LENGTH)
 	local challenge = ShareResult.challengeLine(summary, "QWE789")
@@ -20587,7 +20588,9 @@ table.insert(tests, { name = "Collection opens on the gallery room: six hotspots
 		if c.ClassName == "TextButton" then plates[#plates + 1] = c end
 	end
 	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
-	expectEqual(#plates, 7, "a Gallery plate and one per section")
+	expectEqual(#plates, 9, "a Gallery plate, one per section, the Boons page plate and the Marks page plate")
+	expectEqual(plates[8].Text, "Boons", "the next to last plate opens the Boons page")
+	expectEqual(plates[9].Text, "Marks", "the last plate opens the Marks page")
 	expectEqual(plates[1].Text, "< Gallery")
 	for i, tab in ipairs(CB.Tabs) do -- each tab plate carries its count pill: "Name  found / total"
 		local counts = CB.tabCounts(col.view and col.view.sets or {})[tab.id]
@@ -24029,9 +24032,10 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
+		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
@@ -38340,7 +38344,7 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
 	local line = Look.shareLine({ night = 8 }, { name = "Flush", score = 80 })
-	expectTrue(#line <= 200 and line:find("Night 8") and line:find("Flush"), "share line is plain text within the chat limit")
+	expectTrue(#line <= 80 and line:find("Night 8"), "share line is plain text, 80 characters or less")
 	expectTrue(not line:find("http") and not line:lower():find("www"), "share line has no links")
 	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
 	expectEqual(#cols, 1, "no unlocks means no unlock column")
@@ -43627,7 +43631,11 @@ end })
 table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store, season and collection each take a :<setId> suffix for every set", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
-	expectEqual(#R.SET_SCREENS, 8, "eight screens are listed")
+	expectEqual(#R.SET_SCREENS, 9, "nine screens are listed (boon is the Night boon picker)")
+	local boon, boonSet = R.parse("boon"), R.parse("boon:winter_evening")
+	expectTrue(boon and boon.kind == "boon" and boon.setId == nil, "boon alone opens the picker in the equipped set")
+	expectTrue(boonSet and boonSet.kind == "boon" and boonSet.setId == "winter_evening", "boon:<setId> previews the picker in that set")
+	expectTrue(R.parse("boon:no_such_set") == nil, "an unknown set is an error for boon too")
 	local n = 0
 	for _, set in ipairs(CS.Definitions) do
 		for _, screen in ipairs(R.SET_SCREENS) do
@@ -43639,7 +43647,7 @@ table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store
 			end
 		end
 	end
-	expectEqual(n, 8 * #CS.Definitions, "every screen and set pair parsed")
+	expectEqual(n, 9 * #CS.Definitions, "every screen and set pair parsed")
 	local season, coll = R.parse("season"), R.parse("collection")
 	expectTrue(season and season.kind == "tome" and season.page == "season" and season.setId == nil, "season alone opens the Season panel")
 	expectTrue(coll and coll.kind == "tome" and coll.page == "collection", "collection alone opens the Collection")
@@ -43889,9 +43897,7 @@ table.insert(tests, { name = "EndlessScreen: headline, best Night and share line
 	expectTrue(ES.lines(nil, nil, 1) == nil and ES.lines({}, nil, 1) == nil)
 	expectEqual(ES.lines({ night = 14.7, config = { nightCap = 8 } }, nil, 1).headline, "Endless Night 14", "floored")
 	local share = ES.shareLine(14, 16)
-	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and share:find("Can you beat me?", 1, true) ~= nil and #share <= ES.MAX_SHARE)
-	expectTrue(share:find("Night 16", 1, true) ~= nil, "names the best")
-	expectTrue(ES.shareLine(14, 14):find("My best", 1, true) == nil)
+	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and #share <= 80 and #share <= ES.MAX_SHARE)
 	expectTrue(share:find("Balatro", 1, true) == nil and not share:find("\226\128\148", 1, true))
 	-- one line at the narrowest and the other sizes: the facts column, 16 px text
 	for _, sw in ipairs({ 360, 640, 1280, 1920 }) do
@@ -43927,10 +43933,10 @@ table.insert(tests, { name = "DailyShare: a kind seed name per date, the same fo
 	expectTrue(count >= 12, "the names vary day to day, got " .. count)
 	for _, w in ipairs(DS.Adjectives) do expectTrue(#w > 0) end
 	local line = DS.line({ night = 6, won = false }, "2026-11-22", "Steady Hands")
-	expectEqual(line, "Daily " .. DS.seedName("2026-11-22") .. " (Steady Hands): I reached Night 6 in " .. require(script.Parent.Parent.Engine.GameName).NAME .. ". Can you beat me?")
+	expectTrue(line:find(DS.seedName("2026-11-22"), 1, true) ~= nil and line:find("Night 6", 1, true) ~= nil and #line <= 80, "names the Daily and the Night: " .. line)
 	expectTrue(DS.line({ night = 8, won = true }, "2026-11-22", nil):find("won and reached Night 8", 1, true) ~= nil)
 	expectTrue(DS.line({}, nil, nil):find("Night 1", 1, true) ~= nil, "bad summary is safe")
-	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= DS.MAX_LENGTH)
+	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= 80)
 	local lower = line:lower()
 	expectTrue(lower:find("balatro", 1, true) == nil and not line:find("\226\128\148", 1, true))
 	for _, w in ipairs(DS.Nouns) do
@@ -45139,6 +45145,580 @@ table.insert(tests, { name = "RoundSelectLayout: at four sizes no clickable rect
 	if not io then return end
 	local f = assert(io.open("src/Client/RoundSelect.lua", "r")); local c = f:read("a"); f:close()
 	expectTrue(c:find("RoundSelectLayout", 1, true) and c:find("CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT, 0.4)", 1, true), "the client uses the tested layout and the short screen scale")
+end })
+
+table.insert(tests, { name = "Boon chip: clear spot beside the top bar at four sizes, 44 px, no overlap with the seats, gear or any table plate, tooltip one line of 60 characters or less for every boon", fn = function()
+	local Chip = require(script.Parent.Parent.Engine.BoonChipLayout)
+	local G2 = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local rect, why = Chip.rect(size[1], size[2])
+		expectTrue(rect ~= nil, size[1] .. "x" .. size[2] .. " has a clear spot for the boon chip (blocked by " .. tostring(why) .. ")")
+		if rect then
+			expectTrue(rect.w >= 44 and rect.h >= 44, "chip is at least 44 px")
+			expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= size[1] and rect.y + rect.h <= size[2], "chip is on screen")
+			local r = G2.rects(size[1], size[2])
+			for _, seat in ipairs(r.slots) do
+				expectTrue(rect.x + rect.w <= seat.card.x or seat.card.x + seat.card.w <= rect.x or rect.y + rect.h <= seat.card.y or seat.card.y + seat.card.h <= rect.y, "chip clears every Patron seat")
+			end
+		end
+	end
+	for _, def in ipairs(NB.Definitions) do
+		local line = Chip.tooltip({ name = def.name, text = def.text })
+		expectTrue(line ~= nil and #line <= 60 and not line:find("\n"), def.id .. " tooltip is one short line")
+	end
+	expectEqual(Chip.tooltip(nil), nil)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local checked = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			checked = checked + 1
+			expectTrue(CosmeticSets.contrastRatio({ 246, 232, 198 }, st.plate) >= 4.5, set.id .. " chip name (cream) is 4.5:1 on the set plate")
+			expectTrue(CosmeticSets.contrastRatio(st.accent, st.plate) >= 4.5, set.id .. " chip edge accent is 4.5:1 on the set plate")
+		end
+	end
+	expectTrue(checked >= 14, "every Card Set was checked: " .. checked)
+end })
+
+table.insert(tests, { name = "Starting deck tiles: title carries the real card count, locked tiles say the unlock rule, tiles are 66 design px (44 px or more), locked ink keeps 4.5:1 on the dim parchment", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local fresh = SD.view({ stats = { bestNightReached = 0 } })
+	expectEqual(#fresh, 3)
+	for _, row in ipairs(fresh) do
+		local title, line = SD.tile(row)
+		expectTrue(title:find(tostring(#SD.build(row.id)) .. " cards", 1, true) ~= nil, row.id .. " title shows the real card count: " .. title)
+		expectTrue(#line <= 60 and line ~= "", row.id .. " line is one short line: " .. line)
+		if not row.open then expectTrue(line:find("Night", 1, true) ~= nil and line:find("Locked", 1, true) ~= nil, row.id .. " says how to unlock") end
+	end
+	local open = SD.view({ stats = { bestNightReached = 5 } })
+	for _, row in ipairs(open) do expectTrue(row.open, row.id .. " opens by Night 5") end
+	expectTrue(SD.TILE_HEIGHT >= 44)
+	expectTrue(CosmeticSets.contrastRatio({ 40, 28, 16 }, { 150, 134, 104 }) >= 4.5, "locked tile ink is 4.5:1 on the dim parchment")
+end })
+
+table.insert(tests, { name = "Boon icons: all 12 Night boons have a painted id in BoonIconArt, ids are well formed and unique, run modifiers keep an emoji fallback where no id exists, ContentArt resolves them", fn = function()
+	local Art = require(script.Parent.Parent.Engine.BoonIconArt)
+	local BlessArt = require(script.Parent.Parent.Engine.BlessingIconArt)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local seen = {}
+	for _, def in ipairs(NB.Definitions) do
+		local id = Art[def.id]
+		expectTrue(type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil, def.id .. " has a well formed painted id")
+		expectTrue(not seen[id], def.id .. " does not share an id")
+		seen[id] = true
+		expectTrue(def.icon ~= nil and def.icon ~= "", def.id .. " keeps its emoji fallback")
+	end
+	for _, def in ipairs(RM.Definitions or {}) do
+		local id = BlessArt[def.id]
+		expectTrue(id == nil or id:match("^rbxassetid://%d+$") ~= nil, def.id .. " blessing id is well formed or empty")
+		expectTrue(id ~= nil or (def.icon ~= nil and def.icon ~= ""), def.id .. " falls back to its emoji")
+	end
+end })
+
+table.insert(tests, { name = "Starting deck icons: every deck tile uses a different existing card back picture, the back exists in CardBacks and CardBackArt, the emoji stays as the fallback", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local Art = require(script.Parent.Parent.Engine.CardBackArt)
+	local CB = require(script.Parent.Parent.Engine.CardBacks)
+	local seen = {}
+	for _, def in ipairs(SD.Definitions) do
+		local key = SD.iconBack(def.id)
+		expectTrue(key ~= nil, def.id .. " has an icon back")
+		expectTrue(Art[key] ~= nil and Art[key]:match("^rbxassetid://%d+$") ~= nil, def.id .. " back " .. tostring(key) .. " has a painted id")
+		expectTrue(CB.getById == nil or CB.getById(key) ~= nil or Art[key] ~= nil, def.id .. " back is a known back")
+		expectTrue(not seen[key], def.id .. " uses its own back")
+		seen[key] = true
+		expectTrue(def.icon ~= nil and def.icon ~= "", def.id .. " keeps its emoji")
+	end
+end })
+
+table.insert(tests, { name = "Pre run screen at four sizes: panel, option scroll and both buttons stay on screen, buttons are 44 px and in the lower half, the scroll shows at least one deck tile, numbers match the client", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunSetupLayout)
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("UDim2.fromScale(0.6, 0.72)", 1, true) ~= nil and src:find("UDim2.fromScale(0.2, 0.13)", 1, true) ~= nil, "panel numbers match RunSetupLayout")
+		expectTrue(src:find("UDim2.new(1, -30, 1, -110)", 1, true) ~= nil, "scroll numbers match")
+		expectTrue(src:find("UDim2.new(0, 200, 0, 44)", 1, true) ~= nil and src:find("UDim2.new(0, 140, 0, 44)", 1, true) ~= nil, "button sizes match")
+		expectTrue(src:find("UDim2.new(0.5, -210, 1, -55)", 1, true) ~= nil and src:find("UDim2.new(0.5, 10, 1, -55)", 1, true) ~= nil, "button positions match")
+		expectTrue(src:find('setPlateButton(runSetupBeginButton, "primary")', 1, true) ~= nil, "Begin Run wears the set plate")
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local label = w .. "x" .. h
+		for name, rect in pairs(r) do
+			expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, label .. " " .. name .. " is on screen")
+		end
+		expectTrue(r.begin.h >= 44 and r.cancel.h >= 44, label .. " buttons are 44 px")
+		expectTrue(r.begin.y >= h * 0.4 and r.cancel.y >= h * 0.4, label .. " buttons sit in the lower part")
+		expectTrue(r.begin.x + r.begin.w <= r.cancel.x, label .. " the two buttons do not overlap")
+		expectTrue(r.begin.x >= r.panel.x and r.cancel.x + r.cancel.w <= r.panel.x + r.panel.w, label .. " buttons inside the panel")
+		expectTrue(r.scroll.h >= L.TILE_H, label .. " the scroll shows a whole deck tile: " .. r.scroll.h)
+		expectTrue(r.scroll.y + r.scroll.h <= r.begin.y, label .. " the scroll ends above the buttons")
+	end
+end })
+
+table.insert(tests, { name = "Run Over deck hint: names the nearest locked Starting Deck and its Night, nothing once every deck is open, 60 characters or less, no dashes, wired into the fact lines", fn = function()
+	local H = require(script.Parent.Parent.Engine.RunOverHint)
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local fresh = H.line(SD.view({ stats = { bestNightReached = 0 } }))
+	expectEqual(fresh, "Next deck: Lucky Deck opens at Night 3.")
+	expectEqual(H.line(SD.view({ stats = { bestNightReached = 3 } })), "Next deck: Slim Deck opens at Night 5.")
+	expectEqual(H.line(SD.view({ stats = { bestNightReached = 5 } })), nil, "every deck open: no line")
+	expectEqual(H.line(nil), nil)
+	expectEqual(H.line({}), nil)
+	for best = 0, 6 do
+		local line = H.line(SD.view({ stats = { bestNightReached = best } }))
+		if line then
+			expectTrue(#line <= H.MAX_LEN, line .. " fits 60 characters")
+			expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not line:lower():find("balatro"), line .. " is clean text")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('RunOverHint")).line(state.startingDecks)', 1, true) ~= nil, "Run Over shows the deck hint line")
+	end
+end })
+
+table.insert(tests, { name = "Boon and deck quests: four new quests with short kind lines, the boon counter is real, deck quests never reach a profile with no open deck, unlocked profiles can see them", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local ids = { "boon_1", "boon_3", "deck_rounds", "deck_boss" }
+	for _, id in ipairs(ids) do
+		local def = Quests.getById(id)
+		expectTrue(def ~= nil, id .. " exists")
+		if def then
+			expectTrue(#def.desc <= 60 and #def.name <= 24, id .. " text is short: " .. def.desc)
+			expectTrue(def.goal <= 3 and def.tips >= 2 and def.tips <= 5, id .. " goal under 3 runs and fair Tips")
+			expectTrue(not (def.name .. def.desc):find("\226\128\148") and not (def.name .. def.desc):lower():find("balatro"), id .. " clean text")
+		end
+	end
+	local c = Quests.countersOf({ boonsPicked = 2, startingDeckId = "slim", roundsCleared = 4, bossesCleared = 1 })
+	expectEqual(c.boonsPicked, 2); expectEqual(c.deckRounds, 4); expectEqual(c.deckBosses, 1)
+	c = Quests.countersOf({ boonsPicked = 2, startingDeckId = "classic", roundsCleared = 4, bossesCleared = 1 })
+	expectEqual(c.deckRounds, 0, "Classic does not count for deck quests"); expectEqual(c.deckBosses, 0)
+	local locked, open = { stats = { bestNightReached = 0 } }, { stats = { bestNightReached = 5 } }
+	local sawDeckOpen = false
+	for day = 20000, 20200 do
+		local forLocked, forOpen = Quests.idsFor(locked, day), Quests.idsFor(open, day)
+		expectEqual(#forLocked, 3)
+		local counters = {}
+		for _, id in ipairs(forLocked) do
+			local def = Quests.getById(id)
+			expectTrue(not Quests.DECK_COUNTERS[def.counter], "day " .. day .. ": a locked profile is never offered " .. id)
+			expectTrue(not counters[def.counter], "day " .. day .. ": two quests on " .. def.counter)
+			counters[def.counter] = true
+		end
+		for _, id in ipairs(forOpen) do
+			if Quests.DECK_COUNTERS[Quests.getById(id).counter] then sawDeckOpen = true end
+		end
+	end
+	expectTrue(sawDeckOpen, "an unlocked profile sees deck quests")
+	local p = { stats = { bestNightReached = 0 } }
+	Quests.ensureDay(p, 20000)
+	expectEqual(table.concat(p.quests.ids, ","), table.concat(Quests.idsFor(p, 20000), ","), "ensureDay deals the profile's own list")
+	local done = Quests.apply({ quests = { day = 20000, ids = { "boon_3", "pairs_3", "hands_10" }, progress = {}, done = {} }, stats = { bestNightReached = 5 } }, 20000, { boonsPicked = 3 })
+	expectEqual(#done, 1, "three boon picks complete Boon Collector")
+end })
+
+table.insert(tests, { name = "Collection Boons page: all 12 boons listed with seen or not seen yet, Seen N of 12, empty line for a new player, 16 px text, 44 px rows, the list scrolls and the Close plate fits at four sizes, ink 4.5:1 on every set plate", fn = function()
+	local Page = require(script.Parent.Parent.Engine.BoonsPage)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local empty = Page.view({})
+	expectEqual(#empty.rows, #NB.Definitions)
+	expectEqual(empty.total, 12)
+	expectEqual(empty.count, Page.EMPTY_LINE, "a new player sees a friendly line, not blank rows")
+	for _, row in ipairs(empty.rows) do
+		expectTrue(not row.seen and row.line == Page.UNSEEN_LINE and row.name ~= "" and row.name ~= "???", row.id .. " unseen row is clear")
+	end
+	local some = Page.view({ "extra_hand", "warm_welcome", "not_a_boon" })
+	expectEqual(some.seen, 2, "unknown ids never count")
+	expectEqual(some.count, "Seen 2 of 12")
+	for _, row in ipairs(some.rows) do
+		if row.seen then expectEqual(row.line, NB.getById(row.id).text) end
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " lines are short")
+	end
+	expectTrue(Page.TEXT_SIZE >= 16 and Page.ROW_H >= 44 and Page.CLOSE_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local L = Page.layout(sz[1], sz[2])
+		local label = sz[1] .. "x" .. sz[2]
+		for name, r in pairs({ panel = L.panel, header = L.header, list = L.list, close = L.close }) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], label .. " " .. name .. " is on screen")
+		end
+		expectTrue(L.close.h >= 44 and L.close.w >= 44, label .. " Close plate is 44 px")
+		expectTrue(L.list.y >= L.header.y + L.header.h and L.list.y + L.list.h <= L.close.y, label .. " the list sits between the header and Close")
+		expectTrue(L.rowsFit >= 2, label .. " at least two rows show: " .. L.rowsFit)
+		expectTrue(L.list.h > 0 and L.list.h + 1 >= L.rowH, label .. " the list can scroll to the last row")
+	end
+	local checked = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			checked = checked + 1
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " boon row ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+	expectTrue(checked >= 14, "every Card Set checked: " .. checked)
+	local p = PP.new()
+	expectEqual(PP.recordBoonsSeen(p, { "extra_hand", "free_reroll" }), 2)
+	expectEqual(PP.recordBoonsSeen(p, { "extra_hand", "steady_pace", 7 }), 1, "only new ids count")
+	local back = PP.migrate(p)
+	expectTrue(back.seenBoonIds.extra_hand and back.seenBoonIds.free_reroll and back.seenBoonIds.steady_pace, "seen boons survive a save and load")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('quietPlate("Boons"', 1, true) ~= nil, "the Collection has a Boons plate")
+	end
+end })
+
+table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Patrons seen or not seen yet, Seen N of 7, friendly empty line, short lines, 44 px rows at four sizes, seenMarkIds saved, ink 4.5:1 on every set plate", fn = function()
+	local Page = require(script.Parent.Parent.Engine.MarksPage)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local empty = Page.view({}, {})
+	expectEqual(empty.total, 7, "three Marks and four Legendary Patrons")
+	expectEqual(#Page.legendaryPatrons(), 4)
+	expectEqual(empty.count, Page.EMPTY_LINE)
+	for i, row in ipairs(empty.rows) do
+		expectTrue(not row.seen and row.name ~= "" and row.name ~= "???" and (row.line == Page.UNSEEN_MARK or row.line == Page.UNSEEN_LEGEND), row.id .. " unseen row is clear")
+		expectTrue(i <= 3 or row.art == "patrons", row.id .. " legend rows use the Patron art")
+	end
+	local some = Page.view({ "gilded", "not_a_mark" }, { "duke_goldleaf", "extra_hand", "boon_keeper" })
+	expectEqual(some.seen, 3, "unknown ids and non legendary ids never count")
+	expectEqual(some.count, "Seen 3 of 7")
+	expectEqual(some.rows[1].line, Card.Marks.gilded.description)
+	for _, row in ipairs(some.rows) do
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " lines are short: " .. row.line)
+	end
+	expectTrue(Page.TEXT_SIZE >= 16 and Page.ROW_H >= 44 and Page.CLOSE_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local L = Page.layout(sz[1], sz[2])
+		local label = sz[1] .. "x" .. sz[2]
+		for name, r in pairs({ panel = L.panel, list = L.list, close = L.close }) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], label .. " " .. name .. " is on screen")
+		end
+		expectTrue(L.close.h >= 44 and L.rowH >= 44 and L.rowsFit >= 2, label .. " rows and Close are 44 px")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " marks row ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+	local p = PP.new()
+	expectEqual(PP.recordMarksSeen(p, { "gilded", "lucky" }), 2)
+	expectEqual(PP.recordMarksSeen(p, { "gilded", "lively", "nope", 7 }), 1, "only new real marks count")
+	local back = PP.migrate(p)
+	expectTrue(back.seenMarkIds.gilded and back.seenMarkIds.lucky and back.seenMarkIds.lively, "seen marks survive a save and load")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('quietPlate("Marks"', 1, true) ~= nil, "the Collection has a Marks plate")
+	end
+end })
+
+table.insert(tests, { name = "Run Over Night boons strip: every pick is logged once per Night, the view names each boon with its Night, no strip when none, chips are 44 px in one row where the width allows and never overlap the buttons at four sizes", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local RB = require(script.Parent.Parent.Engine.RunOverBoons)
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	local state = { night = 2, tips = 0 }
+	expectEqual(#NB.history(state), 0)
+	expectTrue(RB.view(NB.history(state)) == nil, "no boons taken shows no strip")
+	expectTrue(RB.view(nil) == nil and RB.view("junk") == nil and RB.view({ { id = "nope", night = 2 } }) == nil, "junk shows no strip")
+	expectTrue((NB.apply(state, "free_reroll")))
+	expectTrue((NB.apply(state, "extra_hand")), "picking again the same Night replaces, never doubles")
+	expectEqual(#NB.history(state), 1)
+	state.night = 3
+	expectTrue((NB.apply(state, "warm_welcome")))
+	local taken = NB.history(state)
+	expectEqual(#taken, 2)
+	expectEqual(taken[1].id, "extra_hand")
+	expectEqual(taken[2].night, 3)
+	local view = RB.view(taken)
+	expectEqual(view.label, "Night boons taken (2)")
+	expectEqual(#view.chips, 2)
+	for _, chip in ipairs(view.chips) do
+		expectTrue(chip.icon ~= "" and chip.name ~= "" and #chip.line <= 90, chip.id .. " chip reads clearly: " .. chip.line)
+		expectTrue(chip.line:find("Night " .. chip.night .. ", " .. chip.name, 1, true) == 1, chip.id .. " line starts with its Night and name")
+	end
+	-- a full run: all 11 boon Nights fit the strip, anything past 12 is dropped
+	local many = {}
+	for i, def in ipairs(NB.Definitions) do many[i] = { id = def.id, night = i + 1 } end
+	for i = 1, 6 do many[#many + 1] = { id = "extra_hand", night = 20 + i } end
+	expectEqual(#RB.view(many).chips, RB.MAX)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 }, { 600, 900 } }) do
+		for _, n in ipairs({ 0, 1, 5, 11 }) do
+			local label = sz[1] .. "x" .. sz[2] .. " with " .. n .. " boons"
+			local spec = { factsH = 300, patrons = 4, primary = 2, more = 6, boons = n, bigPrimary = true, pills = true, cardSeats = true }
+			local r = RL.computeTouch(sz[1], sz[2], spec)
+			if n == 0 then
+				expectTrue(r.boons == nil and r.boonName == nil, label .. " no strip rects")
+			else
+				expectTrue(r.boons.chip >= 44 and r.boons.rows >= 1 and r.boons.cols * r.boons.rows >= n, label .. " every chip has a 44 px cell")
+				expectTrue(r.boons.x >= 0 and r.boons.x + r.boons.w <= r.panel.w and r.boonName.y + r.boonName.h <= r.panel.h, label .. " the strip is inside the panel")
+				expectTrue(r.boonsLabel.y >= r.patrons.y + r.patrons.h and r.boonName.y >= r.boons.y + r.boons.h, label .. " label, chips and name stack under the Patrons")
+				local first = r.primary[1]
+				local overlap = not (r.boonName.y + r.boonName.h <= first.y or first.y + first.h <= r.boonsLabel.y
+					or r.boonName.x + r.boonName.w <= first.x or first.x + first.w <= r.boonsLabel.x)
+				expectFalse(overlap, label .. " the strip never covers the buttons")
+				expectTrue(r.boons.chip * r.scale >= 43.9, label .. " a chip is 44 px on screen after the panel shrinks")
+				if r.columns.mode == "wide" and n <= 9 and r.scale >= 0.999 then expectEqual(r.boons.rows, 1, label .. " one row where the panel is full size") end
+			end
+		end
+	end
+	expectEqual(RL.CHIP, 44, "the layout is restored after computeTouch")
+end })
+
+table.insert(tests, { name = "Settings audit: every saved option has a Settings row or another screen that owns it, saves and reloads (rejoin) from a non default value, Calm mode writes all three keys, flashing, motion, particle and Larger Text rules hold", fn = function()
+	local PP = PlayerProfile
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local rows = {}
+	for _, id in ipairs(SL.rowOrder()) do rows[id] = true end
+	local ownedElsewhere = { musicVolume = "volume", sfxVolume = "volume", muted = "volume", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
+	local keys = 0
+	for key, spec in pairs(PP.SETTING_SPECS) do
+		keys = keys + 1
+		expectTrue(rows[key] or ownedElsewhere[key] ~= nil and (rows[ownedElsewhere[key]] or ownedElsewhere[key] ~= "volume"), key .. " has a Settings row or an owner screen")
+		-- a non default valid value saves and survives a rejoin (profile saved, then loaded again)
+		local value
+		if spec.kind == "boolean" then value = not spec.default
+		elseif spec.kind == "fraction" then value = spec.default == 1 and 0.5 or 0.9
+		elseif spec.kind == "range" then value = spec.default == 2 and 1 or 2
+		else
+			for choice in pairs(spec.choices) do if choice ~= spec.default then value = choice break end end
+		end
+		local p = PP.new()
+		local ok = PP.setSetting(p, key, value)
+		expectTrue(ok, key .. " accepts a valid change")
+		local back = PP.migrate(p)
+		expectEqual(back.settings[key], value, key .. " is kept after a rejoin")
+		local again = PP.migrate(back)
+		expectEqual(again.settings[key], value, key .. " is kept after a second rejoin")
+	end
+	expectTrue(keys >= 16, "the audit saw every option: " .. keys)
+	expectTrue(rows.reduceFlashing and rows.reduceMotion and rows.largerText, "the comfort rows exist")
+	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
+	-- Calm mode writes all three keys and reads back On only when all three are on
+	expectTrue(SL.calmValue(SL.calmWrites(true)))
+	expectFalse(SL.calmValue(SL.calmWrites(false)))
+	expectFalse(SL.calmValue({ reduceMotion = true, reduceFlashing = true, reduceShake = false }))
+	-- Reduce Flashing, Reduce Motion and Performance mode rules
+	expectTrue(A.flashesAllowed({}) and not A.flashesAllowed({ reduceFlashing = true }))
+	expectTrue(A.motionAllowed({}) and not A.motionAllowed({ reduceMotion = true }))
+	expectTrue(A.calm({ reduceFlashing = true }) and A.calm({ reduceMotion = true }) and A.calm({ reduceShake = true }) and not A.calm({}))
+	expectEqual(A.particleCount({}, 10), 10)
+	expectEqual(A.particleCount({ reduceFlashing = true }, 10), 4, "Reduce Flashing keeps 40 percent of particles")
+	expectEqual(A.particleCount({ performanceMode = true, reduceFlashing = true }, 10), 0, "Performance mode has none")
+	expectEqual(A.particleCount({ reduceFlashing = true }, -5), 0, "a bad count never goes negative")
+	-- Larger Text: 15 percent, never smaller than the base, never taller than the label holds, back to normal when off
+	expectEqual(A.textScale({}), 1)
+	expectEqual(A.textScale({ largerText = true }), A.TEXT_SCALE)
+	for base = 14, 30 do
+		expectEqual(A.scaledTextSize(base, 1, 0), base, "Normal text never changes " .. base)
+		local big = A.scaledTextSize(base, A.TEXT_SCALE, 0)
+		expectTrue(big >= base and big <= math.floor(base * A.TEXT_SCALE + 0.5), "large " .. base .. " -> " .. big)
+		for _, fit in ipairs({ 14, 20, 30, 44, 60 }) do
+			local t = A.scaledTextSize(base, A.TEXT_SCALE, fit)
+			expectTrue(t >= base and (t == base or t <= math.floor(fit * 0.9)), "a label " .. fit .. " px tall keeps " .. base .. " at " .. t)
+		end
+	end
+	expectEqual(A.scaledTextSize(16, A.TEXT_SCALE, 0), 18)
+	-- the hold time stays in its range whatever was saved
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 0 }), A.HOLD_MIN)
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 99 }), A.HOLD_MAX)
+	expectEqual(A.holdSeconds({}), A.HOLD_DEFAULT)
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 0 / 0 }), A.HOLD_DEFAULT)
+	-- junk values never change a saved option
+	local p = PP.new()
+	for _, bad in ipairs({ "yes", 1, {}, 0 / 0 }) do
+		expectFalse((PP.setSetting(p, "reduceFlashing", bad)))
+		expectFalse((PP.setSetting(p, "largerText", bad)))
+	end
+	expectEqual(p.settings.reduceFlashing, false)
+	expectEqual(p.settings.largerText, false)
+end })
+
+table.insert(tests, { name = "Tome Legend tab guide: one short kind entry each for Marks and Night boons with an icon, Close and the guide plate are 44 px and never overlap at four sizes, the popup fits, ink 4.5:1 on every set plate", fn = function()
+	local G = require(script.Parent.Parent.Engine.LegendGuide)
+	local Scene = require(script.Parent.Parent.Engine.LegendSceneLayout)
+	local Page = require(script.Parent.Parent.Engine.BoonsPage)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local view = G.view()
+	expectEqual(#view.rows, 2)
+	expectEqual(view.rows[1].name, "Marks")
+	expectEqual(view.rows[2].name, "Night boons")
+	for _, row in ipairs(view.rows) do
+		expectTrue(row.icon ~= "" and row.seen == true, row.id .. " has an icon and reads bright")
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " is short: " .. row.line)
+		expectTrue(not row.line:find("%d") and not row.line:lower():find("balatro") and not row.line:find("\xE2\x80\x94"), row.id .. " has no numbers to drift and no dash")
+	end
+	expectTrue(#view.title <= 40 and #view.count <= 60 and #G.BUTTON <= 20)
+	expectTrue(G.TEXT_SIZE >= 16 and G.BUTTON_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local pw, ph = Scene.panel(sz[1], sz[2])
+		pw = math.max(640, pw) -- the scene is only drawn at 640 px or wider; the plain layout is at least 0.8 of the screen
+		local label = sz[1] .. "x" .. sz[2]
+		local f = G.footer(pw, ph)
+		for name, r in pairs(f) do
+			expectTrue(r.h >= 44 and r.x >= 0 and r.y >= 0 and r.x + r.w <= pw and r.y + r.h <= ph, label .. " " .. name .. " plate is 44 px and inside the panel")
+		end
+		expectTrue(f.guide.x >= f.close.x + f.close.w + 8, label .. " the guide plate clears Close")
+		expectTrue(f.close.y >= ph - Scene.BOTTOM, label .. " the plates sit in the footer band")
+		local L = Page.layout(sz[1], sz[2])
+		expectTrue(L.rowsFit >= 2 or L.list.h >= 2 * L.rowH, label .. " both guide rows are reachable in the popup")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " guide ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Season tier rewards audit: all 30 tiers of both seasons, free and premium, have an icon and a name that fits two 16 px lines, claimed and locked states differ, the panel fits four sizes", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local RewardArt = require(script.Parent.Parent.Engine.RewardArt)
+	local lookup = {
+		cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+		titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+		setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+	}
+	expectEqual(ST.NAME_SIZE, 16)
+	expectTrue(ST.TILE_H >= 150, "tile is tall enough for the icon, two name lines and the XP line")
+	local checked = 0
+	for _, season in ipairs(ST.Seasons) do
+		local profile = PlayerProfile.new()
+		local day = ST.window(season)
+		local view = ST.view(profile, day, lookup)
+		expectEqual(#view.tiers, 30, season.id .. " has 30 tiers")
+		for _, row in ipairs(view.tiers) do
+			for _, cell in ipairs({ { "free", row.reward, row.short }, { "premium", row.premium.reward, row.premium.short } }) do
+				local where = season.id .. " tier " .. row.tier .. " " .. cell[1]
+				expectTrue(cell[2] ~= nil, where .. " has a reward")
+				local category, key, emoji = RewardArt.resolve(cell[2])
+				expectTrue(type(emoji) == "string" and emoji ~= "", where .. " has an icon fallback")
+				expectTrue(category == nil or key ~= nil, where .. " art has a key")
+				expectTrue(type(cell[3]) == "string" and cell[3] ~= "" and #cell[3] <= 28, where .. " has a short name: " .. tostring(cell[3]))
+				expectTrue(not tostring(cell[3]):find("_", 1, true), where .. " shows a name, not a raw id: " .. tostring(cell[3]))
+				expectTrue(ST.nameLines(cell[3]) <= ST.NAME_LINES, where .. " name fits two 16 px lines: " .. tostring(cell[3]))
+				checked = checked + 1
+			end
+		end
+		expectTrue(view.tiers[1].claimed == false and view.tiers[1].reached == false, "a new profile sees tier 1 locked and unclaimed")
+		expectTrue(view.tiers[1].need > 0 and view.tiers[1].premium.locked == true, "locked premium cells say so")
+	end
+	expectEqual(checked, 120)
+	expectEqual(ST.shortText({ kind = "tips", amount = 3 }), "+3 Tips")
+	expectEqual(ST.nameLines("Season Stamp"), 1)
+	expectEqual(ST.nameLines("Card back: Starlit Keeper Deluxe Edition"), 4)
+	-- the panel fits every window size: whole tiles, never smaller than 0.8, 44 px buttons
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		for _, prem in ipairs({ false, true }) do
+			local fit = ST.fit(sz[1], sz[2], prem)
+			expectTrue(fit.tiles >= 3 and fit.tiles <= ST.TILES_VISIBLE, sz[1] .. "x" .. sz[2] .. " shows whole tiles: " .. fit.tiles)
+			expectTrue(fit.shownW <= sz[1] and fit.scale >= 0.8, sz[1] .. "x" .. sz[2] .. " panel width fits")
+			expectTrue(ST.touchH(fit.scale) * fit.scale >= 43.9, sz[1] .. "x" .. sz[2] .. " claim plates stay 44 px on screen")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/SeasonPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("TextSize = SeasonTrack.NAME_SIZE", 1, true) ~= nil, "tile and premium names use the 16 px size")
+		expectTrue(not src:find("TextSize = 14", 1, true), "no 14 px text is left on the Season panel")
+	end
+end })
+
+table.insert(tests, { name = "Mark and Slim quests: counters read the run, Slim Sprint is swapped out until the Slim Deck is open, rewards stay in the 2 to 4 Tips range, the model run finishes each in 2 runs or fewer", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local c = Quests.countersOf({ marksBought = 2, startingDeckId = "slim", roundsCleared = 4 })
+	expectEqual(c.marksBought, 2)
+	expectEqual(c.slimRounds, 4)
+	expectEqual(Quests.countersOf({ marksBought = 2, startingDeckId = "lucky", roundsCleared = 4 }).slimRounds, 0, "only the Slim Deck counts")
+	for _, id in ipairs({ "mark_1", "mark_2", "slim_rounds" }) do
+		local def = Quests.getById(id)
+		expectTrue(def ~= nil and #def.desc <= 60 and def.tips >= 2 and def.tips <= 4 and def.xp >= 40 and def.xp <= 80, id .. " is a short fair quest")
+	end
+	local rows = {}
+	for _, r in ipairs(EconomySim.questReport()) do rows[r.id] = r end
+	for _, id in ipairs({ "mark_1", "mark_2", "slim_rounds" }) do
+		expectTrue(rows[id] and rows[id].runs and rows[id].runs <= 2, id .. " finishes in 2 runs or fewer")
+	end
+	-- a profile with Lucky open but not Slim never sees Slim Sprint; a profile with both may
+	local lucky = PlayerProfile.new()
+	lucky.stats.bestNightReached = 3
+	local both = PlayerProfile.new()
+	both.stats.bestNightReached = 5
+	local seenBoth = false
+	for day = 20000, 20200 do
+		for _, id in ipairs(Quests.idsFor(lucky, day)) do expectTrue(id ~= "slim_rounds", "Slim Sprint is never offered before the Slim Deck opens") end
+		for _, id in ipairs(Quests.idsFor(both, day)) do if id == "slim_rounds" then seenBoth = true end end
+	end
+	expectTrue(seenBoth, "a player with the Slim Deck open does get Slim Sprint some days")
+end })
+
+table.insert(tests, { name = "Share line variety: win, loss, daily and endless each have 3 variants chosen by seed, 80 characters or less in the worst case, plain kid safe text", fn = function()
+	local SV = require(script.Parent.Parent.Engine.ShareVariants)
+	local DS = require(script.Parent.Parent.Engine.DailyShare)
+	local SR = require(script.Parent.Parent.Engine.ShareResult)
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local hands = { "Straight Flush", "Five of a Kind", "Full House", "Pair", "" }
+	for _, kind in ipairs(SV.KINDS) do
+		local seen, distinct = {}, 0
+		for seed = 0, 8 do
+			for _, night in ipairs({ 1, 2, 9, 12, 99, 999 }) do
+				for _, hand in ipairs(hands) do
+					for _, won in ipairs({ true, false }) do
+						local line = SV.line(kind, { night = night, name = "Gentle Blanket", twist = "Steady Hands", hand = hand, won = won }, seed)
+						local where = kind .. " seed " .. seed .. " night " .. night .. ": " .. line
+						expectTrue(#line <= 80 and line:sub(-3) ~= "...", where .. " fits 80 characters without clipping")
+						expectTrue(line:find("Night " .. night, 1, true) ~= nil, where .. " names the Night")
+						expectTrue(line:find(GameName.NAME, 1, true) ~= nil, where .. " names the game")
+						expectTrue(not line:lower():find("balatro") and not line:find("\226\128\148") and not line:find("%-%-") and not line:find("http") and not line:find("{"), where .. " is plain text")
+						expectTrue(not line:find("%s%s") and line:find("^%u") ~= nil, where .. " reads cleanly")
+						if not seen[line:gsub("%d+", "N")] and hand == "Pair" and night == 9 and won == false then seen[line:gsub("%d+", "N")] = true; distinct = distinct + 1 end
+					end
+				end
+			end
+		end
+		expectEqual(distinct, 3, kind .. " has exactly 3 variants, got " .. distinct)
+		expectEqual(SV.count(kind, { hand = "Pair" }), 3)
+	end
+	-- the same seed gives the same line, string and number seeds both work, junk never errors
+	expectEqual(SV.line("loss", { night = 5 }, 7), SV.line("loss", { night = 5 }, 7))
+	expectTrue(SV.line("win", { night = 5 }, "ABC") == SV.line("win", { night = 5 }, "ABC"))
+	expectTrue(SV.line("nope", nil, nil) ~= nil and SV.line("win", { night = 0 / 0 }, 0 / 0) ~= nil and SV.line("win", { night = -4 }, {}) ~= nil)
+	-- a win with a best hand can name it; without one it says something else, never an empty gap
+	local withHand, without = {}, {}
+	for seed = 0, 2 do
+		withHand[#withHand + 1] = SV.line("win", { night = 6, hand = "Flush", won = true }, seed)
+		without[#without + 1] = SV.line("win", { night = 6, won = true }, seed)
+	end
+	local named = false
+	for _, l in ipairs(withHand) do if l:find("Flush", 1, true) then named = true end end
+	expectTrue(named, "one win variant names the best hand")
+	for _, l in ipairs(without) do expectTrue(not l:find("a  ") and not l:find("with a ") , "no hole where the hand would be: " .. l) end
+	-- different runs read differently
+	local a, b = SV.seedFor({ night = 6, handsPlayedTotal = 20, roundScore = 900 }), SV.seedFor({ night = 6, handsPlayedTotal = 21, roundScore = 900 })
+	expectTrue(a ~= b and a == SV.seedFor({ night = 6, handsPlayedTotal = 20, roundScore = 900 }) and SV.seedFor(nil) == 0)
+	-- the three existing entry points use the variants
+	expectTrue(#SR.line({ night = 6, won = false, bestHand = { name = "Flush", score = 1240 } }, nil) <= 80)
+	expectTrue(#DS.line({ night = 6 }, "2026-11-22", "Steady Hands") <= 80)
+	expectTrue(#require(script.Parent.Parent.Engine.EndlessScreen).shareLine(14, 16) <= 80)
+	-- a seeded run still carries its code
+	expectTrue(SR.line({ night = 6 }, "ABC234"):find("ABC234", 1, true) ~= nil)
 end })
 
 return tests

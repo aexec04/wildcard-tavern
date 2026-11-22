@@ -325,7 +325,8 @@ return function(deps)
 		local room = '<font size="17">' .. ROOM_CONFIGS[ROUNDS_PER_NIGHT].roomName .. '</font>'
 		return bossName and (room .. "\n" .. bossName) or room
 	end
-	local NO_BUTTON_DROP = 96 -- Select (44) + gap (6) + Skip (40) + margins, see the button positions below
+	local SkipPlate = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SkipPlate"))
+	local NO_BUTTON_DROP = 100 -- Select (44) + gap (6) + Skip (44) + margins, see the button positions below
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
 		local isBossPanel = (round == ROUNDS_PER_NIGHT)
@@ -565,7 +566,7 @@ return function(deps)
 		targetLabel.Name = "TargetLabel"
 		targetLabel.Size = UDim2.new(1, -20, 0, 36)
 		targetLabel.AnchorPoint = Vector2.new(0, 1)
-		targetLabel.Position = UDim2.new(0, 10, 1, -(10 + 40 + 6 + 44 + 8))
+		targetLabel.Position = UDim2.new(0, 10, 1, -(10 + 44 + 6 + 44 + 8))
 		targetLabel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
 		targetLabel.Font = Enum.Font.GothamBold
 		targetLabel.TextSize = 18
@@ -586,7 +587,7 @@ return function(deps)
 		selectButton.Name = "SelectButton"
 		selectButton.Size = UDim2.new(1, -20, 0, 44)
 		selectButton.AnchorPoint = Vector2.new(0, 1)
-		selectButton.Position = UDim2.new(0, 10, 1, -(10 + 40 + 6))
+		selectButton.Position = UDim2.new(0, 10, 1, -(10 + 44 + 6))
 		selectButton.Font = Enum.Font.GothamBold
 		selectButton.TextSize = 16
 		selectButton.Text = "Select"
@@ -601,7 +602,8 @@ return function(deps)
 
 		local skipButton = Instance.new("TextButton")
 		skipButton.Name = "SkipButton"
-		skipButton.Size = UDim2.new(1, -20, 0, 40)
+		skipButton.Size = UDim2.new(1, -20, 0, SkipPlate.HEIGHT)
+		skipButton.RichText = true
 		skipButton.AnchorPoint = Vector2.new(0, 1)
 		skipButton.Position = UDim2.new(0, 10, 1, -10)
 		skipButton.Font = Enum.Font.GothamBold
@@ -677,9 +679,18 @@ return function(deps)
 			if not (latestState and latestState.canSkipRound) then
 				return
 			end
-			actionPending = true
-			pcall(playClickSfx, 0.12) -- same call and volume as the hover sound
-			SkipRoundRemote:FireServer()
+			local function doSkip()
+				if actionPending then return end
+				actionPending = true
+				pcall(playClickSfx, 0.12) -- same call and volume as the hover sound
+				SkipRoundRemote:FireServer()
+			end
+			if deps.showConfirmDialog and SkipPlate.needsConfirm(latestState.currentRoundSkipTag) then
+				-- only a rare Tag asks first; the server still re-checks the skip
+				deps.showConfirmDialog(SkipPlate.confirmCopy(latestState.currentRoundSkipTag).message, doSkip, SkipPlate.confirmCopy(latestState.currentRoundSkipTag))
+				return
+			end
+			doSkip()
 		end)
 
 		local entryRef = {
@@ -957,6 +968,7 @@ return function(deps)
 			-- Only the round you're actually on gets buttons.
 			entry.selectButton.Visible = isCurrent
 			entry.skipButton.Visible = isCurrent and state.canSkipRound == true
+			entry.skipButton.Text = isCurrent and SkipPlate.text(state.currentRoundSkipTag) or "Skip" -- the Tag and its kind line, before you tap
 
 			-- Cleared / Up next cards have no buttons: drop the text block by NO_BUTTON_DROP
 			-- and make the card that much shorter so it ends just under the Target plaque

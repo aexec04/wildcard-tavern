@@ -7,8 +7,10 @@
 
 return {
 	["big_book"] = "rbxassetid://83256005032983",
+	["extra_hand"] = "rbxassetid://131769578872578",
 	["fat_purse"] = "rbxassetid://123355866528108",
 	["generous_house"] = "rbxassetid://79264437065938",
+	["lucky_penny"] = "rbxassetid://89830822039928",
 	["open_hands"] = "rbxassetid://80146093196572",
 	["sharp_eyes"] = "rbxassetid://129098626471668",
 	["wide_table"] = "rbxassetid://127475446671669",
