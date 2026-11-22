@@ -189,8 +189,23 @@ local function applyPile(set, back, backId)
 	end
 end
 
+-- The table scene (corner banners, set picture) and the draw pile read HudTheme.skin(), which SetSkin only updates after the set's HUD kit
+-- has preloaded. Refresh the scene once that skin lands, so a Preview never leaves the previous set's banners and pile on screen.
+local skinHooked = false
+local function hookSkinRefresh()
+	if skinHooked then return end
+	skinHooked = true
+	pcall(function()
+		require(script.Parent.HudTheme).onSkin(function()
+			local ok, scene = pcall(function() return require(script.Parent.GameplayScene).get() end)
+			if ok and scene and lastState then pcall(scene.update, lastState) end
+		end)
+	end)
+end
+
 function M.apply(state)
 	lastState = state
+	hookSkinRefresh()
 	local sceneSet = M.currentSet(state).id
 	if sceneSet ~= lastSceneSet then
 		lastSceneSet = sceneSet

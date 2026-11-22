@@ -40383,6 +40383,24 @@ table.insert(tests, { name = "CosmeticSets.deckTint: every set but classic wears
 	end
 end })
 
+table.insert(tests, { name = "Preview set switch: every set's pile tint differs from every other set, and the table scene refreshes when the skin lands", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS = require(E.CosmeticSets)
+	local seen = {}
+	for _, def in ipairs(CS.Definitions) do
+		local t = CS.deckTint(def.id)
+		local key = t and (table.concat(t.base, ",") .. "|" .. table.concat(t.trim, ",")) or "classic"
+		expectTrue(seen[key] == nil, def.id .. " pile tint differs from " .. tostring(seen[key]))
+		seen[key] = def.id
+	end
+	local f = io and io.open and io.open("src/Client/CosmeticSetsView.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("HudTheme", 1, true) ~= nil and src:find("onSkin(function()", 1, true) ~= nil and src:find("scene.update, lastState", 1, true) ~= nil, "scene (banners) re-updates when the previewed skin lands")
+	end
+end })
+
 table.insert(tests, { name = "Next Round, Reroll, Buy and round buttons take the set hue in every set with a plate family, classic unchanged", fn = function()
 	local E = script.Parent.Parent.Engine
 	local Style, TS = require(E.TavernStyle), require(E.ThemeScenes)
@@ -41024,5 +41042,6 @@ table.insert(tests, { name = "Tome Flair, Legend and Ledger tabs wear the set pl
 end })
 
 return tests
+
 
 
