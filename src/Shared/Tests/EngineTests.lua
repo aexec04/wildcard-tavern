@@ -39221,6 +39221,67 @@ table.insert(tests, { name = "FitAudit per Card Set: the table of all 14 rooms a
 	end
 end })
 
+table.insert(tests, { name = "Calm mode and Reduce motion: every Card Set effect (ambient objects, backdrop layers) is off, and every client file that animates a set gates on Calm", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local AL = require(Engine.AmbientLayout)
+	local TS = require(Engine.ThemeScenes)
+	local CSets = require(Engine.CosmeticSets)
+	local Acc = require(Engine.Accessibility)
+	-- Reduce motion, Reduce flashing and the old Calm switch all mean calm
+	expectTrue(Acc.calm({ reduceMotion = true }) and Acc.calm({ reduceFlashing = true }) and Acc.calm({ reduceShake = true }) and not Acc.calm({}))
+	local ids, seen = {}, {}
+	local function add(id) if not seen[id] then seen[id] = true; ids[#ids + 1] = id end end
+	for _, id in ipairs(TS.ORDER) do add(id) end
+	for id in pairs(AL.SETS) do add(id) end
+	for _, def in ipairs(CSets.Definitions) do add(def.id) end
+	expectTrue(#ids >= 14, "walked at least the 14 sets, got " .. #ids)
+	local animated = 0
+	for _, id in ipairs(ids) do
+		expectEqual(#AL.list(id, true), 0, id .. " draws no ambient object in calm mode")
+		expectEqual(AL.objectCount(id, true), 0, id .. " counts none in calm mode")
+		local n = AL.objectCount(id, false)
+		expectTrue(n <= AL.MAX_OBJECTS, id .. " stays under the object cap")
+		if n > 0 then animated = animated + 1 end
+		-- a washed slot's backdrop layers are the only other per set motion; the renderer hides them all when calm (checked below)
+		local style = TS.washStyle(id, "menuBackdrop")
+		if style and style.layers then
+			for _, layer in ipairs(style.layers) do expectTrue(layer.count <= 18, id .. " layer count is small") end
+		end
+	end
+	expectTrue(animated >= 10, "most sets animate when calm is off, so the calm check above is real: " .. animated)
+	if not (io and io.open) then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	-- the files that draw or animate a set's effect: each one that tweens or loops must read the Calm switch
+	local files = { "AmbientLife", "BackdropStyles", "CosmeticSetsView", "TableLook", "ThemeWash", "MenuParallax" }
+	local gates = { "reduceShake", "motionAllowed", "Accessibility", "reduceMotion", "flashesAllowed", "isCalm" }
+	for _, name in ipairs(files) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			local animates = src:find("TweenService", 1, true) or src:find("TweenInfo", 1, true) or src:find("Heartbeat:Connect", 1, true)
+				or src:find("RenderStepped", 1, true) or src:find("FxLoop", 1, true)
+			if animates then
+				local gated = false
+				for _, g in ipairs(gates) do if src:find(g, 1, true) then gated = true end end
+				expectTrue(gated, name .. " animates a set effect without reading Calm mode or Reduce motion")
+			end
+		end
+	end
+	-- the backdrop renderer: calm hides every layer item and stops stepping; ambient scenes build zero objects in calm
+	local bd = read("src/Client/BackdropStyles.lua")
+	expectTrue(bd == nil or bd:find("not calm()", 1, true) ~= nil and bd:find("item.frame.Visible = run", 1, true) ~= nil, "BackdropStyles hides layers when calm")
+	local al = read("src/Client/AmbientLife.lua")
+	expectTrue(al == nil or al:find("if calm() or not scene.setId then return end", 1, true) ~= nil, "AmbientLife builds nothing when calm")
+	-- the card back flip (an equip moment, not a layer) swaps at once when calm
+	local cv = read("src/Client/CosmeticSetsView.lua")
+	expectTrue(cv == nil or cv:find('get("reduceShake") == true', 1, true) ~= nil, "the card back flip tween is skipped when calm")
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }
