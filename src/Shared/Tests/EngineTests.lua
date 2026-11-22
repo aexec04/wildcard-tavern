@@ -32096,7 +32096,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		end
 	end
 	if not io then return end
-	local f = io.open("src/Client/Settings.lua", "r")
+	local f = io and io.open("src/Client/Settings.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('makeChoiceRow("roundHints"', 1, true) ~= nil, "Settings has a Round Hints toggle")
@@ -35780,6 +35780,27 @@ table.insert(tests, { name = "Store fairness: every row says what you get, shows
 	for _, product in ipairs(GamePasses.DeveloperProducts) do
 		local text = (product.name .. " " .. product.description):lower()
 		expectFalse(text:find("tips", 1, true) ~= nil or text:find("random", 1, true) ~= nil, product.id .. " is not a Tips or random product")
+	end
+end })
+
+table.insert(tests, { name = "About: Settings About lines show name, version and a short kind thanks, no links, no em dash", fn = function()
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local lines = GameName.aboutLines()
+	expectEqual(2, #lines)
+	expectTrue(lines[1]:find(GameName.NAME, 1, true) ~= nil, "first line has the game name")
+	expectTrue(GameName.VERSION:match("^%d+%.%d+%.%d+$") ~= nil, "version is numbers like 0.9.0")
+	expectTrue(lines[1]:find(GameName.VERSION, 1, true) ~= nil, "first line has the version")
+	for _, line in ipairs(lines) do
+		local l = line:lower()
+		expectTrue(#line > 0 and #line <= 80, "short line")
+		expectFalse(l:find("http", 1, true) ~= nil or l:find("www.", 1, true) ~= nil or l:find(".com", 1, true) ~= nil, "no outside links")
+		expectFalse(line:find("\xE2\x80\x94", 1, true) ~= nil, "no em dash")
+		expectFalse(l:find("balatro", 1, true) ~= nil, "banned word")
+	end
+	local f = io and io.open("src/Client/Settings.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('makeHeader("About")', 1, true) ~= nil, "Settings builds the About section")
 	end
 end })
 

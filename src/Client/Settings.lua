@@ -504,6 +504,25 @@ return function(deps)
 		parent = scroll, layoutOrder = order(),
 	})
 
+	-- ===== About: game name with version and a one line thanks (Engine/GameName), no links =====
+	makeHeader("About")
+	for i, line in ipairs(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName")).aboutLines()) do
+		local about = Instance.new("TextLabel")
+		about.Name = "AboutLine" .. i
+		about.Size = UDim2.new(1, 0, 0, i == 1 and 26 or 44)
+		about.LayoutOrder = order()
+		about.BackgroundTransparency = 1
+		about.Font = Enum.Font.Merriweather
+		about.TextSize = 16
+		about.TextWrapped = true
+		about.TextXAlignment = Enum.TextXAlignment.Left
+		about.TextYAlignment = Enum.TextYAlignment.Top
+		about.TextColor3 = TEXT
+		about.Text = line
+		about.ZIndex = 21
+		about.Parent = scroll
+	end
+
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, SettingsLayout.CLOSE.w, 0, SettingsLayout.CLOSE.h)
 	settingsCloseButton.Position = UDim2.new(0.5, -SettingsLayout.CLOSE.w / 2, 1, -(SettingsLayout.CLOSE.h + 8))
