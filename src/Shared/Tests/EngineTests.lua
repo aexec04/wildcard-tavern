@@ -40656,4 +40656,41 @@ table.insert(tests, { name = "Tome Flair, Legend and Ledger tabs wear the set pl
 	if lb then expectTrue(lb:find("ledgerStyleOf(", 1, true) ~= nil, "the Ledger asks the pure rule") end
 end })
 
+table.insert(tests, { name = "Card Sets room tiles: each set's own Counter room, keeper, plate and a 16 px state line fit 800x450 to 1920x1080", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local sizes = { { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 1080 } }
+	for _, sz in ipairs(sizes) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		local g = L.room(pw, ph - L.TOP - L.BOTTOM, #CS.Definitions, 1)
+		expectTrue(g.ok and #g.cells >= 5, "room fits with a full row at " .. sz[1] .. "x" .. sz[2])
+		for i, c in ipairs(g.cells) do
+			expectTrue(c.tile.w >= 44 and c.tile.h >= 44, "tile is a 44 px target at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(inside(c.pic, c.tile) and inside(c.name, c.tile) and inside(c.state, c.tile), "tile parts inside the tile (" .. i .. ")")
+			expectFalse(hit(c.pic, c.name) or hit(c.name, c.state) or hit(c.pic, c.state), "picture, name and state line do not overlap")
+			expectTrue(c.state.h >= 20, "state line holds 16 px text")
+			expectTrue(c.state.w >= 66, "Equipped fits the state line at 16 px at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(c.pic.h >= 28, "picture stays visible")
+		end
+	end
+	for _, set in ipairs(CS.Definitions) do
+		local room = TS.shopRoomId(set.id)
+		expectTrue(type(room) == "string" and room ~= "", set.id .. " has a Counter room picture")
+		local behind = TS.shopKeeperIds(set.id)
+		expectTrue(type(behind) == "string" and behind ~= "", set.id .. " has a keeper")
+		local band = CS.titleBandOf(set.id)
+		if set.id ~= CS.DefaultId then expectTrue(band ~= nil and CS.contrastRatio(band.fill, band.ink) >= 7, set.id .. " name plate keeps 7:1") end
+	end
+	if not io then return end
+	local f = io.open("src/Client/CardSetsRoom.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("ThemeScenes.shopRoomId(", 1, true) ~= nil and src:find("ThemeScenes.shopKeeperIds(", 1, true) ~= nil, "tiles draw the set's own Counter room and keeper")
+		expectTrue(src:find('Name = "State"', 1, true) ~= nil and src:find("TextSize = 16", 1, true) ~= nil, "tiles draw a 16 px state line")
+	end
+end })
+
 return tests
