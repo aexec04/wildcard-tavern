@@ -35,9 +35,9 @@ ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
 ShopSceneLayout.FACE_X0, ShopSceneLayout.FACE_X1, ShopSceneLayout.FACE_H = 0.25, 0.75, 0.35 -- Marlo's face: middle half of his rect, top 35 percent
 ShopSceneLayout.BOSS_MAX_W = 620
 ShopSceneLayout.BOSS_PAD = 28 -- text keeps this far inside the ornate gold ends
-ShopSceneLayout.BOSS_H = 40 -- the Next boss plate: tall enough for 16 px text inside the painted gold frame
+ShopSceneLayout.BOSS_H = 44 -- the Next boss plate: tall enough for 18 px text inside the painted gold frame
 ShopSceneLayout.BUBBLE_H = 58 -- Marlo's parchment speech plate: two lines of 16 px
-ShopSceneLayout.TAB_GAP = 8-- clear space between the tab row and the Next boss line
+ShopSceneLayout.TAB_GAP = 12 -- clear space between the tab row and the Next boss line
 ShopSceneLayout.MIN_TOUCH = 44 -- smallest height of a tappable control (tabs, Next Round)
 
 -- The round card table: a wide oval (a rounded rectangle with half-circle ends, the same shape as the Menu room's felt table) with a
@@ -58,7 +58,7 @@ ShopSceneLayout.READABLE_SCALE = 0.5-- the table grows taller on a small window 
 
 -- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +4 by slot. Offers
 -- use slot 1 to n, packs go on from n + 1, so neighbours never lean the same way.
-local TILTS = { -4, 3, -3, 4 }
+local TILTS = { -1.5, 1, -1, 1.5 } -- at most 1.5 degrees: names stay readable
 function ShopSceneLayout.cardTilt(index)
 	return TILTS[((math.max(1, math.floor(index)) - 1) % #TILTS) + 1]
 end
@@ -601,7 +601,8 @@ function ShopSceneLayout.cardOverlays(W, artTop, artH, bannerTop, badgeW, chipWi
 		out.chips[i] = { x = 12, y = y, w = math.min(cw, maxW), h = 24 }
 		y = y + 28
 	end
-	out.price = { x = W - 12 - ShopSceneLayout.TAG_W, y = bannerTop - 4 - ShopSceneLayout.TAG_H,
+	-- the price plate hangs from the card under the name ribbon, never over the art (it reaches 22 px past the body, inside the table margin)
+	out.price = { x = math.floor((W - ShopSceneLayout.TAG_W) / 2), y = bannerTop + require(script.Parent.CardShape).BANNER_H + 2,
 		w = ShopSceneLayout.TAG_W, h = ShopSceneLayout.TAG_H }
 	return out
 end

@@ -524,7 +524,7 @@ function ShopCards.new(deps)
 		local enabled = spec.enabled ~= false
 		local button
 		if not spec.noAction then
-			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, (spec.price and ov.price.y or (shape.bannerTop - 4)) - 4 - BUTTON_H), Size = UDim2.fromOffset(W, BUTTON_H),
+			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, (shape.bannerTop - 4) - 4 - BUTTON_H), Size = UDim2.fromOffset(W, BUTTON_H),
 				BackgroundTransparency = 1, ZIndex = Z + 4 }) -- over the art above the price tag; never clipped (clips fail under Tilt)
 			button = Instance.new("TextButton")
 			button.Name = "Action"

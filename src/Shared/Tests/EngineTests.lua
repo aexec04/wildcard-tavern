@@ -15361,9 +15361,10 @@ table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag n
 		local artTop, artH, bannerTop = 6, 180, 170
 		local ov = L.cardOverlays(W, artTop, artH, bannerTop, L.pillWidth("JUMBO"), { L.pillWidth("Ranks"), L.pillWidth("Flush") })
 		local list = { ov.badge, ov.chips[1], ov.chips[2], ov.price }
+		assert(ov.price.y >= bannerTop + 40, "the price plate hangs under the name ribbon, not over the art")
 		for i = 1, #list do
 			assert(list[i].x >= 0 and list[i].x + list[i].w <= W + 40, "inside card width")
-			assert(list[i].y + list[i].h <= bannerTop, "nothing covers the name ribbon")
+			if i < #list then assert(list[i].y + list[i].h <= bannerTop, "nothing covers the name ribbon") end
 			for j = i + 1, #list do
 				-- only meaningful when the card is wide enough to hold both columns
 				if W >= 220 then assert(not L.intersects(list[i], list[j]), "overlay " .. i .. " vs " .. j .. " at W " .. W) end
@@ -18421,7 +18422,7 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 			expectTrue((slot.Rotation or 0) == 0, "card " .. i .. ": the slot (a direct child of a ScrollingFrame) is not rotated" .. where)
 			expectEqual(wrapper.Rotation, SL.cardTilt(i), "card " .. i .. " lies at its fixed angle, on its Tilt wrapper" .. where)
 			expectEqual(slot:GetAttribute("Tilt"), SL.cardTilt(i), "...and the slot remembers it for the hover" .. where)
-			expectTrue(math.abs(wrapper.Rotation) >= 3 and math.abs(wrapper.Rotation) <= 8, "...a visible angle, 3 to 8 degrees" .. where)
+			expectTrue(math.abs(wrapper.Rotation) >= 1 and math.abs(wrapper.Rotation) <= 1.5, "...a slight angle, 1 to 1.5 degrees" .. where)
 			if i > 1 then expectTrue(wrapper.Rotation ~= slots[i - 1]:FindFirstChild("Tilt").Rotation, "...and not like its neighbour" .. where) end
 		end
 		local bellGlow, ledgerGlow = shopFrame:FindFirstChild("Glow_Reroll"), shopFrame:FindFirstChild("Glow_Haggle")
@@ -18530,9 +18531,9 @@ table.insert(tests, { name = "The Counter's oval card table: a wide oval with a 
 	local phone = SL.rects(390, 700, { offers = 3, packs = 2 })
 	expectEqual(phone.table, nil, "a phone has no table: its cards wrap in rows on the counter")
 	-- the dealt tilt: -4, +3, -3, +4 by slot, the same every visit, never zero, never past 4 degrees
-	for i, want in ipairs({ -4, 3, -3, 4, -4, 3 }) do expectEqual(SL.cardTilt(i), want, "slot " .. i .. " lies at " .. want .. " degrees") end
+	for i, want in ipairs({ -1.5, 1, -1, 1.5, -1.5, 1 }) do expectEqual(SL.cardTilt(i), want, "slot " .. i .. " lies at " .. want .. " degrees") end
 	for i = 1, 12 do
-		expectTrue(math.abs(SL.cardTilt(i)) >= 3 and math.abs(SL.cardTilt(i)) <= 4, "tilt " .. i .. " is visible and within 4 degrees")
+		expectTrue(math.abs(SL.cardTilt(i)) >= 1 and math.abs(SL.cardTilt(i)) <= 1.5, "tilt " .. i .. " is slight and within 1.5 degrees")
 		if i > 1 then expectTrue(SL.cardTilt(i) ~= SL.cardTilt(i - 1), "neighbours lean differently (" .. i .. ")") end
 	end
 	-- a point just inside and just outside the oval's end tell the shape: a capsule, not a rectangle
@@ -32254,11 +32255,11 @@ table.insert(tests, { name = "Scoring moment: the Patron quote stands beside the
 	assert(sp:find("scoringRects", 1, true), "the trigger line stands on the banner row")
 end })
 
-table.insert(tests, { name = "Counter boss chip: the layout reserves the painted plate's 40 px and ShopStage draws it at that rect", fn = function()
+table.insert(tests, { name = "Counter boss chip: the layout reserves the painted plate's 44 px and ShopStage draws it at that rect", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
 		local r = L.rects(sz[1], sz[2], { offers = 3, packs = 2, room = true })
-		assert(r.nextBoss.h == 40, "chip is 40 px tall at " .. sz[1])
+		assert(r.nextBoss.h == 44 and r.nextBoss.y - (r.tabs.y + r.tabs.h) >= 12, "chip is 44 px tall, 12 px under the tabs at " .. sz[1])
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/ShopStage.lua", "r")); local c = f:read("a"); f:close()
@@ -35291,6 +35292,14 @@ table.insert(tests, { name = "Tavern Map QA: type chip clears the name plate by 
 	end
 	local h = read("src/Client/MapHeaderBar.lua")
 	if h then expectTrue(h:find("cells.keys.Visible = showKeys", 1, true) ~= nil, "Keys cell hidden at 0") end
+end })
+
+table.insert(tests, { name = "Counter shop QA: price plate hangs under the name ribbon, tilt at most 1.5 degrees, Next boss plate 44 px with 12 px under the tabs", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for i = 1, 8 do expectTrue(math.abs(SL.cardTilt(i)) <= 1.5, "tilt " .. i) end
+	local ov = SL.cardOverlays(220, 6, 250, 238, 0, {})
+	expectTrue(ov.price.y >= 238 + 40, "price under the ribbon")
+	expectTrue(SL.BOSS_H == 44 and SL.TAB_GAP == 12, "banner plate and gap")
 end })
 
 table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()

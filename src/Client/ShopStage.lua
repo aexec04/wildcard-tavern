@@ -287,7 +287,7 @@ function ShopStage.new(deps)
 			chip.AnchorPoint = Vector2.new(0, 0)
 			chip.Position = UDim2.fromOffset(r.nextBoss.x, r.nextBoss.y)
 			chip.Size = UDim2.fromOffset(r.nextBoss.w, r.nextBoss.h)
-			chip.TextSize = 16
+			chip.TextSize = 18
 			chip.TextScaled = true
 			chip.TextTruncate = Enum.TextTruncate.AtEnd
 			local pad = chip:FindFirstChild("BossPad") or Instance.new("UIPadding")
@@ -298,7 +298,7 @@ function ShopStage.new(deps)
 			local cap = chip:FindFirstChild("BossCap") or Instance.new("UITextSizeConstraint")
 			cap.Name = "BossCap"
 			cap.MinTextSize = 14
-			cap.MaxTextSize = 16
+			cap.MaxTextSize = 18
 			cap.Parent = chip
 			chip.TextColor3 = Color3.fromRGB(246, 236, 210) -- cream on the dark gold strip, well over 4.5:1
 			ShopPaint.plate(chip, "chip")
