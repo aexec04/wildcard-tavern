@@ -382,4 +382,16 @@ function JourneyMap.rewardLabel(reward, lookups)
 	return tostring(reward.id)
 end
 
+-- One kid safe sentence for the detail card: what this stop gives and whether it is won.
+-- Short enough for two lines at 16 px in a 290 px wide text box.
+function JourneyMap.rewardSentence(reward, lookups, earned)
+	local def_label = JourneyMap.rewardLabel(reward, lookups)
+	local noun = JourneyMap.RewardKinds[reward.kind] and JourneyMap.RewardKinds[reward.kind].noun or "Prize"
+	local name = def_label:gsub("^[%a ]+: ", ""):gsub('^"(.*)"$', "%1")
+	if earned then
+		return "You won the " .. noun:lower() .. " " .. name .. "!"
+	end
+	return "Clear this stop to win the " .. noun:lower() .. " " .. name .. "."
+end
+
 return JourneyMap

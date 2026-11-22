@@ -1030,9 +1030,9 @@ return function(deps)
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left })
 	local cardDesc = cardText({ Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, 48), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local cardReward = cardText({ Size = UDim2.new(1, -110, 0, 18), Position = UDim2.fromOffset(10, 88), Font = Enum.Font.GothamBold,
-		TextSize = 14, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardHow = cardText({ Size = UDim2.new(1, -110, 0, 36), Position = UDim2.fromOffset(10, 108), TextSize = 14,
+	local cardReward = cardText({ Size = UDim2.new(1, -76, 0, 40), Position = UDim2.fromOffset(10, 86), Font = Enum.Font.GothamBold,
+		TextSize = 16, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
+	local cardHow = cardText({ Size = UDim2.new(1, -110, 0, 34), Position = UDim2.fromOffset(10, 128), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 
 	-- Reward preview swatch (right side): card-back colors, or an icon tile.
@@ -1118,7 +1118,7 @@ return function(deps)
 			return
 		end
 
-		cardReward.Text = (isEarned and "Earned: " or "Reward: ") .. JourneyMap.rewardLabel(reward, lookups)
+		cardReward.Text = JourneyMap.rewardSentence(reward, lookups, isEarned)
 		cardReward.TextColor3 = isEarned and GOLD or SOFT
 		cardHow.Text = (isEarned and "Unlocked: " or "How to unlock: ") .. JourneyMap.unlockText(data)
 
