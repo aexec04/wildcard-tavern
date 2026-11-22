@@ -299,6 +299,10 @@ CATEGORY_OPTS["table_scene"]["references"]["table_play_ref"] = "claude/reference
 CATEGORY_OPTS["table_scene"]["opaque"].append("table_boss_ref")
 CATEGORY_OPTS["table_scene"]["sizes"]["table_boss_ref"] = "1536x1024"
 CATEGORY_OPTS["table_scene"]["references"]["table_boss_ref"] = "art-wip/table_scene/table_play_ref.png"
+# ice tavern pilot theme (winter_evening): the boss table edits the classic table reference, menu and map are text only
+for _k in ("theme_ice_menu", "theme_ice_boss", "theme_ice_map"):
+    CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
+    CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
 # deck tray and bottom rail: edits of crops of the table reference (made by _add_table_art_prompts.py)
 CATEGORY_OPTS["concept_t"]["sizes"].update({"ct_deck_tray": "1024x1024", "ct_rail_strip": "1536x1024"})
 CATEGORY_OPTS["concept_t"]["references"].update({"ct_deck_tray": "art-wip/table_art/ref_tray.png", "ct_rail_strip": "art-wip/table_art/ref_rail.png"})

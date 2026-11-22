@@ -12,4 +12,7 @@ return {
 	["table_play"] = "rbxassetid://131893863296545",
 	["table_play_ref"] = "rbxassetid://117735338659572",
 	["table_runover"] = "rbxassetid://71178483032874",
+	["theme_ice_boss"] = "rbxassetid://75423170166123",
+	["theme_ice_map"] = "rbxassetid://88459899590320",
+	["theme_ice_menu"] = "rbxassetid://86582547298610",
 }
