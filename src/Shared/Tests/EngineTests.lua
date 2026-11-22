@@ -10141,6 +10141,24 @@ table.insert(tests, { name = "MenuTicker: run counts rounded, board line with na
 	end
 end })
 
+table.insert(tests, { name = "MenuTicker: 12 or more kid safe lines, each 60 characters or less, unique, never the same line twice in a row over a year of days", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MenuTicker)
+	expectTrue(#MT.FlavorLines >= 12, "at least 12 lines")
+	local seen = {}
+	for _, line in ipairs(MT.FlavorLines) do
+		expectTrue(#line <= 60 and #line > 0, "60 characters or less: " .. line)
+		expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not line:lower():find("balatro"), "no em dash, double dash or banned word: " .. line)
+		expectTrue(not seen[line], "unique: " .. line)
+		seen[line] = true
+	end
+	local prev
+	for day = 0, 400 do
+		local line = MT.text({}, day)
+		expectTrue(line ~= prev, "day " .. day .. " repeats the previous line")
+		prev = line
+	end
+end })
+
 table.insert(tests, { name = "CollectionRewards: Flair group counts owned non default options, Tips only", fn = function()
 	local CR = require(script.Parent.Parent.Engine.CollectionRewards)
 	local Flair = require(script.Parent.Parent.Engine.Flair)
