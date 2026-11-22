@@ -20837,6 +20837,64 @@ table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges
 	expectTrue(plain.room:FindFirstChild("Floor").Visible and plain.room:FindFirstChild("Hotspot_patrons"):FindFirstChild("Object").Visible, "the drawn room stays as the fallback")
 end })
 
+table.insert(tests, { name = "Screen budget: Collection, Badges and Map stay under 2500 GuiObjects, and every per frame loop in the client is stored so it can be disconnected", fn = function()
+	local Perf = require(script.Parent.Parent.Engine.Gameplay2Perf)
+	local LIMIT = 2500
+	local function countOf(label, root)
+		local n = Perf.count(root, false)
+		expectTrue(n < LIMIT, label .. " has " .. n .. " GuiObjects, the limit is " .. LIMIT)
+		return n
+	end
+	local col, CB = collectionBuild()
+	if col then
+		col.open()
+		countOf("Collection gallery room", col.gui)
+		for _, sec in ipairs(CB.Tabs) do
+			if col.hotspot(sec.id) then
+				col.pick(sec.id)
+				col.tiles() -- every delayed batch built: the worst case
+				countOf("Collection section " .. sec.id, col.gui)
+				col.step()
+			end
+		end
+		local BS = require(script.Parent.BadgeScene)
+		local b = BS.build({ badgeIds = {} })
+		b.open()
+		countOf("Badges", b.gui)
+		local MapScene = require(script.Parent.MapScene)
+		countOf("Tavern Map", MapScene.build({}).gui)
+	end
+	-- loops: a Heartbeat or RenderStepped connection must be kept in a variable (or a list) so close can disconnect it, and a file that
+	-- connects one must also call :Disconnect somewhere. The two permanent hub loops idle while their screen is hidden.
+	if not (io and io.open) then return end
+	local permanent = { ["src/Client/BossFight.lua"] = 1, ["src/Client/PlayMotion.lua"] = 1 } -- one connection each for the client's life
+	local p = io.popen and io.popen("ls src/Client/*.lua")
+	if not p then return end
+	local filesSeen, loopsSeen = 0, 0
+	for path in p:lines() do
+		local f = io.open(path, "r")
+		local src = f:read("*a")
+		f:close()
+		filesSeen = filesSeen + 1
+		local connects = 0
+		for line in src:gmatch("[^\n]+") do
+			if (line:find("Heartbeat:Connect", 1, true) or line:find("RenderStepped:Connect", 1, true)) and not line:match("^%s*%-%-") and not line:match("^%s*[%w%.]*%-%-") then
+				local stored = line:find("=%s*[%w%.]*RunService") or line:find("table.insert%(") or line:find("=%s*game:GetService")
+				if not stored and not permanent[path] then
+					error(path .. ": a per frame loop is not stored, so close cannot disconnect it: " .. line:gsub("^%s+", ""))
+				end
+				connects = connects + 1
+				loopsSeen = loopsSeen + 1
+			end
+		end
+		if connects > 0 and path ~= "src/Client/FxLoop.lua" and not permanent[path] then
+			expectTrue(src:find(":Disconnect(", 1, true) ~= nil, path .. " connects a per frame loop but never disconnects one")
+		end
+	end
+	p:close()
+	expectTrue(filesSeen > 100 and loopsSeen >= 25, "the loop scan really read the client: " .. filesSeen .. " files, " .. loopsSeen .. " loops")
+end })
+
 table.insert(tests, { name = "Peddler speech bubble: hidden when its text is empty or faded, and the pack panel never restores it", fn = function()
 	local f = io and io.open and io.open("src/Client/ShopScene.lua", "r")
 	if not f then return end -- Studio has no io
