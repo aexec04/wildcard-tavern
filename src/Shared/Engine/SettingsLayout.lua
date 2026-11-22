@@ -18,7 +18,7 @@ M.SECTIONS = {
 	{ id = "comfort", title = "Comfort", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
 	{ id = "sound", title = "Sound", rows = { "volume" } },
 	{ id = "help", title = "Help", rows = { "replayTutorial", "replayHints" } },
-	{ id = "display", title = "Display", rows = { "animSpeed" } },
+	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode" } },
 	{ id = "gameplay", title = "Gameplay", rows = { "roundHints", "confirmDiscard", "allowSpectators", "holdConfirmSeconds" } },
 }
 

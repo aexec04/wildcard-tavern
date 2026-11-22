@@ -498,6 +498,7 @@ return function(deps)
 		{ "normal", "Normal" },
 		{ "fast", "Fast" },
 	})
+	makeChoiceRow("performanceMode", "Performance Mode", "For slower devices: turns off the edge shading, soft glows and sparkles.", OFF_ON)
 
 	-- ===== Gameplay =====
 	makeHeader("Gameplay")

@@ -5580,6 +5580,47 @@ table.insert(tests, { name = "Sound pass: every UI moment has a cue with a call 
 	expectTrue(d2:request("reward_claim", 5).play and not d2:request("reward_claim", 5.05).play, "a double click claim sounds once")
 end })
 
+table.insert(tests, { name = "Performance mode: its own saved switch, no vignettes, glows or particles, works with Calm mode, 150 ms build budget", fn = function()
+	local P = require(script.Parent.Parent.Engine.PerformanceMode)
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(PP.defaultSettings().performanceMode, false, "off by default")
+	expectEqual(PP.migrate({ settings = { performanceMode = true } }).settings.performanceMode, true, "the switch is saved")
+	expectEqual(PP.migrate({ settings = { performanceMode = "yes" } }).settings.performanceMode, false, "a bad value falls back to off")
+	local off, perf = { performanceMode = false }, { performanceMode = true }
+	expectTrue(P.vignettes(off) and P.glows(off) and P.particles(off) and not P.on(off), "everything draws when off")
+	expectTrue(not P.vignettes(perf) and not P.glows(perf) and not P.particles(perf) and P.on(perf), "vignettes, glows and particles are off")
+	expectTrue(P.vignettes(nil) and not P.on(nil), "no settings table means off")
+	expectEqual(A.particleCount(perf, 20), 0, "no particles under Performance mode")
+	-- Calm mode and Performance mode together: each keeps its own meaning
+	local both = { performanceMode = true, reduceMotion = true, reduceFlashing = true, reduceShake = true }
+	expectTrue(A.calm(both) and P.on(both) and A.particleCount(both, 20) == 0, "both on: calm and no particles")
+	expectTrue(A.calm({ reduceMotion = true }) and not P.on({ reduceMotion = true }), "Calm alone does not switch Performance mode on")
+	expectTrue(not A.calm(perf), "Performance alone does not switch Calm mode on")
+	expectEqual(SL.calmValue(both), true, "the Calm switch still reads On")
+	for k in pairs(SL.calmWrites(false)) do expectTrue(k ~= "performanceMode", "the Calm switch never writes performanceMode") end
+	local found = false
+	for _, row in ipairs(SL.rowOrder()) do if row == "performanceMode" then found = true end end
+	expectTrue(found, "Settings lists a Performance Mode row")
+	-- the build budget
+	expectEqual(P.BUDGET_MS, 150)
+	local slow = P.slow({ { name = "a", ms = 40 }, { name = "b", ms = 151 }, { name = "c", ms = 150 }, { name = "d", ms = 400 } })
+	expectEqual(#slow, 2, "only builds over 150 ms are reported")
+	expectEqual(slow[1].name, "d", "slowest first")
+	expectTrue(P.line("Store", 151.2):find("OVER 150 ms", 1, true) ~= nil and P.line("Store", 90):find("OVER", 1, true) == nil, "the Studio line flags only slow builds")
+	-- the client modules honour the switch
+	local okIo, fh = pcall(function() return io.open("src/Client/SoftGlow.lua", "r") end)
+	if okIo and fh then
+		local glow = fh:read("*a"); fh:close()
+		expectTrue(glow:find("performanceMode", 1, true) ~= nil, "SoftGlow checks Performance mode")
+		local vig = io.open("src/Client/SmoothVignette.lua", "r"):read("*a")
+		expectTrue(vig:find("performanceMode", 1, true) ~= nil, "SmoothVignette checks Performance mode")
+		local st = io.open("src/Client/Settings.lua", "r"):read("*a")
+		expectTrue(st:find('makeChoiceRow("performanceMode"', 1, true) ~= nil, "the Settings screen has the switch")
+	end
+end })
+
 table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn = function()
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",

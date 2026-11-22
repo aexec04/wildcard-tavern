@@ -89,6 +89,7 @@ PlayerProfile.SETTING_SPECS = {
 	-- accessibility and comfort (Engine/Accessibility.lua)
 	reduceFlashing = { default = false, kind = "boolean" },
 	reduceMotion = { default = false, kind = "boolean" },
+	performanceMode = { default = false, kind = "boolean" }, -- low end devices: no vignettes, glows or particles (Engine/PerformanceMode)
 	largerText = { default = false, kind = "boolean" },
 	holdConfirmSeconds = { default = 1.5, kind = "range", min = 0.5, max = 3 },
 	boardCollapsed = { default = false, kind = "boolean" }, -- the left board is slid away (Client/BoardDrawer)

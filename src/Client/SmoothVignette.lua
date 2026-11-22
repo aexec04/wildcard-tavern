@@ -15,6 +15,17 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VignetteCurve = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("VignetteCurve"))
 
+-- ClientSettings is read lazily (pcall) so a module that builds without the settings module still draws
+local function settings()
+	local ok, cs = pcall(function() return require(script.Parent.ClientSettings) end)
+	return ok and cs or nil
+end
+local function perfRaw()
+	local cs = settings()
+	local ok, v = pcall(function() return cs.getRaw("performanceMode") end)
+	return ok and v or false
+end
+
 local SmoothVignette = {}
 
 local EDGES = { "top", "bottom", "left", "right" }
@@ -45,9 +56,17 @@ function SmoothVignette.build(parent, opts)
 	holder.ZIndex = zIndex
 	holder.Parent = parent
 	local frames = {}
+	local perfOn = perfRaw() == true -- Performance mode: nothing is built
+	holder.Visible = not perfOn
+	local cs = settings()
+	if cs and type(cs.onChanged) == "function" then
+		cs.onChanged(function(key, value)
+			if key == "performanceMode" and holder.Parent then holder.Visible = value ~= true end
+		end)
+	end
 	for _, edge in ipairs(EDGES) do
 		local spec = opts[edge]
-		if spec and (spec.strength or 0) > 0 then
+		if not perfOn and spec and (spec.strength or 0) > 0 then
 			local f = Instance.new("Frame")
 			f.Name = "Vignette_" .. edge
 			f.BackgroundColor3 = color
