@@ -43983,5 +43983,41 @@ table.insert(tests, { name = "Marks: the server takes BuyMark through the rate l
 	expectTrue(src:find("RunState.phaseAllowsShopActions(session.phase)", 1, true) ~= nil)
 end })
 
-return tests
+-- ===== Card marks in the Deck tracker =====
+table.insert(tests, { name = "MarkBadge: one letter on a dark plate, cream ink at 7:1, an edge that reads at 3:1 in every Card Set accent, captions of 40 characters or less", fn = function()
+	local MB = require(script.Parent.Parent.Engine.MarkBadge)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(MB.spec("nope"), nil); expectEqual(MB.spec(nil), nil)
+	local letters = {}
+	for _, id in ipairs(Card.MarkOrder) do
+		local accents = { false }
+		for _, def in ipairs(CS.Definitions) do
+			local th = CS.themeOf(def)
+			if th and th.accent then accents[#accents + 1] = th.accent end
+		end
+		for _, accent in ipairs(accents) do
+			local spec = MB.spec(id, accent or nil)
+			expectTrue(spec ~= nil and #spec.letter == 1, id .. " has one letter")
+			expectTrue(CS.contrastRatio(spec.ink, spec.fill) >= 7, id .. " ink 7:1")
+			expectTrue(CS.contrastRatio(spec.edge, spec.fill) >= 3, id .. " edge 3:1")
+		end
+		letters[Card.Marks[id].icon] = true
+		expectTrue(#MB.caption(id) > 0 and #MB.caption(id) <= 40, id .. " caption fits one 16 px line")
+	end
+	local n = 0
+	for _ in pairs(letters) do n = n + 1 end
+	expectEqual(n, 3, "each mark has its own letter, so it reads without colour")
+end })
 
+table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mark line and a tap tooltip, and the deck view carries the mark", fn = function()
+	local f = io and io.open and io.open("src/Client/DeckTracker.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('"MarkBadge"', 1, true) ~= nil and src:find("MarkBadge.caption", 1, true) == nil or src:find(").caption(entry.mark)", 1, true) ~= nil, "the tracker reads the badge module")
+	expectTrue(src:find("card.Activated:Connect(showCaption)", 1, true) ~= nil, "a tap shows the tooltip")
+	expectTrue(src:find("entry.mark and 16 or 18", 1, true) ~= nil, "16 px on a marked card")
+	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
+end })
+
+return tests
