@@ -9218,6 +9218,33 @@ table.insert(tests, { name = "TavernRank.addXp: rewards are granted once, in ord
 	expectEqual(bad.questsDone, 0)
 end })
 
+table.insert(tests, { name = "Quests wording: short unique lines, rewards named, N of M progress, no duplicate goal", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local texts, names, goals = {}, {}, {}
+	for _, def in ipairs(Quests.Definitions) do
+		expectTrue(#def.desc < 60 and #def.name < 30, def.id .. " text is short")
+		expectTrue(def.desc:sub(-1) == ".", def.id .. " desc ends with a full stop")
+		expectTrue(not def.desc:find("%-%-") and not def.desc:find("\226\128\148"), def.id .. " has no dashes")
+		expectTrue(not def.desc:lower():find("balatro"), def.id .. " content rule")
+		expectTrue(not texts[def.desc], "unique desc " .. def.id)
+		expectTrue(not names[def.name], "unique name " .. def.id)
+		local key = def.counter .. ":" .. def.goal
+		expectTrue(not goals[key], "no duplicate counter and goal " .. def.id)
+		texts[def.desc], names[def.name], goals[key] = true, true, true
+		expectTrue(def.xp > 0 and def.tips > 0, def.id .. " names a reward")
+		expectTrue(#Quests.rewardText(def) < 30, def.id .. " reward line is short")
+	end
+	expectEqual(Quests.progressText({ progress = 2, goal = 3, done = false }), "2 of 3")
+	expectEqual(Quests.progressText({ progress = 3, goal = 3, done = true }), "Done")
+	expectEqual(Quests.rewardText({ xp = 40, tips = 2 }), "+40 XP, +2 Tips")
+	-- every rolled quest of a month renders a row with a sane progress line
+	local profile = {}
+	for day = 20000, 20030 do
+		for _, row in ipairs(Quests.view(profile, day, 100).quests) do
+			expectTrue(row.goal >= 1 and Quests.progressText(row):find("^%d+ of %d+$") ~= nil, row.id .. " fresh row reads N of M")
+		end
+	end
+end })
 table.insert(tests, { name = "Quests: the same three quests for a given UTC day, different days vary, progress completes once and pays", fn = function()
 	local Quests = require(script.Parent.Parent.Engine.Quests)
 	local a, b = Quests.rollFor(20000), Quests.rollFor(20000)

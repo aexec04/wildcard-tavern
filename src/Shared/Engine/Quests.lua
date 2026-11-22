@@ -136,6 +136,19 @@ function Quests.apply(profile, day, deltas)
 	return completed, rankUps, granted
 end
 
+-- "2 of 3" while open, "Done" once claimed (rewards are paid the moment a quest completes).
+function Quests.progressText(row)
+	if row.done then
+		return "Done"
+	end
+	return string.format("%d of %d", math.floor(row.progress or 0), math.floor(row.goal or 0))
+end
+
+-- "+40 XP, +2 Tips" (Tips are banked for the next run).
+function Quests.rewardText(def)
+	return string.format("+%d XP, +%d Tips", math.floor(def.xp), math.floor(def.tips))
+end
+
 -- What the client draws.
 function Quests.view(profile, day, secondsLeft)
 	Quests.ensureDay(profile, day)
