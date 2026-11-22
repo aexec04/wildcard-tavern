@@ -363,10 +363,24 @@ return function(deps)
 					bs.Thickness = 1.5
 					bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 					bs.Parent = badge
+					-- painted badge when its image is recorded; the drawn letter stays as the fallback (and under a slow load)
+					local paintedId = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).getImageId("mark_badges", entry.mark)
 					label(badge, {
-						Size = UDim2.fromScale(1, 1), ZIndex = 28, TextSize = 14, Text = spec.letter,
+						Size = UDim2.fromScale(1, 1), ZIndex = 28, TextSize = 14, Text = paintedId and "" or spec.letter,
 						TextColor3 = Color3.fromRGB(spec.ink[1], spec.ink[2], spec.ink[3]), TextStrokeTransparency = 1,
 					})
+					if paintedId then
+						local pic = Instance.new("ImageLabel")
+						pic.Name = "MarkBadgeArt"
+						pic.Size = UDim2.new(1, -2, 1, -2)
+						pic.Position = UDim2.fromOffset(1, 1)
+						pic.BackgroundTransparency = 1
+						pic.Image = paintedId
+						pic.ScaleType = Enum.ScaleType.Fit
+						pic.Active = false
+						pic.ZIndex = 29
+						pic.Parent = badge
+					end
 				end
 			end
 			local icons = iconsFor(entry)

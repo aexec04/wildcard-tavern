@@ -2176,5 +2176,10 @@
     "pass_harvest_moon": "square icon, one clear subject centred, readable at 64 px, deep purple background with a soft golden glow, bold outlines. a big harvest moon rising over a golden field",
     "pass_winter_welcome": "square icon, one clear subject centred, readable at 64 px, deep purple background with a soft golden glow, bold outlines. a snowflake with a cozy scarf",
     "pass_one_more_round": "square icon, one clear subject centred, readable at 64 px, deep purple background with a soft golden glow, bold outlines. a playing card with a circular arrow around it"
+  },
+  "mark_badge_subjects": {
+    "gilded": "one shiny round gold coin with a raised rim and a small star stamped in the middle, single centered subject filling about 75 percent of the square frame on flat pure magenta #FF00FF with no gradient, square composition, blocky painted Roblox tavern style, warm lantern light, painterly, readable at 20 pixels, bold simple shapes, thick dark outline, no text, no letters, no numbers, kid-friendly",
+    "lucky": "one bright green four leaf clover with a tiny gold sparkle, single centered subject filling about 75 percent of the square frame on flat pure magenta #FF00FF with no gradient, square composition, blocky painted Roblox tavern style, warm lantern light, painterly, readable at 20 pixels, bold simple shapes, thick dark outline, no text, no letters, no numbers, kid-friendly",
+    "lively": "one bright golden spark burst, a small star with short rays, cheerful and energetic, single centered subject filling about 75 percent of the square frame on flat pure magenta #FF00FF with no gradient, square composition, blocky painted Roblox tavern style, warm lantern light, painterly, readable at 20 pixels, bold simple shapes, thick dark outline, no text, no letters, no numbers, kid-friendly"
   }
 }

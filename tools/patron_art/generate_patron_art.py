@@ -84,6 +84,7 @@ CATEGORIES = {
     "ledger_ui": ("ledger_ui_subjects", "ledger_ui", "LedgerArt.lua", "Ledger"),
     "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
+    "mark_badges": ("mark_badge_subjects", "mark_badges", "MarkBadgeArt.lua", "Mark Badge"),
     "badge_sockets": ("badge_socket_subjects", "badge_sockets", "BadgeSocketArt.lua", "Badge Socket"),
     "shop_scene": ("shop_scene_subjects", "shop_scene", "ShopSceneArt.lua", "Shop Scene"),
     "victory_scene": ("victory_scene_subjects", "victory_scene", "VictorySceneArt.lua", "Victory Scene"),
@@ -199,6 +200,7 @@ CATEGORY_OPTS = {
                     "references": {"flair_room_a": "art-wip/menu_room/menu_room_wall.png",
                                    "flair_room_b": "art-wip/menu_room/menu_room_wall.png"}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
+    "mark_badges": {"quality": "low", "style_key": "house_style", "transparent": True},
     "option_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,

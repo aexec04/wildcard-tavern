@@ -44663,6 +44663,22 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
 end })
 
+table.insert(tests, { name = "Mark badges: every mark has a painted badge id, the tracker draws it over the plate and keeps the drawn letter as the fallback", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	for _, id in ipairs(Card.MarkOrder) do
+		local art = ContentArt.getImageId("mark_badges", id)
+		expectTrue(type(art) == "string" and art:find("^rbxassetid://%d+$") ~= nil, id .. " has a painted badge image id")
+	end
+	expectTrue(ContentArt.getImageId("mark_badges", "nope") == nil, "an unknown mark has no art (the drawn letter is used)")
+	local f = io and io.open and io.open("src/Client/DeckTracker.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('getImageId("mark_badges", entry.mark)', 1, true) ~= nil, "the tracker asks for the painted badge")
+	expectTrue(src:find('paintedId and "" or spec.letter', 1, true) ~= nil, "the letter is the fallback when no image exists")
+end })
+
 -- ===== Mark and boon Legendary Patrons =====
 table.insert(tests, { name = "Legendary mark Patrons: Duke Goldleaf, Clover Queen, Jolly Jester and Boon Keeper pay per marked card or boon, price 8, text of 60 characters or less", fn = function()
 	local function hand(marks)
