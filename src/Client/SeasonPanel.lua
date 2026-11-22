@@ -66,6 +66,7 @@ function SeasonPanel.init(deps)
 	panel.ZIndex = 41
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "parchment")
+	require(script.Parent.TitleBand).attach(panel)
 	deps.addSoftShadow(panel, 18)
 	local panelScale = Instance.new("UIScale") -- short screens scale the whole panel (SeasonTrack.fit), never below 0.8
 	panelScale.Parent = panel

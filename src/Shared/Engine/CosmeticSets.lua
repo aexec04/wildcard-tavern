@@ -739,6 +739,22 @@ function CosmeticSets.closeDiscOf(setId)
 	return { rest = c, hover = mix(c, { 255, 255, 255 }, 0.18) }
 end
 
+-- Popup title band: a dark strip tinted toward the equipped set accent behind a cream title, edge in the accent. Cream text keeps 7:1 on the fill.
+-- nil for classic or an unknown set so classic popups stay as they are.
+CosmeticSets.TITLE_INK = { 250, 240, 220 }
+CosmeticSets.TITLE_MIN_CONTRAST = 7
+function CosmeticSets.titleBandOf(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local fill = mix({ 40, 28, 20 }, ring, 0.3)
+	local guard = 0
+	while CosmeticSets.contrastRatio(fill, CosmeticSets.TITLE_INK) < CosmeticSets.TITLE_MIN_CONTRAST and guard < 40 do
+		fill = mix(fill, { 20, 14, 10 }, 0.15)
+		guard = guard + 1
+	end
+	return { fill = fill, edge = ring, ink = CosmeticSets.TITLE_INK }
+end
+
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
 function CosmeticSets.minContrastOf(set)
 	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST

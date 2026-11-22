@@ -40233,6 +40233,36 @@ table.insert(tests, { name = "Popup close X disc follows the Card Set accent, cr
 	expectTrue(src:find("Rules.DISC", 1, true) ~= nil and src:find("Rules.HIT", 1, true) ~= nil, "disc and 44 px hit sizes still come from CloseXRules")
 end })
 
+table.insert(tests, { name = "Popup title band follows the Card Set accent, cream title keeps 7:1 on every set, classic untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.titleBandOf("classic_tavern"), nil, "classic keeps its popup")
+	expectEqual(CS.titleBandOf(nil), nil, "no set keeps its popup")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local b = CS.titleBandOf(set.id)
+			expectTrue(b ~= nil, set.id .. " has a title band")
+			if b then
+				n = n + 1
+				expectTrue(CS.contrastRatio(b.fill, b.ink) >= 7, set.id .. " cream title keeps 7:1 on the band")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a title band")
+	if not io then return end
+	local f = io.open("src/Client/TitleBand.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CS.titleBandOf(", 1, true) ~= nil and src:find("band.Visible = false", 1, true) ~= nil, "band asks the pure rule and hides for classic")
+	for _, name in ipairs({ "DailyRewardsPanel", "QuestsPanel", "SeasonPanel", "MusicPanel", "HowToPlay" }) do
+		local g = io.open("src/Client/" .. name .. ".lua", "r")
+		if g then
+			local s = g:read("*a"); g:close()
+			expectTrue(s:find("TitleBand", 1, true) ~= nil, name .. " attaches the title band")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)

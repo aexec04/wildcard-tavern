@@ -188,6 +188,7 @@ function M.install(root)
 	panel.BorderSizePixel = 0
 	panel.ZIndex = Z + 1
 	panel.Parent = backdrop
+	pcall(function() require(script.Parent.TitleBand).attach(panel, { z = Z + 1 }) end)
 	corner(panel, 12)
 	local ps = Instance.new("UIStroke"); ps.Color = rgb("goldTrim"); ps.Thickness = 2; ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ps.Parent = panel
 	-- the panel never outgrows the screen (16 px margin, see MusicPicker.layout); the body below the title scrolls
