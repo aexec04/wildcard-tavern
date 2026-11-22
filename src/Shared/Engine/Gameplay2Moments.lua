@@ -330,7 +330,11 @@ end
 
 function M.defeatLine(state)
 	state = state or {}
-	return string.format("Out of hands. Score %d of %d.", floor(state.roundScore), floor(state.targetScore))
+	local score, target = floor(state.roundScore), floor(state.targetScore)
+	if target > score then
+		return string.format("Out of hands. Score %d of %d, %d short.", score, target, target - score)
+	end
+	return string.format("Out of hands. Score %d of %d.", score, target)
 end
 
 -- NIGHT INTRO: when the table opens for a round, a plate (Night N, the room, the rule in one line) shows 1.2 s over a soft dim, then

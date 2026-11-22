@@ -31302,7 +31302,11 @@ table.insert(tests, { name = "Gameplay v2 moments: Target cleared plate lines an
 			assert(g.transparency >= 0.9, "a light wash: the Bouncer mood stays, the felt is not hidden")
 		end
 	end
-	assert(M.defeatLine({ roundScore = 120, targetScore = 300 }) == "Out of hands. Score 120 of 300.")
+	assert(M.defeatLine({ roundScore = 120, targetScore = 300 }) == "Out of hands. Score 120 of 300, 180 short.")
+	assert(M.defeatLine({ roundScore = 300, targetScore = 300 }) == "Out of hands. Score 300 of 300.")
+	local FXs = require(script.Parent.Parent.Engine.SoundFX)
+	assert(FXs.layersFor("round_clear_soft") and FXs.layersFor("round_fail_soft"), "soft clear and fail cues exist")
+	assert(FXs.layersFor("round_fail_soft")[1].volume <= 0.25, "the fail note is gentle")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
 		local p = M.clearPlate(w, h)

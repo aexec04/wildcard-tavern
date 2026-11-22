@@ -886,7 +886,9 @@ function M.install(deps)
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
 				self.prev = nil
+				if not lines and lastState.phase == "gameover" then pcall(function() require(script.Parent.Cue).play("round_fail_soft") end) end -- a gentle note, the Run Over plate says "Try Again"
 				if lines then
+					if not lines.night then pcall(function() require(script.Parent.Cue).play("round_clear_soft") end) end -- soft chime; a Night clear has its own sting
 					pcall(function() require(script.Parent.ShopSummaryPlate).remember(lines) end) -- stays on the Counter
 					-- one popup: an ordinary clear is the Round Complete plate (RoundRewardBanner, it takes the Score line from here); only the Night plate stays
 					pcall(function() require(script.Parent.RoundRewardBanner).rememberScore(lines.score) end)
