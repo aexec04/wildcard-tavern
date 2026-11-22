@@ -329,6 +329,18 @@ function plateSetId()
 	return ok and sid or nil
 end
 
+function TavernKit.plateSetId() return plateSetId() end
+
+-- A primary or secondary plate ONLY when the equipped Card Set has its own (Style.resultPlate); classic and plateless sets keep the caller's
+-- flat look untouched. Returns true when the plate was drawn. The button must be parented and sized first.
+function TavernKit.setPlateButton(host, kind)
+	local sid = plateSetId()
+	local piece = Style.resultPlate(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y, sid)
+	if not piece then return false end
+	local ok, img = pcall(function() return TavernKit.painted(host, piece) end)
+	return ok and img ~= nil
+end
+
 local buttonsHooked = false
 local function restyleButtons()
 	local sid = plateSetId()

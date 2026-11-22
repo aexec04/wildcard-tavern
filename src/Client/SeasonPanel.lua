@@ -162,6 +162,7 @@ function SeasonPanel.init(deps)
 	claimAll.Parent = panel
 	deps.polishButton(claimAll, 8)
 	deps.addButtonHoverScale(claimAll)
+	pcall(function() require(script.Parent.TavernKit).setPlateButton(claimAll, "primary") end) -- the equipped Card Set's green plate; classic keeps its flat green
 
 	-- the horizontal track
 	local track = Instance.new("ScrollingFrame")

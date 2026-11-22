@@ -40051,6 +40051,59 @@ table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and
 	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
 end })
 
+table.insert(tests, { name = "Result screens: Victory Continue and Skip wear the equipped Card Set plate, classic keeps its own", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		expectEqual(Style.resultPlate("primary", 260, 96, setId), map.wh_btn_green, setId .. " primary result plate")
+		expectEqual(Style.resultPlate("secondary", 260, 96, setId), map.wh_btn_dark, setId .. " secondary result plate")
+		expectTrue(Style.isSetPiece(Style.resultPlate("primary", 260, 96, setId)), setId .. " is a set piece")
+	end
+	expectTrue(n >= 14, "every Card Set has a result plate")
+	expectEqual(Style.resultPlate("primary", 260, 96, "classic_tavern"), nil, "classic keeps the purple plate")
+	expectEqual(Style.resultPlate("primary", 260, 96, nil), nil, "no set keeps the purple plate")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
+		local L = Look.layout(sz[1], sz[2], "run")
+		expectTrue(L.button.h >= 44, "result button stays 44 px or more at " .. sz[1] .. "x" .. sz[2])
+	end
+end })
+
+table.insert(tests, { name = "Menu Play and Season Claim All wear the equipped Card Set plate through the shared kit", fn = function()
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local play = read("src/Client/MenuPlayButton.lua")
+	local season = read("src/Client/SeasonPanel.lua")
+	local kit = read("src/Client/TavernKit.lua")
+	if not (play and season and kit) then return end
+	expectTrue(play:find('paintedButton(plaque, "primary")', 1, true) ~= nil, "Menu Play uses the set aware plate")
+	expectTrue(season:find('setPlateButton(claimAll, "primary")', 1, true) ~= nil, "Season Claim All uses the set plate")
+	expectTrue(kit:find("Style.resultPlate(kind", 1, true) ~= nil, "setPlateButton asks the pure plate rule")
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 190, 44, setId) ~= nil, setId .. " has a Claim All plate")
+	end
+	expectEqual(Style.resultPlate("primary", 190, 44, "classic_tavern"), nil, "classic Claim All stays flat green")
+end })
+
+table.insert(tests, { name = "Settings, Store and Card Sets primary buttons wear the equipped Card Set plate, classic unchanged, 44 px targets kept", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	for setId, map in pairs(Style.SET_PLATES) do
+		expectEqual(Style.setPiece(SL.PLATE, setId), map[SL.PLATE], setId .. " Settings Account plate follows the set")
+		expectTrue(Style.resultPlate("primary", 310, 44, setId) ~= nil, setId .. " Store Buy and Equip plate")
+	end
+	expectEqual(Style.setPiece(SL.PLATE, "classic_tavern"), SL.PLATE, "classic Settings plate unchanged")
+	expectEqual(Style.resultPlate("primary", 310, 44, "classic_tavern"), nil, "classic Store Buy stays flat green")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local store, room, settings = read("src/Client/StorePanel.lua"), read("src/Client/CardSetsRoom.lua"), read("src/Client/Settings.lua")
+	if not (store and room and settings) then return end
+	expectTrue(store:find('Kit.setPlateButton(button, "primary")', 1, true) ~= nil, "Store Buy asks for the set plate")
+	expectTrue(store:find("UDim2.new(1, -36, 0, 44)", 1, true) ~= nil, "Store Buy keeps its 44 px height")
+	expectTrue(room:find('setPlateButton(btn, "primary")', 1, true) ~= nil, "Card Sets Equip asks for the set plate")
+	expectTrue(settings:find("button.ZIndex = 24", 1, true) ~= nil, "Settings Account buttons keep ZIndex 24 over the plate backing")
+end })
+
 return tests
-
-

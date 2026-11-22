@@ -343,6 +343,10 @@ function CardSetsRoom.new(ctx)
 		if not locked then btn.AutoButtonColor = true end
 		local rim = solid(layer, Color3.fromRGB(214, 172, 88), { x = hp.button.x - 2, y = hp.button.y - 2, w = hp.button.w + 4, h = hp.button.h + 4 }, 45, 6) -- gold rim behind the button (a UIStroke on a button doubles its text)
 		rim.Name = "HeroRim"
+		if not locked and pcall(function() return require(script.Parent.TavernKit).setPlateButton(btn, "primary") end) and btn:GetAttribute("BasePiece") then
+			rim.Visible = false -- the previewed set's own plate carries the trim
+			btn.TextColor3 = CREAM
+		end
 	end
 
 	local function paintTile(i, entry, cell, d, selected)
