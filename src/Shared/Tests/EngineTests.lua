@@ -10498,13 +10498,13 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	local day = first1 + 3
 	local p = PlayerProfile.new()
 	expectEqual(ST.addXp(p, 10, first1 - 1), 0, "no XP outside a season"); expectEqual(p.seasonXp, 0)
-	expectEqual(ST.addXp(p, 100, day), 100); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
+	expectEqual(ST.addXp(p, ST.XP_PER_TIER + 10, day), ST.XP_PER_TIER + 10); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
 	expectEqual(ST.addXp(p, -5, day), 0); expectEqual(ST.addXp(p, 0 / 0, day), 0); expectEqual(ST.addXp(p, 2.9, day), 2)
-	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - 102, "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
+	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - (ST.XP_PER_TIER + 12), "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
 	-- claims: reached only, once, in the running season, junk tiers refused
 	local fresh = PlayerProfile.new()
-	ST.addXp(fresh, 200, day)
-	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs 270 XP")
+	ST.addXp(fresh, ST.XP_PER_TIER * 2 + 20, day)
+	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs three tiers of XP")
 	local ok, reward = ST.claim(fresh, 1, day)
 	expectTrue(ok); expectEqual(reward.kind, "tips"); expectEqual(fresh.pendingStartTips, reward.amount)
 	expectFalse((ST.claim(fresh, 1, day)), "claimed once"); expectFalse((ST.claim(fresh, 0, day))); expectFalse((ST.claim(fresh, 31, day)))
@@ -10523,14 +10523,14 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	expectTrue(ST.ensureSeason(rich, first2)); expectEqual(rich.seasonId, s2.id); expectEqual(rich.seasonXp, 0); expectEqual(next(rich.seasonClaimed), nil)
 	expectTrue(rich.unlockedCardBackIds[s1.finalCardBackId] and rich.rewardTitleIds[s1.titleId], "season 1 rewards stay owned")
 	expectFalse(ST.ensureSeason(rich, first2), "no second reset")
-	expectEqual(ST.addXp(rich, 90, first2), 90); expectEqual(ST.tierOf(rich.seasonXp), 1)
+	expectEqual(ST.addXp(rich, ST.XP_PER_TIER, first2), ST.XP_PER_TIER); expectEqual(ST.tierOf(rich.seasonXp), 1)
 	-- with no season running, nothing changes
 	expectFalse(ST.ensureSeason(rich, first2 + 1000)); expectEqual(rich.seasonId, s2.id)
 	-- the view
 	local view = ST.view(fresh, day)
 	expectEqual(view.name, s1.name); expectEqual(view.tier, 2); expectEqual(#view.tiers, 30); expectEqual(view.claimable, 0)
 	expectEqual(view.daysLeft, 27); expectTrue(view.tiers[1].claimed and view.tiers[2].claimed and not view.tiers[3].reached)
-	ST.addXp(fresh, 90, day)
+	ST.addXp(fresh, ST.XP_PER_TIER, day)
 	expectEqual(ST.view(fresh, day).claimable, 1)
 	expectEqual(ST.view(PlayerProfile.new(), first1 - 3).upcoming, true); expectEqual(ST.view(PlayerProfile.new(), first1 - 3).startsIn, 3)
 	expectEqual(ST.view(PlayerProfile.new(), first2 + 500), nil)
@@ -10785,7 +10785,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	end
 	-- free player: premium locked, nothing claimable, view shows what is included
 	local free = PlayerProfile.new()
-	ST.addXp(free, 500, day)
+	ST.addXp(free, ST.XP_PER_TIER * 5 + 50, day)
 	expectFalse((ST.claimPremium(free, 1, day)), "locked without the pass")
 	local view = ST.view(free, day)
 	expectFalse(view.premium.owned); expectEqual(view.premium.itemId, s1.premiumItemId); expectTrue(#view.premium.perks >= 3)
@@ -10814,7 +10814,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	local view2 = ST.view(free, day)
 	expectTrue(view2.premium.owned and view2.tiers[1].premium.claimed and not view2.tiers[1].premium.locked)
 	-- later tiers become claimable as XP grows, individually or all at once
-	ST.addXp(free, 90 * 12, day)
+	ST.addXp(free, ST.XP_PER_TIER * 12, day)
 	expectEqual(ST.view(free, day).premium.claimable, ST.tierOf(free.seasonXp) - reached)
 	local ok, reward = ST.claimPremium(free, 8, day)
 	expectTrue(ok); expectEqual(reward.kind, "title"); expectTrue(free.rewardTitleIds[s1.premiumTitleId])
@@ -38655,6 +38655,31 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectTrue(old.ownedSetIds.winter_evening == true)
 	expectEqual(old.stats.bestNightReached, 5)
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
+end })
+
+table.insert(tests, { name = "Season pace over 30 days: a 20 minute a day player finishes the 30 tiers between day 22 and 28, a 10 minute player never waits over 3 days for a tier, a 60 minute player does not finish in under a week", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local start = 20788 -- 2026-12-01, the first day of Winter Welcome (30 days)
+	local function waits(r)
+		local gap, last, longest = 0, 0, 0
+		for _, d in ipairs(r.days) do
+			if last >= ST.TIERS then break end
+			if d.tier > last then gap = 0 else gap = gap + 1 end
+			longest = math.max(longest, gap)
+			last = d.tier
+		end
+		return longest
+	end
+	local casual = EconomySim.season(start, 30, 1)
+	local normal = EconomySim.season(start, 30, 2)
+	local heavy = EconomySim.season(start, 30, 6)
+	expectTrue(normal.finishDay ~= nil and normal.finishDay >= 22 and normal.finishDay <= 28, "20 minutes a day finishes on day " .. tostring(normal.finishDay))
+	expectTrue(waits(casual) <= 3, "10 minutes a day waits at most 3 days for a tier, got " .. waits(casual))
+	expectTrue(waits(normal) <= 3 and waits(heavy) <= 3)
+	expectTrue(casual.finalTier >= 15, "even 10 minutes a day reaches the middle of the track: " .. casual.finalTier)
+	expectTrue(heavy.finishDay == nil or heavy.finishDay >= 7, "60 minutes a day does not finish in under a week")
+	expectEqual(ST.XP_PER_TIER, 225)
 end })
 
 table.insert(tests, { name = "Scoring hot path: 10000 hands with 5 Patrons score in under 3 seconds (about 0.3 s today), so a slow change is caught", fn = function()

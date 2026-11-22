@@ -294,6 +294,20 @@ Baseline sim (`lua tools/run_sim.lua --runs 600 --jobs 4 --bot decent`): win 43.
 - Reroll cost: 5, 7, 9, 11 ... (base 5, +2 per reroll in a visit). The first reroll costs more than a round win pays (4), so it is a choice, and the bot uses 0.15 a run. Frequent Visitor and Bargain Hunter lower it but `RunState.rerollCost` floors it at 1 Tip, so it is never free. No change.
 - Patron sell value: half the list price rounded down. A lasting discount (Regulars' Discount, -2) leaves the buy price at or above the sell value for every Patron (price 4 to 8), so buying and selling in a loop only loses Tips. Only the one shot Sale Day Tag or a haggle can pay back a Tip or two once, and the test `Patron sell value` pins both facts. No change.
 
+## Season track over 30 days
+
+`EconomySim.season(startDay, 30, runsPerDay)` (the same 20 minute session model as the week table, two runs a session; Winter Welcome from 2026-12-01, a 30 tier track). Season XP comes from run XP and quests, about 270 a day for the 20 minute player.
+
+| Player | runs a day | track finished | tier on day 30 | longest wait for a tier |
+| --- | --- | --- | --- | --- |
+| 10 minutes | 1 | not finished | 19 | 1 day |
+| 20 minutes | 2 | day 25 | 30 | 1 day |
+| 60 minutes | 6 | day 13 | 30 | 0 days |
+
+- Before: 90 XP a tier. The 20 minute player finished all 30 tiers on day 10 (the 60 minute player on day 6) and then had nothing to chase for 20 days; the 10 minute player finished on day 19. Pace was fast, not steady.
+- Change: `SeasonTrack.XP_PER_TIER` 90 to 225 (track 2,250 to 6,750 XP). No tier gate is over 1 day for any of the three players, the usual player finishes with five days to spare, and the casual player still reaches the middle of the track. Rewards, Tips and tier count are unchanged. Hard coded 90s in six Season tests now read the constant.
+- Pinned by the test `Season pace over 30 days`. A live Season would need its players warned: the game is unpublished, so no save holds old tiers (a profile with seasonXp above 2,250 simply sits at tier 10 or higher on the new scale).
+
 ## Boss rule fairness, Nights 7 to 12
 
 `lua tools/run_sim.lua --boss-late --runs 1000 --jobs 6 --bot greedy` (about 40 minutes). The greedy bot is the middle skill (random: median Night 3, decent: median Night 7 with 43 percent wins). Each boss is forced on every boss round from Night 7 up in full Endless runs with random Patron buys; a cell counts only runs that reached that boss. Cells past Night 10 hold under 30 runs and say little, so the band is read on the Night 7 to 12 total (n 215 to 551 per boss).
