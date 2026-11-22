@@ -30465,11 +30465,41 @@ table.insert(tests, { name = "MenuLife: logo rises 16 px in 0.5 s, pulse 1.03 ev
 	assert(c.rise == 0 and c.alpha == 1)
 	assert(M.PULSE_SCALE == 1.03 and M.PULSE_PERIOD == 2.5)
 	assert(M.hoverLift(false) == 4 and M.hoverLift(true) == nil)
-	assert(#M.TIPS == 6 and M.TIP_SECONDS == 6)
-	assert(M.tipAt(0) == M.TIPS[1] and M.tipAt(5.9) == M.TIPS[1] and M.tipAt(6) == M.TIPS[2] and M.tipAt(36) == M.TIPS[1] and M.tipAt(-3) == M.TIPS[1])
+	assert(#M.TIPS == 12 and M.TIP_SECONDS == 6)
+	assert(M.tipAt(0) == M.TIPS[1] and M.tipAt(5.9) == M.TIPS[1] and M.tipAt(6) == M.TIPS[2] and M.tipAt(72) == M.TIPS[1] and M.tipAt(-3) == M.TIPS[1])
 	for _, tip in ipairs(M.TIPS) do
-		assert(#tip < 70 and not tip:find("%-%-") and not tip:lower():find("balatro"))
+		assert(#tip <= 60 and not tip:find("%-%-") and not tip:find("\226\128\148") and not tip:lower():find("balatro"))
 	end
+end })
+
+table.insert(tests, { name = "Menu hint line: twelve different tips, 60 characters or less, never the same one twice in a row, even across the wrap", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuLife)
+	expectEqual(#M.TIPS, 12)
+	local seen = {}
+	for i, tip in ipairs(M.TIPS) do
+		expectTrue(#tip <= 60, "60 characters or less: " .. tip)
+		expectTrue(not seen[tip], "no repeated tip: " .. tip)
+		seen[tip] = true
+		local low = tip:lower()
+		for _, banned in ipairs({ "balatro", "beer", "wine", "ale ", "whiskey", "rum", "liquor", "cigar", "tobacco", "skull", "blood", "gun", "robux", "odds", "chance" }) do
+			expectTrue(not low:find(banned, 1, true), tip .. " has no " .. banned)
+		end
+		expectTrue(tip:sub(1, 5) == "Tip: ", "every tip starts the same way")
+	end
+	-- walk three full laps a tip at a time, as the menu does: the next line is always a different one, and the wrap too
+	local prev
+	for step = 0, #M.TIPS * 3 do
+		local now = M.tipAt(step * M.TIP_SECONDS)
+		expectTrue(now ~= prev, "tip " .. step .. " differs from the one before")
+		prev = now
+	end
+	-- the topics the queue asked for are all there: Patrons, hands and the daily twist
+	local joined = table.concat(M.TIPS, " "):lower()
+	expectTrue(joined:find("patron", 1, true) and joined:find("flush", 1, true) and joined:find("full house", 1, true) and joined:find("twist", 1, true), "Patron, hand and twist tips")
+	-- Calm mode and Reduce motion keep the first tip (MenuLifeFX does not rotate), so the first one must make sense alone
+	expectEqual(M.tipAt(0), M.TIPS[1])
+	-- the rule that picks tips has no random, so it never repeats by luck
+	expectEqual(M.tipAt(6.5), M.tipAt(11.9))
 end })
 
 table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column, All actions and the screen edge at every menu size", fn = function()

@@ -6,7 +6,7 @@
 	MenuLife.logo(elapsed, calm)   -> { rise, alpha }  rise = pixels still to climb (16 -> 0 over 0.5 s), alpha 0 -> 1
 	MenuLife.PULSE_SCALE, PULSE_PERIOD   the Play sign grows 1.0 -> 1.03 and back every 2.5 s
 	MenuLife.hoverLift(calm)       -> nil | 4   pixels a menu button rises on hover
-	MenuLife.TIPS, TIP_SECONDS     six short family friendly tips, one shown at a time, rotating every 6 s
+	MenuLife.TIPS, TIP_SECONDS     twelve short family friendly tips (60 characters or less), one shown at a time, rotating every 6 s
 	MenuLife.tipAt(elapsed)        -> tip text for the seconds since the menu opened
 	MenuLife.TIP_MIN_HEIGHT        the tip line is left out of screens shorter than this
 ]]
@@ -23,12 +23,19 @@ M.TIP_SECONDS = 6
 M.TIP_MIN_HEIGHT = 500
 
 M.TIPS = {
-	"Tip: Patrons next to each other can share bonuses.",
-	"Tip: A Flush needs five cards of one suit.",
-	"Tip: Discard cards you do not need to dig for a better hand.",
-	"Tip: Higher hands like a Full House score far more than a Pair.",
-	"Tip: Visit The Counter between rounds to hire new Patrons.",
-	"Tip: Save a few Tips. Spare coins earn a little interest.",
+	-- twelve tips, each 60 characters or less, all different, so the line never shows the same one twice in a row (it wraps cleanly too)
+	"Tip: Patrons seated side by side can share bonuses.",
+	"Tip: A Flush is five cards of one suit.",
+	"Tip: Discard what you do not need to dig for a better hand.",
+	"Tip: A Full House scores far more than a Pair.",
+	"Tip: Visit The Counter between rounds to hire Patrons.",
+	"Tip: Spare Tips earn a little interest, so save a few.",
+	"Tip: A Straight is five ranks in a row, like 4 to 8.",
+	"Tip: Tap Today's twist to see how the day plays.",
+	"Tip: A Boss Round bends one rule. Read it first.",
+	"Tip: Hand levels make your favourite hands score more.",
+	"Tip: Sort by Rank or Suit to spot a pair or a flush.",
+	"Tip: A hand can use up to five cards, so pick your best.",
 }
 
 -- The tip stands on a small plate in the bottom left corner, level with All actions (bottom right) and clear of the Deal Me In
