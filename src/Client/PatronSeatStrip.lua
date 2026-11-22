@@ -77,6 +77,9 @@ function M.build(parent, layoutOrder, owned, zoneW, onMove)
 		label.TextWrapped = true
 		label.Text = Seats.orderText(i, n) .. "\n" .. tostring(p.name or "")
 		label.Parent = group
+		pcall(function() -- the equipped Card Set's panel fill and cream ink (7:1); classic keeps the dark plate
+			require(script.Parent.PopupSkin).dark(label, nil, { { label, CREAM } }, { plate = Color3.fromRGB(40, 30, 22) })
+		end)
 	end
 	return strip
 end

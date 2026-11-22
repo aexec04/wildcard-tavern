@@ -40770,4 +40770,37 @@ table.insert(tests, { name = "Season tiles take the set paper, edge and tier ink
 	end
 end })
 
+table.insert(tests, { name = "My Patrons seat order, set bonus plates and Sell plate wear the set plate and ink at 7:1 on every set, rarity frames and classic untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its plates")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a panel style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " seat order and bonus ink keep 7:1")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a style")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "PatronSeatStrip", "SetBonusPlate" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the set panel skin") end
+	end
+	local cards = read("ShopCards")
+	if cards then
+		expectTrue(cards:find('setPlateButton(button, "primary")', 1, true) ~= nil, "Sell and Buy plates ask for the set plate")
+		expectTrue(cards:find("RarityFrame.apply(artFrame, rarity or \"common\"", 1, true) ~= nil, "rarity frames are untouched")
+	end
+end })
+
 return tests

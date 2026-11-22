@@ -545,6 +545,7 @@ function ShopCards.new(deps)
 			stroke(button, enabled and GOLD or Color3.fromRGB(110, 96, 84), 2, 0)
 			if enabled then
 				pcall(function() require(script.Parent.ConceptTSkin).plateButton(button) end) -- the one green plate style
+				pcall(function() require(script.Parent.TavernKit).setPlateButton(button, "primary") end) -- Sell and Buy: the equipped Card Set's plate; classic keeps the green
 			end
 		end
 

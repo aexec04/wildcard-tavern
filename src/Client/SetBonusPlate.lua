@@ -60,6 +60,9 @@ function M.build(parent, layoutOrder, owned)
 		text.TextStrokeTransparency = 0.4
 		text.Text = SetBonuses.lineOf(set) .. "  (" .. table.concat(names, ", ") .. ")"
 		text.Parent = plate
+		pcall(function() -- the equipped Card Set's plate, edge and ink (7:1); classic keeps the gold on dark look
+			require(script.Parent.PopupSkin).dark(plate, stroke, { { text, rgb("goldBright") } }, { plate = rgb("plateFill"), edge = rgb("goldTrim") })
+		end)
 	end
 	return wrap
 end
