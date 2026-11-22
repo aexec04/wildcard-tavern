@@ -14,12 +14,13 @@
 
 local M = {}
 
+-- Four groups. Accessibility leads so Calm mode stays the first row (two taps from the table); the Account group ends with the Codes box,
+-- the Account plates and Restart Run (built by Client/Settings.lua, not listed as rows here).
 M.SECTIONS = {
-	{ id = "comfort", title = "Comfort", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
+	{ id = "accessibility", title = "Accessibility", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
 	{ id = "sound", title = "Sound", rows = { "volume" } },
-	{ id = "help", title = "Help", rows = { "replayTutorial", "replayHints" } },
-	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode" } },
-	{ id = "gameplay", title = "Gameplay", rows = { "roundHints", "confirmDiscard", "allowSpectators", "holdConfirmSeconds" } },
+	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode", "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
+	{ id = "account", title = "Account", rows = { "allowSpectators", "replayTutorial", "replayHints" } },
 }
 
 function M.rowOrder()

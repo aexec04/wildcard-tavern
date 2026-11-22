@@ -30701,7 +30701,7 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	local f = assert(io.open("src/Client/Settings.lua", "r"))
 	local src = f:read("*a")
 	f:close()
-	local display = src:find('makeHeader("Comfort")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
+	local display = src:find('makeHeader("Accessibility")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
 	local gameplay = src:find('makeHeader("Sound")', 1, true)
 	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
 	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
@@ -40987,6 +40987,40 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 			local src = f:read("*a"); f:close()
 			expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the popup skin")
 		end
+	end
+end })
+
+table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display and Account, every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local titles = {}
+	for i, s in ipairs(SL.SECTIONS) do titles[i] = s.title end
+	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Account", "four groups")
+	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
+	local seen, n = {}, 0
+	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
+	expectEqual(n, 15, "every Settings row is listed")
+	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local panelH = size[2] * SL.PANEL.fh
+		local scrollH = panelH - SL.PANEL.top - SL.PANEL.bottomReserve
+		expectTrue(scrollH >= SL.PANEL.rowH, size[1] .. "x" .. size[2] .. " the scroll shows at least one full row")
+		expectTrue(size[2] * (SL.PANEL.fy + SL.PANEL.fh) <= size[2], size[1] .. "x" .. size[2] .. " the panel stays on screen")
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		local last = 0
+		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Account", "About" }) do
+			local at = src:find('makeHeader("' .. name .. '")', 1, true)
+			expectTrue(at ~= nil and at > last, name .. " header is built in order")
+			last = at or last
+		end
+		expectTrue(src:find('makeHeader("Comfort")', 1, true) == nil and src:find('makeHeader("Gameplay")', 1, true) == nil and src:find('makeHeader("Help")', 1, true) == nil, "the old groups are gone")
+		expectTrue(src:find("HeaderRule", 1, true) ~= nil and src:find("ringColor", 1, true) ~= nil, "headers carry the set accent rule")
+		local codes = src:find('Name = "CodesRow"', 1, true) or src:find('row.Name = "CodesRow"', 1, true)
+		local acct = src:find('makeHeader("Account")', 1, true)
+		local about = src:find('makeHeader("About")', 1, true)
+		expectTrue(codes and acct and about and codes > acct and codes < about, "the Codes box sits at the foot of the Account group")
 	end
 end })
 
