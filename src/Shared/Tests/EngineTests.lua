@@ -41884,4 +41884,64 @@ table.insert(tests, { name = "Leaderboard loading and empty states: three 44 px 
 	expectTrue(src:find("Completed:Wait", 1, true) == nil or src:find("not Completed:Wait()", 1, true) ~= nil, "no tween wait left hanging")
 end })
 
+table.insert(tests, { name = "Season tier preview: words per tier state, popup fits four sizes with 44 px plates, set paper ink 7:1 on every set, Escape and the shared claim remote", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SeasonPreview)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local ready = SP.of({ tier = 3, text = "120 Tips", reached = true, claimed = false, need = 90 }, { xp = 100 })
+	expectEqual(ready.heading, "Tier 3")
+	expectEqual(ready.title, "120 Tips")
+	expectEqual(ready.status, SP.READY)
+	expectTrue(ready.canClaim)
+	local done = SP.of({ tier = 2, text = "Card back", reached = true, claimed = true, need = 40 }, { xp = 100 })
+	expectEqual(done.status, SP.CLAIMED)
+	expectFalse(done.canClaim, "a claimed tier cannot be claimed again")
+	local locked = SP.of({ tier = 12, text = "Title", reached = false, claimed = false, need = 1200 }, { xp = 1000 })
+	expectEqual(locked.status, "Earn 200 more season XP to unlock it.")
+	expectFalse(locked.canClaim, "a locked tier cannot be claimed")
+	expectEqual(SP.of({ tier = 12, reached = false, need = 1200 }, nil).status, "Reach 1,200 season XP to unlock it.", "no XP known: the plain need")
+	expectEqual(SP.of(nil, nil).title, SP.NO_NAME, "bad input never errors")
+	expectTrue(#SP.of({ tier = 1, text = string.rep("x", 90) }).title <= SP.TITLE_MAX)
+	for _, line in ipairs({ ready.status, done.status, locked.status, SP.NO_NAME, SP.CLAIM, SP.CLOSE }) do
+		expectTrue(#line <= SP.LINE_MAX, "short line: " .. line)
+		local low = line:lower()
+		expectTrue(not line:find("\226\128\148", 1, true) and not line:find("--", 1, true) and not low:find("balatro", 1, true), "clean line")
+		expectTrue(not low:find("robux") and not low:find("odds") and not low:find("chance") and not low:find("random"), "no paid or random wording: " .. line)
+	end
+	-- the popup fits, never overlaps itself, buttons are 44 px, art and text sit inside the panel
+	for _, v in ipairs({ { 800, 450 }, { 844, 390 }, { 1024, 768 }, { 1366, 768 }, { 1920, 957 } }) do
+		local L = SP.layout(v[1], v[2])
+		local tag = v[1] .. "x" .. v[2]
+		expectTrue(L.panel.w <= v[1] and L.panel.h <= v[2], "panel fits " .. tag)
+		expectTrue(L.claim.h >= 44 and L.close.h >= 44, "44 px plates " .. tag)
+		local order = { L.heading, L.art, L.title, L.status, L.claim, L.close }
+		for i, r in ipairs(order) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= L.panel.w and r.y + r.h <= L.panel.h, "rect " .. i .. " inside the panel " .. tag)
+			if i > 1 then
+				local p = order[i - 1]
+				expectTrue(r.y >= p.y + p.h, "rect " .. i .. " sits below rect " .. (i - 1) .. " " .. tag)
+			end
+		end
+	end
+	-- every set's paper keeps the dark ink at 7:1
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local style = CS.popupStyleOf(set.id)
+		if style and style.paper then
+			n = n + 1
+			expectTrue(CS.contrastRatio(style.paper.top, style.paper.ink) >= 7, set.id .. " preview ink is 7:1 on its paper")
+		end
+	end
+	expectTrue(n >= 1, "at least one set carries a paper style")
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local view = read("src/Client/SeasonPreviewView.lua")
+	expectTrue(view:find("PopupDismiss", 1, true) ~= nil and view:find('id = "season-preview"', 1, true) ~= nil, "Escape and the dark area close it")
+	expectTrue(view:find("setPlateButton(b, kind)", 1, true) ~= nil, "plates wear the set plate")
+	expectTrue(view:find("TweenService", 1, true) == nil, "no tween, so Calm mode needs nothing")
+	local season = read("src/Client/SeasonPanel.lua")
+	expectTrue(season:find("openPreview(row)", 1, true) ~= nil and season:find("ClaimRemote:FireServer(tier)", 1, true) ~= nil, "a tile tap opens the preview and Claim uses the same remote")
+	expectTrue(season:find("ClaimRemote:FireServer(row.tier)", 1, true) == nil, "the tile no longer claims on its own tap")
+	expectTrue(select(2, view:gsub("playClickSfx%(%)", "")) == 1, "one tap cue in the popup, on Close only")
+end })
+
 return tests

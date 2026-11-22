@@ -281,6 +281,24 @@ function SeasonPanel.init(deps)
 		return RewardArt.resolve(reward)
 	end
 
+	-- Tapping a tile opens the small reward preview (Engine/SeasonPreview words and sizes, Client/SeasonPreviewView); its Claim plate
+	-- sends the same ClaimSeason remote the tile used to. Built on first tap.
+	local shownView -- the season view the tiles were last drawn from
+	local previewView
+	local function openPreview(row)
+		if not previewView then
+			previewView = require(script.Parent.SeasonPreviewView).init({
+				screenGui = deps.screenGui, polishPanel = deps.polishPanel, polishButton = deps.polishButton, playClickSfx = deps.playClickSfx,
+				rewardArt = rewardArt,
+				onClaim = function(tier)
+					pcall(function() require(script.Parent.Cue).play("reward_claim") end)
+					ClaimRemote:FireServer(tier) -- the server checks the tier is reached and unclaimed
+				end,
+			})
+		end
+		previewView.show(row, shownView)
+	end
+
 	local function premiumSection(t, row, prevRow)
 		local prem = row.premium
 		if not prem then return end
@@ -418,14 +436,10 @@ function SeasonPanel.init(deps)
 		t.Size = UDim2.fromOffset(TILE_W, TILE_H + (hasPremium and PREMIUM_H or 0))
 		if hasPremium then premiumSection(t, row, prevRow) end
 		t.MouseButton1Click:Connect(function()
-			if row.reached and not row.claimed then
-				deps.playClickSfx()
-				pcall(function() require(script.Parent.Cue).play("reward_claim") end)
-				pcall(function() require(script.Parent.ClaimGlow).glow(t) end)
-				ClaimRemote:FireServer(row.tier)
-			end
+			deps.playClickSfx() -- the one cue for opening the preview (the popup itself stays silent on open)
+			openPreview(row)
 		end)
-		deps.addTooltip(t, (row.text or "") .. (row.claimed and " (claimed)" or row.reached and " (tap to claim)" or (" at " .. row.need .. " season XP")))
+		deps.addTooltip(t, (row.text or "") .. (row.claimed and " (claimed)" or row.reached and " (tap to see and claim)" or (" at " .. row.need .. " season XP")))
 	end
 
 	local LBText = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LeaderboardText"))
@@ -484,6 +498,7 @@ function SeasonPanel.init(deps)
 			barFill.Size = UDim2.fromScale(math.clamp(view.into / math.max(1, view.xpPerTier), 0, 1), 1)
 			barText.Text = "Tier " .. LBText.fmt(view.tier) .. "   " .. LBText.fmt(view.into) .. " / " .. LBText.fmt(view.xpPerTier) .. " XP to tier " .. LBText.fmt(view.tier + 1)
 		end
+		shownView = view
 		local hasPremium = view.premium ~= nil
 		state_tier = (not view.maxed) and view.tier or nil
 		local nextRow = SeasonTrack.nextTier(view)
@@ -534,6 +549,7 @@ function SeasonPanel.init(deps)
 
 	require(script.Parent.PanelTabs).attach(backdrop, "season", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("season", function()
+		if previewView then previewView.hide() end
 		deps.popOut(backdrop, panel)
 	end)
 	local function openThisPanel()
