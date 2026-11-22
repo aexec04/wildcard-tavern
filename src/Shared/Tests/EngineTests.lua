@@ -44822,4 +44822,31 @@ table.insert(tests, { name = "Starting deck icons: every deck tile uses a differ
 	end
 end })
 
+table.insert(tests, { name = "Pre run screen at four sizes: panel, option scroll and both buttons stay on screen, buttons are 44 px and in the lower half, the scroll shows at least one deck tile, numbers match the client", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunSetupLayout)
+	local f = io and io.open and io.open("src/Client/RunSetup.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("UDim2.fromScale(0.6, 0.72)", 1, true) ~= nil and src:find("UDim2.fromScale(0.2, 0.13)", 1, true) ~= nil, "panel numbers match RunSetupLayout")
+		expectTrue(src:find("UDim2.new(1, -30, 1, -110)", 1, true) ~= nil, "scroll numbers match")
+		expectTrue(src:find("UDim2.new(0, 200, 0, 44)", 1, true) ~= nil and src:find("UDim2.new(0, 140, 0, 44)", 1, true) ~= nil, "button sizes match")
+		expectTrue(src:find("UDim2.new(0.5, -210, 1, -55)", 1, true) ~= nil and src:find("UDim2.new(0.5, 10, 1, -55)", 1, true) ~= nil, "button positions match")
+		expectTrue(src:find('setPlateButton(runSetupBeginButton, "primary")', 1, true) ~= nil, "Begin Run wears the set plate")
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local label = w .. "x" .. h
+		for name, rect in pairs(r) do
+			expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, label .. " " .. name .. " is on screen")
+		end
+		expectTrue(r.begin.h >= 44 and r.cancel.h >= 44, label .. " buttons are 44 px")
+		expectTrue(r.begin.y >= h * 0.4 and r.cancel.y >= h * 0.4, label .. " buttons sit in the lower part")
+		expectTrue(r.begin.x + r.begin.w <= r.cancel.x, label .. " the two buttons do not overlap")
+		expectTrue(r.begin.x >= r.panel.x and r.cancel.x + r.cancel.w <= r.panel.x + r.panel.w, label .. " buttons inside the panel")
+		expectTrue(r.scroll.h >= L.TILE_H, label .. " the scroll shows a whole deck tile: " .. r.scroll.h)
+		expectTrue(r.scroll.y + r.scroll.h <= r.begin.y, label .. " the scroll ends above the buttons")
+	end
+end })
+
 return tests

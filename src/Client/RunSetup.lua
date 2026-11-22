@@ -577,6 +577,11 @@ return function(deps)
 		runStarting = false
 		playClickSfx()
 		refreshRunSetupCards(true)
+		pcall(function() -- the equipped Card Set's plates on Begin Run and Cancel (classic keeps the flat browns)
+			local TK = require(script.Parent.TavernKit)
+			TK.setPlateButton(runSetupBeginButton, "primary")
+			TK.setPlateButton(runSetupCancelButton, "secondary")
+		end)
 		popIn(runSetupBackdrop, runSetupPanel)
 	end
 
