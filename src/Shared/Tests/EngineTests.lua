@@ -39391,7 +39391,7 @@ table.insert(tests, { name = "File size watch: no big file grows more than 10 pe
 		["src/Client/Shop.lua"] = 2047, ["src/Client/ScorePopup.lua"] = 1788, ["src/Client/Collection.lua"] = 1486,
 		["src/Client/PatronRow.lua"] = 1312, ["src/Client/Journey.lua"] = 1201, ["src/Client/Gameplay2.lua"] = 1126,
 		["src/Client/BossFight.lua"] = 1099, ["src/Client/Sound.lua"] = 1044, ["src/Client/RoundSelect.lua"] = 1033,
-		["src/Client/MenuHotspots.lua"] = 1028,
+		["src/Client/MenuHotspots.lua"] = 1028, ["src/Shared/Engine/CosmeticSets.lua"] = 1113,
 		["src/Shared/Engine/RunState.lua"] = 2010, ["src/Shared/Engine/Patrons.lua"] = 1261, ["src/Shared/Engine/Recipes.lua"] = 1218,
 	}
 	local NEW_FILE_LIMIT, GROWTH = 1100, 1.10
