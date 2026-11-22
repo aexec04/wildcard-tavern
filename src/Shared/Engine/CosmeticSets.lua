@@ -73,7 +73,10 @@ CosmeticSets.Definitions = {
 		icon = "❄",
 		description = "Frost on the garden path and lanterns glowing in the snow.",
 		cardBackId = "winter_frost",
-		face = { paper = { 232, 242, 252 }, border = { 150, 195, 235 }, pip = { 60, 100, 170 } },
+		-- readable card: the painted ivory face stands alone (classicFace, same big indices as Golden Gala), deep navy ink at 7:1 on ivory
+		face = { paper = { 248, 246, 236 }, border = { 150, 195, 235 }, pip = { 18, 34, 84 } },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 140, 185, 230 },
 		backdropImage = BackgroundArt.backdrop_winter_evening or "rbxassetid://0",
 		backdropStyle = {
@@ -92,7 +95,10 @@ CosmeticSets.Definitions = {
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",
-		face = { paper = { 255, 242, 220 }, border = { 240, 160, 80 }, pip = { 200, 100, 60 }, foil = true },
+		-- same readable card as Frosted Garden: ivory face alone, warm cream paper, deep brown ink at 7:1
+		face = { paper = { 252, 242, 218 }, border = { 240, 160, 80 }, pip = { 96, 40, 20 }, foil = true },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 240, 170, 90 },
 		-- the painted play table is multiplied by `felt` (a deep midnight pine green leaning blue) and its rail lip by `wood` (a warm festival tone)
 		tableTint = { felt = { 70, 120, 120 }, wood = { 255, 205, 160 } },
@@ -114,7 +120,10 @@ CosmeticSets.Definitions = {
 		icon = "🏮",
 		description = "Dim lamps and a quiet room as the night winds down.",
 		cardBackId = "closing_lantern",
-		face = { paper = { 228, 210, 180 }, border = { 150, 105, 60 }, pip = { 110, 80, 55 } },
+		-- same readable card: ivory face alone, a lamp-lit cream paper, dark umber ink at 7:1
+		face = { paper = { 240, 228, 204 }, border = { 150, 105, 60 }, pip = { 60, 40, 28 } },
+		classicFace = true,
+		minIndexContrast = 7,
 		accent = { 150, 105, 60 },
 		backdropImage = BackgroundArt.backdrop_closing_time or "rbxassetid://0",
 		backdropStyle = {

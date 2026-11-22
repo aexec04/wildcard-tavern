@@ -14616,6 +14616,14 @@ table.insert(tests, { name = "HudStyle: Golden Gala Rank, Suit and Deck plates u
 			expectTrue(CS.contrastRatio(v.text, v.fill) >= 4.5, "unlit half text contrast")
 			expectTrue(CS.contrastRatio(v.litText, v.lit) >= 4.5, "lit half text contrast")
 			expectTrue(CS.contrastRatio(v.deckText, v.deck) >= 4.5, "deck count text contrast")
+		elseif HS.VELVET_CREAM_SETS[set.id] then
+			-- Frosted Garden, Mountain Festival and Closing Time: light cream labels on dark plates at 7:1 (both halves and the deck count)
+			expectTrue(v ~= nil, set.id .. " has a velvet plate family")
+			expectEqual(table.concat(v.text, ","), table.concat(HS.CREAM, ","), set.id .. " unlit label is light cream")
+			expectEqual(table.concat(v.litText, ","), table.concat(HS.CREAM, ","), set.id .. " lit label is light cream")
+			expectTrue(CS.contrastRatio(v.text, v.fill) >= 7, set.id .. " unlit label 7:1")
+			expectTrue(CS.contrastRatio(v.litText, v.lit) >= 7, set.id .. " lit label 7:1")
+			expectTrue(CS.contrastRatio(v.deckText, v.deck) >= 7, set.id .. " deck count 7:1")
 		else
 			expectTrue(v == nil, set.id .. " keeps its own plates")
 		end
@@ -39650,18 +39658,26 @@ table.insert(tests, { name = "Golden Gala: premium classic card, ink 7:1, other 
 	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
 	local PPP = require(script.Parent.Parent.Engine.PatronPowerPanel)
 	for _, set in ipairs(CS.Definitions) do
-		local need = set.id == "golden_gala" and 7 or 4.5
+		local strict = set.id == "golden_gala" or set.id == "winter_evening" or set.id == "festival_night" or set.id == "closing_time"
+		local need = strict and 7 or 4.5
 		expectTrue(CS.indexContrast(set) >= need, set.id .. " index ink contrast " .. need)
 		local look = CS.cardLook(set)
 		for _, k in ipairs({ "red", "black" }) do
 			expectTrue(CS.contrastRatio(look.ink[k], look.paper) >= need, set.id .. " " .. k .. " ink on card paper " .. need)
+			if strict then -- the painted ivory face is what is drawn, so the ink must also read on it
+				expectTrue(CS.contrastRatio(look.ink[k], require(script.Parent.Parent.Engine.CardFaceArt).FLAT_IVORY) >= 7, set.id .. " " .. k .. " ink on the ivory face 7:1")
+			end
+		end
+		if strict then
+			expectTrue(CS.skinOf(set).classicFace == true, set.id .. " shows the ivory face alone, no frame over the corner indices")
 		end
 	end
 	local gala = CS.getById("golden_gala")
 	local skin = CS.skinOf(gala)
 	expectTrue(skin.classicFace == true, "gala shows the classic face")
 	expectTrue(CFA.ivoryAlone(skin, "rbxassetid://1"), "gala draws no paper tile, court or drape frame")
-	expectFalse(CFA.ivoryAlone(CS.skinOf(CS.getById("winter_evening")), "rbxassetid://1"), "other sets keep their layers")
+	expectTrue(CFA.ivoryAlone(CS.skinOf(CS.getById("winter_evening")), "rbxassetid://1"), "Frosted Garden draws the ivory face alone")
+	expectFalse(CFA.ivoryAlone(CS.skinOf(CS.getById("meadow_picnic")), "rbxassetid://1"), "other sets keep their layers")
 	expectTrue(PPP.X_CLEAR >= 52, "Patron Power text keeps clear of the 44 px X plus its 8 px inset")
 end })
 
