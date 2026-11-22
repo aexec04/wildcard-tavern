@@ -41056,6 +41056,58 @@ table.insert(tests, { name = "Soft lock hunt: every deck against every boss rule
 	expectTrue(rounds >= 4 * #BossRounds.Definitions * 3 - 1, "swept every deck and boss: " .. rounds)
 end })
 
+table.insert(tests, { name = "Seeded daily determinism: two players on one date get the same deck order, shop offers, packs, bosses, scores and Recipe rolls even with different global randomness; another date differs", fn = function()
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local function playerRun(seed, noise)
+		math.randomseed(noise) -- each simulated player has their own global math.random state
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard", seeded = true }, SeededRng.new(seed))
+		local out = {}
+		local function note(v) out[#out + 1] = tostring(v) end
+		for _ = 1, 4 * 3 do
+			for _ = 1, noise % 7 do math.random() end -- other players' activity must not leak in
+			for _, c in ipairs(state.hand) do note(c.rank .. c.suit) end
+			note(state.targetScore) note(state.bossModifier and state.bossModifier.id or "-") note(state.nightBossModifier and state.nightBossModifier.id or "-")
+			note(state.currentRoundSkipTag and state.currentRoundSkipTag.id or "-")
+			local guard = 0
+			while not state.roundOver and guard < 20 do
+				guard = guard + 1
+				state.targetScore = math.min(state.targetScore, 400)
+				local n = math.max(1, math.min(5, #state.hand, (state.bossModifier and (state.bossModifier.requiredCardsPerHand or state.bossModifier.minCardsPerHand)) or 5))
+				local picks = {}
+				for i = 1, n do picks[i] = i end
+				if state.discardsRemaining > 0 and guard == 1 then
+					RunState.discard(state, { 1, 2 })
+					for _, c in ipairs(state.hand) do note(c.rank .. c.suit) end
+				end
+				local r = RunState.playHand(state, picks)
+				note(r.score) note(r.handName)
+			end
+			if state.runOver then break end
+			state.tips = state.tips + 40
+			for _ = 1, 3 do
+				local o = Shop.rollOffers(state)
+				for _, pt in ipairs(o.patrons) do note(pt.id) end
+				for _, k in ipairs(o.packs) do note(k.id) end
+				note(o.voucher and o.voucher.id or "none")
+			end
+			local opened = RunState.openPack(state, Shop.rollOffers(state).packs[1].id)
+			if opened then
+				for _, item in ipairs(state.pendingPack and state.pendingPack.items or {}) do note(item.id) end
+				RunState.resolvePack(state, {})
+			end
+			RunState.advanceToNextRound(state)
+		end
+		return table.concat(out, ",")
+	end
+	local day = SeededRng.dailySeed(1788134400)
+	local a, b = playerRun(day, 11), playerRun(day, 98765)
+	expectTrue(#a > 200, "the trace covers a real run")
+	expectEqual(a, b, "same date, same run for both players")
+	expectEqual(a, playerRun(day, 5), "and a third player")
+	expectTrue(a ~= playerRun(SeededRng.dailySeed(1788134400 + 86400), 11), "the next date differs")
+	expectTrue(a ~= playerRun(SeededRng.dailySeed(1788134400 + 2 * 86400), 11), "two dates on differs")
+end })
+
 return tests
 
 
