@@ -788,6 +788,9 @@ def cmd_estimate(_args):
     sp = data.get("store_page_subjects", {})
     sp_todo = sum(1 for pid in sp if not (STORE_DIR / f"{pid}.png").exists())
     sp_per = COST_PER_IMAGE["medium"]
+    la = data.get("launch_art_subjects", {})
+    la_todo = sum(1 for pid in la if not (LAUNCH_DIR / f"{pid}.png").exists())
+    print(f"  {'launch_art':12} {len(la):3} prompts, {la_todo:3} to generate (~${la_todo * sp_per:.2f}), separate command, not in TOTAL")
     print(f"  {'store_page':12} {len(sp):3} prompts, {sp_todo:3} to generate (~${sp_todo * sp_per:.2f}), separate command, not in TOTAL")
 
 
@@ -864,10 +867,51 @@ def cmd_store_page(args):
         print(f"made {pid}", flush=True)
 
 
+LAUNCH_DIR = ROOT / "claude" / "launch-art"
+
+
+def cmd_launch_art(args):
+    """Generate-only: Creator Hub files (5 thumbnails 1920x1080, 2 icons 512x512, 12 pass and product icons 512x512)
+    into claude/launch-art/. Raw model output goes to art-wip/launch_art/raw (gitignored). Never uploads."""
+    key = need("OPENAI_API_KEY")
+    data = load_prompts()
+    subs = data["launch_art_subjects"]
+    style = data["launch_art_style"]
+    model = os.environ.get("IMAGE_MODEL", "gpt-image-1")
+    raw_dir = ROOT / "art-wip" / "launch_art" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    LAUNCH_DIR.mkdir(parents=True, exist_ok=True)
+    only = set(args.only.split(",")) if args.only else None
+    for pid, subject in subs.items():
+        if only and pid not in only:
+            continue
+        final = LAUNCH_DIR / (pid + ".png")
+        if final.exists() and not args.force:
+            print(f"skip {pid} (exists)")
+            continue
+        square = not pid.startswith("thumb_")
+        r = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": model, "prompt": f"{style}. Subject: {subject}.", "size": "1024x1024" if square else "1536x1024",
+                  "quality": "medium", "n": 1},
+            timeout=300,
+        )
+        if r.status_code != 200:
+            sys.exit(f"STOPPED at {pid}: HTTP {r.status_code}: {r.text[:400]}")
+        raw_path = raw_dir / (pid + ".png")
+        raw_path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
+        if square:
+            _fit_image(raw_path, final, 512, 512)
+        else:
+            _fit_image(raw_path, final, 1920, 1080, crop_ratio=16 / 9)
+        print(f"made {pid}", flush=True)
+
+
 def main():
     load_env()
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate", "store_page"])
+    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate", "store_page", "launch_art"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
     ap.add_argument("--category", "-c", default="patrons", choices=list(CATEGORIES),
@@ -898,6 +942,8 @@ def main():
         cmd_estimate(a)
     elif a.cmd == "store_page":
         cmd_store_page(a)
+    elif a.cmd == "launch_art":
+        cmd_launch_art(a)
     elif a.cmd == "status":
         cmd_status(a)
     elif a.cmd == "queue":
