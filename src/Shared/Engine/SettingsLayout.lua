@@ -43,6 +43,21 @@ M.PAUSE = {
 	resumeText = "Resume", quitText = "Quit to Tavern", plateH = 44,
 	panelFill = { 40, 30, 22 }, edge = { 200, 165, 90 }, text = { 250, 240, 220 }, plateFill = { 90, 60, 30 },
 }
+-- Panel geometry as Client/Settings.lua builds it (panel 0.5 x 0.8 of the screen, scroll 20 px in from each side, 48 px
+-- title strip above and 62 px below), so tests can check phone and tablet sizes without Roblox.
+M.PANEL = { fw = 0.5, fh = 0.8, sidePad = 20, top = 48, bottomReserve = 62, rowH = 62, textGutter = 130, replayW = 110, replayH = 44 }
+
+function M.panelRects(W, H)
+	local P = M.PANEL
+	local pw, ph = math.floor(W * P.fw), math.floor(H * P.fh)
+	local sw, sh = pw - P.sidePad * 2, ph - P.top - P.bottomReserve
+	return {
+		panel = { x = math.floor(W * (1 - P.fw) / 2), y = math.floor(H * (1 - P.fh) / 2), w = pw, h = ph },
+		scroll = { x = P.sidePad, y = P.top, w = sw, h = sh },
+		textW = sw - P.textGutter,
+	}
+end
+
 M.SLIDER_THUMB = 44 -- touch target around the slider knob (Client/VisualHelpers KnobHit)
 
 local function lum(c)

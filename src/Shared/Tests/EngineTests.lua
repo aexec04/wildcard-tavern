@@ -35019,4 +35019,70 @@ table.insert(tests, { name = "ThemeScenes: winter_evening ice tavern ids are rec
 	expectEqual(TS.of("classic_tavern").art.menuBackdrop, "menu_scene:wall", "classic menu key unchanged")
 end })
 
+-- Phone and tablet pass: Settings, Tome and Menu rects from the live layout functions at 800x450, 1024x768 and 1366x768.
+table.insert(tests, { name = "Phone and tablet: Settings board fits 800x450, 1024x768 and 1366x768 with 44 px controls and a reachable last row", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local r = SL.panelRects(W, H)
+		local tag = W .. "x" .. H
+		expectTrue(r.panel.x >= 0 and r.panel.y >= 0 and r.panel.x + r.panel.w <= W and r.panel.y + r.panel.h <= H, "panel on screen " .. tag)
+		expectTrue(r.scroll.h >= SL.PANEL.rowH * 2, "scroll body shows at least two rows " .. tag)
+		expectTrue(r.textW >= 200, "row text column at least 200 px wide " .. tag)
+		expectTrue(r.scroll.w >= SL.SWITCH.w + SL.PANEL.textGutter - 30, "switch fits beside the text " .. tag)
+		expectTrue(SL.PANEL.replayH >= 44 and SL.PANEL.replayW >= 44, "Replay buttons are 44 px")
+		-- the Close button and the title strip fit in the panel below and above the scroll
+		expectTrue(SL.CLOSE.w <= r.panel.w and SL.PANEL.top + r.scroll.h + SL.CLOSE.h <= r.panel.h + SL.PANEL.bottomReserve, "Close fits under the scroll " .. tag)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("AutomaticCanvasSize = Enum.AutomaticSize.Y", 1, true) ~= nil, "the Settings scroll grows to its last row")
+	expectTrue(src:find("PANEL.replayH", 1, true) ~= nil, "Replay buttons use the 44 px layout number")
+end })
+
+table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	local tabRight = 0
+	if io then
+		local f = assert(io.open("src/Client/Collection.lua", "r")); local src = f:read("a"); f:close()
+		for x in src:gmatch("Size = UDim2%.fromOffset%(104, 28%), Position = UDim2%.fromOffset%((%d+), 4%)") do
+			tabRight = math.max(tabRight, tonumber(x) + 104)
+		end
+		expectTrue(tabRight >= 600, "found the Tome tab strip in Collection.lua")
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local fit = RL.collectionPanel(W, H)
+		local pw, ph = math.floor(fit.w * W), math.floor(fit.h * H)
+		expectTrue(pw <= W and ph <= H, "Tome panel fits the screen " .. W .. "x" .. H)
+		expectTrue(pw >= tabRight + 15, "every Tome tab sits inside the panel " .. W .. "x" .. H)
+		expectTrue(ph >= 340, "Tome body keeps room for its rows " .. W .. "x" .. H)
+		local b = RL.badgesPanel(W, H)
+		expectTrue(b.x + b.w <= W and b.h <= H, "Badges panel fits " .. W .. "x" .. H)
+	end
+end })
+
+table.insert(tests, { name = "Phone and tablet: Menu hotspots stay on screen at 800x450, 1024x768 and 1366x768 with 44 px targets", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		for _, a in ipairs(RL.rects(W, H)) do
+			expectTrue(a[1] >= 0 and a[3] <= W and a[2] >= 0 and a[4] <= H, a.id .. " on screen " .. W .. "x" .. H)
+			expectTrue(a[3] - a[1] >= RL.minTouch - 1e-6 and a[4] - a[2] >= RL.minTouch - 1e-6, "44 px target " .. a.id .. " " .. W .. "x" .. H)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Phone and tablet: Counter shop scene fits 1024x768 and 1366x768 areas", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 784, 768 }, { 1126, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local r = L.rects(W, H, { offers = 3, packs = 2 })
+		for _, rc in ipairs({ r.counter, r.marlo, r.tabs, r.nextBoss, r.leave }) do
+			expectTrue(L.inside(rc, r.area), "inside the area " .. W .. "x" .. H)
+		end
+		expectTrue(r.tabs.h >= 44 and r.leave.h >= 44, "Tabs and Leave are 44 px tall " .. W .. "x" .. H)
+	end
+end })
+
 return tests

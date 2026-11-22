@@ -391,7 +391,7 @@ return function(deps)
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local replay = Instance.new("TextButton")
-		replay.Size = UDim2.new(0, 110, 0, 34)
+		replay.Size = UDim2.new(0, SettingsLayout.PANEL.replayW, 0, SettingsLayout.PANEL.replayH)
 		replay.AnchorPoint = Vector2.new(1, 0.5)
 		replay.Position = UDim2.new(1, -4, 0.5, 0)
 		replay.Font = Enum.Font.GothamBold

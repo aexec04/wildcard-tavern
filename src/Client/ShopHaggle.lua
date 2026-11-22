@@ -136,7 +136,7 @@ function ShopHaggle.new(deps)
 	cancelButton.Name = "HaggleCancel"
 	cancelButton.AnchorPoint = Vector2.new(0.5, 1)
 	cancelButton.Position = UDim2.new(0.5, 0, 1, -8)
-	cancelButton.Size = UDim2.fromOffset(110, 34)
+	cancelButton.Size = UDim2.fromOffset(110, 44)
 	cancelButton.BackgroundTransparency = 1
 	cancelButton.Font = Enum.Font.GothamBold
 	cancelButton.TextSize = 16
