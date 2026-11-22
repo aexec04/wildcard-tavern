@@ -40199,4 +40199,38 @@ table.insert(tests, { name = "CosmeticSets.deckTint: every set but classic wears
 	end
 end })
 
+table.insert(tests, { name = "Next Round, Reroll, Buy and round buttons take the set hue in every set with a plate family, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local Style, TS = require(E.TavernStyle), require(E.ThemeScenes)
+	expectEqual(TS.hueOf("classic_tavern"), nil, "classic has no hue")
+	expectEqual(TS.hueOf("no_such_set"), nil, "unknown set has no hue")
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		local h = TS.hueOf(setId)
+		expectTrue(h ~= nil and math.max(h[1], h[2], h[3]) == 255, setId .. " hue keeps full brightness")
+		local t = Style.setTint(setId, h)
+		expectTrue(t ~= nil, setId .. " round buttons and Tips are tinted")
+		for i = 1, 3 do expectTrue(t[i] >= 120 and t[i] <= 255, setId .. " tint keeps the trim readable") end
+		expectTrue(t[1] ~= t[2] or t[2] ~= t[3], setId .. " tint is not plain white or grey")
+		expectEqual(Style.buttonPiece("primary", 220, 64, setId), map.wh_btn_green, setId .. " Next Round and Buy wear the set green plate")
+		expectEqual(Style.buttonPiece("secondary", 190, 44, setId), map.wh_btn_dark, setId .. " Reroll wears the set dark plate")
+		expectTrue(Style.PAINTED[map.wh_btn_green] ~= nil and Style.PAINTED[map.wh_btn_dark] ~= nil, setId .. " plates are painted pieces")
+	end
+	expectEqual(n, 14, "all 14 sets")
+	expectEqual(Style.buttonPiece("primary", 220, 64, "classic_tavern"), "wh_btn_green", "classic Next Round unchanged")
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find('setPlateButton(button, "primary")', 1, true) ~= nil, "Buy asks for the set plate")
+	end
+	local k = io and io.open and io.open("src/Client/TavernKit.lua", "r")
+	if k then
+		local src = k:read("*a")
+		k:close()
+		expectTrue(src:find("TS.hueOf(sid)", 1, true) ~= nil, "plate tint uses the set hue")
+	end
+end })
+
 return tests

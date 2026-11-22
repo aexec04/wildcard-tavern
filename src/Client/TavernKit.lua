@@ -227,8 +227,8 @@ function TavernKit.painted(host, piece)
 	local tint -- no own picture for this set: the classic one takes the set's hue
 	if piece == host:GetAttribute("BasePiece") and sid and not Style.isSetPiece(piece) then
 		pcall(function()
-			local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
-			tint = Style.setTint(sid, CS.accentOf(CS.getById(sid)))
+			local TS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
+			tint = Style.setTint(sid, TS.hueOf(sid)) -- the set's hue, not its (mostly warm) text accent
 		end)
 	end
 	local def = Style.PAINTED[piece]

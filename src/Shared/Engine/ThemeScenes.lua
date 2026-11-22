@@ -218,6 +218,15 @@ function ThemeScenes.known(setId)
 	return type(setId) == "string" and DATA[setId] ~= nil
 end
 
+-- The set's own hue as a plate multiplier colour: its wash tint scaled so the brightest channel is 255 (hue kept, brightness not lost).
+-- Warm text accents barely move a brown plate; this does (Harbor Lights turns blue, Meadow Picnic green). nil for classic or unknown.
+function ThemeScenes.hueOf(setId)
+	if not ThemeScenes.known(setId) or setId == ThemeScenes.DEFAULT then return nil end
+	local t = DATA[setId].tint
+	local top = math.max(t[1], t[2], t[3], 1)
+	return { math.floor(t[1] * 255 / top + 0.5), math.floor(t[2] * 255 / top + 0.5), math.floor(t[3] * 255 / top + 0.5) }
+end
+
 function ThemeScenes.of(setId)
 	local id = ThemeScenes.known(setId) and setId or ThemeScenes.DEFAULT
 	local d = DATA[id]
