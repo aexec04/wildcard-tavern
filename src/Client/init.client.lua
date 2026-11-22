@@ -561,6 +561,12 @@ sortToggle = require(script.SortToggle).build(sortFrame, function(mode)
 	applyHandSortMode(mode)
 end)
 
+require(script.TableKeys).actions.sort = function() -- the S key: rank first, then suit, then rank again
+	if not Shop.tutorial.allows("sort") then return end
+	SoundModule.playClickSfx(0.35)
+	applyHandSortMode(handSortMode == "rank" and "suit" or "rank")
+end
+
 end -- do (Sort Hand buttons)
 
 local discardButton = makeActionButton("Discard", "discard")
@@ -1384,7 +1390,7 @@ local RoundSelectOverlay = require(script.RoundSelect)({
 })
 do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sort); see Client/InputGuard.lua
 	local okGuard, errGuard = pcall(function()
-		require(script.InputGuard).install({
+		local guardLock = require(script.InputGuard).install({
 			root = root,
 			overlays = { RoundSelectOverlay.roundSelectFrame, Shop.shopFrame, GameOverPanel.gameOverFrame },
 			guarded = { root:FindFirstChild("DeckWidget"), handFrame, actionFrame },
@@ -1393,6 +1399,10 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		})
 		require(script.PopupShield).install(screenGui, root) -- popup roots are Active: nothing behind them gets clicks
 		require(script.PopupDismiss).install(screenGui, root) -- Escape and a click on the dark area exit every popup; Studio lists the exits
+		local keys = require(script.TableKeys) -- keyboard and gamepad: what each key means is Engine/TableKeyMap; the handlers are wired next to the buttons
+		keys.actions.popupOpen = function() return guardLock:isLocked() or MenuScreen.menuFrame.Visible end
+		keys.actions.back = function() require(script.PopupDismiss).escape() end
+		keys.install()
 	end)
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
@@ -2677,6 +2687,7 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 	Shop.tutorial.notifyHandPlayed()
 end
 playButton.MouseButton1Click:Connect(onPlayClick)
+require(script.TableKeys).actions.play = onPlayClick -- Space / Return / gamepad X
 pcall(function() -- Studio-only: DebugGoto playhand selects cards and calls this
 	local DG = require(script.DebugGoto)
 	DG.playSelected = function(n)
@@ -2687,7 +2698,7 @@ pcall(function() -- Studio-only: DebugGoto playhand selects cards and calls this
 end)
 end
 
-discardButton.MouseButton1Click:Connect(function()
+require(script.TableKeys).actions.discard = function() -- the Discard button and the D / X / gamepad Y keys run this same function
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
@@ -2722,7 +2733,35 @@ discardButton.MouseButton1Click:Connect(function()
 	else
 		doDiscard()
 	end
-end)
+end
+discardButton.MouseButton1Click:Connect(require(script.TableKeys).actions.discard)
+
+do -- keyboard and gamepad handlers that need the hand (Client/TableKeys.lua, Engine/TableKeyMap.lua)
+	local keys = require(script.TableKeys).actions
+	keys.isActive = function() return latestState ~= nil and RunStateEngine.phaseAllowsCardActions(latestState.phase) end
+	keys.handCount = function() return latestState and latestState.hand and #latestState.hand or 0 end
+	local function indexAt(pos) -- the card shown at on-screen position pos (a sorted hand shows cards out of hand order)
+		for index in ipairs(latestState and latestState.hand or {}) do
+			if (cardVisualPosition[index] or index) == pos then return index end
+		end
+		return nil
+	end
+	keys.pick = function(pos)
+		local index = indexAt(pos)
+		if index then onCardClicked(index) end
+	end
+	keys.highlight = function(pos) -- the gamepad highlight reuses the hover lift
+		local old = hoveredIndex
+		hoveredIndex = pos and indexAt(pos) or nil
+		if old then refreshCardVisual(old, false) end
+		if hoveredIndex then refreshCardVisual(hoveredIndex, false) end
+	end
+	keys.patron = function() -- Q: bring the Patron Power panel back, or say the tip in a line when it is not due
+		local PanelFX = require(script.PatronPowerPanelFX)
+		local Rules = require(game:GetService("ReplicatedStorage").Shared.Engine.PatronPowerPanel)
+		if not (PanelFX.reopen and PanelFX.reopen()) then showWarning(Rules.BODY) end
+	end
+end
 
 Shop.nextRoundButton.MouseButton1Click:Connect(function()
 	if not Shop.tutorial.allows("nextRound") then return end

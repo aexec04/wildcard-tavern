@@ -160,6 +160,10 @@ function ContentArt.preload(items, label, opts)
 	local t0 = os.clock()
 	local BATCH = opts.batch or 12
 	for i = 1, #fresh, BATCH do
+		if opts.cancelled and opts.cancelled() then -- stopped (a tab switch, the Collection closing): what was not asked for yet can be asked for later
+			for j = i, #fresh do requested[fresh[j]] = nil end
+			return i - 1
+		end
 		local batch = {}
 		for j = i, math.min(i + BATCH - 1, #fresh) do table.insert(batch, fresh[j]) end
 		pcall(function() ContentProvider:PreloadAsync(batch) end)

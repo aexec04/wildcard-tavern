@@ -507,6 +507,24 @@ return function(deps)
 	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
 		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
 	})
+	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
+		local hint = Instance.new("TextLabel")
+		hint.Name = "KeysHint"
+		hint.Size = UDim2.new(1, -16, 0, 96)
+		hint.LayoutOrder = order()
+		hint.BackgroundTransparency = 1
+		hint.Font = Enum.Font.Gotham
+		hint.TextSize = 14
+		hint.TextWrapped = true
+		hint.TextXAlignment = Enum.TextXAlignment.Left
+		hint.TextYAlignment = Enum.TextYAlignment.Top
+		hint.TextColor3 = SUBTLE
+		hint.TextTransparency = 0
+		hint.TextStrokeTransparency = 1
+		hint.Text = table.concat(require(game:GetService("ReplicatedStorage").Shared.Engine.TableKeyMap).hintLines(), "\n")
+		hint.ZIndex = 21
+		hint.Parent = scroll
+	end
 
 	-- ===== Account =====
 	makeHeader("Account")

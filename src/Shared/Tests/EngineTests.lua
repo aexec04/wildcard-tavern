@@ -36730,6 +36730,64 @@ table.insert(tests, { name = "CollectionTileCache: tiles build 12 to a chunk wit
 	expectTrue(at and acc and at < acc, "the collection phase comes before the account phase")
 end })
 
+table.insert(tests, { name = "CollectionLoadJob: the first 12 tiles build at once, the rest in order one per frame, a tab switch or closing cancels, nothing builds after close", fn = function()
+	local Job = require(script.Parent.Parent.Engine.CollectionLoadJob)
+	local function run(count)
+		local built, frames = {}, 0
+		local job = Job.new()
+		job:cancel()
+		local rest = job:begin(count, function(from, to) built[#built + 1] = { from, to } end)
+		return job, built, rest, function() frames = frames + 1 end, function() return frames end
+	end
+	-- chunk order: 1..12 now, then 13..24, 25..30, one per wait
+	local job, built, rest, wait, frames = run(30)
+	expectEqual(#built, 1, "only the visible rows are built before the first yield")
+	expectEqual(built[1][2], 12, "about 12 tiles first")
+	expectTrue(rest(wait), "the rest finishes when nothing cancels it")
+	expectEqual(#built, 3)
+	expectEqual(built[2][1], 13); expectEqual(built[2][2], 24); expectEqual(built[3][1], 25); expectEqual(built[3][2], 30)
+	expectEqual(frames(), 2, "one yield per chunk after the first")
+	-- a small tab has nothing left to build
+	local _, small, restSmall = run(5)
+	expectEqual(#small, 1); expectTrue(restSmall == nil, "no background work for 5 tiles")
+	local _, none, restNone = run(0)
+	expectEqual(#none, 0); expectTrue(restNone == nil)
+	-- cancel on a tab switch: the old build stops at its next chunk, the new one builds
+	local job2 = Job.new()
+	local old = {}
+	job2:cancel()
+	local restOld = job2:begin(50, function(f, t) old[#old + 1] = { f, t } end)
+	local switched = false
+	local function waitThenSwitch() if not switched then switched = true; job2:cancel() end end -- the player clicks another tab during the first frame
+	expectTrue(restOld(waitThenSwitch) == false, "a cancelled build reports it did not finish")
+	expectEqual(#old, 1, "no chunk is built after the switch")
+	local fresh = {}
+	job2:begin(30, function(f, t) fresh[#fresh + 1] = { f, t } end)
+	expectEqual(#fresh, 1, "the new tab builds its own first rows")
+	-- close: nothing builds, even a running job stops; reopen builds again
+	local job3 = Job.new()
+	job3:cancel()
+	local got = {}
+	local restClosing = job3:begin(40, function(f, t) got[#got + 1] = { f, t } end)
+	job3:close()
+	expectTrue(restClosing(function() end) == false)
+	expectEqual(#got, 1, "no work after close")
+	expectTrue(job3:begin(40, function(f, t) got[#got + 1] = { f, t } end) == nil and #got == 1, "begin while closed builds nothing")
+	job3:reopen()
+	job3:cancel()
+	job3:begin(40, function(f, t) got[#got + 1] = { f, t } end)
+	expectEqual(#got, 2, "reopened: builds again")
+	-- the app wires it: Collection cancels on refresh and close, the full warm up stops on open, Studio prints the first tile time
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		for _, needle in ipairs({ "loadJob:cancel()", "loadJob:close()", "loadJob:reopen()", "CollectionWarm", "first_tile_ms", "never a hidden one" }) do
+			expectTrue(text:find(needle, 1, true) ~= nil, "Collection.lua uses " .. needle)
+		end
+	end
+end })
+
 table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 14 px or more, only real rewards and stats", fn = function()
 	local Look = require(script.Parent.Parent.Engine.VictoryLook)
 	local function inside(r, w, h, what) expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, what .. " inside the screen") end
@@ -37834,6 +37892,83 @@ table.insert(tests, { name = "Tavern Map header banners hang from the top edge, 
 	end
 	local big = H.layout(1920, 957)
 	expectTrue(big.bannerL and big.bannerL.w >= 80 and big.bannerL.h >= 130, "the 1920 banners are about 86 x 146")
+end })
+
+table.insert(tests, { name = "FitAudit: the checker flags off screen, small touch, small text and overlap, and shared screens fit at 800x450 to 1920x1080", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local bad = {
+		name = "Synthetic", lane = "shared",
+		rects = function(w, h)
+			return { playButton = { x = 0, y = 0, w = 30, h = 30 }, a = { x = 100, y = 100, w = 100, h = 100 }, b = { x = 150, y = 150, w = 100, h = 100 },
+				inner = { x = 110, y = 110, w = 20, h = 20 }, away = { x = w - 10, y = 0, w = 50, h = 50 } }
+		end,
+		texts = function() return { tiny = { size = 9 }, bodyCopy = { size = 12, body = true }, fine = { size = 14, body = true } } end,
+	}
+	local rules = {}
+	for _, f in ipairs(Audit.checkScreen(bad, 800, 450)) do rules[f.rule] = (rules[f.rule] or 0) + 1 end
+	assert(rules.screen == 1 and rules.touch == 1 and rules.text == 2 and rules.overlap == 1, "checker flags each rule once (nesting is not overlap)")
+	bad.intended = { "^a$|^b$" }
+	for _, f in ipairs(Audit.checkScreen(bad, 800, 450)) do assert(f.rule ~= "overlap", "an intended pair is not flagged") end
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local res = Audit.run(screens)
+	assert(res.checked >= #screens * #Audit.SIZES)
+	for _, f in ipairs(res.failures) do
+		assert(f.lane ~= "shared", "shared screen does not fit: " .. f.screen .. " " .. f.size .. " " .. f.detail)
+	end
+end })
+
+table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
+	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
+	local ok = { tableActive = true, popupOpen = false, textBox = false }
+	local function ctx(over)
+		local c = {}
+		for k, v in pairs(ok) do c[k] = v end
+		for k, v in pairs(over or {}) do c[k] = v end
+		return c
+	end
+	local names = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" }
+	for i, n in ipairs(names) do
+		local a = Map.action("keyboard", n, ok)
+		assert(a and a.type == "card" and a.pos == i, "number key " .. n)
+	end
+	for key, kind in pairs({ Space = "play", Return = "play", D = "discard", X = "discard", S = "sort", Q = "patron" }) do
+		local a = Map.action("keyboard", key, ok)
+		assert(a and a.type == kind, key .. " -> " .. kind)
+	end
+	assert(Map.action("keyboard", "Nine", ok) == nil and Map.action("keyboard", "Escape", ok) == nil, "Escape stays with PopupDismiss")
+	assert(Map.action("gamepad", "DPadLeft", ok).dir == -1 and Map.action("gamepad", "DPadRight", ok).dir == 1)
+	assert(Map.action("gamepad", "ButtonA", ok).type == "toggle" and Map.action("gamepad", "ButtonX", ok).type == "play")
+	assert(Map.action("gamepad", "ButtonY", ok).type == "discard")
+	assert(Map.action("gamepad", "ButtonB", ok) == nil, "B only goes back while a popup is open")
+	assert(Map.action("gamepad", "ButtonB", ctx({ popupOpen = true })).type == "back")
+	for _, key in ipairs({ "One", "Space", "D", "S", "Q" }) do
+		assert(Map.action("keyboard", key, ctx({ textBox = true })) == nil, key .. " in a text box")
+		assert(Map.action("keyboard", key, ctx({ popupOpen = true })) == nil, key .. " in a popup")
+		assert(Map.action("keyboard", key, ctx({ tableActive = false })) == nil, key .. " off the table")
+	end
+	assert(Map.action("gamepad", "ButtonB", ctx({ popupOpen = true, textBox = true })) == nil)
+	local fired = 0
+	local handlers = {}
+	for _, t in ipairs({ "card", "play", "discard", "sort", "patron", "move", "toggle", "back" }) do handlers[t] = function() fired = fired + 1 end end
+	for _, key in ipairs({ "One", "Eight", "Space", "Return", "D", "X", "S", "Q" }) do
+		assert(not Map.dispatch("keyboard", key, ctx({ popupOpen = true }), handlers))
+	end
+	for _, key in ipairs({ "DPadLeft", "DPadRight", "ButtonA", "ButtonX", "ButtonY" }) do
+		assert(not Map.dispatch("gamepad", key, ctx({ popupOpen = true }), handlers))
+	end
+	assert(fired == 0, "nothing fires while a popup is open")
+	assert(Map.dispatch("keyboard", "Space", ok, handlers) and fired == 1)
+	local gotPos
+	handlers.card = function(pos) gotPos = pos end
+	assert(Map.dispatch("keyboard", "Three", ok, handlers) and gotPos == 3)
+	handlers.play = function() error("boom") end
+	assert(Map.dispatch("keyboard", "Space", ok, handlers) == false, "a failing handler is contained")
+	assert(Map.nextHighlight(nil, 1, 5) == 1 and Map.nextHighlight(nil, -1, 5) == 5)
+	assert(Map.nextHighlight(5, 1, 5) == 5 and Map.nextHighlight(1, -1, 5) == 1 and Map.nextHighlight(2, 1, 5) == 3)
+	assert(Map.nextHighlight(9, 1, 5) == 1 and Map.nextHighlight(1, 1, 0) == nil)
+	local text = table.concat(Map.hintLines(), " ")
+	assert(text:find("Space") and text:find("D%-pad") and not text:find("\226\128\148") and not text:lower():find("balat"))
 end })
 
 return tests

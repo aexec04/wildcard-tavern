@@ -146,6 +146,13 @@ function M.update(layer, state, rects, viewW, viewH)
 end
 
 -- the Hints toggle turns the panel off at once
+-- the Q key: bring the panel back after its X closed it. True when it is on screen afterwards, false when it is not due this round.
+function M.reopen()
+	closed = false
+	if latest then M.update(table.unpack(latest, 1, 5)) end
+	return plate ~= nil and plate.Visible == true
+end
+
 pcall(function()
 	ClientSettings.onChanged(function(key, value) if key == "roundHints" and value == false then M.hide() end end)
 end)
