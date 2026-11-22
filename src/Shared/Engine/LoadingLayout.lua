@@ -43,7 +43,8 @@ end
 
 function M.motion(calm)
 	local on = not calm
-	return { ember = on, tipFade = on, readyPulse = on }
+	-- firstTipFade is always false: the first tip is there from the first frame (later tips fade unless Calm mode)
+	return { ember = on, tipFade = on, readyPulse = on, firstTipFade = false }
 end
 
 function M.fadeTime(calm, normal)

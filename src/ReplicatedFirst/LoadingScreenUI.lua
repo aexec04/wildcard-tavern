@@ -368,17 +368,19 @@ function LoadingScreenUI.show(playerGui, opts)
 	local tipIndex, tipAt = 0, -100
 	local conn
 
-	local function showTip(now)
+	local function showTip(now, first)
 		tipIndex = (tipIndex % #order) + 1
 		tip.Text = LoadingTips.TIPS[order[tipIndex]]
 		tipAt = now
-		if motion.tipFade then
+		if motion.tipFade and not (first and not motion.firstTipFade) then
 			tip.TextTransparency = 1
 			TweenService:Create(tip, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 		else
 			tip.TextTransparency = 0
 		end
 	end
+
+	showTip(os.clock(), true) -- the first kind tip is on screen in the very first frame, with the title, no fade from empty
 
 	local function stop()
 		alive = false

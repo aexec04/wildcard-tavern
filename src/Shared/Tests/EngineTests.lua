@@ -42081,6 +42081,34 @@ table.insert(tests, { name = "Menu first impression: hotspots are 44 px and neve
 	expectTrue(seen >= 20, "the Menu files were scanned")
 end })
 
+table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local LL = require(Engine.LoadingLayout)
+	local Tips = require(Engine.LoadingTips)
+	local calm, live = LL.motion(true), LL.motion(false)
+	expectEqual(live.firstTipFade, false, "the first tip never fades in from empty")
+	expectEqual(calm.firstTipFade, false, "Calm mode too")
+	expectTrue(not calm.tipFade and not calm.ember and not calm.readyPulse, "Calm mode is static")
+	expectTrue(live.tipFade, "later tips still fade when motion is allowed")
+	expectTrue(#Tips.TIPS >= 10, "there is a tip to show")
+	for _, tip in ipairs(Tips.TIPS) do
+		expectTrue(#tip <= 60 and not tip:find("--", 1, true) and not tip:lower():find("balatro", 1, true), "kind short tip: " .. tip)
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local r = LL.rects(sz[1], sz[2])
+		expectTrue(r.title.y >= 0 and r.tip.y + r.tip.h <= sz[2], "title and tip are on screen at " .. sz[1] .. "x" .. sz[2])
+		expectTrue(r.tip.y >= r.bar.y + r.bar.h, "the tip sits under the bar at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local firstTip = src:find("showTip(os.clock(), true)", 1, true)
+	local render = src:find("RenderStepped:Connect", 1, true)
+	expectTrue(firstTip ~= nil and render ~= nil and firstTip < render, "the first tip is set before the first rendered frame")
+	expectTrue(src:find("GameName.NAME", 1, true) ~= nil, "the wordmark is the game name from the first frame")
+end })
+
 table.insert(tests, { name = "Focus order from the live layouts: every Menu hotspot and every Store Buy and Close plate is reachable by D-pad at four sizes, no dead end, a row of Store plates walks end to end, the ring is the set accent", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local F = require(Engine.GamepadFocus)
