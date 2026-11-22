@@ -1,6 +1,6 @@
 # Balance report: clear rates by Night
 
-Seeded headless runs (300 per bot, seeds 1 to 300), standard difficulty and deck, through the real engine. Regenerate with `lua tools/balance_nights.lua 300 1`.
+Seeded headless runs (100 per bot, seeds 1 to 100), standard difficulty and deck, through the real engine. Regenerate with `lua tools/balance_nights.lua 100 1`.
 
 Bots: random (random legal hand, no discards), greedy (best scoring hand, no discards), decent (greedy that discards when behind pace). All three share one shop policy that buys the best value Patron on offer, so the shop bot is not a separate column.
 
@@ -10,65 +10,65 @@ Targets for a new player: Night 1 about 80%, Night 2 about 55%, Night 3 about 35
 
 | Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target |
 |---|---|---|---|---|
-| 1 | 300 | 42 | 14.0% | 111% |
-| 2 | 42 | 24 | 8.0% | 141% |
-| 3 | 24 | 18 | 6.0% | 149% |
-| 4 | 18 | 11 | 3.7% | 139% |
-| 5 | 11 | 9 | 3.0% | 146% |
-| 6 | 9 | 7 | 2.3% | 142% |
-| 7 | 7 | 6 | 2.0% | 124% |
-| 8 | 6 | 3 | 1.0% | 135% |
+| 1 | 100 | 15 | 15.0% | 109% |
+| 2 | 15 | 8 | 8.0% | 149% |
+| 3 | 8 | 5 | 5.0% | 146% |
+| 4 | 5 | 4 | 4.0% | 172% |
+| 5 | 4 | 3 | 3.0% | 157% |
+| 6 | 3 | 1 | 1.0% | 111% |
+| 7 | 1 | 1 | 1.0% | 132% |
+| 8 | 1 | 1 | 1.0% | 115% |
 
-## greedy bot (win rate 23.7%)
-
-| Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target |
-|---|---|---|---|---|
-| 1 | 300 | 284 | 94.7% | 227% |
-| 2 | 284 | 275 | 91.7% | 260% |
-| 3 | 275 | 267 | 89.0% | 245% |
-| 4 | 267 | 254 | 84.7% | 209% |
-| 5 | 254 | 230 | 76.7% | 184% |
-| 6 | 230 | 186 | 62.0% | 155% |
-| 7 | 186 | 129 | 43.0% | 141% |
-| 8 | 129 | 71 | 23.7% | 130% |
-
-## decent bot (win rate 54.3%)
+## greedy bot (win rate 22.0%)
 
 | Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target |
 |---|---|---|---|---|
-| 1 | 300 | 300 | 100.0% | 230% |
-| 2 | 300 | 300 | 100.0% | 263% |
-| 3 | 300 | 300 | 100.0% | 246% |
-| 4 | 300 | 297 | 99.0% | 212% |
-| 5 | 297 | 295 | 98.3% | 187% |
-| 6 | 295 | 277 | 92.3% | 155% |
-| 7 | 277 | 224 | 74.7% | 140% |
-| 8 | 224 | 163 | 54.3% | 131% |
+| 1 | 100 | 93 | 93.0% | 222% |
+| 2 | 93 | 85 | 85.0% | 217% |
+| 3 | 85 | 80 | 80.0% | 200% |
+| 4 | 80 | 78 | 78.0% | 194% |
+| 5 | 78 | 66 | 66.0% | 171% |
+| 6 | 66 | 56 | 56.0% | 159% |
+| 7 | 56 | 35 | 35.0% | 145% |
+| 8 | 35 | 22 | 22.0% | 143% |
+
+## decent bot (win rate 45.0%)
+
+| Night | Runs reaching | Runs clearing | Cleared (of all runs) | Avg score over target |
+|---|---|---|---|---|
+| 1 | 100 | 100 | 100.0% | 229% |
+| 2 | 100 | 100 | 100.0% | 236% |
+| 3 | 100 | 100 | 100.0% | 206% |
+| 4 | 100 | 99 | 99.0% | 195% |
+| 5 | 99 | 97 | 97.0% | 180% |
+| 6 | 97 | 83 | 83.0% | 149% |
+| 7 | 83 | 69 | 69.0% | 138% |
+| 8 | 69 | 45 | 45.0% | 128% |
 
 ## Patrons (decent bot): bought and win rate
 
 | Patron | Runs bought | Win rate when bought |
 |---|---|---|
-| stack_of_plates | 113 | 77% |
-| repeat_customer | 102 | 57% |
-| tasting_menu | 102 | 56% |
-| rising_dough | 98 | 61% |
-| regulars_chair | 97 | 52% |
-| lantern_lighter | 93 | 59% |
-| slow_cooker | 93 | 69% |
-| the_regular | 93 | 55% |
-| house_tab | 91 | 67% |
-| regulars_round | 90 | 57% |
-| cobweb_shelf | 86 | 56% |
-| lighthouse_keeper | 86 | 47% |
-| pair_bonds | 86 | 56% |
-| estate_sale | 83 | 78% |
-| lucky_dice | 81 | 56% |
+| repeat_customer | 37 | 51% |
+| regulars_chair | 36 | 47% |
+| stack_of_plates | 34 | 68% |
+| slow_cooker | 32 | 62% |
+| tasting_menu | 32 | 50% |
+| the_regular | 32 | 53% |
+| bread_starter | 30 | 57% |
+| rising_dough | 30 | 57% |
+| lighthouse_keeper | 29 | 34% |
+| suit_sampler | 28 | 46% |
+| cobweb_shelf | 27 | 52% |
+| pair_bonds | 26 | 54% |
+| the_bard | 26 | 42% |
+| house_tab | 25 | 64% |
+| tab_regulars | 25 | 44% |
 
 ## Recommendation
 
-- Night 1 (goal 80%): random 14%, greedy 95%, decent 100%. Looks too easy for the decent bot.
-- Night 2 (goal 55%): random 8%, greedy 92%, decent 100%. Looks too easy for the decent bot.
-- Night 3 (goal 35%): random 6%, greedy 89%, decent 100%. Looks too easy for the decent bot.
+- Night 1 (goal 80%): random 15%, greedy 93%, decent 100%. Looks too easy for the decent bot.
+- Night 2 (goal 55%): random 8%, greedy 85%, decent 100%. Looks too easy for the decent bot.
+- Night 3 (goal 35%): random 5%, greedy 80%, decent 100%. Looks too easy for the decent bot.
 
 Bots see every card combination (better than a new player) but do not plan Patron builds (worse than a practiced one). Read the random bot as a floor and the decent bot as a practiced ceiling; a new player should land between them. Targets were not changed.
