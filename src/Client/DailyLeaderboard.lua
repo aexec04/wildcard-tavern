@@ -80,6 +80,7 @@ return function(deps)
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
 	local Leaderboards = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Leaderboards"))
+	local LBText = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LeaderboardText"))
 
 	local leaderboardBackdrop = Instance.new("Frame")
 	leaderboardBackdrop.Name = "DailyLeaderboardBackdrop"
@@ -93,7 +94,13 @@ return function(deps)
 
 	local leaderboardPanel = Instance.new("Frame")
 	leaderboardPanel.Size = UDim2.fromScale(0.5, 0.65)
-	leaderboardPanel.Position = UDim2.fromScale(0.25, 0.17)
+	leaderboardPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	leaderboardPanel.Position = UDim2.fromScale(0.5, 0.5)
+	do -- keep the six tab buttons on one row on small screens (LeaderboardText.layout)
+		local limit = Instance.new("UISizeConstraint")
+		limit.MinSize = Vector2.new(LBText.MIN_PANEL_W, LBText.MIN_PANEL_H)
+		limit.Parent = leaderboardPanel
+	end
 	leaderboardPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	leaderboardPanel.ZIndex = 21
 	leaderboardPanel.Parent = leaderboardBackdrop
@@ -213,7 +220,7 @@ return function(deps)
 		end
 	end
 
-	local statsFormat = "Depth %d  |  %d Tips" -- the Endless board reads "Night %d  |  Best hand %d"
+	local endlessBoard = false -- the Endless board reads "Night N  |  Best hand N"
 	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou, flair)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 34)
@@ -259,14 +266,15 @@ return function(deps)
 		statsLabel.TextSize = 14
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
 		statsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
-		statsLabel.Text = string.format(statsFormat, math.floor(depth), math.floor(tips))
+		statsLabel.Text = LBText.stats(endlessBoard, depth, tips)
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
 	end
 
 	local function makeLeaderboardMessage(text)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, 0, 0, 28)
+		label.Size = UDim2.new(1, 0, 0, 44)
+		label.TextWrapped = true
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.Gotham
 		label.TextSize = 14
@@ -301,17 +309,17 @@ return function(deps)
 		clearRows()
 		yourBestLabel.Text = ""
 		revivedBadge.Visible = false
-		makeLeaderboardMessage("Loading...")
+		makeLeaderboardMessage(LBText.LOADING)
 		updateTabHighlight()
 
 		local remote = (activeBoard == "weekly") and GetWeeklyLeaderboardRemote or GetDailyLeaderboardRemote
 		local icon = (activeBoard == "weekly") and "\240\159\151\147" or "\240\159\143\134"
 		local label = (activeBoard == "weekly") and "Weekly Challenge" or "Daily Challenge"
 		local period = (activeBoard == "weekly") and "this week" or "today"
-		statsFormat = "Depth %d  |  %d Tips"
+		endlessBoard = false
 		if activeBoard == "endless" then
 			remote, icon, label, period = GetEndlessLeaderboardRemote, "\u{267E}", "Endless Mode", "so far"
-			statsFormat = "Night %d  |  Best hand %d"
+			endlessBoard = true
 		end
 		-- Captured up front so a late-returning InvokeServer for a board
 		-- the player has since tabbed AWAY from doesn't paint its result
@@ -341,34 +349,23 @@ return function(deps)
 			clearRows()
 
 			if not ok or not result then
-				makeLeaderboardMessage("Couldn't reach the server. Try again in a moment.")
+				makeLeaderboardMessage(LBText.OFFLINE)
 				return
 			end
 
 			leaderboardTitle.Text = icon .. " " .. label .. ((result.dateKey and result.dateKey ~= "alltime") and (": " .. tostring(result.dateKey)) or "")
 			revivedBadge.Visible = requestedBucket == Leaderboards.REVIVED
 
-			if result.yourBestOk and result.yourBest then
-				yourBestLabel.Text = string.format(
-					activeBoard == "endless" and "Your best %s: Night %d, best hand %d" or "Your best %s: Depth %d, %d Tips",
-					period, math.floor(result.yourBest.depth or 0), math.floor(result.yourBest.tips or 0)
-				)
-			elseif result.yourBestOk then
-				yourBestLabel.Text = "No score set " .. period .. "."
-			else
-				yourBestLabel.Text = "Couldn't check your best score."
-			end
+			yourBestLabel.Text = LBText.yourBest(activeBoard == "endless", period, result.yourBestOk, result.yourBestOk and result.yourBest or nil)
 
 			if not result.ok then
-				makeLeaderboardMessage("Couldn't load the top 10 right now. Try again in a moment.")
+				makeLeaderboardMessage(LBText.TOP_FAILED)
 				return
 			end
 
 			local top = result.top or {}
 			if #top == 0 then
-				makeLeaderboardMessage(requestedScope == Leaderboards.FRIENDS
-					and ("None of your friends have a score " .. period .. " yet.")
-					or ("No scores yet " .. period .. "."))
+				makeLeaderboardMessage(LBText.empty(requestedScope == Leaderboards.FRIENDS, period))
 				return
 			end
 
@@ -379,7 +376,7 @@ return function(deps)
 				if entry.titleText then table.insert(flairParts, entry.titleText) end
 				if entry.cardBackName then table.insert(flairParts, entry.cardBackName .. " back") end
 					if entry.tavernRank then table.insert(flairParts, "Rank " .. tostring(entry.tavernRank)) end
-				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), (entry.vip and "\u{2605} " or "") .. (entry.name or "???"), entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
+				makeLeaderboardRow(i, LBText.rank(entry.rank or i), (entry.vip and "\u{2605} " or "") .. (entry.name or "???"), entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
 			end
 		end)
 	end

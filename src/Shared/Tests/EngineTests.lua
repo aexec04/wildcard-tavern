@@ -13350,6 +13350,41 @@ table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, 
 	expectTrue(LP.EMPTY_NOTE:find("run", 1, true) ~= nil, "the empty note says what to do")
 end })
 
+table.insert(tests, { name = "LeaderboardText: friendly empty, error and best-score lines, thousands separators", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	expectEqual(LT.fmt(1234567), "1,234,567", "separators")
+	expectEqual(LT.fmt(nil), "0", "nil is zero")
+	expectEqual(LT.rank(12), "#12", "rank")
+	expectEqual(LT.stats(false, 12, 4500), "Depth 12  |  4,500 Tips", "daily stats")
+	expectEqual(LT.stats(true, 3, 12000), "Night 3  |  Best hand 12,000", "endless stats")
+	expectTrue(LT.yourBest(false, "today", true, nil):find("Finish a run", 1, true) ~= nil, "no score yet says what to do")
+	expectEqual(LT.yourBest(false, "today", false, nil), LT.BEST_FAILED, "check failed")
+	expectEqual(LT.yourBest(false, "this week", true, { depth = 7, tips = 1500 }), "Your best this week: Depth 7, 1,500 Tips", "best")
+	expectTrue(LT.yourBest(true, "so far", true, { depth = 3, tips = 99 }):find("Night 3", 1, true) ~= nil, "endless best")
+	for _, text in ipairs({ LT.LOADING, LT.OFFLINE, LT.TOP_FAILED, LT.empty(true, "today"), LT.empty(false, "this week") }) do
+		expectTrue(#text > 0 and #text < 80, "message is one short line: " .. text)
+		expectTrue(not text:find("\226\128\148", 1, true) and not text:find("--", 1, true), "no dashes: " .. text)
+	end
+	expectTrue(LT.OFFLINE:find("Close", 1, true) ~= nil and LT.TOP_FAILED:find("Close", 1, true) ~= nil, "errors offer Close")
+	expectTrue(LT.empty(true, "today"):find("friends", 1, true) ~= nil, "friends empty says friends")
+end })
+
+table.insert(tests, { name = "LeaderboardText.layout: tabs never overlap, scroll and Close fit from 800x450 to 1920x957", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	for _, v in ipairs({ { 800, 450 }, { 844, 390 }, { 1024, 768 }, { 1280, 720 }, { 1366, 768 }, { 1920, 957 } }) do
+		local L = LT.layout(v[1], v[2])
+		local tag = v[1] .. "x" .. v[2]
+		expectTrue(L.panel.w <= v[1] and L.panel.h <= v[2], "panel fits the screen " .. tag)
+		expectTrue(L.tabsLeft.x + L.tabsLeft.w < L.tabsRight.x, "tab groups do not overlap " .. tag)
+		expectTrue(L.scroll.h >= 120, "scroll shows rows " .. tag)
+		expectTrue(L.scroll.y + L.scroll.h <= L.close.y, "scroll ends above Close " .. tag)
+		expectTrue(L.close.y + L.close.h <= L.panel.h and L.close.h >= 40, "Close inside the panel " .. tag)
+	end
+	if not io then return end
+	local src = io.open("src/Client/DailyLeaderboard.lua", "r"):read("*a")
+	expectTrue(src:find("LBText.LOADING", 1, true) and src:find("LBText.OFFLINE", 1, true) and src:find("LBText.empty", 1, true), "the board uses the shared wording")
+end })
+
 table.insert(tests, { name = "LedgerPages: layout keeps pages inside the book, tabs outside it, everything inside the panel (1920x1080 and compact)", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	for _, size in ipairs({ { 1574, 972 }, { 1000, 600 }, { 524, 576 } }) do

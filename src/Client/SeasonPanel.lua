@@ -327,6 +327,7 @@ function SeasonPanel.init(deps)
 		deps.addTooltip(t, (row.text or "") .. (row.claimed and " (claimed)" or row.reached and " (tap to claim)" or (" at " .. row.need .. " season XP")))
 	end
 
+	local LBText = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LeaderboardText"))
 	local function refresh()
 		local state = deps.getLatestState and deps.getLatestState() or nil
 		local view = state and state.season
@@ -335,7 +336,7 @@ function SeasonPanel.init(deps)
 			setBanner(nil)
 			nameLabel.Text = "Tavern Season"
 			daysLabel.Text = ""
-			barText.Text = "No season is running right now."
+			barText.Text = "No season right now. Play a run and check back soon!"
 			barFill.Size = UDim2.fromScale(0, 1)
 			claimAll.Visible = false
 			return
@@ -344,7 +345,7 @@ function SeasonPanel.init(deps)
 			setBanner(view.bannerKey)
 			nameLabel.Text = view.name
 			daysLabel.Text = "Starts in " .. tostring(view.startsIn) .. "d"
-			barText.Text = "Coming soon."
+			barText.Text = "A new season is coming soon. Get ready!"
 			barFill.Size = UDim2.fromScale(0, 1)
 			claimAll.Visible = false
 			return
@@ -379,7 +380,7 @@ function SeasonPanel.init(deps)
 			barText.Text = "All 30 tiers reached!"
 		else
 			barFill.Size = UDim2.fromScale(math.clamp(view.into / math.max(1, view.xpPerTier), 0, 1), 1)
-			barText.Text = string.format("Tier %d   %d / %d XP to tier %d", view.tier, view.into, view.xpPerTier, view.tier + 1)
+			barText.Text = "Tier " .. LBText.fmt(view.tier) .. "   " .. LBText.fmt(view.into) .. " / " .. LBText.fmt(view.xpPerTier) .. " XP to tier " .. LBText.fmt(view.tier + 1)
 		end
 		for _, row in ipairs(view.tiers) do
 			tile(row)
