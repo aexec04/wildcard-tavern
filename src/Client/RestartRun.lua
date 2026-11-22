@@ -135,6 +135,10 @@ local function build(deps)
 	cancelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cancelStroke.Parent = cancel
 
+	pcall(function() -- the equipped Card Set's plate for Cancel (the red Hold button keeps its danger colour)
+		require(script.Parent.TavernKit).setPlateButton(cancel, "primary")
+	end)
+
 	-- Restart: hold to confirm, with a fill bar
 	local restart = Instance.new("TextButton")
 	restart.Size = UDim2.new(0, 190, 0, 50)
@@ -161,6 +165,12 @@ local function build(deps)
 	fill.Parent = restart
 	restart.TextTransparency = 0
 	restart.TextStrokeTransparency = 0.5
+
+	pcall(function() -- the equipped Card Set's panel colours and ink (7:1); classic keeps the wood panel and gold title
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { title, Color3.fromRGB(255, 214, 130) }, { message, TEXT } },
+			{ plate = Color3.fromRGB(40, 30, 22), edge = pStroke and pStroke.Color })
+	end)
 
 	local hold = HoldConfirm.new(HOLD_SECONDS)
 	local holdConn = nil
@@ -210,8 +220,11 @@ local function build(deps)
 		label.Parent = screenGui
 		deps.polishPanel(label, 8, "wood")
 		task.delay(2.6, function()
-			local t = TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1, TextStrokeTransparency = 1 })
-			t:Play()
+			if require(script.Parent.ClientSettings).motionAllowed() then
+				TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			else
+				label.BackgroundTransparency, label.TextTransparency, label.TextStrokeTransparency = 1, 1, 1 -- Calm: no fade
+			end
 			task.delay(0.45, function() label:Destroy() end)
 		end)
 	end

@@ -104,6 +104,22 @@ return function(deps)
 
 	local BAR_TRANSPARENCY = STYLE.paperTransparency
 
+	-- the equipped Card Set dresses the warning strip: parchment tint, edge and dark ink at 7:1 (CosmeticSets.popupStyleOf); classic keeps
+	-- the toast paper. Colours only, so the fade and slide tweens (and Calm mode's lack of them) are untouched.
+	local function skin()
+		local p
+		pcall(function()
+			local CS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			local s = CS.popupStyleOf(require(script.Parent.TavernKit).plateSetId())
+			p = s and s.paper
+		end)
+		messageBar.BackgroundColor3 = p and rgb(p.top) or rgb(STYLE.paper)
+		edge.Color = p and rgb(p.edge) or rgb(STYLE.edge)
+		messageLabel.TextColor3 = p and rgb(p.ink) or rgb(STYLE.ink)
+	end
+	skin()
+	pcall(function() require(script.Parent.HudTheme).onSkin(function() if messageBar.Parent then skin() end end) end)
+
 	-- Every warning shown through this ("Not enough tips", "Select 1-5 cards...")
 	-- used to just sit on screen forever once set. This clears it back to ""
 	-- after a few seconds. The "MessageToken" attribute (not a top-level
@@ -149,6 +165,7 @@ return function(deps)
 			messageBar.Visible = false
 			return
 		end
+		if messageLabel.Text ~= text or not messageBar.Visible then pcall(function() require(script.Parent.Cue).play("shop_cant", 1) end) end -- a refused action is heard (soft), not only read
 		messageLabel.Text = text
 		local myToken = (messageBar:GetAttribute("MessageToken") or 0) + 1
 		messageBar:SetAttribute("MessageToken", myToken)

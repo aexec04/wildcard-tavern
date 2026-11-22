@@ -7,6 +7,8 @@
 -- open() is safe to call before init (it does nothing). update(state) is called from render in a pcall.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LoginStreak = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LoginStreak"))
+local TweenService = game:GetService("TweenService")
+local DailyStamps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DailyStamps"))
 local QuestsPanel = require(script.Parent.QuestsPanel) -- timeLeftText
 
 local OverlayManager = require(script.Parent.OverlayManager)
@@ -75,21 +77,22 @@ local function refresh()
 	for _, r in ipairs(login.rewards) do
 		if not nextRow and r.day == ((login.today % #login.rewards) + 1) then nextRow = r end
 	end
+	local skin = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, ink and chip; nil keeps the parchment
 	for i, r in ipairs(login.rewards) do
 		local tile = Instance.new("Frame")
 		tile.Name = "Day" .. i
 		tile.LayoutOrder = i
 		tile.Size = UDim2.new(1 / 7, -8, 1, 0)
-		tile.BackgroundColor3 = r.claimed and GREEN or (r.today and PARCHMENT or PARCHMENT_DIM)
+		tile.BackgroundColor3 = skin and (r.today and skin.hot or skin.row) or (r.claimed and GREEN or (r.today and PARCHMENT or PARCHMENT_DIM))
 		tile.ZIndex = 32
 		tile.Parent = ui.row
 		ui.roundCorner(tile, 10)
 		local s = Instance.new("UIStroke")
-		s.Color = r.today and GOLD or INK
+		s.Color = r.today and require(script.Parent.TavernKit).ringColor(GOLD) or INK -- the equipped Card Set's accent ring for today; classic keeps gold
 		s.Thickness = r.today and 3.5 or 1.5
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = tile
-		label(tile, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 4), Text = "Day " .. r.day, TextSize = 15, TextColor3 = INK })
+		label(tile, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 4), Text = "Day " .. r.day, TextSize = 15, TextColor3 = skin and skin.ink or INK })
 		local icon = label(tile, {
 			Size = UDim2.new(1, 0, 0, 56), Position = UDim2.fromOffset(0, 30), Text = r.icon or "🎁", TextSize = 34, ZIndex = 33,
 		})
@@ -101,17 +104,24 @@ local function refresh()
 		end
 		label(tile, {
 			Size = UDim2.new(1, -8, 0, 40), Position = UDim2.new(0, 4, 1, -46), Text = r.label or "", TextSize = 14,
-			TextColor3 = INK, TextWrapped = true,
+			TextColor3 = skin and skin.ink or INK, TextWrapped = true,
 		})
-		if r.claimed then
+		if r.claimed then -- the day's stamp: a round seal in the equipped Card Set accent (gold for classic)
+			local colors = DailyStamps.stampColors(require(script.Parent.TavernKit).plateSetId())
 			local tick = label(tile, {
 				Name = "Tick", Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 2), Text = "✔", TextSize = 22,
-				TextColor3 = CREAM, BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(56, 104, 56), ZIndex = 36,
+				TextColor3 = Color3.fromRGB(colors.ink[1], colors.ink[2], colors.ink[3]), BackgroundTransparency = 0,
+				BackgroundColor3 = Color3.fromRGB(colors.fill[1], colors.fill[2], colors.fill[3]), ZIndex = 36,
 			})
 			ui.roundCorner(tick, 14)
 		end
+		-- today's ring breathes while its reward waits; Calm mode and Reduce motion keep it still
+		local pulse = DailyStamps.pulse(require(script.Parent.ClientSettings).get("reduceShake") == true, r.claimable)
+		if pulse then
+			TweenService:Create(s, TweenInfo.new(pulse.seconds, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.6 }):Play()
+		end
 	end
-	ui.streak.Text = string.format("Streak: %d day%s", login.streak or 0, (login.streak == 1) and "" or "s")
+	ui.streak.Text = DailyStamps.streakLine(login)
 	ui.next.Text = nextRow and ((nextRow.claimable and "Ready now: " or "Next reward: ") .. (nextRow.label or "")) or ""
 	DailyRewardsPanel.tick()
 end
@@ -151,6 +161,7 @@ function DailyRewardsPanel.init(deps)
 	panel.ZIndex = 31
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "wood")
+	require(script.Parent.TitleBand).attach(panel)
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(760, DailyRewardsPanel.PANEL_H)
 	constraint.Parent = panel

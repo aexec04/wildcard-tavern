@@ -71,6 +71,16 @@ Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with 
    DONE (21 to 23): Engine/Gameplay2Perf with the limit and a loop lint, the guide pulse on FxLoop, AuditV2 prints the live GuiObject count, boss entrance and tooltip cues wired, tests. The live counts need a Studio run.
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
 
+- Per set Counter shop: Patron card frames pick up the set accent. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: the Counter Patron card body outline wears the set accent (SetInk), the rarity frame keeps its colour, classic stays dark brown.
+- Per set Collection wall header and tab art tint. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE (wall only): the Collection wall picture wears 30 percent of the set hue (ThemeScenes.washTint). The tabs were not touched: they already take the set plate through the shared plate path.
+- Per set Run Over and Victory background wash from the set room. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: the Run Over scrim takes the set plate colour (dark), the Victory room picture wears 25 percent of the set hue.
+- Per set Tavern Map node icons tint. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE (rings): unlit node rings take the set accent; the emoji icons cannot be tinted, lit nodes stay gold.
+- Per set loading screen tip line and colour. No spend. Concrete values, a test, one commit, STATUS line.
+   HELD (needs you): the loading screen runs in ReplicatedFirst before the player's data and equipped set exist, so it cannot know the set. Needs a design call: remember the last equipped set in a local setting, or use a random set per launch.
 - Sim: Patron synergy pairs, report the top 10 and bottom 10 pairs by clear rate, nudge outliers. No spend. Concrete values, a test, one commit, STATUS line.
    DONE: sim --pair-rates, 14,000 builds, every pair within 8.2 points of the average, no nudge (ECONOMY.md, bc8275c).
 - Test: Endless mode never produces a NaN or negative target at Night 100. No spend. Concrete values, a test, one commit, STATUS line.

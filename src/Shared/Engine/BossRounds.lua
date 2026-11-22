@@ -47,6 +47,9 @@
 		  noScoreHandTypes = table|nil,        -- { [handName] = true } these hands score 0
 		  patronCap = number|nil,              -- only the first N Patrons take part in scoring
 		  noScoringTips = true|nil,            -- Tips from scoring (Patrons, Stamps, Lucky) are not paid
+		  firstCardOut = true|nil,             -- the first card played each hand scores nothing (Frozen Hand)
+		  patronChipsFactor = number|nil,      -- every Patron's Chips bonus x this, rounded down (Quiet Tavern)
+		  patronsSitOut = number|nil,          -- this many Patrons, from the last seat, do not score (Short Table)
 		  debuff = "FaceCards"|"Hearts"|"Diamonds"|"Clubs"|"Spades"|nil, -- matching
 		    scoring cards contribute 0 Chips/Mult/Garnish/Special/Stamp this round }
 ]]
@@ -459,6 +462,34 @@ BossRounds.Definitions = {
 		patronCap = 4,
 	},
 	{
+		id = "frozen_hand",
+		icon = "🧊",
+		name = "Frozen Hand",
+		description = "The first card you play in each hand scores nothing.",
+		flavorText = "Her fingers are too cold to deal the first card.",
+		minNight = 7,
+		firstCardOut = true,
+		targetScoreMultiplier = 1.15, -- tuned so the middle bot clears it under 75 percent (sim: 82.7 without)
+	},
+	{
+		id = "quiet_tavern",
+		icon = "🔕",
+		name = "Quiet Tavern",
+		description = "Patrons give half their Chips this round.",
+		flavorText = "Everyone is whispering, so the cheers fall short.",
+		minNight = 7,
+		patronChipsFactor = 0.5,
+	},
+	{
+		id = "short_table",
+		icon = "🪑",
+		name = "Short Table",
+		description = "Your last seated Patron sits out this round.",
+		flavorText = "One chair is missing, and somebody has to stand.",
+		minNight = 7,
+		patronsSitOut = 1,
+	},
+	{
 		id = "penny_wise",
 		icon = "🪙",
 		name = "Penny Wise",
@@ -487,6 +518,7 @@ local BOSS_RULE_TAGS = {
 	spades_are_out = { "suitDebuff" }, stale_bread = { "weakenChips", "weakenMult" }, steep_tab = { "tipsDrain" },
 	the_tab = { "tipsDrain" }, thin_chips = { "weakenChips" }, thin_soup = { "weakenChips" },
 	wild_crowd = { "cardToss" },
+	frozen_hand = { "cardCount" }, quiet_tavern = { "weakenChips" }, short_table = { "patronLimit" },
 }
 BossRounds.RuleTagIds = { "fewerHands", "fewerDiscards", "lowHandSize", "cardToss", "cardCount", "suitDebuff", "faceDebuff", "oddRank", "noRepeat",
 	"handBan", "targetBoost", "weakenChips", "weakenMult", "tipsDrain", "patronLimit", "slowStart" }
@@ -523,12 +555,12 @@ function BossRounds.categoryOf(def)
 	if not def then
 		return nil
 	end
-	if def.debuff then
+	if def.debuff or def.firstCardOut then
 		return "debuff"
 	elseif def.handsPerRoundOverride or def.requiredCardsPerHand or def.noRepeatHandTypes
-		or def.minCardsPerHand or def.minHandName or def.noScoreHandTypes or def.patronCap then
+		or def.minCardsPerHand or def.minHandName or def.noScoreHandTypes or def.patronCap or def.patronsSitOut then
 		return "restriction"
-	elseif def.chipsMultiplier or def.multMultiplier or def.firstHandMultiplier then
+	elseif def.chipsMultiplier or def.multMultiplier or def.firstHandMultiplier or def.patronChipsFactor then
 		return "weaken"
 	elseif def.handSizeDelta or def.discardsDelta or def.forcedRandomDiscardsPerHand then
 		return "squeeze"

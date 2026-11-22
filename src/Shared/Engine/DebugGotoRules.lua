@@ -170,6 +170,9 @@ function DebugGotoRules.isFullScreenSize(xs, xo, ys, yo)
 	return xs >= 0.95 and ys >= 0.95 and math.abs(xo) <= 64 and math.abs(yo) <= 64
 end
 
+-- Screens a set suffix is meant for (one per screen to check per set): menu, haggle, round1, boss1, map, store, season, collection.
+DebugGotoRules.SET_SCREENS = { "menu", "haggle", "round1", "boss1", "map", "store", "season", "collection" }
+
 -- Any jump may end in :<cardSetId> (haggle:winter_evening, haggle:good:golden_gala, boss1:dune_market, menu:meadow_picnic, map:harbor_lights ...).
 -- The suffix is split off first, the rest parses as before, and the target gets setId so the client previews that set for the room, shop,
 -- keeper, plates, menu and boss table through the Card Sets Preview path. The id must be a real Card Set (checked here, not in the client).
@@ -186,6 +189,7 @@ end
 
 function DebugGotoRules.parse(value)
 	local head, setId = DebugGotoRules.splitSet(value)
+	if setId and head == "equip" then return { kind = "equip", setId = setId } end
 	if setId then
 		local target, why = DebugGotoRules.parseCore(head)
 		if not target then return nil, why end
@@ -200,6 +204,7 @@ function DebugGotoRules.parseCore(value)
 		return nil, "empty value"
 	end
 	local text = value:lower():gsub("%s+", "")
+	if text == "equip" then return nil, "equip needs a card set id (equip:<setId>)" end
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
 	end
@@ -214,6 +219,12 @@ function DebugGotoRules.parseCore(value)
 	end
 	if text == "store" then -- the Tavern Store panel, opened from the Menu like the Tome pages
 		return { kind = "tome", page = "store" }
+	end
+	if text == "season" then -- the Season track panel (same opener path as store)
+		return { kind = "tome", page = "season" }
+	end
+	if text == "collection" then -- short for tome:collection
+		return { kind = "tome", page = "collection" }
 	end
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
@@ -289,6 +300,10 @@ function DebugGotoRules.parseCore(value)
 	local parts = {}
 	for part in text:gmatch("[^:]+") do
 		parts[#parts + 1] = part
+	end
+	-- equip:<cardSetId> really equips that set (Studio only server remote), so the true equipped path can be checked
+	if parts[1] == "equip" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then
+		return { kind = "equip", setId = parts[2] }
 	end
 	-- round1:<cardSetId> starts round 1 with that Card Set shown as a local preview (ids are snake_case, checked by the client)
 	if parts[1] == "round1" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then

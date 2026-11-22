@@ -19,6 +19,7 @@
 local Patrons = require(script.Parent.Patrons)
 local RunModifiers = require(script.Parent.RunModifiers)
 local RunEvents = require(script.Parent.RunEvents)
+local NightBoons = require(script.Parent.NightBoons)
 local RunState = require(script.Parent.RunState)
 local Unlocks = require(script.Parent.Unlocks)
 local CollectionBook = require(script.Parent.CollectionBook)
@@ -177,6 +178,16 @@ function RunChoice.rollEvent(state, allowed)
 	return eventChoice(list[rng(#list)])
 end
 
+-- The Night boon pick that opens a new Night (Nights 2 to 12). The Patron reward or event that used to open the Night follows it.
+function RunChoice.boonDraft(state, allowed)
+	return NightBoons.draft(state, allowed)
+end
+
+-- What comes after a Night boon pick (or after a reward): the Patron reward first, then a rolled event.
+function RunChoice.afterBoon(state, allowed)
+	return RunChoice.rewardDraft(state, allowed) or RunChoice.rollEvent(state, allowed)
+end
+
 -- Dev preview: builds the card for one event id whatever the roll or Night (Studio only, the server gates it). nil if unknown.
 function RunChoice.forceEvent(eventId)
 	local event = type(eventId) == "string" and RunEvents.getById(eventId) or nil
@@ -236,6 +247,10 @@ function RunChoice.pick(state, choice, optionId)
 	elseif choice.kind == "modifier" then
 		local ok, message = RunModifiers.apply(state, optionId)
 		return ok, message, nil
+	elseif choice.kind == "boon" then
+		local ok, message = NightBoons.apply(state, optionId)
+		if not ok then return false, message end
+		return true, message, RunChoice.afterBoon(state, true)
 	elseif choice.kind == "event" then
 		local ok, message = RunEvents.resolve(state, choice.eventId, optionId, rngOf(state))
 		return ok, message, nil

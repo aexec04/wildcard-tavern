@@ -101,6 +101,13 @@ function DeckWidgetSkin.install(deps)
 		count.TextTransparency = 0
 		count.TextStrokeTransparency = 1
 		plateRing.Color = c3(p.plateRing)
+		-- the pile layers wear the set's card back colours (classic keeps its own blue and dark edge)
+		local tint = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).deckTint(skin.id)
+		for _, card in ipairs(stackCards) do
+			card.frame.BackgroundColor3 = tint and c3(tint.base) or Color3.fromRGB(50, 70, 110)
+			local edge = card.frame:FindFirstChildOfClass("UIStroke")
+			if edge then edge.Color = tint and c3(tint.edge) or Color3.fromRGB(20, 14, 8) end
+		end
 		local look = HudStyle.pileLook(skin.id)
 		for i, card in ipairs(stackCards) do
 			local l = look[i]

@@ -140,8 +140,8 @@ end
 -- each row of tiles standing on a drawn shelf board. Single Equip or Buy button under the hero. Everything is drawn in code over the
 -- Collection wall (no grid of identical boxes). Rects are in the area's pixels (the panel body between TOP and BOTTOM).
 -- room(areaW, areaH, n, page) -> { ok, cols, rows, perPage, pages, page, plates = { tabs = {sets, backs}, page, prev, next }, hero, parts, shelf,
---                                  cells = { { tile, pic, name, board } ... } }
-M.ROOM = { side = 24, gap = 16, tileGap = 10, nameH = 30, boardH = 8, barTop = 8, barH = 40, heroFrac = 0.40, cols = 5 }
+--                                  cells = { { tile, pic, name, state, board } ... } }
+M.ROOM = { side = 24, gap = 16, tileGap = 10, nameH = 30, stateH = 22, boardH = 8, barTop = 4, barH = 44, heroFrac = 0.40, cols = 5 }
 M.ROOM_PANEL_FRAC = { 0.94, 0.94 }
 M.ROOM_PANEL_MAX = { 1500, 900 }
 M.ROOM_MIN = { w = 640, h = 400 }
@@ -151,6 +151,14 @@ function M.roomPanel(screenW, screenH)
 end
 
 -- inside the hero: name plate, a mini table (with a fan of 5 cards and the back on a stand, or one large back), a description, the button
+-- The card back turns over once when a different tile is picked: { seconds = 0.25 }, or nil in Calm mode and Reduce motion (no cover, no
+-- tween) and when the pick did not change (a repaint of the same entry).
+M.FLIP_SECONDS = 0.25
+function M.flipPlan(calm, lastKey, key)
+	if calm == true or key == nil or key == lastKey then return nil end
+	return { seconds = M.FLIP_SECONDS }
+end
+
 function M.heroParts(hero)
 	local plate = { x = hero.x + 12, y = hero.y + 10, w = hero.w - 24, h = 34 }
 	local bw = math.min(200, hero.w - 24)
@@ -219,13 +227,23 @@ end
 
 function M.room(areaW, areaH, n, page)
 	local R = M.ROOM
-	local top = R.barTop + R.barH + 12
+	local top = R.barTop + R.barH + 8
 	local hero = { x = R.side, y = top, w = math.floor(areaW * R.heroFrac) - R.side, h = areaH - top - 10 }
 	local shelf = { x = hero.x + hero.w + R.gap, y = top, w = areaW - R.side - (hero.x + hero.w + R.gap), h = hero.h - R.barH - 8 } -- the page plates take the foot
 	local cols = R.cols
 	local tileW = math.floor((shelf.w - (cols - 1) * R.tileGap) / cols)
 	local picH = math.floor(tileW * 0.8)
-	local tileH = picH + R.nameH + 6
+	local fixed = R.nameH + R.stateH + 6 + R.boardH + 8 -- name, state line, padding and the shelf board under every tile
+	if shelf.h < picH + fixed then
+		picH = math.max(28, shelf.h - fixed) -- a short window shrinks the picture so one full row still fits
+	else
+		local needRows = math.ceil(n / cols)
+		if needRows > 1 and math.floor(shelf.h / (picH + fixed)) < needRows then
+			local fit = math.floor(shelf.h / needRows) - fixed -- a little shorter picture keeps every entry on one page when it can
+			if fit >= math.floor(tileW * 0.55) then picH = fit end
+		end
+	end
+	local tileH = picH + R.nameH + R.stateH + 6
 	local rowH = tileH + R.boardH + 8
 	local rows = math.max(0, math.floor(shelf.h / rowH))
 	local parts = M.heroParts(hero)
@@ -244,6 +262,7 @@ function M.room(areaW, areaH, n, page)
 			tile = { x = x, y = y, w = tileW, h = tileH },
 			pic = { x = x + 3, y = y + 3, w = tileW - 6, h = picH },
 			name = { x = x + 2, y = y + picH + 5, w = tileW - 4, h = R.nameH },
+			state = { x = x + 2, y = y + picH + 5 + R.nameH, w = tileW - 4, h = R.stateH },
 			board = { x = shelf.x - 4, y = y + tileH + 1, w = shelf.w + 8, h = R.boardH },
 		}
 	end

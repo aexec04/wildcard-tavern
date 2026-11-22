@@ -18,7 +18,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 local TooltipSpec = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TooltipSpec"))
 local Spec = TooltipSpec.Spec
@@ -78,6 +77,10 @@ function Tooltip.new(screenGui)
 	label.RichText = false
 	label.Text = ""
 	label.ZIndex = 101
+	pcall(function() -- the equipped Card Set tints the plate, edge and ink at 7:1; classic keeps the colours above
+		require(script.Parent.HintSkin).bind(frame, border, { label }, {
+			plate = frame.BackgroundColor3, edge = border.Color, ink = label.TextColor3 })
+	end)
 	label.Parent = frame
 	local labelLimit = Instance.new("UISizeConstraint")
 	labelLimit.MaxSize = Vector2.new(Spec.maxWidth, math.huge)

@@ -149,6 +149,10 @@ function MapSelectPanel.new(deps)
 	line.TextWrapped = true -- the description shows two full lines, never a cut word
 	line.TextYAlignment = Enum.TextYAlignment.Top
 	local target = label(panel, "Target", 16)
+	local rule = label(panel, "BossRule", 14, Enum.Font.Gotham) -- the boss rule line, only when the full panel has room (Rules.rects.rule)
+	rule.TextColor3 = Color3.fromRGB(255, 205, 90)
+	rule.TextWrapped = true
+	rule.TextYAlignment = Enum.TextYAlignment.Top
 	local go = TavernKit.primaryButton(panel, "Continue")
 	go.Name = "Continue"
 	go.ZIndex = Z + 2
@@ -170,6 +174,38 @@ function MapSelectPanel.new(deps)
 	local zone = { x = 12, y = 300, w = 320, h = 130 }
 	local artImage
 
+	-- the equipped Card Set's frame, studs, inner line, art edge and Go plate (CosmeticSets.mapStyleOf, 4.5:1); classic keeps wood and gold
+	local function skinSet()
+		local st
+		pcall(function()
+			local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			st = CS.mapStyleOf(TavernKit.plateSetId())
+		end)
+		local function rgbOr(t, classic) return t and Color3.fromRGB(t[1], t[2], t[3]) or classic end
+		panel.BackgroundColor3 = rgbOr(st and st.frame, Color3.fromRGB(150, 104, 62))
+		local inset = panel:FindFirstChild("Inset")
+		if inset then
+			inset.BackgroundColor3 = rgbOr(st and st.inset, Color3.fromRGB(88, 58, 34))
+			local is = inset:FindFirstChildOfClass("UIStroke")
+			if is then is.Color = rgbOr(st and st.edge, Color3.fromRGB(226, 182, 88)) end
+		end
+		for i = 1, 4 do
+			local stud = panel:FindFirstChild("Stud" .. i)
+			if stud then stud.BackgroundColor3 = rgbOr(st and st.edge, Color3.fromRGB(226, 182, 88)) end
+		end
+		local as = art:FindFirstChildOfClass("UIStroke")
+		if as then as.Color = rgbOr(st and st.edge, Color3.fromRGB(176, 138, 66)) end
+		if st and go:GetAttribute("Enabled") then
+			go.BackgroundColor3 = rgbOr(st.go)
+			local gs = go:FindFirstChildOfClass("UIStroke")
+			if gs then gs.Color = rgbOr(st.edge) end
+			local kl = go:FindFirstChild("KitLabel")
+			if kl and kl:IsA("TextLabel") then kl.TextColor3 = rgbOr(st.goInk) end
+			go.TextColor3 = rgbOr(st.goInk)
+		end
+	end
+	pcall(function() require(script.Parent.HudTheme).onSkin(function() if panel.Parent then if self.reapply then self.reapply() else skinSet() end end end) end)
+
 	local function apply()
 		if not current then return end
 		local r = Rules.rects(zone, mode)
@@ -182,6 +218,7 @@ function MapSelectPanel.new(deps)
 		art.Visible = mode == "full"
 		typeRow.Visible, line.Visible = mode == "full", mode == "full"
 		target.Visible = mode == "full" and d.target ~= nil
+		rule.Visible = mode == "full" and d.bossLine ~= nil and r.rule ~= nil
 		tabToggle.Visible = mode == "tab"
 		go.Visible = mode ~= "tab" and d.button.visible
 		go.Active = d.button.enabled
@@ -225,6 +262,7 @@ function MapSelectPanel.new(deps)
 			kl.Visible = true
 			go.TextTransparency, go.TextStrokeTransparency = 1, 1 -- the button keeps its Text as the hit box; the label draws the word once
 		end
+		skinSet()
 		name.Text = d.name
 		if mode == "tab" then
 			name.Text = d.name .. "  (tap)"
@@ -239,6 +277,12 @@ function MapSelectPanel.new(deps)
 			typeRow.TextColor3 = tc
 			typeRow.Text = d.typeIcon .. " " .. (d.status and (d.typeText .. "  |  " .. d.status) or d.typeText)
 			line.Text = d.line
+			if d.bossLine and r.rule then
+				put(rule, r.rule)
+				rule.Text = d.bossLine
+			elseif d.bossLine then
+				line.Text = d.bossLine -- no spare room (short screen): the boss rule replaces the flavour line
+			end
 			if d.target then
 				target.Text = string.format('Target: <font color="#ffcd5a">%d</font>', math.floor(d.target))
 			end
@@ -247,6 +291,8 @@ function MapSelectPanel.new(deps)
 		end
 		if mode ~= "tab" and d.button.visible then put(go, r.button) end
 	end
+
+	self.reapply = apply
 
 	function self.show(desc, artId, iconText)
 		current = { desc = desc, artId = artId, iconText = iconText }

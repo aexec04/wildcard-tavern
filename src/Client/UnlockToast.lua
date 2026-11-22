@@ -25,6 +25,7 @@ local gui -- the ScreenGui
 local lastUnlockSeq = 0
 local lastProgressSeq = 0
 local lastRewardSeq = 0
+local levelUpSound -- set by the hub: function() that plays the existing level up sound (Engine/HandLevelMoment.SOUND)
 
 local function defOf(item)
 	if item.kind == "patron" then
@@ -101,6 +102,11 @@ function UnlockToast.init(screenGui)
 	OverlayQueue.init(screenGui)
 end
 
+-- The hub hands over the sound player once (a closure over SoundModule), so this module never needs the hub's locals.
+function UnlockToast.setLevelUpSound(fn)
+	levelUpSound = fn
+end
+
 -- Called from render(): shows each new notice (by seq) once.
 function UnlockToast.update(state)
 	if not gui or type(state) ~= "table" then
@@ -123,6 +129,7 @@ function UnlockToast.update(state)
 		if reward.blessingId and type(text) == "string" then
 			text = "Blessing: " .. (text:match("^(.-):") or text) -- "Generous House: Rounds pay +2 Tips, ..." becomes "Blessing: Generous House"
 		end
+		if reward.levelUp and levelUpSound then pcall(levelUpSound) end -- a hand levelled up: the existing chime, the toast is a still line
 		push({ icon = reward.icon, text = text, artId = artId })
 	end
 	local progress = state.progressNotice

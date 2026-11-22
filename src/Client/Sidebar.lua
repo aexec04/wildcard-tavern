@@ -255,6 +255,19 @@ return function(deps)
 	runModeBadgeBox.Visible = false
 	local runModeBadgeLabel = makeLabel(runModeBadgeBox, 16, { TextColor3 = Color3.fromRGB(230, 210, 255), TextStrokeTransparency = 1 })
 	runModeBadgeLabel.Text = "Daily"
+	-- tapping the Daily twist plate opens the small "Today's twist" popup (Client/TwistPopup, words in Engine/TwistPreview)
+	local twistDateKey = nil
+	local twistTap = Instance.new("TextButton")
+	twistTap.Name = "TwistTap"
+	twistTap.Size = UDim2.fromScale(1, 1)
+	twistTap.BackgroundTransparency = 1
+	twistTap.Text = ""
+	twistTap.ZIndex = Z + 3
+	twistTap.Visible = false
+	twistTap.Parent = runModeBadgeBox
+	twistTap.MouseButton1Click:Connect(function()
+		if twistDateKey then require(script.Parent.TwistPopup).ask(twistDateKey) end
+	end)
 	-- The seed code of a Seed Run sits in a read-only TextBox: click it to select the code, then Ctrl+C copies it
 	-- (games cannot write to the clipboard themselves). A tiny "Press Ctrl+C" note appears for a moment.
 	local seedBox = Instance.new("TextBox")
@@ -298,6 +311,8 @@ return function(deps)
 			isDaily = isDaily, dailyDateKey = dailyDateKey, isWeekly = isWeekly, weeklyDateKey = weeklyDateKey,
 			isSeeded = isSeeded, seedCode = seedCode,
 		})
+		twistDateKey = info and info.kind == "daily" and info.twist and dailyDateKey or nil
+		twistTap.Visible = twistDateKey ~= nil
 		if not info then
 			runModeBadgeBox.Visible = false
 			seedBox.Visible = false

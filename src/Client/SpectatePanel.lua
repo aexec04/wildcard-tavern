@@ -418,6 +418,18 @@ function SpectatePanel.init(deps)
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
 	ll.Padding = UDim.new(0, 2)
 	ll.Parent = list
+	-- the equipped Card Set's panel fill, edge and ink (7:1) on the watcher overlay, the badge, the names tip and the viewers list,
+	-- and its plate on Leave; classic keeps the dark wood. Colours only: no layout, no tween.
+	pcall(function()
+		local Skin = require(script.Parent.PopupSkin)
+		Skin.dark(overlay, os_, { { title, CREAM }, { sub, CREAM } }, { plate = Color3.fromRGB(34, 24, 16), edge = Color3.fromRGB(104, 70, 40) })
+		Skin.dark(badge, bds, { { badge, CREAM } }, { plate = Color3.fromRGB(40, 30, 22), edge = GOLD })
+		Skin.dark(namesLabel, nil, { { namesLabel, CREAM } }, { plate = Color3.fromRGB(40, 30, 22) })
+		Skin.dark(list, nil, {}, { plate = Color3.fromRGB(40, 30, 22) })
+		local Kit = require(script.Parent.TavernKit)
+		Kit.setPlateButton(leaveButton, "primary")
+		if leaveButton:GetAttribute("BasePiece") then leaveButton.TextColor3 = CREAM end
+	end)
 	local viewersNow = {}
 	local function rebuildList()
 		for _, child in ipairs(list:GetChildren()) do

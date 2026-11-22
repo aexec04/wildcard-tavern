@@ -53,7 +53,11 @@ local function toast(anchor, text)
 	corner.Parent = label
 	task.delay(3, function()
 		if label.Parent then
-			TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
+			if require(script.Parent.ClientSettings).motionAllowed() then
+				TweenService:Create(label, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
+			else
+				label.BackgroundTransparency, label.TextTransparency, label.TextStrokeTransparency = 1, 1, 1 -- Calm: no fade
+			end
 			task.delay(0.45, function()
 				if label.Parent then label:Destroy() end
 			end)

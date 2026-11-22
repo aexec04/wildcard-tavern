@@ -49,6 +49,18 @@ function M.discard(root, buttons, deckFrame, point)
 				end
 			end
 			local ghostBg = ghost.BackgroundTransparency
+			local ghostEdge = nil -- the set's card back trim colour around the ghost (classic: none)
+			pcall(function()
+				local skin = require(script.Parent.HudTheme).skin()
+				local tint = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).deckTint(skin and skin.id)
+				if tint then
+					ghostEdge = Instance.new("UIStroke")
+					ghostEdge.Name = "SetGhostEdge"
+					ghostEdge.Thickness = 2
+					ghostEdge.Color = Color3.fromRGB(tint.trim[1], tint.trim[2], tint.trim[3])
+					ghostEdge.Parent = ghost
+				end
+			end)
 			local sc = Instance.new("UIScale")
 			sc.Parent = ghost
 			ghost.Parent = root
@@ -68,6 +80,7 @@ function M.discard(root, buttons, deckFrame, point)
 					local a = math.clamp((t - 0.5) * 2, 0, 1) -- 0 until halfway, then to 1
 					if a > 0 then
 						ghost.BackgroundTransparency = ghostBg + (1 - ghostBg) * a
+						if ghostEdge then ghostEdge.Transparency = a end
 						for _, f in ipairs(fades) do
 							local o = f.obj
 							if o.Parent then

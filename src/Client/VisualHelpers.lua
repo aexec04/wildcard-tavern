@@ -559,7 +559,7 @@ return function(deps)
 	-- caller (just Master Volume, before this) is unaffected -- omitting
 	-- it leaves LayoutOrder at Roblox's own default (0), same as before
 	-- this parameter existed.
-	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue, layoutOrder)
+	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue, layoutOrder, snapFn)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 46)
 		row.BackgroundTransparency = 1
@@ -613,6 +613,18 @@ return function(deps)
 		fill.ZIndex = 22
 		fill.Parent = track
 		polishButton(fill, 4)
+		do -- the equipped Card Set accent (4.5:1 on the track); classic keeps the gold fill
+			local classicFill = fill.BackgroundColor3
+			local function tint()
+				local c
+				pcall(function()
+					c = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).controlAccentOf(require(script.Parent.TavernKit).plateSetId())
+				end)
+				fill.BackgroundColor3 = c and Color3.fromRGB(c.sliderFill[1], c.sliderFill[2], c.sliderFill[3]) or classicFill
+			end
+			tint()
+			pcall(function() require(script.Parent.HudTheme).onSkin(function() if fill.Parent then tint() end end) end)
+		end
 
 		local knob = Instance.new("Frame")
 		knob.Size = UDim2.new(0, 18, 0, 18)
@@ -630,7 +642,8 @@ return function(deps)
 				return getValue()
 			end
 			local fraction = math.clamp((inputX - trackPos) / trackWidth, 0, 1)
-			return math.floor(min + fraction * (max - min) + 0.5)
+			local picked = math.floor(min + fraction * (max - min) + 0.5)
+			return snapFn and snapFn(picked) or picked
 		end
 
 		local function refresh()

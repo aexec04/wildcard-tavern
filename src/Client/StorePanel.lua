@@ -115,21 +115,27 @@ local function buildCard(row, order)
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = row.icon, TextSize = 46, TextColor3 = CREAM, ZIndex = 34 })
 	require(script.Parent.ArtIcon).apply(well, "store_bundles", row.id, icon, { zIndex = 35, cornerRadius = 43 })
 
-	label(card, { Name = "Name", Size = UDim2.new(1, -16, 0, 26), Position = UDim2.fromOffset(8, 104), Text = row.name, TextSize = 19 })
-	label(card, {
+	local nameLabel = label(card, { Name = "Name", Size = UDim2.new(1, -16, 0, 26), Position = UDim2.fromOffset(8, 104), Text = row.name, TextSize = 19 })
+	local descLabel = label(card, {
 		Name = "Desc", Size = UDim2.new(1, -20, 0, 66), Position = UDim2.fromOffset(10, 132), Text = row.description, TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
 		TextTruncate = Enum.TextTruncate.AtEnd, -- three lines at most, so every card lines up
 	})
-	label(card, {
+	local perksLabel = label(card, {
 		Name = "Perks", Size = UDim2.new(1, -20, 0, 54), Position = UDim2.fromOffset(10, 200), Text = "• " .. table.concat(row.perks or {}, "\n• "),
 		TextSize = 14, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(90, 66, 40),
 	})
-	label(card, {
+	local priceLabel = label(card, {
 		Name = "Price", Size = UDim2.new(1, -16, 0, 20), Position = UDim2.new(0, 8, 1, -76), Text = StorePanel.priceText(row, priceCache), TextSize = 15,
 		TextColor3 = row.owned and GREEN or INK,
 	})
+
+	pcall(function() -- the equipped Card Set's paper, edge and dark ink (7:1); Owned keeps its green ring and price, classic keeps parchment
+		local labels = { { nameLabel, INK }, { descLabel, INK }, { perksLabel, Color3.fromRGB(90, 66, 40) } }
+		if not row.owned then table.insert(labels, { priceLabel, INK }) end
+		require(script.Parent.PopupSkin).paper(card, nil, (not row.owned) and stroke or nil, labels, { fill = PARCHMENT, edge = GOLD })
+	end)
 
 	local button = Instance.new("TextButton")
 	button.Name = "Buy"
@@ -144,6 +150,7 @@ local function buildCard(row, order)
 	elseif row.available then
 		Kit.skin(button, row.studioFree and "Take for free" or "Buy", "primary")
 		paintButton(button, "buy")
+		pcall(function() Kit.setPlateButton(button, "primary") end) -- the equipped Card Set's green plate; classic keeps the flat green
 		button.MouseButton1Click:Connect(function()
 			ui.playClickSfx()
 			ui.purchaseRemote:FireServer(row.id)
@@ -215,8 +222,8 @@ function StorePanel.init(deps)
 	resize()
 	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 
-	label(panel, { Name = "Title", Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 8), Text = "The Tavern Store", TextSize = 26, TextColor3 = CREAM })
-	label(panel, {
+	local titleLabel = label(panel, { Name = "Title", Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 8), Text = "The Tavern Store", TextSize = 26, TextColor3 = CREAM })
+	local promiseLabel = label(panel, {
 		Name = "Promise", Size = UDim2.new(1, -40, 0, 22), Position = UDim2.fromOffset(20, 46),
 		Text = "Cosmetics and small conveniences only. Nothing here helps you win.", TextSize = 16, TextColor3 = GOLD,
 		Font = Enum.Font.GothamMedium,
@@ -244,6 +251,12 @@ function StorePanel.init(deps)
 	close.ZIndex = 33
 	close.Parent = panel
 	Kit.skin(close, "Close", "secondary")
+	pcall(function() -- the equipped Card Set's panel colours and ink (7:1); classic keeps the wood panel
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { titleLabel, CREAM }, { promiseLabel, GOLD } },
+			{ plate = Color3.fromRGB(40, 30, 22), edge = pStroke and pStroke.Color })
+		Kit.setPlateButton(close, "secondary")
+	end)
 	resize() -- the Close plate exists now
 
 	ui = {

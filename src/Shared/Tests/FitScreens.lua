@@ -149,6 +149,48 @@ return function(E)
 	})
 
 	add({
+		name = "Tavern Map header", lane = "table",
+		rects = function(w, h)
+			local L = E("MapHeaderRules").layout(w, h)
+			-- the X is a 40 px disc inside a 44 px hit area (Client/CloseX): audit the area a finger hits
+			local x = L.x
+			return { title = L.title, stats = L.stats, closeButton = { x = x.x - 2, y = x.y - 2, w = x.w + 4, h = x.h + 4 }, panelZone = L.panelZone }
+		end,
+	})
+
+	add({
+		name = "Season panel", lane = "menu",
+		rects = function(w, h)
+			local f = E("SeasonTrack").fit(w, h, true)
+			local x, y = math.floor((w - f.shownW) / 2), math.floor((h - f.shownH) / 2)
+			return {
+				panel = { x = x, y = y, w = f.shownW, h = f.shownH },
+				claimAllButton = { x = x + f.shownW - (15 + 190) * f.scale, y = y + E("SeasonTrack").buttonTop(E("SeasonTrack").touchH(f.scale)) * f.scale,
+					w = 190 * f.scale, h = E("SeasonTrack").touchH(f.scale) * f.scale },
+			}
+		end,
+	})
+
+	add({
+		name = "Tome header", lane = "menu",
+		rects = function(w, h)
+			local L = E("TomeHeader").layout(math.min(w, 1180), h, true)
+			return { title = L.title, sub = L.sub }
+		end,
+	})
+
+	add({
+		name = "Flair room", lane = "menu",
+		rects = function(w, h)
+			local p = E("FlairSceneLayout").place(math.floor(w * 0.9), math.floor(h * 0.86))
+			if not p.ok then return {} end -- FlairDressingRoom drops the painted room and uses the compact layout when a piece is under its minimum
+			local out = { mirror = p.mirror, detail = p.detail }
+			for i, t in ipairs(p.tabs) do out["tabButton" .. i] = t end
+			return out
+		end,
+	})
+
+	add({
 		name = "Daily Rewards row", lane = "menu",
 		rects = function(w, h)
 			local r = E("RewardsLayout").row(math.floor(w * 0.7), 4)

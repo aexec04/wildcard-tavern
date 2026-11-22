@@ -163,6 +163,7 @@ local function show(hint)
 		bubble.Arrow.Visible = false
 	end
 	bubble.Visible = true
+	pcall(function() require(script.Parent.Cue).play("chip", 0.8) end)
 	if ClientSettings.get("reduceShake") ~= true then
 		bubble.BackgroundTransparency = 1
 		TweenService:Create(bubble, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()

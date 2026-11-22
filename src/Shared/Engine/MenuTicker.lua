@@ -18,6 +18,11 @@ MenuTicker.FlavorLines = {
 	"Every Night has a Boss. Every Boss has a rule.",
 	"The Tavern Map is full of secrets.",
 	"Finish today's quests for extra Tips.",
+	"Tip: save your Discards for the big hand.",
+	"Today's Daily has a twist. Peek at the rule first.",
+	"Set spotlight: try a new Card Set from the Tome.",
+	"Season reminder: claim your tier rewards today.",
+	"Tip: a Patron that fits your hand scores the most.",
 }
 
 -- Rounded so the number never looks exact or fake: 0 to 9 is "a few", then steps of 10, 50 and 100.

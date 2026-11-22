@@ -19,6 +19,7 @@ local Patrons = require(script.Parent.Patrons)
 local Packs = require(script.Parent.Packs)
 local HousePasses = require(script.Parent.HousePasses)
 local Unlocks = require(script.Parent.Unlocks) -- the unlock drip filters the Patron pool
+local Marks = require(script.Parent.Marks) -- the Mark pack offer
 local RunState = require(script.Parent.RunState) -- prices and seat limit for the affordable offer rule
 
 local Shop = {}
@@ -123,7 +124,8 @@ function Shop.rollOffers(state)
 	local patrons = rollPatronOffers(state)
 	local packs = rollPackOffers(state)
 	local voucher = rollVoucherOffer(state)
-	return { patrons = patrons, packs = packs, voucher = voucher }
+	-- rolled last, so the other offers of a seeded board stay exactly as they were
+	return { patrons = patrons, packs = packs, voucher = voucher, mark = Marks.rollOffer(state) }
 end
 
 return Shop

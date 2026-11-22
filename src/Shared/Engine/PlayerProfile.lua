@@ -217,6 +217,9 @@ function PlayerProfile.new()
 		stats = {
 			runsStarted = 0,
 			runsAbandoned = 0, -- runs given up from Settings > Restart Run
+			boonsPicked = 0, -- Night boons taken (Engine/NightBoons.lua)
+			luckyRuns = 0, -- runs started on the Lucky Deck (Engine/StartingDecks.lua)
+			slimRuns = 0, -- runs started on the Slim Deck
 			runsWon = 0,
 			bestNightReached = 0,
 			handsPlayedTotal = 0, -- hands played over all runs (feeds the unlock drip)
@@ -406,6 +409,11 @@ function PlayerProfile.migrate(raw)
 		local rawStats = raw.stats
 		if type(rawStats.runsStarted) == "number" then
 			profile.stats.runsStarted = math.max(0, math.floor(rawStats.runsStarted))
+		end
+		for _, key in ipairs({ "boonsPicked", "luckyRuns", "slimRuns" }) do
+			if type(rawStats[key]) == "number" then
+				profile.stats[key] = math.max(0, math.floor(rawStats[key]))
+			end
 		end
 		if type(rawStats.runsAbandoned) == "number" then
 			profile.stats.runsAbandoned = math.max(0, math.floor(rawStats.runsAbandoned))
@@ -642,6 +650,20 @@ end
 -- up), so the caller doesn't need to check a return value here.
 function PlayerProfile.recordRunStarted(profile)
 	profile.stats.runsStarted = profile.stats.runsStarted + 1
+end
+
+-- A Night boon was picked (feeds the boon titles).
+function PlayerProfile.recordBoonPicked(profile)
+	profile.stats.boonsPicked = (profile.stats.boonsPicked or 0) + 1
+end
+
+-- A run began on this starting deck id (only Lucky and Slim are counted, for their titles).
+function PlayerProfile.recordStartingDeck(profile, deckId)
+	if deckId == "lucky" then
+		profile.stats.luckyRuns = (profile.stats.luckyRuns or 0) + 1
+	elseif deckId == "slim" then
+		profile.stats.slimRuns = (profile.stats.slimRuns or 0) + 1
+	end
 end
 
 -- Settings > Restart Run: counts the run as abandoned. Grants nothing (no win, no Night credit beyond

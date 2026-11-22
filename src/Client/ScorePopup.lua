@@ -285,6 +285,29 @@ return function(deps)
 	scorePopupHandName.ZIndex = 25
 	scorePopupHandName.Parent = handPill
 
+	-- Per Card Set colours (Engine/ThemeScenes.scoreStyle): dark set plate, accent outline and name at 7:1; classic keeps its own look
+	local setInkAccent = nil
+	local handSetEdge = Instance.new("UIStroke")
+	handSetEdge.Name = "SetOutline"
+	handSetEdge.Thickness = 2
+	handSetEdge.Enabled = false
+	handSetEdge.Parent = handPill
+	local function applySetInk()
+		setInkAccent = nil
+		handSetEdge.Enabled = false
+		handPill.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
+		scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
+		pcall(function()
+			local st = require(script.Parent.SetInk).get() -- Client/SetInk: the set's plate and accent, nil for classic
+			if not st then return end
+			setInkAccent = st.accent
+			handPill.BackgroundColor3 = st.plate
+			handSetEdge.Color = st.accent
+			handSetEdge.Enabled = true
+			scorePopupHandName.TextColor3 = st.accent
+		end)
+	end
+
 	-- SCORING JUICE, full choreography pass: split out of the old single
 	-- "chips x mult" label into a real blue Chips box / red Mult box, so
 	-- flying numbers have an actual matching box to merge into (Ahmed's
@@ -1141,7 +1164,8 @@ return function(deps)
 		-- FLAIR (visual only, Engine/Flair.lua): the Score Numbers color and a few Play Trail particles
 		pcall(function()
 			local FlairFX = require(script.Parent.FlairFX)
-			FINALE_COLOR = FlairFX.scoreColor() or FINALE_DEFAULT
+			applySetInk()
+			FINALE_COLOR = FlairFX.scoreColor() or setInkAccent or FINALE_DEFAULT
 			FlairFX.playTrail(particleBurst, centerOf(scorePopup))
 			-- Score Numbers glow on every digit tick (chips and mult), not only the finale
 			local glow, flairColor = FlairFX.scoreGlow(), FlairFX.scoreColor()
@@ -1162,6 +1186,7 @@ return function(deps)
 			end
 		end)
 		scorePopupHandName.Text = preview.name
+		applySetInk()
 		pcall(function() require(script.Parent.Gameplay2).flair(preview) end) -- v2 table: the name flair above the centre score
 		pcall(function() require(script.Parent.AnimPassFX).nameSlam(scorePopupHandName, false) end) -- slam, squash, settle (none in Calm mode)
 		scorePopupEventLabel.Text = ""
@@ -1533,7 +1558,11 @@ return function(deps)
 			-- a big hand (half the Target or more) gets an extra slam, and the combo counter ticks up (visual only).
 			local feelTier = ScoreFeel.tierFor(preview.score, preview.targetScore)
 			local feelColor = ScoreFeel.tierColor(feelTier)
-			scorePopupHandName.TextColor3 = Color3.fromRGB(feelColor[1], feelColor[2], feelColor[3])
+			if feelTier <= 1 and setInkAccent then
+				scorePopupHandName.TextColor3 = setInkAccent -- small hand: the set accent; bigger hands keep their tier colour
+			else
+				scorePopupHandName.TextColor3 = Color3.fromRGB(feelColor[1], feelColor[2], feelColor[3])
+			end
 			scorePopupScale.Scale = ScoreFeel.popScale(feelTier)
 			do
 				local slam = ScoreFeel.slamFor(feelTier)

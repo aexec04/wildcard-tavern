@@ -2,6 +2,8 @@
 
 Simulated by `src/Shared/Engine/EconomySim.lua` through the real Daily chest ladder, Daily quests, run XP and Season XP. Reprint with `lua tools/economy_report.lua [startDay]`. A test (`Economy week`) pins the floors below.
 
+Rank rewards (30 ranks, pinned by a test): ranks have no names of their own, the names players see are the five reward titles (rank 5 Table Regular, 10 Favorite Guest, 15 House Captain, 20 Hall Warden, 30 Grand Host), all unique and kid safe. Card backs at ranks 4, 8, 14 and 23, Card Sets at 12 (winter_evening) and 24 (festival_night). Tips for the next run climb 3, 3, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 8, 8, 10, 10, 10, 115 in total and never fall from one Tips rank to the next. Audit fix: ranks 19, 28 and 29 used to dip (6, 9, 9) and are now 7, 10, 10. XP per rank is 80 for rank 1 to 2, then 20 more each rank.
+
 Session model: two runs, each 12 hands, 4 rounds cleared, 1 Boss Round, Night 3 reached, one Pack, one House Pass, one Recipe, no win. Tips are Tips banked for the next run (chest, quests); in-run Tips never leave the run. Season XP only counts inside a running Season.
 
 Week of 2026-11-23 (the Harvest Moon Season):

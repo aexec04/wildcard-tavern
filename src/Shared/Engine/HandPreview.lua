@@ -22,6 +22,7 @@ local Patrons = require(script.Parent.Patrons)
 local RunState = require(script.Parent.RunState)
 local Scoring = require(script.Parent.Scoring)
 local Strangers = require(script.Parent.Strangers)
+local NightBoons = require(script.Parent.NightBoons)
 local TrueWildcard = require(script.Parent.TrueWildcard)
 
 local HandPreview = {}
@@ -87,6 +88,7 @@ function HandPreview.compute(view, cardIndices)
 			ownedPatronSpecials = view.ownedPatronSpecials,
 			brittleShielded = view.brittleShieldRound,
 			debuff = boss and boss.debuff,
+			firstCardOut = boss and boss.firstCardOut, patronChipsFactor = boss and boss.patronChipsFactor,
 			tips = tips,
 			alreadyPlayedThisHandTypeThisRound = playedThisRound[handName] == true,
 			handsRemaining = handsAfter,
@@ -144,7 +146,7 @@ function HandPreview.compute(view, cardIndices)
 
 	local bargainPct = Strangers.field(view, "scorePct")
 	local score
-	chips, mult, score = BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct)
+	chips, mult, score = BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct + NightBoons.scorePct(view, isFirstHand))
 	return {
 		name = handName,
 		chips = chips,

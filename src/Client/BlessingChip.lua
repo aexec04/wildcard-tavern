@@ -225,6 +225,7 @@ function BlessingChip.update(state)
 		ui.blessing.TextColor3 = onWood and Color3.fromRGB(150, 225, 160) or GREEN
 		ui.curse.TextColor3 = onWood and Color3.fromRGB(255, 160, 150) or RED
 	end
+	ui.boon = type(state.nightBoon) == "table" and state.nightBoon.line or nil
 	ui.crowd = type(state.crowdRules) == "table" and #state.crowdRules > 0
 	if shownId ~= view.id then
 		shownId = view.id
@@ -234,13 +235,14 @@ function BlessingChip.update(state)
 		ui.blessing.Text = require(Engine:WaitForChild("RunModifiers")).line("+", view.blessing)
 		ui.curse.Text = require(Engine:WaitForChild("RunModifiers")).line("-", view.curse)
 		pcall(ArtIcon.apply, ui.chip, "blessing_icons", view.id, ui.icon, { cornerRadius = 6, size = UDim2.fromOffset(34, 34), position = UDim2.fromOffset(6, 6), anchor = Vector2.new(0, 0), zIndex = 8 })
-		ui.tip = "This run: " .. view.name .. "\nBlessing: " .. view.blessing .. "\nCurse: " .. view.curse
+		ui.baseTip = "This run: " .. view.name .. "\nBlessing: " .. view.blessing .. "\nCurse: " .. view.curse
 		if not ui.tipped then
 			ui.tipped = true
 			ui.chip.Active = true
 			ui.addTooltip(ui.chip, function() return ui.tip end, "right")
 		end
 	end
+	ui.tip = (ui.baseTip or "") .. (ui.boon and ("\n" .. ui.boon) or "")
 	BlessingChip.relayout()
 end
 

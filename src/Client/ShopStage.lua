@@ -177,6 +177,22 @@ function ShopStage.new(deps)
 		s.Thickness = 1.5
 		s.Transparency = 0.3
 		s.Parent = plate
+		-- the My Patrons / My Recipes plate wears the equipped or previewed Card Set's bar and edge (classic keeps its brown and gold)
+		local function restyle()
+			pcall(function()
+				local E = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+				local skin = require(script.Parent.HudTheme).skin()
+				local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+				local previewId = okV and view and view.previewSetId and view.previewSetId() or nil
+				local sid = require(E:WaitForChild("ThemeScenes")).effectiveSetId(skin and skin.id, previewId)
+				local look = require(E:WaitForChild("CosmeticSets")).tabPlateStyleOf(sid)
+				plate.BackgroundColor3 = look and Color3.fromRGB(look.fill[1], look.fill[2], look.fill[3]) or Color3.fromRGB(34, 24, 16)
+				s.Color = look and Color3.fromRGB(look.edge[1], look.edge[2], look.edge[3]) or GOLD
+			end)
+		end
+		restyle()
+		pcall(function() require(script.Parent.HudTheme).onSkin(restyle) end)
+		pcall(function() require(script.Parent.CosmeticSetsView).onPreview(restyle) end)
 	end
 
 	local tabKey = "buy"

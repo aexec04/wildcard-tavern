@@ -41,7 +41,7 @@ local function handlers()
 		card = function(pos) call("pick", pos) end,
 		play = function() call("play") end,
 		discard = function() call("discard") end,
-		sort = function() call("sort") end,
+		sort = function(mode) call("sort", mode) end,
 		patron = function() call("patron") end,
 		back = function() call("back") end,
 		move = function(dir)

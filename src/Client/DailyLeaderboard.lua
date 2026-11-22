@@ -222,9 +222,10 @@ return function(deps)
 
 	local endlessBoard = false -- the Endless board reads "Night N  |  Best hand N"
 	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou, flair)
+		local skin = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, ink and rank badge; nil keeps the brown rows
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 34)
-		row.BackgroundColor3 = isYou and Color3.fromRGB(80, 60, 32) or Color3.fromRGB(50, 42, 34)
+		row.BackgroundColor3 = skin and (isYou and skin.hot or skin.row) or (isYou and Color3.fromRGB(80, 60, 32) or Color3.fromRGB(50, 42, 34))
 		row.LayoutOrder = order
 		row.ZIndex = 21
 		row.Parent = leaderboardScroll
@@ -239,6 +240,15 @@ return function(deps)
 		rankLabel.TextXAlignment = Enum.TextXAlignment.Left
 		rankLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		rankLabel.Text = rankText
+		if skin then -- an accent rank badge with ink at 4.5:1
+			rankLabel.Size = UDim2.new(0, 36, 0, 22)
+			rankLabel.Position = UDim2.new(0, 8, 0, 6)
+			rankLabel.BackgroundTransparency = 0
+			rankLabel.BackgroundColor3 = skin.badge
+			rankLabel.TextColor3 = skin.badgeInk
+			rankLabel.TextXAlignment = Enum.TextXAlignment.Center
+			roundCorner(rankLabel, 6)
+		end
 		rankLabel.ZIndex = 21
 		rankLabel.Parent = row
 
@@ -249,7 +259,7 @@ return function(deps)
 		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.TextSize = 14
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+		nameLabel.TextColor3 = skin and skin.ink or Color3.fromRGB(250, 240, 220)
 		nameLabel.Text = isYou and (name .. " (you)") or name
 		if flair and flair ~= "" then
 			nameLabel.Text = nameLabel.Text .. "  \u{2022}  " .. flair -- equipped title and card back (friends in this server)
@@ -265,7 +275,7 @@ return function(deps)
 		statsLabel.Font = Enum.Font.Gotham
 		statsLabel.TextSize = 14
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
-		statsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
+		statsLabel.TextColor3 = skin and skin.sub or Color3.fromRGB(200, 185, 165)
 		statsLabel.Text = LBText.stats(endlessBoard, depth, tips)
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
@@ -303,6 +313,15 @@ return function(deps)
 		standardTabButton.BackgroundColor3 = (activeBucket == Leaderboards.STANDARD) and ACTIVE_TAB or IDLE_TAB
 		revivedTabButton.BackgroundColor3 = (activeBucket == Leaderboards.REVIVED) and ACTIVE_TAB or IDLE_TAB
 		friendsTabButton.BackgroundColor3 = (activeScope == Leaderboards.FRIENDS) and ACTIVE_TAB or IDLE_TAB
+		pcall(function() -- the equipped Card Set's tab plates (green when lit); classic keeps the flat browns above
+			local Kit = require(script.Parent.TavernKit)
+			Kit.setPlateTab(dailyTabButton, activeBoard == "daily")
+			Kit.setPlateTab(weeklyTabButton, activeBoard == "weekly")
+			Kit.setPlateTab(endlessTabButton, activeBoard == "endless")
+			Kit.setPlateTab(standardTabButton, activeBucket == Leaderboards.STANDARD)
+			Kit.setPlateTab(revivedTabButton, activeBucket == Leaderboards.REVIVED)
+			Kit.setPlateTab(friendsTabButton, activeScope == Leaderboards.FRIENDS)
+		end)
 	end
 
 	local function refreshLeaderboard()

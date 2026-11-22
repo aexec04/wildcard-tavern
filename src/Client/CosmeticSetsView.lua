@@ -30,8 +30,8 @@ local HOSTS = {
 	{ name = "GameBackgroundArt", defaultTint = Color3.fromRGB(215, 205, 195), noAmbient = true }, -- TableLook carries the gameplay ambient motion
 	{ name = "TableLook", defaultTint = Color3.new(1, 1, 1) }, -- the style host above the gameplay scene painting (Client/TableLook.lua)
 	{ name = "ShopBackgroundArt", defaultTint = Color3.new(1, 1, 1) },
-	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1) },
-	{ name = "TavernMap", defaultTint = Color3.new(1, 1, 1) },
+	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1), noAmbient = true }, -- ambient motion only on the table and the Counter
+	{ name = "TavernMap", defaultTint = Color3.new(1, 1, 1), noAmbient = true },
 }
 local lastSearch = {} -- [host name] = os.clock() of the last PlayerGui search
 local controllers = {} -- [host name] = { controller, hostInstance, styledSetId }
@@ -92,7 +92,8 @@ local function applyTheme(set)
 			face.border, face.motif = look.edge, look.motif
 			warn(("[SetSkin] cardLook set=%s edge=%s paper=%s motif=%s"):format(tostring(set.id), table.concat(look.edge, ","), table.concat(look.paper, ","), tostring(look.motif)))
 		end
-		pcall(function() require(script.Parent.CardFace).setStyle(face) end)
+		pcall(function() require(script.Parent.CardFace).setStyle(face, set) end)
+		pcall(function() require(script.Parent.GamepadMenuNav).setRingColor(CosmeticSets.focusRingOf(set.id)) end)
 	end
 	local accent = theme.accent and Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3]) or nil
 	for _, name in ipairs(SetSkin.HUD_PANELS) do -- side panel, hand tray and draw pile wear the panel skin too
@@ -189,8 +190,23 @@ local function applyPile(set, back, backId)
 	end
 end
 
+-- The table scene (corner banners, set picture) and the draw pile read HudTheme.skin(), which SetSkin only updates after the set's HUD kit
+-- has preloaded. Refresh the scene once that skin lands, so a Preview never leaves the previous set's banners and pile on screen.
+local skinHooked = false
+local function hookSkinRefresh()
+	if skinHooked then return end
+	skinHooked = true
+	pcall(function()
+		require(script.Parent.HudTheme).onSkin(function()
+			local ok, scene = pcall(function() return require(script.Parent.GameplayScene).get() end)
+			if ok and scene and lastState then pcall(scene.update, lastState) end
+		end)
+	end)
+end
+
 function M.apply(state)
 	lastState = state
+	hookSkinRefresh()
 	local sceneSet = M.currentSet(state).id
 	if sceneSet ~= lastSceneSet then
 		lastSceneSet = sceneSet
@@ -275,8 +291,8 @@ function M.apply(state)
 					applyArt(stack)
 				end
 			end
-			if lastBackId == nil or require(script.Parent.ClientSettings).get("reduceShake") == true then -- Calm mode and Reduce motion: swap at once, no tween
-				applyArt(cardArt)
+			if lastBackId == nil or not require(script.Parent.ClientSettings).motionAllowed() then
+				applyArt(cardArt) -- first paint, or Calm and Reduce motion: no flip
 			else
 				-- Equip moment: flip the pile (scale X 1 -> 0 -> 1 over 0.35s), swapping the art at the midpoint.
 				local flipId = backId

@@ -31,7 +31,7 @@ local function build(layer)
 	plate.ZIndex = 28
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
-	local st = Instance.new("UIStroke"); st.Color = Color3.fromRGB(246, 196, 70); st.Thickness = 2; st.Parent = plate
+	local st = Instance.new("UIStroke"); st.Name = "FrameEdge"; st.Color = Color3.fromRGB(246, 196, 70); st.Thickness = 2; st.Parent = plate
 	pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_hint") end) -- crown medallion on the left, flat plate if it does not load
 	local function label(name, size, color, font)
 		local t = Instance.new("TextLabel")
@@ -67,6 +67,19 @@ local function build(layer)
 	pcall(function() -- a small X on the corner: shuts the panel for the rest of the run, the Hints setting stays as it is
 		require(script.Parent.CloseX).attach(plate, function() closed = true; M.hide() end, { inset = 8, top = 8, z = 40 })
 	end)
+end
+
+-- the set's plate colour and frame accent (Client/SetInk); classic keeps the gold frame
+local function dress()
+	if not plate then return end
+	local ink = nil
+	pcall(function() ink = require(script.Parent.SetInk).get() end)
+	plate.BackgroundColor3 = ink and ink.plate or Color3.fromRGB(46, 28, 14)
+	local st = plate:FindFirstChild("FrameEdge")
+	if st then st.Color = ink and ink.accent or Color3.fromRGB(246, 196, 70) end
+	local TC = RoundHints.TITLE_COLOR
+	if title then title.TextColor3 = ink and ink.accent or Color3.fromRGB(TC[1], TC[2], TC[3]) end
+	if body then body.TextColor3 = ink and ink.accent:Lerp(Color3.new(1, 1, 1), 0.5) or Color3.fromRGB(235, 218, 180) end -- lighter than the accent, so 7:1 holds
 end
 
 function M.hide()
@@ -136,6 +149,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	if not spot then M.hide(); why("hidden: nothing fits clear of the table", state); return end -- nothing fits clear of the table: skip it rather than overlap
 	if not plate or plate.Parent ~= layer then build(layer) end
 	plate.Visible = true
+	dress()
 	why("shown", state)
 	plate.Size = UDim2.fromOffset(spot.plate.w, spot.plate.h)
 	plate.Position = UDim2.fromOffset(spot.plate.x, spot.plate.y)

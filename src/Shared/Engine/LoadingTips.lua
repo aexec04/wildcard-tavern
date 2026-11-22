@@ -6,21 +6,30 @@
 
 local LoadingTips = {}
 
-LoadingTips.MAX_LENGTH = 78
+LoadingTips.MAX_LENGTH = 60
 
+-- Twenty tips: Patron Bonds, hand levels and Recipes, the Daily twist, then the Counter and the tavern.
 LoadingTips.TIPS = {
-	"Tips earn interest at the Counter, so a few coins saved can grow.",
-	"Haggle once per visit. Marlo might knock a coin off, or not.",
-	"Patrons that share a tag form a Bond. Keep friends at your table.",
-	"Scout a Boss before the fight and ban its rule once per run.",
-	"Upgrade the hands you play most, a Recipe goes a long way.",
-	"Out of hands? One More Round gives a run a second wind.",
+	"Patrons that share a tag form a Bond. Seat friends together.",
+	"A Bond makes your Patrons work as a team.",
+	"Mix tags at your table to start a new Bond.",
+	"Every hand type has a level. Higher level, bigger score.",
+	"Upgrade the hand you play most with a Recipe.",
+	"A Recipe levels up one hand type for good.",
+	"Today's Daily has a twist. Read its rule before you play.",
+	"Daily runs share one seed, so everyone gets the same deal.",
+	"Scout a Boss first and ban its rule once per run.",
+	"Tips earn interest at the Counter. Save a few coins.",
+	"Haggle once per visit. Marlo might knock a coin off.",
+	"Out of hands? One More Round gives you a second wind.",
 	"A free One More Round waits for you every day.",
-	"Skip a Round for a Tag, and take what the house offers.",
-	"Card Sets change how the whole tavern looks. Try one on.",
-	"Flushes, straights and pairs all score. Chase the hand you hold.",
-	"Daily runs share one seed, so everyone plays the same deal.",
-	"Higher stakes bring bigger rewards and meaner Bosses.",
+	"Skip a Round for a Tag and take what the house offers.",
+	"Card Sets change how the whole tavern looks.",
+	"Flushes, straights and pairs all score. Play what you hold.",
+	"Use Discards to chase a big hand, then play it.",
+	"Higher stakes bring bigger rewards and tougher Bosses.",
+	"Finish your daily quests for extra Tips.",
+	"Claim your Daily Reward to keep your streak going.",
 }
 
 function LoadingTips.order(seed)

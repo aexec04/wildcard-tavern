@@ -35,6 +35,7 @@ local HEADER = Color3.fromRGB(255, 214, 130)
 local SUBTLE = Color3.fromRGB(190, 175, 155)
 local BUTTON = Color3.fromRGB(70, 45, 25)
 local ON = Color3.fromRGB(70, 110, 60)
+local S = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Strings")).get -- player facing text by id
 
 return function(deps)
 	local polishButton = deps.polishButton
@@ -134,6 +135,21 @@ return function(deps)
 		label.Text = text
 		label.ZIndex = 21
 		label.Parent = scroll
+		-- a thin rule under the section name in the equipped Card Set accent (gold for classic); a child, so the list layout ignores it
+		local rule = Instance.new("Frame")
+		rule.Name = "HeaderRule"
+		rule.AnchorPoint = Vector2.new(0, 1)
+		rule.Position = UDim2.new(0, 0, 1, 0)
+		rule.Size = UDim2.new(1, 0, 0, 2)
+		rule.BorderSizePixel = 0
+		rule.BackgroundColor3 = require(script.Parent.TavernKit).ringColor(Color3.fromRGB(222, 182, 104))
+		rule.ZIndex = 21
+		rule.Parent = label
+		pcall(function()
+			require(script.Parent.HudTheme).onSkin(function()
+				if rule.Parent then rule.BackgroundColor3 = require(script.Parent.TavernKit).ringColor(Color3.fromRGB(222, 182, 104)) end
+			end)
+		end)
 	end
 
 	-- One row: label + description on the left, a value button on the
@@ -229,6 +245,12 @@ return function(deps)
 					if isSwitch then -- clear On and Off: fill plus the word
 						local f = (i == 1) and SW.offFill or SW.onFill
 						local t = (i == 1) and SW.offText or SW.onText
+						if i ~= 1 then -- the On state wears the equipped Card Set accent (white text 4.5:1); classic keeps green
+							local ok, c = pcall(function()
+								return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets")).controlAccentOf(require(script.Parent.TavernKit).plateSetId())
+							end)
+							if ok and c then f, t = c.onFill, c.onText end
+						end
 						button.BackgroundColor3 = Color3.fromRGB(f[1], f[2], f[3])
 						button.TextColor3 = Color3.fromRGB(t[1], t[2], t[3])
 					else
@@ -262,13 +284,14 @@ return function(deps)
 			end
 		end)
 		refresh()
+		pcall(function() require(script.Parent.HudTheme).onSkin(function() if button.Parent then refresh() end end) end) -- an equipped set shows at once
 	end
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }
 
-	-- ===== Comfort (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
-	makeHeader("Comfort")
-	makeChoiceRow("calmMode", "Calm Mode", "Turns on Reduce Motion, Reduce Flashing and Reduce Screen Shake together.", OFF_ON, {
+	-- ===== Accessibility (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
+	makeHeader("Accessibility")
+	makeChoiceRow("calmMode", "Calm Mode", S("settings.calm.hint"), OFF_ON, {
 		keys = { reduceMotion = true, reduceFlashing = true, reduceShake = true },
 		get = function()
 			return SettingsLayout.calmValue({ reduceMotion = ClientSettings.getRaw("reduceMotion"), reduceFlashing = ClientSettings.getRaw("reduceFlashing"), reduceShake = ClientSettings.getRaw("reduceShake") })
@@ -277,11 +300,11 @@ return function(deps)
 			for k, v in pairs(SettingsLayout.calmWrites(on)) do ClientSettings.set(k, v) end
 		end,
 	})
-	makeChoiceRow("reduceMotion", "Reduce Motion", "Calmer scenes with less movement.", OFF_ON)
-	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
-	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
-	makeChoiceRow("largerText", "Text Size", "Large makes text 15 percent bigger where there is room.", { { false, "Normal" }, { true, "Large" } })
-	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
+	makeChoiceRow("reduceMotion", "Reduce Motion", S("settings.reduceMotion.hint"), OFF_ON)
+	makeChoiceRow("reduceFlashing", "Reduce Flashing", S("settings.reduceFlashing.hint"), OFF_ON)
+	makeChoiceRow("reduceShake", "Reduce Screen Shake", S("settings.reduceShake.hint"), OFF_ON)
+	makeChoiceRow("largerText", "Text Size", S("settings.largerText.hint"), { { false, "Normal" }, { true, "Large" } })
+	makeChoiceRow("colorblindSuits", "Colorblind Suits", S("settings.colorblindSuits.hint"), OFF_ON)
 
 	-- ===== Sound =====
 	makeHeader("Sound")
@@ -300,7 +323,7 @@ return function(deps)
 		t.TextSize = 16
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.TextColor3 = TEXT
-		t.Text = "Music and Sound Effects"
+		t.Text = S("settings.sound.title")
 		t.ZIndex = 21
 		t.Parent = row
 		local b = Instance.new("TextLabel")
@@ -313,7 +336,7 @@ return function(deps)
 		b.TextXAlignment = Enum.TextXAlignment.Left
 		b.TextYAlignment = Enum.TextYAlignment.Top
 		b.TextColor3 = SUBTLE
-		b.Text = "Sliders for music and effects, and Mute."
+		b.Text = S("settings.sound.blurb")
 		b.ZIndex = 21
 		b.Parent = row
 		local go = Instance.new("TextButton")
@@ -337,8 +360,40 @@ return function(deps)
 		end)
 	end
 
-	-- ===== Help =====
-	makeHeader("Help")
+	-- ===== Display =====
+	makeHeader("Display")
+	makeChoiceRow("animSpeed", "Animation Speed", S("settings.animSpeed.hint"), {
+		{ "normal", "Normal" },
+		{ "fast", "Fast" },
+	})
+	makeChoiceRow("performanceMode", "Performance Mode", S("settings.performanceMode.hint"), OFF_ON)
+	makeChoiceRow("roundHints", "Round Hints", S("settings.roundHints.hint"), { { false, "Off" }, { true, "On" } })
+	makeChoiceRow("confirmDiscard", "Confirm Before Discard", S("settings.confirmDiscard.hint"), OFF_ON)
+	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", S("settings.holdConfirm.hint"), {
+		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
+	})
+	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
+		local hint = Instance.new("TextLabel")
+		hint.Name = "KeysHint"
+		hint.Size = UDim2.new(1, -16, 0, 96)
+		hint.LayoutOrder = order()
+		hint.BackgroundTransparency = 1
+		hint.Font = Enum.Font.Merriweather
+		hint.TextSize = 15
+		hint.TextWrapped = true
+		hint.TextXAlignment = Enum.TextXAlignment.Left
+		hint.TextYAlignment = Enum.TextYAlignment.Top
+		hint.TextColor3 = SUBTLE
+		hint.TextTransparency = 0
+		hint.TextStrokeTransparency = 1
+		hint.Text = table.concat(require(game:GetService("ReplicatedStorage").Shared.Engine.TableKeyMap).hintLines(), "\n")
+		hint.ZIndex = 21
+		hint.Parent = scroll
+	end
+
+	-- ===== Account =====
+	makeHeader("Account")
+	makeChoiceRow("allowSpectators", "Allow Spectators", S("settings.allowSpectators.hint"), { { false, "Off" }, { true, "On" } })
 
 	-- Replay Tutorial: the 24 step walkthrough again (Skip is always on screen while it runs)
 	if deps.replayTutorial then
@@ -369,7 +424,7 @@ return function(deps)
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
 		blurb.TextYAlignment = Enum.TextYAlignment.Top
 		blurb.TextColor3 = SUBTLE
-		blurb.Text = "Walk through the first hands again. You can skip it at any time."
+		blurb.Text = S("settings.tutorial.blurb")
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local go = Instance.new("TextButton")
@@ -387,9 +442,11 @@ return function(deps)
 		polishButton(go, 8)
 		addButtonHoverScale(go)
 		go.MouseButton1Click:Connect(function()
-			playClickSfx()
-			settingsBackdrop.Visible = false
-			pcall(deps.replayTutorial)
+			-- a calm confirm first (Client/ReplayConfirm): replaying changes no saved progress
+			require(script.Parent.ReplayConfirm).ask(function()
+				settingsBackdrop.Visible = false
+				pcall(deps.replayTutorial)
+			end)
 		end)
 	end
 
@@ -421,7 +478,7 @@ return function(deps)
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
 		blurb.TextYAlignment = Enum.TextYAlignment.Top
 		blurb.TextColor3 = SUBTLE
-		blurb.Text = "Show the short tips again as you meet each part of the game."
+		blurb.Text = S("settings.hints.blurb")
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local replay = Instance.new("TextButton")
@@ -454,114 +511,6 @@ return function(deps)
 	end
 
 
-	-- Codes box: the typed text only goes to the server (Engine/Codes.lua), which answers with a toast
-	do
-		local row = Instance.new("Frame")
-		row.Name = "CodesRow"
-		row.Size = UDim2.new(1, 0, 0, 76)
-		row.LayoutOrder = order()
-		row.BackgroundTransparency = 1
-		row.ZIndex = 21
-		row.Parent = scroll
-		local title = Instance.new("TextLabel")
-		title.Size = UDim2.new(1, 0, 0, 22)
-		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.Merriweather
-		title.TextSize = 16
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.TextColor3 = TEXT
-		title.Text = "Codes"
-		title.ZIndex = 21
-		title.Parent = row
-		local box = Instance.new("TextBox")
-		box.Name = "CodeBox"
-		box.Size = UDim2.new(1, -130, 0, 44)
-		box.Position = UDim2.new(0, 0, 0, 26)
-		box.Font = Enum.Font.Merriweather
-		box.TextSize = 16
-		box.TextColor3 = TEXT
-		box.PlaceholderText = "Type a code"
-		box.PlaceholderColor3 = SUBTLE
-		box.Text = ""
-		box.ClearTextOnFocus = false
-		box.BackgroundColor3 = BUTTON
-		box.ZIndex = 21
-		box.Parent = row
-		polishButton(box, 8)
-		local redeem = Instance.new("TextButton")
-		redeem.Name = "Redeem"
-		redeem.Size = UDim2.new(0, 120, 0, 44)
-		redeem.AnchorPoint = Vector2.new(1, 0)
-		redeem.Position = UDim2.new(1, -4, 0, 26)
-		redeem.Font = Enum.Font.Merriweather
-		redeem.TextSize = 15
-		redeem.TextColor3 = TEXT
-		redeem.BackgroundColor3 = BUTTON
-		redeem.Text = "Redeem"
-		redeem.ZIndex = 21
-		redeem.Parent = row
-		polishButton(redeem, 8)
-		addButtonHoverScale(redeem)
-		local function send()
-			local text = box.Text
-			if #text < 3 then
-				return
-			end
-			playClickSfx()
-			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-			local remote = remotes and remotes:FindFirstChild("RedeemCode")
-			if remote then
-				remote:FireServer(text)
-			end
-			box.Text = ""
-			redeem.Text = "Sent"
-			task.delay(1.2, function()
-				if redeem.Parent then redeem.Text = "Redeem" end
-			end)
-		end
-		redeem.MouseButton1Click:Connect(send)
-		box.FocusLost:Connect(function(enterPressed)
-			if enterPressed then send() end
-		end)
-	end
-
-	-- ===== Display =====
-	makeHeader("Display")
-	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward owners get extra speed.", {
-		{ "normal", "Normal" },
-		{ "fast", "Fast" },
-	})
-	makeChoiceRow("performanceMode", "Performance Mode", "For slower devices: turns off the edge shading, soft glows and sparkles.", OFF_ON)
-
-	-- ===== Gameplay =====
-	makeHeader("Gameplay")
-	makeChoiceRow("roundHints", "Round Hints", "Short hint plates in the first rounds. Turn off to hide them.", { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
-	makeChoiceRow("allowSpectators", "Allow Spectators", "Friends in your server can watch your run. Turn off to stop them.", { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
-		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
-	})
-	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
-		local hint = Instance.new("TextLabel")
-		hint.Name = "KeysHint"
-		hint.Size = UDim2.new(1, -16, 0, 96)
-		hint.LayoutOrder = order()
-		hint.BackgroundTransparency = 1
-		hint.Font = Enum.Font.Merriweather
-		hint.TextSize = 15
-		hint.TextWrapped = true
-		hint.TextXAlignment = Enum.TextXAlignment.Left
-		hint.TextYAlignment = Enum.TextYAlignment.Top
-		hint.TextColor3 = SUBTLE
-		hint.TextTransparency = 0
-		hint.TextStrokeTransparency = 1
-		hint.Text = table.concat(require(game:GetService("ReplicatedStorage").Shared.Engine.TableKeyMap).hintLines(), "\n")
-		hint.ZIndex = 21
-		hint.Parent = scroll
-	end
-
-	-- ===== Account =====
-	makeHeader("Account")
 	local ACC = SettingsLayout.ACCOUNT
 	local function makeAccountRow()
 		local rowFrame = Instance.new("Frame")
@@ -614,6 +563,101 @@ return function(deps)
 	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
 	settingsMapButton.Name = "TavernMap"
 
+	-- Codes box: the typed text only goes to the server (Engine/Codes.lua), which answers with a toast
+	do
+		local row = Instance.new("Frame")
+		row.Name = "CodesRow"
+		row.Size = UDim2.new(1, 0, 0, SettingsLayout.CODES.rowH)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 22)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.Merriweather
+		title.TextSize = 16
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextColor3 = TEXT
+		title.Text = "Codes"
+		title.ZIndex = 21
+		title.Parent = row
+		local box = Instance.new("TextBox")
+		box.Name = "CodeBox"
+		box.Size = UDim2.new(1, -130, 0, SettingsLayout.CODES.boxH)
+		box.Position = UDim2.new(0, 0, 0, SettingsLayout.CODES.boxY)
+		box.Font = Enum.Font.Merriweather
+		box.TextSize = 16
+		box.TextColor3 = TEXT
+		box.PlaceholderText = "Type a code"
+		box.PlaceholderColor3 = SUBTLE
+		box.Text = ""
+		box.ClearTextOnFocus = false
+		box.BackgroundColor3 = BUTTON
+		box.ZIndex = 21
+		box.Parent = row
+		polishButton(box, 8)
+		local redeem = Instance.new("TextButton")
+		redeem.Name = "Redeem"
+		redeem.Size = UDim2.new(0, SettingsLayout.CODES.redeemW, 0, SettingsLayout.CODES.boxH)
+		redeem.AnchorPoint = Vector2.new(1, 0)
+		redeem.Position = UDim2.new(1, -4, 0, SettingsLayout.CODES.boxY)
+		redeem.Font = Enum.Font.Merriweather
+		redeem.TextSize = 15
+		redeem.TextColor3 = TEXT
+		redeem.BackgroundColor3 = BUTTON
+		redeem.Text = "Redeem"
+		redeem.ZIndex = 21
+		redeem.Parent = row
+		polishButton(redeem, 8)
+		if pcall(function() return require(script.Parent.TavernKit).setPlateButton(redeem, "primary") end) and redeem:GetAttribute("BasePiece") then
+			redeem.TextColor3 = Color3.fromRGB(250, 240, 220) -- the equipped Card Set's green plate; classic keeps the flat button
+		end
+		addButtonHoverScale(redeem)
+		local msg = Instance.new("TextLabel")
+		msg.Name = "CodeMessage"
+		msg.Size = UDim2.new(1, 0, 0, SettingsLayout.CODES.msgH)
+		msg.Position = UDim2.new(0, 0, 0, SettingsLayout.CODES.msgY)
+		msg.BackgroundTransparency = 1
+		msg.Font = Enum.Font.Merriweather
+		msg.TextSize = SettingsLayout.CODES.msgSize
+		msg.TextXAlignment = Enum.TextXAlignment.Left
+		msg.TextColor3 = SUBTLE
+		msg.TextTransparency, msg.TextStrokeTransparency = 0, 1
+		msg.Text = ""
+		msg.ZIndex = 21
+		msg.Parent = row
+		local function say(text)
+			msg.Text = text
+			task.delay(4, function()
+				if msg.Parent and msg.Text == text then msg.Text = "" end
+			end)
+		end
+		local function send()
+			local text = box.Text
+			if #text < SettingsLayout.CODES.minLen then
+				say(SettingsLayout.CODES_SHORT)
+				return
+			end
+			playClickSfx()
+			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+			local remote = remotes and remotes:FindFirstChild("RedeemCode")
+			if remote then
+				remote:FireServer(text)
+			end
+			box.Text = ""
+			say(SettingsLayout.CODES_SENT)
+			redeem.Text = "Sent"
+			task.delay(1.2, function()
+				if redeem.Parent then redeem.Text = "Redeem" end
+			end)
+		end
+		redeem.MouseButton1Click:Connect(send)
+		box.FocusLost:Connect(function(enterPressed)
+			if enterPressed then send() end
+		end)
+	end
+
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
 		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
@@ -624,21 +668,46 @@ return function(deps)
 
 	-- ===== About: game name with version and a one line thanks (Engine/GameName), no links =====
 	makeHeader("About")
-	for i, line in ipairs(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName")).aboutLines()) do
-		local about = Instance.new("TextLabel")
-		about.Name = "AboutLine" .. i
-		about.Size = UDim2.new(1, 0, 0, i == 1 and 26 or 44)
-		about.LayoutOrder = order()
-		about.BackgroundTransparency = 1
-		about.Font = Enum.Font.Merriweather
-		about.TextSize = 16
-		about.TextWrapped = true
-		about.TextXAlignment = Enum.TextXAlignment.Left
-		about.TextYAlignment = Enum.TextYAlignment.Top
-		about.TextColor3 = TEXT
-		about.Text = line
-		about.ZIndex = 21
-		about.Parent = scroll
+	do
+		-- the About card wears the equipped Card Set: fill, gold edge and cream ink at 7:1 (PopupSkin.dark); classic keeps dark wood and gold
+		local GameName = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName"))
+		local card = Instance.new("Frame")
+		card.Name = "AboutPanel"
+		card.Size = UDim2.new(1, 0, 0, GameName.aboutPanelHeight())
+		card.LayoutOrder = order()
+		card.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+		card.BorderSizePixel = 0
+		card.ZIndex = 21
+		card.Parent = scroll
+		local cc = Instance.new("UICorner")
+		cc.CornerRadius = UDim.new(0, 8)
+		cc.Parent = card
+		local cs = Instance.new("UIStroke")
+		cs.Color = HEADER
+		cs.Thickness = 1.5
+		cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cs.Parent = card
+		local labels = {}
+		local y = GameName.ABOUT.PAD
+		for i, line in ipairs(GameName.aboutLines()) do
+			local about = Instance.new("TextLabel")
+			about.Name = "AboutLine" .. i
+			about.Size = UDim2.new(1, -GameName.ABOUT.PAD * 2, 0, GameName.ABOUT.LINE_H[i] or 26)
+			about.Position = UDim2.fromOffset(GameName.ABOUT.PAD, y)
+			y = y + (GameName.ABOUT.LINE_H[i] or 26)
+			about.BackgroundTransparency = 1
+			about.Font = Enum.Font.Merriweather
+			about.TextSize = 16
+			about.TextWrapped = true
+			about.TextXAlignment = Enum.TextXAlignment.Left
+			about.TextYAlignment = Enum.TextYAlignment.Top
+			about.TextColor3 = TEXT
+			about.Text = line
+			about.ZIndex = 22
+			about.Parent = card
+			labels[#labels + 1] = { about, TEXT }
+		end
+		pcall(function() require(script.Parent.PopupSkin).dark(card, cs, labels, { plate = Color3.fromRGB(40, 30, 22), edge = HEADER }) end)
 	end
 
 	local settingsCloseButton = Instance.new("TextButton")
@@ -733,6 +802,9 @@ return function(deps)
 	require(script.Parent.QuitConfirm).install({
 		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
 		polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
+	})
+	require(script.Parent.ReplayConfirm).install({
+		screenGui = deps.screenGui, polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
 	})
 	OverlayManager.registerOpener("quitToTavern", function()
 		require(script.Parent.QuitConfirm).ask()

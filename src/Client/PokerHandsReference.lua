@@ -130,7 +130,7 @@ return function(deps)
 	studs(panel, Z + 1)
 	deps.addSoftShadow(panel, 18)
 
-	text(panel, { text = "Poker Hands", size = 28, color = GOLD, align = Enum.TextXAlignment.Center,
+	local handsTitle = text(panel, { text = "Poker Hands", size = 28, color = GOLD, align = Enum.TextXAlignment.Center,
 		position = UDim2.new(0, 120, 0, 8), sizeUdim = UDim2.new(1, -240, 0, 36) })
 
 	local function plaqueButton(label, position, anchor)
@@ -162,6 +162,11 @@ return function(deps)
 	end
 	local backButton = plaqueButton("< Back", UDim2.fromOffset(14, 10), Vector2.new(0, 0))
 	local closeButton = plaqueButton("Close", UDim2.new(1, -14, 0, 10), Vector2.new(1, 0))
+
+	pcall(function() -- the equipped Card Set's panel colours and gold title (7:1); classic keeps the wood panel
+		local pStroke = panel:FindFirstChildOfClass("UIStroke")
+		require(script.Parent.PopupSkin).dark(panel, pStroke, { { handsTitle, GOLD } }, { plate = WOOD, edge = pStroke and pStroke.Color })
+	end)
 
 	local listFrame = Instance.new("ScrollingFrame")
 	listFrame.Name = "HandList"
@@ -392,6 +397,7 @@ return function(deps)
 		detail.Size = UDim2.fromOffset(L.detail.w, L.detail.h)
 	end
 
+	local seenLevels = nil -- { [hand] = level } at the last refresh, so a level up since then can flash
 	local function refresh()
 		applyLayout()
 		local state = getLatestState()
@@ -408,6 +414,27 @@ return function(deps)
 		paintSelection()
 		paintDetail()
 		applyHighlight(HandHighlight.get())
+		-- a hand that levelled up since the last open flashes its edge once in the Card Set accent (gold on classic); Calm shows the accent edge still
+		local ups, now = HandLedger.levelUps(seenLevels, ledger.rows)
+		seenLevels = now
+		local accent = GOLD
+		pcall(function()
+			local st = require(Engine:WaitForChild("CosmeticSets")).hintStyleOf(require(script.Parent.TavernKit).plateSetId())
+			if st then accent = Color3.fromRGB(st.edge[1], st.edge[2], st.edge[3]) end
+		end)
+		for name in pairs(ups) do
+			local b = rowFrames[name]
+			local stroke = b and b:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				stroke.Color = accent
+				if not calm() then
+					stroke.Thickness = 5
+					local t = TweenService:Create(stroke, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Thickness = 1.5 })
+					t:Play()
+					table.insert(pulses, t)
+				end
+			end
+		end
 	end
 
 	-- ===== Open / close =====

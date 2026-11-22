@@ -36,7 +36,7 @@ local function startShimmer(thumb, strip, isActive)
 	task.spawn(function()
 		task.wait(math.random() * 2) -- desync tiles
 		while thumb.Parent do
-			if not isActive or isActive() then
+			if (not isActive or isActive()) and require(script.Parent.ClientSettings).motionAllowed() then -- Calm and Reduce motion: no shimmer
 				strip.Position = UDim2.fromScale(-0.4, 0.5)
 				strip.BackgroundTransparency = 0.75
 				local sweep = TweenService:Create(strip, TweenInfo.new(0.7, Enum.EasingStyle.Sine), {

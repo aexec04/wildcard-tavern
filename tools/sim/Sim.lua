@@ -202,6 +202,7 @@ local function scorePlay(state, hand, combo, patrons)
 		handLevels = state.handLevels,
 		ownedPatronSpecials = state.ownedPatronSpecials,
 		debuff = boss and boss.debuff,
+		firstCardOut = boss and boss.firstCardOut, patronChipsFactor = boss and boss.patronChipsFactor,
 		tips = state.tips,
 		alreadyPlayedThisHandTypeThisRound = alreadyPlayed,
 		handsRemaining = handsLeft,
@@ -1055,6 +1056,14 @@ function Sim.shopVisit(state, cfg, rng, rec)
 		offers = E.Shop.rollOffers(state)
 		rec.rerolls = rec.rerolls + 1
 	end
+	if cfg.marks == 1 and offers.mark then -- the bot marks an Ace with leftover Tips only, after Patrons and packs (--marks 1)
+		local M = E.loadEngineModule("Marks")
+		if state.tips - cfg.bank >= M.price(state) + RICH_MARGIN then -- only a real surplus; Tips also buy Patrons
+			for _, suit in ipairs(E.Card.Suits) do
+				if M.buy(state, offers.mark, 14, suit) then break end
+			end
+		end
+	end
 end
 
 -- ===== One run =====
@@ -1101,6 +1110,7 @@ function Sim.runOne(cfg, seed)
 
 	local state = E.RunState.new({
 		deckVariantId = cfg.deck,
+		startingDeckId = cfg.startDeck,
 		difficultyId = cfg.difficulty,
 		nightOneBonusDiscards = cfg.nightOneDiscards,
 		stakeId = cfg.stake,

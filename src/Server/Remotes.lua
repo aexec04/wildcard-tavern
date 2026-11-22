@@ -50,6 +50,7 @@ Rem.PreviewMode = newRemote("PreviewMode") -- (player, on boolean): Card Set Pre
 Rem.DebugGrantPatrons = newRemote("DebugGrantPatrons") -- STUDIO ONLY (ignored elsewhere): (player, n 0..8) seats n different Patrons through RunState.grantPatron, for DebugGoto patrons:<n>
 Rem.DebugSetTag = newRemote("DebugSetTag") -- STUDIO ONLY (ignored elsewhere): (player, tagId) makes that Tag the current round's skip Tag, for DebugGoto round1:tag=<id>
 Rem.DebugSetMod = newRemote("DebugSetMod") -- STUDIO ONLY (ignored elsewhere): (player, modId, report) makes the open blessing draft offer modId (report=true prints the applied numbers instead), for DebugGoto round1:mod=<id>
+Rem.DebugEquipSet = newRemote("DebugEquipSet") -- STUDIO ONLY (ignored elsewhere): (player, setId) equips that Card Set without the ownership check, for DebugGoto equip:<setId>
 Rem.DebugSetTarget =newRemote("DebugSetTarget") -- STUDIO ONLY (ignored elsewhere): (player, n) sets the current round target, for DebugGoto playhand:keep
 Rem.SetSetting = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 Rem.MarkTutorialSeen = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
@@ -62,6 +63,8 @@ Rem.Stranger = newRemote("Stranger") -- (player, action "accept"|"decline"): the
 Rem.BuyPack = newRemote("BuyPack")       -- (player, packId)
 Rem.ResolvePack = newRemote("ResolvePack") -- (player, chosenIds)
 Rem.BuyHousePass = newRemote("BuyHousePass") -- (player, passId)
+Rem.BuyMark = newRemote("BuyMark") -- (player, markId, rank, suit)
+Rem.MapEvent = newRemote("MapEvent") -- (player, "shrine") or (player, "market", markId, rank, suit): Engine/MapEvents
 Rem.AdvanceRound = newRemote("AdvanceRound")
 -- ROUND SELECT FEATURE: fired from Client/RoundSelect.lua, the screen
 -- shown whenever phase == "roundSelect" (start of a run, and every time

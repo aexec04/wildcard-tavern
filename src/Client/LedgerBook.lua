@@ -30,6 +30,7 @@ function LedgerBook.build(deps, desk)
 	local Stakes = require(Engine:WaitForChild("Stakes"))
 	local Patrons = require(Engine:WaitForChild("Patrons"))
 	local Achievements = require(Engine:WaitForChild("Achievements"))
+	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local Cue = require(script.Parent.Cue)
@@ -42,6 +43,18 @@ function LedgerBook.build(deps, desk)
 	local WIN_INK = Color3.fromRGB(176, 48, 40)
 	local LOSS_INK = Color3.fromRGB(70, 96, 150)
 	local Z = 42
+	-- the equipped Card Set's desk, leather, bookmark ribbons and run rows (CosmeticSets.ledgerStyleOf); nil for classic
+	local function ledgerSkin()
+		local out
+		pcall(function()
+			local st = require(Engine:WaitForChild("CosmeticSets")).ledgerStyleOf(require(script.Parent.TavernKit).plateSetId())
+			if st then
+				out = {}
+				for k, v in pairs(st) do out[k] = Color3.fromRGB(v[1], v[2], v[3]) end
+			end
+		end)
+		return out
+	end
 	local MODE_TAGS = { daily = "Daily", weekly = "Weekly", seed = "Seed", challenge = "Twist", rush = "Rush", quick = "Quick" }
 
 	local function calm() return ClientSettings.get("reduceShake") == true end
@@ -97,8 +110,9 @@ function LedgerBook.build(deps, desk)
 	-- ===== desk and book =====
 	local deskTop = piece(desk, { Name = "LedgerDesk", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(58, 38, 24) }, 14)
 	do
+		local ls = ledgerSkin()
 		local g = Instance.new("UIGradient") -- Color stops only
-		g.Color = ColorSequence.new(Color3.fromRGB(86, 58, 36), Color3.fromRGB(36, 24, 16))
+		g.Color = ColorSequence.new(ls and ls.deskTop or Color3.fromRGB(86, 58, 36), ls and ls.deskFoot or Color3.fromRGB(36, 24, 16))
 		g.Rotation = 90
 		g.Parent = deskTop
 	end
@@ -158,7 +172,7 @@ function LedgerBook.build(deps, desk)
 		ar.Parent = holder
 	end
 	piece(holder, { Name = "ContactShadow", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1.0), Size = UDim2.fromScale(1.06, 0.06), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.65, Active = false }, 40)
-	local book = piece(holder, { Name = "Book", Size = UDim2.fromScale(1, 1), BackgroundColor3 = LEATHER, ZIndex = Z + 1 }, 10)
+	local book = piece(holder, { Name = "Book", Size = UDim2.fromScale(1, 1), BackgroundColor3 = (ledgerSkin() or { leather = LEATHER }).leather, ZIndex = Z + 1 }, 10)
 	local bookStroke = stroke(book, BRASS, 3)
 	-- The painted open book is the page surface: its leather and pages show through, and the page frames below are
 	-- transparent (text is written straight onto the paper). Without the art the drawn leather, cream pages and spine show.
@@ -370,7 +384,7 @@ function LedgerBook.build(deps, desk)
 		for i, line in ipairs(Pages.lifeLines(stats, titleDef and titleDef.title or nil)) do leader("right", 5 + i, line.label, line.value) end
 	end
 
-	local function hallLeft(stats)
+	local function hallLeft(stats, state)
 		heading("left", "Hall of Fame")
 		local sz = metrics()
 		local bests = Pages.bests(stats.recent, Pages.BESTS_SHOWN)
@@ -393,6 +407,11 @@ function LedgerBook.build(deps, desk)
 			stamp(note, UDim2.new(1, -(stampSize + 4), 0.5, -stampSize // 2), e.won, stampSize)
 		end
 		if #bests == 0 then emptyNote("left") end
+		-- favourites on the two ruled lines left under the three notes
+		local top = Pages.mostPlayedPatron(stats.recent)
+		local patronDef = top and Patrons.getById(top.id)
+		local setDef = state and state.cosmetics and CosmeticSets.getById(state.cosmetics.equippedSetId)
+		for i, line in ipairs(Pages.favoriteLines(stats, patronDef and patronDef.name, setDef and setDef.name)) do leader("left", 7 + i, line.label, line.value) end
 	end
 
 	local function hallRight(stats)
@@ -439,7 +458,9 @@ function LedgerBook.build(deps, desk)
 		local rowH = math.max(44, math.floor(sz.spacing * 1.5))
 		local open = expandedOrder == order
 		local row0 = piece(listParent, { Name = "Run_" .. order, LayoutOrder = order, Size = UDim2.new(1, -8, 0, open and (rowH + 100) or rowH), BackgroundColor3 = open and Color3.fromRGB(232, 214, 172) or Color3.fromRGB(238, 222, 184), ClipsDescendants = true }, 6)
-		stroke(row0, entry.won and BRASS or Color3.fromRGB(190, 170, 130), 1.5)
+		local ls = ledgerSkin()
+		if ls then row0.BackgroundColor3 = open and ls.rowOpen or ls.row end
+		stroke(row0, entry.won and (ls and ls.edge or BRASS) or Color3.fromRGB(190, 170, 130), 1.5)
 		local hit = Instance.new("TextButton")
 		hit.Size = UDim2.new(1, 0, 0, rowH)
 		hit.BackgroundTransparency = 1
@@ -542,7 +563,7 @@ function LedgerBook.build(deps, desk)
 			return
 		end
 		if side == "left" then
-			if pageIndex == 1 then storyLeft(stats) elseif pageIndex == 2 then hallLeft(stats) else recordsLeft(stats) end
+			if pageIndex == 1 then storyLeft(stats) elseif pageIndex == 2 then hallLeft(stats, state) else recordsLeft(stats) end
 		else
 			if pageIndex == 1 then storyRight(stats, state) elseif pageIndex == 2 then hallRight(stats) else recordsRight(stats) end
 		end
@@ -555,10 +576,11 @@ function LedgerBook.build(deps, desk)
 	-- the open page's ribbon sticks out a little further and is brighter; the ribbons hang off the right edge of the book
 	local T = Layout.TABS
 	local function paintTabs()
+		local ls = ledgerSkin()
 		for i, b in ipairs(tabButtons) do
 			local on = i == pageIndex
-			b.BackgroundColor3 = on and Color3.fromRGB(150, 44, 44) or Color3.fromRGB(108, 34, 34)
-			b.TextColor3 = on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(224, 196, 168)
+			b.BackgroundColor3 = ls and (on and ls.tabOn or ls.tabOff) or (on and Color3.fromRGB(150, 44, 44) or Color3.fromRGB(108, 34, 34))
+			b.TextColor3 = ls and ls.tabInk or (on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(224, 196, 168))
 			b.Size = UDim2.fromScale(T.w + (on and 0.012 or 0), T.h)
 			b.Position = UDim2.fromScale(T.x, T.y + (i - 1) * T.step)
 		end

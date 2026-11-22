@@ -34,7 +34,7 @@ local function build(layer)
 	plate.ZIndex = 30
 	plate.Parent = layer
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = plate
-	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate
+	local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = 2; st.Parent = plate; local plateStroke = st
 	pcall(function() require(script.Parent.TavernKit).painted(plate, "wh_target") end) -- painted frame, flat plate if it does not load
 	local function line(name, y, size, color)
 		local t = Instance.new("TextLabel")
@@ -53,6 +53,10 @@ local function build(layer)
 	end
 	line1 = line("Line1", 0, 18, Color3.fromRGB(255, 244, 214))
 	line2 = line("Line2", 0.5, 15, Color3.fromRGB(235, 218, 180))
+	pcall(function() -- equipped Card Set ink and plate at 7:1, classic unchanged
+		require(script.Parent.HintSkin).bind(plate, plateStroke, { line1, line2 }, {
+			plate = plate.BackgroundColor3, edge = GOLD, ink = Color3.fromRGB(255, 244, 214) })
+	end)
 	outline = Instance.new("UIStroke")
 	outline.Name = "GuidedOutline"
 	outline.Color = GOLD
@@ -87,6 +91,7 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
 		M.hide()
 		return
 	end
+	if line1.Text ~= hint.line1 then pcall(function() require(script.Parent.Cue).play("chip", 0.8) end) end -- a new guided line ticks softly (it used to appear silently)
 	plate.Visible = true
 	line1.Text, line2.Text = hint.line1, hint.line2
 	local pr = Guided.plateRect(r, layer.AbsoluteSize.Y)

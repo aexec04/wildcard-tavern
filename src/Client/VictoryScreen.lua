@@ -103,7 +103,10 @@ local function plateButton(parent, name, r, label, size, z, onClick)
 	holder.Size = UDim2.fromOffset(r.w, r.h)
 	holder.ZIndex = z
 	holder.Parent = parent
-	placeArt(holder, "Plate", "victory_button", { x = 0, y = 0, w = r.w, h = r.h }, z)
+	-- the equipped Card Set's own plate when it has one (same family as the table buttons); classic keeps the purple plate
+	local kit = require(script.Parent.TavernKit)
+	local setPiece = Style.resultPlate("primary", r.w, r.h, kit.plateSetId())
+	if not setPiece then placeArt(holder, "Plate", "victory_button", { x = 0, y = 0, w = r.w, h = r.h }, z) end
 	local b = Instance.new("TextButton")
 	b.Name = "Press"
 	b.BackgroundTransparency = 1
@@ -118,6 +121,10 @@ local function plateButton(parent, name, r, label, size, z, onClick)
 	b.ZIndex = z + 1
 	b.Parent = holder
 	b.MouseButton1Click:Connect(onClick)
+	if setPiece then
+		b:SetAttribute("PaintW", r.w); b:SetAttribute("PaintH", r.h)
+		pcall(function() kit.painted(b, setPiece) end)
+	end
 	return b
 end
 
@@ -139,6 +146,12 @@ local function baseScene(screenGui, w, h, mode)
 		bg.Size = UDim2.fromScale(1, 1)
 		bg.Image = Art.victory_backdrop
 		bg.ScaleType = Enum.ScaleType.Crop
+		pcall(function() -- the room picture wears 25 percent of the equipped Card Set's hue (classic unchanged)
+			local TS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
+			local skin = require(script.Parent.HudTheme).skin()
+			local t = TS.washTint(TS.effectiveSetId(skin and skin.id, nil), TS.RESULT_WASH_TINT)
+			if t then bg.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3]) end
+		end)
 		bg.ZIndex = 62
 		bg.Parent = gui
 	end
@@ -219,19 +232,20 @@ function M.show(screenGui, lines)
 	local sm = parchment(gui, "Summary", L.summary, zc, s)
 	text(sm, "Heading", "Run Summary", Look.fontSize(26, s), INK, serif(), zc + 1, 0, math.floor(6 * s), L.summary.w, math.floor(36 * s))
 	local best = bestProvider and bestProvider() or nil
-	local rows = Look.summaryRows(summary, best)
+	local rows = Look.fitRows(Look.summaryRows(summary, best), size.X, size.Y)
 	local rowH = (L.summary.h - 48 * s) / #rows
 	for i, row in ipairs(rows) do
 		local y = 46 * s + (i - 1) * rowH
-		text(sm, "Row" .. i, row.label, Look.fontSize(22, s), INK, Enum.Font.GothamMedium, zc + 1, 14 * s, y, L.summary.w * 0.55, rowH, Enum.TextXAlignment.Left)
-		text(sm, "Val" .. i, row.value, Look.fontSize(22, s), INK, Enum.Font.GothamBold, zc + 1, L.summary.w * 0.5, y, L.summary.w * 0.5 - 14 * s, rowH, Enum.TextXAlignment.Right)
+		local rowFont = Look.rowSize(#rows)
+		text(sm, "Row" .. i, row.label, Look.fontSize(rowFont, s), INK, Enum.Font.GothamMedium, zc + 1, 14 * s, y, L.summary.w * 0.55, rowH, Enum.TextXAlignment.Left)
+		text(sm, "Val" .. i, row.value, Look.fontSize(rowFont, s), INK, Enum.Font.GothamBold, zc + 1, L.summary.w * 0.5, y, L.summary.w * 0.5 - 14 * s, rowH, Enum.TextXAlignment.Right)
 		if i < #rows then frame(sm, "Rule" .. i, { x = 14 * s, y = y + rowH - 1, w = L.summary.w - 28 * s, h = 1 }, zc + 1, PARCH_EDGE) end
 	end
 	local function close()
 		M.hide()
 	end
 	text(gui, "NextStep", Look.NEXT_RUN, Look.fontSize(Look.NEXT_SIZE, s), CREAM, Enum.Font.GothamMedium, zc + 2, L.nextStep.x, L.nextStep.y, L.nextStep.w, L.nextStep.h)
-	local btn = plateButton(gui, "Continue", L.button, "Continue", Look.fontSize(30, s), zc + 2, close)
+	local btn = plateButton(gui, "Continue", L.button, Look.CONTINUE_TEXT, Look.fontSize(Look.CONTINUE_SIZE, s), zc + 2, close)
 	btn.Parent.Name = "Continue"
 	-- Invite a friend (Roblox's own invite sheet only) and a plain text share line to copy
 	local inv = Instance.new("TextButton")
@@ -249,6 +263,7 @@ function M.show(screenGui, lines)
 	local ic = Instance.new("UICorner"); ic.CornerRadius = UDim.new(0, 10); ic.Parent = inv
 	local ist = Instance.new("UIStroke"); ist.Color = GOLD; ist.Thickness = 2; ist.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ist.Parent = inv
 	pcall(function() require(script.Parent.InvitePrompt).bind(inv) end)
+	pcall(function() require(script.Parent.PopupSkin).dark(inv, ist, { { inv, GOLD } }, { plate = PURPLE_DARK, edge = GOLD }) end) -- the equipped set's fill, edge and ink (7:1); classic keeps purple and gold
 	local shareBox = Instance.new("TextBox")
 	shareBox.Name = "ShareLine"
 	shareBox.Position = UDim2.fromOffset(L.share.x, L.share.y)
@@ -265,6 +280,7 @@ function M.show(screenGui, lines)
 	shareBox.Text = Look.shareLine(summary, best)
 	shareBox.ZIndex = zc + 2
 	shareBox.Parent = gui
+	pcall(function() require(script.Parent.PopupSkin).dark(shareBox, nil, { { shareBox, GOLD } }, { plate = PURPLE_DARK }) end)
 	local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, 8); sc.Parent = shareBox
 	shareBox.Focused:Connect(function()
 		shareBox.SelectionStart = 1
@@ -315,6 +331,7 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 		pick.Parent = card
 		local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pick
 		local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 2; ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ps.Parent = pick
+		pcall(function() require(script.Parent.PopupSkin).dark(pick, ps, { { pick, GOLD } }, { plate = PURPLE, edge = GOLD }) end)
 		pick.MouseButton1Click:Connect(function() if onPick then onPick(option.id) end end)
 	end
 	if choice.skip then

@@ -48,6 +48,9 @@ EmptyStates.Screens = {
 	badges = "Your first badge is waiting to be earned.",
 	titles = "Earn a title and it will hang here.",
 	season = "The season board is not up yet.",
+	twistNone = "No twist today. Enjoy a normal Daily.",
+	twistFailed = "Today's twist is hiding. Try again soon.",
+	bossUnknown = "Boss rule: a surprise waits at the end.",
 }
 
 function EmptyStates.screenLine(key)

@@ -292,6 +292,13 @@ SeasonTrack.TILE_W, SeasonTrack.TILE_GAP, SeasonTrack.TILES_VISIBLE = 128, 12, 1
 -- Whole tiles only: narrow screens show fewer tiles; short screens scale the panel down (never below 0.8).
 SeasonTrack.BUTTON_H = 44
 SeasonTrack.TILE_H, SeasonTrack.PREMIUM_H, SeasonTrack.PANEL_EXTRA_H = 170, 118, 194
+-- Claim All and Premium plate height in panel pixels that still measures 44 px on screen after the panel shrinks by `scale`, and its top
+-- (56, or higher when the plate grows so it stays 2 px clear of the track at 104).
+function SeasonTrack.touchH(scale)
+	return math.max(SeasonTrack.BUTTON_H, math.ceil(SeasonTrack.BUTTON_H / math.max(0.01, scale or 1) - 0.0001))
+end
+function SeasonTrack.buttonTop(bh) return math.min(56, 102 - bh) end
+
 function SeasonTrack.fit(viewW, viewH, hasPremium)
 	local step = SeasonTrack.TILE_W + SeasonTrack.TILE_GAP
 	local availW = math.floor(viewW * 0.94) - 30

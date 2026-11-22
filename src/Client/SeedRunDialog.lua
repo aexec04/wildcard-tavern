@@ -142,6 +142,19 @@ return function(deps)
 	seedCancelButton.Parent = seedPanel
 	polishButton(seedCancelButton, 10)
 
+	-- the equipped Card Set's panel colours and ink (7:1) and button plates; classic keeps the wood panel
+	local seedSkin
+	pcall(function()
+		local pStroke = seedPanel:FindFirstChildOfClass("UIStroke")
+		seedSkin = require(script.Parent.PopupSkin).dark(seedPanel, pStroke,
+			{ { seedTitleLabel, Color3.fromRGB(250, 240, 220) }, { seedHintLabel, Color3.fromRGB(200, 185, 165) } },
+			{ plate = Color3.fromRGB(40, 30, 22), edge = pStroke and pStroke.Color })
+		local Kit = require(script.Parent.TavernKit)
+		Kit.setPlateButton(seedStartButton, "primary")
+		Kit.setPlateButton(seedRollButton, "secondary")
+		Kit.setPlateButton(seedCancelButton, "secondary")
+	end)
+
 	addButtonHoverScale(seedRollButton)
 	addButtonHoverScale(seedStartButton)
 	addButtonHoverScale(seedCancelButton)
@@ -193,6 +206,7 @@ return function(deps)
 		seedCodeBox.Text = ""
 		seedHintLabel.Text = "Type a 6 character code from a friend, or roll one to send them. Same code, same run."
 		seedHintLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
+		if seedSkin then seedSkin() end
 		popIn(seedBackdrop, seedPanel)
 	end
 

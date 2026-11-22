@@ -113,6 +113,12 @@ local function buildCard(choice, option, order)
 	paper.Rotation = 90
 	paper.Color = ColorSequence.new(Color3.fromRGB(246, 232, 198), Color3.fromRGB(228, 210, 172))
 	paper.Parent = card
+	if not isDecline then -- the equipped Card Set's paper tint and edge (dark ink stays 7:1); classic keeps the warm parchment
+		pcall(function()
+			require(script.Parent.PopupSkin).paper(card, paper, stroke, {},
+				{ top = Color3.fromRGB(246, 232, 198), bottom = Color3.fromRGB(228, 210, 172), edge = GOLD })
+		end)
+	end
 	-- a slight tilt, a different one per card (1 to 2 degrees); the decline card stands straight
 	local TILTS = { -1.5, 1.0, -0.5, 1.5, -1.0 }
 	card.Rotation = isDecline and 0 or TILTS[(order - 1) % #TILTS + 1]
@@ -132,6 +138,15 @@ local function buildCard(choice, option, order)
 	woodEdge.Thickness = 2
 	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	woodEdge.Parent = woodFrame
+	if not isDecline then -- the equipped Card Set's plate family frames the pick card (rarity gem, rim and name plate keep their tier colours)
+		pcall(function()
+			local ink = require(script.Parent.SetInk).get()
+			if ink then
+				woodFrame.BackgroundColor3 = ink.plate
+				woodEdge.Color = ink.accent
+			end
+		end)
+	end
 	for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
 		local stud = Instance.new("Frame")
 		stud.Name = "WoodStud" .. i
@@ -514,6 +529,11 @@ function ChoicePanel.init(deps)
 	textStroke.Thickness = 1
 	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	textStroke.Parent = text
+	pcall(function() -- the title and note plates wear the equipped Card Set's panel colours and ink (7:1)
+		local PS = require(script.Parent.PopupSkin)
+		PS.dark(titlePlaque, plaqueStroke, { { title, CREAM } }, { plate = WOOD, edge = GOLD })
+		PS.dark(text, textStroke, { { text, CREAM } }, { plate = WOOD, edge = GOLD })
+	end)
 
 	local row = Instance.new("Frame")
 	row.Name = "Row"

@@ -111,6 +111,16 @@ Card.Stamps = {
 	},
 }
 
+-- ===== Marks (run depth) =====
+-- One small mark a deck card can carry for the rest of the run, bought at the Counter with Tips only (Engine/Marks.lua).
+-- Separate from Garnish, Special and Stamp, so a card can wear one of each. Pure data read by Scoring.
+Card.Marks = {
+	gilded = { name = "Gilded", icon = "G", description = "+30 Chips when this card scores.", chips = 30 },
+	lucky = { name = "Lucky", icon = "L", description = "+4 Mult when this card scores.", mult = 4 },
+	lively = { name = "Lively", icon = "V", description = "x1.2 Mult when this card scores.", xmult = 1.2 },
+}
+Card.MarkOrder = { "gilded", "lucky", "lively" }
+
 function Card.new(rank, suit, opts)
 	assert(type(rank) == "number" and rank >= 2 and rank <= 14, "Card rank must be 2-14")
 	assert(table.find(Card.Suits, suit) ~= nil, "Card suit must be one of Card.Suits")
@@ -121,6 +131,7 @@ function Card.new(rank, suit, opts)
 		garnish = opts.garnish, -- id into Card.Garnishes, or nil
 		special = opts.special, -- id into Card.Specials, or nil
 		stamp = opts.stamp,     -- id into Card.Stamps, or nil
+		mark = opts.mark,       -- id into Card.Marks, or nil
 	}
 end
 

@@ -37,7 +37,7 @@ function SidebarSlide.setReason(root, width, reason, hidden)
 		if inst then
 			local x = (name == "EdgeShadow") and width or 0
 			local target = UDim2.new(0, hide and (x - width - 40) or x, 0, 0)
-			if hide then
+			if hide or not require(script.Parent.ClientSettings).motionAllowed() then
 				inst.Position = target
 			else
 				TweenService:Create(inst, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),

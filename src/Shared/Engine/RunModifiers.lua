@@ -45,6 +45,21 @@ RunModifiers.Definitions = {
 		blessing = "1 more Patron seat", curse = "Rounds pay 1 less Tip",
 		config = { patronSlotLimit = 1, tipsPerRoundWin = -1 },
 	},
+	{
+		id = "spare_chair", name = "Spare Chair", icon = "💺",
+		blessing = "1 more Patron seat", curse = "Boss targets are 8% higher",
+		config = { patronSlotLimit = 1 }, rules = { bossTargetPct = 8 },
+	},
+	{
+		id = "extra_hand", name = "Extra Hand", icon = "✋",
+		blessing = "+1 Hand every round", curse = "Rounds pay 2 less Tips",
+		config = { handsPerRound = 1, tipsPerRoundWin = -2 },
+	},
+	{
+		id = "lucky_penny", name = "Lucky Penny", icon = "🍀",
+		blessing = "+1 Discard and +3 Tips now", curse = "1 fewer Hand every round",
+		tips = 3, config = { discardsPerRound = 1, handsPerRound = -1 },
+	},
 }
 
 function RunModifiers.getById(id)

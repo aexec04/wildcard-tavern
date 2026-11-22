@@ -11,6 +11,8 @@
 	PackReveal.keepWord(category, kept) -> "Seat" / "Seated" for Patrons, "Keep" / "Kept" for everything else
 ]]
 
+local CosmeticSets = require(script.Parent.CosmeticSets)
+
 local M = {}
 
 M.SHAKE_SECONDS = 0.4
@@ -78,6 +80,17 @@ end
 -- The mark under a face-up card: Owned when you already hold it this run, New when you do not.
 function M.markWord(owned)
 	return owned and "Owned" or "New"
+end
+
+-- The set look of the reveal: the plate edge (pill, face down back, Tap plate) takes the equipped Card Set accent, and a card of
+-- Rare or above gets a soft accent glow when it turns face up. Calm mode and Reduce motion get the edge and never a glow.
+-- The accent is lightened until it keeps 3:1 on the dark wood, gold for classic or an unknown set.
+function M.look(setId, rarity, calm)
+	local look = { edge = CosmeticSets.focusRingOf(setId) }
+	if not calm and M.isStrong(rarity) then
+		look.glow = { color = look.edge, seconds = 0.5 }
+	end
+	return look
 end
 
 function M.keepWord(category, kept)

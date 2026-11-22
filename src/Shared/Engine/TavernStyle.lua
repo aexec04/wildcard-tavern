@@ -245,6 +245,18 @@ M.SET_PLATES = {
 	riverside_evening = { wh_btn_dark = "river_wh_btn_dark", wh_btn_green = "river_wh_btn_green" },
 	summit_camp = { wh_btn_dark = "summit_wh_btn_dark", wh_btn_green = "summit_wh_btn_green" },
 }
+-- The plate a result screen button (Victory Continue, Skip) wears: the equipped Card Set's own plate when it has one, nil for classic or a set
+-- without plates (the screen keeps its own purple plate then). Primary is the green family, secondary the dark one.
+function M.resultPlate(kind, w, h, setId)
+	if not (setId and M.SET_PLATES[setId]) then return nil end
+	return M.setPiece(kind == "secondary" and "wh_btn_dark" or "wh_btn_green", setId) -- always the finished whole picture: a result button is near 2.7 wide for 1
+end
+
+-- The plate a tab wears: the lit tab is the set's green plate, the others its dark one; nil for classic (tabs keep their flat browns).
+function M.tabPlate(active, setId)
+	return M.resultPlate(active and "primary" or "secondary", 0, 0, setId)
+end
+
 -- A set's hue for a classic plate picture it has no own art for (Tips, Next boss, round buttons): white pulled toward the set accent
 -- and multiplied over the picture. nil for classic or an unknown set, so classic is untouched. Light enough to keep gold trim readable.
 function M.isSetPiece(piece)

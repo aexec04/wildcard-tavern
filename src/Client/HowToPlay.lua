@@ -91,6 +91,7 @@ return function(deps)
 	howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	howToPlayPanel.ZIndex = Z
 	howToPlayPanel.Parent = howToPlayBackdrop
+	require(script.Parent.TitleBand).attach(howToPlayPanel, { height = 40 })
 	polishPanel(howToPlayPanel, 16, "parchment")
 	addSoftShadow(howToPlayPanel, 18)
 	-- Notice-board art; the dark scrim sits behind the text area so cream text stays readable.
@@ -350,7 +351,7 @@ return function(deps)
 		}
 		local currentPage = 1
 
-		local function makeNavButton(text, w)
+		local function makeNavButton(text, w, kind)
 			local b = Instance.new("TextButton")
 			b.Size = UDim2.new(0, w, 0, 42)
 			b.AnchorPoint = Vector2.new(0, 0)
@@ -363,16 +364,18 @@ return function(deps)
 			b.Parent = howToPlayPanel
 			polishButton(b, 10)
 			addButtonHoverScale(b)
+			-- the equipped Card Set's plate (Next green, Back and Replay dark); classic keeps the flat buttons
+			if pcall(function() return require(script.Parent.TavernKit).setPlateButton(b, kind) end) and b:GetAttribute("BasePiece") then b.TextColor3 = CREAM end
 			return b
 		end
 		local navY = TITLE_H + BODY_H + 11
-		local howToPlayBackButton = makeNavButton("Back", 130)
+		local howToPlayBackButton = makeNavButton("Back", 130, "secondary")
 		howToPlayBackButton.Position = UDim2.new(0, PAD, 0, navY)
-		local howToPlayCloseButton = makeNavButton("Next", 130) -- becomes "Got it" on the last page
+		local howToPlayCloseButton = makeNavButton("Next", 130, "primary") -- becomes "Got it" on the last page
 		howToPlayCloseButton.Position = UDim2.new(1, -PAD - 130, 0, navY)
 
 		-- "Replay tutorial" sits in the middle of the nav row on the last page.
-		local replayButton = makeNavButton("Replay tutorial", 190)
+		local replayButton = makeNavButton("Replay tutorial", 190, "secondary")
 		replayButton.Position = UDim2.new(1, -PAD - 130 - 12 - 190, 0, navY)
 		replayButton.Visible = false
 		replayButton.MouseButton1Click:Connect(function()
@@ -392,6 +395,8 @@ return function(deps)
 		pageIndicator.TextColor3 = Color3.fromRGB(235, 225, 210)
 		pageIndicator.ZIndex = Z
 		pageIndicator.Parent = howToPlayPanel
+		-- panel fill, title and page line wear the equipped Card Set (7:1 ink); classic keeps its colours
+		require(script.Parent.HintSkin).bind(howToPlayPanel, nil, { howToPlayTitle, pageIndicator }, { plate = Color3.fromRGB(40, 30, 22), edge = GOLD, ink = CREAM })
 
 		showPage = function(n)
 			currentPage = math.clamp(n, 1, #pages)

@@ -53,16 +53,17 @@ local function label(parent, props)
 end
 
 local function buildCard(parent, row, order, roundCorner)
+	local skin = require(script.Parent.RowSkin).get() -- the equipped Card Set's row plate, ink and chip; nil keeps the parchment
 	local card = Instance.new("Frame")
 	card.Name = "Quest_" .. row.id
 	card.Size = UDim2.new(1, 0, 0, 96)
 	card.LayoutOrder = order
-	card.BackgroundColor3 = row.done and PARCHMENT_DONE or PARCHMENT
+	card.BackgroundColor3 = skin and (row.done and skin.hot or skin.row) or (row.done and PARCHMENT_DONE or PARCHMENT)
 	card.ZIndex = 31
 	card.Parent = parent
 	roundCorner(card, 10)
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = row.done and GREEN or INK
+	stroke.Color = row.done and GREEN or (skin and skin.edge or INK)
 	stroke.Thickness = row.done and 2.5 or 1.5
 	stroke.Parent = card
 
@@ -84,11 +85,11 @@ local function buildCard(parent, row, order, roundCorner)
 	end
 
 	label(card, {
-		Name = "Name", Size = UDim2.new(1, -200, 0, 24), Position = UDim2.fromOffset(86, 8), Text = row.name, TextSize = 18,
+		Name = "Name", Size = UDim2.new(1, -200, 0, 24), Position = UDim2.fromOffset(86, 8), Text = row.name, TextSize = 18, TextColor3 = skin and skin.ink or INK,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	label(card, {
-		Name = "Desc", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 22), Position = UDim2.fromOffset(86, 30), Text = row.desc, TextSize = 15,
+		Name = "Desc", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 22), Position = UDim2.fromOffset(86, 30), Text = row.desc, TextSize = 15, TextColor3 = skin and skin.sub or INK,
 		Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	local track = Instance.new("Frame")
@@ -109,7 +110,7 @@ local function buildCard(parent, row, order, roundCorner)
 	roundCorner(fill, 7)
 	label(card, {
 		Name = "Count", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 18), Position = UDim2.fromOffset(86, 50), Text = QuestRules.progressText(row),
-		TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right, -- above the bar, right aligned
+		TextSize = 14, TextColor3 = skin and skin.sub or INK, TextXAlignment = Enum.TextXAlignment.Right, -- above the bar, right aligned
 	})
 
 	local reward = Instance.new("Frame")
@@ -132,8 +133,12 @@ local function buildCard(parent, row, order, roundCorner)
 		label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = INK, ZIndex = 33 })
 		return card
 	end
-	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "+" .. row.xp .. " XP", TextSize = 16, TextColor3 = CREAM, ZIndex = 33 })
-	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = GOLD, ZIndex = 33 })
+	if skin then -- the reward chip takes the set control accent with white text at 4.5:1
+		reward.BackgroundColor3 = skin.chip
+		rewardStroke.Color = skin.edge
+	end
+	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Text = "+" .. row.xp .. " XP", TextSize = 16, TextColor3 = skin and skin.chipInk or CREAM, ZIndex = 33 })
+	label(reward, { Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5), Text = "+" .. row.tips .. " Tips", TextSize = 15, TextColor3 = skin and skin.chipInk or GOLD, ZIndex = 33 })
 	return card
 end
 
@@ -191,6 +196,7 @@ function QuestsPanel.init(deps)
 	panel.ZIndex = 31
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "wood")
+	require(script.Parent.TitleBand).attach(panel)
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(560, QuestsPanel.PANEL_H)
 	constraint.Parent = panel

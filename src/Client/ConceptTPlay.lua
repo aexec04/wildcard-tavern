@@ -362,6 +362,7 @@ function M.install(deps)
 			pcall(function()
 				local r = Layout.rects(size.X, size.Y)
 				require(script.Parent.GuidedHint).update(layer, lastState, deps.selectedCount(), deps.firstCard and deps.firstCard(), deps.playButton, r)
+				require(script.Parent.StuckHintPlate).update(layer, lastState, r) -- one kind line when a round looks out of reach (Engine/StuckHint)
 			end)
 		end
 	end

@@ -26,6 +26,7 @@ Synergy.Tags = {
 	rulebender = { icon = "🔧", word = "Rules", line = "Changes your hands, discards or cards." },
 	ranks = { icon = "👑", word = "Ranks", line = "Scores from certain ranks and faces." },
 	flat = { icon = "⭐", word = "Steady", line = "A bonus that always works." },
+	marks = { icon = "🔖", word = "Marks", line = "Scores from marked cards." },
 }
 
 -- Which Patron tags a poker hand type feeds.

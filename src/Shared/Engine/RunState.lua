@@ -17,6 +17,8 @@ local Patrons = require(script.Parent.Patrons)
 local EndlessRules = require(script.Parent.EndlessRules)
 local RunModes = require(script.Parent.RunModes) -- Quick Run (4 Nights)
 local DeckVariants = require(script.Parent.DeckVariants)
+local NightBoons = require(script.Parent.NightBoons)
+local StartingDecks = require(script.Parent.StartingDecks)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
 local Tags = require(script.Parent.Tags)
@@ -175,6 +177,9 @@ function RunState.new(options, rng)
 	for key, delta in pairs(deckVariant.configOverrides or {}) do
 		config[key] = config[key] + delta
 	end
+	for key, delta in pairs((StartingDecks.getById(options.startingDeckId) or {}).configDelta or {}) do
+		config[key] = config[key] + delta -- Slim Deck: 1 fewer Discard
+	end
 	config.handSize = math.max(1, config.handSize)
 	config.handsPerRound = math.max(1, config.handsPerRound)
 	config.discardsPerRound = math.max(0, config.discardsPerRound)
@@ -214,6 +219,7 @@ function RunState.new(options, rng)
 		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
 		unlockedContent = options.unlockedContent,
 		deckVariantId = deckVariant.id,
+		startingDeckId = (StartingDecks.getById(options.startingDeckId) or StartingDecks.getById(StartingDecks.DefaultId)).id,
 		difficultyId = difficulty.id,
 		targetMultiplier = (deckVariant.targetScoreMultiplier or 1) * (difficulty.targetScoreMultiplier or 1),
 		bossRoundsEnabled = difficulty.bossRoundsEnabled ~= false,
@@ -230,7 +236,7 @@ function RunState.new(options, rng)
 		-- reshuffled back in at the start of the next round. Cards are the
 		-- SAME Lua tables all run (never regenerated), so a Garnish/Special/
 		-- Stamp a House Recipe adds to a card sticks with it for the run.
-		deck = Deck.newStandardDeck(), -- unshuffled; startRound below shuffles+deals
+		deck = StartingDecks.build(options.startingDeckId), -- Classic, Lucky or Slim (Engine/StartingDecks), unshuffled; startRound below shuffles+deals
 		discardPile = {},
 		hand = {},
 		handsRemaining = config.handsPerRound,
@@ -489,6 +495,7 @@ function RunState.startRound(state)
 		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
 		+ endlessField(state, "handSizeDelta")
 		+ Strangers.field(state, "handSizeDelta")
+		+ NightBoons.field(state, "handSize")
 	handSize = math.max(5, handSize) -- never fewer than 5 cards
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
@@ -497,6 +504,7 @@ function RunState.startRound(state)
 		+ endlessField(state, "discardsDelta")
 		+ Strangers.field(state, "discardsDelta")
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
+		+ NightBoons.field(state, "discards") + NightBoons.field(state, "bossDiscards")
 	if state.isBossRound and state.housePasses.boss_prep then
 		discards = discards + 1 -- Boss Prep
 	end
@@ -526,6 +534,7 @@ function RunState.startRound(state)
 	handsPerRound = handsPerRound + Patrons.sum(state.ownedPatrons, "handsDelta") -- Overtime
 	handsPerRound = handsPerRound + endlessField(state, "handsDelta")
 	handsPerRound = handsPerRound + Strangers.field(state, "handsDelta")
+	handsPerRound = handsPerRound + NightBoons.field(state, "hands") + NightBoons.field(state, "bossHands")
 	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
 	if state.bonusHandsNight and state.bonusHandsNight == state.night then
 		handsPerRound = handsPerRound + 1
@@ -624,6 +633,7 @@ function RunState.runCounters(state)
 		handsPlayedTotal = state.handsPlayedTotal,
 		discardsUsedTotal = state.discardsUsedTotal,
 		patronsSold = state.patronsSold,
+		boonsPicked = state.boonsPicked or 0,
 		handStatsBefore = handStatsBefore,
 	}
 end
@@ -778,6 +788,7 @@ function RunState.deckView(state)
 			entry.garnish = card.garnish
 			entry.special = card.special
 			entry.stamp = card.stamp
+			entry.mark = card.mark
 		end
 		table.insert(entries, entry)
 	end
@@ -860,6 +871,7 @@ local function playHandNow(state, cardIndices)
 					ownedPatronSpecials = state.ownedPatronSpecials,
 					brittleShielded = state.brittleShieldRound,
 					debuff = bossMod and bossMod.debuff,
+					firstCardOut = bossMod and bossMod.firstCardOut, patronChipsFactor = bossMod and bossMod.patronChipsFactor,
 					tips = state.tips,
 					alreadyPlayedThisHandTypeThisRound = state.handTypesPlayedThisRound[candidateHandResult.name] == true,
 					handsRemaining = math.max(0, state.handsRemaining - 1),
@@ -916,6 +928,7 @@ local function playHandNow(state, cardIndices)
 			ownedPatronSpecials = state.ownedPatronSpecials, -- Silver/Gold/Rainbow on a Patron
 			brittleShielded = state.brittleShieldRound, -- "Sugar Shield" Secret Recipe
 			debuff = bossModifier and bossModifier.debuff,
+			firstCardOut = bossModifier and bossModifier.firstCardOut, patronChipsFactor = bossModifier and bossModifier.patronChipsFactor, -- Frozen Hand, Quiet Tavern
 			tips = state.tips, -- Tips held BEFORE this hand's reward -- Penny Pincher/Tab Regulars read this
 			alreadyPlayedThisHandTypeThisRound = alreadyPlayedThisHandTypeThisRound, -- Repeat Customer reads this
 			handsRemaining = state.handsRemaining,
@@ -929,7 +942,7 @@ local function playHandNow(state, cardIndices)
 		end
 		-- boss Chips and Mult factors, Sleepy Cook's first hand, the Dealer's Bargain: one shared function with the preview
 		chips, mult, score = BossRules.finishScore(chips, mult, bossModifier, state.handsRemaining + 1 == state.roundStartHands,
-			Strangers.field(state, "scorePct"))
+			Strangers.field(state, "scorePct") + NightBoons.scorePct(state, state.handsRemaining + 1 == state.roundStartHands))
 	end
 
 	-- What this hand really did, as plain data for the client's score reveal (cards by position, no table references).
@@ -1217,7 +1230,7 @@ function RunState.patronPrice(state, patron)
 	if state.housePasses.regulars_discount then
 		price = price - 2
 	end
-	price = price - (state.nextShopDiscount or 0)
+	price = price - (state.nextShopDiscount or 0) - NightBoons.priceOff(state, "patron")
 	price = math.max(1, price + Haggle.delta(state, "patron", patron.id))
 	local pct = endlessField(state, "patronPricePct")
 	if pct ~= 0 then
@@ -1232,7 +1245,7 @@ function RunState.packPrice(state, pack)
 	if state.housePasses.wholesale_pricing then
 		price = price - 2
 	end
-	price = price - (state.nextShopDiscount or 0)
+	price = price - (state.nextShopDiscount or 0) - NightBoons.priceOff(state, "pack")
 	return math.max(1, price + Haggle.delta(state, "pack", pack.id))
 end
 
@@ -1250,6 +1263,9 @@ function RunState.rerollCost(state, baseCost)
 		cost = cost + state.stakeRules.rerollExtra -- Rush Hour stake
 	end
 	cost = cost + endlessField(state, "rerollExtra") -- Costly Rerolls
+	if NightBoons.freeRerollReady(state) then
+		return 0 -- Free Reroll Night boon
+	end
 	return math.max(1, cost)
 end
 
@@ -1650,6 +1666,7 @@ function RunState.resolvePack(state, chosenIds, replaceIds)
 					garnish = spec.garnish,
 					special = spec.special,
 					stamp = spec.stamp,
+					mark = spec.mark,
 				})
 				table.insert(state.discardPile, newCard)
 			end

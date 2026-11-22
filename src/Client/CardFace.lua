@@ -40,6 +40,8 @@ local GOLD = Color3.fromRGB(205, 170, 95)
 -- symbol CardFace is handed) plus a suit letter in the top-right corner,
 -- so suits differ by color AND a second shape cue, not just red/black.
 local SuitMarks = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Accessibility")).SuitMarks
+local Accessibility = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Accessibility"))
+local CosmeticSets = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
 local COLORBLIND_INK, SUIT_LETTER = {}, {}
 for _, m in pairs(SuitMarks) do
 	COLORBLIND_INK[m.glyph] = Color3.fromRGB(m.ink[1], m.ink[2], m.ink[3])
@@ -74,7 +76,7 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 	label.Parent = parent
 	-- TextScaled alone shrank the corner index to about 8 px; keep it readable
 	local limit = Instance.new("UITextSizeConstraint")
-	limit.MinTextSize = 18
+	limit.MinTextSize = 20
 	limit.MaxTextSize = 60
 	limit.Parent = label
 	return label
@@ -83,6 +85,7 @@ end
 -- Equipped Cosmetic Set treatment (CosmeticSets.faceStyleOf): { neutral = true } or
 -- { paper, border, pip, foil }. Set by CosmeticSetsView; every live face is redrawn on change.
 local setFace = nil
+local setDef = nil -- the equipped set definition, for Colorblind Suits ink contrast
 
 local function rgb(t)
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -283,8 +286,9 @@ local function addSpecialLayers(face, card, zIndex)
 	end
 end
 
-function CardFace.setStyle(face)
+function CardFace.setStyle(face, set)
 	setFace = face
+	setDef = set
 	for button, args in pairs(builtFaces) do
 		if button.Parent then
 			CardFace.build(button, args[1], args[2], args[3], args[4], false, args[5])
@@ -345,9 +349,22 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	addSetLayers(face, zIndex, rankText)
 	local colorblind = ClientSettings.get("colorblindSuits") and COLORBLIND_INK[suitText] ~= nil
 	local ink = colorblind and COLORBLIND_INK[suitText] or (isRed and RED_INK or BLACK_INK)
+	if colorblind then
+		local mark = Accessibility.suitMarkByGlyph(suitText)
+		local c = CosmeticSets.colorblindInkOf(setDef, mark.ink)
+		ink = Color3.fromRGB(c[1], c[2], c[3])
+	end
 	if not colorblind and setFace and not setFace.neutral then
 		-- set pips: black suits lean toward the set's pip colour, red suits only a little (stay readable)
 		ink = ink:Lerp(rgb(setFace.pip), isRed and 0.2 or 0.5)
+	end
+	local pipOutline = nil
+	if not colorblind then
+		local dp = CosmeticSets.darkPipStyle(setDef, isRed)
+		if dp then
+			ink = Color3.fromRGB(dp.ink[1], dp.ink[2], dp.ink[3])
+			pipOutline = Color3.fromRGB(dp.outline[1], dp.outline[2], dp.outline[3])
+		end
 	end
 	local drawSpecial = function() addSpecialLayers(face, card, zIndex) end
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
@@ -408,7 +425,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		if info then
 			for _, lab in ipairs({ rank, suit, bottom }) do
 				lab.TextStrokeColor3 = info.stroke
-				lab.TextStrokeTransparency = 0.55
+				lab.TextStrokeTransparency = info.dark and 0.1 or 0.55 -- light ink on a dark painted face keeps a solid dark outline
 			end
 		end
 	else

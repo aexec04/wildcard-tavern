@@ -46,6 +46,16 @@ local function text(parent, name, str, size, colorName, font, y, h)
 	return t
 end
 
+-- The clear plates wear the equipped Card Set plate, edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the colours the plate was built with.
+local function skinPlate(plate, labels)
+	local stroke = plate:FindFirstChildOfClass("UIStroke")
+	pcall(function()
+		require(script.Parent.HintSkin).bind(plate, stroke, labels, {
+			plate = plate.BackgroundColor3, edge = stroke and stroke.Color or color("gold"), ink = color("cream"),
+		})
+	end)
+end
+
 -- Night cleared and Run complete: a bigger plate, gold and purple confetti, tips counting up, a green Continue plate
 local function night(root, lines)
 	local prior = root:FindFirstChild("NightClearedPlate")
@@ -87,6 +97,7 @@ local function night(root, lines)
 	text(plate, "Title", n.title, big and 40 or 32, "gold", Style.FONTS.title, 10, big and 48 or 40)
 	text(plate, "Night", n.sub, 20, "cream", Style.FONTS.ui, big and 60 or 52, 26)
 	text(plate, "Score", lines.score, 20, "cream", Style.FONTS.ui, big and 90 or 80, 26)
+	skinPlate(plate, { plate:FindFirstChild("Night"), plate:FindFirstChild("Score"), plate:FindFirstChild("Tips") })
 	local counting = timing.count and lines.tipsEarned > 0
 	local tips = text(plate, "Tips", counting and "Tips +0" or lines.tips, 20, "cream", Style.FONTS.ui, big and 120 or 108, 26)
 	if big then -- Run complete: what this run opened, by name, on one gold line (same wording as Run Over)
@@ -103,6 +114,7 @@ local function night(root, lines)
 	btn.Size = UDim2.fromOffset(cr.w, cr.h)
 	btn.Position = UDim2.fromOffset(cr.x, cr.y)
 	btn.ZIndex = 44
+	pcall(function() Kit.setPlateButton(btn, "primary") end) -- the equipped Card Set's green plate; classic keeps the flat green
 	local closed = false
 	local function close()
 		if closed then return end
@@ -148,6 +160,7 @@ function M.clear(root, lines)
 	local title = text(plate, "Title", lines.title, 28, "gold", Style.FONTS.title, 6, gap + 8)
 	text(plate, "Score", lines.score, 20, "cream", Style.FONTS.ui, 6 + gap + 8, gap)
 	local tips = text(plate, "Tips", lines.tipsEarned > 0 and "Tips +0" or lines.tips, 20, "cream", Style.FONTS.ui, 6 + 2 * gap + 8, gap)
+	skinPlate(plate, { plate:FindFirstChild("Score"), tips })
 	if timing.slide == 0 then
 		tips.Text = lines.tips
 		task.delay(timing.hold, function() if plate.Parent then plate:Destroy() end end)
@@ -271,13 +284,24 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 		return t
 	end
 	local nameRow, ruleRow, rewardRow = Rules.bossIntroRows(textRect)
-	line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
-	line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
+	local nameL = line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
+	local ruleL = line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
+	local rewardL
 	do -- the reward mirrors the payout of a Boss round (the Sidebar shows the same number)
 		local cfg = require(Engine:WaitForChild("RunState")).DefaultConfig
 		local rewardText = Rules.bossRewardLine((cfg.tipsPerRoundWin or 0) * 2)
-		if rewardText then line("Reward", rewardText, 16, "gold", Style.FONTS.ui, rewardRow.y, rewardRow.h) end
+		if rewardText then rewardL = line("Reward", rewardText, 16, "gold", Style.FONTS.ui, rewardRow.y, rewardRow.h) end
 	end
+	-- the intro plate wears the equipped Card Set plate, accent edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the boss rule tint
+	pcall(function()
+		local style = require(Engine:WaitForChild("CosmeticSets")).hintStyleOf(Kit.plateSetId())
+		if not style then return end
+		local ink = Color3.fromRGB(style.ink[1], style.ink[2], style.ink[3])
+		plate.BackgroundColor3 = Color3.fromRGB(style.plate[1], style.plate[2], style.plate[3])
+		st.Color = Color3.fromRGB(style.edge[1], style.edge[2], style.edge[3])
+		chip.BackgroundColor3 = st.Color
+		for _, l in ipairs({ nameL, ruleL, rewardL }) do if l then l.TextColor3 = ink end end
+	end)
 	TweenService:Create(dim, TweenInfo.new(timing.slide), { BackgroundTransparency = timing.dim }):Play()
 	TweenService:Create(plate, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
 	task.delay(timing.slide + timing.hold, function()
@@ -364,6 +388,15 @@ function M.boss(layer, rects, state, w, h)
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
 		rulePlate.Edge.Color = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
+		-- the slim rule chip wears the Card Set plate, edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the boss rule tint
+		rulePlate.TextColor3 = color("cream")
+		pcall(function()
+			local style = require(Engine:WaitForChild("CosmeticSets")).hintStyleOf(Kit.plateSetId())
+			if not style then return end
+			rulePlate.BackgroundColor3 = Color3.fromRGB(style.plate[1], style.plate[2], style.plate[3])
+			rulePlate.Edge.Color = Color3.fromRGB(style.edge[1], style.edge[2], style.edge[3])
+			rulePlate.TextColor3 = Color3.fromRGB(style.ink[1], style.ink[2], style.ink[3])
+		end)
 	end
 	if not tint then
 		tint = Instance.new("Frame")

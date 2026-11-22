@@ -20,6 +20,8 @@ local CREAM = Color3.fromRGB(250, 240, 220)
 local OUTLINE = Color3.fromRGB(26, 17, 10)
 
 function M.build(parent, layoutOrder, owned, zoneW, onMove)
+	local ink = nil
+	pcall(function() ink = require(script.Parent.SetInk).get() end) -- the equipped set's plate and accent (7:1), nil for classic
 	local n = #owned
 	local size = Seats.stripSize(zoneW, math.max(1, n))
 	local strip = Instance.new("Frame")
@@ -65,18 +67,22 @@ function M.build(parent, layoutOrder, owned, zoneW, onMove)
 		label.Name = "Order"
 		label.BackgroundColor3 = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill: cream on it is above 10:1 over any scene art
 		label.BackgroundTransparency = 0.15
+		if ink then label.BackgroundColor3 = ink.plate end
 		local lc = Instance.new("UICorner"); lc.CornerRadius = UDim.new(0, 6); lc.Parent = label
 		label.Position = UDim2.fromOffset(size.btn + 2, 0)
 		label.Size = UDim2.fromOffset(size.groupW - size.btn * 2 - 4, size.h)
 		label.Font = Enum.Font.GothamBold
 		label.TextSize = 15
-		label.TextColor3 = CREAM
+		label.TextColor3 = ink and ink.accent or CREAM
 		label.TextTransparency = 0
 		label.TextStrokeColor3 = OUTLINE
 		label.TextStrokeTransparency = 0.2
 		label.TextWrapped = true
 		label.Text = Seats.orderText(i, n) .. "\n" .. tostring(p.name or "")
 		label.Parent = group
+		pcall(function() -- the equipped Card Set's panel fill and cream ink (7:1); classic keeps the dark plate
+			require(script.Parent.PopupSkin).dark(label, nil, { { label, CREAM } }, { plate = Color3.fromRGB(40, 30, 22) })
+		end)
 	end
 	return strip
 end

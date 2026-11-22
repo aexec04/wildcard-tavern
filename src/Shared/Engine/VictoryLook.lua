@@ -86,7 +86,36 @@ function M.summaryRows(summary, best)
 		{ label = "Hands Played", value = commas(summary.hands) },
 		{ label = "Tips Earned", value = commas(summary.tipsTotal) },
 	}
+	-- the celebration rows (only what the run really tracks, each shown when it has something to say)
+	if n(summary.bestNight) > 0 then
+		rows[#rows + 1] = { label = "Best Night", value = tostring(math.max(n(summary.bestNight), n(summary.night))) }
+	end
+	if summary.boons ~= nil then
+		rows[#rows + 1] = { label = "Boons Picked", value = tostring(n(summary.boons)) }
+	end
+	if n(summary.deckSize) > 0 then
+		local deck = tostring(n(summary.deckSize)) .. " cards"
+		if n(summary.marked) > 0 then deck = deck .. ", " .. n(summary.marked) .. " marked" end
+		rows[#rows + 1] = { label = "Your Deck", value = deck }
+	end
 	return rows
+end
+
+-- How many rows fit the Run Summary card at this screen size at the 16 px minimum (the rows start 48 design px down, each needs
+-- 1.15 x the text size). The five plain rows always stay; the celebration rows (Best Night, Boons Picked, Your Deck) are dropped
+-- from the end when the card is too short, so small screens never overlap text.
+function M.fitRows(rows, w, h)
+	local L = M.layout(w, h, "run")
+	local room = L.summary.h - round(48 * L.scale)
+	local fit = math.max(5, math.floor(room / (M.MIN_TEXT * 1.15)))
+	local out = {}
+	for i = 1, math.min(#rows, fit) do out[i] = rows[i] end
+	return out
+end
+
+-- The text size of the Run Summary rows: 22 for the five plain rows, 16 (the minimum) once the celebration rows join.
+function M.rowSize(count)
+	return (count or 0) > 5 and M.MIN_TEXT or 22
 end
 
 -- The plain text share line for the Victory screen (no links; ShareResult keeps the Roblox chat limit).
@@ -99,7 +128,9 @@ end
 M.INVITE_TEXT = "Invite a friend"
 
 M.NEXT_SIZE = 16
-M.NEXT_RUN = "Next: start a new run from the Menu."
+M.NEXT_RUN = "Next: Endless Mode starts at the next Night."
+M.CONTINUE_TEXT = "Continue to Endless"
+M.CONTINUE_SIZE = 22
 M.SUBTITLE_RUN = "The Tavern celebrates your triumph!"
 M.SUBTITLE_PICK = "A thank you from the tavern."
 

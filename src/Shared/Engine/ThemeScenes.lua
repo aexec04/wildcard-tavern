@@ -46,12 +46,12 @@ local DATA = {
 	closing_time      = { tint = { 170, 80, 40 },   ambient = "ember",     accent = { 255, 200, 140 } },
 	golden_gala       = { tint = { 230, 180, 60 },  ambient = "mote",      accent = { 255, 230, 150 } },
 	meadow_picnic     = { tint = { 90, 170, 80 },   ambient = "butterfly", accent = { 235, 250, 200 } },
-	riverside_evening = { tint = { 70, 100, 170 },  ambient = "mist",      accent = { 215, 228, 255 } },
-	summit_camp       = { tint = { 110, 140, 190 }, ambient = "cloud",     accent = { 225, 238, 255 }, frost = true },
+	riverside_evening = { tint = { 70, 100, 170 },  ambient = "firefly",   accent = { 215, 228, 255 } },
+	summit_camp       = { tint = { 110, 140, 190 }, ambient = "snow",      accent = { 225, 238, 255 }, frost = true },
 	dune_market       = { tint = { 220, 160, 80 },  ambient = "sand",      accent = { 255, 224, 170 } },
 	marsh_lanterns    = { tint = { 60, 130, 100 },  ambient = "firefly",   accent = { 220, 250, 190 } },
 	snowy_hearth      = { tint = { 120, 160, 210 }, ambient = "snow",      accent = { 255, 226, 190 }, frost = true },
-	harbor_lights     = { tint = { 50, 110, 160 },  ambient = "shimmer",   accent = { 255, 224, 160 } },
+	harbor_lights     = { tint = { 50, 110, 160 },  ambient = "glow",      accent = { 255, 224, 160 } },
 	tavern_feast      = { tint = { 200, 120, 50 },  ambient = "dust",      accent = { 255, 224, 150 } },
 	harvest_table     = { tint = { 190, 120, 40 },  ambient = "leaf",      accent = { 255, 218, 150 } },
 	winter_table      = { tint = { 100, 150, 210 }, ambient = "snow",      accent = { 225, 240, 255 }, frost = true },
@@ -94,7 +94,7 @@ local function setArt(setId)
 end
 
 -- the one small prop a set's mini table scene shows (Client/CardSetsRoom): candle, lantern, snowflakes or leaves
-local PROP_OF = { snow = "snowflakes", cloud = "snowflakes", lantern = "lantern", mote = "lantern", mist = "lantern", firefly = "lantern", shimmer = "lantern",
+local PROP_OF = { snow = "snowflakes", glow = "lantern", cloud = "snowflakes", lantern = "lantern", mote = "lantern", mist = "lantern", firefly = "lantern", shimmer = "lantern",
 	butterfly = "leaves", leaf = "leaves", ember = "candle", dust = "candle", sand = "candle" }
 function ThemeScenes.propOf(setId)
 	return PROP_OF[ThemeScenes.of(setId).ambient] or "candle"
@@ -108,6 +108,19 @@ function ThemeScenes.themeImageId(setId, slot)
 	local tab, id = string.match(key, "^(%w+_%w+):(.+)$")
 	if not tab then return nil end
 	return require(script.Parent.ContentArt).getImageId(tab, id)
+end
+
+-- The picture the live play table (Client/Gameplay2) draws for a set: its own painted theme art, else on a normal round its own room
+-- (play_room_<set>_bg), else on a Boss round the boss fallback. nil keeps the classic tavern. `art` is the generated PlaySceneArt map.
+-- One answer per set, so switching sets can never leave the previous set's room on screen.
+function ThemeScenes.liveTableId(setId, boss, art)
+	local own = ThemeScenes.themeImageId(setId, boss and "bossTableBackground" or "tablePlay")
+	if own then return own end
+	if ThemeScenes.known(setId) and setId ~= ThemeScenes.DEFAULT and PlayRoomArt.SETS[setId] then
+		local v = art and art[PlayRoomArt.keys(setId).bg]
+		if type(v) == "string" and v ~= "" and v ~= "rbxassetid://0" then return v end
+	end
+	return nil
 end
 
 -- The paper of the Stranger's offer scroll (Client/ShopHaggle): "frost", "gala" or "harvest" for the sets that have a variant, nil keeps the
@@ -186,8 +199,56 @@ function ThemeScenes.effectiveSetId(skinId, previewId)
 	return ThemeScenes.known(skinId) and skinId or ThemeScenes.DEFAULT
 end
 
+-- Score pop-up colours per set: a dark plate (the set tint pulled toward black) and an accent that reads on it at 7:1 or more
+-- (the set accent lifted toward white until it does). Returns nil for classic_tavern, which keeps its own look. Pure.
+ThemeScenes.SCORE_MIN_CONTRAST = 7
+local function lum(c)
+	local function ch(v)
+		v = v / 255
+		return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
+	end
+	return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+end
+local function ratio(a, b)
+	local la, lb = lum(a), lum(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+function ThemeScenes.scoreStyle(setId)
+	local t = ThemeScenes.of(setId)
+	if t.setId == ThemeScenes.DEFAULT then return nil end
+	local plate = { math.floor(t.tint[1] * 0.18), math.floor(t.tint[2] * 0.18), math.floor(t.tint[3] * 0.18) }
+	local accent = { t.accent[1], t.accent[2], t.accent[3] }
+	local step = 0
+	while ratio(accent, plate) < ThemeScenes.SCORE_MIN_CONTRAST and step < 20 do
+		step = step + 1
+		for i = 1, 3 do accent[i] = math.floor(accent[i] + (255 - accent[i]) * 0.2) end
+	end
+	return { plate = plate, accent = accent, ratio = ratio(accent, plate) }
+end
+
 function ThemeScenes.known(setId)
 	return type(setId) == "string" and DATA[setId] ~= nil
+end
+
+-- The set's own hue as a plate multiplier colour: its wash tint scaled so the brightest channel is 255 (hue kept, brightness not lost).
+-- Warm text accents barely move a brown plate; this does (Harbor Lights turns blue, Meadow Picnic green). nil for classic or unknown.
+function ThemeScenes.hueOf(setId)
+	if not ThemeScenes.known(setId) or setId == ThemeScenes.DEFAULT then return nil end
+	local t = DATA[setId].tint
+	local top = math.max(t[1], t[2], t[3], 1)
+	return { math.floor(t[1] * 255 / top + 0.5), math.floor(t[2] * 255 / top + 0.5), math.floor(t[3] * 255 / top + 0.5) }
+end
+
+ThemeScenes.COLLECTION_WALL_TINT = 0.3 -- Collection wall
+ThemeScenes.RESULT_WASH_TINT = 0.25 -- Run Over and Victory room pictures
+
+-- A light multiplier a painted picture wears for a set: white pulled `amount` (0..1) toward the set hue. nil for classic or unknown, so classic is untouched.
+function ThemeScenes.washTint(setId, amount)
+	local h = ThemeScenes.hueOf(setId)
+	if not h then return nil end
+	amount = math.max(0, math.min(1, amount or 0.3))
+	return { math.floor(255 + (h[1] - 255) * amount + 0.5), math.floor(255 + (h[2] - 255) * amount + 0.5), math.floor(255 + (h[3] - 255) * amount + 0.5) }
 end
 
 function ThemeScenes.of(setId)
