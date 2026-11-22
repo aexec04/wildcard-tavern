@@ -183,6 +183,7 @@ return function(deps)
 		button.Parent = row
 		polishButton(button, 8)
 		addButtonHoverScale(button)
+		if not isSwitch then pcall(require(script.Parent.TavernKit).paintedButton, button, "secondary") end -- the same brass plate as the Account buttons; the word shows the value
 
 		local function getVal()
 			if custom then return custom.get() end
@@ -537,11 +538,8 @@ return function(deps)
 		rowFrame.BackgroundTransparency = 1
 		rowFrame.ZIndex = 21
 		rowFrame.Parent = scroll
-		local rowLayout = Instance.new("UIListLayout")
-		rowLayout.FillDirection = Enum.FillDirection.Horizontal
-		rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		rowLayout.Padding = UDim.new(0, ACC.gap)
-		rowLayout.Parent = rowFrame
+		-- No list layout here on purpose:TavernKit.painted parents each plate picture as a SIBLING of the button, and a list layout
+		-- would give every picture its own slot and push the buttons one panel width to the right (live, Nov 22). Plates are placed by Position.
 		return rowFrame
 	end
 	local accountRow = makeAccountRow()
@@ -551,6 +549,7 @@ return function(deps)
 		perRow = perRow or ACC.perRow
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
+		button.Position = UDim2.new((layoutOrder - 1) / perRow, (layoutOrder - 1) * ACC.gap / perRow, 0, 0) -- slot i: i * (width + gap)
 		button.TextWrapped = true
 		button.LayoutOrder = layoutOrder
 		button.Font = Enum.Font.Merriweather
@@ -663,6 +662,10 @@ return function(deps)
 				if b:IsA("TextButton") and b:GetAttribute("AccountButton") then
 					local rel = b.AbsolutePosition - scroll.AbsolutePosition
 					warn(string.format("[SettingsAccount] %s x=%d y=%d w=%d h=%d (scroll %dx%d)", b.Text, rel.X, rel.Y, b.AbsoluteSize.X, b.AbsoluteSize.Y, scroll.AbsoluteSize.X, scroll.AbsoluteSize.Y))
+					-- runtime check on the REAL built plates: x must sit inside the scroll width (a plate one panel width to the right was the Nov 22 bug)
+					if rel.X < -1 or rel.X + b.AbsoluteSize.X > scroll.AbsoluteSize.X + 1 or b.AbsoluteSize.Y < 44 then
+						warn("[SettingsAccount] OUTSIDE the scroll: " .. b:GetFullName())
+					end
 				end
 			end
 		end)
