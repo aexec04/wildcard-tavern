@@ -32012,7 +32012,8 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(not kit:find("if img.Parent and not img.IsLoaded then", 1, true), "IsLoaded alone never decides: it reads false for a hidden screen and would drop the picture")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "wh_target", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "wh_target", "wh_count", "wh_score", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	expectTrue(g2:find("paintedButton(deps.playButton", 1, true) ~= nil and g2:find("paintedButton(deps.discardButton", 1, true) ~= nil, "the table HUD buttons use the per set plate path")
 	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('paintedButton(b, "primary")', 1, true), "gear and Next Round are painted")
 end })
@@ -34611,6 +34612,15 @@ table.insert(tests, { name = "Painted plates: no plate id is cropped at any audi
 	local broken = TS.plateAudit({ { 300, 124 } })
 	TS.PAINTED.wood_plate = keep
 	assert(#broken >= 1, "audit catches an inset larger than the picture")
+end })
+
+table.insert(tests, { name = "Play Hand and Discard use the per set plate path (preview and equipped), not fixed classic pieces", fn = function()
+	local f = io and io.open("src/Client/Gameplay2.lua", "r"); if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find('paintedButton(deps.playButton, "primary")', 1, true), "Play Hand uses paintedButton primary")
+	expectTrue(src:find('paintedButton(deps.discardButton, "secondary")', 1, true), "Discard uses paintedButton secondary")
+	expectTrue(not src:find('Kit.painted(deps.playButton, "wh_btn_green")', 1, true), "no fixed classic Play plate")
+	expectTrue(not src:find('Kit.painted(deps.discardButton, "wh_btn_dark")', 1, true), "no fixed classic Discard plate")
 end })
 
 table.insert(tests, { name = "Golden Gala plates: classic and other sets keep the classic button pieces, gala resolves its own with the same size and insets", fn = function()
@@ -39725,7 +39735,9 @@ end })
 table.insert(tests, { name = "Quests and Music: Claimed plate, 44 px reward plate, Now playing line fits every screen size", fn = function()
 	local P = require(script.Parent.Parent.Engine.MusicPicker)
 	expectEqual(P.nowPlaying("auto", false), "Now playing: Tavern Mix", "default track named")
-	expectEqual(P.nowPlaying("gameplay", false), "Now playing: Card Table", "chosen free track named")
+	for _, t in ipairs(P.TRACKS) do -- the first listed free track that is not the default mix
+		if t.id ~= "auto" and not t.pack then expectEqual(P.nowPlaying(t.id, false), "Now playing: " .. t.name, "chosen free track named"); break end
+	end
 	expectEqual(P.nowPlaying("nonsense", false), "Now playing: Tavern Mix", "unknown falls back to auto")
 	for _, t in ipairs(P.TRACKS) do
 		if t.pack then expectEqual(P.nowPlaying(t.id, false), "Now playing: Tavern Mix", "locked pack track is not named") end

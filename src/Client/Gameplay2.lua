@@ -426,7 +426,7 @@ function M.install(deps)
 		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
 		if not painted.buttons then -- the painted frames (Engine/TavernStyle.PAINTED); the flat plate stays if a picture is missing
 			painted.buttons = true
-			pcall(function() Kit.painted(deps.playButton, "wh_btn_green"); Kit.painted(deps.discardButton, "wh_btn_dark") end)
+			pcall(function() Kit.paintedButton(deps.playButton, "primary"); Kit.paintedButton(deps.discardButton, "secondary") end) -- per set plates: follows the equipped or previewed Card Set (Golden Gala velvet)
 		end
 		local function flatOpaque(b) if not (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) then b.BackgroundTransparency = 0 end end
 		flatOpaque(deps.playButton); flatOpaque(deps.discardButton)
