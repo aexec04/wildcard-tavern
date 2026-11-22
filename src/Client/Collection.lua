@@ -880,10 +880,9 @@ return function(deps)
 
 	-- Grid tiles do not animate at all (159+ tiles must cost nothing); only the open detail card levitates.
 	local TileCache = require(Engine:WaitForChild("CollectionTileCache"))
-	local TILE_BATCH = TileCache.CHUNK -- 12 tiles per frame
 	local gridKey, gridDone = nil, false -- what the grid shows now (CollectionTileCache.key) and whether its last build finished
 	local warmed = {} -- preloads already started: a tab or the whole warm up never starts twice
-	local buildToken = 0
+	local loadJob = require(Engine:WaitForChild("CollectionLoadJob")).new() -- the first 12 tiles now, the rest one chunk per frame; cancelled by a tab switch or by closing
 	-- "New" state: the ids found since the Collection was last opened (this session; the first open marks nothing)
 	local lastKeys -- set of discovered "tab:id" keys at the previous open
 	local freshKeys, dropArmed = {}, {}
@@ -1163,10 +1162,13 @@ return function(deps)
 	refresh = function()
 		tileFailed = false
 		local refreshT0 = os.clock()
-		if TileCache.shouldWarm(warmed, "tab:" .. tostring(activeTabId)) then
+		loadJob:cancel() -- a tab switch or a new refresh: the build and the art download of the tab before stop at their next chunk
+		local tabToken = loadJob.token
+		if mode == "section" and TileCache.shouldWarm(warmed, "tab:" .. tostring(activeTabId)) then -- only the tab on screen is fetched, never a hidden one
 			task.spawn(function() -- current tab first (a tab already loaded or loading is not asked again). One timing line per tab for the slowest-tab report.
 				local t0, tabName = os.clock(), activeTabId
-				ContentArt.preload({ { tabName } }, "collection tab " .. tabName)
+				ContentArt.preload({ { tabName } }, "collection tab " .. tabName, { batch = 12, pause = 0.02, cancelled = function() return not loadJob:alive(tabToken) end })
+				if not loadJob:alive(tabToken) then warmed["tab:" .. tabName] = nil return end -- cancelled: the next visit asks again
 				print(string.format("[Collection] tab=%s ready_ms=%d", tabName, math.floor((os.clock() - t0) * 1000 + 0.5)))
 			end)
 		end
@@ -1241,10 +1243,8 @@ return function(deps)
 				child:Destroy()
 			end
 		end
-		-- Build tiles in small batches (20 per frame) so opening the Collection does not stutter; a newer
-		-- refresh bumps buildToken and the old batch loop stops.
-		buildToken = buildToken + 1
-		local mine = buildToken
+		-- Build tiles in small batches (12 per frame, Engine/CollectionLoadJob) so opening the Collection does not stutter; a newer
+		-- refresh, a tab switch or closing the Collection cancels the job and the old batch loop stops.
 		if mode ~= "section" then
 			currentItems, furnRecords = {}, {} -- the room is showing: no section tiles are kept
 			Sec.painted = false
@@ -1274,28 +1274,25 @@ return function(deps)
 			gridPadding.PaddingLeft = UDim.new(0, pad and pad.side or 0)
 			gridPadding.PaddingRight = UDim.new(0, pad and pad.side or 0)
 		end
-		local chunks = TileCache.chunks(#items, TILE_BATCH)
-		local function buildChunk(c) for j = c.from, c.to do safeTile(items[j], j, view) end end
+		local function buildChunk(from, to) for j = from, to do safeTile(items[j], j, view) end end
 		local function finishBuild(tabName)
 			gridDone = true
 			print(string.format("[Collection] tab=%s build_ms=%d", tostring(tabName), math.floor((os.clock() - refreshT0) * 1000 + 0.5)))
 		end
-		if chunks[1] then buildChunk(chunks[1]) end
-		do -- the first chunk paints this frame; Studio warns when that took more than 150 ms
+		local rest = loadJob:begin(#items, buildChunk) -- the visible rows (12 tiles) paint this frame
+		do -- Studio only: the time to the first visible tile, and a warning when that took more than 150 ms
 			local firstMs = (os.clock() - refreshT0) * 1000
-			if firstMs > 150 and game:GetService("RunService"):IsStudio() then warn(string.format("[Collection] tab=%s first paint took %d ms (over 150)", tostring(activeTabId), math.floor(firstMs))) end
+			if game:GetService("RunService"):IsStudio() then
+				print(string.format("[Collection] tab=%s first_tile_ms=%d", tostring(activeTabId), math.floor(firstMs + 0.5)))
+				if firstMs > 150 then warn(string.format("[Collection] tab=%s first paint took %d ms (over 150)", tostring(activeTabId), math.floor(firstMs))) end
+			end
 		end
-		if #chunks > 1 then
+		if rest then
 			local tabName = activeTabId
 			task.spawn(function()
-				for ci = 2, #chunks do
-					task.wait()
-					if buildToken ~= mine or not scroll.Parent then return end
-					buildChunk(chunks[ci])
-				end
-				if buildToken == mine then finishBuild(tabName) end
+				if rest(task.wait) and scroll.Parent then finishBuild(tabName) end
 			end)
-		else
+		elseif loadJob.open then
 			finishBuild(activeTabId)
 		end
 
@@ -1422,18 +1419,28 @@ return function(deps)
 
 	-- shared tab strip + Back; Escape steps back (detail card, then section, then the room) before it closes the Collection
 	-- Warm every sub-tab and the painted scenes when the Collection opens (batches of 20, a short pause between), so no click shows art loading in
-	backdrop:GetPropertyChangedSignal("Visible"):Connect(function() -- the idle warm up and a hover on the icons share this once-only start
-		if backdrop.Visible then pcall(function() require(script.Parent.CollectionWarm).warm() end) end
+	-- Opening no longer warms every tab: the full background warm up (CollectionWarm) stops so the tab on screen gets the bandwidth, and only
+	-- that tab is fetched (refresh). Closing cancels the tile build and the tab download; nothing runs while the Collection is shut.
+	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		if backdrop.Visible then
+			loadJob:reopen()
+			pcall(function() require(script.Parent.CollectionWarm).cancel() end)
+		else
+			loadJob:close()
+		end
 	end)
 	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel)
 	require(script.Parent.PanelTabs).setStep("collection", stepBack)
 	OverlayManager.register("collection", function()
+		loadJob:close() -- no tile is built or downloaded after the Collection closes
 		hideDetail()
 		popOut(backdrop, panel)
 	end)
 
 	local function openCollection()
 		playClickSfx()
+		loadJob:reopen()
+		pcall(function() require(script.Parent.CollectionWarm).cancel() end)
 		OverlayManager.closeAllExcept("collection")
 		-- Building the tab may fail (it did: an undefined function aborted refresh and the panel never opened). The panel opens regardless;
 		-- the error is warned, and a tab that failed shows whatever tiles were built.
