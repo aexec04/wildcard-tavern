@@ -41975,6 +41975,37 @@ table.insert(tests, { name = "Patron synergy hint chip: a formed set bonus first
 	expectTrue(not src:find("TweenService", 1, true), "no tween, so Calm mode stays static")
 end })
 
+table.insert(tests, { name = "Hand reference: level ups since the last open flash in the set accent, none on first open, Calm static, close hit area is 44 px", fn = function()
+	local E = script.Parent.Parent.Engine
+	local HL = require(E.HandLedger)
+	local rows = { { name = "Pair", level = 2 }, { name = "Flush", level = 0 } }
+	local ups, now = HL.levelUps(nil, rows)
+	expectEqual(next(ups), nil, "first open flashes nothing")
+	expectEqual(now.Pair, 2, "the snapshot keeps the levels")
+	ups, now = HL.levelUps({ Pair = 1, Flush = 0 }, rows)
+	expectTrue(ups.Pair == true and ups.Flush == nil, "only the risen hand flashes")
+	ups = HL.levelUps(now, rows)
+	expectEqual(next(ups), nil, "an unchanged level does not flash again")
+	expectTrue(require(E.CloseXRules).HIT >= 44, "close hit area is at least 44 px")
+	local CS = require(E.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h = CS.hintStyleOf(set.id)
+			expectTrue(h ~= nil and h.edge ~= nil, set.id .. " has an accent for the flash")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 sets have an accent")
+	if not io then return end
+	local f = io.open("src/Client/PokerHandsReference.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("HandLedger.levelUps", 1, true) ~= nil and src:find("hintStyleOf", 1, true) ~= nil, "panel flashes in the set accent")
+	expectTrue(src:find("if not calm() then\n\t\t\t\t\tstroke.Thickness = 5", 1, true) ~= nil, "the flash tween is skipped in Calm")
+	expectTrue(src:find("PopupSkin", 1, true) ~= nil, "the panel wears the set plate")
+end })
+
 return tests
 
 
