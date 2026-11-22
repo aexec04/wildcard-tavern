@@ -44736,4 +44736,38 @@ table.insert(tests, { name = "Night boon picker: Choose plate is 44 px on screen
 	expectTrue(count >= 14, "every Card Set was checked: " .. count)
 end })
 
+table.insert(tests, { name = "Boon chip: clear spot beside the top bar at four sizes, 44 px, no overlap with the seats, gear or any table plate, tooltip one line of 60 characters or less for every boon", fn = function()
+	local Chip = require(script.Parent.Parent.Engine.BoonChipLayout)
+	local G2 = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local rect, why = Chip.rect(size[1], size[2])
+		expectTrue(rect ~= nil, size[1] .. "x" .. size[2] .. " has a clear spot for the boon chip (blocked by " .. tostring(why) .. ")")
+		if rect then
+			expectTrue(rect.w >= 44 and rect.h >= 44, "chip is at least 44 px")
+			expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= size[1] and rect.y + rect.h <= size[2], "chip is on screen")
+			local r = G2.rects(size[1], size[2])
+			for _, seat in ipairs(r.slots) do
+				expectTrue(rect.x + rect.w <= seat.card.x or seat.card.x + seat.card.w <= rect.x or rect.y + rect.h <= seat.card.y or seat.card.y + seat.card.h <= rect.y, "chip clears every Patron seat")
+			end
+		end
+	end
+	for _, def in ipairs(NB.Definitions) do
+		local line = Chip.tooltip({ name = def.name, text = def.text })
+		expectTrue(line ~= nil and #line <= 60 and not line:find("\n"), def.id .. " tooltip is one short line")
+	end
+	expectEqual(Chip.tooltip(nil), nil)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local checked = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			checked = checked + 1
+			expectTrue(CosmeticSets.contrastRatio({ 246, 232, 198 }, st.plate) >= 4.5, set.id .. " chip name (cream) is 4.5:1 on the set plate")
+			expectTrue(CosmeticSets.contrastRatio(st.accent, st.plate) >= 4.5, set.id .. " chip edge accent is 4.5:1 on the set plate")
+		end
+	end
+	expectTrue(checked >= 14, "every Card Set was checked: " .. checked)
+end })
+
 return tests
