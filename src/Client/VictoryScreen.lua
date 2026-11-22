@@ -103,7 +103,10 @@ local function plateButton(parent, name, r, label, size, z, onClick)
 	holder.Size = UDim2.fromOffset(r.w, r.h)
 	holder.ZIndex = z
 	holder.Parent = parent
-	placeArt(holder, "Plate", "victory_button", { x = 0, y = 0, w = r.w, h = r.h }, z)
+	-- the equipped Card Set's own plate when it has one (same family as the table buttons); classic keeps the purple plate
+	local kit = require(script.Parent.TavernKit)
+	local setPiece = Style.resultPlate("primary", r.w, r.h, kit.plateSetId())
+	if not setPiece then placeArt(holder, "Plate", "victory_button", { x = 0, y = 0, w = r.w, h = r.h }, z) end
 	local b = Instance.new("TextButton")
 	b.Name = "Press"
 	b.BackgroundTransparency = 1
@@ -118,6 +121,10 @@ local function plateButton(parent, name, r, label, size, z, onClick)
 	b.ZIndex = z + 1
 	b.Parent = holder
 	b.MouseButton1Click:Connect(onClick)
+	if setPiece then
+		b:SetAttribute("PaintW", r.w); b:SetAttribute("PaintH", r.h)
+		pcall(function() kit.painted(b, setPiece) end)
+	end
 	return b
 end
 

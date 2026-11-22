@@ -40051,6 +40051,23 @@ table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and
 	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
 end })
 
+table.insert(tests, { name = "Result screens: Victory Continue and Skip wear the equipped Card Set plate, classic keeps its own", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		expectEqual(Style.resultPlate("primary", 260, 96, setId), map.wh_btn_green, setId .. " primary result plate")
+		expectEqual(Style.resultPlate("secondary", 260, 96, setId), map.wh_btn_dark, setId .. " secondary result plate")
+		expectTrue(Style.isSetPiece(Style.resultPlate("primary", 260, 96, setId)), setId .. " is a set piece")
+	end
+	expectTrue(n >= 14, "every Card Set has a result plate")
+	expectEqual(Style.resultPlate("primary", 260, 96, "classic_tavern"), nil, "classic keeps the purple plate")
+	expectEqual(Style.resultPlate("primary", 260, 96, nil), nil, "no set keeps the purple plate")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
+		local L = Look.layout(sz[1], sz[2], "run")
+		expectTrue(L.button.h >= 44, "result button stays 44 px or more at " .. sz[1] .. "x" .. sz[2])
+	end
+end })
+
 return tests
-
-

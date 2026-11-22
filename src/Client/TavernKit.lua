@@ -329,6 +329,8 @@ function plateSetId()
 	return ok and sid or nil
 end
 
+function TavernKit.plateSetId() return plateSetId() end
+
 local buttonsHooked = false
 local function restyleButtons()
 	local sid = plateSetId()
