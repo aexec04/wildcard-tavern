@@ -51,6 +51,23 @@ M.PANEL = { fw = 0.5, fy = 0.115, fh = 0.773, sidePad = 20, top = 48, bottomRese
 -- Account plates: painted serif plates 56 px tall, three in the first row, two (Daily Rewards, Tavern Map) in the second.
 M.ACCOUNT = { plateH = 56, gap = 10, textSize = 18, perRow = 3, secondRow = 2 }
 
+-- Rects of the five Account plates relative to the scroll canvas (x from its left edge, y from the top of the first Account row).
+-- Client/Settings.lua sizes the rows and plates from the same numbers, so the test and the live layout cannot drift apart.
+-- Row one holds three plates, row two holds two (Daily Rewards, Tavern Map); both rows share the full scroll width.
+function M.accountRects(scrollW)
+	local A = M.ACCOUNT
+	local rects = {}
+	local function row(count, y)
+		local w = math.floor((scrollW - A.gap * (count - 1)) / count)
+		for i = 1, count do
+			rects[#rects + 1] = { x = (i - 1) * (w + A.gap), y = y, w = w, h = A.plateH }
+		end
+	end
+	row(A.perRow, 0)
+	row(A.secondRow, A.plateH + 8)
+	return rects, 2 * A.plateH + 8
+end
+
 function M.panelRects(W, H)
 	local P = M.PANEL
 	local pw, ph = math.floor(W * P.fw), math.floor(H * P.fh)
