@@ -60,6 +60,11 @@ function LoginStreak.checkIn(profile, day)
 	if last == day then
 		return false
 	end
+	if last and day < last then
+		-- A clock that went backwards (Studio clock change, bad server time): change nothing, so the streak,
+		-- today's slot and the claimed mark stay exactly as saved and a reward can never be claimed twice.
+		return false
+	end
 	local gap = last and (day - last) or nil
 	if gap and gap >= 1 and gap <= 1 + LoginStreak.GRACE_DAYS then
 		profile.loginStreak = (profile.loginStreak or 0) + 1
