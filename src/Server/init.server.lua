@@ -960,6 +960,7 @@ local function serializeState(session, player)
 				runsStarted = profile.stats.runsStarted,
 				runsWon = profile.stats.runsWon,
 				bestNightReached = profile.stats.bestNightReached,
+					bestHandScore = profile.lifetime and profile.lifetime.bestHandScore or 0,
 			}
 		end)(),
 		-- ACHIEVEMENTS + TITLES (Phase 16): unlockedAchievementIds is

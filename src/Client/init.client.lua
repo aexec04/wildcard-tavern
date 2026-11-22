@@ -2259,6 +2259,7 @@ local function render(state)
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.MenuRegulars).update, state, MenuScreen.menuFrame) -- Tavern Regulars row on the menu, display only
 	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
+	pcall(require(script.MenuTicker).update, state) -- best Night and best hand line on the menu plate
 	pcall(require(script.StorePanel).update, state) -- keeps an open Store current; opens it once after the second run
 	pcall(require(script.NewsPanel).update, state) -- News banner on the menu and the News panel, display only
 	pcall(require(script.FeelHooks).update, state) -- coin, discard and shuffle sounds from state changes, audio only
