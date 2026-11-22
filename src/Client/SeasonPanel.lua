@@ -67,6 +67,8 @@ function SeasonPanel.init(deps)
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 16, "parchment")
 	deps.addSoftShadow(panel, 18)
+	local panelScale = Instance.new("UIScale") -- short screens scale the whole panel (SeasonTrack.fit), never below 0.8
+	panelScale.Parent = panel
 
 	-- wood banner: season name, days left (number + clock)
 	local banner = Instance.new("Frame")
@@ -126,7 +128,7 @@ function SeasonPanel.init(deps)
 
 	-- progress bar to the next tier
 	local barBack = Instance.new("Frame")
-	barBack.Size = UDim2.new(1, -440, 0, 24)
+	barBack.Size = UDim2.new(1, -440, 0, 24) -- vertically centred on the 44 px buttons
 	barBack.Position = UDim2.fromOffset(15, 66)
 	barBack.BackgroundColor3 = Color3.fromRGB(120, 96, 66)
 	barBack.BorderSizePixel = 0
@@ -148,9 +150,9 @@ function SeasonPanel.init(deps)
 	deps.roundCorner(barText, 12)
 
 	local claimAll = Instance.new("TextButton")
-	claimAll.Size = UDim2.fromOffset(190, 34)
+	claimAll.Size = UDim2.fromOffset(190, SeasonTrack.BUTTON_H)
 	claimAll.AnchorPoint = Vector2.new(1, 0)
-	claimAll.Position = UDim2.new(1, -15, 0, 61)
+	claimAll.Position = UDim2.new(1, -15, 0, 56)
 	claimAll.Font = Enum.Font.GothamBold
 	claimAll.TextSize = 16
 	claimAll.TextColor3 = CREAM
@@ -224,11 +226,11 @@ function SeasonPanel.init(deps)
 	end)
 
 	local premiumButton = Instance.new("TextButton")
-	premiumButton.Size = UDim2.fromOffset(200, 34)
+	premiumButton.Size = UDim2.fromOffset(200, SeasonTrack.BUTTON_H)
 	premiumButton.AnchorPoint = Vector2.new(1, 0)
-	premiumButton.Position = UDim2.new(1, -215, 0, 61)
+	premiumButton.Position = UDim2.new(1, -215, 0, 56)
 	premiumButton.Font = Enum.Font.GothamBold
-	premiumButton.TextSize = 15
+	premiumButton.TextSize = 16
 	premiumButton.TextColor3 = INK
 	premiumButton.BackgroundColor3 = GOLD
 	premiumButton.Text = "Premium"
@@ -283,7 +285,7 @@ function SeasonPanel.init(deps)
 		box.Name = "Premium"
 		box.Position = UDim2.fromOffset(4, TILE_H + 4)
 		box.Size = UDim2.fromOffset(TILE_W - 8, PREMIUM_H - 6)
-		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or Color3.fromRGB(235, 214, 160)
+		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or (prem.locked and Color3.fromRGB(150, 128, 96) or Color3.fromRGB(235, 214, 160))
 		box.BorderSizePixel = 0
 		box.ZIndex = 43
 		box.Parent = t
@@ -312,7 +314,8 @@ function SeasonPanel.init(deps)
 		if prem.claimed then
 			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
 		elseif prem.locked then
-			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 16, Text = "🔒", ZIndex = 48 })
+			label(box, { Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 0), TextSize = 20, Text = "🔒", ZIndex = 48 })
+			label(box, { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0, 0, 1, -22), TextSize = 16, TextColor3 = CREAM, Text = "Premium only", ZIndex = 48 })
 		end
 		local claimBox = Instance.new("TextButton")
 		claimBox.Size = UDim2.fromScale(1, 1)
@@ -328,6 +331,7 @@ function SeasonPanel.init(deps)
 		end)
 	end
 
+	local state_tier -- the player's current tier, set by refresh before the tiles are built
 	local function tile(row, prevRow, hasPremium)
 		local t = Instance.new("TextButton")
 		t.Name = "Tier_" .. row.tier
@@ -343,10 +347,19 @@ function SeasonPanel.init(deps)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = (row.reached and not row.claimed) and GOLD or INK
 		stroke.Thickness = (row.reached and not row.claimed) and 3 or 1.5
+		local isNow = state_tier ~= nil and row.tier == state_tier
+		if isNow then
+			stroke.Color = Color3.fromRGB(255, 214, 90)
+			stroke.Thickness = 4
+			t.BackgroundColor3 = Color3.fromRGB(240, 222, 170)
+		end
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
 		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier) })
+		if isNow then
+			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Now", ZIndex = 47 })
+		end
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(92, 92)
 		well.Position = UDim2.fromOffset(math.floor((TILE_W - 92) / 2), 28)
@@ -439,13 +452,18 @@ function SeasonPanel.init(deps)
 			barText.Text = "Tier " .. LBText.fmt(view.tier) .. "   " .. LBText.fmt(view.into) .. " / " .. LBText.fmt(view.xpPerTier) .. " XP to tier " .. LBText.fmt(view.tier + 1)
 		end
 		local hasPremium = view.premium ~= nil
+		state_tier = (not view.maxed) and view.tier or nil
 		for i, row in ipairs(view.tiers) do
 			tile(row, view.tiers[i - 1], hasPremium)
 		end
 		-- the panel is exactly as tall as its content: no empty parchment under the track when the season has no Premium row
-		trackH = TILE_H + (hasPremium and PREMIUM_H or 0) + 26
+		local viewSize = deps.screenGui.AbsoluteSize
+		local fit = SeasonTrack.fit(math.max(1, viewSize.X), math.max(1, viewSize.Y), hasPremium)
+		trackH = fit.trackH
+		trackCap.MaxSize = Vector2.new(fit.trackW, 10000)
 		track.Size = UDim2.new(1, -30, 0, trackH)
-		panel.Size = UDim2.new(0.86, 0, 0, trackH + 194)
+		panel.Size = UDim2.fromOffset(fit.panelW, fit.panelH)
+		panelScale.Scale = fit.scale
 		shadeL.Size = UDim2.new(0, 14, 0, trackH - 12)
 		shadeR.Size = shadeL.Size
 		-- bring the first tile that still needs attention into view

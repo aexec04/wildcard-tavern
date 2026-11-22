@@ -35369,6 +35369,26 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
 end })
 
+table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	expectEqual(ST.BUTTON_H, 44)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		for _, prem in ipairs({ true, false }) do
+			local f = ST.fit(sz[1], sz[2], prem)
+			local tag = sz[1] .. "x" .. sz[2] .. (prem and " premium" or "")
+			expectTrue(f.tiles >= 3 and f.tiles <= 10, "whole tile count at " .. tag)
+			expectEqual(f.trackW, f.tiles * (ST.TILE_W + ST.TILE_GAP) - ST.TILE_GAP)
+			expectTrue(f.shownW <= sz[1] and f.shownH <= sz[2], "panel fits the screen at " .. tag)
+			expectTrue(f.scale >= 0.8 and f.scale <= 1, "scale in range at " .. tag)
+			expectTrue(14 * f.scale >= 11, "smallest text stays readable at " .. tag)
+		end
+	end
+	expectEqual(ST.fit(1920, 1080, true).tiles, 10)
+	if not io then return end
+	local f = assert(io.open("src/Client/SeasonPanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("SeasonTrack.BUTTON_H", 1, true) ~= nil and src:find("Premium only", 1, true) ~= nil and src:find('Text = "Now"', 1, true) ~= nil, "buttons use BUTTON_H, locked premium says so, current tier tagged Now")
+end })
+
 table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles, tips art by size, stamp text once per run, bar clear of the reward plate, 360 px Daily panel", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
