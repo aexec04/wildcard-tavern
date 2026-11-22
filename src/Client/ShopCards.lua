@@ -46,6 +46,7 @@ local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local AbilityText = require(Engine:WaitForChild("AbilityText"))
+local Packs = require(Engine:WaitForChild("Packs"))
 local RarityFrame = require(script.Parent.RarityFrame)
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -145,16 +146,7 @@ local function label(parent, props)
 end
 
 -- Pack ids end in _jumbo / _mega; the art and the reveal tier come from the suffix.
-local function packTier(packId)
-	if type(packId) == "string" then
-		if packId:sub(-6) == "_jumbo" then
-			return packId:sub(1, -7), "JUMBO", "rare"
-		elseif packId:sub(-5) == "_mega" then
-			return packId:sub(1, -6), "MEGA", "epic"
-		end
-	end
-	return packId, nil, "common"
-end
+local packTier = Packs.sizeInfo -- shared with the tests (Engine/Packs)
 ShopCards.packTier = packTier
 
 function ShopCards.new(deps)

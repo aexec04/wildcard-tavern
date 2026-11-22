@@ -19609,7 +19609,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 		} })
 		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
 		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
-			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), AbilityText = require(Engine.AbilityText), Gameplay2Synergy = require(Engine.Gameplay2Synergy) })
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), AbilityText = require(Engine.AbilityText), Gameplay2Synergy = require(Engine.Gameplay2Synergy), Packs = require(Engine.Packs) })
 		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 		local tweens = {}
 		st.services.TweenService.Create = function(_, inst, _, goal)
@@ -37094,6 +37094,32 @@ table.insert(tests, { name = "Generated art registries never hold a placeholder 
 	end
 	list:close()
 	expectTrue(checked > 40, "scanned the art registries")
+end })
+
+table.insert(tests, { name = "Every pack id resolves to pack art or base art plus a size tag, never an emoji", fn = function()
+	local PackArt = require(script.Parent.Parent.Engine.PackArt)
+	local PacksMod = require(script.Parent.Parent.Engine.Packs)
+	local jumbo, mega = 0, 0
+	for _, pack in ipairs(PacksMod.Definitions) do
+		local baseId, tag = PacksMod.sizeInfo(pack.id)
+		expectTrue(PackArt[baseId] ~= nil, pack.id .. " has no art (base " .. tostring(baseId) .. ")")
+		expectTrue(PackArt[baseId] ~= "rbxassetid://0", pack.id .. " art is a placeholder")
+		if pack.id:sub(-6) == "_jumbo" then
+			jumbo = jumbo + 1
+			expectEqual(tag, "JUMBO")
+		elseif pack.id:sub(-5) == "_mega" then
+			mega = mega + 1
+			expectEqual(tag, "MEGA")
+		else
+			expectEqual(tag, nil)
+			expectEqual(baseId, pack.id)
+		end
+	end
+	expectTrue(jumbo > 0 and mega > 0, "jumbo and mega packs exist")
+	local base, tag, tier = PacksMod.sizeInfo("house_pack_mega")
+	expectEqual(base, "house_pack")
+	expectEqual(tag, "MEGA")
+	expectEqual(tier, "epic")
 end })
 
 return tests
