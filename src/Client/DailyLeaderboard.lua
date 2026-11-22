@@ -81,6 +81,7 @@ return function(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
 	local Leaderboards = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Leaderboards"))
 	local LBText = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LeaderboardText"))
+	local NameFit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("NameFit"))
 
 	local leaderboardBackdrop = Instance.new("Frame")
 	leaderboardBackdrop.Name = "DailyLeaderboardBackdrop"
@@ -260,10 +261,9 @@ return function(deps)
 		nameLabel.TextSize = 14
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.TextColor3 = skin and skin.ink or Color3.fromRGB(250, 240, 220)
-		nameLabel.Text = isYou and (name .. " (you)") or name
-		if flair and flair ~= "" then
-			nameLabel.Text = nameLabel.Text .. "  \u{2022}  " .. flair -- equipped title and card back (friends in this server)
-		end
+		-- the name keeps its letters; the "(you)" tag and the title are cut first (Engine/NameFit), 14 px in the room left of the stats
+		local shown = NameFit.clip(name, NameFit.MAX_NAME) .. (isYou and " (you)" or "")
+		nameLabel.Text = NameFit.withTitle(shown, flair, NameFit.maxChars(nameLabel.AbsoluteSize.X > 0 and nameLabel.AbsoluteSize.X or 300, 14))
 		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		nameLabel.ZIndex = 21
 		nameLabel.Parent = row

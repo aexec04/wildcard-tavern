@@ -33,6 +33,7 @@ local RANK_TEXT = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
 
 function SpectatePanel.init(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+	local NameFit = require(Engine:WaitForChild("NameFit"))
 	local Spectate = require(Engine:WaitForChild("Spectate"))
 	local SpectateLayout = require(Engine:WaitForChild("SpectateLayout"))
 	local Flair = require(Engine:WaitForChild("Flair"))
@@ -278,7 +279,7 @@ function SpectatePanel.init(deps)
 	local function applySnapshot(e)
 		overlay.Visible = true
 		watchedFlair = e.flair or {}
-		title.Text = "Watching " .. ((e.crest and e.crest ~= "") and (e.crest .. " ") or "") .. (e.name or "a friend")
+		title.Text = "Watching " .. ((e.crest and e.crest ~= "") and (e.crest .. " ") or "") .. NameFit.clip(e.name or "a friend", 22)
 		local bits = {}
 		if e.stakeName then bits[#bits + 1] = e.stakeName end
 		if e.roadName then bits[#bits + 1] = e.roadName end
@@ -442,7 +443,7 @@ function SpectatePanel.init(deps)
 			row.BackgroundTransparency = 1
 			row.ZIndex = 93
 			row.Parent = list
-			label(row, { Size = UDim2.new(1, -70, 1, 0), Position = UDim2.fromOffset(6, 0), Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = v.name or "?", ZIndex = 94 })
+			label(row, { Size = UDim2.new(1, -70, 1, 0), Position = UDim2.fromOffset(6, 0), Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = NameFit.clip(v.name, 24), ZIndex = 94 })
 			local block = Instance.new("TextButton")
 			block.Size = UDim2.fromOffset(58, 24)
 			block.AnchorPoint = Vector2.new(1, 0.5)
@@ -471,7 +472,9 @@ function SpectatePanel.init(deps)
 		local count = math.floor(e.count or 0)
 		badge.Visible = count > 0
 		badge.Text = "👁 " .. count .. " watching"
-		namesLabel.Text = table.concat(e.names or {}, ", ")
+		local clipped = {}
+		for i, n in ipairs(e.names or {}) do clipped[i] = NameFit.clip(n, 16) end
+		namesLabel.Text = table.concat(clipped, ", ")
 		viewersNow = type(e.viewers) == "table" and e.viewers or {}
 		if list.Visible then rebuildList() end
 		if count == 0 then list.Visible = false end

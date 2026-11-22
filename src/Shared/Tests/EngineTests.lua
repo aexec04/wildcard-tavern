@@ -41808,4 +41808,46 @@ table.insert(tests, { name = "Reduce motion coverage: every client file that twe
 	end
 end })
 
+table.insert(tests, { name = "Name and title display: a 20 character name clips with an ellipsis, the name keeps its letters before any title, long titles drop first", fn = function()
+	local NF = require(script.Parent.Parent.Engine.NameFit)
+	local long = "ABCDEFGHIJKLMNOPQRST" -- 20 characters, the Roblox maximum
+	expectEqual(#long, 20)
+	expectEqual(NF.clip(long, 20), long)
+	expectEqual(NF.clip(long, 13), "ABCDEFGHIJ...")
+	expectEqual(#NF.clip(long, 13), 13)
+	expectEqual(NF.clip(long, 2), "A...", "never clipped below the 4 character floor")
+	expectEqual(NF.clip("Sam", 13), "Sam")
+	expectEqual(NF.clip(nil, 10), "?")
+	expectEqual(NF.clip("   ", 10), "?")
+	expectEqual(NF.clip("a\nb\tc", 10), "a b c")
+	expectEqual(NF.clean(12), "")
+	-- multi-byte names are cut on a character, not in the middle of one
+	local accented = "\195\169\195\169\195\169\195\169\195\169\195\169"
+	local cut = NF.clip(accented, 5)
+	expectTrue(utf8.len(cut) ~= nil and utf8.len(cut) == 5, "cut on a character edge")
+	-- widths: the medallion plate and a leaderboard row at 800x450
+	expectEqual(NF.maxChars(110, 14), 13)
+	expectTrue(NF.maxChars(0, 14) == NF.MIN_CHARS and NF.maxChars(nil, nil) == NF.MIN_CHARS)
+	local LBT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local lay = LBT.layout(800, 450)
+	local nameW = lay.scroll.w - 220 -- the name label's width in DailyLeaderboard
+	expectTrue(NF.maxChars(nameW, 14) >= 20 + #" (you)", "a 20 character name and (you) fit a row at 800x450")
+	-- titles
+	expectEqual(NF.withTitle("Sam", "Regular", 30), "Sam  |  Regular")
+	expectEqual(NF.withTitle("Sam", "", 30), "Sam")
+	expectEqual(NF.withTitle(long, "Card Shark", 22), long, "no room for a title: the name is kept whole")
+	expectEqual(NF.withTitle(long, "Card Shark", 40), long .. "  |  Card Shark")
+	local tight = NF.withTitle("Samantha", "The Great Dealer", 20)
+	expectTrue(#tight <= 20 and tight:sub(1, 8) == "Samantha" and tight:find("...", 1, true) ~= nil, "the title is cut, the name is not: " .. tight)
+	expectTrue(#NF.withTitle(long, "x", 12) <= 12, "never longer than the limit")
+	if not io then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local md = read("src/Client/PlayerMedallion.lua")
+	expectTrue(md:find("NameFit.clip(", 1, true) ~= nil and md:find("titleBandOf", 1, true) ~= nil, "the Menu name plate clips and wears the set ink")
+	expectTrue(md:find("NAME_SIZE = 14", 1, true) ~= nil and md:find("NAME_W = 118", 1, true) ~= nil, "14 px text on a 118 px plate")
+	expectTrue(read("src/Client/DailyLeaderboard.lua"):find("NameFit.withTitle(", 1, true) ~= nil, "leaderboard rows use NameFit")
+	local sp = read("src/Client/SpectatePanel.lua")
+	expectTrue(select(2, sp:gsub("NameFit.clip%(", "")) >= 3, "Spectate clips the title, the viewers and the hover names")
+end })
+
 return tests

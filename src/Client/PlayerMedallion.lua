@@ -13,12 +13,16 @@
 ]]
 
 local Players = game:GetService("Players")
+local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+local NameFit = require(Engine:WaitForChild("NameFit"))
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local SIZE = 42 -- 74 + 42 + 2 + 17 = 135: ends just above where the sidebar content starts (PaddingTop 140)
 
 local PlayerMedallion = {}
+PlayerMedallion.NAME_W = 118 -- the name plate: 13 characters at 14 px, then "..."
+PlayerMedallion.NAME_SIZE = 14
 
 function PlayerMedallion.install(root)
 	local board = root:FindFirstChild("SidebarBoard")
@@ -81,16 +85,31 @@ function PlayerMedallion.install(root)
 
 	local name = Instance.new("TextLabel")
 	name.Name = "PlayerName"
-	name.AnchorPoint = Vector2.new(0.5, 0)
-	name.Position = UDim2.new(0.5, 0, 0, SIZE + 2)
-	name.Size = UDim2.new(1, 0, 0, 17)
+	name.AnchorPoint = Vector2.new(1, 0) -- the plate grows to the left, away from the board edge
+	name.Position = UDim2.new(1, 0, 0, SIZE + 2)
+	name.Size = UDim2.new(0, PlayerMedallion.NAME_W, 0, 17)
 	name.BackgroundTransparency = 0.2 -- small dark plate so painted frame art behind it never hurts legibility
 	name.BackgroundColor3 = Color3.fromRGB(44, 30, 18)
 	name.Font = Enum.Font.GothamBold
-	name.TextSize = 15
+	name.TextSize = PlayerMedallion.NAME_SIZE
 	name.TextColor3 = Color3.fromRGB(250, 236, 200)
-	name.TextTruncate = Enum.TextTruncate.AtEnd
-	name.Text = player and (player.DisplayName ~= "" and player.DisplayName or player.Name) or ""
+	name.TextTruncate = Enum.TextTruncate.AtEnd -- backstop; NameFit already cut the text with an ellipsis
+	name.Text = NameFit.clip(player and (player.DisplayName ~= "" and player.DisplayName or player.Name) or "", NameFit.maxChars(PlayerMedallion.NAME_W - 8, PlayerMedallion.NAME_SIZE))
+	-- the equipped Card Set's plate and ink (7:1, Engine/CosmeticSets.titleBandOf); classic keeps the dark plate and cream
+	local function tint()
+		local ok, band = pcall(function()
+			return require(Engine:WaitForChild("CosmeticSets")).titleBandOf(require(script.Parent.TavernKit).plateSetId())
+		end)
+		if ok and band then
+			name.BackgroundColor3 = Color3.fromRGB(band.fill[1], band.fill[2], band.fill[3])
+			name.TextColor3 = Color3.fromRGB(band.ink[1], band.ink[2], band.ink[3])
+		else
+			name.BackgroundColor3 = Color3.fromRGB(44, 30, 18)
+			name.TextColor3 = Color3.fromRGB(250, 236, 200)
+		end
+	end
+	tint()
+	pcall(function() require(script.Parent.HudTheme).onSkin(function() if name.Parent then tint() end end) end)
 	name.ZIndex = 5
 	name.Parent = holder
 
