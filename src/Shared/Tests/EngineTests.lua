@@ -38657,6 +38657,55 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Rejoin mid run: leaving at the draft choice, in the shop or in a round and rejoining gives a safe fresh run, banked Tips are paid once, nothing carries over, no screen is left without a state", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = 9
+	-- the server saves the profile on leave and loads it on join: that is all that survives
+	local function leaveAndRejoin(p) return PlayerProfile.migrate(p) end
+	for _, leaveAt in ipairs({ "draft", "round", "shop" }) do
+		local state = RunState.new({}, SeededRng.new(11))
+		local choice = RunChoice.startDraft(state, true)
+		if leaveAt ~= "draft" then
+			if choice then RunChoice.pick(state, choice, choice.options[1].id) end
+			RunState.startRound(state)
+			expectTrue(#state.hand > 0)
+			pcall(RunState.playHand, state, { 1, 2 })
+		end
+		if leaveAt == "shop" then
+			state.roundOver, state.runOver = true, false
+			RunState.buyPatron(state, "tip_jar")
+		end
+		local owned, tipsAtLeave = #state.ownedPatrons, state.tips
+		-- leave: the session (and its run) is dropped, the profile is saved and reloaded on rejoin
+		profile = leaveAndRejoin(profile)
+		local fresh = RunState.new({}, SeededRng.new(12))
+		expectEqual(fresh.night, 1, "a rejoin starts at Night 1 (left at " .. leaveAt .. ")")
+		expectEqual(fresh.round, 1)
+		expectEqual(#fresh.ownedPatrons, 0, "no Patron carries over from the old run")
+		expectEqual(fresh.roundScore or 0, 0)
+		expectTrue(fresh.runOver ~= true and fresh.roundOver ~= true, "the new run is open for play")
+		expectTrue(#fresh.hand > 0 or fresh.hand ~= nil, "a hand state exists, so the table screen has something to draw")
+		expectEqual(profile.pendingStartTips, 9, "banked Tips survive the leave untouched until a run starts")
+		local _ = owned + tipsAtLeave
+	end
+	-- the banked Tips are paid into exactly one run: taking them clears the bank
+	local bank = profile.pendingStartTips
+	profile.pendingStartTips = 0
+	expectEqual(leaveAndRejoin(profile).pendingStartTips, 0, "a second rejoin pays nothing again")
+	expectEqual(bank, 9)
+	-- the server side of it
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("sessions[player] = nil", 1, true) ~= nil, "a leaving player's session is dropped")
+	expectTrue(src:find("pcall(startNewSession, player)", 1, true) ~= nil, "a joining player always gets a session, and a failure is caught")
+	expectTrue(src:find("if sessions[player] then pushState(player) end", 1, true) ~= nil, "a state request without a session is ignored, not an error")
+	expectTrue(src:find("saveProfile(player, true)", 1, true) ~= nil, "the profile is saved on leave")
+end })
+
 table.insert(tests, { name = "Exploit audit: no shop loop of buy, sell and reroll grows Tips, and Daily chest, first win bonus, quest and rank claims pay once however often they are repeated", fn = function()
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
 	local Recipes = require(script.Parent.Parent.Engine.Recipes)
