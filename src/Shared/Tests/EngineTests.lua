@@ -35227,6 +35227,39 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
 end })
 
+table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles, tips art by size, stamp text once per run, bar clear of the reward plate, 360 px Daily panel", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectEqual(ST.TILE_W, 128)
+	expectEqual(ST.TILE_GAP, 12)
+	expectEqual(ST.TILES_VISIBLE, 10)
+	local seen = {}
+	for _, amount in ipairs({ 2, 3, 4, 5, 6, 7, 8 }) do
+		local cat, key = ST.tipsArt(amount)
+		expectTrue(ContentArt.getImageId(cat, key) ~= nil, "tips art " .. cat .. "/" .. key .. " has an id")
+		seen[cat .. "/" .. key] = true
+	end
+	local kinds = 0
+	for _ in pairs(seen) do kinds = kinds + 1 end
+	expectEqual(kinds, 4) -- small pouch, purse, big pouch, chest
+	expectTrue(ST.premiumLabelShown(nil, "Season Stamp") and not ST.premiumLabelShown("Season Stamp", "Season Stamp") and ST.premiumLabelShown("Season Stamp", "Flair: Ribbon Trail"), "stamp text once per run")
+	-- XP rewards use the painted scroll, so Daily Day 2, 4, 6 are no flat sticker
+	local RA = require(script.Parent.Parent.Engine.RewardArt)
+	local cat, key = RA.resolve({ kind = "xp", amount = 40 })
+	expectTrue(cat ~= nil and ContentArt.getImageId(cat, key) ~= nil, "xp reward has painted art")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local q = read("src/Client/QuestsPanel.lua")
+	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
+	expectTrue(q:find("TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
+	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
+	local d = read("src/Client/DailyRewardsPanel.lua")
+	expectTrue(d:find("DailyRewardsPanel.PANEL_H = 360", 1, true) ~= nil, "Daily panel is 360 px")
+	expectTrue(not d:find("gift icon", 1, true), "no gift icon instruction")
+	local sp = read("src/Client/SeasonPanel.lua")
+	expectTrue(sp:find("TextSize = 16, TextColor3 = CREAM", 1, true) ~= nil and sp:find("BackgroundTransparency = 0.35", 1, true) ~= nil, "bar text is cream 16 px on a 0.35 dark strip")
+end })
+
 table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
 	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
 	local tabRight = 0

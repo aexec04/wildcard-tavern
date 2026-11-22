@@ -285,6 +285,24 @@ function SeasonTrack.grantPremium(profile, seasonId, day)
 	return {}
 end
 
+-- Season panel numbers (Client/SeasonPanel.lua): 128 px tiles with 12 px gaps, so the track shows 10 full tiles.
+SeasonTrack.TILE_W, SeasonTrack.TILE_GAP, SeasonTrack.TILES_VISIBLE = 128, 12, 10
+
+-- Painted art for a Tips reward by size: small pouch (up to 3), coin purse (4 to 5), big pouch (6 to 7), chest (8 and up).
+-- Returns the ContentArt category and key (all four already exist).
+function SeasonTrack.tipsArt(amount)
+	amount = tonumber(amount) or 0
+	if amount <= 3 then return "rewards_emblems", "rewards_pouch_small" end
+	if amount <= 5 then return "hud", "coin_purse" end
+	if amount <= 7 then return "rewards_emblems", "rewards_pouch_full" end
+	return "discoveries", "chest"
+end
+
+-- The reward line under a Premium cell: shown once per run of identical rewards ("Season Stamp" only on the first of a run).
+function SeasonTrack.premiumLabelShown(prevText, text)
+	return text ~= nil and text ~= "" and text ~= prevText
+end
+
 -- Short reward text ("+3 Tips next run"). `lookup` (optional) = { cardBackName, titleName } like TavernRank.rewardText.
 function SeasonTrack.rewardText(reward, lookup)
 	if reward and reward.kind == "tips" then
