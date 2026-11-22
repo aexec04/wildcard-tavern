@@ -210,7 +210,7 @@ return function(deps)
 		button.Font = Enum.Font.Merriweather
 		button.TextSize = 16
 		button.TextColor3 = TEXT
-		button.ZIndex = 21
+		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
 		button.Parent = row
 		polishButton(button, 8)
 		addButtonHoverScale(button)
@@ -589,7 +589,7 @@ return function(deps)
 		button.Text = text
 		button.BackgroundColor3 = BUTTON
 		button.TextColor3 = TEXT
-		button.ZIndex = 21
+		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
 		button.Parent = parentRow or accountRow
 		polishButton(button, 12)
 		addButtonHoverScale(button)
