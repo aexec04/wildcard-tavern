@@ -80,7 +80,8 @@ Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with 
 - Per set Tavern Map node icons tint. No spend. Concrete values, a test, one commit, STATUS line.
    DONE (rings): unlit node rings take the set accent; the emoji icons cannot be tinted, lit nodes stay gold.
 - Per set loading screen tip line and colour. No spend. Concrete values, a test, one commit, STATUS line.
-   HELD (needs you): the loading screen runs in ReplicatedFirst before the player's data and equipped set exist, so it cannot know the set. Needs a design call: remember the last equipped set in a local setting, or use a random set per launch.
+   DONE: LoadingTips.SET_TIPS leads the rotation once with the last equipped set's tip (queue task Loading tip per Card Set).
+   WAS HELD: the loading screen runs in ReplicatedFirst before the player's data and equipped set exist, so it cannot know the set. Needs a design call: remember the last equipped set in a local setting, or use a random set per launch.
 - Sim: Patron synergy pairs, report the top 10 and bottom 10 pairs by clear rate, nudge outliers. No spend. Concrete values, a test, one commit, STATUS line.
    DONE: sim --pair-rates, 14,000 builds, every pair within 8.2 points of the average, no nudge (ECONOMY.md, bc8275c).
 - Test: Endless mode never produces a NaN or negative target at Night 100. No spend. Concrete values, a test, one commit, STATUS line.
