@@ -23848,6 +23848,20 @@ table.insert(tests, { name = "LoadingLayout: bar, status, tip, title and Skip ne
 	end
 end })
 
+table.insert(tests, { name = "Consistency pass: Settings and the loading screen use the painted serif only", fn = function()
+	for _, path in ipairs({ "src/Client/Settings.lua", "src/ReplicatedFirst/LoadingScreenUI.lua" }) do
+		local f = io and io.open and io.open(path, "r")
+		if f then
+			local text = f:read("*a")
+			f:close()
+			expectTrue(not text:find("Enum.Font.Gotham", 1, true), path .. " has no plain sans font")
+			if path:find("Settings", 1, true) then
+				expectTrue(text:find("Enum.Font.Merriweather", 1, true) ~= nil, "Settings uses the Merriweather serif")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "BoardDrawer: collapsed board is fully off screen except the handle, the chip and handle stay inside, numbers are whole, phones and forced-open keep it open", fn = function()
 	local D = require(script.Parent.Parent.Engine.BoardDrawer)
 	local PBL = require(script.Parent.Parent.Engine.PlayBoardLayout)
