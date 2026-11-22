@@ -38007,7 +38007,7 @@ table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles
 	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
 	local q = read("src/Client/QuestsPanel.lua")
 	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
-	expectTrue(q:find("TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
+	expectTrue(q:find("TextSize = 14, TextColor3 = skin and skin.sub or INK, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
 	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
 	local d = read("src/Client/DailyRewardsPanel.lua")
 	expectTrue(d:find("DailyRewardsPanel.PANEL_H = 360", 1, true) ~= nil, "Daily panel is 360 px")
@@ -39089,6 +39089,44 @@ table.insert(tests, { name = "Loading screen and Night clear frame take the equi
 	if cs then expectTrue(cs:find("EquippedCardSet", 1, true) ~= nil, "loading script reads the equipped set attribute") end
 	local fx = read("src/Client/Gameplay2MomentsFX.lua")
 	if fx then expectTrue(fx:find("skinPlate(plate", 1, true) ~= nil and fx:find("HintSkin", 1, true) ~= nil, "Night clear plates bind the hint skin") end
+end })
+
+table.insert(tests, { name = "Leaderboards, Quests and Daily Rewards rows take the set plate, ink, badge and chip at 4.5:1 or more on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.rowStyleOf("classic_tavern"), nil, "classic keeps its parchment and brown rows")
+	expectEqual(CS.rowStyleOf(nil), nil, "no set keeps them too")
+	local n, rows = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local st = CS.rowStyleOf(set.id)
+			expectTrue(st ~= nil, set.id .. " has a row style")
+			if st then
+				n = n + 1
+				expectTrue(CS.contrastRatio(st.row, st.ink) >= 7 and CS.contrastRatio(st.hot, st.ink) >= 7, set.id .. " name ink keeps 7:1 on the row and the you row")
+				expectTrue(CS.contrastRatio(st.row, st.sub) >= 4.5 and CS.contrastRatio(st.hot, st.sub) >= 4.5, set.id .. " second line keeps 4.5:1")
+				expectTrue(CS.contrastRatio(st.badge, st.badgeInk) >= 4.5, set.id .. " rank badge keeps 4.5:1")
+				expectTrue(CS.contrastRatio(st.chip, st.chipInk) >= 4.5, set.id .. " claim chip keeps 4.5:1")
+				rows[st.row[1] .. "," .. st.row[2] .. "," .. st.row[3] .. "|" .. st.badge[1] .. "," .. st.badge[2] .. "," .. st.badge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a row style")
+	local distinct = 0
+	for _ in pairs(rows) do distinct = distinct + 1 end
+	expectTrue(distinct >= 10, "sets read differently in the rows")
+	if not io then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	for _, name in ipairs({ "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel" }) do
+		local src = read(name)
+		if src then expectTrue(src:find("RowSkin", 1, true) ~= nil, name .. " reads the row skin") end
+	end
+	local rs = read("RowSkin")
+	if rs then expectTrue(rs:find("rowStyleOf", 1, true) ~= nil, "RowSkin asks the pure rule") end
 end })
 
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
@@ -40259,7 +40297,7 @@ table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use
 	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
 	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
 	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
-	expectTrue(daily:find("TextColor3 = INK, TextWrapped = true", 1, true) ~= nil or daily:find("TextColor3 = INK", 1, true) ~= nil, "Daily text stays dark ink")
+	expectTrue(daily:find("skin and skin.ink or INK", 1, true) ~= nil, "Daily text is dark ink on classic parchment and the set ink on a set row")
 end })
 
 table.insert(tests, { name = "Menu wordmark takes the Card Set accent, 7:1 against its outline on every set, classic untouched, no layout change", fn = function()
