@@ -216,6 +216,21 @@ function MenuLayout.plateRect(hotspot, screenW, screenH)
 	return cx - half, b + 2, cx + half, b + 2 + MenuLayout.PLATE_H * screenH
 end
 
+-- The open All actions list (not phones): its right edge is 16 px from the screen edge, its bottom 62 px above the bottom, at
+-- most 0.7 of the height, and it never starts above `boardBottom + gap` so it cannot cover the Rank and Next goal notes on the
+-- Notice Board. Returns left, top, right, bottom (px). `boardBottom` = bottom of the board rectangle, nil on the old layout.
+MenuLayout.LIST = { width = 252, right = 16, bottom = 62, maxFrac = 0.7, gap = 10, minHeight = 120 }
+function MenuLayout.listRect(screenW, screenH, boardBottom)
+	local L = MenuLayout.LIST
+	local bottom = screenH - L.bottom
+	local height = math.min(L.maxFrac * screenH, bottom - 8)
+	if boardBottom then
+		height = math.min(height, bottom - (boardBottom + L.gap))
+	end
+	height = math.max(L.minHeight, height)
+	return screenW - L.right - L.width, bottom - height, screenW - L.right, bottom
+end
+
 -- Pixel rectangle of the Notice Board.
 function MenuLayout.noticeRect(screenW, screenH)
 	local n = MenuLayout.NoticeBoard

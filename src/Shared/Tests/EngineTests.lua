@@ -8237,6 +8237,34 @@ table.insert(tests, { name = "PlayTableLayout: the oval wood-only front has rect
 	end
 end })
 
+table.insert(tests, { name = "Menu All actions list: starts under the Notice Board at 1920x1080, 1920x957, 1280x720 and 800x450, stays on screen, wordmark stays 12 px down", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local Room = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		local W, H = size[1], size[2]
+		local board = Room.layout(W, H).noticeboard
+		local l, t, r, b = ML.listRect(W, H, board.b)
+		local where = W .. "x" .. H
+		expectTrue(t >= board.b + ML.LIST.gap - 0.01 or (b - t) <= ML.LIST.minHeight + 0.01, where .. " list clear of the board bottom " .. board.b .. " top " .. t)
+		expectTrue(l >= 0 and r <= W and t >= 0 and b <= H, where .. " list on screen")
+		expectTrue(b - t >= ML.LIST.minHeight and b - t <= 0.7 * H + 0.01, where .. " list height")
+		expectEqual(r, W - ML.LIST.right)
+	end
+	-- no board known (old layout): the old 0.7 of the height
+	local _, t0, _, b0 = ML.listRect(1920, 957, nil)
+	expectTrue(math.abs((b0 - t0) - 0.7 * 957) < 0.01)
+	-- the wordmark glyph never starts above 12 px, whatever the parallax lift
+	for _, dy in ipairs({ -28, -12, 0, 10 }) do
+		expectTrue(dy + 4 + ML.WORDMARK.glyphDrop + ML.keepWordmarkOnScreen(dy, 4) >= ML.WORDMARK.minGlyphTop, "wordmark lift " .. dy)
+	end
+	if not io then return end
+	local f = io.open("src/Client/MenuHotspots.lua", "r")
+	if f then
+		local src = f:read("a"); f:close()
+		expectTrue(src:find("Layout.listRect", 1, true) ~= nil and src:find("0.7, 0", 1, true) == nil, "the client sizes the list from listRect")
+	end
+end })
+
 table.insert(tests, { name = "TooltipSpec look: painted serif at 16 px or more, cream on brown with readable contrast, client uses the spec", fn = function()
 	local spec = require(script.Parent.Parent.Engine.TooltipSpec).Spec
 	expectEqual(spec.fontName, "Merriweather"); expectTrue(spec.textSize >= 16)
