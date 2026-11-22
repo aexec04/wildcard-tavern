@@ -456,7 +456,7 @@ return function(deps)
 	local accountRow = makeAccountRow()
 	local accountRow2 = makeAccountRow()
 
-	local function makeAccountButton(text, layoutOrder, iconImage, parentRow, perRow)
+	local function makeAccountButton(text, layoutOrder, iconName, parentRow, perRow)
 		perRow = perRow or ACC.perRow
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
@@ -471,30 +471,22 @@ return function(deps)
 		button.Parent = parentRow or accountRow
 		polishButton(button, 12)
 		addButtonHoverScale(button)
-		require(script.Parent.ConceptTSkin).plateButton(button)
-		-- Icon badge on the left edge, parented to the button.
-		if iconImage and iconImage ~= "rbxassetid://0" then
-			local icon = Instance.new("ImageLabel")
-			icon.Size = UDim2.new(0, 22, 0, 22)
-			icon.AnchorPoint = Vector2.new(0, 0.5)
-			icon.Position = UDim2.new(0, 10, 0.5, 0)
-			icon.BackgroundTransparency = 1
-			icon.Image = iconImage
-			icon.ScaleType = Enum.ScaleType.Crop
-			icon.ZIndex = 22
-			icon.Parent = button
-			roundCorner(icon, 11)
-		end
+		-- The one shared ornate dark plate (same as the gear menu and All actions) with its own painted icon; every Account
+		-- button gets exactly one plate and one icon, a flat brown look stays if the art does not load.
+		local Kit = require(script.Parent.TavernKit)
+		button:SetAttribute("AccountButton", true)
+		pcall(Kit.paintedButton, button, "secondary")
+		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
 		return button
 	end
 
-	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, ArtAssetsModule.cornerIconHowToPlay)
-	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
-	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, nil)
+	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, "bulb")
+	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, "bars")
+	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, "pause")
 	settingsMainMenuButton.Name = "MainMenu"
-	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own full-width row under the three buttons.
-	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, nil, accountRow2, ACC.secondRow)
-	local settingsMapButton = makeAccountButton("Tavern Map", 2, nil, accountRow2, ACC.secondRow)
+	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
+	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, "crown", accountRow2, ACC.secondRow)
+	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
