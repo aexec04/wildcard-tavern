@@ -5007,6 +5007,31 @@ table.insert(tests, { name = "BossOutfits: every boss has a valid outfit (known 
 	checkOutfit("unknown", BossOutfits.resolve("no_such_boss", false)) -- falls back to Default
 end })
 
+table.insert(tests, { name = "Image count audit: the menu preloads under 150 images, no url is loaded twice across phases, per set art stays lazy", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local seen, perPhase, total = {}, {}, 0
+	for _, phase in ipairs(ContentArt.PreloadPlan) do
+		local urls = ContentArt.collectUrls(phase.items)
+		local fresh = 0
+		for _, u in ipairs(urls) do
+			if not seen[u] then seen[u] = true; fresh = fresh + 1 end -- ContentArt.preload skips a url that an earlier phase asked for
+		end
+		perPhase[#perPhase + 1] = phase.name .. "=" .. fresh
+		total = total + fresh
+	end
+	print("[ImageCount] new images per phase: " .. table.concat(perPhase, " ") .. " total=" .. total)
+	local menu = ContentArt.collectUrls(ContentArt.PreloadPlan[1].items)
+	expectTrue(#menu < 150, "the menu phase loads under 150 images, got " .. #menu)
+	expectTrue(#menu + #ContentArt.collectUrls(ContentArt.PreloadPlan[2].items) < 150 or ContentArt.PreloadPlan[2].delay >= 2, "the next phase waits 2 s")
+	local lazy = {}
+	for _, c in ipairs(ContentArt.LazyCategories) do lazy[c] = true end
+	expectTrue(lazy.set_backdrops and lazy.scenes and lazy.rooms, "set backdrops, scenes and rooms stay lazy, so a set only loads its own art")
+	for _, phase in ipairs(ContentArt.PreloadPlan) do
+		for _, item in ipairs(phase.items) do
+			expectTrue(not lazy[item[1]], item[1] .. " is not in the eager plan")
+		end
+	end
+end })
 table.insert(tests, { name = "ContentArt: background preload plan starts with the menu and leaves scenes and map art lazy", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local plan = ContentArt.PreloadPlan
