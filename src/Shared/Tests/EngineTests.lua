@@ -42030,4 +42030,55 @@ table.insert(tests, { name = "Card Set progress ring: pieces owned per set, 12 t
 	expectTrue(ringBlock ~= "" and ringBlock:find("Tween", 1, true) == nil, "the ring is still: no tween")
 end })
 
+table.insert(tests, { name = "Menu first impression: hotspots are 44 px and never overlap at four sizes, every Menu text size is 14 px or more, and banner, plaque and glow ink keep 4.5:1 on all 14 sets", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local L = require(Engine.MenuLayout)
+	local CS = require(Engine.CosmeticSets)
+	local TS = require(Engine.ThemeScenes)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local rs = {}
+		for _, hs in ipairs(L.Hotspots) do
+			local l, t, r, b = L.rect(hs, w, h)
+			expectTrue(l >= -1 and t >= -1 and r <= w + 1 and b <= h + 1, hs.id .. " is on screen at " .. w .. "x" .. h)
+			expectTrue(math.min(r - l, b - t) >= 44, hs.id .. " is at least 44 px at " .. w .. "x" .. h)
+			rs[#rs + 1] = { id = hs.id, l = l, t = t, r = r, b = b }
+		end
+		local nl, nt, nr, nb = L.noticeRect(w, h)
+		expectTrue(nl >= -1 and nt >= -1 and nr <= w + 1 and nb <= h + 1, "notice board is on screen at " .. w .. "x" .. h)
+		for i = 1, #rs do
+			for j = i + 1, #rs do
+				local a, b = rs[i], rs[j]
+				local ow, oh = math.min(a.r, b.r) - math.max(a.l, b.l), math.min(a.b, b.b) - math.max(a.t, b.t)
+				expectTrue(ow <= 1.5 or oh <= 1.5, a.id .. " and " .. b.id .. " overlap at " .. w .. "x" .. h)
+			end
+		end
+	end
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local hint, p, t = CS.hintStyleOf(set.id), CS.popupStyleOf(set.id), TS.of(set.id)
+			expectTrue(hint ~= nil and CS.contrastRatio(hint.plate, hint.ink) >= 4.5, set.id .. " banner ink")
+			expectTrue(p ~= nil and CS.contrastRatio(p.dark.fill, p.dark.ink) >= 4.5, set.id .. " plaque ink")
+			expectTrue(t.accent ~= nil and p ~= nil and CS.contrastRatio(p.dark.fill, t.accent) >= 4.5, set.id .. " glow accent")
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "all 14 non classic sets covered")
+	if not io then return end
+	local files = { "Menu", "MenuBoard", "MenuHotspots", "MenuRank", "MenuTicker", "MenuDailyEntry", "MenuRegulars", "MenuLifeFX", "NewsPanel", "NextGoalBanner" }
+	local seen = 0
+	for _, name in ipairs(files) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			for size in src:gmatch("TextSize = (%d+)") do
+				seen = seen + 1
+				expectTrue(tonumber(size) >= 14, name .. " has a TextSize under 14: " .. size)
+			end
+		end
+	end
+	expectTrue(seen >= 20, "the Menu files were scanned")
+end })
+
 return tests
