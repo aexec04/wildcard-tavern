@@ -35149,6 +35149,14 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 		for _, mode in ipairs({ "run", "pick" }) do
 			local L = Look.layout(w, h, mode)
 			expectTrue(L.button.h >= 44, "next step button is a 44 px touch target at " .. w)
+			if mode == "run" then
+				inside(L.invite, w, h, "invite at " .. w); inside(L.share, w, h, "share line at " .. w)
+				expectTrue(L.invite.h >= 44, "invite is a 44 px target at " .. w)
+				for _, o in ipairs({ L.banner, L.hero, L.chest, L.button, L.rewards, L.summary }) do
+					apart(L.invite, o, "invite and a plate at " .. w); apart(L.share, o, "share line and a plate at " .. w)
+				end
+				apart(L.invite, L.share, "invite and share line at " .. w)
+			end
 			local list = { L.banner, L.subtitle, L.hero, L.chest, L.button }
 			if mode == "run" then list[#list + 1] = L.rewards; list[#list + 1] = L.summary else for _, c in ipairs(L.cards) do list[#list + 1] = c end end
 			for i, r in ipairs(list) do
@@ -35159,6 +35167,9 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 		end
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
+	local line = Look.shareLine({ night = 8 }, { name = "Flush", score = 80 })
+	expectTrue(#line <= 200 and line:find("Night 8") and line:find("Flush"), "share line is plain text within the chat limit")
+	expectTrue(not line:find("http") and not line:lower():find("www"), "share line has no links")
 	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
 	expectEqual(#cols, 1, "no unlocks means no unlock column")
 	expectEqual(cols[1].value, "+150", "tips column")
