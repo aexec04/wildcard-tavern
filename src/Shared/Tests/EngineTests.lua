@@ -45022,6 +45022,76 @@ table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Pat
 	end
 end })
 
+table.insert(tests, { name = "Settings audit: every saved option has a Settings row or another screen that owns it, saves and reloads (rejoin) from a non default value, Calm mode writes all three keys, flashing, motion, particle and Larger Text rules hold", fn = function()
+	local PP = PlayerProfile
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local rows = {}
+	for _, id in ipairs(SL.rowOrder()) do rows[id] = true end
+	local ownedElsewhere = { musicVolume = "volume", sfxVolume = "volume", muted = "volume", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
+	local keys = 0
+	for key, spec in pairs(PP.SETTING_SPECS) do
+		keys = keys + 1
+		expectTrue(rows[key] or ownedElsewhere[key] ~= nil and (rows[ownedElsewhere[key]] or ownedElsewhere[key] ~= "volume"), key .. " has a Settings row or an owner screen")
+		-- a non default valid value saves and survives a rejoin (profile saved, then loaded again)
+		local value
+		if spec.kind == "boolean" then value = not spec.default
+		elseif spec.kind == "fraction" then value = spec.default == 1 and 0.5 or 0.9
+		elseif spec.kind == "range" then value = spec.default == 2 and 1 or 2
+		else
+			for choice in pairs(spec.choices) do if choice ~= spec.default then value = choice break end end
+		end
+		local p = PP.new()
+		local ok = PP.setSetting(p, key, value)
+		expectTrue(ok, key .. " accepts a valid change")
+		local back = PP.migrate(p)
+		expectEqual(back.settings[key], value, key .. " is kept after a rejoin")
+		local again = PP.migrate(back)
+		expectEqual(again.settings[key], value, key .. " is kept after a second rejoin")
+	end
+	expectTrue(keys >= 16, "the audit saw every option: " .. keys)
+	expectTrue(rows.reduceFlashing and rows.reduceMotion and rows.largerText, "the comfort rows exist")
+	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
+	-- Calm mode writes all three keys and reads back On only when all three are on
+	expectTrue(SL.calmValue(SL.calmWrites(true)))
+	expectFalse(SL.calmValue(SL.calmWrites(false)))
+	expectFalse(SL.calmValue({ reduceMotion = true, reduceFlashing = true, reduceShake = false }))
+	-- Reduce Flashing, Reduce Motion and Performance mode rules
+	expectTrue(A.flashesAllowed({}) and not A.flashesAllowed({ reduceFlashing = true }))
+	expectTrue(A.motionAllowed({}) and not A.motionAllowed({ reduceMotion = true }))
+	expectTrue(A.calm({ reduceFlashing = true }) and A.calm({ reduceMotion = true }) and A.calm({ reduceShake = true }) and not A.calm({}))
+	expectEqual(A.particleCount({}, 10), 10)
+	expectEqual(A.particleCount({ reduceFlashing = true }, 10), 4, "Reduce Flashing keeps 40 percent of particles")
+	expectEqual(A.particleCount({ performanceMode = true, reduceFlashing = true }, 10), 0, "Performance mode has none")
+	expectEqual(A.particleCount({ reduceFlashing = true }, -5), 0, "a bad count never goes negative")
+	-- Larger Text: 15 percent, never smaller than the base, never taller than the label holds, back to normal when off
+	expectEqual(A.textScale({}), 1)
+	expectEqual(A.textScale({ largerText = true }), A.TEXT_SCALE)
+	for base = 14, 30 do
+		expectEqual(A.scaledTextSize(base, 1, 0), base, "Normal text never changes " .. base)
+		local big = A.scaledTextSize(base, A.TEXT_SCALE, 0)
+		expectTrue(big >= base and big <= math.floor(base * A.TEXT_SCALE + 0.5), "large " .. base .. " -> " .. big)
+		for _, fit in ipairs({ 14, 20, 30, 44, 60 }) do
+			local t = A.scaledTextSize(base, A.TEXT_SCALE, fit)
+			expectTrue(t >= base and (t == base or t <= math.floor(fit * 0.9)), "a label " .. fit .. " px tall keeps " .. base .. " at " .. t)
+		end
+	end
+	expectEqual(A.scaledTextSize(16, A.TEXT_SCALE, 0), 18)
+	-- the hold time stays in its range whatever was saved
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 0 }), A.HOLD_MIN)
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 99 }), A.HOLD_MAX)
+	expectEqual(A.holdSeconds({}), A.HOLD_DEFAULT)
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 0 / 0 }), A.HOLD_DEFAULT)
+	-- junk values never change a saved option
+	local p = PP.new()
+	for _, bad in ipairs({ "yes", 1, {}, 0 / 0 }) do
+		expectFalse((PP.setSetting(p, "reduceFlashing", bad)))
+		expectFalse((PP.setSetting(p, "largerText", bad)))
+	end
+	expectEqual(p.settings.reduceFlashing, false)
+	expectEqual(p.settings.largerText, false)
+end })
+
 table.insert(tests, { name = "Tome Legend tab guide: one short kind entry each for Marks and Night boons with an icon, Close and the guide plate are 44 px and never overlap at four sizes, the popup fits, ink 4.5:1 on every set plate", fn = function()
 	local G = require(script.Parent.Parent.Engine.LegendGuide)
 	local Scene = require(script.Parent.Parent.Engine.LegendSceneLayout)
