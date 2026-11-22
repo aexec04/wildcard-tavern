@@ -36687,4 +36687,91 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "First hand guidance: wrong inputs never advance or trap the tutorial, Skip works at every step, text names only controls on its screen", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	local n = #Steps.Steps
+	-- Skip at every step: the machine ends, allows everything and ignores later reports (it cannot reappear mid-run)
+	for i = 1, n do
+		local m = Steps.new()
+		m.index = i
+		m:skip()
+		expectTrue(m:finished() and m:skipped() and m:current() == nil, "skip at step " .. i)
+		expectTrue(m:allows("discard") and m:allows("card", { index = 9 }), "nothing blocked after Skip " .. i)
+		expectEqual(m:report("play_hand"), "ignored")
+	end
+	-- Wrong inputs at every step: none advances; every step still has the one right input that does
+	for i = 1, n do
+		local step = Steps.Steps[i]
+		for _, wrong in ipairs({ "play_hand", "next_round", "reroll", "buy_patron", "tab_buy", "menu_play" }) do
+			if wrong ~= step.action then
+				local m = Steps.new()
+				m.index = i
+				local r = m:report(wrong)
+				expectTrue(r == "wrong" or r == "ignored", step.id .. " wrong " .. wrong)
+				expectEqual(m.index, i)
+			end
+		end
+		local m = Steps.new()
+		m.index = i
+		for _, kind in ipairs({ "discard", "sort" }) do
+			expectFalse(m:allows(kind), step.id .. " allows " .. kind)
+		end
+		if step.action == "pick" then
+			-- a wrong card, too few cards and too many cards never advance a scripted pick; the exact set does
+			expectEqual(m:report("pick", { selected = { [step.count + 1] = true }, scripted = true }), "ignored")
+			expectEqual(m:report("pick", { selected = { [1] = true }, scripted = true, count = 1 }), step.count == 1 and "advanced" or "ignored")
+			m.index = i
+			local all = {}
+			for c = 1, step.count + 1 do all[c] = true end
+			expectEqual(m:report("pick", { selected = all, scripted = true }), "ignored")
+			expectFalse(m:allows("card", { index = step.count + 1, scripted = true }), "only the scripted cards")
+			expectTrue(m:allows("card", { index = 1, scripted = true }))
+			local exact = {}
+			for c = 1, step.count do exact[c] = true end
+			expectEqual(m:report("pick", { selected = exact, scripted = true }), "advanced")
+		else
+			expectEqual(m:report(step.action), "advanced")
+		end
+	end
+	-- the whole flow with right inputs ends cleanly, and then nothing is left to do
+	local m = Steps.new()
+	for _ = 1, n + 2 do
+		local step = m:current()
+		if not step then break end
+		if step.action == "pick" then
+			local exact = {}
+			for c = 1, step.count do exact[c] = true end
+			m:report("pick", { selected = exact, scripted = true })
+		else
+			m:report(step.action)
+		end
+	end
+	expectTrue(m:finished() and not m:skipped())
+	expectEqual(m:report("tap"), "ignored")
+	-- an unscripted replay (no scripted stage) takes any one card, so a hand without the target cards cannot trap it
+	local u = Steps.new()
+	u.index = 3
+	expectEqual(u:report("pick", { selected = { [4] = true }, scripted = false }), "advanced")
+	-- a control named in a step's text exists on that step's screen
+	local control = { ["Play Hand"] = "table", ["Next Round"] = "shop", ["Reroll"] = "shop", ["Confirm"] = "shop", ["My Patrons"] = "shop", ["Counter"] = "shop" }
+	for _, step in ipairs(Steps.Steps) do
+		local screen = Steps.screenOf(step)
+		for word, home in pairs(control) do
+			if step.text:find(word, 1, true) and not (home == "shop" and screen == "shop") and not (home == "table" and screen == "table") then
+				-- "Spend them at the Counter" style mentions are fine on the table screens before the Counter: they name where, not a press
+				expectTrue(word == "Counter" and step.action == "tap", step.id .. " names " .. word .. " on " .. screen)
+			end
+		end
+	end
+	-- the short guided first hand: any selection moves it on, it ends after the first hand, calm stops the pulse
+	expectEqual(G.hint(true, 0, 0, false).target, "card")
+	expectEqual(G.hint(true, 0, 1, false).target, "play")
+	expectEqual(G.hint(true, 0, 5, false).target, "play")
+	expectEqual(G.hint(true, 1, 0, false), nil)
+	expectEqual(G.hint(false, 0, 0, false), nil)
+	expectFalse(G.isGuided(2, false, false, false), "a second run is never guided")
+	expectFalse(G.isGuided(1, false, false, true), "the tutorial run has its own flow")
+end })
+
 return tests
