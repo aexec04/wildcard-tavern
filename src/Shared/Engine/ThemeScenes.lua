@@ -96,6 +96,12 @@ function ThemeScenes.themeImageId(setId, slot)
 	return require(script.Parent.ContentArt).getImageId(tab, id)
 end
 
+-- Which set a backdrop (menu, shop, map) shows: a Studio/Card Sets preview wins over the equipped skin, never saved.
+function ThemeScenes.effectiveSetId(skinId, previewId)
+	if previewId ~= nil and ThemeScenes.known(previewId) then return previewId end
+	return ThemeScenes.known(skinId) and skinId or ThemeScenes.DEFAULT
+end
+
 function ThemeScenes.known(setId)
 	return type(setId) == "string" and DATA[setId] ~= nil
 end

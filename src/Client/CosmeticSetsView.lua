@@ -314,11 +314,21 @@ function M.apply(state)
 end
 
 -- Show a set (backdrop, style and its back) on the live table, locally only.
+local previewListeners = {}
+local function notifyPreview()
+	for _, fn in ipairs(previewListeners) do pcall(fn) end
+end
+
+-- Backdrops (menu, shop, map) listen here so a preview dresses them too. Returns nothing; listeners live for the session.
+function M.onPreview(fn) previewListeners[#previewListeners + 1] = fn end
+function M.previewSetId() return previewOverride and previewOverride.setId or nil end
+
 function M.preview(setId, backId)
 	previewOverride = { setId = setId, backId = backId }
 	if lastState then
 		M.apply(lastState)
 	end
+	notifyPreview()
 end
 
 function M.stopPreview()
@@ -329,6 +339,7 @@ function M.stopPreview()
 	if lastState then
 		M.apply(lastState)
 	end
+	notifyPreview()
 end
 
 function M.isPreviewing()
