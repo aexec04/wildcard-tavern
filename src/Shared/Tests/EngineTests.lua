@@ -35191,13 +35191,40 @@ table.insert(tests, { name = "Phone and tablet: Settings board fits 800x450, 102
 		expectTrue(r.textW >= 200, "row text column at least 200 px wide " .. tag)
 		expectTrue(r.scroll.w >= SL.SWITCH.w + SL.PANEL.textGutter - 30, "switch fits beside the text " .. tag)
 		expectTrue(SL.PANEL.replayH >= 44 and SL.PANEL.replayW >= 44, "Replay buttons are 44 px")
-		-- the Close button and the title strip fit in the panel below and above the scroll
-		expectTrue(SL.CLOSE.w <= r.panel.w and SL.PANEL.top + r.scroll.h + SL.CLOSE.h <= r.panel.h + SL.PANEL.bottomReserve, "Close fits under the scroll " .. tag)
+		-- the Resume button is retired (the X closes), so the scroll ends 16 px above the panel bottom
+		expectEqual(SL.PANEL.bottomReserve, 16)
+		expectEqual(r.panel.h - SL.PANEL.top - r.scroll.h, 16)
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("AutomaticCanvasSize = Enum.AutomaticSize.Y", 1, true) ~= nil, "the Settings scroll grows to its last row")
 	expectTrue(src:find("PANEL.replayH", 1, true) ~= nil, "Replay buttons use the 44 px layout number")
+end })
+
+table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957, Account plates are 56 px painted serif, 3 plus 2 per row", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local r = SL.panelRects(1920, 957)
+	expectTrue(r.panel.y >= 109 and r.panel.y <= 111, "panel top is about y 110, got " .. r.panel.y)
+	expectTrue(r.panel.y + r.panel.h <= 851, "panel bottom is at most y 850, got " .. (r.panel.y + r.panel.h))
+	local A = SL.ACCOUNT
+	expectEqual(A.plateH, 56)
+	expectEqual(A.gap, 10)
+	expectEqual(A.textSize, 18)
+	expectEqual(A.perRow, 3)
+	expectEqual(A.secondRow, 2)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 957 } }) do
+		local rr = SL.panelRects(sz[1], sz[2])
+		expectTrue(rr.panel.y + rr.panel.h <= sz[2], "panel fits " .. sz[1] .. "x" .. sz[2])
+		local plateW = (rr.scroll.w - A.gap * (A.perRow - 1)) / A.perRow
+		expectTrue(plateW >= 100, "(labels wrap to two 18 px lines inside 56 px) three Account plates fit across the scroll at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	local at = src:find("local function makeAccountButton", 1, true)
+	expectTrue(at ~= nil, "found makeAccountButton")
+	local body = src:sub(at, at + 700)
+	expectTrue(body:find("Enum.Font.Merriweather", 1, true) ~= nil and body:find("ACC.textSize", 1, true) ~= nil, "Account plates use Merriweather at ACCOUNT.textSize")
+	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
 end })
 
 table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()

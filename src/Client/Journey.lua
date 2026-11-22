@@ -1181,6 +1181,7 @@ return function(deps)
 
 	journeyButton.MouseButton1Click:Connect(openJourney)
 	menuJourneyButton.MouseButton1Click:Connect(openJourney)
+	OverlayManager.registerOpener("journey", openJourney) -- the Settings Tavern Map button
 
 	return {
 		journeyBackdrop = journeyBackdrop,

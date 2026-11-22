@@ -45,14 +45,18 @@ M.PAUSE = {
 }
 -- Panel geometry as Client/Settings.lua builds it (panel 0.5 x 0.8 of the screen, scroll 20 px in from each side, 48 px
 -- title strip above and 62 px below), so tests can check phone and tablet sizes without Roblox.
-M.PANEL = { fw = 0.5, fh = 0.8, sidePad = 20, top = 48, bottomReserve = 62, rowH = 62, textGutter = 130, replayW = 110, replayH = 44 }
+-- The panel sits between y 110 and y 850 at 957 px tall (fy 0.115, fh 0.773) so it clears the Night plate and the table's
+-- Play Hand and Discard buttons. The Resume button is retired (the X closes), so the scroll ends 16 px above the panel bottom.
+M.PANEL = { fw = 0.5, fy = 0.115, fh = 0.773, sidePad = 20, top = 48, bottomReserve = 16, rowH = 62, textGutter = 130, replayW = 110, replayH = 44 }
+-- Account plates: painted serif plates 56 px tall, three in the first row, two (Daily Rewards, Tavern Map) in the second.
+M.ACCOUNT = { plateH = 56, gap = 10, textSize = 18, perRow = 3, secondRow = 2 }
 
 function M.panelRects(W, H)
 	local P = M.PANEL
 	local pw, ph = math.floor(W * P.fw), math.floor(H * P.fh)
 	local sw, sh = pw - P.sidePad * 2, ph - P.top - P.bottomReserve
 	return {
-		panel = { x = math.floor(W * (1 - P.fw) / 2), y = math.floor(H * (1 - P.fh) / 2), w = pw, h = ph },
+		panel = { x = math.floor(W * (1 - P.fw) / 2), y = math.floor(H * P.fy), w = pw, h = ph },
 		scroll = { x = P.sidePad, y = P.top, w = sw, h = sh },
 		textW = sw - P.textGutter,
 	}
