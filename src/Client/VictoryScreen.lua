@@ -230,6 +230,7 @@ function M.show(screenGui, lines)
 	local function close()
 		M.hide()
 	end
+	text(gui, "NextStep", Look.NEXT_RUN, Look.fontSize(Look.NEXT_SIZE, s), CREAM, Enum.Font.GothamMedium, zc + 2, L.nextStep.x, L.nextStep.y, L.nextStep.w, L.nextStep.h)
 	local btn = plateButton(gui, "Continue", L.button, "Continue", Look.fontSize(30, s), zc + 2, close)
 	btn.Parent.Name = "Continue"
 	pcall(function()
