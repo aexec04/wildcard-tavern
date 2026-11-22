@@ -143,7 +143,7 @@ return function(deps)
 	local okButton = Instance.new("TextButton")
 	okButton.Name = "TutorialOk"
 	okButton.AnchorPoint = Vector2.new(0.5, 0)
-	okButton.Size = UDim2.fromOffset(140, 40)
+	okButton.Size = UDim2.fromOffset(140, 44)
 	okButton.BackgroundColor3 = Color3.fromRGB(86, 140, 80)
 	okButton.Font = Enum.Font.GothamBold
 	okButton.TextSize = 18
