@@ -36,7 +36,7 @@ function M.backdrop(screenFrame, screen)
 	end
 	img.Image = TableArt[s.scene] or ""
 	img.ImageColor3 = Color3.fromRGB(s.tint[1], s.tint[2], s.tint[3])
-	img.Visible = Flags.gameplay() == 2 -- the v1 archive keeps its own look
+	img.Visible = Flags.gameplay() == 2 and screenFrame:GetAttribute("SetRoom") ~= true -- v1 keeps its own look; a Card Set's own painted room (ShopBackdrop) replaces this layer
 end
 
 -- pin one decor piece to its layer; a later writer (SetSkin puts its border at the element's own ZIndex) is put back

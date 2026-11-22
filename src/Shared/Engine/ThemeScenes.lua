@@ -107,6 +107,15 @@ function ThemeScenes.shopRoomId(setId)
 	return ContentArt.getImageId("shop_scene", "shop_room_a"), false
 end
 
+-- Share of the Card Set room tint kept on a set's own painted Counter room: 0.6 means the gold wash is 40 percent lighter.
+ThemeScenes.OWN_ROOM_TINT_KEEP = 0.6
+-- tint is {r,g,b} 0..255 (PlayRoomArt.tint); an own room moves each channel 40 percent of the way back to white, others are unchanged.
+function ThemeScenes.shopRoomTint(own, tint)
+	if own ~= true then return tint end
+	local k = ThemeScenes.OWN_ROOM_TINT_KEEP
+	return { math.floor(255 + (tint[1] - 255) * k + 0.5), math.floor(255 + (tint[2] - 255) * k + 0.5), math.floor(255 + (tint[3] - 255) * k + 0.5) }
+end
+
 -- Which set a backdrop (menu, shop, map) shows: a Studio/Card Sets preview wins over the equipped skin, never saved.
 function ThemeScenes.effectiveSetId(skinId, previewId)
 	if previewId ~= nil and ThemeScenes.known(previewId) then return previewId end

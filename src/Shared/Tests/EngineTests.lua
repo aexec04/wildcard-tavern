@@ -37646,6 +37646,16 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 		expectTrue(gid ~= cid, "golden_gala and classic draw different Counter rooms")
 		expectEqual(select(1, TS.shopRoomId("winter_evening")), SSA.shop_room_a, "other sets keep the classic room")
 		expectEqual(select(1, TS.shopRoomId(nil)), SSA.shop_room_a, "no set means classic")
+		local full = { 240, 235, 215 }
+		local lit = TS.shopRoomTint(true, full)
+		expectEqual(TS.shopRoomTint(false, full)[1], 240, "classic and other rooms keep the full tint")
+		expectTrue(lit[1] > 240 and lit[3] > 215 and lit[1] <= 255, "the palace room tint moves toward white")
+		expectTrue((255 - lit[3]) <= (255 - 215) * 0.61, "the gold wash is about 40 percent lighter on the palace room")
+		local tsSrc = io and io.open("src/Client/TavernScreens.lua", "r")
+		if tsSrc then
+			local t = tsSrc:read("a"); tsSrc:close()
+			expectTrue(t:find('GetAttribute("SetRoom")', 1, true) ~= nil, "TavernScreens.backdrop keeps the classic layer hidden for a set room")
+		end
 	end
 	expectTrue(TS.themeImageId("winter_evening", "tablePlay") == nil, "winter keeps the classic live table")
 	for _, slot in ipairs({ "menuBackdrop", "shopBackdrop", "tablePlay" }) do

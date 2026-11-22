@@ -198,15 +198,21 @@ function ShopBackdrop.new(deps)
 			if d.Name == "CounterStrip" or d.Name == "TavernScene" then d.Visible = not self.setRoom end
 		end
 	end
+	local applyTint
+	local function applyRoomAndTint() applyRoomArt(); if applyTint then applyTint() end end
 	applyRoomArt()
-	pcall(function() require(script.Parent.HudTheme).onSkin(applyRoomArt) end)
-	pcall(function() require(script.Parent.CosmeticSetsView).onPreview(applyRoomArt) end)
+	pcall(function() require(script.Parent.HudTheme).onSkin(applyRoomAndTint) end)
+	pcall(function() require(script.Parent.CosmeticSetsView).onPreview(applyRoomAndTint) end)
 	shopFrame.DescendantAdded:Connect(function(d)
 		if self.setRoom and (d.Name == "CounterStrip" or d.Name == "TavernScene") then d.Visible = false end
 	end)
-	shopFrame:GetPropertyChangedSignal("Visible"):Connect(applyRoomArt)
-	local function applyTint()
+	shopFrame:GetPropertyChangedSignal("Visible"):Connect(applyRoomAndTint)
+	function applyTint()
 		local t = gameRoot and gameRoot:GetAttribute("RoomTint") or Color3.new(1, 1, 1)
+		if self.setRoom then -- the palace picture keeps only part of the gold hint so the marble and curtains read
+			local m = require(Engine:WaitForChild("ThemeScenes")).shopRoomTint(true, { t.R * 255, t.G * 255, t.B * 255 })
+			t = Color3.fromRGB(m[1], m[2], m[3])
+		end
 		if roomImg then roomImg.ImageColor3 = t end
 		if counterFront then counterFront.ImageColor3 = t end
 	end
