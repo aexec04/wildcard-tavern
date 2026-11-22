@@ -362,7 +362,8 @@ function Hotspots.build(opts)
 		ls.Thickness = 2
 		ls.Parent = list
 		local pad = Instance.new("UIPadding")
-		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 8), UDim.new(0, 8)
+		-- one plate of empty room under the last row, so the list has a visible end and no half plate sits at the edge
+		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 8), UDim.new(0, 8 + Layout.LIST_END_PAD)
 		pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 8), UDim.new(0, 8)
 		pad.Parent = list
 		local ll = Instance.new("UIListLayout")

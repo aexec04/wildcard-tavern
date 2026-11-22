@@ -35295,6 +35295,37 @@ table.insert(tests, { name = "Store: readable button plates, 24 px under the car
 	expectTrue(src:find('paintButton(button, "plate", row.listOnly)', 1, true) ~= nil, "Info keeps the gold outline")
 end })
 
+table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
+	for _, rise in ipairs({ 0, 8, 16 }) do
+		for dy = -ML.Parallax.maxOffset, ML.Parallax.maxOffset do
+			local lift = ML.keepWordmarkOnScreen(dy, 20 + rise)
+			expectTrue(dy + 20 + rise + ML.WORDMARK.glyphDrop + lift >= 12, "glyph top stays at 12 or lower (dy " .. dy .. ", rise " .. rise .. ")")
+			expectTrue(lift >= 0, "never lifts upward")
+		end
+	end
+	expectEqual(ML.keepWordmarkOnScreen(0, 20), 0)
+	expectEqual(ML.LIST_END_PAD, ML.SCROLL.rowH - 6)
+	local CL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	for _, sz in ipairs({ { 10, 10 }, { 300, 200 }, { 1700, 800 } }) do
+		local g = CL.room(sz[1], sz[2], 15, 1)
+		expectTrue(g.ok == true or g.ok == false, "room() always answers")
+		if g.ok then
+			expectTrue(g.hero.y ~= nil and g.parts.table.y ~= nil, "an ok layout has a y on every part")
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local room = read("src/Client/CardSetsRoom.lua")
+	local at = room:find("function room.paint()", 1, true)
+	expectTrue(at ~= nil and room:sub(at, at + 400):find("not placed", 1, true) ~= nil, "paint returns when layout has not placed the room")
+	expectTrue(room:find("if not g.ok then return end", 1, true) ~= nil, "paint stops on a layout that is not ok")
+	expectTrue(room:find("part has no rect", 1, true) ~= nil, "a part without a y is named in the warning")
+	expectTrue(read("src/Client/Menu.lua"):find("Layout.keepWordmarkOnScreen", 1, true) ~= nil, "the menu applies the wordmark rule")
+	expectTrue(read("src/Client/MenuHotspots.lua"):find("Layout.LIST_END_PAD", 1, true) ~= nil, "the list pads its end")
+end })
+
 table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
 	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
 	local tabRight = 0
