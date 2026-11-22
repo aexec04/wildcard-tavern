@@ -38503,6 +38503,15 @@ table.insert(tests, { name = "Boss intro and Night clear: rule text fits two lin
 		end
 	end
 	expectTrue(shortest >= 34, "the rule box holds two 14 px lines (" .. shortest .. " px)")
+	do -- the reward line: one 14 px+ row under the rule, kid safe, inside the plate at every size
+		expectTrue(M.bossRewardLine(10) == "Beat it: +10 Tips" and M.bossRewardLine(0) == nil and M.bossRewardLine(nil) == nil, "reward line text")
+		for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 1080 } }) do
+			local r = L.rects(sz[1], sz[2])
+			local _, text = M.bossIntroParts(M.bossIntroPlateFor(r, sz[1], sz[2]))
+			local nr, rr, wr = M.bossIntroRows(text)
+			expectTrue(wr.h >= 16 and wr.y >= rr.y + rr.h and wr.y + wr.h <= text.h, "reward row under the rule, inside the plate at " .. sz[1])
+		end
+	end
 	for _, def in ipairs(BossRounds.Definitions) do
 		local d = tostring(def.description or "")
 		expectTrue(#d > 0 and #d * 7.5 <= narrow * 2 * 0.9, def.id .. " rule fits two 14 px lines in the intro (" .. #d .. " letters, column " .. narrow .. ")")

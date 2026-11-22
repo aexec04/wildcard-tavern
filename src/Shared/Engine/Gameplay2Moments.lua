@@ -302,7 +302,7 @@ function M.bossIntroPlateFor(r, w, h)
 	local last = r.slots[#r.slots].pill
 	local top = last.y + last.h + 12
 	local room = (r.hand and r.hand.y or h) + 40 - top -- the cards of the fan start under the band; the plate may overlap their tops a little
-	local ph = math.min(base.h, math.max(M.INTRO_PORTRAIT + 16, room))
+	local ph = math.min(base.h, math.max(M.INTRO_PORTRAIT + 16, room, 100)) -- 100 px: name, two rule lines and the reward line
 	if top + ph > h - 8 then ph = math.max(40, h - 8 - top) end
 	return { x = base.x, y = top, w = base.w, h = ph }
 end
@@ -318,9 +318,18 @@ end
 -- the name row and the rule row inside the text column ({ y, h } each): the name is up to 34 px, but gives way on a short plate so the rule
 -- always keeps room for two 14 px lines (34 px) and the name for one 18 px line
 function M.bossIntroRows(text)
-	local nameH = math.max(22, math.min(34, text.h - 38))
+	local nameH = math.max(22, math.min(34, text.h - 40 - M.INTRO_REWARD_H))
 	local ruleY = nameH + 4
-	return { y = 0, h = nameH }, { y = ruleY, h = math.max(20, text.h - ruleY) }
+	local rewardY = text.h - M.INTRO_REWARD_H
+	return { y = 0, h = nameH }, { y = ruleY, h = math.max(20, rewardY - ruleY - 2) }, { y = rewardY, h = M.INTRO_REWARD_H }
+end
+
+-- the one-line reward under the rule: "Beat it: +10 Tips" (nil when nothing is paid)
+M.INTRO_REWARD_H = 18
+function M.bossRewardLine(tips)
+	local n = math.floor(tonumber(tips) or 0)
+	if n <= 0 then return nil end
+	return string.format("Beat it: +%d Tips", n)
 end
 
 function M.bossEntranceKey(state)
