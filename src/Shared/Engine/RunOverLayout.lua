@@ -8,7 +8,7 @@
 	RunOverLayout.columns(sw)                          { mode = "wide"|"narrow", panelW, leftW, rightW }
 	RunOverLayout.estimateLines(text, width, size)     wrapped line count of a text (no real fonts needed)
 	RunOverLayout.compute(sw, sh, spec)                spec = { factsH, patrons, primary, more }; returns the rects
-	RunOverLayout.TEXT_MIN                              smallest text size on the screen (15)
+	RunOverLayout.TEXT_MIN                              smallest text size on the screen (16)
 	RunOverLayout.SCROLLS                               the two painted scrolls (run_over_scroll_a for a loss, _b for a win) with their measured boxes
 	RunOverLayout.scroll(sw, sh, spec, key)             the same content drawn ON a scroll: { key, card, safe, fit, origin, inner } or nil when the
 	                                                    window is too small for 15 px text on the paper (then the plain panel shows)
@@ -16,12 +16,12 @@
 
 local RunOverLayout = {}
 
-RunOverLayout.TEXT_MIN = 15
+RunOverLayout.TEXT_MIN = 16
 RunOverLayout.MARGIN = 20
 RunOverLayout.GAP = 12
 RunOverLayout.TITLE_H = 64
 RunOverLayout.BTN_H = 46
-RunOverLayout.SMALL_H = 38
+RunOverLayout.SMALL_H = 44
 RunOverLayout.SEAT_W, RunOverLayout.SEAT_H = 72, 96
 RunOverLayout.WIDE_FROM = 720 -- screen width from which the two columns show
 RunOverLayout.LEFT_W = 280
@@ -64,7 +64,7 @@ end
 function RunOverLayout.estimateLines(text, width, size)
 	text = tostring(text or "")
 	if text == "" then return 0 end
-	local per = math.max(1, math.floor(width / ((size or 16) * 0.55)))
+	local per = math.max(1, math.floor(width / ((size or 16) * 0.6)))
 	local lines = 0
 	for part in (text .. "\n"):gmatch("(.-)\n") do
 		lines = lines + math.max(1, math.ceil(#part / per))

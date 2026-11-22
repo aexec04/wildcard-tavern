@@ -9379,8 +9379,30 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
-	-- 20 quest types, unique ids, never two quests on one counter in a day, deterministic
-	expectEqual(#Quests.Definitions, 20, "20 quest types")
+	-- 24 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 24, "24 quest types")
+	do -- variety: 12+ distinct counters, and no quest repeats inside a UTC week (3 a day, 21 different)
+		local kinds, kindCount = {}, 0
+		for _, def in ipairs(Quests.Definitions) do
+			if not kinds[def.counter] then kinds[def.counter] = true; kindCount = kindCount + 1 end
+			expectTrue(def.tips >= 2 and def.tips <= 5, def.id .. " Tips reward is fair")
+			for _, bad in ipairs({ "beer", "wine", "kill", "blood", "gun", "balat" }) do
+				expectTrue(not (def.name .. " " .. def.desc):lower():find(bad, 1, true), def.id .. " is kid safe")
+			end
+		end
+		expectTrue(kindCount >= 12, "at least 12 distinct quest types: " .. kindCount)
+		for week = 2900, 3100 do
+			local seenInWeek = {}
+			for d = 0, 6 do
+				local ids = Quests.rollFor(week * 7 + d)
+				expectEqual(#ids, 3, "three a day")
+				for _, id in ipairs(ids) do
+					expectTrue(not seenInWeek[id], "week " .. week .. " repeats " .. id)
+					seenInWeek[id] = true
+				end
+			end
+		end
+	end
 	local questIds = {}
 	for _, def in ipairs(Quests.Definitions) do
 		expectTrue(not questIds[def.id], "unique quest id " .. def.id)
@@ -22945,7 +22967,7 @@ table.insert(tests, { name = "RunOverLayout: one panel, two columns wide and one
 			end
 		end
 	end
-	expectEqual(L.TEXT_MIN, 15, "text is 15 px or more")
+	expectEqual(L.TEXT_MIN, 16, "text is 16 px or more")
 	expectEqual(L.estimateLines("", 200, 16), 0, "no text, no lines")
 	expectTrue(L.estimateLines(string.rep("a", 100), 200, 16) >= 3, "long text wraps")
 end })
@@ -36791,6 +36813,9 @@ table.insert(tests, { name = "CollectionLoadJob: the first 12 tiles build at onc
 end })
 
 table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 14 px or more, only real rewards and stats", fn = function()
+end })
+
+table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 16 px or more, only real rewards and stats", fn = function()
 	local Look = require(script.Parent.Parent.Engine.VictoryLook)
 	local function inside(r, w, h, what) expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, what .. " inside the screen") end
 	local function apart(a, b, what) expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, what .. " do not overlap") end
@@ -36805,7 +36830,7 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 				inside(r, w, h, mode .. " plate " .. i .. " at " .. w)
 				for j = i + 1, #list do apart(r, list[j], mode .. " plates " .. i .. "," .. j .. " at " .. w) end
 			end
-			expectTrue(Look.fontSize(22, L.scale) >= 14 and Look.fontSize(1, L.scale) == 14, "text floor is 14 px at " .. w)
+			expectTrue(Look.fontSize(22, L.scale) >= 16 and Look.fontSize(1, L.scale) == 16, "text floor is 16 px at " .. w)
 		end
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
@@ -38132,6 +38157,24 @@ table.insert(tests, { name = "Phone touch audit: table controls are 44 px, hand 
 	assert(TT.tapAway(s, 600, 400, rect) == false, "nothing to close")
 	assert(TT.tapCard(s, 3) == "open" and TT.tapCard(s, 3) == "close" and s.open == nil)
 	assert(TT.isTap(3, 0.1) and not TT.isTap(40, 0.1), "a drag is not a tap")
+end })
+
+table.insert(tests, { name = "Victory and Run Over polish: serif 16 px text, 44 px buttons at 800x450 and 1920x1080, tally one line at a time, static in Calm", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectTrue(L.TEXT_MIN >= 16 and L.SMALL_H >= 44 and L.BTN_H >= 44 and L.PILL_H >= 44, "text 16 and buttons 44")
+	for _, sz in ipairs({ { 800, 450 }, { 1920, 1080 } }) do
+		local r = L.compute(sz[1], sz[2], { factsH = 200, patrons = 3, primary = 3, more = 4, primaryLabels = { "Play Again", "Continue", "Tavern" }, moreLabels = { "Share", "Challenge", "Invite", "Save" } })
+		expectTrue(r.panel.w <= sz[1] and r.panel.h <= sz[2] + 0.5, "panel fits at " .. sz[1])
+		expectTrue(r.scale == nil or r.scale > 0.4, "no extreme shrink at " .. sz[1])
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(not src:find("Enum.Font.Gotham", 1, true), "Run Over uses the painted serif")
+		expectTrue(not src:find("TextSize = 1[0-5]%f[%D]"), "no Run Over text under 16 px")
+		expectTrue(src:find("task.delay(0.18 * (i - 1)", 1, true) ~= nil and src:find('ClientSettings.get("reduceShake") ~= true', 1, true) ~= nil, "tally reveals line by line, not in Calm mode")
+	end
 end })
 
 return tests
