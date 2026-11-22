@@ -37674,6 +37674,30 @@ table.insert(tests, { name = "WelcomeEase: first runs eased on Nights 1 and 2, n
 	expectEqual(WelcomeEase.cleanSaved(99, 0), 3)
 end })
 
+table.insert(tests, { name = "FitAudit: the checker flags off screen, small touch, small text and overlap, and shared screens fit at 800x450 to 1920x1080", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local bad = {
+		name = "Synthetic", lane = "shared",
+		rects = function(w, h)
+			return { playButton = { x = 0, y = 0, w = 30, h = 30 }, a = { x = 100, y = 100, w = 100, h = 100 }, b = { x = 150, y = 150, w = 100, h = 100 },
+				inner = { x = 110, y = 110, w = 20, h = 20 }, away = { x = w - 10, y = 0, w = 50, h = 50 } }
+		end,
+		texts = function() return { tiny = { size = 9 }, bodyCopy = { size = 12, body = true }, fine = { size = 14, body = true } } end,
+	}
+	local rules = {}
+	for _, f in ipairs(Audit.checkScreen(bad, 800, 450)) do rules[f.rule] = (rules[f.rule] or 0) + 1 end
+	assert(rules.screen == 1 and rules.touch == 1 and rules.text == 2 and rules.overlap == 1, "checker flags each rule once (nesting is not overlap)")
+	bad.intended = { "^a$|^b$" }
+	for _, f in ipairs(Audit.checkScreen(bad, 800, 450)) do assert(f.rule ~= "overlap", "an intended pair is not flagged") end
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local res = Audit.run(screens)
+	assert(res.checked >= #screens * #Audit.SIZES)
+	for _, f in ipairs(res.failures) do
+		assert(f.lane ~= "shared", "shared screen does not fit: " .. f.screen .. " " .. f.size .. " " .. f.detail)
+	end
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }
