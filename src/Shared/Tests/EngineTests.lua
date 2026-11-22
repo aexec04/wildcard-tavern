@@ -2480,6 +2480,53 @@ table.insert(tests, { name = "PlayerProfile.migrate(nil): a brand-new player get
 	expectFalse(any)
 end })
 
+table.insert(tests, { name = "Save safety: a default profile survives migrate with every field kept, and settings never lose a key", fn = function()
+	local function same(a, b, path)
+		if type(a) ~= type(b) then return false, path end
+		if type(a) ~= "table" then return a == b, path end
+		for k, v in pairs(a) do
+			local ok, where = same(v, b[k], path .. "." .. tostring(k))
+			if not ok then return false, where end
+		end
+		for k in pairs(b) do
+			if a[k] == nil then return false, path .. "." .. tostring(k) end
+		end
+		return true
+	end
+	local fresh = PlayerProfile.new()
+	local ok, where = same(fresh, PlayerProfile.migrate(fresh), "profile")
+	expectTrue(ok, "migrate(new()) changed " .. tostring(where) .. ": a new field is not handled by migrate")
+	for key, spec in pairs(PlayerProfile.SETTING_SPECS) do
+		expectTrue(fresh.settings[key] == spec.default, key .. " defaults")
+	end
+end })
+
+table.insert(tests, { name = "Save safety: an old save with no settings, no version and unknown fields loads with defaults and keeps real progress", fn = function()
+	local old = PlayerProfile.migrate({
+		stats = { runsStarted = 4, runsWon = 1, bestNightReached = 3 },
+		discoveredPatronIds = { tip_jar = true },
+		futureField = { anything = true },
+	})
+	expectEqual(old.version, PlayerProfile.SCHEMA_VERSION, "version is stamped")
+	expectEqual(old.stats.runsStarted, 4, "progress kept")
+	expectTrue(old.discoveredPatronIds.tip_jar, "discoveries kept")
+	expectEqual(old.futureField, nil, "unknown fields are dropped")
+	expectEqual(old.settings.performanceMode, false, "performanceMode default")
+	expectEqual(old.settings.largerText, false, "largerText default")
+	expectEqual(old.quests, nil, "no quests until rolled")
+	local partial = PlayerProfile.migrate({ settings = { performanceMode = true, largerText = "yes", holdConfirmSeconds = 99, musicVolume = 0.2 } })
+	expectEqual(partial.settings.performanceMode, true, "valid saved flag kept")
+	expectEqual(partial.settings.largerText, false, "bad type falls back to default")
+	expectEqual(partial.settings.holdConfirmSeconds, 3, "range clamped")
+	expectEqual(partial.settings.musicVolume, 0.2, "other settings kept")
+	for _, junk in ipairs({ "text", 5, true, {} }) do
+		local p = PlayerProfile.migrate(junk)
+		expectEqual(p.settings.performanceMode, false, "junk save gives defaults")
+	end
+	local twice = PlayerProfile.migrate(PlayerProfile.migrate(partial))
+	expectEqual(twice.settings.performanceMode, true, "migrate is idempotent")
+end })
+
 table.insert(tests, { name = "PlayerProfile.migrate: a valid saved profile round-trips unchanged", fn = function()
 	local profile = PlayerProfile.new()
 	PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" })
@@ -30112,6 +30159,39 @@ table.insert(tests, { name = "Accessibility: Larger Text grows labels 15 percent
 		end
 	end
 end })
+table.insert(tests, { name = "Accessibility: Text Size is Normal or Large on the saved largerText flag, and the Settings row says so", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	expectEqual(#A.TextSizeChoices, 2, "two choices")
+	expectEqual(A.TextSizeChoices[1][2], "Normal", "first is Normal")
+	expectEqual(A.TextSizeChoices[2][2], "Large", "second is Large")
+	expectEqual(A.textScale({ largerText = A.TextSizeChoices[1][1] }), 1, "Normal is scale 1")
+	expectEqual(A.textScale({ largerText = A.TextSizeChoices[2][1] }), A.TEXT_SCALE, "Large is the larger scale")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('makeChoiceRow("largerText", "Text Size"', 1, true) ~= nil, "Settings row is named Text Size")
+		expectTrue(src:find('{ true, "Large" }', 1, true) ~= nil, "Settings row offers Large")
+	end
+end })
+table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, corner letter and ink, and key text reads at 4.5:1 on card paper", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local FA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local glyphs, letters, inks = {}, {}, {}
+	for _, n in ipairs({ "Spades", "Hearts", "Diamonds", "Clubs" }) do
+		local m = A.SuitMarks[n]
+		expectTrue(m ~= nil, n .. " has a mark")
+		expectTrue(not glyphs[m.glyph] and not letters[m.letter], n .. " glyph and letter are unique")
+		glyphs[m.glyph], letters[m.letter] = true, true
+		local key = m.ink[1] .. "," .. m.ink[2] .. "," .. m.ink[3]
+		expectTrue(not inks[key], n .. " ink is unique")
+		inks[key] = true
+		expectEqual(A.suitMarkByGlyph(m.glyph), m, n .. " found by glyph")
+		expectTrue(CS.contrastRatio(m.ink, FA.FLAT_IVORY) >= 4.5, n .. " ink on ivory paper")
+	end
+	expectTrue(CS.contrastRatio(CS.RED_INK, FA.FLAT_IVORY) >= 4.5, "red ink on ivory")
+	expectTrue(CS.contrastRatio(CS.BLACK_INK, FA.FLAT_IVORY) >= 4.5, "black ink on ivory")
+end })
 table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Settings, then the first Display rows)", fn = function()
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r"))
@@ -38540,6 +38620,40 @@ table.insert(tests, { name = "Store fairness: every row says what you get, shows
 		local text = (product.name .. " " .. product.description):lower()
 		expectFalse(text:find("tips", 1, true) ~= nil or text:find("random", 1, true) ~= nil, product.id .. " is not a Tips or random product")
 	end
+end })
+
+table.insert(tests, { name = "Tutorial and How to play text: one short sentence per step, kid safe, no unseen screens", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local How = require(script.Parent.Parent.Engine.HowToPlayText)
+	local EM = string.char(226, 128, 148)
+	local function sentences(text)
+		local n = 0
+		for _ in text:gmatch("[%.!?]%s+%S") do n = n + 1 end
+		return n + 1
+	end
+	for _, step in ipairs(Steps.Steps) do
+		expectEqual(sentences(step.text), 1, "one sentence: " .. step.id)
+		expectFalse(step.text:lower():find("balatro", 1, true) ~= nil, "banned word " .. step.id)
+		expectFalse(step.text:find(EM, 1, true) ~= nil, "no em dash " .. step.id)
+		if Steps.screenOf(step) == "menu" or Steps.screenOf(step) == "roundSelect" then
+			expectFalse(step.text:find("Counter", 1, true) ~= nil, "unseen screen: " .. step.id)
+		end
+		if step.target then expectTrue(Steps.TargetNames[step.target], "known target " .. step.id) end
+	end
+	local seen = {}
+	for _, tile in ipairs(How.Tiles) do
+		seen[tile.key] = true
+		local words = 0
+		for _ in tile.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= How.MAX_WORDS, "tile too long: " .. tile.key)
+		expectEqual(sentences(tile.text), 1, "tile one sentence: " .. tile.key)
+		expectFalse(tile.text:lower():find("balatro", 1, true) ~= nil, "banned word " .. tile.key)
+		expectFalse((tile.text .. tile.title):find(EM, 1, true) ~= nil, "no em dash " .. tile.key)
+	end
+	expectEqual(#How.Tiles, 6)
+	expectTrue(seen.select_cards and seen.play_hand and seen.discard and seen.target and seen.shop and seen.endless)
+	local nights = require(script.Parent.Parent.Engine.WorldMap).NIGHTS
+	expectTrue(How.Tiles[6].text:find(tostring(nights), 1, true) ~= nil, "Nights count matches WorldMap")
 end })
 
 return tests

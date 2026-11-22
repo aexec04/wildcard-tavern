@@ -258,7 +258,7 @@ function PlayerProfile.new()
 		inviteLedger = {}, -- [invitee userId as text] = true (idempotency record)
 		inviteeRewardClaimed = false, -- the starter card back for arriving through an invite
 		runHistory = {}, -- the last 20 finished runs, newest first (Engine/RunHistory.lua)
-		lifetime = { bestHandScore = 0, tipsEarned = 0, bestNightByStake = {}, patronWins = {} }, -- Tavern Stats
+		lifetime = require(script.Parent.RunHistory).newLifetime(), -- Tavern Stats (same shape migrate saves)
 		-- STORE (Engine/Store.lua)
 		storePurchases = {}, -- [one-time item id] = true
 		receiptIds = {}, -- recent Developer Product purchase ids, so a repeated receipt never grants twice

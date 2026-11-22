@@ -49,15 +49,15 @@ TutorialSteps.Steps = {
 	-- score the first hand has just landed on it. It used to come in the Shop, where it pointed at an empty wall.
 	{ id = "panel_target", action = "tap", target = "sidebarScore", allow = { "tap" }, text = "Reach this target to clear a round and earn Tips." },
 	{ id = "pick_two_pair", action = "pick", target = "handCards", allow = { "card" }, expect = "two_pair", count = 4, text = "Pick both pairs: Kings and Fours." },
-	{ id = "play_two_pair", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand. Two pair scores more." },
+	{ id = "play_two_pair", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand to score two pair." },
 	{ id = "pick_flush", action = "pick", target = "handCards", allow = { "card" }, expect = "flush", count = 5, text = "Pick the five Diamonds for a flush." },
-	{ id = "play_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand. A flush scores big." },
+	{ id = "play_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand to score the flush." },
 	{ id = "pick_straight_flush", action = "pick", target = "handCards", allow = { "card" }, expect = "straight_flush", count = 5, text = "Pick the straight in Clubs, five to nine." },
 	{ id = "play_straight_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand for the biggest score." },
 	-- After the combos the round is cleared and the Shop opens (`shop = true` marks this section). Each step is
 	-- ONE action: tap the spotlighted piece ("tap") or do the named thing.
 	-- (the Counter shows the Tips on its own plate, top right: Client/ShopPurse)
-	{ id = "panel_tips", action = "tap", target = "shopTips", allow = { "tap" }, shop = true, text = "Tips are your money. Spend them at the Counter." },
+	{ id = "panel_tips", action = "tap", target = "shopTips", allow = { "tap" }, shop = true, text = "Tips are your money to spend at the Counter." },
 	{ id = "shop_patrons", action = "tap", target = "shopPatronsRow", allow = { "tap" }, shop = true, text = "Patrons give you bonuses every hand." },
 	{ id = "buy_patron", action = "buy_patron", target = "cheapestPatron", allow = { "buy" }, shop = true, text = "Buy the cheapest Patron." },
 	{ id = "buy_pack", action = "buy_pack", target = "cheapestPack", allow = { "pack" }, shop = true, text = "Buy a Pack and open it." },
@@ -68,13 +68,13 @@ TutorialSteps.Steps = {
 	-- the price) beside the empty seats (a full table needs a Discard before you can hire), House Passes below. Every target
 	-- here is in the tab itself: the left panel is not on screen at the Counter.
 	{ id = "mp_patrons", action = "tap", target = "myPatronCards", allow = { "tap" }, shop = true, text = "Hired Patrons live here and help every hand." },
-	{ id = "mp_seats", action = "tap", target = "myPatronCards", allow = { "tap" }, shop = true, text = "Each seat holds one Patron. Full seats need a Discard." },
+	{ id = "mp_seats", action = "tap", target = "myPatronCards", allow = { "tap" }, shop = true, text = "Each seat holds one Patron, and full seats need a Discard." },
 	{ id = "mp_discard", action = "tap", target = "myPatronDiscard", allow = { "tap" }, shop = true, text = "Discard sells a Patron back for half its price." },
-	{ id = "mp_passes", action = "tap", target = "myHousePasses", allow = { "tap" }, shop = true, text = "House Passes last the whole run. None yet." },
+	{ id = "mp_passes", action = "tap", target = "myHousePasses", allow = { "tap" }, shop = true, text = "House Passes last all run, and you have none yet." },
 	{ id = "tab_shop", action = "tab_buy", target = "shopTabBuy", allow = { "tab" }, tab = "buy", shop = true, text = "Go back to the Shop tab." },
 	{ id = "reroll", action = "reroll", target = "reroll", allow = { "reroll" }, shop = true, text = "Reroll costs Tips and shows new offers." },
 	{ id = "next_round", action = "next_round", target = "nextRound", allow = { "nextRound" }, text = "Press Next Round to keep going." },
-	{ id = "done", action = "ok", target = nil, allow = { "ok" }, celebrate = true, text = "You did it! Ready to play for real?", button = "Finish" },
+	{ id = "done", action = "ok", target = nil, allow = { "ok" }, celebrate = true, text = "Nice work, you are ready to play for real!", button = "Finish" },
 }
 
 -- TIME BUDGET. Rough seconds a player needs per action (reading the line, finding the spotlight, doing it; a played

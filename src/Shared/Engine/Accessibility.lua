@@ -5,8 +5,8 @@
 	  reduceShake       no screen shake (existing)
 	  reduceFlashing    no screen flashes or rapid pulses, fewer particles
 	  reduceMotion      static backgrounds, no travel or walk-in animation, no looping idle motion
-	  largerText        text 15 percent bigger where the label has room (never clipped)
-	  colorblindSuits   every suit gets its own color and a corner letter (existing, Client/CardFace)
+	  largerText        Settings "Text Size": Normal (false) or Large (true), text 15 percent bigger where the label has room (never clipped)
+	  colorblindSuits   every suit gets its own color and a corner letter (Client/CardFace reads SuitMarks below)
 	  holdConfirmSeconds how long destructive buttons must be held (0.5 to 3, default 1.5)
 	Scoring and the Fast animation speed are never touched. Pure Lua, no Roblox APIs.
 ]]
@@ -17,6 +17,23 @@ Accessibility.TEXT_SCALE = 1.15
 Accessibility.PARTICLE_SCALE = 0.4 -- particle counts under Reduce Flashing
 Accessibility.HOLD_MIN, Accessibility.HOLD_MAX, Accessibility.HOLD_DEFAULT = 0.5, 3, 1.5
 Accessibility.HoldChoices = { 0.5, 1, 1.5, 2, 3 }
+
+-- Suits never rely on color alone: each has its own glyph shape, a corner letter and (Colorblind Suits) its own ink.
+Accessibility.SuitMarks = {
+	Spades = { glyph = "\226\153\160", letter = "S", ink = { 30, 22, 18 } },
+	Hearts = { glyph = "\226\153\165", letter = "H", ink = { 190, 30, 40 } },
+	Diamonds = { glyph = "\226\153\166", letter = "D", ink = { 30, 90, 200 } },
+	Clubs = { glyph = "\226\153\163", letter = "C", ink = { 25, 125, 55 } },
+}
+-- Settings > Comfort > Text Size choices: the same saved boolean, shown as words.
+Accessibility.TextSizeChoices = { { false, "Normal" }, { true, "Large" } }
+
+function Accessibility.suitMarkByGlyph(glyph)
+	for _, m in pairs(Accessibility.SuitMarks) do
+		if m.glyph == glyph then return m end
+	end
+	return nil
+end
 
 local function on(settings, key)
 	return type(settings) == "table" and settings[key] == true
