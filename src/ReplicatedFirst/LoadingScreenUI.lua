@@ -35,7 +35,7 @@ local function label(parent, text, size, color, font)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Text = text
-	l.TextSize = math.max(15, size)
+	l.TextSize = math.max(16, size)
 	l.TextColor3 = color
 	l.Font = font or Enum.Font.GothamMedium
 	l.TextWrapped = true
@@ -54,7 +54,10 @@ function LoadingScreenUI.show(playerGui, opts)
 	local LoadingTips = Engine and require(Engine:WaitForChild("LoadingTips"))
 	local SceneArt = Engine and Engine:FindFirstChild("SceneArt") and require(Engine.SceneArt) or {}
 	local GameName = Engine and Engine:FindFirstChild("GameName") and require(Engine.GameName) or { NAME = "The Gilded Knave" }
-	if not (LoadProgress and LoadingTips) then return nil end
+	local Layout = Engine and require(Engine:WaitForChild("LoadingLayout"))
+	if not (LoadProgress and LoadingTips and Layout) then return nil end
+	local calm = opts.calm == true
+	local motion = Layout.motion(calm)
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "LoadingScreen"
@@ -146,12 +149,12 @@ function LoadingScreenUI.show(playerGui, opts)
 	local bar = Instance.new("Frame")
 	bar.Name = "Bar"
 	bar.AnchorPoint = Vector2.new(0.5, 0.5)
-	bar.Position = UDim2.fromScale(0.5, 0.8)
-	bar.Size = UDim2.fromScale(0.46, 0.46 * 0.2)
+	bar.Position = UDim2.fromScale(0.5, Layout.BAR_CENTER_Y)
+	bar.Size = UDim2.fromScale(Layout.BAR_WIDTH, Layout.BAR_WIDTH / Layout.BAR_ASPECT)
 	bar.BackgroundTransparency = 1
 	bar.Parent = fade
 	local sc = Instance.new("UISizeConstraint")
-	sc.MinSize = Vector2.new(280, 56)
+	sc.MinSize = Vector2.new(Layout.BAR_MIN_W, Layout.BAR_MIN_W / Layout.BAR_ASPECT)
 	sc.Parent = bar
 	local ar = Instance.new("UIAspectRatioConstraint")
 	ar.AspectRatio = BAR_ART.w / BAR_ART.h
@@ -268,15 +271,24 @@ function LoadingScreenUI.show(playerGui, opts)
 
 	local status = label(fade, "Lighting the lanterns...", 18, CREAM)
 	status.Name = "Status"
-	status.AnchorPoint = Vector2.new(0.5, 0)
-	status.Position = UDim2.fromScale(0.5, 0.865)
-	status.Size = UDim2.fromScale(0.7, 0.05)
+	status.AnchorPoint = Vector2.new(0, 0)
 
 	local tip = label(fade, "", 16, CREAM)
 	tip.Name = "Tip"
-	tip.AnchorPoint = Vector2.new(0.5, 0)
-	tip.Position = UDim2.fromScale(0.5, 0.92)
-	tip.Size = UDim2.fromScale(0.86, 0.06)
+	tip.AnchorPoint = Vector2.new(0, 0)
+	tip.TextYAlignment = Enum.TextYAlignment.Top
+	-- status and tip sit under the bar in pixels from LoadingLayout, so nothing overlaps at any size
+	local function applyLayout()
+		local sz = fade.AbsoluteSize
+		if sz.X < 10 or sz.Y < 10 then return end
+		local r = Layout.rects(sz.X, sz.Y)
+		status.Position = UDim2.fromOffset(r.status.x, r.status.y)
+		status.Size = UDim2.fromOffset(r.status.w, r.status.h)
+		tip.Position = UDim2.fromOffset(r.tip.x, r.tip.y)
+		tip.Size = UDim2.fromOffset(r.tip.w, r.tip.h)
+	end
+	fade:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyLayout)
+	applyLayout()
 	tip.TextTransparency = 0
 
 	local skip = Instance.new("TextButton")
@@ -318,8 +330,12 @@ function LoadingScreenUI.show(playerGui, opts)
 		tipIndex = (tipIndex % #order) + 1
 		tip.Text = LoadingTips.TIPS[order[tipIndex]]
 		tipAt = now
-		tip.TextTransparency = 1
-		TweenService:Create(tip, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+		if motion.tipFade then
+			tip.TextTransparency = 1
+			TweenService:Create(tip, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+		else
+			tip.TextTransparency = 0
+		end
 	end
 
 	local function stop()
@@ -343,7 +359,7 @@ function LoadingScreenUI.show(playerGui, opts)
 		if fading or not alive then return end
 		fading = true
 		fade.Active = false
-		local tw = TweenService:Create(fade, TweenInfo.new(LoadProgress.FADE_TIME), { GroupTransparency = 1 })
+		local tw = TweenService:Create(fade, TweenInfo.new(Layout.fadeTime(calm, LoadProgress.FADE_TIME)), { GroupTransparency = 1 })
 		tw.Completed:Connect(function() handle.destroy() end)
 		tw:Play()
 		task.delay(LoadProgress.FADE_TIME + 1, function() if alive then handle.destroy() end end) -- never leave it up
@@ -367,12 +383,17 @@ function LoadingScreenUI.show(playerGui, opts)
 		local px = LoadProgress.fillWidth(innerW, display)
 		fill.Size = UDim2.new(0, px, 1, 0)
 		-- shimmer sweep and ember flicker
-		shimmer.Position = UDim2.new(0, ((now * 0.5) % 1.4) * math.max(px, 1) - 40, 0, 0)
+		if motion.shimmer then
+			shimmer.Position = UDim2.new(0, ((now * 0.5) % 1.4) * math.max(px, 1) - 40, 0, 0)
+		else
+			shimmer.Visible = false
+		end
 		ember.Position = UDim2.new(0, math.max(7, px), 0.5, 0)
 		ember.Visible = px > 2 and not ready
-		local flick = 0.1 + 0.15 * math.abs(math.sin(now * 9))
-		ember.BackgroundTransparency = flick
-		emberGlow.BackgroundTransparency = 0.7 + 0.12 * math.abs(math.sin(now * 5))
+		if motion.ember then
+			ember.BackgroundTransparency = 0.1 + 0.15 * math.abs(math.sin(now * 9))
+			emberGlow.BackgroundTransparency = 0.7 + 0.12 * math.abs(math.sin(now * 5))
+		end
 
 		if not frozen then
 			local slow = (now - startClock) >= LoadProgress.SKIP_AFTER
@@ -386,9 +407,11 @@ function LoadingScreenUI.show(playerGui, opts)
 		if ready and not frozen and display >= 0.995 and not readyShown and (now - startClock) >= LoadProgress.MIN_VISIBLE then
 			readyShown = true
 			status.Text = "Ready"
-			ps.Transparency = 0
-			TweenService:Create(ps, TweenInfo.new(0.4), { Transparency = 1 }):Play()
-			task.delay(0.35, function() handle.fadeOut() end)
+			if motion.readyPulse then
+				ps.Transparency = 0
+				TweenService:Create(ps, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+			end
+			task.delay(motion.readyPulse and 0.35 or 0.15, function() handle.fadeOut() end)
 		end
 	end)
 

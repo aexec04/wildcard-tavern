@@ -13,10 +13,10 @@ local M = {}
 M.CREAM = { 240, 225, 190 }
 M.TITLE_GOLD = { 232, 196, 112 }
 M.STATUS_SIZE, M.TIP_SIZE = 18, 16
-M.STATUS_Y, M.TIP_Y = 0.865, 0.92 -- top of each line, fractions of the screen height
+M.STATUS_Y, M.TIP_Y = 0.73, 0.78 -- top of each line, fractions of the screen height
 
 -- the bottom scrim is clear at `from` and `peak` opaque at `to`; the top one is opaque at `from` and clear at `to`
-M.BOTTOM = { from = 0.58, to = 1, peak = 0.9, exponent = 0.8, flip = false }
+M.BOTTOM = { from = 0.4, to = 1, peak = 0.9, exponent = 0.5, flip = false }
 M.TOP = { from = 0.0, to = 0.3, peak = 0.45, exponent = 1.0, flip = true }
 
 function M.scrimOpacity(spec, y)

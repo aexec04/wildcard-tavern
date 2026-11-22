@@ -19,7 +19,7 @@
 	SoundFX.stingLayers(tier)              the layers of a hand-type sting
 	SoundFX.coinCascade(count, gap)        { { delay, speed } } coins staggered 60 ms apart at slightly different pitch
 	SoundFX.isBigBeat(kind)                true for the moments that duck the music
-	SoundFX.EMPTY_OK                       cues allowed to stay silent (boss_intro: the intro popup is gone)
+	SoundFX.EMPTY_OK                       cues allowed to stay silent (none needed now: boss_intro is layered)
 ]]
 
 local SoundFX = {}
@@ -118,6 +118,8 @@ SoundFX.Layers = {
 	shop_buy = { { cue = "buy" }, { cue = "coin", delay = 0.08, volume = 0.3, speed = 1.0 }, { cue = "coin", delay = 0.14, volume = 0.25, speed = 1.09 }, { cue = "coin", delay = 0.2, volume = 0.2, speed = 0.95 } },
 	shop_reroll = { { cue = "card_deal", speed = 1.0 }, { cue = "card_deal", delay = 0.09, speed = 1.18 } },
 	shop_cant = { { cue = "lose", volume = 0.15, semis = 4, maxLength = 0.25 } },
+	-- boss entrance: a low thud under a page sweep, both quiet (SFX 0.4 or less), existing ids only
+	boss_intro = { { cue = "chip_big", volume = 0.35, speed = 0.5 }, { cue = "scroll_open", delay = 0.05, volume = 0.25, maxLength = 1.0 } },
 	boss_defeat = { { cue = "win" }, { cue = "chip_big", delay = 0.1, volume = 0.45, speed = 0.6 } },
 	-- card_play: the snap plus a soft cash rustle 40 ms later
 	card_play = { { cue = "card_play", own = true }, { cue = "coin", delay = 0.04, volume = 0.12, speed = 1.4, maxLength = 0.25 } },
@@ -126,7 +128,7 @@ SoundFX.Layers = {
 		{ cue = "chip", delay = 0.0, semis = 12, volume = 0.45 }, { cue = "chip", delay = 0.09, semis = 19, volume = 0.45 } },
 }
 
-SoundFX.EMPTY_OK = { boss_intro = true, score_tick = true, score_total = true, patron_trigger = true, round_clear = true, defeat = true } -- the last five wait for ids (Backlog 6)
+SoundFX.EMPTY_OK = { score_tick = true, score_total = true, patron_trigger = true, round_clear = true, defeat = true } -- the last five wait for ids (Backlog 6)
 
 function SoundFX.layersFor(name)
 	return SoundFX.Layers[name]

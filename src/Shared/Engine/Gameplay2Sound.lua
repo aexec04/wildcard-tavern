@@ -32,9 +32,11 @@ M.MOMENTS = {
 }
 
 -- cues that may stay silent until an id is pasted in (SoundFX.EMPTY_OK); the call site must still exist
-M.SILENT_OK = {
+-- cues that sound through composite layers (SoundFX.Layers) instead of an id of their own; the call site must exist
+M.LAYERED = {
 	{ moment = "boss entrance", cue = "boss_intro", file = "src/Client/Gameplay2MomentsFX.lua", marker = '"boss_intro"' },
 }
+M.SILENT_OK = {}
 
 M.SLIDER_STEPS = { 0, 0.1, 0.25, 0.5, 0.75, 1 }
 

@@ -22999,7 +22999,13 @@ table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat
 		local ok = S.cueId(name) ~= nil or FX.layersFor(name) ~= nil or FX.EMPTY_OK[name]
 		expectTrue(ok, name .. " has an id, explicit layers, or is on the silent list")
 	end
-	expectEqual(table.concat(S.silentCues(), ","), "boss_intro", "boss_intro stays silent (the intro popup is gone); the Backlog 6 cues have ids")
+	expectEqual(table.concat(S.silentCues(), ","), "", "no cue is silent: boss_intro is layered from existing ids")
+	for _, layer in ipairs(FX.layersFor("boss_intro")) do
+		expectTrue((layer.volume or 1) * S.Cues[layer.cue].volume <= 0.4, "boss_intro layer " .. layer.cue .. " stays at SFX 0.4 or less")
+	end
+	for _, m in ipairs(require(script.Parent.Parent.Engine.Gameplay2Sound).MOMENTS) do
+		expectTrue(S.cueId(m.cue) ~= nil or FX.layersFor(m.cue) ~= nil or FX.EMPTY_OK[m.cue], m.moment .. " resolves to a sound")
+	end
 	for name, layers in pairs(FX.Layers) do
 		for _, layer in ipairs(layers) do
 			expectTrue(S.cueId(layer.cue) ~= nil, name .. " layer plays " .. layer.cue .. " which has a working id")
@@ -23669,8 +23675,37 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 		expectTrue(L.scrimOpacity(L.TOP, 0) <= 0.5 and L.scrimOpacity(L.BOTTOM, 1) <= 0.9, "edges darken to a limit")
 		expectTrue(text:find("DisplayOrder = 1000", 1, true) ~= nil and text:find("ResetOnSpawn = false", 1, true) ~= nil and text:find("IgnoreGuiInset = true", 1, true) ~= nil, "gui settings")
 		expectTrue(text:find("fade.Active = false", 1, true) ~= nil and text:find("gui:Destroy()", 1, true) ~= nil, "it stops blocking clicks and is destroyed")
-		expectTrue(text:find("math.max(15, size)", 1, true) ~= nil, "text is never under 15")
+		expectTrue(text:find("math.max(16, size)", 1, true) ~= nil, "text is never under 16")
 		expectTrue(not text:find("gradient(fade,", 1, true) and not text:find("gradient%(fade%s*[,)]"), "no UIGradient is a direct child of the Fade CanvasGroup (it would tint every child)")
+	end
+end })
+
+table.insert(tests, { name = "LoadingLayout: bar, status, tip, title and Skip never overlap and stay on screen from 800x450 to 1920x957, text is 16 or more, calm mode drops every loop and tween", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LoadingLayout)
+	expectTrue(LL.MIN_TEXT >= 16, "text floor is 16")
+	local function overlap(a, b) return a.x < b.r and b.x < a.r and a.y < b.b and b.y < a.b end
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 800, 450 } }) do
+		local sw, sh = size[1], size[2]
+		local r = LL.rects(sw, sh)
+		local tag = sw .. "x" .. sh
+		for name, rc in pairs(r) do
+			expectTrue(rc.x >= 0 and rc.y >= 0 and rc.r <= sw and rc.b <= sh, name .. " inside the screen at " .. tag)
+		end
+		expectFalse(overlap(r.title, r.bar), "title clear of the bar at " .. tag)
+		expectFalse(overlap(r.bar, r.status), "bar clear of status at " .. tag)
+		expectFalse(overlap(r.status, r.tip), "status clear of tip at " .. tag)
+		expectFalse(overlap(r.tip, r.skip), "tip clear of Skip at " .. tag)
+		expectTrue(r.tip.h >= 2 * LL.MIN_TEXT and r.status.h >= LL.MIN_TEXT, "lines are tall enough for 16 px text at " .. tag)
+	end
+	local calm, normal = LL.motion(true), LL.motion(false)
+	expectTrue(not calm.shimmer and not calm.ember and not calm.tipFade and not calm.readyPulse, "calm mode: no loops, no tip tween, no pulse")
+	expectTrue(normal.shimmer and normal.ember and normal.tipFade and normal.readyPulse, "normal mode keeps the life")
+	expectTrue(LL.fadeTime(true, 0.5) < 0.2 and LL.fadeTime(false, 0.5) == 0.5, "calm mode crossfades quickly, normal keeps 0.5 s")
+	local f = io and io.open and io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("Layout.rects(", 1, true) ~= nil and text:find("motion.shimmer", 1, true) ~= nil and text:find("Layout.fadeTime(", 1, true) ~= nil, "the screen uses the layout and motion rules")
 	end
 end })
 
@@ -30615,12 +30650,14 @@ table.insert(tests, { name = "Gameplay v2 pass 21 to 23: GuiObject count under 1
 	local tree = { Children = { { ClassName = "Frame", Visible = true, Children = { { ClassName = "TextLabel", Visible = true, Children = {} }, { ClassName = "UICorner", Children = {} } } },
 		{ ClassName = "Frame", Visible = false, Children = { { ClassName = "TextLabel", Visible = true, Children = {} } } } } }
 	assert(P.count(tree, false) == 4 and P.count(tree, true) == 3, "invisible branches are not counted on screen")
+	for _, m in ipairs(G.LAYERED) do assert(S.Cues[m.cue] and FX.layersFor(m.cue), m.moment .. ": layered cue") end
 	for _, m in ipairs(G.SILENT_OK) do
 		assert(S.Cues[m.cue] and FX.EMPTY_OK[m.cue], m.moment .. ": a real cue that is allowed to stay silent")
 	end
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	for _, m in ipairs(G.SILENT_OK) do assert(read(m.file):find(m.marker, 1, true), m.moment .. ": call site") end
+	for _, m in ipairs(G.LAYERED) do assert(read(m.file):find(m.marker, 1, true), m.moment .. ": call site") end
 	for _, path in ipairs(P.LOOP_FILES) do
 		local src = read(path)
 		local bad = P.forbiddenLoop(src)
@@ -36145,6 +36182,72 @@ table.insert(tests, { name = "ThemeScenes: only winter_evening swaps the boss ta
 		end
 	end
 	expectTrue(TS.themeImageId(nil, "mapBackdrop") == nil, "no set means classic")
+end })
+
+-- Phone and tablet pass: Settings, Tome and Menu rects from the live layout functions at 800x450, 1024x768 and 1366x768.
+table.insert(tests, { name = "Phone and tablet: Settings board fits 800x450, 1024x768 and 1366x768 with 44 px controls and a reachable last row", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local r = SL.panelRects(W, H)
+		local tag = W .. "x" .. H
+		expectTrue(r.panel.x >= 0 and r.panel.y >= 0 and r.panel.x + r.panel.w <= W and r.panel.y + r.panel.h <= H, "panel on screen " .. tag)
+		expectTrue(r.scroll.h >= SL.PANEL.rowH * 2, "scroll body shows at least two rows " .. tag)
+		expectTrue(r.textW >= 200, "row text column at least 200 px wide " .. tag)
+		expectTrue(r.scroll.w >= SL.SWITCH.w + SL.PANEL.textGutter - 30, "switch fits beside the text " .. tag)
+		expectTrue(SL.PANEL.replayH >= 44 and SL.PANEL.replayW >= 44, "Replay buttons are 44 px")
+		-- the Close button and the title strip fit in the panel below and above the scroll
+		expectTrue(SL.CLOSE.w <= r.panel.w and SL.PANEL.top + r.scroll.h + SL.CLOSE.h <= r.panel.h + SL.PANEL.bottomReserve, "Close fits under the scroll " .. tag)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("AutomaticCanvasSize = Enum.AutomaticSize.Y", 1, true) ~= nil, "the Settings scroll grows to its last row")
+	expectTrue(src:find("PANEL.replayH", 1, true) ~= nil, "Replay buttons use the 44 px layout number")
+end })
+
+table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	local tabRight = 0
+	if io then
+		local f = assert(io.open("src/Client/Collection.lua", "r")); local src = f:read("a"); f:close()
+		for x in src:gmatch("Size = UDim2%.fromOffset%(104, 28%), Position = UDim2%.fromOffset%((%d+), 4%)") do
+			tabRight = math.max(tabRight, tonumber(x) + 104)
+		end
+		expectTrue(tabRight >= 600, "found the Tome tab strip in Collection.lua")
+	end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local fit = RL.collectionPanel(W, H)
+		local pw, ph = math.floor(fit.w * W), math.floor(fit.h * H)
+		expectTrue(pw <= W and ph <= H, "Tome panel fits the screen " .. W .. "x" .. H)
+		expectTrue(pw >= tabRight + 15, "every Tome tab sits inside the panel " .. W .. "x" .. H)
+		expectTrue(ph >= 340, "Tome body keeps room for its rows " .. W .. "x" .. H)
+		local b = RL.badgesPanel(W, H)
+		expectTrue(b.x + b.w <= W and b.h <= H, "Badges panel fits " .. W .. "x" .. H)
+	end
+end })
+
+table.insert(tests, { name = "Phone and tablet: Menu hotspots stay on screen at 800x450, 1024x768 and 1366x768 with 44 px targets", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 } }) do
+		local W, H = sz[1], sz[2]
+		for _, a in ipairs(RL.rects(W, H)) do
+			expectTrue(a[1] >= 0 and a[3] <= W and a[2] >= 0 and a[4] <= H, a.id .. " on screen " .. W .. "x" .. H)
+			expectTrue(a[3] - a[1] >= RL.minTouch - 1e-6 and a[4] - a[2] >= RL.minTouch - 1e-6, "44 px target " .. a.id .. " " .. W .. "x" .. H)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Phone and tablet: Counter shop scene fits 1024x768 and 1366x768 areas", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 784, 768 }, { 1126, 768 } }) do
+		local W, H = sz[1], sz[2]
+		local r = L.rects(W, H, { offers = 3, packs = 2 })
+		for _, rc in ipairs({ r.counter, r.marlo, r.tabs, r.nextBoss, r.leave }) do
+			expectTrue(L.inside(rc, r.area), "inside the area " .. W .. "x" .. H)
+		end
+		expectTrue(r.tabs.h >= 44 and r.leave.h >= 44, "Tabs and Leave are 44 px tall " .. W .. "x" .. H)
+	end
 end })
 
 return tests
