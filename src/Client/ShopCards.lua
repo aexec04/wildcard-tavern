@@ -549,16 +549,12 @@ function ShopCards.new(deps)
 			stroke(button, enabled and GOLD or Color3.fromRGB(110, 96, 84), 2, 0)
 			if enabled then
 				pcall(function() require(script.Parent.ConceptTSkin).plateButton(button) end) -- the one green plate style
-<<<<<<< HEAD
 				pcall(function() -- a Card Set with its own plates: the set's green plate replaces the classic green (classic and plateless sets unchanged)
 					if require(script.Parent.TavernKit).setPlateButton(button, "primary") then
 						local classicPlate = button:FindFirstChild("ConceptTPlate")
 						if classicPlate then classicPlate.Visible = false end
 					end
 				end)
-=======
-				pcall(function() require(script.Parent.TavernKit).setPlateButton(button, "primary") end) -- Sell and Buy: the equipped Card Set's plate; classic keeps the green
->>>>>>> lane-menu
 			end
 		end
 
