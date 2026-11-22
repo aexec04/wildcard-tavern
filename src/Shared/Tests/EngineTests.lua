@@ -38657,6 +38657,37 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Patron sell value: half the list price rounded down, and no discount stack lets buy then sell make a profit", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	for _, patron in ipairs(Patrons.Definitions) do
+		expectEqual(require(script.Parent.Parent.Engine.PackRoom).sellValue("patron", patron.id), math.floor(patron.price / 2), patron.id .. " sells for half, rounded down")
+		-- every lasting price cut (Regulars' Discount, -2) leaves the price at or above the sell value, so a loop of buy and sell cannot grow Tips
+		for _, regulars in ipairs({ false, true }) do
+			local state = RunState.new(nil, SeededRng.new(3))
+			state.tips = 100
+			state.housePasses.regulars_discount = regulars or nil
+			for loop = 1, 5 do
+				local before = state.tips
+				expectTrue(RunState.buyPatron(state, patron.id))
+				RunState.sellPatron(state, patron.id)
+				expectTrue(state.tips <= before, patron.id .. " buy then sell must not gain Tips (loop " .. loop .. ", Regulars " .. tostring(regulars) .. "): " .. before .. " to " .. state.tips)
+			end
+		end
+		-- the one shot cuts (Sale Day Tag, a haggle) may leave a small gain once, and clear after the visit: the next buy is at full price
+		local state = RunState.new(nil, SeededRng.new(3))
+		state.tips = 100
+		state.nextShopDiscount = 5
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		state.nextShopDiscount = 0 -- what leaving the shop does
+		local before = state.tips
+		RunState.buyPatron(state, patron.id)
+		RunState.sellPatron(state, patron.id)
+		expectTrue(state.tips < before, patron.id .. " at full price loses Tips on a round trip")
+	end
+end })
+
 table.insert(tests, { name = "Daily twists balance pin: Solo Star gives one seat at 4x power with 3 extra Hands, 4 extra Discards and 8 Tips (its win rate was 0 percent at 2x), all 12 twists still exist", fn = function()
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
 	expectEqual(#DM.Definitions, 12)
