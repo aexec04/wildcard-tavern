@@ -768,6 +768,14 @@ function CosmeticSets.hintStyleOf(setId)
 	return { plate = b.fill, edge = b.edge, ink = b.ink }
 end
 
+-- Loading screen: the equipped set's dark plate, accent edge and cream ink (7:1) for the tip plate, Skip plate and bar trim. nil for classic,
+-- an unknown id or no id (a first join has no profile yet), so the screen keeps its painted look.
+function CosmeticSets.loadingStyleOf(setId)
+	local h = CosmeticSets.hintStyleOf(setId)
+	if not h then return nil end
+	return { plate = h.plate, edge = h.edge, ink = h.ink, tipAlpha = 0.35 }
+end
+
 -- Popup title band: a dark strip tinted toward the equipped set accent behind a cream title, edge in the accent. Cream text keeps 7:1 on the fill.
 -- nil for classic or an unknown set so classic popups stay as they are.
 CosmeticSets.TITLE_INK = { 250, 240, 220 }

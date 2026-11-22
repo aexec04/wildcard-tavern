@@ -39054,6 +39054,43 @@ table.insert(tests, { name = "Fit audit over all 14 sets at 800x450, 1024x768, 1
 	assert(sets >= 14 and runs >= 14 * 4 * 5, "every set, size and screen was audited")
 end })
 
+table.insert(tests, { name = "Loading screen and Night clear frame take the equipped Card Set plate, edge and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.loadingStyleOf("classic_tavern"), nil, "classic keeps the painted loading screen")
+	expectEqual(CS.loadingStyleOf(nil), nil, "a first join with no profile keeps it too")
+	expectEqual(CS.loadingStyleOf("no_such_set"), nil, "unknown id keeps it")
+	local n, edges = 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local st = CS.loadingStyleOf(set.id)
+			expectTrue(st ~= nil, set.id .. " has a loading style")
+			if st then
+				n = n + 1
+				expectTrue(CS.contrastRatio(st.plate, st.ink) >= 7, set.id .. " tip ink keeps 7:1 on the loading plate")
+				expectTrue(st.tipAlpha >= 0 and st.tipAlpha < 1, "tip plate is visible")
+				edges[st.edge[1] .. "," .. st.edge[2] .. "," .. st.edge[3]] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a loading style")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local ui = read("src/ReplicatedFirst/LoadingScreenUI.lua")
+	if ui then
+		expectTrue(ui:find("loadingStyleOf", 1, true) ~= nil and ui:find("function handle.setSet", 1, true) ~= nil, "loading UI asks the pure rule")
+		expectTrue(ui:find("local tipPlate", 1, true) < ui:find("local function applyLayout", 1, true), "tip plate is declared before the layout closure uses it")
+	end
+	local cs = read("src/ReplicatedFirst/LoadingScreen.client.lua")
+	if cs then expectTrue(cs:find("EquippedCardSet", 1, true) ~= nil, "loading script reads the equipped set attribute") end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	if fx then expectTrue(fx:find("skinPlate(plate", 1, true) ~= nil and fx:find("HintSkin", 1, true) ~= nil, "Night clear plates bind the hint skin") end
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }

@@ -17,6 +17,13 @@ local Engine = shared:WaitForChild("Engine")
 local okUI, UI = pcall(function() return require(script.Parent:WaitForChild("LoadingScreenUI")) end)
 local handle = okUI and UI.show(playerGui, { shared = shared, calm = player:GetAttribute("CalmMode") == true }) or nil
 pcall(function() ReplicatedFirst:RemoveDefaultLoadingScreen() end)
+if handle and handle.setSet then
+	-- the server publishes the equipped Card Set as a Player attribute once the profile loads; classic (or none) keeps the painted look
+	handle.setSet(player:GetAttribute("EquippedCardSet"))
+	player:GetAttributeChangedSignal("EquippedCardSet"):Connect(function()
+		if handle.isAlive and handle.isAlive() then handle.setSet(player:GetAttribute("EquippedCardSet")) end
+	end)
+end
 if not handle then
 	warn("[LoadingScreen] could not build the screen: " .. tostring(UI))
 	return
