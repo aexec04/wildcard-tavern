@@ -1192,6 +1192,7 @@ return function(deps)
 	require(script.Parent.DebugGoto).openMap = openJourney -- Studio-only DebugGoto "map" opens the Tavern Map through the same path
 	journeyButton.MouseButton1Click:Connect(openJourney)
 	menuJourneyButton.MouseButton1Click:Connect(openJourney)
+	OverlayManager.registerOpener("journey", openJourney) -- the Settings Tavern Map button
 
 	return {
 		journeyBackdrop = journeyBackdrop,

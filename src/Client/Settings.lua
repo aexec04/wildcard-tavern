@@ -57,8 +57,8 @@ return function(deps)
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, settingsBackdrop)
 
 	local settingsPanel = Instance.new("Frame")
-	settingsPanel.Size = UDim2.fromScale(0.5, 0.8)
-	settingsPanel.Position = UDim2.fromScale(0.25, 0.1)
+	settingsPanel.Size = UDim2.fromScale(SettingsLayout.PANEL.fw, SettingsLayout.PANEL.fh)
+	settingsPanel.Position = UDim2.fromScale((1 - SettingsLayout.PANEL.fw) / 2, SettingsLayout.PANEL.fy)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
@@ -99,8 +99,8 @@ return function(deps)
 	runLabel.Parent = settingsPanel
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -40, 1, -110)
-	scroll.Position = UDim2.new(0, 20, 0, 48)
+	scroll.Size = UDim2.new(1, -40, 1, -(SettingsLayout.PANEL.top + SettingsLayout.PANEL.bottomReserve))
+	scroll.Position = UDim2.new(0, 20, 0, SettingsLayout.PANEL.top)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
@@ -510,31 +510,37 @@ return function(deps)
 
 	-- ===== Account =====
 	makeHeader("Account")
-	local accountRow = Instance.new("Frame")
-	accountRow.Size = UDim2.new(1, 0, 0, 44)
-	accountRow.LayoutOrder = order()
-	accountRow.BackgroundTransparency = 1
-	accountRow.ZIndex = 21
-	accountRow.Parent = scroll
+	local ACC = SettingsLayout.ACCOUNT
+	local function makeAccountRow()
+		local rowFrame = Instance.new("Frame")
+		rowFrame.Size = UDim2.new(1, 0, 0, ACC.plateH)
+		rowFrame.LayoutOrder = order()
+		rowFrame.BackgroundTransparency = 1
+		rowFrame.ZIndex = 21
+		rowFrame.Parent = scroll
+		local rowLayout = Instance.new("UIListLayout")
+		rowLayout.FillDirection = Enum.FillDirection.Horizontal
+		rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		rowLayout.Padding = UDim.new(0, ACC.gap)
+		rowLayout.Parent = rowFrame
+		return rowFrame
+	end
+	local accountRow = makeAccountRow()
+	local accountRow2 = makeAccountRow()
 
-	local accountLayout = Instance.new("UIListLayout")
-	accountLayout.FillDirection = Enum.FillDirection.Horizontal
-	accountLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	accountLayout.Padding = UDim.new(0, 10)
-	accountLayout.Parent = accountRow
-
-	local function makeAccountButton(text, layoutOrder, iconImage)
+	local function makeAccountButton(text, layoutOrder, iconImage, parentRow, perRow)
+		perRow = perRow or ACC.perRow
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1 / 3, -7, 0, SettingsLayout.PAUSE.plateH)
+		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
 		button.TextWrapped = true
 		button.LayoutOrder = layoutOrder
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = 15
+		button.Font = Enum.Font.Merriweather
+		button.TextSize = ACC.textSize
 		button.Text = text
 		button.BackgroundColor3 = BUTTON
 		button.TextColor3 = TEXT
 		button.ZIndex = 21
-		button.Parent = accountRow
+		button.Parent = parentRow or accountRow
 		polishButton(button, 12)
 		addButtonHoverScale(button)
 		require(script.Parent.ConceptTSkin).plateButton(button)
@@ -559,10 +565,8 @@ return function(deps)
 	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, nil)
 	settingsMainMenuButton.Name = "MainMenu"
 	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own full-width row under the three buttons.
-	local settingsDailyButton = makeAccountButton("Daily Rewards", 4, nil)
-	settingsDailyButton.Parent = scroll
-	settingsDailyButton.Size = UDim2.new(1, 0, 0, SettingsLayout.PAUSE.plateH)
-	settingsDailyButton.LayoutOrder = order()
+	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, nil, accountRow2, ACC.secondRow)
+	local settingsMapButton = makeAccountButton("Tavern Map", 2, nil, accountRow2, ACC.secondRow)
 
 	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
 	local settingsMapButton = makeAccountButton("Tavern Map", 5, nil)

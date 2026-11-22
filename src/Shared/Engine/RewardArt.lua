@@ -4,13 +4,13 @@
 --
 --   RewardArt.resolve(reward) -> category|nil, key|nil, emoji     (emoji is always a non-empty string)
 --
--- Painted today: Tips (hud/coin_purse), card backs, titles, Card Set backdrops, Flair. XP, auras, trinkets and
+-- Painted today: Tips (hud/coin_purse), XP (menu scroll), card backs, titles, Card Set backdrops, Flair. Auras, trinkets and
 -- nights-in-run have no painted icon yet and use their emoji.
 local RewardArt = {}
 
 local KINDS = {
 	tips = { "hud", "coin_purse", "💰" },
-	xp = { nil, nil, "⭐" },
+	xp = { "menu_scene", "menu_item_scroll", "⭐" }, -- the painted scroll
 	tokens = { nil, nil, "🎟️" },
 	keys = { nil, nil, "🗝️" },
 	aura = { nil, nil, "✨" },

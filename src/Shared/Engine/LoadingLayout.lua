@@ -10,9 +10,14 @@
 local M = {}
 
 M.MIN_TEXT = 16
-M.BAR_ASPECT = 1536 / 305 -- the beam picture crop
+-- The wooden beam plate is 700 x 80 at full size and frames the bar: the track and fill sit 14 px inside it (scaled with the plate).
+M.PLATE = { w = 700, h = 80, inset = 14 }
+M.BAR_ASPECT = M.PLATE.w / M.PLATE.h
 M.BAR_WIDTH = 0.46 -- of the screen width
 M.BAR_MIN_W = 280
+M.BAR_MAX_W = M.PLATE.w
+M.STATUS_TEXT, M.TIP_TEXT = 20, 16 -- sizes of the status and tip lines (the painted serif, cream with a dark outline)
+M.TRACK = { fill = { 214, 168, 74 }, track = { 40, 26, 16 } } -- gold fill on a dark brown track, no highlight block
 M.BAR_CENTER_Y = 0.64 -- of the screen height
 M.CALM_FADE = 0.12
 M.SKIP = { w = 110, h = 44, margin = 20 }
@@ -22,15 +27,15 @@ local function rect(x, y, w, h)
 end
 
 function M.rects(sw, sh)
-	local barW = math.max(M.BAR_MIN_W, sw * M.BAR_WIDTH)
+	local barW = math.min(M.BAR_MAX_W, math.max(M.BAR_MIN_W, sw * M.BAR_WIDTH))
 	local barH = barW / M.BAR_ASPECT
 	local cy = sh * M.BAR_CENTER_Y
 	local bar = rect(sw / 2 - barW / 2, cy - barH / 2, barW, barH)
 	local lineH = M.MIN_TEXT + 8
-	local status = rect(sw * 0.15, bar.b + 6, sw * 0.7, lineH)
+	local status = rect(sw * 0.15, bar.b + 6, sw * 0.7, M.STATUS_TEXT + 8)
 	-- the tip keeps clear of the Skip button at the right and may wrap to two lines on narrow screens
 	local tipW = math.min(sw * 0.86, sw - 2 * (M.SKIP.w + M.SKIP.margin + 10))
-	local tip = rect(sw / 2 - tipW / 2, status.b + 4, tipW, lineH * 2)
+	local tip = rect(sw / 2 - tipW / 2, status.b + 4, tipW, (M.TIP_TEXT + 4) * 2)
 	local title = rect(sw * 0.1, sh * 0.09, sw * 0.8, sh * 0.12)
 	local skip = rect(sw - M.SKIP.margin - M.SKIP.w, sh - M.SKIP.margin - M.SKIP.h, M.SKIP.w, M.SKIP.h)
 	return { title = title, bar = bar, status = status, tip = tip, skip = skip }
@@ -38,7 +43,7 @@ end
 
 function M.motion(calm)
 	local on = not calm
-	return { shimmer = on, ember = on, tipFade = on, readyPulse = on }
+	return { ember = on, tipFade = on, readyPulse = on }
 end
 
 function M.fadeTime(calm, normal)

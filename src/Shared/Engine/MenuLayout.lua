@@ -28,6 +28,14 @@ MenuLayout.Parallax = {
 	backdropScale = 1.08, -- backdrop is drawn this much larger so edges never show
 }
 
+-- The painted wordmark's glyph starts 8 px under the title label (GLYPH_TOP 12, label TOP 4). The parallax can lift the
+-- title group by up to 28 px, so the glyph top is kept at 12 px or lower; returns the downward shift (px, 0 or more).
+MenuLayout.WORDMARK = { minGlyphTop = 12, glyphDrop = 8 }
+function MenuLayout.keepWordmarkOnScreen(groupDy, titleTop)
+	local glyphTop = (tonumber(groupDy) or 0) + (tonumber(titleTop) or 4) + MenuLayout.WORDMARK.glyphDrop
+	return math.max(0, MenuLayout.WORDMARK.minGlyphTop - glyphTop)
+end
+MenuLayout.LIST_END_PAD = 40 -- one plate (a 40 px row) of padding under the last row of the All actions list
 MenuLayout.PHONE_WIDTH = 700 -- narrower than this: no scene, just the action list
 MenuLayout.MAX_ANIMATED = 16 -- cap on animated foreground objects
 

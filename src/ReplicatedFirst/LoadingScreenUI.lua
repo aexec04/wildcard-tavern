@@ -1,8 +1,8 @@
 --[[
 	ReplicatedFirst/LoadingScreenUI.lua
 	Builds the launch loading screen: painted tavern doorway (loading_scene_bg), the wordmark, a wooden beam
-	progress bar (loading_bar_frame, code-drawn wood when the id is missing) with an amber fill, a moving
-	shimmer and an ember at the leading edge, a status line and a rotating tip. Rules (weights, easing, tips)
+	progress bar (loading_bar_frame, code-drawn wood when the id is missing) with a gold fill on a dark track
+	inside the plate and an ember at the leading edge, a status line and a rotating tip. Rules (weights, easing, tips)
 	are in Engine/LoadProgress and Engine/LoadingTips. The two scrims are the only UIGradient Transparency use (a fade, Engine/ScrimGradient).
 	LoadingScreenUI.show(playerGui, { shared = ReplicatedStorage.Shared, frozen = 0..1 or nil, onSkip = fn })
 	  -> handle { gui, setTarget(v), setReady(), fadeOut(), destroy(), isAlive() }
@@ -14,7 +14,8 @@ local TweenService = game:GetService("TweenService")
 local LoadingScreenUI = {}
 
 local BAR_ART = { x = 0, y = 360, w = 1536, h = 305 } -- the beam inside the 1536x1024 picture
-local CHANNEL = { x0 = 0.11, x1 = 0.89, y0 = 0.31, y1 = 0.69 } -- the hollow channel inside the beam crop
+-- the track sits 14 px inside the 700 x 80 plate (fractions of the plate, so it scales with it)
+local INSET_X, INSET_Y = 14 / 700, 14 / 80
 local AMBER = Color3.fromRGB(255, 170, 60)
 local CREAM = Color3.fromRGB(240, 224, 190)
 local BRASS = Color3.fromRGB(214, 170, 86)
@@ -40,7 +41,7 @@ local function label(parent, text, size, color, font)
 	l.Font = font or Enum.Font.GothamMedium
 	l.TextWrapped = true
 	l.TextTransparency = 0
-	l.TextStrokeTransparency = 0.35
+	l.TextStrokeTransparency = 0 -- a 1 px dark outline
 	l.TextStrokeColor3 = Color3.fromRGB(10, 6, 4)
 	l.Parent = parent
 	return l
@@ -155,9 +156,10 @@ function LoadingScreenUI.show(playerGui, opts)
 	bar.Parent = fade
 	local sc = Instance.new("UISizeConstraint")
 	sc.MinSize = Vector2.new(Layout.BAR_MIN_W, Layout.BAR_MIN_W / Layout.BAR_ASPECT)
+	sc.MaxSize = Vector2.new(Layout.BAR_MAX_W, Layout.BAR_MAX_W / Layout.BAR_ASPECT)
 	sc.Parent = bar
 	local ar = Instance.new("UIAspectRatioConstraint")
-	ar.AspectRatio = BAR_ART.w / BAR_ART.h
+	ar.AspectRatio = Layout.BAR_ASPECT
 	ar.AspectType = Enum.AspectType.ScaleWithParentSize
 	ar.DominantAxis = Enum.DominantAxis.Width
 	ar.Parent = bar
@@ -165,9 +167,9 @@ function LoadingScreenUI.show(playerGui, opts)
 	local paintedBar = validId(SceneArt.loading_bar_frame)
 	local channel = Instance.new("Frame")
 	channel.Name = "Channel"
-	channel.Position = UDim2.fromScale(CHANNEL.x0, CHANNEL.y0)
-	channel.Size = UDim2.fromScale(CHANNEL.x1 - CHANNEL.x0, CHANNEL.y1 - CHANNEL.y0)
-	channel.BackgroundColor3 = Color3.fromRGB(70, 42, 22)
+	channel.Position = UDim2.fromScale(INSET_X, INSET_Y)
+	channel.Size = UDim2.fromScale(1 - 2 * INSET_X, 1 - 2 * INSET_Y)
+	channel.BackgroundColor3 = Color3.fromRGB(Layout.TRACK.track[1], Layout.TRACK.track[2], Layout.TRACK.track[3])
 	channel.BorderSizePixel = 0
 	channel.ClipsDescendants = true
 	channel.ZIndex = 1
@@ -206,25 +208,14 @@ function LoadingScreenUI.show(playerGui, opts)
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.new(0, 0, 1, 0)
-	fill.BackgroundColor3 = AMBER
+	fill.BackgroundColor3 = Color3.fromRGB(Layout.TRACK.fill[1], Layout.TRACK.fill[2], Layout.TRACK.fill[3])
 	fill.BorderSizePixel = 0
 	fill.ClipsDescendants = true
 	fill.ZIndex = 2
 	fill.Parent = channel
-	gradient(fill, Color3.fromRGB(255, 214, 120), Color3.fromRGB(214, 104, 28), 90)
 	local fc = Instance.new("UICorner")
 	fc.CornerRadius = UDim.new(0.5, 0)
 	fc.Parent = fill
-
-	local shimmer = Instance.new("Frame")
-	shimmer.Name = "Shimmer"
-	shimmer.Size = UDim2.new(0, 36, 1, 0)
-	shimmer.Position = UDim2.new(0, -40, 0, 0)
-	shimmer.BackgroundColor3 = Color3.fromRGB(255, 244, 210)
-	shimmer.BackgroundTransparency = 0.7
-	shimmer.BorderSizePixel = 0
-	shimmer.ZIndex = 2
-	shimmer.Parent = fill
 
 	local ember = Instance.new("Frame") -- glowing spark at the leading edge
 	ember.Name = "Ember"
@@ -269,11 +260,11 @@ function LoadingScreenUI.show(playerGui, opts)
 	pcn.CornerRadius = UDim.new(0.3, 0)
 	pcn.Parent = pulse
 
-	local status = label(fade, "Lighting the lanterns...", 18, CREAM)
+	local status = label(fade, "Lighting the lanterns...", Layout.STATUS_TEXT, CREAM, Enum.Font.Fondamento)
 	status.Name = "Status"
 	status.AnchorPoint = Vector2.new(0, 0)
 
-	local tip = label(fade, "", 16, CREAM)
+	local tip = label(fade, "", Layout.TIP_TEXT, CREAM, Enum.Font.Fondamento)
 	tip.Name = "Tip"
 	tip.AnchorPoint = Vector2.new(0, 0)
 	tip.TextYAlignment = Enum.TextYAlignment.Top
@@ -382,12 +373,7 @@ function LoadingScreenUI.show(playerGui, opts)
 		local innerW = channel.AbsoluteSize.X
 		local px = LoadProgress.fillWidth(innerW, display)
 		fill.Size = UDim2.new(0, px, 1, 0)
-		-- shimmer sweep and ember flicker
-		if motion.shimmer then
-			shimmer.Position = UDim2.new(0, ((now * 0.5) % 1.4) * math.max(px, 1) - 40, 0, 0)
-		else
-			shimmer.Visible = false
-		end
+		-- ember flicker
 		ember.Position = UDim2.new(0, math.max(7, px), 0.5, 0)
 		ember.Visible = px > 2 and not ready
 		if motion.ember then

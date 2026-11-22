@@ -24295,17 +24295,27 @@ table.insert(tests, { name = "LoadingLayout: bar, status, tip, title and Skip ne
 		expectFalse(overlap(r.bar, r.status), "bar clear of status at " .. tag)
 		expectFalse(overlap(r.status, r.tip), "status clear of tip at " .. tag)
 		expectFalse(overlap(r.tip, r.skip), "tip clear of Skip at " .. tag)
-		expectTrue(r.tip.h >= 2 * LL.MIN_TEXT and r.status.h >= LL.MIN_TEXT, "lines are tall enough for 16 px text at " .. tag)
+		expectTrue(r.tip.h >= 2 * LL.TIP_TEXT and r.status.h >= LL.STATUS_TEXT, "lines are tall enough for 16 px tip and 20 px status text at " .. tag)
+		expectTrue(r.bar.w <= 700 and r.bar.w >= 280 and math.abs(r.bar.w / r.bar.h - 700 / 80) < 0.01, "the plate keeps 700 x 80 proportions at " .. tag)
 	end
 	local calm, normal = LL.motion(true), LL.motion(false)
-	expectTrue(not calm.shimmer and not calm.ember and not calm.tipFade and not calm.readyPulse, "calm mode: no loops, no tip tween, no pulse")
-	expectTrue(normal.shimmer and normal.ember and normal.tipFade and normal.readyPulse, "normal mode keeps the life")
+	expectTrue(not calm.ember and not calm.tipFade and not calm.readyPulse, "calm mode: no loops, no tip tween, no pulse")
+	expectTrue(normal.ember and normal.tipFade and normal.readyPulse, "normal mode keeps the life")
+	expectEqual(LL.PLATE.w, 700)
+	expectEqual(LL.PLATE.h, 80)
+	expectEqual(LL.PLATE.inset, 14)
+	expectEqual(LL.STATUS_TEXT, 20)
+	expectEqual(LL.TIP_TEXT, 16)
+	expectTrue(LL.TRACK.fill[1] == 214 and LL.TRACK.fill[2] == 168 and LL.TRACK.fill[3] == 74, "gold fill 214,168,74")
+	expectTrue(LL.TRACK.track[1] == 40 and LL.TRACK.track[2] == 26 and LL.TRACK.track[3] == 16, "dark brown track 40,26,16")
 	expectTrue(LL.fadeTime(true, 0.5) < 0.2 and LL.fadeTime(false, 0.5) == 0.5, "calm mode crossfades quickly, normal keeps 0.5 s")
 	local f = io and io.open and io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
 	if f then
 		local text = f:read("*a")
 		f:close()
-		expectTrue(text:find("Layout.rects(", 1, true) ~= nil and text:find("motion.shimmer", 1, true) ~= nil and text:find("Layout.fadeTime(", 1, true) ~= nil, "the screen uses the layout and motion rules")
+		expectTrue(text:find("Layout.rects(", 1, true) ~= nil and text:find("Layout.fadeTime(", 1, true) ~= nil, "the screen uses the layout and motion rules")
+			expectTrue(not text:find("shimmer", 1, true), "no highlight block on the bar")
+			expectTrue(text:find("Enum.Font.Fondamento", 1, true) ~= nil and text:find("Layout.STATUS_TEXT", 1, true) ~= nil and text:find("Layout.TIP_TEXT", 1, true) ~= nil, "status and tip use the painted serif at 20 and 16 px")
 	end
 end })
 
@@ -33008,7 +33018,7 @@ table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards 
 	expectTrue(n >= 1 and n <= L.MAX_CARDS, "the main Store row never has more cards than fit (" .. n .. ")")
 	expectTrue(L.rowWidth(L.MAX_CARDS) <= L.PANEL_W - L.ROW_PAD, "four cards fit inside the panel row")
 	local r = L.rects()
-	expectTrue(r.row.y + r.row.h <= r.close.y, "the card row ends above the Close plate")
+	expectTrue(r.row.y + r.row.h + 24 <= L.PANEL_H, "the card row ends 24 px above the panel bottom (the text Close plate is retired, the round X closes)")
 	expectTrue(r.price.y + r.price.h <= r.buy.y and r.perks.y + r.perks.h <= r.price.y, "perks, price and Buy do not overlap on a card")
 	expectTrue(r.buy.h >= 44 and r.close.h >= 44, "Buy and Close plates are 44 px")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
@@ -36836,13 +36846,129 @@ table.insert(tests, { name = "Phone and tablet: Settings board fits 800x450, 102
 		expectTrue(r.textW >= 200, "row text column at least 200 px wide " .. tag)
 		expectTrue(r.scroll.w >= SL.SWITCH.w + SL.PANEL.textGutter - 30, "switch fits beside the text " .. tag)
 		expectTrue(SL.PANEL.replayH >= 44 and SL.PANEL.replayW >= 44, "Replay buttons are 44 px")
-		-- the Close button and the title strip fit in the panel below and above the scroll
-		expectTrue(SL.CLOSE.w <= r.panel.w and SL.PANEL.top + r.scroll.h + SL.CLOSE.h <= r.panel.h + SL.PANEL.bottomReserve, "Close fits under the scroll " .. tag)
+		-- the Resume button is retired (the X closes), so the scroll ends 16 px above the panel bottom
+		expectEqual(SL.PANEL.bottomReserve, 16)
+		expectEqual(r.panel.h - SL.PANEL.top - r.scroll.h, 16)
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("AutomaticCanvasSize = Enum.AutomaticSize.Y", 1, true) ~= nil, "the Settings scroll grows to its last row")
 	expectTrue(src:find("PANEL.replayH", 1, true) ~= nil, "Replay buttons use the 44 px layout number")
+end })
+
+table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957, Account plates are 56 px painted serif, 3 plus 2 per row", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local r = SL.panelRects(1920, 957)
+	expectTrue(r.panel.y >= 109 and r.panel.y <= 111, "panel top is about y 110, got " .. r.panel.y)
+	expectTrue(r.panel.y + r.panel.h <= 851, "panel bottom is at most y 850, got " .. (r.panel.y + r.panel.h))
+	local A = SL.ACCOUNT
+	expectEqual(A.plateH, 56)
+	expectEqual(A.gap, 10)
+	expectEqual(A.textSize, 18)
+	expectEqual(A.perRow, 3)
+	expectEqual(A.secondRow, 2)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 957 } }) do
+		local rr = SL.panelRects(sz[1], sz[2])
+		expectTrue(rr.panel.y + rr.panel.h <= sz[2], "panel fits " .. sz[1] .. "x" .. sz[2])
+		local plateW = (rr.scroll.w - A.gap * (A.perRow - 1)) / A.perRow
+		expectTrue(plateW >= 100, "(labels wrap to two 18 px lines inside 56 px) three Account plates fit across the scroll at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	local at = src:find("local function makeAccountButton", 1, true)
+	expectTrue(at ~= nil, "found makeAccountButton")
+	local body = src:sub(at, at + 700)
+	expectTrue(body:find("Enum.Font.Merriweather", 1, true) ~= nil and body:find("ACC.textSize", 1, true) ~= nil, "Account plates use Merriweather at ACCOUNT.textSize")
+	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
+end })
+
+table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles, tips art by size, stamp text once per run, bar clear of the reward plate, 360 px Daily panel", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectEqual(ST.TILE_W, 128)
+	expectEqual(ST.TILE_GAP, 12)
+	expectEqual(ST.TILES_VISIBLE, 10)
+	local seen = {}
+	for _, amount in ipairs({ 2, 3, 4, 5, 6, 7, 8 }) do
+		local cat, key = ST.tipsArt(amount)
+		expectTrue(ContentArt.getImageId(cat, key) ~= nil, "tips art " .. cat .. "/" .. key .. " has an id")
+		seen[cat .. "/" .. key] = true
+	end
+	local kinds = 0
+	for _ in pairs(seen) do kinds = kinds + 1 end
+	expectEqual(kinds, 4) -- small pouch, purse, big pouch, chest
+	expectTrue(ST.premiumLabelShown(nil, "Season Stamp") and not ST.premiumLabelShown("Season Stamp", "Season Stamp") and ST.premiumLabelShown("Season Stamp", "Flair: Ribbon Trail"), "stamp text once per run")
+	-- XP rewards use the painted scroll, so Daily Day 2, 4, 6 are no flat sticker
+	local RA = require(script.Parent.Parent.Engine.RewardArt)
+	local cat, key = RA.resolve({ kind = "xp", amount = 40 })
+	expectTrue(cat ~= nil and ContentArt.getImageId(cat, key) ~= nil, "xp reward has painted art")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local q = read("src/Client/QuestsPanel.lua")
+	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
+	expectTrue(q:find("TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
+	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
+	local d = read("src/Client/DailyRewardsPanel.lua")
+	expectTrue(d:find("DailyRewardsPanel.PANEL_H = 360", 1, true) ~= nil, "Daily panel is 360 px")
+	expectTrue(not d:find("gift icon", 1, true), "no gift icon instruction")
+	local sp = read("src/Client/SeasonPanel.lua")
+	expectTrue(sp:find("TextSize = 16, TextColor3 = CREAM", 1, true) ~= nil and sp:find("BackgroundTransparency = 0.35", 1, true) ~= nil, "bar text is cream 16 px on a 0.35 dark strip")
+end })
+
+table.insert(tests, { name = "Store: readable button plates, 24 px under the cards, VIP text fits three lines", fn = function()
+	local SL = require(script.Parent.Parent.Engine.StoreLayout)
+	local SettingsLayout = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(SL.BUTTON.textSize, 16)
+	expectEqual(SL.BUTTON.plate.fill[1], 60)
+	expectEqual(SL.BUTTON.plate.fill[2], 42)
+	expectEqual(SL.BUTTON.plate.fill[3], 26)
+	expectEqual(SL.BUTTON.plate.text[1], 235)
+	expectTrue(SettingsLayout.contrast(SL.BUTTON.plate.text, SL.BUTTON.plate.fill) >= 4.5, "cream on the brown plate holds 4.5:1")
+	expectTrue(SettingsLayout.contrast(SL.BUTTON.buy.text, SL.BUTTON.buy.fill) >= 4.5, "cream on the green Buy plate holds 4.5:1")
+	expectEqual(SL.PANEL_H - (SL.ROW_Y + SL.CARD_H), 24)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	for _, def in ipairs(Store.Items) do
+		if def.id == "vip" then
+			expectEqual(def.description, "A little sparkle for regulars. A second badge slot, no power.")
+			expectTrue(#def.description <= 62, "VIP text is short enough for three lines")
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("TextTruncate = Enum.TextTruncate.AtEnd", 1, true) ~= nil, "card text is limited to its box")
+	expectTrue(not src:find("Take (Studio)", 1, true), "no Studio wording on a button")
+	expectTrue(src:find('paintButton(button, "plate", row.listOnly)', 1, true) ~= nil, "Info keeps the gold outline")
+end })
+
+table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
+	for _, rise in ipairs({ 0, 8, 16 }) do
+		for dy = -ML.Parallax.maxOffset, ML.Parallax.maxOffset do
+			local lift = ML.keepWordmarkOnScreen(dy, 20 + rise)
+			expectTrue(dy + 20 + rise + ML.WORDMARK.glyphDrop + lift >= 12, "glyph top stays at 12 or lower (dy " .. dy .. ", rise " .. rise .. ")")
+			expectTrue(lift >= 0, "never lifts upward")
+		end
+	end
+	expectEqual(ML.keepWordmarkOnScreen(0, 20), 0)
+	expectEqual(ML.LIST_END_PAD, ML.SCROLL.rowH - 6)
+	local CL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	for _, sz in ipairs({ { 10, 10 }, { 300, 200 }, { 1700, 800 } }) do
+		local g = CL.room(sz[1], sz[2], 15, 1)
+		expectTrue(g.ok == true or g.ok == false, "room() always answers")
+		if g.ok then
+			expectTrue(g.hero.y ~= nil and g.parts.table.y ~= nil, "an ok layout has a y on every part")
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local room = read("src/Client/CardSetsRoom.lua")
+	local at = room:find("function room.paint()", 1, true)
+	expectTrue(at ~= nil and room:sub(at, at + 400):find("not placed", 1, true) ~= nil, "paint returns when layout has not placed the room")
+	expectTrue(room:find("if not g.ok then return end", 1, true) ~= nil, "paint stops on a layout that is not ok")
+	expectTrue(room:find("part has no rect", 1, true) ~= nil, "a part without a y is named in the warning")
+	expectTrue(read("src/Client/Menu.lua"):find("Layout.keepWordmarkOnScreen", 1, true) ~= nil, "the menu applies the wordmark rule")
+	expectTrue(read("src/Client/MenuHotspots.lua"):find("Layout.LIST_END_PAD", 1, true) ~= nil, "the list pads its end")
 end })
 
 table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
@@ -37340,13 +37466,21 @@ table.insert(tests, { name = "No art prompt in prompts.json holds a banned safet
 	if not f then return end
 	local text = f:read("a"):lower(); f:close()
 	expectTrue(#text > 100000, "read the prompts file")
-	local banned = { "beer", "ale", "wine", "whiskey", "rum", "liquor", "cigar", "cigarette", "tobacco", "skull", "blood", "gun" }
+	local banned = { "beer", "ale", "wine", "whiskey", "rum", "liquor", "cigar", "cigarette", "tobacco", "skull", "blood", "gun",
+		"tankard", "tankards", "stein", "steins", "mug", "mugs", "beers" }
 	for _, word in ipairs(banned) do
 		local at = text:find("%f[%a]" .. word .. "%f[%A]")
 		local near = at and text:sub(math.max(1, at - 40), at + 30) or ""
 		expectTrue(at == nil, "prompts.json holds banned word '" .. word .. "' near: " .. near)
 	end
 	expectTrue(not text:find("pipe smoke", 1, true), "prompts.json holds 'pipe smoke'")
+end })
+
+table.insert(tests, { name = "The Regular and the win background use the regenerated safe art ids", fn = function()
+	local PatronArt = require(script.Parent.Parent.Engine.PatronArt)
+	local BackgroundArt = require(script.Parent.Parent.Engine.BackgroundArt)
+	expectEqual(PatronArt.the_regular, "rbxassetid://125692650327200")
+	expectEqual(BackgroundArt.game_over_win_bg, "rbxassetid://117659847927542")
 end })
 
 table.insert(tests, { name = "Every pack id resolves to pack art or base art plus a size tag, never an emoji", fn = function()
