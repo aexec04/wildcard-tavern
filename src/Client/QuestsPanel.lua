@@ -5,6 +5,7 @@
 -- init(deps): { screenGui, openButton, polishPanel, polishButton, roundCorner, playClickSfx, popIn, popOut,
 --               getLatestState }.  update(state) is called from render in a pcall to keep an open panel live.
 local OverlayManager = require(script.Parent.OverlayManager)
+local QuestRules = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Quests"))
 
 local QuestsPanel = {}
 
@@ -101,7 +102,7 @@ local function buildCard(parent, row, order, roundCorner)
 	fill.Parent = track
 	roundCorner(fill, 7)
 	label(card, {
-		Name = "Count", Size = UDim2.fromOffset(60, 20), Position = UDim2.new(1, -190, 0, 59), Text = string.format("%d/%d", row.progress, row.goal),
+		Name = "Count", Size = UDim2.fromOffset(70, 20), Position = UDim2.new(1, -190, 0, 59), Text = QuestRules.progressText(row),
 		TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left,
 	})
 
