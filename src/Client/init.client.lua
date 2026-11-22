@@ -1236,7 +1236,7 @@ local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit 
 -- Lazy: built on the first open of the Collection or of any page it owns (Card Sets, Badges, Rewards, Flair, Legend, Stats).
 do
 	local lazyCollection = require(script.LazyPanel).wrap("collection", require(script.Collection), { "collectionButton", "menuCollectionButton" },
-	{ "cosmeticSets", "badges", "collectionRewards", "flair", "legend", "stats" })({
+	{ "cosmeticSets", "badges", "collectionRewards", "flair", "legend", "stats" }, require(script.CollectionWarm).warm)({
 	addTooltip = addTooltip,
 	screenGui = screenGui,
 	polishPanel = VisualHelpersModule.polishPanel,

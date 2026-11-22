@@ -879,7 +879,10 @@ return function(deps)
 	end)
 
 	-- Grid tiles do not animate at all (159+ tiles must cost nothing); only the open detail card levitates.
-	local TILE_BATCH = 20
+	local TileCache = require(Engine:WaitForChild("CollectionTileCache"))
+	local TILE_BATCH = TileCache.CHUNK -- 12 tiles per frame
+	local gridKey, gridDone = nil, false -- what the grid shows now (CollectionTileCache.key) and whether its last build finished
+	local warmed = {} -- preloads already started: a tab or the whole warm up never starts twice
 	local buildToken = 0
 	-- "New" state: the ids found since the Collection was last opened (this session; the first open marks nothing)
 	local lastKeys -- set of discovered "tab:id" keys at the previous open
@@ -1159,11 +1162,14 @@ return function(deps)
 
 	refresh = function()
 		tileFailed = false
-		task.spawn(function() -- current tab first; urls load once. One timing line per switch for the slowest-tab report.
-			local t0, tabName = os.clock(), activeTabId
-			ContentArt.preload({ { tabName } }, "collection tab " .. tabName)
-			print(string.format("[Collection] tab=%s ready_ms=%d", tabName, math.floor((os.clock() - t0) * 1000 + 0.5)))
-		end)
+		local refreshT0 = os.clock()
+		if TileCache.shouldWarm(warmed, "tab:" .. tostring(activeTabId)) then
+			task.spawn(function() -- current tab first (a tab already loaded or loading is not asked again). One timing line per tab for the slowest-tab report.
+				local t0, tabName = os.clock(), activeTabId
+				ContentArt.preload({ { tabName } }, "collection tab " .. tabName)
+				print(string.format("[Collection] tab=%s ready_ms=%d", tabName, math.floor((os.clock() - t0) * 1000 + 0.5)))
+			end)
+		end
 		local view = currentView()
 		local completion = view.completion
 
@@ -1216,7 +1222,20 @@ return function(deps)
 			room.update(CollectionBook.tabCounts(view.sets), fresh)
 		end
 
-		-- Grid.
+		-- Grid. A click on the tab already showing, with nothing in it changed, keeps the finished tiles (no teardown, no rebuild).
+		do
+			local keyItems = {}
+			local shownItems = mode == "section" and CollectionBook.displayItems(activeTabId, hiddenRarities) or {}
+			for i, it in ipairs(shownItems) do keyItems[i] = { id = it.id, found = CollectionBook.isDiscovered(view.sets, it) } end
+			local fresh = 0
+			for _ in pairs(freshKeys) do fresh = fresh + 1 end
+			local key = mode == "section" and TileCache.key({ tab = activeTabId, width = scroll.AbsoluteSize.X, hidden = hiddenRarities, items = keyItems, equipped = view.equippedTitleId, fresh = fresh, extra = tostring(openItem and openItem.id) }) or nil
+			if key and key == gridKey and gridDone and not Sec.painted then
+				if openItem then showDetail(openItem, view) end
+				return
+			end
+			gridKey, gridDone = key, false
+		end
 		for _, child in ipairs(scroll:GetChildren()) do
 			if child:IsA("GuiObject") then
 				child:Destroy()
@@ -1255,21 +1274,29 @@ return function(deps)
 			gridPadding.PaddingLeft = UDim.new(0, pad and pad.side or 0)
 			gridPadding.PaddingRight = UDim.new(0, pad and pad.side or 0)
 		end
-		for i = 1, math.min(#items, TILE_BATCH) do
-			safeTile(items[i], i, view)
+		local chunks = TileCache.chunks(#items, TILE_BATCH)
+		local function buildChunk(c) for j = c.from, c.to do safeTile(items[j], j, view) end end
+		local function finishBuild(tabName)
+			gridDone = true
+			print(string.format("[Collection] tab=%s build_ms=%d", tostring(tabName), math.floor((os.clock() - refreshT0) * 1000 + 0.5)))
 		end
-		if #items > TILE_BATCH then
+		if chunks[1] then buildChunk(chunks[1]) end
+		do -- the first chunk paints this frame; Studio warns when that took more than 150 ms
+			local firstMs = (os.clock() - refreshT0) * 1000
+			if firstMs > 150 and game:GetService("RunService"):IsStudio() then warn(string.format("[Collection] tab=%s first paint took %d ms (over 150)", tostring(activeTabId), math.floor(firstMs))) end
+		end
+		if #chunks > 1 then
+			local tabName = activeTabId
 			task.spawn(function()
-				local i = TILE_BATCH + 1
-				while i <= #items do
+				for ci = 2, #chunks do
 					task.wait()
 					if buildToken ~= mine or not scroll.Parent then return end
-					for j = i, math.min(#items, i + TILE_BATCH - 1) do
-						safeTile(items[j], j, view)
-					end
-					i = i + TILE_BATCH
+					buildChunk(chunks[ci])
 				end
+				if buildToken == mine then finishBuild(tabName) end
 			end)
+		else
+			finishBuild(activeTabId)
 		end
 
 		-- Keep an open detail card current (e.g. after an Equip click).
@@ -1395,12 +1422,8 @@ return function(deps)
 
 	-- shared tab strip + Back; Escape steps back (detail card, then section, then the room) before it closes the Collection
 	-- Warm every sub-tab and the painted scenes when the Collection opens (batches of 20, a short pause between), so no click shows art loading in
-	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
-		if not backdrop.Visible then return end
-		task.spawn(function()
-			local CP = require(Engine:WaitForChild("CollectionPreload"))
-			ContentArt.preload(CP.items(), "collection warm", { batch = CP.BATCH, pause = 0.03 })
-		end)
+	backdrop:GetPropertyChangedSignal("Visible"):Connect(function() -- the idle warm up and a hover on the icons share this once-only start
+		if backdrop.Visible then pcall(function() require(script.Parent.CollectionWarm).warm() end) end
 	end)
 	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel)
 	require(script.Parent.PanelTabs).setStep("collection", stepBack)

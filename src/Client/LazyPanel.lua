@@ -9,6 +9,7 @@
 	    init(deps)  the panel's constructor
 	    buttons     the deps field (or a list of fields) holding the open button(s); default "openButton". Each gets the stand-in while
 	                building, and a click on the real one builds first.
+	    onHover     optional function run on the first hover or press of a real button (starts art loads early)
 	    alsoIds     other OverlayManager ids that the built init registers (a group such as the Collection registers several): until
 	                built, opening one of them builds the group and then opens that id for real.
 ]]
@@ -17,7 +18,7 @@ local OverlayManager = require(script.Parent.OverlayManager)
 
 local LazyPanel = {}
 
-function LazyPanel.wrap(id, init, buttons, alsoIds)
+function LazyPanel.wrap(id, init, buttons, alsoIds, onHover)
 	local keys = type(buttons) == "table" and buttons or { buttons or "openButton" }
 	return function(deps)
 		local built, handler, api = false, nil, nil
@@ -39,6 +40,11 @@ function LazyPanel.wrap(id, init, buttons, alsoIds)
 		OverlayManager.registerOpener(id, open)
 		for key in pairs(over) do
 			deps[key].MouseButton1Click:Connect(open)
+			if onHover then -- optional early start (Collection art): the first hover or press of a real button
+				local b = deps[key]
+				pcall(function() b.MouseEnter:Connect(onHover) end)
+				pcall(function() b.MouseButton1Down:Connect(onHover) end)
+			end
 		end
 		for _, other in ipairs(alsoIds or {}) do
 			local busy = false

@@ -295,6 +295,7 @@ function M.install(deps)
 		setTomeOpen(not tomeOpen)
 	end
 	quick.tome.MouseButton1Click:Connect(openTome)
+	pcall(function() require(script.Parent.CollectionWarm).hook(quick.tome) end) -- the Collection art starts loading on the first hover or press
 	tomeCatcher.MouseButton1Click:Connect(function() setTomeOpen(false) end)
 	OverlayManager.register("tome-menu", function() setTomeOpen(false) end)
 	pcall(function() require(script.Parent.PopupDismiss).attach(tomeCatcher, { id = "tome-menu", panel = tomeMenu, close = function() setTomeOpen(false) end, button = false }) end)

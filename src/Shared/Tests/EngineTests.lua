@@ -23725,7 +23725,10 @@ table.insert(tests, { name = "CollectionPreload: the warm list covers every sub-
 	if f then
 		local text = f:read("*a")
 		f:close()
-		expectTrue(text:find("[Collection] tab=%s ready_ms=%d", 1, true) ~= nil and text:find("collection warm", 1, true) ~= nil, "timing line and warm-up on open")
+		expectTrue(text:find("[Collection] tab=%s ready_ms=%d", 1, true) ~= nil and text:find("CollectionWarm", 1, true) ~= nil, "timing line and warm-up on open")
+		expectTrue(text:find("build_ms", 1, true) ~= nil and text:find("first paint took", 1, true) ~= nil, "build time line and the 150 ms Studio warning")
+		local wf = io.open("src/Client/CollectionWarm.lua", "r")
+		if wf then local wt = wf:read("*a"); wf:close(); expectTrue(wt:find("collection warm", 1, true) ~= nil, "the warm up lives in CollectionWarm") end
 		expectTrue(text:find("fade = true", 1, true) ~= nil, "Collection art fades in")
 	end
 	local g = io and io.open and io.open("src/Client/ArtFade.lua", "r")
@@ -35845,6 +35848,35 @@ table.insert(tests, { name = "Table overlaps: the hand frame stays clear of the 
 			for _, k in ipairs({ "speaker", "pause", "tome" }) do expectTrue(not hit(q[k], b.left), k .. " icon clear of the left banner at " .. w .. "x" .. h) end
 		end
 	end
+end })
+
+table.insert(tests, { name = "CollectionTileCache: tiles build 12 to a chunk with no gap or overlap, the key changes with what a tab shows, a warm up never starts twice; the plan warms the Collection before the account phase", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TC, ContentArt = require(E.CollectionTileCache), require(E.ContentArt)
+	expectEqual(TC.CHUNK, 12)
+	for _, n in ipairs({ 0, 1, 11, 12, 13, 24, 159 }) do
+		local ch, next = TC.chunks(n, 12), 1
+		for _, c in ipairs(ch) do expectTrue(c.from == next and c.to >= c.from and c.to - c.from + 1 <= 12, "chunk contiguous and at most 12 for " .. n) next = c.to + 1 end
+		expectEqual(next, n + 1, "every tile is in a chunk for " .. n)
+	end
+	local base = { tab = "patrons", width = 900, hidden = { common = true }, items = { { id = "a", found = true }, { id = "b", found = false } }, equipped = "t1", fresh = 0 }
+	local k = TC.key(base)
+	expectEqual(TC.key(base), k, "same parts, same key")
+	local function with(change) local c = {} for kk, v in pairs(base) do c[kk] = v end change(c) return TC.key(c) end
+	expectTrue(with(function(c) c.tab = "recipes" end) ~= k, "tab")
+	expectTrue(with(function(c) c.width = 700 end) ~= k, "width")
+	expectTrue(with(function(c) c.hidden = {} end) ~= k, "hidden rarities")
+	expectTrue(with(function(c) c.items = { { id = "a", found = true }, { id = "b", found = true } } end) ~= k, "a newly found entry")
+	expectTrue(with(function(c) c.equipped = "t2" end) ~= k, "equipped title")
+	expectTrue(with(function(c) c.fresh = 2 end) ~= k, "new tags")
+	local done = {}
+	expectTrue(TC.shouldWarm(done, "all") and not TC.shouldWarm(done, "all") and TC.shouldWarm(done, "tab:patrons"), "once per name")
+	local at, acc
+	for i, phase in ipairs(ContentArt.PreloadPlan) do
+		if phase.name == "collection" then at = i; expectEqual(phase.delay, 2, "collection warms at 2 s") end
+		if phase.name == "account" then acc = i end
+	end
+	expectTrue(at and acc and at < acc, "the collection phase comes before the account phase")
 end })
 
 return tests

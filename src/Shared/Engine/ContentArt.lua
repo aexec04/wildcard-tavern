@@ -99,8 +99,8 @@ ContentArt.PreloadPlan = {
 	{ name = "menu",     delay = 0, items = { { "backgrounds", "menu_bg" }, { "menu_icons" } } },
 	{ name = "gameplay", delay = 2, items = { { "hud" }, { "backgrounds" } } },
 	{ name = "cosmetics", delay = 3, items = { { "card_backs" }, { "packs" }, { "tutorial_icons" } } },
+	{ name = "collection", delay = 2, items = { { "patrons" }, { "recipes" }, { "boss_rounds" }, { "house_passes" }, { "titles" } } },
 	{ name = "account", delay = 5, items = { { "rank_medals" }, { "quests" }, { "stakes" }, { "challenges" }, { "store_bundles" }, { "events" }, { "discoveries" }, { "endless_rules" }, { "seasons" }, { "legend" }, { "spectate" } } },
-	{ name = "collection", delay = 4, items = { { "patrons" }, { "recipes" }, { "boss_rounds" }, { "house_passes" }, { "titles" } } },
 }
 -- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
 -- (Journey map), rooms. They load on demand through ContentArt.preload.
