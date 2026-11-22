@@ -12702,7 +12702,7 @@ table.insert(tests, { name = "ShareResult: a short result line and a challenge l
 	expectTrue(line:find("Night 6", 1, true) and line:find("Flush (1240)", 1, true) and line:find("Seed: ABC234", 1, true) and line:find("beat me", 1, true))
 	expectTrue(#line <= ShareResult.MAX_LENGTH)
 	expectTrue(not ShareResult.line(summary, nil):find("Seed", 1, true), "no seed for an ordinary run")
-	expectTrue(ShareResult.line({ night = 8, won = true }, nil):find("won and reached Night 8", 1, true))
+	expectTrue(ShareResult.line({ night = 8, won = true }, nil):find("Night 8", 1, true), "an ordinary win names its Night")
 	local long = ShareResult.line({ night = 9, bestHand = { name = string.rep("x", 400), score = 1 } }, "ABC234")
 	expectEqual(#long, ShareResult.MAX_LENGTH)
 	local challenge = ShareResult.challengeLine(summary, "QWE789")
@@ -38326,7 +38326,7 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
 	local line = Look.shareLine({ night = 8 }, { name = "Flush", score = 80 })
-	expectTrue(#line <= 200 and line:find("Night 8") and line:find("Flush"), "share line is plain text within the chat limit")
+	expectTrue(#line <= 80 and line:find("Night 8"), "share line is plain text, 80 characters or less")
 	expectTrue(not line:find("http") and not line:lower():find("www"), "share line has no links")
 	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
 	expectEqual(#cols, 1, "no unlocks means no unlock column")
@@ -43695,9 +43695,7 @@ table.insert(tests, { name = "EndlessScreen: headline, best Night and share line
 	expectTrue(ES.lines(nil, nil, 1) == nil and ES.lines({}, nil, 1) == nil)
 	expectEqual(ES.lines({ night = 14.7, config = { nightCap = 8 } }, nil, 1).headline, "Endless Night 14", "floored")
 	local share = ES.shareLine(14, 16)
-	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and share:find("Can you beat me?", 1, true) ~= nil and #share <= ES.MAX_SHARE)
-	expectTrue(share:find("Night 16", 1, true) ~= nil, "names the best")
-	expectTrue(ES.shareLine(14, 14):find("My best", 1, true) == nil)
+	expectTrue(share:find("Endless Night 14", 1, true) ~= nil and #share <= 80 and #share <= ES.MAX_SHARE)
 	expectTrue(share:find("Balatro", 1, true) == nil and not share:find("\226\128\148", 1, true))
 	-- one line at the narrowest and the other sizes: the facts column, 16 px text
 	for _, sw in ipairs({ 360, 640, 1280, 1920 }) do
@@ -43733,10 +43731,10 @@ table.insert(tests, { name = "DailyShare: a kind seed name per date, the same fo
 	expectTrue(count >= 12, "the names vary day to day, got " .. count)
 	for _, w in ipairs(DS.Adjectives) do expectTrue(#w > 0) end
 	local line = DS.line({ night = 6, won = false }, "2026-11-22", "Steady Hands")
-	expectEqual(line, "Daily " .. DS.seedName("2026-11-22") .. " (Steady Hands): I reached Night 6 in " .. require(script.Parent.Parent.Engine.GameName).NAME .. ". Can you beat me?")
+	expectTrue(line:find(DS.seedName("2026-11-22"), 1, true) ~= nil and line:find("Night 6", 1, true) ~= nil and #line <= 80, "names the Daily and the Night: " .. line)
 	expectTrue(DS.line({ night = 8, won = true }, "2026-11-22", nil):find("won and reached Night 8", 1, true) ~= nil)
 	expectTrue(DS.line({}, nil, nil):find("Night 1", 1, true) ~= nil, "bad summary is safe")
-	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= DS.MAX_LENGTH)
+	expectTrue(#DS.line({ night = 99 }, "2026-11-22", string.rep("x", 400)) <= 80)
 	local lower = line:lower()
 	expectTrue(lower:find("balatro", 1, true) == nil and not line:find("\226\128\148", 1, true))
 	for _, w in ipairs(DS.Nouns) do
@@ -45264,6 +45262,58 @@ table.insert(tests, { name = "Mark and Slim quests: counters read the run, Slim 
 		for _, id in ipairs(Quests.idsFor(both, day)) do if id == "slim_rounds" then seenBoth = true end end
 	end
 	expectTrue(seenBoth, "a player with the Slim Deck open does get Slim Sprint some days")
+end })
+
+table.insert(tests, { name = "Share line variety: win, loss, daily and endless each have 3 variants chosen by seed, 80 characters or less in the worst case, plain kid safe text", fn = function()
+	local SV = require(script.Parent.Parent.Engine.ShareVariants)
+	local DS = require(script.Parent.Parent.Engine.DailyShare)
+	local SR = require(script.Parent.Parent.Engine.ShareResult)
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local hands = { "Straight Flush", "Five of a Kind", "Full House", "Pair", "" }
+	for _, kind in ipairs(SV.KINDS) do
+		local seen, distinct = {}, 0
+		for seed = 0, 8 do
+			for _, night in ipairs({ 1, 2, 9, 12, 99, 999 }) do
+				for _, hand in ipairs(hands) do
+					for _, won in ipairs({ true, false }) do
+						local line = SV.line(kind, { night = night, name = "Gentle Blanket", twist = "Steady Hands", hand = hand, won = won }, seed)
+						local where = kind .. " seed " .. seed .. " night " .. night .. ": " .. line
+						expectTrue(#line <= 80 and line:sub(-3) ~= "...", where .. " fits 80 characters without clipping")
+						expectTrue(line:find("Night " .. night, 1, true) ~= nil, where .. " names the Night")
+						expectTrue(line:find(GameName.NAME, 1, true) ~= nil, where .. " names the game")
+						expectTrue(not line:lower():find("balatro") and not line:find("\226\128\148") and not line:find("%-%-") and not line:find("http") and not line:find("{"), where .. " is plain text")
+						expectTrue(not line:find("%s%s") and line:find("^%u") ~= nil, where .. " reads cleanly")
+						if not seen[line:gsub("%d+", "N")] and hand == "Pair" and night == 9 and won == false then seen[line:gsub("%d+", "N")] = true; distinct = distinct + 1 end
+					end
+				end
+			end
+		end
+		expectEqual(distinct, 3, kind .. " has exactly 3 variants, got " .. distinct)
+		expectEqual(SV.count(kind, { hand = "Pair" }), 3)
+	end
+	-- the same seed gives the same line, string and number seeds both work, junk never errors
+	expectEqual(SV.line("loss", { night = 5 }, 7), SV.line("loss", { night = 5 }, 7))
+	expectTrue(SV.line("win", { night = 5 }, "ABC") == SV.line("win", { night = 5 }, "ABC"))
+	expectTrue(SV.line("nope", nil, nil) ~= nil and SV.line("win", { night = 0 / 0 }, 0 / 0) ~= nil and SV.line("win", { night = -4 }, {}) ~= nil)
+	-- a win with a best hand can name it; without one it says something else, never an empty gap
+	local withHand, without = {}, {}
+	for seed = 0, 2 do
+		withHand[#withHand + 1] = SV.line("win", { night = 6, hand = "Flush", won = true }, seed)
+		without[#without + 1] = SV.line("win", { night = 6, won = true }, seed)
+	end
+	local named = false
+	for _, l in ipairs(withHand) do if l:find("Flush", 1, true) then named = true end end
+	expectTrue(named, "one win variant names the best hand")
+	for _, l in ipairs(without) do expectTrue(not l:find("a  ") and not l:find("with a ") , "no hole where the hand would be: " .. l) end
+	-- different runs read differently
+	local a, b = SV.seedFor({ night = 6, handsPlayedTotal = 20, roundScore = 900 }), SV.seedFor({ night = 6, handsPlayedTotal = 21, roundScore = 900 })
+	expectTrue(a ~= b and a == SV.seedFor({ night = 6, handsPlayedTotal = 20, roundScore = 900 }) and SV.seedFor(nil) == 0)
+	-- the three existing entry points use the variants
+	expectTrue(#SR.line({ night = 6, won = false, bestHand = { name = "Flush", score = 1240 } }, nil) <= 80)
+	expectTrue(#DS.line({ night = 6 }, "2026-11-22", "Steady Hands") <= 80)
+	expectTrue(#require(script.Parent.Parent.Engine.EndlessScreen).shareLine(14, 16) <= 80)
+	-- a seeded run still carries its code
+	expectTrue(SR.line({ night = 6 }, "ABC234"):find("ABC234", 1, true) ~= nil)
 end })
 
 return tests

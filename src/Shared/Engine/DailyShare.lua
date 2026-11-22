@@ -4,13 +4,11 @@
 	line a player can copy from the Run Over screen. Pure Lua, no Roblox APIs, no randomness.
 
 	seedName(dateKey)                "Cozy Lantern"
-	line(summary, dateKey, twist)    "Daily Cozy Lantern (Steady Hands): I reached Night 6 in <game>. Can you beat me?"
+	line(summary, dateKey, twist)    "Daily Cozy Lantern (Steady Hands): I reached Night 6 in <game>. Beat me?" (one of three variants, 80 characters or less)
 
 	Roblox games cannot write the clipboard, so the UI shows the line in the selectable share box (select, then Ctrl+C).
 	The share button keeps the 44 px hit area of the other More buttons (RunOverLayout.SMALL_H).
 ]]
-
-local GameName = require(script.Parent.GameName)
 
 local DailyShare = {}
 
@@ -35,14 +33,12 @@ function DailyShare.seedName(dateKey)
 	return a .. " " .. n
 end
 
+-- Three kind variants (Engine/ShareVariants), chosen by the date so the same Daily reads the same on every tap; 80 characters or less.
 function DailyShare.line(summary, dateKey, twist)
 	local night = math.max(1, math.floor(tonumber(summary and summary.night) or 1))
-	local head = "Daily " .. DailyShare.seedName(dateKey)
-	if type(twist) == "string" and twist ~= "" then head = head .. " (" .. twist .. ")" end
-	local verb = (summary and summary.won) and "won and reached" or "reached"
-	local text = string.format("%s: I %s Night %d in %s. Can you beat me?", head, verb, night, GameName.NAME)
-	if #text > DailyShare.MAX_LENGTH then text = text:sub(1, DailyShare.MAX_LENGTH - 3) .. "..." end
-	return text
+	local _, mix = digitsOf(dateKey)
+	return require(script.Parent.ShareVariants).line("daily",
+		{ night = night, name = DailyShare.seedName(dateKey), twist = twist, won = summary and summary.won == true }, mix + night)
 end
 
 return DailyShare

@@ -3,7 +3,8 @@
 	The short text a player can copy from the run summary to share a result or challenge a friend. Pure Lua, no
 	Roblox APIs. Roblox chat takes 200 characters, so every line is kept within MAX_LENGTH.
 
-	line(summary, seedCode)        "I reached Night 6 in The Gilded Knave. Best hand: Flush (1240). Seed: ABC234. Can you beat me?"
+	line(summary, seedCode)        a seeded run: "I reached Night 6 in The Gilded Knave. Best hand: Flush (1240). Seed: ABC234. Can you beat me?"
+	                               an ordinary run: one of three variants for a win or a loss (ShareVariants), 80 characters or less
 	challengeLine(summary, code)   "Beat my Night 6 in The Gilded Knave! Open Seed Run and enter ABC234."
 
 	summary = { night, won, bestHand = { name, score } | nil } (the run summary the server sends).
@@ -28,6 +29,12 @@ local function clip(text)
 end
 
 function ShareResult.line(summary, seedCode)
+	if seedCode == nil or seedCode == "" then -- an ordinary run: one of three kind variants, 80 characters or less (Engine/ShareVariants)
+		local hand = summary and summary.bestHand
+		return require(script.Parent.ShareVariants).line((summary and summary.won) and "win" or "loss",
+			{ night = night(summary), won = summary and summary.won == true, hand = hand and hand.name or nil },
+			night(summary) * 7 + math.floor(tonumber(hand and hand.score) or 0))
+	end
 	local parts = { string.format("I %s Night %d in " .. GameName.NAME .. ".", (summary and summary.won) and "won and reached" or "reached", night(summary)) }
 	local hand = summary and summary.bestHand
 	if hand and hand.name then
