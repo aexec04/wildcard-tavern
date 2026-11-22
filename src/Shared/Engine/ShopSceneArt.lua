@@ -8,7 +8,7 @@
 return {
 	["run_over_scroll_a"] = "rbxassetid://70375192295163",
 	["run_over_scroll_b"] = "rbxassetid://86086833738078",
-	["shop_counter_props"] = "rbxassetid://135868671588275",
+	["shop_counter_props"] = "rbxassetid://76476059163854",
 	["shop_counter_top"] = "rbxassetid://125809081130355",
 	["shop_light_pool"] = "rbxassetid://86060482506004",
 	["shop_marlo_behind"] = "rbxassetid://106144373711439",
@@ -43,6 +43,9 @@ return {
 	["shop_marlo_wtable_wave"] = "rbxassetid://114721683815649",
 	["shop_offer_scroll_a"] = "rbxassetid://130489069975538",
 	["shop_offer_scroll_b"] = "rbxassetid://104583801741108",
+	["shop_offer_scroll_frost"] = "rbxassetid://135827681914372",
+	["shop_offer_scroll_gala"] = "rbxassetid://84555946444076",
+	["shop_offer_scroll_harvest"] = "rbxassetid://95290886476787",
 	["shop_room_a"] = "rbxassetid://91484997579906",
 	["shop_room_close"] = "rbxassetid://113942233478809",
 	["shop_room_dune"] = "rbxassetid://90301686533715",

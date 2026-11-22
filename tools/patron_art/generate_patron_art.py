@@ -318,6 +318,10 @@ for _k, _ref in (("shop_marlo_gala_behind", "shop_marlo_behind"), ("shop_marlo_g
 CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_gala")
 CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_gala"] = "1536x1024"
 CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_gala"] = "art-wip/shop_scene/shop_room_a.png"
+# scroll paper variants (frost, palace, harvest): edits of shop_offer_scroll_a
+for _s in ("frost", "gala", "harvest"):
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_offer_scroll_" + _s] = "1024x1536"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_offer_scroll_" + _s] = "art-wip/shop_scene/shop_offer_scroll_a.png"
 # Frosted Garden, Mountain Festival and Closing Time identity: shop room, keeper pieces and two plates per set (edits of the classic pieces)
 for _s in ("frost", "fest", "close"):
     CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_" + _s)

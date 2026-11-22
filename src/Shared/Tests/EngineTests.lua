@@ -15929,7 +15929,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 		shop_marlo_dune_behind = true, shop_marlo_dune_wave = true, shop_marlo_marsh_behind = true, shop_marlo_marsh_wave = true, shop_marlo_hearth_behind = true, shop_marlo_hearth_wave = true, shop_marlo_harbor_behind = true, shop_marlo_harbor_wave = true,
 		shop_marlo_feast_behind = true, shop_marlo_feast_wave = true, shop_marlo_harvest_behind = true, shop_marlo_harvest_wave = true, shop_marlo_wtable_behind = true, shop_marlo_wtable_wave = true, shop_marlo_meadow_behind = true, shop_marlo_meadow_wave = true,
 		shop_marlo_river_behind = true, shop_marlo_river_wave = true, shop_marlo_summit_behind = true, shop_marlo_summit_wave = true,
-		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
+		shop_offer_scroll_a = true, shop_offer_scroll_b = true, shop_offer_scroll_frost = true, shop_offer_scroll_gala = true, shop_offer_scroll_harvest = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
@@ -40029,6 +40029,26 @@ table.insert(tests, { name = "Boss round per Card Set: every set draws its own b
 		expectEqual((TS.bossBackdrop(setId)), "classic", tostring(setId) .. " keeps the classic boss table")
 	end
 	expectEqual((TS.bossBackdrop(nil)), "classic", "no set keeps the classic boss table")
+end })
+
+table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and harvest variants resolve, other sets keep the cream scroll", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local SSA = require(script.Parent.Parent.Engine.ShopSceneArt)
+	local seen = {}
+	for _, paper in ipairs({ "frost", "gala", "harvest" }) do
+		local id = SSA["shop_offer_scroll_" .. paper]
+		expectTrue(type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0", paper .. " paper has an image id")
+		expectTrue(id ~= SSA.shop_offer_scroll_a and id ~= SSA.shop_offer_scroll_b and not seen[id], paper .. " paper is its own picture")
+		seen[id] = true
+	end
+	expectEqual(TS.scrollPaper("winter_evening"), "frost", "Frosted Garden")
+	expectEqual(TS.scrollPaper("golden_gala"), "gala", "Golden Gala")
+	expectEqual(TS.scrollPaper("harvest_table"), "harvest", "Harvest Table")
+	for _, setId in ipairs({ "classic_tavern", "festival_night", "closing_time", "dune_market", "summit_camp", "no_such_set" }) do
+		expectEqual(TS.scrollPaper(setId), nil, setId .. " keeps the cream scroll")
+	end
+	expectEqual(TS.scrollPaper(nil), nil, "no set keeps the cream scroll")
+	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
 end })
 
 return tests
