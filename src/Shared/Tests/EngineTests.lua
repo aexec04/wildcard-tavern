@@ -24421,10 +24421,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait),
-end })
-
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), PatronCardSpec = require(Engine.PatronCardSpec),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout),
 			})
 		end }
