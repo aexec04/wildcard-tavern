@@ -1,14 +1,20 @@
 -- StoreLayout: the numbers of the Tavern Store panel (Client/StorePanel), so a test can check them at any screen size.
--- The panel is drawn 820 x 470 and shrunk by one UIScale to fit the screen; every control is a child of it.
+-- The panel is drawn 820 x 432 and shrunk by one UIScale to fit the screen; every control is a child of it.
 local StoreLayout = {}
 
-StoreLayout.PANEL_W, StoreLayout.PANEL_H = 820, 470
+StoreLayout.PANEL_W, StoreLayout.PANEL_H = 820, 432 -- cards end at y 408, so 24 px of margin under them
 StoreLayout.FIT_W, StoreLayout.FIT_H = 860, 510 -- the screen the panel needs, margin included
 StoreLayout.SCALE_MIN, StoreLayout.SCALE_MAX = 0.5, 1
 StoreLayout.CARD_W, StoreLayout.CARD_H, StoreLayout.CARD_GAP = 180, 330, 14
 StoreLayout.ROW_X, StoreLayout.ROW_Y, StoreLayout.ROW_PAD = 15, 78, 30 -- row left, top, and total side padding (15 each)
 StoreLayout.BUTTON_H, StoreLayout.CLOSE_W, StoreLayout.CLOSE_BOTTOM = 44, 160, 12
 StoreLayout.MAX_CARDS = 4
+-- Button looks: Owned, Info and Coming soon use the brown plate with cream text; Buy and the Studio free state use green with cream text.
+StoreLayout.BUTTON = {
+	textSize = 16,
+	plate = { fill = { 60, 42, 26 }, text = { 235, 220, 190 } },
+	buy = { fill = { 40, 100, 50 }, text = { 235, 220, 190 } },
+}
 
 function StoreLayout.scale(screenW, screenH)
 	local s = math.min(screenW / StoreLayout.FIT_W, screenH / StoreLayout.FIT_H)

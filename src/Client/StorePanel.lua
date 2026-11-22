@@ -68,6 +68,25 @@ local function label(parent, props)
 	return l
 end
 
+-- Button looks (numbers in Engine/StoreLayout.BUTTON, tested): a brown plate with cream text for Owned, Info and Coming soon,
+-- the normal green with cream text for Buy and the Studio free state. Always fully opaque, 16 px.
+local function paintButton(button, kind, outline)
+	local B = StoreLayout.BUTTON[kind]
+	button.BackgroundColor3 = Color3.fromRGB(B.fill[1], B.fill[2], B.fill[3])
+	button.BackgroundTransparency = 0
+	button.TextColor3 = Color3.fromRGB(B.text[1], B.text[2], B.text[3])
+	button.TextTransparency = 0
+	button.TextStrokeTransparency = 1
+	button.TextSize = StoreLayout.BUTTON.textSize
+	for _, c in ipairs(button:GetChildren()) do
+		if c:IsA("UIGradient") then c:Destroy() end
+	end
+	if outline then
+		local st = button:FindFirstChildOfClass("UIStroke")
+		if st then st.Color = GOLD; st.Thickness = 2 end
+	end
+end
+
 local function buildCard(row, order)
 	local card = Instance.new("Frame")
 	card.Name = "Item_" .. row.id
@@ -100,6 +119,7 @@ local function buildCard(row, order)
 	label(card, {
 		Name = "Desc", Size = UDim2.new(1, -20, 0, 66), Position = UDim2.fromOffset(10, 132), Text = row.description, TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+		TextTruncate = Enum.TextTruncate.AtEnd, -- three lines at most, so every card lines up
 	})
 	label(card, {
 		Name = "Perks", Size = UDim2.new(1, -20, 0, 54), Position = UDim2.fromOffset(10, 200), Text = "• " .. table.concat(row.perks or {}, "\n• "),
@@ -119,15 +139,18 @@ local function buildCard(row, order)
 	button.Parent = card
 	if row.owned then
 		Kit.skin(button, "Owned", "secondary")
+		paintButton(button, "plate")
 		button.Active = false
 	elseif row.available then
-		Kit.skin(button, row.studioFree and "Take (Studio)" or "Buy", "primary")
+		Kit.skin(button, row.studioFree and "Take for free" or "Buy", "primary")
+		paintButton(button, "buy")
 		button.MouseButton1Click:Connect(function()
 			ui.playClickSfx()
 			ui.purchaseRemote:FireServer(row.id)
 		end)
 	else
 		Kit.skin(button, row.listOnly and "Info" or "Coming soon", "secondary")
+		paintButton(button, "plate", row.listOnly) -- Info keeps the gold outline of an active button
 		button.Active = false
 	end
 	return card
@@ -168,7 +191,7 @@ function StorePanel.init(deps)
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(820, 470)
+	panel.Size = UDim2.fromOffset(StoreLayout.PANEL_W, StoreLayout.PANEL_H)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 31
 	panel.Parent = backdrop

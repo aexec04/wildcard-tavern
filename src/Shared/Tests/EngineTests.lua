@@ -32467,7 +32467,7 @@ table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards 
 	expectTrue(n >= 1 and n <= L.MAX_CARDS, "the main Store row never has more cards than fit (" .. n .. ")")
 	expectTrue(L.rowWidth(L.MAX_CARDS) <= L.PANEL_W - L.ROW_PAD, "four cards fit inside the panel row")
 	local r = L.rects()
-	expectTrue(r.row.y + r.row.h <= r.close.y, "the card row ends above the Close plate")
+	expectTrue(r.row.y + r.row.h + 24 <= L.PANEL_H, "the card row ends 24 px above the panel bottom (the text Close plate is retired, the round X closes)")
 	expectTrue(r.price.y + r.price.h <= r.buy.y and r.perks.y + r.perks.h <= r.price.y, "perks, price and Buy do not overlap on a card")
 	expectTrue(r.buy.h >= 44 and r.close.h >= 44, "Buy and Close plates are 44 px")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
@@ -35258,6 +35258,31 @@ table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles
 	expectTrue(not d:find("gift icon", 1, true), "no gift icon instruction")
 	local sp = read("src/Client/SeasonPanel.lua")
 	expectTrue(sp:find("TextSize = 16, TextColor3 = CREAM", 1, true) ~= nil and sp:find("BackgroundTransparency = 0.35", 1, true) ~= nil, "bar text is cream 16 px on a 0.35 dark strip")
+end })
+
+table.insert(tests, { name = "Store: readable button plates, 24 px under the cards, VIP text fits three lines", fn = function()
+	local SL = require(script.Parent.Parent.Engine.StoreLayout)
+	local SettingsLayout = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(SL.BUTTON.textSize, 16)
+	expectEqual(SL.BUTTON.plate.fill[1], 60)
+	expectEqual(SL.BUTTON.plate.fill[2], 42)
+	expectEqual(SL.BUTTON.plate.fill[3], 26)
+	expectEqual(SL.BUTTON.plate.text[1], 235)
+	expectTrue(SettingsLayout.contrast(SL.BUTTON.plate.text, SL.BUTTON.plate.fill) >= 4.5, "cream on the brown plate holds 4.5:1")
+	expectTrue(SettingsLayout.contrast(SL.BUTTON.buy.text, SL.BUTTON.buy.fill) >= 4.5, "cream on the green Buy plate holds 4.5:1")
+	expectEqual(SL.PANEL_H - (SL.ROW_Y + SL.CARD_H), 24)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	for _, def in ipairs(Store.Items) do
+		if def.id == "vip" then
+			expectEqual(def.description, "A little sparkle for regulars. A second badge slot, no power.")
+			expectTrue(#def.description <= 62, "VIP text is short enough for three lines")
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("TextTruncate = Enum.TextTruncate.AtEnd", 1, true) ~= nil, "card text is limited to its box")
+	expectTrue(not src:find("Take (Studio)", 1, true), "no Studio wording on a button")
+	expectTrue(src:find('paintButton(button, "plate", row.listOnly)', 1, true) ~= nil, "Info keeps the gold outline")
 end })
 
 table.insert(tests, { name = "Phone and tablet: Tome panel and its tab strip fit 800x450, 1024x768 and 1366x768", fn = function()
