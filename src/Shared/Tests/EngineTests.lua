@@ -36978,6 +36978,44 @@ table.insert(tests, { name = "MapSelectPanel layout: parts stay inside the panel
 	end
 end })
 
+table.insert(tests, { name = "MapSelectRules.bossLine: the current Night shows its real boss rule, every other Night a kind surprise line, the node tap carries Target plus rule, the rule row fits or yields", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapSelectRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local function safe(w, what)
+		expectTrue(type(w) == "string" and w ~= "" and #w <= R.BOSS_MAX and not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe short line: " .. what .. " " .. tostring(w))
+	end
+	safe(R.BOSS_SURPRISE, "surprise")
+	expectEqual(R.bossLine(3, 2, { description = "Deals you one fewer card this round." }), R.BOSS_SURPRISE, "another Night is a surprise")
+	expectEqual(R.bossLine(2, 2, nil), R.BOSS_SURPRISE, "no boss yet is a surprise")
+	expectEqual(R.bossLine(nil, 2, { description = "x" }), R.BOSS_SURPRISE, "no night is a surprise")
+	for _, def in ipairs(BR.Definitions) do
+		local line = R.bossLine(2, 2, { id = def.id, name = def.name, description = def.description })
+		safe(line, def.id)
+		expectTrue(line:find("Boss rule: ", 1, true) == 1, def.id .. " starts with Boss rule")
+	end
+	local long = R.bossLine(1, 1, { description = string.rep("word ", 40) })
+	expectTrue(#long <= R.BOSS_MAX and long:sub(-3) == "...", "a long rule is cut at a word")
+	local d = R.describe({ name = "Night 2", typeId = "encounter", state = "current", target = 300, bossLine = R.BOSS_SURPRISE })
+	expectEqual(d.target, 300, "the Night target shows")
+	expectEqual(d.bossLine, R.BOSS_SURPRISE, "the rule line shows")
+	expectEqual(R.describe({ name = "Shop", typeId = "shop", state = "current", bossLine = "x" }).bossLine, nil, "a shop has no boss line")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local zone = HR.layout(sz[1], sz[2]).panelZone
+		local parts = R.rects(zone, "full")
+		if parts.rule then
+			expectTrue(parts.rule.h >= 34, "the rule row holds two 14 px lines at " .. sz[1])
+			expectTrue(parts.rule.y >= parts.target.y + parts.target.h and parts.rule.y + parts.rule.h <= parts.button.y, "the rule sits between Target and Continue at " .. sz[1])
+		end
+	end
+	if io and io.open then
+		local h = assert(io.open("src/Client/MapSelectPanel.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find("d.bossLine", 1, true) ~= nil and src:find("replaces the flavour line", 1, true) ~= nil, "the panel draws the rule or lets it replace the flavour line")
+		h = assert(io.open("src/Client/JourneyMapView.lua", "r")); src = h:read("*a"); h:close()
+		expectTrue(src:find("MapSelectRules.bossLine(", 1, true) ~= nil, "the map passes the rule line to the panel")
+	end
+end })
+
 table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from full to compact to a tab when a node or label would sit under it", fn = function()
 	local R = require(script.Parent.Parent.Engine.MapSelectRules)
 	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)

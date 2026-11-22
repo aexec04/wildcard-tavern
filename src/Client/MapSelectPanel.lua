@@ -149,6 +149,10 @@ function MapSelectPanel.new(deps)
 	line.TextWrapped = true -- the description shows two full lines, never a cut word
 	line.TextYAlignment = Enum.TextYAlignment.Top
 	local target = label(panel, "Target", 16)
+	local rule = label(panel, "BossRule", 14, Enum.Font.Gotham) -- the boss rule line, only when the full panel has room (Rules.rects.rule)
+	rule.TextColor3 = Color3.fromRGB(255, 205, 90)
+	rule.TextWrapped = true
+	rule.TextYAlignment = Enum.TextYAlignment.Top
 	local go = TavernKit.primaryButton(panel, "Continue")
 	go.Name = "Continue"
 	go.ZIndex = Z + 2
@@ -214,6 +218,7 @@ function MapSelectPanel.new(deps)
 		art.Visible = mode == "full"
 		typeRow.Visible, line.Visible = mode == "full", mode == "full"
 		target.Visible = mode == "full" and d.target ~= nil
+		rule.Visible = mode == "full" and d.bossLine ~= nil and r.rule ~= nil
 		tabToggle.Visible = mode == "tab"
 		go.Visible = mode ~= "tab" and d.button.visible
 		go.Active = d.button.enabled
@@ -272,6 +277,12 @@ function MapSelectPanel.new(deps)
 			typeRow.TextColor3 = tc
 			typeRow.Text = d.typeIcon .. " " .. (d.status and (d.typeText .. "  |  " .. d.status) or d.typeText)
 			line.Text = d.line
+			if d.bossLine and r.rule then
+				put(rule, r.rule)
+				rule.Text = d.bossLine
+			elseif d.bossLine then
+				line.Text = d.bossLine -- no spare room (short screen): the boss rule replaces the flavour line
+			end
 			if d.target then
 				target.Text = string.format('Target: <font color="#ffcd5a">%d</font>', math.floor(d.target))
 			end

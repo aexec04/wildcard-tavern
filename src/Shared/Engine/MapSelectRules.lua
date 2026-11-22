@@ -5,7 +5,8 @@
 	canSelect(state)                    -> false for a locked node (locked nodes cannot be selected)
 	describe(node)                      -> { name, typeId, typeText, typeIcon, line, target (nil when it does not apply), button = { text, enabled, visible }, status }
 	                                       node = { name, description, typeId, state, target, final }
-	rects(zone, mode)                   -> { art, name, type, line, target, button, w, h } inside zone = { x, y, w, h } (relative to the zone's top left)
+	bossLine(night, currentNight, bossModifier) -> one kind line about the Night's boss rule (the real rule on the current Night, else a surprise line)
+	rects(zone, mode)                   -> { art, name, type, line, target, rule (full mode with room only), button, w, h } inside zone = { x, y, w, h } (relative to the zone's top left)
 	                                       mode "full" | "compact" | "tab"; rects never overlap each other
 	pickMode(zone, boxes)               -> the first mode ("full", "compact", "tab") whose panel does not overlap any box (screen rects)
 	panelRect(zone, mode)               -> the screen rect the panel takes in that mode (a bottom aligned part of the zone)
@@ -21,6 +22,22 @@ local M = {}
 M.TYPE_ICON = { encounter = "\u{25C6}", shop = "\u{1FA99}", event = "?", boss = "\u{1F451}" }
 M.TYPE_WORD = { encounter = "Encounter", shop = "Shop", event = "Event", boss = "Boss" }
 M.PAD = 16 -- clear inner padding: text never reaches the gold trim
+
+-- The boss rule line of a Night stop. The boss is picked per run, so only the current Night's boss is known; every other Night says it is a
+-- surprise. Kid safe, one sentence, 60 characters or less after "Boss rule: " is NOT required for the surprise; the real rule is cut at a word.
+M.BOSS_SURPRISE = "Boss rule: a surprise waits at the end."
+M.BOSS_MAX = 70
+function M.bossLine(night, currentNight, bossModifier)
+	if night ~= nil and night == currentNight and type(bossModifier) == "table" and type(bossModifier.description) == "string" and bossModifier.description ~= "" then
+		local text = "Boss rule: " .. bossModifier.description
+		if #text > M.BOSS_MAX then
+			local cut = text:sub(1, M.BOSS_MAX - 3):gsub("%s+%S*$", "")
+			text = cut .. "..."
+		end
+		return text
+	end
+	return M.BOSS_SURPRISE
+end
 
 function M.canSelect(state)
 	return state ~= "locked"
@@ -40,6 +57,7 @@ function M.describe(node)
 	}
 	if typeId == "encounter" or typeId == "boss" then
 		out.target = node.target -- only fights have a Target score
+		out.bossLine = node.bossLine -- and a boss rule line (nil for the Endless portal)
 	end
 	if node.state == "completed" then
 		out.button = { text = "Continue", enabled = false, visible = false }
@@ -125,6 +143,10 @@ function M.rects(zone, mode)
 	y = y + lineH
 	out.target = { x = tx, y = y, w = tw, h = targetH }
 	out.button = { x = tx, y = r.h - py - buttonH, w = math.min(tw, 190), h = buttonH }
+	-- the boss rule line takes the spare room between the Target and the Continue button (two lines of 14 px need 34)
+	local ry = y + targetH + 2
+	local rh = out.button.y - 4 - ry
+	if rh >= 34 then out.rule = { x = tx, y = ry, w = tw, h = math.min(rh, 40) } end
 	return out
 end
 
