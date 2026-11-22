@@ -65,6 +65,7 @@ function ShopBackdrop.new(deps)
 	root.ClipsDescendants = true
 	root.Parent = shopFrame
 	self.root = root
+	pcall(function() require(script.Parent.ThemeWash).attach(root, "shopBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 
 	-- Fallback scene (no painted wall yet): a warm vertical gradient wall with a darker wood counter band below it,
 	-- so the Counter never reads as an empty dark box. Color stops only, never UIGradient.Transparency.

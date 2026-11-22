@@ -142,6 +142,7 @@ local function baseScene(screenGui, w, h, mode)
 		bg.ZIndex = 62
 		bg.Parent = gui
 	end
+	pcall(function() require(script.Parent.ThemeWash).attach(gui, "shopBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 	-- warm candle glow: two solid soft frames (never a Transparency gradient)
 	for i, gx in ipairs({ 0.12, 0.9 }) do
 		local g = Instance.new("Frame")
@@ -275,7 +276,7 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 		pick.ZIndex = zc + 2
 		pick.Parent = card
 		local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pick
-		local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 2; ps.Parent = pick
+		local ps = Instance.new("UIStroke"); ps.Color = GOLD; ps.Thickness = 2; ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ps.Parent = pick
 		pick.MouseButton1Click:Connect(function() if onPick then onPick(option.id) end end)
 	end
 	if choice.skip then

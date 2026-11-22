@@ -34794,4 +34794,55 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 	expectEqual(lines.summary.tipsEarned, 10, "summary carries the Tips earned")
 end })
 
+table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every slot falls back to classic, wash styles are valid and carry no layout", fn = function()
+	local E = script.Parent.Parent.Engine
+	local TS = require(E.ThemeScenes)
+	local CS = require(E.CosmeticSets)
+	local AL = require(E.AmbientLayout)
+	expectEqual(#TS.ORDER, #CS.Definitions, "one ThemeScenes entry per Card Set")
+	for _, def in ipairs(CS.Definitions) do
+		expectTrue(TS.known(def.id), def.id .. " has a ThemeScenes entry")
+		local t = TS.of(def.id)
+		expectEqual(t.setId, def.id, def.id .. " resolves to itself")
+		for _, slot in ipairs(TS.SLOTS) do
+			expectTrue(type(t.art[slot]) == "string" and t.art[slot] ~= "", def.id .. " " .. slot .. " has an art key (own or classic)")
+		end
+		for i = 1, 3 do
+			expectTrue(type(t.tint[i]) == "number" and t.tint[i] >= 0 and t.tint[i] <= 255, def.id .. " tint is well formed")
+			expectTrue(type(t.accent[i]) == "number" and t.accent[i] >= 0 and t.accent[i] <= 255, def.id .. " accent is well formed")
+		end
+		expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		local style = TS.washStyle(def.id, "menuBackdrop")
+		if def.id == "classic_tavern" then
+			expectTrue(style == nil, "classic_tavern keeps its own scenes, no wash")
+		else
+			expectTrue(CS.validateStyle(style), def.id .. " wash style is valid")
+			expectEqual(style.overlay.transparency, TS.WASH_TRANSPARENCY, def.id .. " wash overlay transparency")
+			for k in pairs(style) do
+				expectTrue(k == "overlay" or k == "vignette" or k == "layers", def.id .. " wash has no layout key " .. k)
+			end
+			expectTrue(TS.washStyle(def.id, "tableBackground") == nil, def.id .. " table room is painted, no wash on it")
+		end
+	end
+	-- unknown or missing ids fall back to classic, key by key
+	local c = TS.of("classic_tavern")
+	for _, bad in ipairs({ "nope", "", 5, false }) do
+		local t = TS.of(bad)
+		expectEqual(t.setId, "classic_tavern", "unknown set falls back to classic")
+		for _, slot in ipairs(TS.SLOTS) do expectEqual(t.art[slot], c.art[slot], "fallback slot " .. slot) end
+	end
+	expectEqual(TS.of(nil).setId, "classic_tavern", "nil falls back")
+	-- ice: frost vignette and snow
+	local ice = TS.washStyle("winter_evening", "mapBackdrop")
+	expectTrue(ice.vignette ~= nil and ice.layers[1].kind == "snow", "winter_evening gets a frost vignette and drifting snow")
+	-- layout identical across sets: art slots hold only string keys, the wash only fills its host
+	for _, id in ipairs({ "classic_tavern", "winter_evening", "golden_gala" }) do
+		for _, slot in ipairs(TS.SLOTS) do expectEqual(type(TS.of(id).art[slot]), "string", id .. " " .. slot .. " is a key, not a rect") end
+	end
+	-- table slots follow the set's painted room pair
+	local PRA = require(E.PlayRoomArt)
+	expectEqual(TS.of("winter_evening").art.tableBackground, PRA.keys("winter_evening").bg, "table background is the set's room")
+	expectEqual(TS.of("winter_evening").art.tableFront, PRA.keys("winter_evening").front, "table rail is the set's front")
+end })
+
 return tests
