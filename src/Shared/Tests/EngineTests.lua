@@ -11398,6 +11398,20 @@ table.insert(tests, { name = "Tavern Events: the new trade events offer three ch
 	end
 end })
 
+table.insert(tests, { name = "Patron pick card: one name, plain portrait fills the frame (no cut card, no dark slab)", fn = function()
+	if not (io and io.open) then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local panel, plaque = read("src/Client/ChoicePanel.lua"), read("src/Client/PatronPlaque.lua")
+	if not (panel and plaque) then return end
+	expectTrue(panel:find("portrait = true", 1, true) ~= nil, "pick card asks for the plain portrait")
+	expectTrue(plaque:find("not opts.portrait", 1, true) ~= nil, "portrait option skips the full cut card")
+	expectTrue(panel:find("size = UDim2.fromScale(1, PORTRAIT_SCALE)", 1, true) ~= nil, "portrait is as wide as the well")
+	-- the name is drawn once per card: one Name label in the plate branch, one in the plain branch
+	local n = 0
+	for _ in panel:gmatch('Name = "Name",') do n = n + 1 end
+	expectEqual(n, 2)
+end })
+
 table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local state = RunState.new(nil, function(n) return 1 end)

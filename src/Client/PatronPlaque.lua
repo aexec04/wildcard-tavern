@@ -8,7 +8,8 @@
 			opts.category     -- "patrons" (default), "bosses", "recipes", "housePasses" or
 			                  -- "titles": picks the generated id map (PatronArt, BossRoundArt,
 			                  -- RecipeArt, HousePassArt, TitleArt). Same fallback everywhere.
-			opts.dim          -- bool: muted look for locked Collection entries
+			opts.portrait     -- bool: use the plain portrait, never the full cut card (cards that draw their own name plate)
+		opts.dim          -- bool: muted look for locked Collection entries
 		opts.emojiLabel   -- TextLabel to hide once the image loads (optional)
 		opts.zIndex       -- default: frame.ZIndex + 1
 		opts.cornerRadius -- pixel radius for UICorner, default 4; 0 = none
@@ -169,7 +170,7 @@ function PatronPlaque.apply(frame, patronId, opts)
 	local category = opts.category or "patrons"
 	local map = ART_MAPS[category]
 	local artId = map and map[patronId]
-	local cutCard = category == "patrons" and CARD_ART["ctp_" .. patronId] or nil
+	local cutCard = category == "patrons" and not opts.portrait and CARD_ART["ctp_" .. patronId] or nil
 	if type(cutCard) == "string" and cutCard ~= "" then artId = cutCard else cutCard = nil end
 	if type(artId) ~= "string" or artId == "" or artId == "rbxassetid://0" then return nil end
 

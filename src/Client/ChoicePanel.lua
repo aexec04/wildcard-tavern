@@ -15,7 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
-local PORTRAIT_SCALE = 1.3 -- Patron portraits in the draft rings: enlarged and top anchored so the baked in name is clipped away
+local PORTRAIT_SCALE = 1.5 -- Patron portraits in the draft rings: enlarged and top anchored so the baked in name is clipped away
 local ClientSettings = require(script.Parent.ClientSettings)
 local ModalStage = require(script.Parent.ModalStage)
 local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
@@ -184,8 +184,10 @@ local function buildCard(choice, option, order)
 		crop.ZIndex = 65
 		crop.Parent = well
 		ui.roundCorner(crop, 8)
-		PatronPlaque.apply(crop, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 0,
-			size = UDim2.fromScale(PORTRAIT_SCALE, PORTRAIT_SCALE), position = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0) })
+		-- plain portrait (never the full cut card, which carries its own frame and name): as wide as the well, top anchored,
+		-- so it fills the frame with no dark slab and the baked ribbon at the bottom falls outside the clip
+		PatronPlaque.apply(crop, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 0, portrait = true,
+			size = UDim2.fromScale(1, PORTRAIT_SCALE), position = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0) })
 		if game:GetService("RunService"):IsStudio() then
 			print(("[PortraitCrop] patron=%s scale=%.2f anchor=top"):format(tostring(option.id), PORTRAIT_SCALE))
 		end
