@@ -322,6 +322,10 @@ return function(deps)
 			add("Final score: " .. ST.short(state.roundScore) .. " / " .. ST.short(state.targetScore))
 		end
 		add(string.format("Tips banked: %d", math.floor(state.tips or 0)))
+		do -- best Night and best hand so far, from profile stats
+			local okB, bestLine = pcall(function() return require(Engine:WaitForChild("BestLine")).text(state.profileStats) end)
+			if okB and bestLine then add(bestLine, { tone = "soft" }) end
+		end
 		if summary then
 			add("Road taken", { tone = "gold" })
 			local names = {}

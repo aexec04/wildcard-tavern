@@ -38501,4 +38501,16 @@ table.insert(tests, { name = "Economy week: a 20 minute session pays every day, 
 	expectTrue(md:find("Week", 1, true) ~= nil and not md:lower():find("balatro"))
 end })
 
+table.insert(tests, { name = "BestLine: best Night and best hand line, nil when new, 40 chars or less, kid safe", fn = function()
+	local BL = require(script.Parent.Parent.Engine.BestLine)
+	expectTrue(BL.text(nil) == nil and BL.text({}) == nil and BL.text({ bestNightReached = 0, bestHandScore = 0 }) == nil)
+	expectTrue(BL.text({ bestNightReached = 4 }) == "Best: Night 4")
+	expectTrue(BL.text({ bestHandScore = 1500 }):find("Best hand", 1, true) ~= nil)
+	local both = BL.text({ bestNightReached = 7.9, bestHandScore = 2400000 })
+	expectTrue(both:find("Night 7", 1, true) ~= nil and #both <= BL.MAX_CHARS)
+	local huge = BL.text({ bestNightReached = 999999, bestHandScore = 1e300 })
+	expectTrue(#huge <= BL.MAX_CHARS and not huge:lower():find("balatro") and not huge:find("nan"))
+	expectTrue(BL.text({ bestNightReached = 0 / 0, bestHandScore = -5 }) == nil)
+end })
+
 return tests

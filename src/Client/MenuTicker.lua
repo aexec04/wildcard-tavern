@@ -23,7 +23,7 @@ local WOOD = Color3.fromRGB(86, 58, 34)
 function Ticker.attach(parent, layoutOrder)
 	local frame = Instance.new("Frame")
 	frame.Name = "MenuTicker"
-	frame.Size = UDim2.fromOffset(460, 78) -- text on top, the Daily board button on its own row below
+	frame.Size = UDim2.fromOffset(460, 98) -- text on top, the best line, the Daily board button on its own row below
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = PARCHMENT
 	frame.ZIndex = 10
@@ -65,9 +65,28 @@ function Ticker.attach(parent, layoutOrder)
 	text.ZIndex = 11
 	text.Parent = frame
 
+	local best = Instance.new("TextLabel") -- Best Night and best hand so far (Engine/BestLine.lua), hidden until there is one
+	best.Name = "BestLine"
+	best.Size = UDim2.new(1, -150, 0, 28)
+	best.AnchorPoint = Vector2.new(0, 1)
+	best.Position = UDim2.new(0, 10, 1, -6)
+	best.BackgroundTransparency = 1
+	best.Font = Enum.Font.GothamMedium
+	best.TextSize = 15
+	best.TextColor3 = INK
+	best.TextTransparency = 0
+	best.TextStrokeTransparency = 1
+	best.TextXAlignment = Enum.TextXAlignment.Left
+	best.TextTruncate = Enum.TextTruncate.AtEnd
+	best.Text = ""
+	best.Visible = false
+	best.ZIndex = 11
+	best.Parent = frame
+	Ticker.bestLabel = best
+
 	local boardButton = Instance.new("TextButton")
 	boardButton.Name = "DailyBoardButton"
-	boardButton.Size = UDim2.fromOffset(100, 28)
+	boardButton.Size = UDim2.fromOffset(100, 44) -- 44 px touch target
 	boardButton.AnchorPoint = Vector2.new(1, 1)
 	boardButton.Position = UDim2.new(1, -8, 1, -6)
 	boardButton.BackgroundColor3 = WOOD
@@ -117,6 +136,15 @@ function Ticker.attach(parent, layoutOrder)
 	task.defer(ask)
 	frame.MouseEnter:Connect(ask)
 	return boardButton
+end
+
+-- Best line from the server state (state.profileStats); display only.
+function Ticker.update(state)
+	local label = Ticker.bestLabel
+	if not label then return end
+	local line = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BestLine")).text(state and state.profileStats)
+	label.Text = line or ""
+	label.Visible = line ~= nil
 end
 
 return Ticker
