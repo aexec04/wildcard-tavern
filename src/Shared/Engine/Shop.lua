@@ -54,7 +54,8 @@ local function rollPatronOffers(state)
 	end
 	-- Never a dead pick: if nothing offered fits the Tips on hand but some other Patron does, the last offer becomes one
 	-- that does (a free seat only; a full table has nothing to buy anyway). Price still decides, nothing is hidden or paid for.
-	if #offers > 0 and #state.ownedPatrons < RunState.patronSlotLimit(state) then
+	-- (Daily, Weekly and Seed runs walk a fixed board, state.worldPlan: every player sees the same shop, so Tips never change it)
+	if #offers > 0 and state.worldPlan == nil and #state.ownedPatrons < RunState.patronSlotLimit(state) then
 		local tips = state.tips or 0
 		local fits = false
 		for _, patron in ipairs(offers) do

@@ -38595,6 +38595,33 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Daily Run: the same date gives every player the same shop and cards whatever their Tips, and a fixed board never swaps an offer for low Tips", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local dayStart = 1788134400
+	local function visit(userTips, timeOfDay)
+		local seed = SeededRng.dailySeed(dayStart + timeOfDay)
+		local state = RunState.new({ worldPlan = WorldMap.routeFromSeed("daily:" .. SeededRng.dailyDateKey(dayStart + timeOfDay)) }, SeededRng.new(seed))
+		state.tips = userTips
+		RunState.startRound(state)
+		local out = {}
+		for _, c in ipairs(state.hand) do out[#out + 1] = c.rank .. c.suit end
+		for _ = 1, 4 do
+			local o = Shop.rollOffers(state)
+			for _, p in ipairs(o.patrons) do out[#out + 1] = p.id end
+			for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+			out[#out + 1] = o.voucher and o.voucher.id or "none"
+		end
+		return table.concat(out, ",")
+	end
+	local reference = visit(4, 0)
+	for _, tips in ipairs({ 0, 4, 9, 40 }) do
+		for _, secondsIn in ipairs({ 0, 3600, 43200, 86399 }) do
+			expectEqual(visit(tips, secondsIn), reference, "Tips " .. tips .. " at second " .. secondsIn .. " of the day")
+		end
+	end
+	expectTrue(visit(4, 86400) ~= reference, "the next date is a different Daily")
+end })
+
 table.insert(tests, { name = "Endless Night 100: the full targetForRound path (boss, stake, Endless rules, every round) is finite, whole, positive and under the cap", fn = function()
 	local ER = require(script.Parent.Parent.Engine.EndlessRules)
 	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
