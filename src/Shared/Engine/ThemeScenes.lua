@@ -46,12 +46,12 @@ local DATA = {
 	closing_time      = { tint = { 170, 80, 40 },   ambient = "ember",     accent = { 255, 200, 140 } },
 	golden_gala       = { tint = { 230, 180, 60 },  ambient = "mote",      accent = { 255, 230, 150 } },
 	meadow_picnic     = { tint = { 90, 170, 80 },   ambient = "butterfly", accent = { 235, 250, 200 } },
-	riverside_evening = { tint = { 70, 100, 170 },  ambient = "mist",      accent = { 215, 228, 255 } },
-	summit_camp       = { tint = { 110, 140, 190 }, ambient = "cloud",     accent = { 225, 238, 255 }, frost = true },
+	riverside_evening = { tint = { 70, 100, 170 },  ambient = "firefly",   accent = { 215, 228, 255 } },
+	summit_camp       = { tint = { 110, 140, 190 }, ambient = "snow",      accent = { 225, 238, 255 }, frost = true },
 	dune_market       = { tint = { 220, 160, 80 },  ambient = "sand",      accent = { 255, 224, 170 } },
 	marsh_lanterns    = { tint = { 60, 130, 100 },  ambient = "firefly",   accent = { 220, 250, 190 } },
 	snowy_hearth      = { tint = { 120, 160, 210 }, ambient = "snow",      accent = { 255, 226, 190 }, frost = true },
-	harbor_lights     = { tint = { 50, 110, 160 },  ambient = "shimmer",   accent = { 255, 224, 160 } },
+	harbor_lights     = { tint = { 50, 110, 160 },  ambient = "glow",      accent = { 255, 224, 160 } },
 	tavern_feast      = { tint = { 200, 120, 50 },  ambient = "dust",      accent = { 255, 224, 150 } },
 	harvest_table     = { tint = { 190, 120, 40 },  ambient = "leaf",      accent = { 255, 218, 150 } },
 	winter_table      = { tint = { 100, 150, 210 }, ambient = "snow",      accent = { 225, 240, 255 }, frost = true },
@@ -94,7 +94,7 @@ local function setArt(setId)
 end
 
 -- the one small prop a set's mini table scene shows (Client/CardSetsRoom): candle, lantern, snowflakes or leaves
-local PROP_OF = { snow = "snowflakes", cloud = "snowflakes", lantern = "lantern", mote = "lantern", mist = "lantern", firefly = "lantern", shimmer = "lantern",
+local PROP_OF = { snow = "snowflakes", glow = "lantern", cloud = "snowflakes", lantern = "lantern", mote = "lantern", mist = "lantern", firefly = "lantern", shimmer = "lantern",
 	butterfly = "leaves", leaf = "leaves", ember = "candle", dust = "candle", sand = "candle" }
 function ThemeScenes.propOf(setId)
 	return PROP_OF[ThemeScenes.of(setId).ambient] or "candle"

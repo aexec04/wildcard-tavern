@@ -14693,14 +14693,20 @@ table.insert(tests, { name = "Corner dock: every set tints the painted icons, ke
 	end
 end })
 
-table.insert(tests, { name = "AmbientLayout: every Card Set has a living backdrop, at most 14 objects, bands inside 0 to 1, calm mode creates none", fn = function()
+table.insert(tests, { name = "AmbientLayout: one effect per Card Set (none for classic and feast), at most 12 objects, bands inside 0 to 1, calm mode creates none", fn = function()
 	local AL = require(script.Parent.Parent.Engine.AmbientLayout)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
-	expectEqual(AL.MAX_OBJECTS, 14, "cap")
+	expectEqual(AL.MAX_OBJECTS, 12, "cap")
+	local none = { classic_tavern = true, tavern_feast = true }
 	for _, set in ipairs(CS.Definitions) do
 		expectTrue(AL.SETS[set.id] ~= nil, set.id .. " has an ambient entry")
 		local n = AL.objectCount(set.id, false)
-		expectTrue(n >= 1 and n <= 14, set.id .. " has 1 to 14 animated objects, got " .. n)
+		if none[set.id] then
+			expectEqual(n, 0, set.id .. " has no natural effect")
+		else
+			expectEqual(#AL.SETS[set.id], 1, set.id .. " has exactly one effect")
+			expectTrue(n >= 1 and n <= 12, set.id .. " has 1 to 12 animated objects, got " .. n)
+		end
 		expectEqual(AL.objectCount(set.id, true), 0, set.id .. " calm mode creates zero animated objects")
 		for _, spec in ipairs(AL.SETS[set.id]) do
 			expectTrue(AL.SPRITES[spec.kind] ~= nil, set.id .. " kind " .. spec.kind .. " is known")
@@ -14800,6 +14806,10 @@ table.insert(tests, { name = "Living backdrops: one 30 Hz Heartbeat, pooled fram
 	expectTrue(bs:find("setAmbient", 1, true) ~= nil and bs:find("AmbientLife", 1, true) ~= nil, "BackdropStyles hosts the ambient scene")
 	local view = read("src/Client/CosmeticSetsView.lua")
 	expectTrue(view:find("setAmbient", 1, true) ~= nil, "the set view starts it on every equip")
+	for _, h in ipairs({ "RoundSelect", "TavernMap" }) do
+		expectTrue(view:find('name = "' .. h .. '"[^\n]-noAmbient = true') ~= nil, h .. " has no ambient motion (table and Counter only)")
+	end
+	expectTrue(view:find('name = "TableLook"[^\n]-noAmbient') == nil and view:find('name = "ShopBackgroundArt"[^\n]-noAmbient') == nil, "table and Counter keep ambient motion")
 	local art = read("src/Shared/Engine/ContentArt.lua")
 	expectTrue(art:find("AmbientArt", 1, true) ~= nil, "ambient art is registered")
 end })
@@ -37671,7 +37681,9 @@ table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every sl
 			expectTrue(type(t.tint[i]) == "number" and t.tint[i] >= 0 and t.tint[i] <= 255, def.id .. " tint is well formed")
 			expectTrue(type(t.accent[i]) == "number" and t.accent[i] >= 0 and t.accent[i] <= 255, def.id .. " accent is well formed")
 		end
-		expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		if AL.SETS[def.id][1] then
+			expectEqual(t.ambient, AL.SETS[def.id][1].kind, def.id .. " ambient kind is the set's first AmbientLayout kind")
+		end
 		local style = TS.washStyle(def.id, "menuBackdrop")
 		if def.id == "classic_tavern" then
 			expectTrue(style == nil, "classic_tavern keeps its own scenes, no wash")

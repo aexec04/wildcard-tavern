@@ -2,8 +2,8 @@
 	Shared/Engine/AmbientLayout.lua
 	Pure data and maths for the living table backdrops (Client/AmbientLife.lua draws them). No Roblox APIs.
 
-	  AmbientLayout.SETS[setId]            { { kind, count, band = { y0, y1 }, ... } } one entry per Card Set
-	  AmbientLayout.MAX_OBJECTS            14, the cap per scene
+	  AmbientLayout.SETS[setId]            { { kind, count, band = { y0, y1 }, ... } } one effect per Card Set (empty when none fits)
+	  AmbientLayout.MAX_OBJECTS            12, the cap per scene
 	  AmbientLayout.objectCount(setId, calm)  animated objects the scene creates (0 in calm mode / Reduce motion)
 	  AmbientLayout.list(setId, calm)      flat list { { kind, spec, index } } the renderer pools frames for
 	  AmbientLayout.wind(t, seed)          shared breeze 0..1 (gusts every 8 to 14 s)
@@ -17,7 +17,7 @@
 
 local AmbientLayout = {}
 
-AmbientLayout.MAX_OBJECTS = 14
+AmbientLayout.MAX_OBJECTS = 12
 AmbientLayout.TICK = 1 / 30
 
 local SKY = { 0.04, 0.34 }
@@ -60,64 +60,23 @@ local GOLD = { 255, 215, 120 }
 local CREAM = { 255, 244, 214 }
 local WARM = { 255, 168, 80 }
 
+-- One effect per set (max AmbientLayout.MAX_OBJECTS = 12 small objects). A set with no natural effect has an empty list.
 AmbientLayout.SETS = {
-	classic_tavern = { o("dust", 5, { 0.3, 0.8 }, { color = CREAM, size = 0.006 }) },
-	meadow_picnic = {
-		o("butterfly", 3, { 0.4, 0.85 }, { size = 0.045, color = { 255, 150, 50 } }),
-		o("cloud", 2, SKY, { size = 0.2, speed = 0.006, color = { 255, 255, 255 } }),
-		o("pollen", 4, MID, { size = 0.006, color = { 255, 240, 170 } }),
-		o("petal", 3, FULL, { size = 0.02, speed = 0.02, color = { 255, 255, 255 } }),
-	},
-	harvest_table = {
-		o("leaf", 7, FULL, { size = 0.028, speed = 0.03, color = { 240, 170, 50 } }),
-		o("dust", 4, { 0.2, 0.7 }, { color = GOLD, size = 0.006 }),
-	},
-	snowy_hearth = {
-		o("snow", 10, FULL, { size = 0.012, speed = 0.05, layers = 3, color = { 255, 255, 255 } }),
-		o("glow", 1, { 0.55, 0.95 }, { size = 0.5, color = WARM, strength = 0.03 }),
-	},
+	classic_tavern = {},
+	tavern_feast = {}, -- an indoor feast hall: nothing floats in it
+	meadow_picnic = { o("butterfly", 3, { 0.4, 0.85 }, { size = 0.045, color = { 255, 150, 50 } }) },
+	harvest_table = { o("leaf", 7, FULL, { size = 0.028, speed = 0.03, color = { 240, 170, 50 } }) },
+	snowy_hearth = { o("snow", 10, FULL, { size = 0.012, speed = 0.05, layers = 3, color = { 255, 255, 255 } }) },
 	winter_table = { o("snow", 9, FULL, { size = 0.012, speed = 0.045, layers = 3, color = { 255, 255, 255 } }) },
-	winter_evening = {
-		o("snow", 7, FULL, { size = 0.011, speed = 0.04, layers = 3, color = { 255, 255, 255 } }),
-		o("mote", 3, MID, { size = 0.012, color = GOLD }),
-	},
-	marsh_lanterns = {
-		o("firefly", 8, { 0.3, 0.9 }, { size = 0.012, color = { 220, 255, 140 } }),
-		o("mist", 3, { 0.65, 0.95 }, { size = 0.5, speed = 0.004, color = { 210, 235, 220 } }),
-	},
-	dune_market = {
-		o("sand", 4, { 0.5, 0.95 }, { size = 0.22, speed = 0.05, color = { 245, 220, 170 } }),
-		o("shimmer", 1, { 0.45, 0.65 }, { size = 1.0, color = { 255, 235, 190 } }),
-		o("bird", 1, SKY, { size = 0.025, speed = 0.01, color = { 70, 80, 95 } }),
-	},
-	harbor_lights = {
-		o("shimmer", 2, WATER, { size = 1.0, color = { 200, 230, 255 } }),
-		o("bird", 1, SKY, { size = 0.025, speed = 0.012, color = { 70, 80, 95 } }),
-		o("glow", 2, { 0.2, 0.5 }, { size = 0.2, color = { 255, 200, 110 }, strength = 0.03 }),
-	},
-	festival_night = {
-		o("lantern", 4, MID, { size = 0.045, speed = 0.012, color = { 255, 200, 120 } }),
-		o("ribbon", 3, { 0.02, 0.25 }, { size = 0.06, color = { 230, 70, 70 } }),
-		o("mote", 5, FULL, { size = 0.012, speed = 0.015, color = GOLD }),
-	},
+	winter_evening = { o("snow", 7, FULL, { size = 0.011, speed = 0.04, layers = 3, color = { 255, 255, 255 } }) },
+	summit_camp = { o("snow", 5, FULL, { size = 0.01, speed = 0.03, layers = 2, color = { 255, 255, 255 } }) },
+	marsh_lanterns = { o("firefly", 8, { 0.3, 0.9 }, { size = 0.012, color = { 220, 255, 140 } }) },
+	riverside_evening = { o("firefly", 5, { 0.3, 0.8 }, { size = 0.011, color = { 255, 235, 150 } }) },
+	dune_market = { o("sand", 4, { 0.5, 0.95 }, { size = 0.22, speed = 0.05, color = { 245, 220, 170 } }) },
+	harbor_lights = { o("glow", 2, { 0.2, 0.5 }, { size = 0.2, color = { 255, 200, 110 }, strength = 0.03 }) },
+	festival_night = { o("lantern", 4, MID, { size = 0.045, speed = 0.012, color = { 255, 200, 120 } }) },
 	golden_gala = { o("mote", 12, FULL, { size = 0.014, speed = 0.02, color = GOLD }) },
-	riverside_evening = {
-		o("mist", 3, WATER, { size = 0.5, speed = 0.004, color = { 220, 225, 240 } }),
-		o("firefly", 5, { 0.3, 0.8 }, { size = 0.011, color = { 255, 235, 150 } }),
-		o("shimmer", 1, WATER, { size = 1.0, color = { 210, 225, 255 } }),
-	},
-	closing_time = {
-		o("ember", 5, { 0.4, 0.95 }, { size = 0.012, speed = 0.03, color = WARM }),
-		o("glow", 1, { 0.55, 0.95 }, { size = 0.45, color = WARM, strength = 0.02 }),
-	},
-	summit_camp = {
-		o("cloud", 2, SKY, { size = 0.22, speed = 0.005, color = { 255, 255, 255 } }),
-		o("snow", 5, FULL, { size = 0.01, speed = 0.03, layers = 2, color = { 255, 255, 255 } }),
-	},
-	tavern_feast = {
-		o("dust", 5, { 0.2, 0.7 }, { color = GOLD, size = 0.006 }),
-		o("ember", 3, { 0.5, 0.95 }, { size = 0.01, speed = 0.025, color = WARM }),
-	},
+	closing_time = { o("ember", 5, { 0.4, 0.95 }, { size = 0.012, speed = 0.03, color = WARM }) },
 }
 
 -- ===== deterministic randomness =====

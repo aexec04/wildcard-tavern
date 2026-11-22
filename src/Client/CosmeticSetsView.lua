@@ -30,8 +30,8 @@ local HOSTS = {
 	{ name = "GameBackgroundArt", defaultTint = Color3.fromRGB(215, 205, 195), noAmbient = true }, -- TableLook carries the gameplay ambient motion
 	{ name = "TableLook", defaultTint = Color3.new(1, 1, 1) }, -- the style host above the gameplay scene painting (Client/TableLook.lua)
 	{ name = "ShopBackgroundArt", defaultTint = Color3.new(1, 1, 1) },
-	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1) },
-	{ name = "TavernMap", defaultTint = Color3.new(1, 1, 1) },
+	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1), noAmbient = true }, -- ambient motion only on the table and the Counter
+	{ name = "TavernMap", defaultTint = Color3.new(1, 1, 1), noAmbient = true },
 }
 local lastSearch = {} -- [host name] = os.clock() of the last PlayerGui search
 local controllers = {} -- [host name] = { controller, hostInstance, styledSetId }
