@@ -609,6 +609,17 @@ function CosmeticSets.pileStyleOf(set, back)
 	return { rim = mix(pile.rim, accent, 0.35), plate = pile.plate, glow = mix(pile.glow, accent, 0.35) }
 end
 
+-- The tint the draw pile layers and the discard ghosts wear: the set's own card back colours ({ base, trim, edge } as rgb triples).
+-- nil for the default set (classic is unchanged) or a set without a known back. Pure.
+function CosmeticSets.deckTint(setId)
+	if setId == nil or setId == CosmeticSets.DefaultId then return nil end
+	local set = CosmeticSets.getById(setId)
+	local back = set and CardBacks.getById(set.cardBackId)
+	local colors = back and back.colors
+	if not colors then return nil end
+	return { base = colors.base, trim = colors.trim, edge = mix(colors.base, { 14, 10, 7 }, 0.55) }
+end
+
 CosmeticSets.SKIN_SLOTS = {
 	{ slot = "faceFrame", key = "face_frame" },
 	{ slot = "facePaper", key = "face_paper" },

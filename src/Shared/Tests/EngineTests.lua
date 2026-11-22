@@ -40171,4 +40171,32 @@ table.insert(tests, { name = "Per set Patron seats and Patron Power panel: both 
 	end
 end })
 
+table.insert(tests, { name = "CosmeticSets.deckTint: every set but classic wears its own card back colours on the pile and discard ghosts, classic is nil", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, CB = require(E.CosmeticSets), require(E.CardBacks)
+	expectTrue(CS.deckTint("classic_tavern") == nil, "classic unchanged")
+	expectTrue(CS.deckTint("not_a_set") == nil, "unknown set has no tint")
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			local t = CS.deckTint(def.id)
+			expectTrue(t ~= nil, def.id .. " has a deck tint")
+			local back = CB.getById(def.cardBackId)
+			expectTrue(t.base[1] == back.colors.base[1] and t.trim[2] == back.colors.trim[2], def.id .. " tint is its card back colours")
+			for i = 1, 3 do expectTrue(t.edge[i] >= 0 and t.edge[i] <= 255, def.id .. " edge in range") end
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local skin, flights = read("src/Client/DeckWidgetSkin.lua"), read("src/Client/CardFlights.lua")
+	if skin and flights then
+		expectTrue(skin:find("deckTint", 1, true) ~= nil and skin:find("Color3.fromRGB(50, 70, 110)", 1, true) ~= nil, "pile layers use the tint, classic blue stays the fallback")
+		expectTrue(flights:find("deckTint", 1, true) ~= nil and flights:find("ghostEdge.Transparency = a", 1, true) ~= nil, "ghost edge follows the tint and fades with the ghost")
+	end
+end })
+
 return tests
