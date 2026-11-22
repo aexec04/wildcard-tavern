@@ -83,3 +83,13 @@ Tips on arrival at each Counter visit (average, min):
 | 5 after | 91.0% | 91.8% | 74.9% | 60.0% | 48.0% |
 
 Nothing is under 25%. Night 4 and 5 were over 85% for a 4 Patron build, so their base targets got one 10% step (`NIGHT_TUNE` 1.1 in RunState, pinned by test). They still sit a little over 85%: the sim hands out free Patrons, so a real first build is weaker. No second step taken.
+
+## Endless Nights 9 to 15 (`lua tools/run_sim.lua --endless --max-night 30 --runs 600 --jobs 4`, decent bot, random Patrons)
+A good run (one that clears Night 8) should end between Night 10 and 14. Only 94 of 600 runs get past Night 8; the table is the clear rate per Night among runs that entered it.
+
+| Endless growth per Night | Median Night (runs past 8) | N9 | N10 | N11 | N12 | N13 | N14 | N15 |
+|---|---|---|---|---|---|---|---|---|
+| 2.15 (before, 200 seeds) | 9 | 28.6% | 20.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| 1.5 (now) | 10 | 57.4% | 48.1% | 61.5% | 62.5% | 50.0% | 40.0% | 50.0% |
+
+Nights 9 and up multiply Night 8's base score by 1.5 per Night (RunState ENDLESS_NIGHT_GROWTH); Nights 1 to 8 are unchanged. 1.6 left the median at 9, 1.4 also gave 10, so 1.5 is the gentlest step in band. Pinned by a test. The median over all runs stays Night 7 because most runs end before Night 8.

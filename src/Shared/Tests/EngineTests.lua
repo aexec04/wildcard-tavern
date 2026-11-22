@@ -1485,6 +1485,15 @@ table.insert(tests, { name = "RunState.nightBaseScoreFor grows every Night, unbo
 	expectTrue(b20 > b8, "Night 20's base score should exceed Night 8's -- no plateau, unlike the Boss multiplier")
 end })
 
+table.insert(tests, { name = "Endless Nights past 8 grow 1.5x per Night, Nights 1 to 8 keep the 2.15x curve", fn = function()
+	expectEqual(RunState.nightBaseScoreFor(8), 65 * 2.15 ^ 7)
+	expectEqual(RunState.nightBaseScoreFor(9), 65 * 2.15 ^ 7 * 1.5)
+	expectEqual(RunState.nightBaseScoreFor(12), 65 * 2.15 ^ 7 * 1.5 ^ 4)
+	for n = 9, 30 do
+		expectTrue(RunState.nightBaseScoreFor(n) > RunState.nightBaseScoreFor(n - 1), "targets climb at Night " .. n)
+	end
+end })
+
 table.insert(tests, { name = "Night 2 and 3 targets are lifted modestly, Night 1 and 4 keep the plain curve", fn = function()
 	local function plain(n) return 65 * 2.15 ^ (n - 1) end
 	expectEqual(RunState.nightBaseScoreFor(1), plain(1))

@@ -95,8 +95,18 @@ local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 -- after the --late sim cleared them 89 to 92 percent with a 4 Patron build. Night 6 and later unchanged.
 local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2, [4] = 1.1, [5] = 1.1 }
 
+-- Endless Nights (past the Night 8 cap) climb a little slower per Night, so a good run ends around Night 10 to 14
+-- (the --endless sim). Nights 1 to 8 are untouched.
+local ENDLESS_NIGHT_GROWTH = 1.5
+local ENDLESS_FROM_NIGHT = 8
+
 function RunState.nightBaseScoreFor(night)
-	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1)) * (NIGHT_TUNE[night] or 1)
+	local plainNights = math.min(night, ENDLESS_FROM_NIGHT)
+	local base = TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (plainNights - 1)) * (NIGHT_TUNE[night] or 1)
+	if night > ENDLESS_FROM_NIGHT then
+		base = base * (ENDLESS_NIGHT_GROWTH ^ (night - ENDLESS_FROM_NIGHT))
+	end
+	return base
 end
 
 function RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)

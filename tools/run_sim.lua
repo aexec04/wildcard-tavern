@@ -281,6 +281,30 @@ elseif cfg.bosses then
 	for _, row in ipairs(rows) do
 		print(string.format("%-20s %8d %9d %7.1f%% %10.2f", row.id, row.minNight, row.tries, 100 * row.rate, row.rate / math.max(0.0001, average)))
 	end
+elseif cfg.endless and cfg.maxNight >= 15 then
+	-- Endless run length: full runs with random Patron picks, clear rate per Night 9 to 15 and median Night reached
+	cfg.randomPatrons = true
+	local records = collect(runConfig())
+	local entered, cleared, reached, endlessReached = {}, {}, {}, {}
+	for _, rec in ipairs(records) do
+		local last = rec.deathNight or rec.nightReached or 1
+		reached[#reached + 1] = last
+		if last >= 9 then endlessReached[#endlessReached + 1] = last end
+		for night = 9, 15 do
+			if night <= last then entered[night] = (entered[night] or 0) + 1 end
+			if night < last or (night == last and not rec.deathNight) then cleared[night] = (cleared[night] or 0) + 1 end
+		end
+	end
+	table.sort(reached)
+	table.sort(endlessReached)
+	print(string.format("Endless, bot %s, %d seeds, random Patron picks. Median Night reached %d (all runs); %d runs got past Night 8, their median Night %d",
+		cfg.bot, #records, reached[math.ceil(#reached / 2)] or 0, #endlessReached, endlessReached[math.ceil(#endlessReached / 2)] or 0))
+	print(string.format("%-9s %s", "Night", "9      10     11     12     13     14     15"))
+	local cells = {}
+	for night = 9, 15 do
+		cells[#cells + 1] = string.format("%5.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
+	end
+	print(string.format("%-9s %s", "clear", table.concat(cells, " ")))
 elseif cfg.late then
 	-- Night 4 to 8 clear rate with 3, 4 and 5 random Patrons (cleared the Night / entered the Night)
 	print(string.format("Late Nights, bot %s, %d seeds per Patron count. Clear rate per Night:", cfg.bot, cfg.runs))
