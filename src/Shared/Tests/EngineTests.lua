@@ -40066,6 +40066,38 @@ table.insert(tests, { name = "About: Settings About lines show name, version and
 	end
 end })
 
+table.insert(tests, { name = "About panel per set: a framed card holds the two lines, wears every set fill and ink at 7:1, fits 800x450, kind text, no links", fn = function()
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(GameName.aboutPanelHeight(), 20 + 26 + 44, "the card is padding plus the two lines")
+	expectTrue(GameName.aboutPanelHeight() <= 100, "the card stays small")
+	for _, line in ipairs(GameName.aboutLines()) do
+		local l = line:lower()
+		expectTrue(l:find("http", 1, true) == nil and l:find("www.", 1, true) == nil and l:find(".com", 1, true) == nil, "no links: " .. line)
+		expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not l:find("balatro"), "safe words: " .. line)
+	end
+	expectTrue(GameName.THANKS:find("Thanks", 1, true) == 1, "the thanks is kind")
+	local checked = 0
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if set.id ~= "classic_tavern" then
+			expectTrue(p ~= nil, set.id .. " has popup colours for the About card")
+			local ratio = CS.contrastRatio(p.dark.ink, p.dark.fill)
+			expectTrue(ratio >= 7, set.id .. " About ink reads 7:1 on the fill, got " .. string.format("%.1f", ratio))
+			checked = checked + 1
+		end
+	end
+	expectEqual(checked, #CS.Definitions - 1, "every set except classic is checked")
+	-- one line of 16 px thanks wraps to two lines inside a 700 px scroll, and to two inside a narrow 480 px one: 44 px holds both
+	expectTrue(#GameName.THANKS * 8.6 <= 2 * (480 - 20 - 40), "the thanks fits two lines at 800x450")
+	if io and io.open then
+		local h = assert(io.open("src/Client/Settings.lua", "r")); local src = h:read("*a"); h:close()
+		expectTrue(src:find('card.Name = "AboutPanel"', 1, true) ~= nil and src:find("PopupSkin", 1, true) ~= nil, "Settings draws the About card with the set skin")
+		expectTrue(src:find("aboutPanelHeight", 1, true) ~= nil, "the card height comes from the engine")
+	end
+end })
+
 table.insert(tests, { name = "PatronCardSpec: Draft, Counter and seats share one name range, rarity word and size, every Patron has one unique name and a rarity", fn = function()
 	local Spec = require(script.Parent.Parent.Engine.PatronCardSpec)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)

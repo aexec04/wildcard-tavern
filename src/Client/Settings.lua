@@ -668,21 +668,46 @@ return function(deps)
 
 	-- ===== About: game name with version and a one line thanks (Engine/GameName), no links =====
 	makeHeader("About")
-	for i, line in ipairs(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName")).aboutLines()) do
-		local about = Instance.new("TextLabel")
-		about.Name = "AboutLine" .. i
-		about.Size = UDim2.new(1, 0, 0, i == 1 and 26 or 44)
-		about.LayoutOrder = order()
-		about.BackgroundTransparency = 1
-		about.Font = Enum.Font.Merriweather
-		about.TextSize = 16
-		about.TextWrapped = true
-		about.TextXAlignment = Enum.TextXAlignment.Left
-		about.TextYAlignment = Enum.TextYAlignment.Top
-		about.TextColor3 = TEXT
-		about.Text = line
-		about.ZIndex = 21
-		about.Parent = scroll
+	do
+		-- the About card wears the equipped Card Set: fill, gold edge and cream ink at 7:1 (PopupSkin.dark); classic keeps dark wood and gold
+		local GameName = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName"))
+		local card = Instance.new("Frame")
+		card.Name = "AboutPanel"
+		card.Size = UDim2.new(1, 0, 0, GameName.aboutPanelHeight())
+		card.LayoutOrder = order()
+		card.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+		card.BorderSizePixel = 0
+		card.ZIndex = 21
+		card.Parent = scroll
+		local cc = Instance.new("UICorner")
+		cc.CornerRadius = UDim.new(0, 8)
+		cc.Parent = card
+		local cs = Instance.new("UIStroke")
+		cs.Color = HEADER
+		cs.Thickness = 1.5
+		cs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cs.Parent = card
+		local labels = {}
+		local y = GameName.ABOUT.PAD
+		for i, line in ipairs(GameName.aboutLines()) do
+			local about = Instance.new("TextLabel")
+			about.Name = "AboutLine" .. i
+			about.Size = UDim2.new(1, -GameName.ABOUT.PAD * 2, 0, GameName.ABOUT.LINE_H[i] or 26)
+			about.Position = UDim2.fromOffset(GameName.ABOUT.PAD, y)
+			y = y + (GameName.ABOUT.LINE_H[i] or 26)
+			about.BackgroundTransparency = 1
+			about.Font = Enum.Font.Merriweather
+			about.TextSize = 16
+			about.TextWrapped = true
+			about.TextXAlignment = Enum.TextXAlignment.Left
+			about.TextYAlignment = Enum.TextYAlignment.Top
+			about.TextColor3 = TEXT
+			about.Text = line
+			about.ZIndex = 22
+			about.Parent = card
+			labels[#labels + 1] = { about, TEXT }
+		end
+		pcall(function() require(script.Parent.PopupSkin).dark(card, cs, labels, { plate = Color3.fromRGB(40, 30, 22), edge = HEADER }) end)
 	end
 
 	local settingsCloseButton = Instance.new("TextButton")
