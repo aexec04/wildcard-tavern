@@ -279,7 +279,8 @@ return function(deps)
 	scorePopupHandName.Font = Enum.Font.GothamBold
 	scorePopupHandName.TextSize = 20
 	scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
-	scorePopupHandName.TextStrokeTransparency = 0.5
+	scorePopupHandName.TextStrokeColor3 = Color3.fromRGB(30, 18, 8) -- dark brown outline: readable over the gold Golden Gala room
+	scorePopupHandName.TextStrokeTransparency = 0.15
 	scorePopupHandName.Text = ""
 	scorePopupHandName.ZIndex = 25
 	scorePopupHandName.Parent = handPill

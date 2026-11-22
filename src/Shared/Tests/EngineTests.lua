@@ -35804,6 +35804,19 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 	end
 end })
 
+table.insert(tests, { name = "Scoring text over a bright room (Golden Gala): hand readout and popup hand name keep a dark outline, bright fill", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
+	local ro, sp = read("src/Client/HandReadout.lua"), read("src/Client/ScorePopup.lua")
+	expectTrue(ro:find("TextStrokeTransparency = 0.5", 1, true) == nil, "readout outline is not the faint 0.5")
+	expectTrue(ro:find("TextStrokeTransparency = 0.15", 1, true) ~= nil, "readout outline 0.15")
+	expectTrue(sp:find("scorePopupHandName.TextStrokeTransparency = 0.15", 1, true) ~= nil, "popup hand name outline 0.15")
+	expectTrue(sp:find("scorePopupHandName.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)", 1, true) ~= nil, "popup hand name outline is dark brown")
+	-- fills stay bright (luminance over 0.55) so the dark outline carries them on gold
+	local function lum(r, g, b) return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 end
+	expectTrue(lum(242, 207, 114) > 0.55 and lum(255, 230, 180) > 0.55, "fills bright")
+end })
+
 table.insert(tests, { name = "PatronPowerPanel: the hint strip Got it never closes the panel, which stays the whole round and has no button of its own", fn = function()
 	if not io then return end
 	local f = io.open("src/Client/RoundHintsFX.lua", "r"); local a = f:read("a"); f:close()

@@ -58,10 +58,10 @@ function M.set(playButton, name, handLevels)
 	lbl.Visible = true
 	if ClientSettings.get("reduceShake") == true or not wasHidden then
 		lbl.TextTransparency = 0
-		lbl.TextStrokeTransparency = 0.5
+		lbl.TextStrokeTransparency = 0.15
 	else
 		lbl.TextTransparency, lbl.TextStrokeTransparency = 1, 1
-		TweenService:Create(lbl, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextTransparency = 0, TextStrokeTransparency = 0.5 }):Play()
+		TweenService:Create(lbl, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextTransparency = 0, TextStrokeTransparency = 0.15 }):Play()
 	end
 end
 
