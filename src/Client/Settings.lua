@@ -524,8 +524,7 @@ return function(deps)
 	settingsMainMenuButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		popOut(settingsBackdrop, settingsPanel, nil, function()
-			deps.root.Visible = false
-			deps.menuFrame.Visible = true
+			require(script.Parent.QuitConfirm).ask()
 		end)
 	end)
 
@@ -559,11 +558,13 @@ return function(deps)
 	end
 	-- PopupDismiss: Escape and a click on the dark area close it, and a locked screen's Escape opens it (lifted above that screen).
 	OverlayManager.registerOpener("settings", openSettings)
-	-- the gear menu's Quit to Tavern row: the same thing as Settings > Quit to Tavern (Client/GearMenu)
+	-- the gear menu's Quit to Tavern row: the same calm confirm as Settings > Quit to Tavern (Client/QuitConfirm)
+	require(script.Parent.QuitConfirm).install({
+		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
+		polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
+	})
 	OverlayManager.registerOpener("quitToTavern", function()
-		playClickSfx()
-		deps.root.Visible = false
-		deps.menuFrame.Visible = true
+		require(script.Parent.QuitConfirm).ask()
 	end)
 	require(script.Parent.PopupDismiss).attach(settingsBackdrop, { id = "settings", panel = settingsPanel, button = true })
 

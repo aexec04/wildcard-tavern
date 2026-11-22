@@ -8370,6 +8370,33 @@ table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for ev
 	end
 end })
 
+table.insert(tests, { name = "QuitFlow: Quit to Tavern confirms once, says the run is saved, and cannot fire twice", fn = function()
+	local Q = require(script.Parent.Parent.Engine.QuitFlow)
+	local s = Q.new()
+	expectFalse(Q.confirm(s), "nothing to confirm before a request")
+	expectTrue(Q.request(s), "first request opens the confirm")
+	expectFalse(Q.request(s), "a second click while it is open does not stack another")
+	Q.cancel(s)
+	expectFalse(Q.confirm(s), "Stay then Quit without a new request does nothing")
+	expectTrue(Q.request(s))
+	expectTrue(Q.confirm(s), "Quit goes through")
+	expectFalse(Q.confirm(s), "a double click cannot quit twice")
+	expectFalse(Q.request(s), "no new confirm while the quit is under way")
+	Q.finish(s)
+	expectTrue(Q.request(s), "after the quit a new request may open")
+	expectFalse(Q.canOpen(true), "nothing opens over the travel transition")
+	expectTrue(Q.canOpen(false))
+	for _, text in ipairs({ Q.TITLE, Q.MESSAGE, Q.MESSAGE_NO_RUN, Q.STAY, Q.QUIT }) do
+		expectTrue(#text < 70 and not text:find("\226\128\148", 1, true) and not text:find("--", 1, true), "short, no dashes: " .. text)
+	end
+	expectTrue(Q.message(true):lower():find("saved", 1, true) ~= nil, "says progress is saved")
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("QuitConfirm).ask()", 1, true) ~= nil and src:find("deps.menuFrame.Visible = true\n\t\tend)\n\tend)\n\n\tsettingsDailyButton", 1, true) == nil, "Settings Quit asks first")
+	local g = assert(io.open("src/Client/GearMenu.lua", "r")); local gsrc = g:read("a"); g:close()
+	expectTrue(gsrc:find('OverlayManager.open("quitToTavern")', 1, true) ~= nil, "gear row goes through the same opener")
+end })
+
 table.insert(tests, { name = "GearMenu: the Pause row is called Settings and opens Settings", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local ids = {}
