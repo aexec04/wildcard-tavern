@@ -40147,7 +40147,7 @@ table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear t
 	expectTrue(quit:find('"primary")', 1, true) ~= nil and quit:find('"secondary")', 1, true) ~= nil and quit:find("setPlateButton(b, kind)", 1, true) ~= nil, "Quit confirm Stay and Quit ask for set plates")
 	expectTrue(quit:find("UDim2.new(0, 180, 0, 48)", 1, true) ~= nil, "Quit confirm buttons keep 48 px")
 	expectTrue(settings:find('setPlateButton(redeem, "primary")', 1, true) ~= nil, "Codes Redeem asks for the set plate")
-	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
+	expectTrue(settings:find("UDim2.new(0, SettingsLayout.CODES.redeemW, 0, SettingsLayout.CODES.boxH)", 1, true) ~= nil, "Codes Redeem keeps 44 px (SettingsLayout.CODES)")
 end })
 
 table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use the set accent, classic keeps gold, text colours untouched", fn = function()
@@ -40346,6 +40346,23 @@ table.insert(tests, { name = "Menu news banner, rank bar and board notes follow 
 			expectTrue(src:find(needle, 1, true) ~= nil, file .. " follows the equipped set")
 		end
 	end
+end })
+
+table.insert(tests, { name = "Settings Codes row: 44 px box and Redeem, a kid safe message line, row tall enough for all of it", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local C = SL.CODES
+	expectTrue(C.boxH >= 44 and C.redeemW >= 100, "box and Redeem are at least 44 px tall")
+	expectTrue(C.msgY >= C.boxY + C.boxH, "the message line sits under the box")
+	expectTrue(C.msgY + C.msgH <= C.rowH, "title, box and message fit inside the row, so nothing reaches the About lines")
+	expectTrue(C.msgSize >= 14, "message text is 14 px or more")
+	for _, line in ipairs({ SL.CODES_SHORT, SL.CODES_SENT }) do
+		expectTrue(#line < 60 and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "plain short message: " .. line)
+	end
+	if not io then return end
+	local f = io.open("src/Client/Settings.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CodeMessage", 1, true) ~= nil and src:find("SettingsLayout.CODES_SHORT", 1, true) ~= nil, "a short code says why nothing happened")
 end })
 
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
