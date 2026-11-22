@@ -3172,6 +3172,35 @@ table.insert(tests, { name = "SeededRng: RunState.new accepts it as a drop-in rn
 	end
 end })
 
+table.insert(tests, { name = "Seeded runs: one seed gives every player the same hands, shop offers, rerolls, Packs and Tags; a different seed differs; fixed boards never get a draft or event", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local function trace(seed)
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+		state.rng = state.rng or SeededRng.new(seed)
+		local out = {}
+		for night = 1, 3 do
+			state.night = night
+			RunState.startRound(state)
+			for _, c in ipairs(state.hand) do out[#out + 1] = c.rank .. c.suit end
+			for _ = 1, 3 do -- a fresh shop visit, then two rerolls
+				local o = Shop.rollOffers(state)
+				for _, p in ipairs(o.patrons) do out[#out + 1] = p.id end
+				for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+				out[#out + 1] = o.voucher and o.voucher.id or "none"
+			end
+			out[#out + 1] = Tags.pick(state.rng).id
+			expectEqual(RunChoice.startDraft(state, false), nil, "fixed boards get no draft")
+			expectEqual(RunChoice.rollEvent(state, false), nil, "fixed boards get no event")
+		end
+		return table.concat(out, ",")
+	end
+	local seed = SeededRng.dailySeed(1788134400)
+	expectEqual(trace(seed), trace(seed), "same seed, same everything")
+	expectTrue(trace(seed) ~= trace(SeededRng.dailySeed(1788134400 + 86400)), "the next day differs")
+	expectEqual(trace(SeededRng.codeToSeed("STAR27")), trace(SeededRng.codeToSeed("STAR27")), "same code, same run")
+end })
+
 -- ===== SeededRng: Weekly Challenge + Shareable Seed Codes (Phase 16) =====
 
 table.insert(tests, { name = "SeededRng.weeklySeed: timestamps in the same 7-day window produce the same seed/key", fn = function()

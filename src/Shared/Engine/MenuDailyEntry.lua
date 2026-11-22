@@ -13,7 +13,7 @@
 local M = {}
 
 M.TITLE = "Daily Challenge"
-M.LINE = "One shared seed for every player today."
+M.LINE = "One shared seed for every player. A new Daily starts at 00:00 UTC."
 M.BUTTON_TEXT = "Play Daily"
 M.NOTE_H = 110 -- title, two text lines, then the button, all inside the painted plate
 M.BUTTON = { w = 124, h = 34 }
