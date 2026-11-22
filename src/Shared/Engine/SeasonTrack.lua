@@ -288,6 +288,23 @@ end
 -- Season panel numbers (Client/SeasonPanel.lua): 128 px tiles with 12 px gaps, so the track shows 10 full tiles.
 SeasonTrack.TILE_W, SeasonTrack.TILE_GAP, SeasonTrack.TILES_VISIBLE = 128, 12, 10
 
+-- Season panel fit for a screen (Client/SeasonPanel.lua uses it, tests check it). Claim buttons are 44 px tall.
+-- Whole tiles only: narrow screens show fewer tiles; short screens scale the panel down (never below 0.8).
+SeasonTrack.BUTTON_H = 44
+SeasonTrack.TILE_H, SeasonTrack.PREMIUM_H, SeasonTrack.PANEL_EXTRA_H = 170, 118, 194
+function SeasonTrack.fit(viewW, viewH, hasPremium)
+	local step = SeasonTrack.TILE_W + SeasonTrack.TILE_GAP
+	local availW = math.floor(viewW * 0.94) - 30
+	local tiles = math.max(3, math.min(SeasonTrack.TILES_VISIBLE, math.floor((availW + SeasonTrack.TILE_GAP) / step)))
+	local trackW = tiles * step - SeasonTrack.TILE_GAP
+	local trackH = SeasonTrack.TILE_H + (hasPremium and SeasonTrack.PREMIUM_H or 0) + 26
+	local panelW, panelH = trackW + 30, trackH + SeasonTrack.PANEL_EXTRA_H
+	local scale = math.min(1, (viewH - 24) / panelH, (viewW - 12) / panelW)
+	scale = math.max(0.8, scale)
+	return { tiles = tiles, trackW = trackW, trackH = trackH, panelW = panelW, panelH = panelH, scale = scale,
+		shownW = panelW * scale, shownH = panelH * scale }
+end
+
 -- Painted art for a Tips reward by size: small pouch (up to 3), coin purse (4 to 5), big pouch (6 to 7), chest (8 and up).
 -- Returns the ContentArt category and key (all four already exist).
 function SeasonTrack.tipsArt(amount)

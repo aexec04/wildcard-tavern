@@ -81,7 +81,7 @@ function M.shopRows(ownsPack)
 		local real = SoundIds.isValidId(SoundIds.Music[t.key])
 		local owned = ownsPack == true
 		local playable = owned and real
-		local tag = "Locked"
+		local tag = "Music pack" -- the unlock hint: the pack opens these rows
 		if playable then tag = "" elseif owned then tag = "Coming soon" end
 		out[i] = { id = t.id, name = t.name, key = t.key, locked = not playable, playable = playable, tag = tag, placeholder = t.placeholder == true }
 	end

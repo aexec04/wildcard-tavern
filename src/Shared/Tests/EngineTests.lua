@@ -32441,6 +32441,18 @@ table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked)
 	local P, GP = require(E.MusicPicker), require(E.GamePasses)
 	expectEqual(#P.SHOP_TRACKS, 0, "the three placeholder rows are real free tracks now; the pack section waits for new ones")
 	expectEqual(#P.shopRows(false), 0, "no shop rows")
+end })
+
+	expectEqual(#P.SHOP_TRACKS, 3, "three shop rows")
+	expectEqual(P.SHOP_TRACKS[1].name, "Lantern Waltz", "first shop name")
+	expectEqual(P.SHOP_TRACKS[2].name, "Midnight Fiddle", "second shop name")
+	expectEqual(P.SHOP_TRACKS[3].name, "Harvest Jig", "third shop name")
+	for _, r in ipairs(P.shopRows(false)) do
+		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Music pack", r.id .. " locked and unplayable without the pack")
+	end
+	for _, r in ipairs(P.shopRows(true)) do
+		expectTrue(r.locked and not r.playable and r.tag == "Coming soon", r.id .. " owned but no real id: Coming soon, still locked")
+	end
 	expectEqual(GP.MUSIC_PACK, 0, "the pass id is 0")
 	local b0 = P.buyButton(GP.MUSIC_PACK, false)
 	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "pass id 0: Coming soon, disabled")
@@ -37391,6 +37403,45 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	local body = src:sub(at, at + 700)
 	expectTrue(body:find("Enum.Font.Merriweather", 1, true) ~= nil and body:find("ACC.textSize", 1, true) ~= nil, "Account plates use Merriweather at ACCOUNT.textSize")
 	expectTrue(src:find('makeAccountButton("Tavern Map"', 1, true) ~= nil, "Tavern Map plate exists")
+end })
+
+table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	expectEqual(ST.BUTTON_H, 44)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		for _, prem in ipairs({ true, false }) do
+			local f = ST.fit(sz[1], sz[2], prem)
+			local tag = sz[1] .. "x" .. sz[2] .. (prem and " premium" or "")
+			expectTrue(f.tiles >= 3 and f.tiles <= 10, "whole tile count at " .. tag)
+			expectEqual(f.trackW, f.tiles * (ST.TILE_W + ST.TILE_GAP) - ST.TILE_GAP)
+			expectTrue(f.shownW <= sz[1] and f.shownH <= sz[2], "panel fits the screen at " .. tag)
+			expectTrue(f.scale >= 0.8 and f.scale <= 1, "scale in range at " .. tag)
+			expectTrue(14 * f.scale >= 11, "smallest text stays readable at " .. tag)
+		end
+	end
+	expectEqual(ST.fit(1920, 1080, true).tiles, 10)
+	if not io then return end
+	local f = assert(io.open("src/Client/SeasonPanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("SeasonTrack.BUTTON_H", 1, true) ~= nil and src:find("Premium only", 1, true) ~= nil and src:find('Text = "Now"', 1, true) ~= nil, "buttons use BUTTON_H, locked premium says so, current tier tagged Now")
+end })
+
+table.insert(tests, { name = "Music and Sound menus: serif 16 px text, 44 px buttons and rows, locked tracks say Music pack, panels fit 800x450", fn = function()
+	local MP = require(script.Parent.Parent.Engine.MusicPicker)
+	expectTrue(MP.ROW_H >= 44, "track rows are 44 px or more")
+	for _, r in ipairs(MP.shopRows(false)) do
+		expectTrue(r.locked and r.tag == "Music pack", r.name .. " tells the player which pack unlocks it")
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = MP.layout(sz[1], sz[2])
+		expectTrue(L.panel.h <= sz[2] and L.panel.w <= sz[1], "Music panel fits at " .. sz[1] .. "x" .. sz[2])
+	end
+	expectTrue(270 <= 450 - 24 and 380 <= 800, "Volume panel (380x270) fits 800x450")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local m, v, h = read("src/Client/MusicPanel.lua"), read("src/Client/VolumePanel.lua"), read("src/Client/VisualHelpers.lua")
+	expectTrue(m:find("l.Font = Enum.Font.Merriweather", 1, true) ~= nil and m:find("addText(row, r.tag, 16,", 1, true) ~= nil, "Music rows use serif 16 px")
+	expectTrue(v:find("muteButton.TextSize = 16", 1, true) ~= nil and v:find("UDim2.new(0, 140, 0, 44)", 1, true) ~= nil, "Volume buttons 16 px and 44 px tall")
+	expectTrue(h:find("trackHolder.InputBegan:Connect(beginDrag)", 1, true) ~= nil, "slider touch target is the whole row")
 end })
 
 table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles, tips art by size, stamp text once per run, bar clear of the reward plate, 360 px Daily panel", fn = function()
