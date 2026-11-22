@@ -102,6 +102,27 @@ function HudStyle.iconPalette(colors)
 	}
 end
 
+-- The Golden Gala palace velvet family for the secondary table plates (Rank, Suit, Deck count), so they match Play Hand
+-- (palace green, from the "play" palette) and Discard (burgundy-cool, the "discard" palette). nil for every other set:
+-- classic and the rest keep their wood. Fills reach 4.5:1 with their text.
+HudStyle.VELVET_SETS = { golden_gala = true }
+function HudStyle.velvetPlate(setId, colors)
+	if not (HudStyle.VELVET_SETS[setId] and colors) then return nil end
+	local play = HudStyle.buttonPalette(colors, "play")
+	local discard = HudStyle.buttonPalette(colors, "discard")
+	local deck = HudStyle.deckPalette(colors)
+	return {
+		fill = discard.fill, -- the unlit half
+		lit = play.fill, -- the picked half
+		edge = play.inner,
+		text = discard.text,
+		litText = play.text,
+		deck = deck.plate,
+		deckText = deck.text,
+		deckEdge = deck.plateRing,
+	}
+end
+
 -- Draw pile: bracket accent, themed count plate and a count colour that reads on it.
 function HudStyle.deckPalette(colors)
 	local accent, base = basics(colors)

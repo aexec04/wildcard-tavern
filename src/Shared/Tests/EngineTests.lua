@@ -14599,6 +14599,28 @@ table.insert(tests, { name = "HudStyle: Classic frame covers at least 6 percent 
 	end
 end })
 
+table.insert(tests, { name = "HudStyle: Golden Gala Rank, Suit and Deck plates use the palace velvet family, other sets unchanged", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local gala
+	for _, set in ipairs(CS.Definitions) do
+		local v = HS.velvetPlate(set.id, CS.skinOf(set).colors)
+		if set.id == "golden_gala" then
+			gala = v
+			expectTrue(v ~= nil, "gala has a velvet plate family")
+			local play, discard = HS.buttonPalette(CS.skinOf(set).colors, "play"), HS.buttonPalette(CS.skinOf(set).colors, "discard")
+			expectEqual(table.concat(v.lit, ","), table.concat(play.fill, ","), "picked half matches the Play Hand fill")
+			expectEqual(table.concat(v.fill, ","), table.concat(discard.fill, ","), "unlit half matches the Discard fill")
+			expectTrue(CS.contrastRatio(v.text, v.fill) >= 4.5, "unlit half text contrast")
+			expectTrue(CS.contrastRatio(v.litText, v.lit) >= 4.5, "lit half text contrast")
+			expectTrue(CS.contrastRatio(v.deckText, v.deck) >= 4.5, "deck count text contrast")
+		else
+			expectTrue(v == nil, set.id .. " keeps its own plates")
+		end
+	end
+	expectTrue(gala ~= nil, "golden_gala is a defined set")
+	expectTrue(HS.velvetPlate("classic_tavern", nil) == nil, "neutral set unchanged")
+end })
 table.insert(tests, { name = "HudStyle: every set and role keeps button text at 4.5:1 on every fill, plates and icons too", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HudStyle)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
