@@ -167,3 +167,27 @@ Tips on arrival at each Counter visit and Patrons already held on arrival, 200 s
 | rounds_3 | rounds | 3 | 4 | 1 |
 
 Result: no quest needs more than 2 runs, so no goal was lowered and no Tips or XP reward changed. Four quests (Flush Finish, Full House Party, Big Swing, Swift Win) depend on the hand you draw, not on volume. Their goal is already 1 and cannot go lower, so a player gets them by play. The model run earns none of those four, so the table calls them "by play".
+
+## Patron offers: repeats, owned and dead picks
+
+`lua tools/run_sim.lua --offers --runs 200 --jobs 4` (decent bot, first Patron roll of every Counter visit, Night 1 to 8). "same offer" is the exact same Patrons as the previous visit, "any repeated" is at least one Patron seen on the previous visit, "nothing affordable" is a visit where every offer cost more than the Tips on hand although a cheaper Patron existed in the pool (a picker fault). "poor" is a visit where Tips were under the cheapest Patron of the whole pool, which no picker can fix.
+
+Before the fix (one combined count, 4362 visits): repeats 3.2 percent, owned 0.0 percent, nothing affordable 28.2 percent.
+
+After (4262 visits):
+
+| Night | visits | same offer | any repeated | owned | nothing affordable | poor |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 600 | 0.0% | 2.8% | 0.0% | 0.0% | 33.3% |
+| 2 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 17.2% |
+| 3 | 600 | 0.0% | 2.5% | 0.0% | 0.0% | 12.6% |
+| 4 | 600 | 0.0% | 3.0% | 0.0% | 0.0% | 9.1% |
+| 5 | 595 | 0.0% | 2.2% | 0.0% | 0.0% | 0.0% |
+| 6 | 562 | 0.0% | 3.7% | 0.0% | 0.0% | 0.0% |
+| 7 | 465 | 0.0% | 3.4% | 0.0% | 0.0% | 0.0% |
+| 8 | 240 | 0.0% | 5.0% | 0.0% | 0.0% | 0.0% |
+| all | 4262 | 0.0% | 3.1% | 0.0% | 0.0% | 23.3% |
+
+- Repeats (3 percent) and owned Patrons (0 percent, the picker already skips them) are under the 10 percent line, so the picker is unchanged for those.
+- Dead picks were the problem: when a seat was free and nothing offered fit the Tips on hand, the shop could still show two Patrons the player could not buy. `Shop.rollOffers` now swaps the last offer for a random Patron that fits when one exists. A full table is left alone. Prices are untouched and nothing is paid for. Pinned by the test `Shop offers: never a Patron already owned, never a dead pick`.
+- The "poor" column is the economy, not the picker: the bot spends everything on sight, so early second and third visits arrive under 4 Tips. See the shop economy section above; no number changed.
