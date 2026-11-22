@@ -6,6 +6,7 @@
 	extra. Display only, it never talks to the server.
 
 	BoonsPage.open(seenIds)   opens the page for the ids of state.collection.boonsSeen
+	BoonsPage.openView(view)  opens any view with the same row shape (the Marks and Legends page uses it)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -112,12 +113,12 @@ local function place(obj, r)
 	obj.Size = UDim2.fromOffset(r.w, r.h)
 end
 
-function M.open(seenIds)
+-- Draws any view shaped like Engine/BoonsPage.view (rows with id, name, icon, line, seen and an optional art category).
+function M.openView(view)
 	built = built or build()
 	if not built then return end
 	local size = built.screenGui.AbsoluteSize
 	local L = Page.layout(size.X, size.Y)
-	local view = Page.view(seenIds)
 	-- the panel and its parts sit at window pixels; the backdrop covers the window, so panel coordinates are relative to it
 	place(built.panel, L.panel)
 	local function rel(r) return { x = r.x - L.panel.x, y = r.y - L.panel.y, w = r.w, h = r.h } end
@@ -178,6 +179,10 @@ function M.open(seenIds)
 	end)
 	if not built.backdrop.Visible then Cue.play("button_click") end
 	built.backdrop.Visible = true
+end
+
+function M.open(seenIds)
+	M.openView(Page.view(seenIds))
 end
 
 return M

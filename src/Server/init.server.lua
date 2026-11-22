@@ -768,7 +768,10 @@ local function serializeState(session, player)
 			local boonsSeen = {}
 			for id in pairs(profile and profile.seenBoonIds or {}) do boonsSeen[#boonsSeen + 1] = id end
 			table.sort(boonsSeen)
-			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks, boonsSeen = boonsSeen }
+			local marksSeen = {}
+			for id in pairs(profile and profile.seenMarkIds or {}) do marksSeen[#marksSeen + 1] = id end
+			table.sort(marksSeen)
+			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks, boonsSeen = boonsSeen, marksSeen = marksSeen }
 		end)(),
 		-- One-shot: milestone ids claimed since the last push (nil otherwise).
 		collectionMilestoneNotice = session.collectionMilestoneNotice,
@@ -1581,6 +1584,9 @@ local function pushState(player)
 		return
 	end
 	syncProfileFromSession(player)
+	if session.markOffer and profiles[player] and PlayerProfile.recordMarksSeen(profiles[player], { session.markOffer }) > 0 then
+		profileDirty[player] = true -- the Collection Marks page lists the Marks the Counter has offered
+	end
 	trackDailyProgress(player)
 	trackWeeklyProgress(player)
 	trackEndlessProgress(player)

@@ -44971,4 +44971,53 @@ table.insert(tests, { name = "Collection Boons page: all 12 boons listed with se
 	end
 end })
 
+table.insert(tests, { name = "Collection Marks page: 3 Marks and 4 Legendary Patrons seen or not seen yet, Seen N of 7, friendly empty line, short lines, 44 px rows at four sizes, seenMarkIds saved, ink 4.5:1 on every set plate", fn = function()
+	local Page = require(script.Parent.Parent.Engine.MarksPage)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local empty = Page.view({}, {})
+	expectEqual(empty.total, 7, "three Marks and four Legendary Patrons")
+	expectEqual(#Page.legendaryPatrons(), 4)
+	expectEqual(empty.count, Page.EMPTY_LINE)
+	for i, row in ipairs(empty.rows) do
+		expectTrue(not row.seen and row.name ~= "" and row.name ~= "???" and (row.line == Page.UNSEEN_MARK or row.line == Page.UNSEEN_LEGEND), row.id .. " unseen row is clear")
+		expectTrue(i <= 3 or row.art == "patrons", row.id .. " legend rows use the Patron art")
+	end
+	local some = Page.view({ "gilded", "not_a_mark" }, { "duke_goldleaf", "extra_hand", "boon_keeper" })
+	expectEqual(some.seen, 3, "unknown ids and non legendary ids never count")
+	expectEqual(some.count, "Seen 3 of 7")
+	expectEqual(some.rows[1].line, Card.Marks.gilded.description)
+	for _, row in ipairs(some.rows) do
+		expectTrue(#row.line <= 60 and #row.name <= 24, row.id .. " lines are short: " .. row.line)
+	end
+	expectTrue(Page.TEXT_SIZE >= 16 and Page.ROW_H >= 44 and Page.CLOSE_H >= 44)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local L = Page.layout(sz[1], sz[2])
+		local label = sz[1] .. "x" .. sz[2]
+		for name, r in pairs({ panel = L.panel, list = L.list, close = L.close }) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= sz[1] and r.y + r.h <= sz[2], label .. " " .. name .. " is on screen")
+		end
+		expectTrue(L.close.h >= 44 and L.rowH >= 44 and L.rowsFit >= 2, label .. " rows and Close are 44 px")
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local st = TS.scoreStyle(set.id)
+		if st then
+			for _, ink in ipairs({ { 250, 240, 220 }, { 226, 212, 186 }, { 255, 214, 130 } }) do
+				expectTrue(CosmeticSets.contrastRatio(ink, st.plate) >= 4.5, set.id .. " marks row ink is 4.5:1 on the set plate")
+			end
+		end
+	end
+	local p = PP.new()
+	expectEqual(PP.recordMarksSeen(p, { "gilded", "lucky" }), 2)
+	expectEqual(PP.recordMarksSeen(p, { "gilded", "lively", "nope", 7 }), 1, "only new real marks count")
+	local back = PP.migrate(p)
+	expectTrue(back.seenMarkIds.gilded and back.seenMarkIds.lucky and back.seenMarkIds.lively, "seen marks survive a save and load")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('quietPlate("Marks"', 1, true) ~= nil, "the Collection has a Marks plate")
+	end
+end })
+
 return tests

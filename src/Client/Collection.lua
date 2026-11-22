@@ -1438,6 +1438,19 @@ return function(deps)
 		end)
 	end
 
+	do -- Marks: the three card Marks and the four Legendary Patrons, seen or not seen yet (Engine/MarksPage), same popup as Boons
+		local marksPlate = quietPlate("Marks", #CollectionBook.Tabs + 2)
+		marksPlate.MouseButton1Click:Connect(function()
+			playClickSfx()
+			local state = getLatestState and getLatestState()
+			pcall(function()
+				local c = state and state.collection or {}
+				local view = require(ReplicatedStorage.Shared.Engine.MarksPage).view(c.marksSeen or {}, c.discovered and c.discovered.patrons or {})
+				require(script.Parent.BoonsPage).openView(view)
+			end)
+		end)
+	end
+
 	local function showMilestoneToast(milestoneIds)
 		local lines = {}
 		for _, id in ipairs(milestoneIds) do
