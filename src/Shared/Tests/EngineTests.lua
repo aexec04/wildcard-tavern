@@ -38657,6 +38657,26 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Daily twists: Patron power twists never leave fractional Tips, and every twist plays a seeded run to the end with whole Tips", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	for _, def in ipairs(DM.Definitions) do
+		for seed = 1, 3 do
+			local state = RunState.new({ dailyModifierId = def.id }, SeededRng.new(seed))
+			for i = 1, 3 do state.ownedPatrons[i] = Patrons.Definitions[(seed * 7 + i * 5) % #Patrons.Definitions + 1] end
+			for _ = 1, 3 do
+				RunState.startRound(state)
+				for _ = 1, 6 do
+					if #state.hand < 2 then break end
+					local ok = pcall(RunState.playHand, state, { 1, 2 })
+					if not ok then break end -- the round ended
+					expectEqual(state.tips, math.floor(state.tips), def.id .. " left fractional Tips " .. tostring(state.tips))
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
 	local ER = require(script.Parent.Parent.Engine.EndlessRules)
 	for round = 1, 3 do
