@@ -89,6 +89,7 @@ local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
 local Shop = require(Engine.Shop)
 local Onboarding = require(Engine.Onboarding)
+local WelcomeEase = require(Engine.WelcomeEase) -- eased Night 1 and 2 targets for a new profile's first runs
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
@@ -679,6 +680,7 @@ local function serializeState(session, player)
 			end
 			return list
 		end)(),
+		welcomeEase = state.welcomeEase == true and state.night <= 2 or nil, -- Round Select shows the honest Welcome line
 		canSkipRound = RunState.canSkipRound(state),
 		currentRoundSkipTag = currentRoundSkipTag,
 		handStats = state.handStats,
@@ -1286,6 +1288,13 @@ local function syncProfileFromSession(player)
 			end)
 		end
 	end
+	-- WELCOME EASE: an eased run that ends on Night 1 banks a few Tips for the next run, once, so the first loss feels like progress
+	if session.phase == "gameover" and runState.welcomeEase and runState.night == 1 and not session.easeTipsGiven then
+		session.easeTipsGiven = true
+		profile.pendingStartTips = math.min(TavernRank.MAX_PENDING_TIPS, (profile.pendingStartTips or 0) + WelcomeEase.DATA.nightOneLossTips)
+		pushRewardNotice(player, { text = "Welcome bonus: +" .. WelcomeEase.DATA.nightOneLossTips .. " Tips next run" })
+		changed = true
+	end
 	if justWon and profile.stats.runsWon == 1 then
 		local notice = FirstRewards.firstWin(profile)
 		if notice then
@@ -1758,6 +1767,9 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		stake = 1 -- a Boss Rush or Quick Run ignores the stake and the challenge
 	end
 
+	-- WELCOME EASE: a new profile's first normal runs (never seeded, Rush, Quick, challenge or tutorial)
+	local welcomeEase = profile ~= nil and isTutorial ~= true and not rush and not quick and challengeId == nil
+		and WelcomeEase.eligible(profile, seededRng == nil)
 	local isDaily = seedMode == "daily"
 	local isWeekly = seedMode == "weekly"
 	local isSeeded = seedMode == "seed"
@@ -1774,6 +1786,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			-- BOSS COUNTERPLAY: Rule Ban tokens for normal runs only (never Daily, Weekly, Seed, Boss Rush, challenge, Quick or the tutorial)
 			ruleBans = seededRng == nil and isTutorial ~= true and not rush and not quick and challengeId == nil,
 			challengeId = challengeId,
+			welcomeEase = welcomeEase,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
 			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,
 				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
@@ -1828,6 +1841,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		if welcomeEase then WelcomeEase.recordRun(profile) end
 		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
 		Analytics.runStart(player, stake, seedMode or "normal")
 		LaunchLog.runStarted(player)

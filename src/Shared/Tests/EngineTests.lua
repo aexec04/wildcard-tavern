@@ -37559,4 +37559,57 @@ table.insert(tests, { name = "Automated new player run: fresh profile, Night 1 t
 	expectEqual(dead.value.stats.runsStarted, 9, "the real save is untouched")
 end })
 
+table.insert(tests, { name = "WelcomeEase: first runs eased on Nights 1 and 2, never seeded, old saves done, rounds cleanly, save and reload", fn = function()
+	local WelcomeEase = require(script.Parent.Parent.Engine.WelcomeEase)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local RunStateM = require(script.Parent.Parent.Engine.RunState)
+	local rng = function(n) return n end
+	-- targets: eased on Night 1 and 2 only, always a multiple of 5, never above the normal target
+	local plain = RunStateM.new({}, rng)
+	local eased = RunStateM.new({ welcomeEase = true }, rng)
+	for night = 1, 4 do
+		plain.night, eased.night = night, night
+		for round = 1, plain.config.roundsPerNight do
+			local a, b = RunStateM.targetForRound(plain, round), RunStateM.targetForRound(eased, round)
+			if night <= 2 then
+				expectTrue(b < a, "night " .. night .. " round " .. round .. " is eased")
+				expectEqual(b % 5, 0, "clean number")
+			else
+				expectEqual(b, a, "later Nights are unchanged")
+			end
+		end
+	end
+	expectEqual(WelcomeEase.scale(100, 1), 85)
+	expectEqual(WelcomeEase.scale(300, 2), 255)
+	expectEqual(WelcomeEase.scale(300, 3), 300)
+	expectEqual(WelcomeEase.scale(1, 1), 1, "never below 1 and never above the original")
+	-- quick runs are never eased
+	expectFalse(RunStateM.new({ welcomeEase = true, mode = "quick" }, rng).welcomeEase)
+	-- first run eased, fourth run normal; seeded and other modes never eased
+	local profile = PlayerProfile.new()
+	expectTrue(WelcomeEase.eligible(profile, true), "first run")
+	expectFalse(WelcomeEase.eligible(profile, false), "Daily, Weekly and Seed runs")
+	for i = 1, 3 do
+		expectTrue(WelcomeEase.eligible(profile, true), "run " .. i)
+		expectTrue(WelcomeEase.recordRun(profile))
+	end
+	expectFalse(WelcomeEase.eligible(profile, true), "fourth run is normal")
+	expectFalse(WelcomeEase.recordRun(profile), "the counter stops at the limit")
+	-- save and reload keeps the counter; a half used counter keeps its place
+	local half = PlayerProfile.new()
+	WelcomeEase.recordRun(half)
+	expectEqual(PlayerProfile.migrate(half).easeRunsUsed, 1)
+	expectEqual(PlayerProfile.migrate(profile).easeRunsUsed, 3)
+	-- old saves: no counter and Night 1 already cleared means done; a fresh save with no counter is eased
+	local old = PlayerProfile.new()
+	old.easeRunsUsed = nil
+	old.stats.bestNightReached = 2
+	expectEqual(PlayerProfile.migrate(old).easeRunsUsed, 3, "old profile is not eased")
+	local fresh = PlayerProfile.new()
+	fresh.easeRunsUsed = nil
+	expectEqual(PlayerProfile.migrate(fresh).easeRunsUsed, 0)
+	expectEqual(WelcomeEase.cleanSaved("junk", 0), 0)
+	expectEqual(WelcomeEase.cleanSaved(99, 0), 3)
+end })
+
 return tests

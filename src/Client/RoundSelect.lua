@@ -236,6 +236,22 @@ return function(deps)
 	subtitleLabel.ZIndex = 7
 	subtitleLabel.Parent = roundSelectFrame
 
+	-- WELCOME EASE: an honest one-line note while a new profile's first runs have eased targets (server: state.welcomeEase)
+	local welcomeLabel = Instance.new("TextLabel")
+	welcomeLabel.Size = UDim2.new(1, -360, 0, 18)
+	welcomeLabel.Position = UDim2.new(0, 180, 0, 84)
+	welcomeLabel.BackgroundTransparency = 1
+	welcomeLabel.Font = Enum.Font.GothamMedium
+	welcomeLabel.TextSize = 14
+	welcomeLabel.TextColor3 = Color3.fromRGB(150, 220, 160)
+	welcomeLabel.TextTransparency = 0
+	welcomeLabel.TextStrokeTransparency = 1
+	welcomeLabel.TextXAlignment = Enum.TextXAlignment.Center
+	welcomeLabel.Text = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("WelcomeEase")).LINE
+	welcomeLabel.Visible = false
+	welcomeLabel.ZIndex = 7
+	welcomeLabel.Parent = roundSelectFrame
+
 	-- Slim Tips chip, top right (the sidebar's Tips box is hidden while this screen is up).
 	local tipsChip = Instance.new("TextLabel")
 	tipsChip.Name = "TipsChip"
@@ -822,6 +838,7 @@ return function(deps)
 		subtitleLabel.Text = state.round == 1
 			and "Night begins. Play this round, or skip it for a Tag."
 			or "Play this round, or skip it for a Tag."
+		welcomeLabel.Visible = state.welcomeEase == true
 		-- Endless Mode has its own header style (shared with the Journey map).
 		titleLabel.TextColor3 = inEndless and ENDLESS_ACCENT or Color3.fromRGB(250, 240, 220)
 		subtitleLabel.TextColor3 = inEndless and ENDLESS_SUB or Color3.fromRGB(220, 205, 185)

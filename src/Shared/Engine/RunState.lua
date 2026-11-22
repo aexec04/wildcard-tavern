@@ -32,6 +32,7 @@ local Unlocks = require(script.Parent.Unlocks)
 local BossRules = require(script.Parent.BossRules)
 local Challenges = require(script.Parent.Challenges)
 local BossRush = require(script.Parent.BossRush)
+local WelcomeEase = require(script.Parent.WelcomeEase) -- eased Night 1 and 2 targets for a new profile's first runs
 local Haggle = require(script.Parent.Haggle) -- one haggle per shop visit moves one price by 1 Tip
 local Strangers = require(script.Parent.Strangers) -- Dealer's Bargains: numeric run effects
 
@@ -139,7 +140,7 @@ end
 
 --[[
 	options (all optional): { deckVariantId = string, difficultyId = string,
-	nightOneBonusDiscards = number }
+	nightOneBonusDiscards = number, welcomeEase = boolean }
 	Unknown/omitted deckVariantId/difficultyId fall back to the standard deck
 	variant and standard difficulty, so `RunState.new()` and
 	`RunState.new(nil, rng)` both still produce the original default-balance
@@ -276,6 +277,8 @@ function RunState.new(options, rng)
 		-- Extra discards each round of Night 1, for brand-new profiles --
 		-- see Onboarding.bonusDiscards.
 		nightOneBonusDiscards = options.nightOneBonusDiscards or 0,
+		-- WELCOME EASE (Engine/WelcomeEase.lua): the server sets this for a new profile's first normal runs only.
+		welcomeEase = options.welcomeEase == true and not quick,
 		-- PAID CONTINUE: true once this run has used its one continue (see
 		-- RunState.useContinue). Never resets for the rest of the run. A
 		-- revived run submits to the "Revived" leaderboards instead of
@@ -395,7 +398,11 @@ function RunState.targetForRound(state, round)
 	else
 		baseTarget = RunState.targetScoreFor(state.night, round, roundsPerNight, state.config.nightCap)
 	end
-	return math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
+	local target = math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
+	if state.welcomeEase then
+		target = WelcomeEase.scale(target, state.night)
+	end
+	return target
 end
 
 function RunState.startRound(state)
