@@ -491,3 +491,9 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - Also clean: fit_audit (44 screen sizes, 0 failures), text size lint (all 14 or more), SortOrder, shadow call and Luau syntax lints.
 - ROADMAP: every open box left is user-only (Creator Hub passes, products, badges, thumbnail and video, real phone test) or ongoing (weekly updates, analytics, co-op later).
 - User-only launch steps: see claude/LAUNCH-CHECK.md. Nothing in this sweep was viewed in Studio or on a real device.
+
+## First five minutes: shorter waits (2026-11-22)
+- The travel cover into a round holds 0.8 s at least and 3 s at most (was 1.2 and 5), a tap skips after 0.5 s; the Night intro stays 1.2 s and Calm mode has none. A test pins every timed non-choice step to 3 s or less. Not timed in Studio (no session here).
+
+## Daily return: tomorrow's reward on the Menu (2026-11-22)
+- The Daily Challenge note on the Notice Board shows a gold "Tomorrow: 40 XP" line from the Daily Rewards ladder (`MenuDailyEntry.tomorrowLine`, hidden until a streak exists, loops after slot 7). The line and the Play Daily plate are 44 px targets; tapping the line opens the Daily Rewards panel. Not screenshotted (no Studio session here).

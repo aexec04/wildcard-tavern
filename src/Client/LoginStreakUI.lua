@@ -370,6 +370,7 @@ function LoginStreakUI.update(state)
 		return
 	end
 	lastState = state
+	pcall(function() require(script.Parent.MenuDailyEntry).update(state) end) -- tomorrow's reward line on the Daily note
 	local waiting = DailyPopup.nextClaimable(state.login) ~= nil
 	local offerable = DailyPopup.canOffer(state, true) -- the chest icon is hidden while a run is in progress
 	local gift = ensureGift()
