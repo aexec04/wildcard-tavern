@@ -15929,7 +15929,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 		shop_marlo_dune_behind = true, shop_marlo_dune_wave = true, shop_marlo_marsh_behind = true, shop_marlo_marsh_wave = true, shop_marlo_hearth_behind = true, shop_marlo_hearth_wave = true, shop_marlo_harbor_behind = true, shop_marlo_harbor_wave = true,
 		shop_marlo_feast_behind = true, shop_marlo_feast_wave = true, shop_marlo_harvest_behind = true, shop_marlo_harvest_wave = true, shop_marlo_wtable_behind = true, shop_marlo_wtable_wave = true, shop_marlo_meadow_behind = true, shop_marlo_meadow_wave = true,
 		shop_marlo_river_behind = true, shop_marlo_river_wave = true, shop_marlo_summit_behind = true, shop_marlo_summit_wave = true,
-		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
+		shop_offer_scroll_a = true, shop_offer_scroll_b = true, shop_offer_scroll_frost = true, shop_offer_scroll_gala = true, shop_offer_scroll_harvest = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
@@ -39983,5 +39983,74 @@ table.insert(tests, { name = "Card set identity: the ten biome and seasonal sets
 	end
 end })
 
+table.insert(tests, { name = "Counter chrome per Card Set: tabs take the set plate, Tips, Next boss and round buttons take the set hue, classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(Style.setTint(nil, { 140, 185, 230 }), nil, "no set, no tint")
+	expectEqual(Style.setTint("classic_tavern", { 140, 185, 230 }), nil, "classic is never tinted")
+	expectEqual(Style.setTint("no_such_set", { 140, 185, 230 }), nil, "unknown set is never tinted")
+	expectEqual(Style.setPiece("wh_btn_dark", nil), "wh_btn_dark", "tabs stay classic without a set")
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		local accent = CS.accentOf(CS.getById(setId))
+		expectTrue(type(accent) == "table", setId .. " has an accent")
+		local t = Style.setTint(setId, accent)
+		expectTrue(t ~= nil and #t == 3, setId .. " has a tint")
+		for i = 1, 3 do expectTrue(t[i] >= 120 and t[i] <= 255, setId .. " tint keeps the trim readable") end
+		expectEqual(Style.setPiece("wh_btn_dark", setId), map.wh_btn_dark, setId .. " inactive tab plate")
+		expectEqual(Style.setPiece("wh_btn_green", setId), map.wh_btn_green, setId .. " active tab plate")
+		for _, p in ipairs({ "wh_target", "orn_target", "icon_round" }) do
+			expectEqual(Style.setPiece(p, setId), p, setId .. " " .. p .. " keeps the classic picture (tinted instead)")
+		end
+	end
+	expectEqual(n, 14, "all 14 sets have a plate family")
+	expectTrue(Style.isSetPiece("frost_wh_btn_dark") and not Style.isSetPiece("wh_btn_dark"), "a set plate is never tinted again")
+end })
+
+table.insert(tests, { name = "Boss round per Card Set: every set draws its own boss table or its own play room, never the classic tavern; classic unchanged", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local seen = 0
+	for _, setId in ipairs(PRA.ORDER) do
+		seen = seen + 1
+		local source, key = TS.bossBackdrop(setId)
+		expectTrue(source == "own" or source == "room", setId .. " never falls back to classic (" .. tostring(source) .. ")")
+		if source == "room" then
+			expectEqual(key, PRA.keys(setId).bg, setId .. " falls back to its own play room")
+			expectTrue(type(Art[key]) == "string" and Art[key]:match("^rbxassetid://%d+$") ~= nil and Art[key] ~= "rbxassetid://0", setId .. " play room picture is recorded")
+		else
+			expectTrue(TS.themeImageId(setId, "bossTableBackground") ~= nil, setId .. " own boss table resolves")
+		end
+	end
+	expectEqual(seen, 14, "all 14 sets checked")
+	for _, setId in ipairs({ "classic_tavern", "no_such_set" }) do
+		expectEqual((TS.bossBackdrop(setId)), "classic", tostring(setId) .. " keeps the classic boss table")
+	end
+	expectEqual((TS.bossBackdrop(nil)), "classic", "no set keeps the classic boss table")
+end })
+
+table.insert(tests, { name = "Scroll popup paper per Card Set: frost, palace and harvest variants resolve, other sets keep the cream scroll", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local SSA = require(script.Parent.Parent.Engine.ShopSceneArt)
+	local seen = {}
+	for _, paper in ipairs({ "frost", "gala", "harvest" }) do
+		local id = SSA["shop_offer_scroll_" .. paper]
+		expectTrue(type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0", paper .. " paper has an image id")
+		expectTrue(id ~= SSA.shop_offer_scroll_a and id ~= SSA.shop_offer_scroll_b and not seen[id], paper .. " paper is its own picture")
+		seen[id] = true
+	end
+	expectEqual(TS.scrollPaper("winter_evening"), "frost", "Frosted Garden")
+	expectEqual(TS.scrollPaper("golden_gala"), "gala", "Golden Gala")
+	expectEqual(TS.scrollPaper("harvest_table"), "harvest", "Harvest Table")
+	for _, setId in ipairs({ "classic_tavern", "festival_night", "closing_time", "dune_market", "summit_camp", "no_such_set" }) do
+		expectEqual(TS.scrollPaper(setId), nil, setId .. " keeps the cream scroll")
+	end
+	expectEqual(TS.scrollPaper(nil), nil, "no set keeps the cream scroll")
+	for setId, paper in pairs(TS.SCROLL_PAPER) do expectTrue(TS.known(setId) and SSA["shop_offer_scroll_" .. paper] ~= nil, setId .. " names a real set and paper") end
+end })
+
 return tests
+
 

@@ -20,7 +20,7 @@ end
 -- hover on a painted tag: the picture brightens a little (the flat fill colour is hidden under it)
 function ShopPaint.hover(host, on)
 	local img = host.Parent and host.Parent:FindFirstChild(host.Name .. "Paint")
-	if img and img:IsA("ImageLabel") then img.ImageColor3 = on and Color3.fromRGB(255, 235, 205) or Color3.new(1, 1, 1) end
+	if img and img:IsA("ImageLabel") then img.ImageColor3 = on and Color3.fromRGB(255, 235, 205) or (img:GetAttribute("TintColor") or Color3.new(1, 1, 1)) end
 end
 
 -- the tab bar: layout off, tabs on their own slots, each wearing the green frame when active and the dark one otherwise

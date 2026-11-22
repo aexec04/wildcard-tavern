@@ -217,10 +217,21 @@ end
 -- transparent while the picture is up; if the picture has not loaded after PAINTED_LOAD_WAIT seconds, or there is no id, the flat look
 -- stays or comes back. Words stay on the plate (a button keeps its KitLabel, its own text stays transparent). Returns the ImageLabel or nil.
 local paintedArt
+local plateSetId -- defined below: the Card Set whose plates are drawn now
 local paintOf = setmetatable({}, { __mode = "k" }) -- host -> its picture: two sibling buttons both named "TextButton" must not share one "TextButtonPaint"
 function TavernKit.painted(host, piece)
+	if not host or not host.Parent or not Style.PAINTED[piece] then return nil end
+	host:SetAttribute("BasePiece", piece)
+	local sid = plateSetId()
+	piece = Style.setPiece(piece, sid) -- the set's own plate when it has one (tabs, Tips and Next boss wear it with the buttons)
+	local tint -- no own picture for this set: the classic one takes the set's hue
+	if piece == host:GetAttribute("BasePiece") and sid and not Style.isSetPiece(piece) then
+		pcall(function()
+			local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			tint = Style.setTint(sid, CS.accentOf(CS.getById(sid)))
+		end)
+	end
 	local def = Style.PAINTED[piece]
-	if not def or not host or not host.Parent then return nil end
 	if paintedArt == nil then
 		local ok, art = pcall(function() return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PaintedKitArt")) end)
 		paintedArt = ok and art or false
@@ -230,7 +241,7 @@ function TavernKit.painted(host, piece)
 	local id = paintedArt and paintedArt[def.art]
 	if not id or id == "" then return nil end
 	local old = paintOf[host]
-	if old and old.Parent and old:GetAttribute("PaintPiece") == piece then return old end
+	if old and old.Parent and old:GetAttribute("PaintPiece") == piece and (old:GetAttribute("SetTint") == true) == (tint ~= nil) and old:GetAttribute("TintSet") == (tint and sid or nil) then return old end
 	if old then old:Destroy() end
 	local img = Instance.new("ImageLabel")
 	img.Name = host.Name .. "Paint"
@@ -240,6 +251,7 @@ function TavernKit.painted(host, piece)
 	img.Active = false
 	img.Image = id
 	img.ImageTransparency = 0
+	if tint then img.ImageColor3 = Color3.fromRGB(tint[1], tint[2], tint[3]); img:SetAttribute("SetTint", true); img:SetAttribute("TintSet", sid); img:SetAttribute("TintColor", img.ImageColor3) end
 	local flatBg = host.BackgroundTransparency
 	local strokes = {}
 	local function fit()
@@ -306,7 +318,7 @@ end
 
 -- The ornate button for any screen: kind "primary" (green) or "secondary" (dark wood); the piece follows the plate's shape (Style.buttonPiece).
 -- The Card Set whose plates are drawn now: the previewed set on the Card Sets screen, else the equipped one (Golden Gala has palace plates).
-local function plateSetId()
+function plateSetId()
 	local ok, sid = pcall(function()
 		local TS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
 		local skin = require(script.Parent.HudTheme).skin()
@@ -322,7 +334,11 @@ local function restyleButtons()
 	local sid = plateSetId()
 	for host in pairs(paintOf) do
 		local kind = host.Parent and host:GetAttribute("ButtonKind")
-		if kind then TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y, sid)) end
+		if kind then TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y, sid))
+		else
+			local base = host.Parent and host:GetAttribute("BasePiece")
+			if base then TavernKit.painted(host, base) end
+		end
 	end
 end
 

@@ -363,6 +363,17 @@ function ShopHaggle.new(deps)
 		inst.Size = UDim2.fromOffset(r.w, r.h)
 	end
 	local function scrollArt(key)
+		if key == "a" then -- a frost, palace or harvest paper for the sets that have one (equipped or previewed); other sets keep the cream scroll
+			local okP, paper = pcall(function()
+				local TS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ThemeScenes"))
+				local skin = require(script.Parent.HudTheme).skin()
+				local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
+				local previewId = okV and view and view.previewSetId and view.previewSetId() or nil
+				return TS.scrollPaper(TS.effectiveSetId(skin and skin.id, previewId))
+			end)
+			local own = okP and paper and ContentArt.getImageId("shop_scene", "shop_offer_scroll_" .. paper)
+			if own then return own end
+		end
 		return ContentArt.getImageId("shop_scene", "shop_offer_scroll_" .. key)
 	end
 	local function showScroll(s, state)
