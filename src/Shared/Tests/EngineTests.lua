@@ -38514,4 +38514,32 @@ table.insert(tests, { name = "Patron roster: every ability text is 60 chars or l
 	expectTrue(#bad == 0, table.concat(bad, "; "))
 end })
 
+table.insert(tests, { name = "Store fairness: every row says what you get, shows a price line or Owned, nothing random or Tips for Robux", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	for _, section in ipairs({ "", "flair", "season" }) do
+		for _, inStudio in ipairs({ true, false }) do
+			local view = Store.view(PlayerProfile.new(), {}, inStudio, section ~= "" and section or nil)
+			for _, row in ipairs(view.items) do
+				expectTrue(#row.description > 0 and #row.description <= 120, row.id .. " one short line of what you get")
+				expectTrue(#(row.perks or {}) >= 1, row.id .. " lists what it gives")
+				local line = Store.priceLine(row, nil)
+				expectTrue(type(line) == "string" and #line > 0, row.id .. " has a price or state line")
+				local text = (row.description .. " " .. table.concat(row.perks, " ")):lower()
+				for _, word in ipairs({ "random", "mystery", "loot", "chance", "odds", "lucky", "gamble", "tips" }) do
+					expectFalse(text:find(word, 1, true) ~= nil, row.id .. " must not say '" .. word .. "'")
+				end
+				expectFalse(text:find("\xE2\x80\x94", 1, true) ~= nil, row.id .. " no em dash")
+			end
+		end
+	end
+	local owned = Store.priceLine({ owned = true }, nil)
+	expectEqual(owned, "Owned")
+	-- no Robux product sells Tips or gameplay power
+	for _, product in ipairs(GamePasses.DeveloperProducts) do
+		local text = (product.name .. " " .. product.description):lower()
+		expectFalse(text:find("tips", 1, true) ~= nil or text:find("random", 1, true) ~= nil, product.id .. " is not a Tips or random product")
+	end
+end })
+
 return tests
