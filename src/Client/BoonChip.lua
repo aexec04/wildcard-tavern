@@ -91,6 +91,25 @@ function BoonChip.update(layer, state, w, h)
 	chip.Size = UDim2.fromOffset(rect.w, rect.h)
 	chip.Visible = true
 	parts.icon.Text = view.icon
+	pcall(function() -- the painted boon icon over the emoji, once per boon (the emoji label hides only when the picture loads)
+		if parts.iconFor ~= view.id then
+			parts.iconFor = view.id
+			parts.icon.Visible = true
+			local host = parts.chip:FindFirstChild("IconArtHost")
+			if not host then
+				host = Instance.new("Frame")
+				host.Name = "IconArtHost"
+				host.BackgroundTransparency = 1
+				host.Active = false
+				host.Size = UDim2.fromOffset(ChipLayout.MIN_SIZE, ChipLayout.MIN_SIZE)
+				host.ZIndex = 31
+				host.Parent = parts.chip
+			end
+			local old = host:FindFirstChild("ContentArt")
+			if old then old:Destroy() end
+			require(script.Parent.ArtIcon).apply(host, "boon_icons", view.id, parts.icon, { cornerRadius = 8 })
+		end
+	end)
 	parts.name.Text = view.name
 	parts.name.Visible = rect.showName
 	local ok, ink = pcall(function() return require(script.Parent.SetInk).get() end)

@@ -44786,4 +44786,24 @@ table.insert(tests, { name = "Starting deck tiles: title carries the real card c
 	expectTrue(CosmeticSets.contrastRatio({ 40, 28, 16 }, { 150, 134, 104 }) >= 4.5, "locked tile ink is 4.5:1 on the dim parchment")
 end })
 
+table.insert(tests, { name = "Boon icons: all 12 Night boons have a painted id in BoonIconArt, ids are well formed and unique, run modifiers keep an emoji fallback where no id exists, ContentArt resolves them", fn = function()
+	local Art = require(script.Parent.Parent.Engine.BoonIconArt)
+	local BlessArt = require(script.Parent.Parent.Engine.BlessingIconArt)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local seen = {}
+	for _, def in ipairs(NB.Definitions) do
+		local id = Art[def.id]
+		expectTrue(type(id) == "string" and id:match("^rbxassetid://%d+$") ~= nil, def.id .. " has a well formed painted id")
+		expectTrue(not seen[id], def.id .. " does not share an id")
+		seen[id] = true
+		expectTrue(def.icon ~= nil and def.icon ~= "", def.id .. " keeps its emoji fallback")
+	end
+	for _, def in ipairs(RM.Definitions or {}) do
+		local id = BlessArt[def.id]
+		expectTrue(id == nil or id:match("^rbxassetid://%d+$") ~= nil, def.id .. " blessing id is well formed or empty")
+		expectTrue(id ~= nil or (def.icon ~= nil and def.icon ~= ""), def.id .. " falls back to its emoji")
+	end
+end })
+
 return tests
