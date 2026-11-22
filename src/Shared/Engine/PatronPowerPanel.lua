@@ -1,8 +1,7 @@
 --[[
 	Shared/Engine/PatronPowerPanel.lua
 	The Patron Power panel at the left of the table (reference 1672 x 941: x 15 to 335, y 345 to 485): a painted plate with the crown
-	medallion on its left, the heading "Patron Power" and one line about the frame colours. Shown on Night 1 rounds 1 and 2 and on every
-	boss round, until the first hand of the round is played or Got it is pressed. Pure Lua, display only, it never changes a run.
+	medallion on its left, the heading "Patron Power" and one line about the frame colours. Shown on Night 1 round 1 only, until the first hand of the round is played or Got it is pressed. Pure Lua, display only, it never changes a run.
 
 	PatronPowerPanel.enabledFor(state, opts) -> bool   opts = { enabled }; playing, not the tutorial, not the guided first hand, no popup
 	PatronPowerPanel.place(r, viewW, viewH, avoid) -> nil | { plate = rect, button = nil (no Got it plate of its own), textW }   root pixels; nil when nothing fits clear
@@ -15,7 +14,7 @@ local M = {}
 M.TITLE = "Patron Power"
 M.BODY = "The frame shows power: Wood is Common, gold is Legendary."
 M.TITLE_SIZE, M.BODY_SIZE = 22, 18
-M.MAX_ROUND = 2 -- Night 1, rounds 1 and 2 (every boss round besides)
+M.MAX_ROUND = 1 -- Night 1, round 1 only: nobody needs the frame colour tip on every round
 -- reference rect and the Got it plate under the text column
 M.REF = { x = 15 / 1672, w = 320 / 1672, h = 140 / 941 }
 M.ASPECT = 1408 / 543 -- the painted plate wh_hint
@@ -39,7 +38,7 @@ function M.reason(state, opts)
 	-- the guided hint owns the first hand of a run; a boss round (or any later round) is never that hand, whatever flag a jump left behind
 	if state.guidedFirstHand == true and state.isBossRound ~= true and (tonumber(state.handsPlayedTotal) or 0) < 1 then return "guided first hand" end
 	local early = (tonumber(state.night) or 1) == 1 and (tonumber(state.round) or 1) <= M.MAX_ROUND
-	if not (early or state.isBossRound == true) then return ("night %s round %s is not early and not a boss round"):format(tostring(state.night), tostring(state.round)) end
+	if not early then return ("night %s round %s is not Night 1 round 1"):format(tostring(state.night), tostring(state.round)) end
 	return nil
 end
 

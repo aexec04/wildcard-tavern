@@ -35184,9 +35184,9 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local base = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0 }
 	expectTrue(PP.enabledFor(base), "night 1 round 1")
-	expectTrue(PP.enabledFor({ phase = "playing", night = 1, round = 2 }), "night 1 round 2")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 2 }), "night 1 round 2 no longer shows it")
 	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 3 }), "round 3 is not early")
-	expectTrue(PP.enabledFor({ phase = "playing", night = 4, round = 3, isBossRound = true }), "boss round")
+	expectTrue(not PP.enabledFor({ phase = "playing", night = 4, round = 3, isBossRound = true }), "boss round no longer shows it")
 	expectTrue(not PP.enabledFor({ phase = "playing", night = 2, round = 1 }), "night 2")
 	expectTrue(not PP.enabledFor({ phase = "shop", night = 1, round = 1 }), "not in the shop")
 	expectTrue(not PP.enabledFor(base, { enabled = false }), "hints toggle off")
@@ -35259,10 +35259,21 @@ end })
 table.insert(tests, { name = "Patron Power panel: a boss round shows it even when a guided first hand flag is left on, and a reason is named when hidden", fn = function()
 	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
 	local boss = { phase = "playing", night = 1, round = 3, isBossRound = true, guidedFirstHand = true, handsPlayedTotal = 0 }
-	expectTrue(PP.enabledFor(boss) and PP.reason(boss) == nil, "boss1 jump with the guided flag")
+	expectTrue(not PP.enabledFor(boss) and type(PP.reason(boss)) == "string", "Night 1 round 1 only: boss1 jump never shows it")
 	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 1, guidedFirstHand = true, handsPlayedTotal = 0 }), "the guided first hand still owns round 1")
 	expectTrue(type(PP.reason({ phase = "playing", night = 2, round = 2 })) == "string", "a reason for a late round")
 	expectTrue(PP.reason({ phase = "shop" }):find("shop", 1, true) ~= nil, "phase named")
+end })
+
+table.insert(tests, { name = "Table QA: Patron Power only on Night 1 round 1, its X sits inside the plate, the deck counter says Deck", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	expectEqual(PP.MAX_ROUND, 1, "Night 1 round 1 only")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local fx = read("src/Client/PatronPowerPanelFX.lua")
+	if fx then expectTrue(fx:find("inset = 8, top = 8", 1, true) ~= nil and fx:find("top = -16", 1, true) == nil, "the X is inside the plate corner") end
+	local g = read("src/Client/Gameplay2.lua")
+	if g then expectTrue(g:find('"Deck " .. DeckCountText.spaced', 1, true) ~= nil, "deck counter carries the word Deck") end
 end })
 
 table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()

@@ -64,7 +64,7 @@ local function build(layer)
 	tap.ZIndex = 31
 	tap.Parent = plate
 	pcall(function() -- a small X on the corner: shuts the panel for the rest of the run, the Hints setting stays as it is
-		require(script.Parent.CloseX).attach(plate, function() closed = true; M.hide() end, { inset = -10, top = -16, z = 40 })
+		require(script.Parent.CloseX).attach(plate, function() closed = true; M.hide() end, { inset = 8, top = 8, z = 40 })
 	end)
 end
 

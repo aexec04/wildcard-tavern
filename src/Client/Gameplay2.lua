@@ -940,7 +940,7 @@ function M.install(deps)
 		for _, suit in pairs(lastState.deckCounts or {}) do
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
 		end
-		setText(deckPill, DeckCountText.spaced(remaining, lastState.deckView))
+		setText(deckPill, "Deck " .. DeckCountText.spaced(remaining, lastState.deckView))
 		apply()
 		self.prev = { phase = "playing", targetScore = lastState.targetScore, roundScore = lastState.roundScore, tips = lastState.tips,
 			round = lastState.round, night = lastState.night, nightCap = lastState.nightCap, endless = lastState.endless, bossModifier = lastState.bossModifier }
