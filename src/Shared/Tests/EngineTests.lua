@@ -17610,7 +17610,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout),
 			})
 		end }
@@ -19447,7 +19447,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 		} })
 		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
 		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
-			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), AbilityText = require(Engine.AbilityText), Gameplay2Synergy = require(Engine.Gameplay2Synergy), Packs = require(Engine.Packs) })
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), PatronCardSpec = require(Engine.PatronCardSpec), AbilityText = require(Engine.AbilityText), Gameplay2Synergy = require(Engine.Gameplay2Synergy), Packs = require(Engine.Packs) })
 		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 		local tweens = {}
 		st.services.TweenService.Create = function(_, inst, _, goal)
@@ -23042,7 +23042,7 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local env, state = FakeGui.env({})
-	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ PackRoom = require(E.PackRoom), ChoiceRarity = require(E.ChoiceRarity) }) end } end }
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ PackRoom = require(E.PackRoom), ChoiceRarity = require(E.ChoiceRarity), PatronCardSpec = require(E.PatronCardSpec) }) end } end }
 	local PackMakeRoom = FakeGui.load("src/Client/PackMakeRoom.lua", env)
 	local Patrons = require(E.Patrons)
 	local host = FakeGui.new("Frame")
@@ -23704,7 +23704,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout),
 			})
 		end }
@@ -35801,6 +35801,40 @@ table.insert(tests, { name = "About: Settings About lines show name, version and
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('makeHeader("About")', 1, true) ~= nil, "Settings builds the About section")
+	end
+end })
+
+table.insert(tests, { name = "PatronCardSpec: Draft, Counter and seats share one name range, rarity word and size, every Patron has one unique name and a rarity", fn = function()
+	local Spec = require(script.Parent.Parent.Engine.PatronCardSpec)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local NameFit = require(script.Parent.Parent.Engine.PatronNameFit)
+	local ChoiceRarity = require(script.Parent.Parent.Engine.ChoiceRarity)
+	expectEqual(16, Spec.NAME.max)
+	expectEqual(14, Spec.NAME.min)
+	expectEqual(NameFit.MAX_SIZE, Spec.NAME.max) -- My Patrons seats start at the same size
+	expectTrue(Spec.RARITY_SIZE >= 14 and Spec.PRICE_SIZE >= 14, "readable sizes")
+	local seen = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		expectEqual(p.name, Spec.nameOf(p.id))
+		expectFalse(seen[p.name], "one name each: " .. p.name)
+		seen[p.name] = true
+		local word = Spec.rarityWord(p.id)
+		expectTrue(word ~= nil, p.id .. " has a rarity word")
+		expectEqual(ChoiceRarity.info("patrons", p.id).word, word)
+	end
+	expectEqual(nil, Spec.nameOf("no_such_patron"))
+	expectEqual("4", Spec.priceText(4))
+	expectEqual("1,200", Spec.priceText(1200.9))
+	expectEqual("0", Spec.priceText(nil))
+	if io then
+		for _, file in ipairs({ "src/Client/ChoicePanel.lua", "src/Client/ShopCards.lua" }) do
+			local f = io.open(file, "r")
+			if f then
+				local src = f:read("*a"); f:close()
+				expectTrue(src:find("PatronCardSpec.NAME", 1, true) ~= nil, file .. " uses the shared name range")
+				expectTrue(src:find("PatronCardSpec.RARITY_SIZE", 1, true) ~= nil, file .. " uses the shared rarity size")
+			end
+		end
 	end
 end })
 

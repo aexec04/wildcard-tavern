@@ -23,6 +23,7 @@ local SmoothVignette = require(script.Parent.SmoothVignette)
 local SoftGlow = require(script.Parent.SoftGlow)
 local DismissRules = require(Engine:WaitForChild("PopupDismissRules"))
 local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
+local PatronCardSpec = require(Engine:WaitForChild("PatronCardSpec"))
 
 local ChoicePanel = {}
 
@@ -230,11 +231,17 @@ local function buildCard(choice, option, order)
 		underline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		underline.Parent = plate
 		label(plate, {
-			Name = "Name", Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 3), Text = option.name, TextSize = 19,
-			TextColor3 = CREAM, ZIndex = 64, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd,
+			Name = "Name", Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 3), Text = option.name, TextSize = PatronCardSpec.NAME.max,
+			TextColor3 = CREAM, ZIndex = 64, TextWrapped = true, TextScaled = true,
 		})
+		do -- same name range as the Counter ribbon (Engine/PatronCardSpec): shrinks from 16 to 14, never below
+			local nameLabel = plate:FindFirstChild("Name")
+			local fit = Instance.new("UITextSizeConstraint")
+			fit.MinTextSize, fit.MaxTextSize = PatronCardSpec.NAME.min, PatronCardSpec.NAME.max
+			fit.Parent = nameLabel
+		end
 		label(plate, {
-			Name = "Rarity", Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 30), Text = rarity.word, TextSize = 15,
+			Name = "Rarity", Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 30), Text = rarity.word, TextSize = PatronCardSpec.RARITY_SIZE,
 			TextColor3 = c3(rarity.text), ZIndex = 64,
 		})
 	else
