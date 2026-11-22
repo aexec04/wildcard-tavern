@@ -37674,4 +37674,57 @@ table.insert(tests, { name = "WelcomeEase: first runs eased on Nights 1 and 2, n
 	expectEqual(WelcomeEase.cleanSaved(99, 0), 3)
 end })
 
+table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
+	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
+	local ok = { tableActive = true, popupOpen = false, textBox = false }
+	local function ctx(over)
+		local c = {}
+		for k, v in pairs(ok) do c[k] = v end
+		for k, v in pairs(over or {}) do c[k] = v end
+		return c
+	end
+	local names = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" }
+	for i, n in ipairs(names) do
+		local a = Map.action("keyboard", n, ok)
+		assert(a and a.type == "card" and a.pos == i, "number key " .. n)
+	end
+	for key, kind in pairs({ Space = "play", Return = "play", D = "discard", X = "discard", S = "sort", Q = "patron" }) do
+		local a = Map.action("keyboard", key, ok)
+		assert(a and a.type == kind, key .. " -> " .. kind)
+	end
+	assert(Map.action("keyboard", "Nine", ok) == nil and Map.action("keyboard", "Escape", ok) == nil, "Escape stays with PopupDismiss")
+	assert(Map.action("gamepad", "DPadLeft", ok).dir == -1 and Map.action("gamepad", "DPadRight", ok).dir == 1)
+	assert(Map.action("gamepad", "ButtonA", ok).type == "toggle" and Map.action("gamepad", "ButtonX", ok).type == "play")
+	assert(Map.action("gamepad", "ButtonY", ok).type == "discard")
+	assert(Map.action("gamepad", "ButtonB", ok) == nil, "B only goes back while a popup is open")
+	assert(Map.action("gamepad", "ButtonB", ctx({ popupOpen = true })).type == "back")
+	for _, key in ipairs({ "One", "Space", "D", "S", "Q" }) do
+		assert(Map.action("keyboard", key, ctx({ textBox = true })) == nil, key .. " in a text box")
+		assert(Map.action("keyboard", key, ctx({ popupOpen = true })) == nil, key .. " in a popup")
+		assert(Map.action("keyboard", key, ctx({ tableActive = false })) == nil, key .. " off the table")
+	end
+	assert(Map.action("gamepad", "ButtonB", ctx({ popupOpen = true, textBox = true })) == nil)
+	local fired = 0
+	local handlers = {}
+	for _, t in ipairs({ "card", "play", "discard", "sort", "patron", "move", "toggle", "back" }) do handlers[t] = function() fired = fired + 1 end end
+	for _, key in ipairs({ "One", "Eight", "Space", "Return", "D", "X", "S", "Q" }) do
+		assert(not Map.dispatch("keyboard", key, ctx({ popupOpen = true }), handlers))
+	end
+	for _, key in ipairs({ "DPadLeft", "DPadRight", "ButtonA", "ButtonX", "ButtonY" }) do
+		assert(not Map.dispatch("gamepad", key, ctx({ popupOpen = true }), handlers))
+	end
+	assert(fired == 0, "nothing fires while a popup is open")
+	assert(Map.dispatch("keyboard", "Space", ok, handlers) and fired == 1)
+	local gotPos
+	handlers.card = function(pos) gotPos = pos end
+	assert(Map.dispatch("keyboard", "Three", ok, handlers) and gotPos == 3)
+	handlers.play = function() error("boom") end
+	assert(Map.dispatch("keyboard", "Space", ok, handlers) == false, "a failing handler is contained")
+	assert(Map.nextHighlight(nil, 1, 5) == 1 and Map.nextHighlight(nil, -1, 5) == 5)
+	assert(Map.nextHighlight(5, 1, 5) == 5 and Map.nextHighlight(1, -1, 5) == 1 and Map.nextHighlight(2, 1, 5) == 3)
+	assert(Map.nextHighlight(9, 1, 5) == 1 and Map.nextHighlight(1, 1, 0) == nil)
+	local text = table.concat(Map.hintLines(), " ")
+	assert(text:find("Space") and text:find("D%-pad") and not text:find("\226\128\148") and not text:lower():find("balat"))
+end })
+
 return tests

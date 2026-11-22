@@ -322,10 +322,38 @@ return function(deps)
 			end
 		end
 
+		-- ===== Page 3: Keys (lines come from Engine/TableKeyMap so the hint and the key map never drift) =====
+		local keysPage = makePage("KeysPage")
+		do
+			local tile = Instance.new("Frame")
+			tile.Size = UDim2.fromScale(1, 1)
+			tile.BackgroundColor3 = TILE_BG
+			tile.ZIndex = Z
+			tile.Parent = keysPage
+			polishPanel(tile, 10)
+			local hint = Instance.new("TextLabel")
+			hint.Name = "KeysHint"
+			hint.Size = UDim2.new(1, -40, 1, -40)
+			hint.Position = UDim2.fromOffset(20, 20)
+			hint.BackgroundTransparency = 1
+			hint.Font = Enum.Font.Gotham
+			hint.TextSize = 20
+			hint.TextColor3 = Color3.fromRGB(235, 225, 210)
+			hint.TextTransparency = 0
+			hint.TextStrokeTransparency = 1
+			hint.TextWrapped = true
+			hint.TextXAlignment = Enum.TextXAlignment.Left
+			hint.TextYAlignment = Enum.TextYAlignment.Top
+			hint.Text = table.concat(require(ReplicatedStorage.Shared.Engine.TableKeyMap).hintLines(), "\n\n")
+			hint.ZIndex = Z
+			hint.Parent = tile
+		end
+
 		-- ===== Navigation =====
 		local pages = {
 			{ frame = basicsPage, title = "The Basics" },
 			{ frame = rankingsPage, title = "Hand Rankings" },
+			{ frame = keysPage, title = "Keyboard and Gamepad" },
 		}
 		local currentPage = 1
 
