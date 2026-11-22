@@ -31635,7 +31635,7 @@ table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked)
 	expectEqual(P.SHOP_TRACKS[2].name, "Midnight Fiddle", "second shop name")
 	expectEqual(P.SHOP_TRACKS[3].name, "Harvest Jig", "third shop name")
 	for _, r in ipairs(P.shopRows(false)) do
-		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Locked", r.id .. " locked and unplayable without the pack")
+		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Music pack", r.id .. " locked and unplayable without the pack")
 	end
 	for _, r in ipairs(P.shopRows(true)) do
 		expectTrue(r.locked and not r.playable and r.tag == "Coming soon", r.id .. " owned but no real id: Coming soon, still locked")
@@ -35387,6 +35387,25 @@ table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, pa
 	if not io then return end
 	local f = assert(io.open("src/Client/SeasonPanel.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("SeasonTrack.BUTTON_H", 1, true) ~= nil and src:find("Premium only", 1, true) ~= nil and src:find('Text = "Now"', 1, true) ~= nil, "buttons use BUTTON_H, locked premium says so, current tier tagged Now")
+end })
+
+table.insert(tests, { name = "Music and Sound menus: serif 16 px text, 44 px buttons and rows, locked tracks say Music pack, panels fit 800x450", fn = function()
+	local MP = require(script.Parent.Parent.Engine.MusicPicker)
+	expectTrue(MP.ROW_H >= 44, "track rows are 44 px or more")
+	for _, r in ipairs(MP.shopRows(false)) do
+		expectTrue(r.locked and r.tag == "Music pack", r.name .. " tells the player which pack unlocks it")
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = MP.layout(sz[1], sz[2])
+		expectTrue(L.panel.h <= sz[2] and L.panel.w <= sz[1], "Music panel fits at " .. sz[1] .. "x" .. sz[2])
+	end
+	expectTrue(270 <= 450 - 24 and 380 <= 800, "Volume panel (380x270) fits 800x450")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
+	local m, v, h = read("src/Client/MusicPanel.lua"), read("src/Client/VolumePanel.lua"), read("src/Client/VisualHelpers.lua")
+	expectTrue(m:find("l.Font = Enum.Font.Merriweather", 1, true) ~= nil and m:find("addText(row, r.tag, 16,", 1, true) ~= nil, "Music rows use serif 16 px")
+	expectTrue(v:find("muteButton.TextSize = 16", 1, true) ~= nil and v:find("UDim2.new(0, 140, 0, 44)", 1, true) ~= nil, "Volume buttons 16 px and 44 px tall")
+	expectTrue(h:find("trackHolder.InputBegan:Connect(beginDrag)", 1, true) ~= nil, "slider touch target is the whole row")
 end })
 
 table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles, tips art by size, stamp text once per run, bar clear of the reward plate, 360 px Daily panel", fn = function()

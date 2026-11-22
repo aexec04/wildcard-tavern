@@ -133,8 +133,8 @@ return function(deps)
 	local muteButton = Instance.new("TextButton")
 	muteButton.Size = UDim2.new(0, 160, 0, 44)
 	muteButton.LayoutOrder = 3
-	muteButton.Font = Enum.Font.GothamBold
-	muteButton.TextSize = 15
+	muteButton.Font = Enum.Font.Merriweather
+	muteButton.TextSize = 16
 	muteButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
 	muteButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 	muteButton.ZIndex = 21
@@ -169,9 +169,9 @@ return function(deps)
 	end
 
 	local volumeCloseButton = Instance.new("TextButton")
-	volumeCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	volumeCloseButton.Position = UDim2.new(0.5, -70, 1, -52)
-	volumeCloseButton.Font = Enum.Font.GothamBold
+	volumeCloseButton.Size = UDim2.new(0, 140, 0, 44)
+	volumeCloseButton.Position = UDim2.new(0.5, -70, 1, -56)
+	volumeCloseButton.Font = Enum.Font.Merriweather
 	volumeCloseButton.TextSize = 16
 	volumeCloseButton.Text = "Close"
 	volumeCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)

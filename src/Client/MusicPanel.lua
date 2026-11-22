@@ -92,7 +92,7 @@ local function addText(parent, str, size, color, align, w)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.new(w or 1, 0, 1, 0)
-	l.Font = Enum.Font[Style.FONTS.ui]
+	l.Font = Enum.Font.Merriweather
 	l.Text = str
 	l.TextSize = size
 	l.TextColor3 = color
@@ -249,16 +249,16 @@ function M.install(root)
 		noteIcon(row, GOLD)
 		local name = addText(row, t.name, 18, CREAM, Enum.TextXAlignment.Left, 0.55)
 		name.Position = UDim2.fromOffset(38, 0)
-		local lock = addText(row, "Music pack", 14, GOLD, Enum.TextXAlignment.Right, 0.4)
+		local lock = addText(row, "Music pack", 16, GOLD, Enum.TextXAlignment.Right, 0.4)
 		lock.Name = "Lock"
 		lock.AnchorPoint = Vector2.new(1, 0)
 		lock.Position = UDim2.new(1, -12, 0, 0)
 		lock.Visible = t.pack
 		-- the playing track: a green "Playing" tag
-		local tick = addText(row, "Playing", 14, Color3.fromRGB(160, 235, 160), Enum.TextXAlignment.Center)
+		local tick = addText(row, "Playing", 16, Color3.fromRGB(160, 235, 160), Enum.TextXAlignment.Center)
 		tick.Name = "Tick"
 		tick.AnchorPoint = Vector2.new(1, 0.5)
-		tick.Size = UDim2.fromOffset(70, 24)
+		tick.Size = UDim2.fromOffset(84, 24)
 		tick.Position = UDim2.new(1, -10, 0.5, 0)
 		tick.BackgroundTransparency = 0
 		tick.BackgroundColor3 = Color3.fromRGB(32, 78, 40)
@@ -288,7 +288,7 @@ function M.install(root)
 	sTitle.Font = Enum.Font[Style.FONTS.title]
 	sTitle.Size = UDim2.new(1, -24, 0, 28)
 	sTitle.Position = UDim2.fromOffset(12, 12)
-	local sLine = addText(shopPlate, Picker.SHOP_LINE, 14, rgb("creamSoft"), Enum.TextXAlignment.Left)
+	local sLine = addText(shopPlate, Picker.SHOP_LINE, 16, rgb("creamSoft"), Enum.TextXAlignment.Left)
 	sLine.Size = UDim2.new(1, -24, 0, 22)
 	sLine.Position = UDim2.fromOffset(12, 40)
 	local shopRowsHost = Instance.new("Frame")
@@ -310,7 +310,7 @@ function M.install(root)
 		noteIcon(row, Color3.fromRGB(150, 130, 90))
 		local nm = addText(row, r.name, 17, Color3.fromRGB(215, 200, 170), Enum.TextXAlignment.Left, 0.55)
 		nm.Position = UDim2.fromOffset(38, 0)
-		local tag = addText(row, r.tag, 13, Color3.fromRGB(190, 170, 130), Enum.TextXAlignment.Right, 0.35)
+		local tag = addText(row, r.tag, 16, Color3.fromRGB(190, 170, 130), Enum.TextXAlignment.Right, 0.35)
 		tag.Name = "Tag"
 		tag.AnchorPoint = Vector2.new(1, 0)
 		tag.Position = UDim2.new(1, -38, 0, 0)
