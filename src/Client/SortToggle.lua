@@ -116,6 +116,11 @@ function SortToggle.build(parent, onPick)
 			local bg = on and lighter or c3(p.hover)
 			b.BackgroundTransparency = (lit or split) and 0 or 1
 			b.BackgroundColor3 = split and (on and Color3.fromRGB(118, 80, 42) or Color3.fromRGB(78, 50, 26)) or bg -- Gameplay v2: both halves are dark carved wood like Discard, the picked one a lighter wood with the gold glow
+			local velvet = (split or flat) and HudStyle.velvetPlate(HudTheme.setId(), HudTheme.skin().colors) or nil -- Golden Gala: the Play Hand and Discard family
+			if velvet then
+				b.BackgroundColor3 = c3(on and velvet.lit or velvet.fill)
+				b.BackgroundTransparency = 0
+			end
 			if split then bg = b.BackgroundColor3 end
 			local tc = c3(p.text)
 			if lit then
@@ -123,7 +128,7 @@ function SortToggle.build(parent, onPick)
 				tc = lum > 0.5 and Color3.fromRGB(38, 24, 12) or Color3.fromRGB(246, 232, 200)
 			end
 			if split then tc = Color3.fromRGB(246, 232, 200) end -- cream lettering on dark wood, well over 4.5:1
-			b.TextColor3 = tc
+			if velvet then tc = c3(on and velvet.litText or velvet.text) end -- the set's own text colour, 4.5:1 on its fill			b.TextColor3 = tc
 			local pick = b:FindFirstChild("PickLine")
 			if not pick then
 				pick = Instance.new("UIStroke")
