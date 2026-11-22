@@ -40980,6 +40980,28 @@ table.insert(tests, { name = "Run Over and Victory screens: every button, invite
 	end
 end })
 
+table.insert(tests, { name = "DebugGoto: menu, haggle, round1, boss1, map, store, season and collection each take a :<setId> suffix for every set", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(#R.SET_SCREENS, 8, "eight screens are listed")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, screen in ipairs(R.SET_SCREENS) do
+			local t, why = R.parse(screen .. ":" .. set.id)
+			expectTrue(t ~= nil, screen .. ":" .. set.id .. " parses (" .. tostring(why) .. ")")
+			if t then
+				n = n + 1
+				expectEqual(t.setId, set.id, screen .. " carries the set " .. set.id)
+			end
+		end
+	end
+	expectEqual(n, 8 * #CS.Definitions, "every screen and set pair parsed")
+	local season, coll = R.parse("season"), R.parse("collection")
+	expectTrue(season and season.kind == "tome" and season.page == "season" and season.setId == nil, "season alone opens the Season panel")
+	expectTrue(coll and coll.kind == "tome" and coll.page == "collection", "collection alone opens the Collection")
+	expectTrue(R.parse("season:no_such_set") == nil, "an unknown set is still an error")
+end })
+
 table.insert(tests, { name = "Menu hotspots: hover plaque ink 7:1, glow accent 4.5:1 on the plaque, Play hero takes the set plate, on every set, classic unchanged", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
