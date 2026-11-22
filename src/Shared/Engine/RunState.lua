@@ -633,6 +633,7 @@ function RunState.runCounters(state)
 		handsPlayedTotal = state.handsPlayedTotal,
 		discardsUsedTotal = state.discardsUsedTotal,
 		patronsSold = state.patronsSold,
+		boonsPicked = state.boonsPicked or 0,
 		handStatsBefore = handStatsBefore,
 	}
 end

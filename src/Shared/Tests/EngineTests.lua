@@ -28377,6 +28377,9 @@ do
 			while #played < size do
 				take()
 			end
+			for _, card in ipairs(played) do -- a third of the cards wear a mark, so the mark Patrons have something to pay for
+				if rnd(3) == 1 then card.mark = Card.MarkOrder[rnd(#Card.MarkOrder)] end
+			end
 			local held = {}
 			for _ = 1, rnd(8) - 1 do
 				held[#held + 1] = table.remove(deck)
@@ -28395,7 +28398,7 @@ do
 					handsRemaining = handsRemaining, isLastHand = handsRemaining == 0, discardsRemaining = rnd(5) - 1,
 					night = rnd(8), round = rnd(3), tips = rnd(41) - 1,
 					roundsCleared = rnd(24) - 1, bossesCleared = rnd(8) - 1, handsPlayedTotal = rnd(81) - 1,
-					discardsUsedTotal = rnd(61) - 1, patronsSold = rnd(6) - 1, handStatsBefore = stats,
+					discardsUsedTotal = rnd(61) - 1, patronsSold = rnd(6) - 1, boonsPicked = rnd(8) - 1, handStatsBefore = stats,
 					alreadyPlayedThisHandTypeThisRound = rnd(2) == 1,
 				},
 			}
@@ -39782,7 +39785,7 @@ end })
 -- copiers copy, and no pair of Patrons runs away on a sample hand. Probe: tools/_probe_synergy.lua.
 local function synergyWitness(owned, cards, held, ctxExtra)
 	local ctx = { allPlayedCards = cards, heldCards = held, handsRemaining = 0, discardsRemaining = 2, isLastHand = true, night = 3, round = 2,
-		tips = 10, roundsCleared = 4, bossesCleared = 1, handsPlayedTotal = 40, discardsUsedTotal = 6, patronsSold = 1,
+		tips = 10, roundsCleared = 4, bossesCleared = 1, handsPlayedTotal = 40, discardsUsedTotal = 6, patronsSold = 1, boonsPicked = 3,
 		handStatsBefore = { ["Pair"] = 8, ["Two Pair"] = 8, ["Flush"] = 1, ["Straight"] = 1 }, alreadyPlayedThisHandTypeThisRound = true,
 		rng = Scoring.noLuck, handLevels = {} }
 	for k, v in pairs(ctxExtra or {}) do ctx[k] = v end
@@ -39803,6 +39806,7 @@ table.insert(tests, { name = "Patron synergy: no Patron is dead, copiers copy, a
 		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(9, "Clubs"), C(12, "Hearts") }, { C(4, "Clubs") } },
 		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(8, "Clubs"), C(3, "Hearts") }, { C(4, "Clubs") } },
 		{ { C(2, "Hearts"), C(5, "Spades"), C(7, "Diamonds"), C(9, "Clubs"), C(13, "Hearts") }, { C(4, "Clubs") }, { handsRemaining = 3, isLastHand = false, alreadyPlayedThisHandTypeThisRound = false } },
+		{ { Card.new(8, "Hearts", { mark = "gilded" }), Card.new(8, "Spades", { mark = "lucky" }), Card.new(8, "Diamonds", { mark = "lively" }) }, { C(2, "Hearts") } }, -- the mark Patrons
 	}
 	local partner = Patrons.getById("the_bard")
 	local dead = {}
@@ -44018,6 +44022,40 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("card.Activated:Connect(showCaption)", 1, true) ~= nil, "a tap shows the tooltip")
 	expectTrue(src:find("entry.mark and 16 or 18", 1, true) ~= nil, "16 px on a marked card")
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
+end })
+
+-- ===== Mark and boon Legendary Patrons =====
+table.insert(tests, { name = "Legendary mark Patrons: Duke Goldleaf, Clover Queen, Jolly Jester and Boon Keeper pay per marked card or boon, price 8, text of 60 characters or less", fn = function()
+	local function hand(marks)
+		local cards = {}
+		for i, m in ipairs(marks) do cards[i] = Card.new(7 + i, "Hearts", { mark = m or nil }) end
+		return { name = "High Card", scoringCards = cards }
+	end
+	local duke, queen, jester, keeper = Patrons.getById("duke_goldleaf"), Patrons.getById("clover_queen"), Patrons.getById("jolly_jester"), Patrons.getById("boon_keeper")
+	for _, p in ipairs({ duke, queen, jester, keeper }) do
+		expectEqual(p.price, 8, p.id .. " price"); expectEqual(p.rarity, "legendary", p.id .. " rarity")
+		expectTrue(#p.description <= 60 and #p.flavorText > 0, p.id .. " texts")
+		local text = (p.name .. p.description .. p.flavorText):lower()
+		expectTrue(not text:find("balatro") and not text:find("beer") and not text:find("wine"), p.id .. " kid safe")
+	end
+	local h = hand({ "gilded", "gilded", "lucky", "lively", false })
+	expectEqual(duke.effect(h, {}).chips, 80); expectEqual(queen.effect(h, {}).mult, 8)
+	expectTrue(math.abs(jester.effect(h, {}).multMultiplier - 1.3) < 1e-9)
+	expectEqual(duke.effect(hand({ false, "lucky" }), {}), nil, "no Gilded card, no bonus")
+	expectEqual(duke.effect(h, { debuff = "Hearts" }), nil, "a switched off card does not count")
+	expectEqual(keeper.effect(h, { boonsPicked = 4 }).mult, 8); expectEqual(keeper.effect(h, { boonsPicked = 0 }), nil)
+	expectEqual(keeper.effect(h, {}), nil, "no counter, no bonus")
+end })
+
+table.insert(tests, { name = "Boon Keeper: every Night boon picked is counted on the run and reaches the scoring context", fn = function()
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = 2
+	expectEqual(RunState.runCounters(state).boonsPicked, 0)
+	expectTrue((NightBoons.apply(state, NightBoons.Definitions[1].id)))
+	state.night = 3
+	expectTrue((NightBoons.apply(state, NightBoons.Definitions[2].id)))
+	expectEqual(RunState.runCounters(state).boonsPicked, 2)
 end })
 
 return tests

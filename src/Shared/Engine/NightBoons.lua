@@ -114,6 +114,7 @@ function NightBoons.apply(state, id)
 	if not def then return false, "Unknown boon" end
 	if not NightBoons.offeredAt(state.night) then return false, "No boons this Night" end
 	state.nightBoon = { id = def.id, night = state.night }
+	state.boonsPicked = (state.boonsPicked or 0) + 1 -- Boon Keeper counts these
 	if def.tips then state.tips = (state.tips or 0) + def.tips end
 	-- the round that is already dealt (Round Select) gets its hands and discards at once
 	local hands, discards = NightBoons.field(state, "hands"), NightBoons.field(state, "discards")

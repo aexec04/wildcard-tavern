@@ -1190,6 +1190,55 @@ local depthPatrons = {
 		end,
 	},
 }
+-- Legendary Patrons for run depth: card marks (Engine/Marks) and Night boons (Engine/NightBoons). Price 8.
+local function countMarked(handResult, context, markId)
+	local n = 0
+	for _, card in ipairs(handResult.scoringCards or {}) do
+		if card.mark == markId and not Card.isOut(card, context.debuff) then n = n + 1 end
+	end
+	return n
+end
+local markPatrons = {
+	{
+		id = "duke_goldleaf", name = "Duke Goldleaf", icon = "🏅", price = 8, rarity = "legendary",
+		description = "+40 Chips for each scoring Gilded card.",
+		flavorText = "Polishes every coin before supper.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "gilded")
+			return n > 0 and { chips = 40 * n } or nil
+		end,
+	},
+	{
+		id = "clover_queen", name = "Clover Queen", icon = "☘️", price = 8, rarity = "legendary",
+		description = "+8 Mult for each scoring Lucky card.",
+		flavorText = "Every four leaf clover bows to her.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "lucky")
+			return n > 0 and { mult = 8 * n } or nil
+		end,
+	},
+	{
+		id = "jolly_jester", name = "Jolly Jester", icon = "🤹", price = 8, rarity = "legendary",
+		description = "x1.3 Mult for each scoring Lively card.",
+		flavorText = "Juggles the whole deck and never drops one.",
+		effect = function(handResult, context)
+			local n = countMarked(handResult, context, "lively")
+			return n > 0 and { multMultiplier = 1.3 ^ n } or nil
+		end,
+	},
+	{
+		id = "boon_keeper", name = "Boon Keeper", icon = "🎁", price = 8, rarity = "legendary",
+		description = "+2 Mult for each Night boon you have picked.",
+		flavorText = "Keeps every small gift in a tidy jar.",
+		effect = function(_handResult, context)
+			local n = math.floor(tonumber(context.boonsPicked) or 0)
+			return n > 0 and { mult = 2 * n } or nil
+		end,
+	},
+}
+for _, patron in ipairs(markPatrons) do
+	table.insert(depthPatrons, patron)
+end
 for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
 end
@@ -1219,6 +1268,7 @@ local PATRON_TAGS = {
 	ladder_builder = { "straight" }, royal_road = { "straight" }, savings_club = { "economy" }, bargain_hunter = { "economy" },
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
+	duke_goldleaf = { "marks" }, clover_queen = { "marks" }, jolly_jester = { "marks" }, boon_keeper = { "scaling" },
 	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
 	full_palette = { "flush" }, triple_scoop = { "pairs" }, spare_shuffle = { "flat" }, final_bow = { "flat" },
 }
