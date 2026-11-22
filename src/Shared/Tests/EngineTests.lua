@@ -40383,6 +40383,30 @@ table.insert(tests, { name = "CosmeticSets.deckTint: every set but classic wears
 	end
 end })
 
+table.insert(tests, { name = "Counter, My Patrons, Patron popup and Collection parity: all 14 sets resolve plates, keeper, tab plate and popup style, classic unchanged", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CS, TS, Style = require(E.CosmeticSets), require(E.ThemeScenes), require(E.TavernStyle)
+	expectTrue(CS.tabPlateStyleOf("classic_tavern") == nil, "classic keeps its brown plate")
+	expectTrue(TS.shopKeeperIds("classic_tavern") ~= nil, "classic keeper")
+	local n = 0
+	for _, def in ipairs(CS.Definitions) do
+		if def.id ~= "classic_tavern" then
+			n = n + 1
+			local id = def.id
+			expectTrue(Style.SET_PLATES[id] ~= nil, id .. " has plates")
+			expectTrue(Style.tabPlate(true, id) ~= nil and Style.tabPlate(false, id) ~= nil, id .. " tabs wear its plates")
+			local _, _, ownKeeper = TS.shopKeeperIds(id)
+			expectTrue(ownKeeper == true, id .. " has its own keeper")
+			expectTrue(CS.popupStyleOf(id) ~= nil, id .. " popup style")
+			expectTrue(CS.ledgerStyleOf(id) ~= nil, id .. " ledger style")
+			local p = CS.tabPlateStyleOf(id)
+			expectTrue(p ~= nil, id .. " My Patrons plate")
+			expectTrue(CS.contrastRatio(p.edge, p.fill) >= 4.5, id .. " plate edge reads 4.5:1")
+		end
+	end
+	expectEqual(n, 14, "14 non classic sets")
+end })
+
 table.insert(tests, { name = "Preview set switch: every set's pile tint differs from every other set, and the table scene refreshes when the skin lands", fn = function()
 	local E = script.Parent.Parent.Engine
 	local CS = require(E.CosmeticSets)

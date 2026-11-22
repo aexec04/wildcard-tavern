@@ -855,6 +855,14 @@ function CosmeticSets.mapStyleOf(setId)
 	}
 end
 
+-- The dark plate behind the Counter's My Patrons and My Recipes tabs: the set's map bar as fill and its lifted edge as the rim (edge reads 4.5:1
+-- on the fill). nil for classic, which keeps its brown plate and gold rim.
+function CosmeticSets.tabPlateStyleOf(setId)
+	local m = CosmeticSets.mapStyleOf(setId)
+	if not m then return nil end
+	return { fill = m.bar, edge = m.edge }
+end
+
 -- Tavern Ledger: the desk, leather cover, bookmark ribbons and run rows take the set. Ribbons keep cream ink at 4.5:1 (open one lighter), the
 -- two run-row papers keep the soft ledger ink (70,48,28) at 4.5:1. nil for classic so the ledger keeps its leather, red silk and cream paper.
 CosmeticSets.LEDGER_INK = { 70, 48, 28 }
