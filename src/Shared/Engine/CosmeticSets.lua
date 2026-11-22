@@ -598,6 +598,16 @@ function CosmeticSets.accentOf(set)
 	return CosmeticSets.faceStyleOf(set).border
 end
 
+-- The colour of a claim glow or current-tier ring (Season tiles, Daily Rewards today): the set accent, nil for classic or an unknown set so
+-- those keep their gold. A stroke only; text colours never come from here.
+function CosmeticSets.ringColorOf(setId)
+	if not setId or setId == CosmeticSets.DefaultId then return nil end
+	local set = CosmeticSets.getById(setId)
+	local a = set and CosmeticSets.accentOf(set)
+	if type(a) ~= "table" or #a < 3 then return nil end
+	return { a[1], a[2], a[3] }
+end
+
 -- Colours for the draw pile's frame and plate: the equipped back's pile style, nudged toward the equipped
 -- set's accent (a non-default set) so the pile matches the table. Returns { rim, plate, glow }.
 function CosmeticSets.pileStyleOf(set, back)

@@ -85,7 +85,7 @@ local function refresh()
 		tile.Parent = ui.row
 		ui.roundCorner(tile, 10)
 		local s = Instance.new("UIStroke")
-		s.Color = r.today and GOLD or INK
+		s.Color = r.today and require(script.Parent.TavernKit).ringColor(GOLD) or INK -- the equipped Card Set's accent ring for today; classic keeps gold
 		s.Thickness = r.today and 3.5 or 1.5
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = tile

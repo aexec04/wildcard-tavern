@@ -351,6 +351,16 @@ function TavernKit.setPlateTab(host, active)
 	return ok and img ~= nil
 end
 
+-- The equipped Card Set's accent for a claim glow or current-tier ring (a stroke, never text); `fallback` (the screen's gold) for classic.
+function TavernKit.ringColor(fallback)
+	local ok, c = pcall(function()
+		local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+		return CS.ringColorOf(plateSetId())
+	end)
+	if ok and c then return Color3.fromRGB(c[1], c[2], c[3]) end
+	return fallback
+end
+
 local buttonsHooked = false
 local function restyleButtons()
 	local sid = plateSetId()

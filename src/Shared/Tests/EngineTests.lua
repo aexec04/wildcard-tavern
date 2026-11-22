@@ -40150,6 +40150,32 @@ table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear t
 	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
 end })
 
+table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use the set accent, classic keeps gold, text colours untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.ringColorOf(nil), nil, "no set keeps gold")
+	expectEqual(CS.ringColorOf("classic_tavern"), nil, "classic keeps gold")
+	expectEqual(CS.ringColorOf("not_a_set"), nil, "unknown set keeps gold")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local c = CS.ringColorOf(set.id)
+			expectTrue(c ~= nil and #c == 3, set.id .. " has a ring colour")
+			if c then for i = 1, 3 do expectTrue(c[i] >= 0 and c[i] <= 255, set.id .. " ring channel in range") end end
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "every non classic Card Set has a ring colour")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local season, daily = read("src/Client/SeasonPanel.lua"), read("src/Client/DailyRewardsPanel.lua")
+	if not (season and daily) then return end
+	expectTrue(season:find("Kit.ringColor(GOLD)", 1, true) ~= nil and season:find("stroke.Color = ringGold", 1, true) ~= nil, "Season claim glow and Next ring use the set accent")
+	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
+	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
+	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
+	expectTrue(daily:find("TextColor3 = INK, TextWrapped = true", 1, true) ~= nil or daily:find("TextColor3 = INK", 1, true) ~= nil, "Daily text stays dark ink")
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
