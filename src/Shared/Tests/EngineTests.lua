@@ -10753,6 +10753,79 @@ table.insert(tests, { name = "RunEvents: every event has a safe Decline, every o
 	end
 end })
 
+table.insert(tests, { name = "Run variety audit: every Event option, skip Tag and Blessing applies to a fresh run, is reachable, reads in plain words and cannot soft lock", fn = function()
+	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	local function fresh(night, tips)
+		local state = RunState.new(nil, function(n) return 1 end)
+		state.night = night; state.tips = tips
+		return state
+	end
+	local function plain(text, what)
+		expectTrue(type(text) == "string" and #text > 0 and #text <= 90, what .. " has a short line")
+		expectTrue(not text:find("[Bb]alatro") and not text:find("—"), what .. " has no banned word or em dash")
+	end
+	-- Events: reachable on some normal run, every option resolves without error on a fresh run at any wealth
+	for _, event in ipairs(RunEvents.Definitions) do
+		local reachable = false
+		for _, tips in ipairs({ 0, 2, 5, 12 }) do
+			for night = 1, 8 do
+				local s = fresh(night, tips + 3)
+				RunState.buyPatron(s, "the_regular") -- a normal run owns a Patron by the first event
+				if night >= (event.minNight or 1) and event.available(s) then reachable = true end
+			end
+		end
+		expectTrue(reachable, event.id .. " can be offered in a normal run")
+		plain(event.text, event.id .. " text")
+		for _, option in ipairs(event.options) do
+			plain(option.detail, event.id .. "/" .. option.id .. " detail")
+			for _, tips in ipairs({ 0, 1, 3, 20 }) do
+				local s = fresh(3, tips)
+				local ok, message = RunEvents.resolve(s, event.id, option.id, function(n) return 1 end)
+				expectTrue(type(message) == "string" and #message > 0, event.id .. "/" .. option.id .. " always says something")
+				expectTrue(s.tips >= 0 and s.handsRemaining >= 1 and s.discardsRemaining >= 0, event.id .. "/" .. option.id .. " keeps the run valid")
+				-- a card is never a dead end: Decline is still there and always succeeds
+				expectTrue((RunEvents.resolve(fresh(3, tips), event.id, "decline")), event.id .. " can always be declined")
+			end
+			-- a price in the detail is a real price
+			local cost = option.detail:match("Pay (%d+) Tips") or option.detail:match("Lose (%d+) Tips")
+			if cost and option.id ~= "decline" then
+				local s = fresh(3, tonumber(cost))
+				local ok = RunEvents.resolve(s, event.id, option.id, function(n) return 1 end)
+				expectTrue(ok, event.id .. "/" .. option.id .. " works with exactly the Tips it names")
+			end
+		end
+	end
+	-- skip Tags: each resolves on a fresh run, never leaves a negative total, text has no hidden number mismatch
+	for _, tag in ipairs(Tags.Definitions) do
+		plain(tag.description, tag.id .. " description")
+		for _, slots in ipairs({ 0, 5 }) do
+			local s = fresh(1, 0)
+			local result = tag.apply(s, { rng = function(n) return 1 end, patronSlotLimit = slots })
+			expectTrue(type(result) == "table" and result.kind ~= nil, tag.id .. " resolves")
+			expectTrue(s.tips >= 0 and #s.ownedPatrons <= math.max(slots, 0), tag.id .. " respects seats")
+		end
+		local s = fresh(1, 0)
+		local result = tag.apply(s)
+		expectTrue(result.kind ~= nil and #s.ownedPatrons == 0, tag.id .. " without ctx never over fills the table")
+	end
+	local sale = fresh(1, 0)
+	Tags.getById("sale_day").apply(sale)
+	expectEqual(sale.nextShopDiscount, 3, "Sale Day says 3 Tips cheaper")
+	-- Blessings: every one applies to a fresh first round and leaves a playable run
+	for _, def in ipairs(RunModifiers.Definitions) do
+		plain(def.blessing, def.id .. " blessing")
+		plain(def.curse, def.id .. " curse")
+		expectTrue(def.blessing:find("%d") ~= nil, def.id .. " blessing names its number")
+		local s = RunState.new(nil, function(n) return 1 end)
+		local ok, message = RunModifiers.apply(s, def.id)
+		expectTrue(ok and #message > 0, def.id .. " applies")
+		expectTrue(s.handsRemaining >= 1 and s.discardsRemaining >= 0 and s.config.patronSlotLimit >= 1
+			and s.config.tipsPerRoundWin >= 1 and s.tips >= 0, def.id .. " leaves a playable run")
+	end
+end })
+
 table.insert(tests, { name = "Tavern Events: the new trade events offer three choices with a cost, and the Choice plates are 44 px tall", fn = function()
 	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
 	for _, id in ipairs({ "gamblers_table", "wandering_tailor", "cellar_cat" }) do
