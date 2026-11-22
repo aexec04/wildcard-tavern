@@ -38083,4 +38083,38 @@ table.insert(tests, { name = "Phone touch audit: table controls are 44 px, hand 
 	assert(TT.isTap(3, 0.1) and not TT.isTap(40, 0.1), "a drag is not a tap")
 end })
 
+table.insert(tests, { name = "Tutorial and How to play text: one short sentence per step, kid safe, no unseen screens", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local How = require(script.Parent.Parent.Engine.HowToPlayText)
+	local EM = string.char(226, 128, 148)
+	local function sentences(text)
+		local n = 0
+		for _ in text:gmatch("[%.!?]%s+%S") do n = n + 1 end
+		return n + 1
+	end
+	for _, step in ipairs(Steps.Steps) do
+		expectEqual(sentences(step.text), 1, "one sentence: " .. step.id)
+		expectFalse(step.text:lower():find("balatro", 1, true) ~= nil, "banned word " .. step.id)
+		expectFalse(step.text:find(EM, 1, true) ~= nil, "no em dash " .. step.id)
+		if Steps.screenOf(step) == "menu" or Steps.screenOf(step) == "roundSelect" then
+			expectFalse(step.text:find("Counter", 1, true) ~= nil, "unseen screen: " .. step.id)
+		end
+		if step.target then expectTrue(Steps.TargetNames[step.target], "known target " .. step.id) end
+	end
+	local seen = {}
+	for _, tile in ipairs(How.Tiles) do
+		seen[tile.key] = true
+		local words = 0
+		for _ in tile.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= How.MAX_WORDS, "tile too long: " .. tile.key)
+		expectEqual(sentences(tile.text), 1, "tile one sentence: " .. tile.key)
+		expectFalse(tile.text:lower():find("balatro", 1, true) ~= nil, "banned word " .. tile.key)
+		expectFalse((tile.text .. tile.title):find(EM, 1, true) ~= nil, "no em dash " .. tile.key)
+	end
+	expectEqual(#How.Tiles, 6)
+	expectTrue(seen.select_cards and seen.play_hand and seen.discard and seen.target and seen.shop and seen.endless)
+	local nights = require(script.Parent.Parent.Engine.WorldMap).NIGHTS
+	expectTrue(How.Tiles[6].text:find(tostring(nights), 1, true) ~= nil, "Nights count matches WorldMap")
+end })
+
 return tests

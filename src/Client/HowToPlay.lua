@@ -140,14 +140,7 @@ return function(deps)
 
 		-- ===== Page 1: The Basics (3x2 tiles) =====
 		local basicsPage = makePage("BasicsPage")
-		local STEPS = {
-			{ key = "select_cards", icon = "👆", title = "Pick Cards", text = "Tap up to 5 cards in your hand." },
-			{ key = "play_hand", icon = "▶️", title = "Play Hand", text = "Score your best poker hand." },
-			{ key = "discard", icon = "🔄", title = "Discard", text = "Swap cards you do not want. It costs no hand." },
-			{ key = "target", icon = "🎯", title = "Hit the Target", text = "Reach the target score before your hands run out." },
-			{ key = "shop", icon = "🪙", title = "Shop", text = "Clear a round, then spend Tips at The Counter." },
-			{ key = "endless", icon = "🌙", title = "Keep Going", text = "Beat all 8 Nights, then play on in Endless." },
-		}
+		local STEPS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HowToPlayText")).Tiles
 		local GAP = 12
 		local TILE_W = (PANEL_W - 2 * PAD - 2 * GAP) / 3
 		local TILE_H = (BODY_H - GAP) / 2
