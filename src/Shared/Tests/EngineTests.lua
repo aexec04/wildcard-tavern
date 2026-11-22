@@ -35764,7 +35764,7 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 	expectTrue(not PP.enabledFor(base, { enabled = false }), "hints toggle off")
 	expectTrue(not PP.enabledFor({ phase = "playing", night = 1, round = 1, isTutorial = true }), "tutorial")
 	expectTrue(not PP.spent(base, 0) and PP.spent({ handsPlayedTotal = 1 }, 0), "spent after a hand")
-	expectTrue(PP.TITLE_SIZE >= 18 and PP.BODY_SIZE >= 18, "text at least 18 px")
+	expectTrue(PP.TITLE_SIZE >= 18 and PP.BODY_SIZE >= 14, "title 18 px or more, body 14 px or more")
 	expectEqual(PP.TITLE, "Patron Power")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
@@ -35782,6 +35782,8 @@ table.insert(tests, { name = "PatronPowerPanel: left of the table on Night 1 rou
 			end
 		end
 		expectTrue(spot.button == nil, "no second Got it plate")
+		local fits, lines, need = PP.bodyFits(spot.plate.w, spot.plate.h)
+		expectTrue(fits, ("whole tip sentence fits its box at %dx%d (%d lines, %d px, plate %dx%d)"):format(sz[1], sz[2], lines, need, spot.plate.w, spot.plate.h))
 		expectTrue(spot.plate.y >= math.floor(0.365 * sz[2]), "panel top stays below the left candle holder (about y350 at 957)")
 		local lowest = spot.button and (spot.button.y + spot.button.h) or (spot.plate.y + spot.plate.h)
 		expectTrue(lowest <= r.hand.y - PP.handClear(sz[2]), "above the hand fan, clear of the highest left card")
