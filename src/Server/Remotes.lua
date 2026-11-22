@@ -34,6 +34,7 @@ Rem.StoreOpened = newRemote("StoreOpened") -- (player): the Store panel was open
 Rem.HintSeen = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
 Rem.ResetHints = newRemote("ResetHints") -- (player): Settings > Replay Hints
 Rem.ClaimSeason = newRemote("ClaimSeason") -- (player, tier number or "all"): Tavern Season track rewards
+Rem.RedeemCode = newRemote("RedeemCode") -- (player, text): Codes box, validated and rate limited on the server (Engine/Codes.lua)
 Rem.ClaimLiveEvent = newRemote("ClaimLiveEvent") -- (player, eventId): claims the rewards of a running event once
 Rem.StorePurchase = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
 Rem.Choice = newRemote("Choice") -- (player, optionId): answers the open draft or event card

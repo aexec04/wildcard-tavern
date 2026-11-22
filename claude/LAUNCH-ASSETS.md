@@ -45,7 +45,19 @@ Answers are likely, based on the game as it stands. Re-check each against the li
 | User generated content | None | |
 | Online multiplayer | Solo | Seed codes are shared as text the player copies |
 | Real-money purchases | Yes, fixed-price Game Passes | Cosmetic or convenience only, no pay to win |
-| Free-form text input | None | |
+| Free-form text input | Code box only | Typed text is compared on the server and never shown to other players |
 | Location or personal data | None | |
 
 Expected outcome: a minimal or mild rating suitable for all ages. The one point to word carefully is the card theme: say it is a poker-hand puzzle with virtual score and no real-money or prize gambling.
+
+## Redeem codes (paste into the game description or social posts)
+
+Players type these in Settings, in the Codes box. Each works once per player. Source of truth: `src/Shared/Engine/Codes.lua`.
+
+| Code | Reward |
+|---|---|
+| LAUNCH | 30 Tips for the next run and the Meadow Checks card back |
+| KNAVE | The Gate Banner card back |
+| FAVORITE | 20 Tips for the next run |
+
+Suggested line: "Codes in Settings: LAUNCH, KNAVE, FAVORITE"

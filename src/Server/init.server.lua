@@ -3078,6 +3078,32 @@ Rem.ClaimLiveEvent.OnServerEvent:Connect(function(player, eventId)
 	pushState(player)
 end)
 
+-- CODES: the Codes box. The typed text is only compared here, never shown to other players. One try per second per player.
+do
+	local Codes = require(Engine.Codes)
+	local codeTries = {} -- [player] = { lastTry }
+	Rem.RedeemCode.OnServerEvent:Connect(function(player, text)
+		if not RateLimit.allow(player.UserId, "Rem.RedeemCode", os.clock()) then return end
+		local profile = profiles[player]
+		if not profile or type(text) ~= "string" then
+			return
+		end
+		codeTries[player] = codeTries[player] or {}
+		local ok, status, message = Codes.redeem(profile, text, os.time(), codeTries[player])
+		if ok then
+			profileDirty[player] = true
+			local def = Codes.getById(Codes.normalize(text))
+			message = message .. " " .. Codes.rewardText(def, function(id)
+				local back = require(Engine.CardBacks).getById(id)
+				return back and back.name or id
+			end)
+		end
+		pushRewardNotice(player, { text = message })
+		pushState(player)
+	end)
+	Players.PlayerRemoving:Connect(function(player) codeTries[player] = nil end)
+end
+
 -- RULE BAN (Engine/BossCounters.lua, RunState.useRuleBan): the server validates the phase (Round Select only), the token,
 -- that the boss round has not begun and that this run may use tokens at all (normal runs only). The round is dealt again
 -- without the rule; the client only asks.

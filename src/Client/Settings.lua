@@ -421,6 +421,77 @@ return function(deps)
 	end
 
 
+	-- Codes box: the typed text only goes to the server (Engine/Codes.lua), which answers with a toast
+	do
+		local row = Instance.new("Frame")
+		row.Name = "CodesRow"
+		row.Size = UDim2.new(1, 0, 0, 76)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 22)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextColor3 = TEXT
+		title.Text = "Codes"
+		title.ZIndex = 21
+		title.Parent = row
+		local box = Instance.new("TextBox")
+		box.Name = "CodeBox"
+		box.Size = UDim2.new(1, -130, 0, 44)
+		box.Position = UDim2.new(0, 0, 0, 26)
+		box.Font = Enum.Font.GothamBold
+		box.TextSize = 16
+		box.TextColor3 = TEXT
+		box.PlaceholderText = "Type a code"
+		box.PlaceholderColor3 = SUBTLE
+		box.Text = ""
+		box.ClearTextOnFocus = false
+		box.BackgroundColor3 = BUTTON
+		box.ZIndex = 21
+		box.Parent = row
+		polishButton(box, 8)
+		local redeem = Instance.new("TextButton")
+		redeem.Name = "Redeem"
+		redeem.Size = UDim2.new(0, 120, 0, 44)
+		redeem.AnchorPoint = Vector2.new(1, 0)
+		redeem.Position = UDim2.new(1, -4, 0, 26)
+		redeem.Font = Enum.Font.GothamBold
+		redeem.TextSize = 15
+		redeem.TextColor3 = TEXT
+		redeem.BackgroundColor3 = BUTTON
+		redeem.Text = "Redeem"
+		redeem.ZIndex = 21
+		redeem.Parent = row
+		polishButton(redeem, 8)
+		addButtonHoverScale(redeem)
+		local function send()
+			local text = box.Text
+			if #text < 3 then
+				return
+			end
+			playClickSfx()
+			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+			local remote = remotes and remotes:FindFirstChild("RedeemCode")
+			if remote then
+				remote:FireServer(text)
+			end
+			box.Text = ""
+			redeem.Text = "Sent"
+			task.delay(1.2, function()
+				if redeem.Parent then redeem.Text = "Redeem" end
+			end)
+		end
+		redeem.MouseButton1Click:Connect(send)
+		box.FocusLost:Connect(function(enterPressed)
+			if enterPressed then send() end
+		end)
+	end
+
 	-- ===== Display =====
 	makeHeader("Display")
 	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward owners get extra speed.", {

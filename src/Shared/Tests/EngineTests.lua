@@ -11350,6 +11350,61 @@ table.insert(tests, { name = "Launch safety audit: every remote handler is rate 
 	assert(receipt and receipt:find("pcall(saveProfile", 1, true) and receipt:find("NotProcessedYet", 1, true), "store receipts save before acknowledging")
 end })
 
+table.insert(tests, { name = "Codes: valid, repeat, invalid, expired, rate limit, save and reload", fn = function()
+	local Codes = require(script.Parent.Parent.Engine.Codes)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	assert(#Codes.validate(function(id) return CardBacks.getById(id) ~= nil end) == 0, "code table is valid")
+	local profile = PlayerProfile.new()
+	-- valid, any case and spaces
+	local ok, status, message = Codes.redeem(profile, "  favorite ", 1000, nil)
+	assert(ok and status == "redeemed" and message == "Redeemed!")
+	assert(profile.pendingStartTips == 20 and profile.redeemedCodes.FAVORITE)
+	-- repeat grants nothing more
+	ok, status, message = Codes.redeem(profile, "FAVORITE", 2000, nil)
+	assert(not ok and status == "used" and message == "Already used." and profile.pendingStartTips == 20)
+	-- invalid: unknown, empty, symbols, wrong types, very long
+	for _, bad in ipairs({ "NOPE", "", "LAUN CH", "LAUNCH!", 5, false, string.rep("A", 500) }) do
+		ok, status, message = Codes.redeem(profile, bad, 3000, nil)
+		assert(not ok and status == "invalid" and message == "Not a valid code.")
+	end
+	-- Tips stay under the shared bank cap and a card back unlocks
+	ok = Codes.redeem(profile, "LAUNCH", 4000, nil)
+	assert(ok and profile.pendingStartTips <= TavernRank.MAX_PENDING_TIPS)
+	assert(profile.unlockedCardBackIds.kitchen_checks == true)
+	-- expired: a code with a past date, the last day still works
+	local old = { id = "OLDCODE", expires = "2020-01-01", rewards = { { kind = "tips", amount = 5 } } }
+	assert(Codes.isExpired(old, math.floor(1577836800 / 86400) + 1), "the day after is expired") -- 1577836800 = 2020-01-01 UTC
+	assert(not Codes.isExpired(old, math.floor(1577836800 / 86400)), "the last day still works")
+	-- rate limit: one try per second per player state
+	local state = {}
+	Codes.redeem(profile, "KNAVE", 5000, state)
+	ok, status = Codes.redeem(profile, "KNAVE", 5000.4, state)
+	assert(not ok and status == "slow")
+	ok, status = Codes.redeem(profile, "KNAVE", 5001.5, state)
+	assert(not ok and status == "used")
+	-- save and reload keeps the redeemed list, and a reload cannot redeem again
+	local reloaded = PlayerProfile.migrate(profile)
+	assert(reloaded.redeemedCodes.FAVORITE and reloaded.redeemedCodes.LAUNCH and reloaded.redeemedCodes.KNAVE)
+	local before = reloaded.pendingStartTips
+	ok, status = Codes.redeem(reloaded, "LAUNCH", 9000, nil)
+	assert(not ok and status == "used" and reloaded.pendingStartTips == before)
+	-- junk in the saved field is dropped
+	local cleaned = Codes.cleanSaved({ LAUNCH = true, GONE = true, KNAVE = "yes", [5] = true })
+	assert(cleaned.LAUNCH and not cleaned.GONE and not cleaned.KNAVE)
+	-- the server handler is rate limited, type checked and only touches the profile
+	if io then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			local body = src:match("Rem%.RedeemCode%.OnServerEvent:Connect%(function%([^\n]*%)\n([^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n)")
+			assert(body and body:find("RateLimit.allow", 1, true) and body:find('type(text) ~= "string"', 1, true))
+		end
+	end
+end })
+
 table.insert(tests, { name = "SaveLock load and save: a failing, timing out, locked or corrupt DataStore never overwrites good data and a bad field falls back", fn = function()
 	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
 	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
