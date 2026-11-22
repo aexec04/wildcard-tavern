@@ -44,6 +44,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
+local PatronCardSpec = require(Engine:WaitForChild("PatronCardSpec"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local AbilityText = require(Engine:WaitForChild("AbilityText"))
 local Packs = require(Engine:WaitForChild("Packs"))
@@ -386,7 +387,7 @@ function ShopCards.new(deps)
 					Size = UDim2.fromOffset(wordW, 22), BackgroundColor3 = Color3.fromRGB(info.plate[1], info.plate[2], info.plate[3]), BackgroundTransparency = 0.05 })
 				corner(pill, 11)
 				stroke(pill, tier, 1.5, 0)
-				label(pill, { Name = "Word", Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -16, 1, 0), Text = info.word, TextColor3 = tier, TextSize = 15, TextStrokeTransparency = 1 })
+				label(pill, { Name = "Word", Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -16, 1, 0), Text = info.word, TextColor3 = tier, TextSize = PatronCardSpec.RARITY_SIZE, TextStrokeTransparency = 1 })
 				pcall(function() require(script.Parent.RarityShape).set(pill, info.rarity, 12, 5) end) -- shape beside the word: never colour alone
 			end
 		end
@@ -450,10 +451,10 @@ function ShopCards.new(deps)
 		stroke(banner, GOLD, 1.5, 0)
 		-- shrinks (16 down to 14) so a long name like "Wholesale Pricing" wraps at the space, never mid-word
 		local nameLabel = label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.ribbon or spec.name or "",
-			TextColor3 = CREAM, TextWrapped = true, TextSize = 16, TextScaled = true, TextStrokeTransparency = 1 })
+			TextColor3 = CREAM, TextWrapped = true, TextSize = PatronCardSpec.NAME.max, TextScaled = true, TextStrokeTransparency = 1 })
 		if nameLabel then
 			local fit = Instance.new("UITextSizeConstraint")
-			fit.MinTextSize, fit.MaxTextSize = 14, 16
+			fit.MinTextSize, fit.MaxTextSize = PatronCardSpec.NAME.min, PatronCardSpec.NAME.max
 			fit.Parent = nameLabel
 		end
 
