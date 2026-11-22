@@ -701,6 +701,28 @@ function CosmeticSets.contrastRatio(a, b)
 	return (la + 0.05) / (lb + 0.05)
 end
 
+-- The Menu wordmark in a Card Set's accent: { top, bottom, image } (rgb tables), the wordmark gold pulled 35 percent toward the accent and
+-- lightened until BOTH gradient stops keep 7:1 against the wordmark outline. `image` is the multiply tint for the painted wordmark (white
+-- pulled 30 percent toward the accent, never darker than the gold stops). nil for classic or an unknown set, so classic is untouched.
+CosmeticSets.WORDMARK_GOLD = { top = { 236, 205, 134 }, bottom = { 184, 146, 80 }, outline = { 46, 30, 14 } }
+CosmeticSets.WORDMARK_MIN_CONTRAST = 7
+function CosmeticSets.wordmarkTint(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local g = CosmeticSets.WORDMARK_GOLD
+	local function lit(gold)
+		local c = mix(gold, ring, 0.35)
+		local guard = 0
+		while CosmeticSets.contrastRatio(c, g.outline) < CosmeticSets.WORDMARK_MIN_CONTRAST and guard < 40 do
+			c = mix(c, { 255, 255, 255 }, 0.1)
+			guard = guard + 1
+		end
+		return c
+	end
+	local image = mix({ 255, 255, 255 }, ring, 0.30)
+	return { top = lit(g.top), bottom = lit(g.bottom), image = image }
+end
+
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
 function CosmeticSets.minContrastOf(set)
 	return set and set.minIndexContrast or CosmeticSets.MIN_INDEX_CONTRAST

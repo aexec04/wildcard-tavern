@@ -40176,6 +40176,38 @@ table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use
 	expectTrue(daily:find("TextColor3 = INK, TextWrapped = true", 1, true) ~= nil or daily:find("TextColor3 = INK", 1, true) ~= nil, "Daily text stays dark ink")
 end })
 
+table.insert(tests, { name = "Menu wordmark takes the Card Set accent, 7:1 against its outline on every set, classic untouched, no layout change", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.wordmarkTint("classic_tavern"), nil, "classic keeps the gold wordmark")
+	expectEqual(CS.wordmarkTint(nil), nil, "no set keeps the gold wordmark")
+	local g, n, distinct = CS.WORDMARK_GOLD, 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local t = CS.wordmarkTint(set.id)
+			expectTrue(t ~= nil, set.id .. " has a wordmark tint")
+			if t then
+				n = n + 1
+				expectTrue(CS.contrastRatio(t.top, g.outline) >= 7, set.id .. " top stop keeps 7:1")
+				expectTrue(CS.contrastRatio(t.bottom, g.outline) >= 7, set.id .. " bottom stop keeps 7:1")
+				expectTrue(t.image[1] >= 150 and t.image[2] >= 150 and t.image[3] >= 150, set.id .. " picture tint stays light")
+				distinct[table.concat(t.top, ",") .. "|" .. table.concat(t.bottom, ",")] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set tints the wordmark")
+	local count = 0
+	for _ in pairs(distinct) do count = count + 1 end
+	expectTrue(count >= 8, "the sets read differently on the wordmark (" .. count .. " distinct)")
+	expectTrue(CS.contrastRatio(g.top, g.outline) >= 7, "classic gold top stop keeps 7:1 (its bottom stop is about 5.5:1 and stays untouched)")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local wm = read("src/Client/Wordmark.lua")
+	if not wm then return end
+	expectTrue(wm:find("CS.wordmarkTint(Kit.plateSetId())", 1, true) ~= nil, "the wordmark asks the pure tint rule")
+	expectTrue(wm:find("gradient.Color = ColorSequence.new", 1, true) ~= nil and wm:find("gradient.Transparency", 1, true) == nil, "only gradient Color stops change, never Transparency")
+	expectTrue(wm:find("applyTint", 1, true) ~= nil and wm:find("Hud.onSkin", 1, true) ~= nil, "equipping a set re-tints at once")
+end })
+
 table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
