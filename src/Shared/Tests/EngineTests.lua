@@ -8237,6 +8237,23 @@ table.insert(tests, { name = "PlayTableLayout: the oval wood-only front has rect
 	end
 end })
 
+table.insert(tests, { name = "TooltipSpec look: painted serif at 16 px or more, cream on brown with readable contrast, client uses the spec", fn = function()
+	local spec = require(script.Parent.Parent.Engine.TooltipSpec).Spec
+	expectEqual(spec.fontName, "Merriweather"); expectTrue(spec.textSize >= 16)
+	local function lum(c)
+		local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+	end
+	local a, b = lum(spec.textColor), lum(spec.backColor)
+	expectTrue((math.max(a, b) + 0.05) / (math.min(a, b) + 0.05) >= 7, "tooltip text contrast")
+	if not io then return end
+	local f = io.open("src/Client/Tooltip.lua", "r")
+	if f then
+		local src = f:read("a"); f:close()
+		expectTrue(src:find("Enum.Font[Spec.fontName]", 1, true) ~= nil and src:find("Enum.Font.Gotham", 1, true) == nil, "Tooltip.lua uses the spec font")
+	end
+end })
+
 table.insert(tests, { name = "TooltipSpec: one border, padding clears the text, placement stays on screen", fn = function()
 	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
 	local spec = TooltipSpec.Spec
