@@ -2480,6 +2480,53 @@ table.insert(tests, { name = "PlayerProfile.migrate(nil): a brand-new player get
 	expectFalse(any)
 end })
 
+table.insert(tests, { name = "Save safety: a default profile survives migrate with every field kept, and settings never lose a key", fn = function()
+	local function same(a, b, path)
+		if type(a) ~= type(b) then return false, path end
+		if type(a) ~= "table" then return a == b, path end
+		for k, v in pairs(a) do
+			local ok, where = same(v, b[k], path .. "." .. tostring(k))
+			if not ok then return false, where end
+		end
+		for k in pairs(b) do
+			if a[k] == nil then return false, path .. "." .. tostring(k) end
+		end
+		return true
+	end
+	local fresh = PlayerProfile.new()
+	local ok, where = same(fresh, PlayerProfile.migrate(fresh), "profile")
+	expectTrue(ok, "migrate(new()) changed " .. tostring(where) .. ": a new field is not handled by migrate")
+	for key, spec in pairs(PlayerProfile.SETTING_SPECS) do
+		expectTrue(fresh.settings[key] == spec.default, key .. " defaults")
+	end
+end })
+
+table.insert(tests, { name = "Save safety: an old save with no settings, no version and unknown fields loads with defaults and keeps real progress", fn = function()
+	local old = PlayerProfile.migrate({
+		stats = { runsStarted = 4, runsWon = 1, bestNightReached = 3 },
+		discoveredPatronIds = { tip_jar = true },
+		futureField = { anything = true },
+	})
+	expectEqual(old.version, PlayerProfile.SCHEMA_VERSION, "version is stamped")
+	expectEqual(old.stats.runsStarted, 4, "progress kept")
+	expectTrue(old.discoveredPatronIds.tip_jar, "discoveries kept")
+	expectEqual(old.futureField, nil, "unknown fields are dropped")
+	expectEqual(old.settings.performanceMode, false, "performanceMode default")
+	expectEqual(old.settings.largerText, false, "largerText default")
+	expectEqual(old.quests, nil, "no quests until rolled")
+	local partial = PlayerProfile.migrate({ settings = { performanceMode = true, largerText = "yes", holdConfirmSeconds = 99, musicVolume = 0.2 } })
+	expectEqual(partial.settings.performanceMode, true, "valid saved flag kept")
+	expectEqual(partial.settings.largerText, false, "bad type falls back to default")
+	expectEqual(partial.settings.holdConfirmSeconds, 3, "range clamped")
+	expectEqual(partial.settings.musicVolume, 0.2, "other settings kept")
+	for _, junk in ipairs({ "text", 5, true, {} }) do
+		local p = PlayerProfile.migrate(junk)
+		expectEqual(p.settings.performanceMode, false, "junk save gives defaults")
+	end
+	local twice = PlayerProfile.migrate(PlayerProfile.migrate(partial))
+	expectEqual(twice.settings.performanceMode, true, "migrate is idempotent")
+end })
+
 table.insert(tests, { name = "PlayerProfile.migrate: a valid saved profile round-trips unchanged", fn = function()
 	local profile = PlayerProfile.new()
 	PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" })
