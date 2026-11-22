@@ -24913,10 +24913,29 @@ table.insert(tests, { name = "LoadProgress: monotonic, clamped 0 to 1, reaches 1
 	expectTrue(LP.MIN_VISIBLE >= 1.2 and LP.SKIP_AFTER == 25, "timings from the brief")
 end })
 
-table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, short enough for one 15 px line, the shuffle uses each once; the launch screen is wired and uses no tiny text", fn = function()
+table.insert(tests, { name = "LoadingTips: 20 unique tips of 60 characters or less, plain text with no dashes, the shuffle uses each once and never repeats back to back across cycles; the launch screen is wired and uses no tiny text", fn = function()
 	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
 	local LP = require(script.Parent.Parent.Engine.LoadProgress)
-	expectEqual(#Tips.TIPS, 12, "twelve tips")
+	expectEqual(#Tips.TIPS, 20, "twenty tips")
+	expectEqual(Tips.MAX_LENGTH, 60)
+	local uniq = {}
+	for _, tip in ipairs(Tips.TIPS) do expectFalse(uniq[tip], "unique tip: " .. tip); uniq[tip] = true end
+	for seed = 1, 60 do -- the screen walks one shuffle round and round: three laps never show the same tip twice in a row
+		local order, prev = Tips.order(seed), nil
+		for step = 1, #order * 3 do
+			local idx = order[((step - 1) % #order) + 1]
+			expectTrue(idx ~= prev, "seed " .. seed .. " repeats a tip at step " .. step)
+			prev = idx
+		end
+	end
+	local teaches = { bond = false, level = false, daily = false }
+	for _, tip in ipairs(Tips.TIPS) do
+		local l = tip:lower()
+		if l:find("bond", 1, true) then teaches.bond = true end
+		if l:find("level", 1, true) then teaches.level = true end
+		if l:find("twist", 1, true) then teaches.daily = true end
+	end
+	expectTrue(teaches.bond and teaches.level and teaches.daily, "tips teach Bonds, hand levels and the Daily twist")
 	for i, tip in ipairs(Tips.TIPS) do
 		expectFalse(tip:find("-", 1, true) ~= nil or tip:find("\226\128\148", 1, true) ~= nil or tip:find("\226\128\147", 1, true) ~= nil, "tip " .. i .. " has no dash")
 		expectTrue(#tip <= Tips.MAX_LENGTH, "tip " .. i .. " fits one line")
@@ -24929,7 +24948,7 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 	for _, idx in ipairs(order) do seen[idx] = true end
 	local n = 0
 	for _ in pairs(seen) do n = n + 1 end
-	expectTrue(#order == 12 and n == 12, "every tip exactly once")
+	expectTrue(#order == 20 and n == 20, "every tip exactly once")
 	local DG = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(DG.parse("loading").percent, 60, "loading freezes at 60")
 	expectEqual(DG.parse("loading:25").percent, 25, "loading:<n>")
