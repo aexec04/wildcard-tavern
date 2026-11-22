@@ -349,8 +349,9 @@ function ShopBackdrop.new(deps)
 		end
 		-- no table on phones: their cards wrap in rows on the counter; in the painted room the table is part of the picture
 		local room = r.room == true and roomImg ~= nil
-		tableTop.Visible = t ~= nil and not room
-		for _, piece in pairs(tablePieces) do piece.Visible = t ~= nil and not room end
+		local showTable = self.setRoom ~= true and t ~= nil and not room -- ThemeScenes.shopTableShown: a set's own painted room never shows the green table
+		tableTop.Visible = showTable
+		for _, piece in pairs(tablePieces) do piece.Visible = showTable end
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end

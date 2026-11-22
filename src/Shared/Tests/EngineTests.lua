@@ -37724,7 +37724,14 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 		local lit = TS.shopRoomTint(true, full)
 		expectEqual(TS.shopRoomTint(false, full)[1], 240, "classic and other rooms keep the full tint")
 		expectTrue(lit[1] > 240 and lit[3] > 215 and lit[1] <= 255, "the palace room tint moves toward white")
-		expectTrue((255 - lit[3]) <= (255 - 215) * 0.61, "the gold wash is about 40 percent lighter on the palace room")
+		expectTrue((255 - lit[3]) <= (255 - 215) * 0.31, "the gold wash is about 70 percent lighter on the palace room")
+		expectTrue(TS.shopTableShown(true, true, false) == false and TS.shopTableShown(true, true, true) == false, "golden_gala hides the green round table")
+		expectTrue(TS.shopTableShown(false, true, false) == true and TS.shopTableShown(false, true, true) == false and TS.shopTableShown(false, false, false) == false, "classic table rule unchanged")
+		local sbSrc = io and io.open("src/Client/ShopBackdrop.lua", "r")
+		if sbSrc then
+			local t = sbSrc:read("a"); sbSrc:close()
+			expectTrue(t:find("self.setRoom ~= true and t ~= nil and not room", 1, true) ~= nil, "ShopBackdrop hides the drawn table on a set's own room")
+		end
 		local tsSrc = io and io.open("src/Client/TavernScreens.lua", "r")
 		if tsSrc then
 			local t = tsSrc:read("a"); tsSrc:close()

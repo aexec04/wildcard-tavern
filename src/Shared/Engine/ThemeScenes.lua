@@ -120,13 +120,20 @@ function ThemeScenes.shopKeeperIds(setId)
 	return ContentArt.getImageId("shop_scene", "shop_marlo_behind"), ContentArt.getImageId("shop_scene", "shop_marlo_wave"), false
 end
 
--- Share of the Card Set room tint kept on a set's own painted Counter room: 0.6 means the gold wash is 40 percent lighter.
-ThemeScenes.OWN_ROOM_TINT_KEEP = 0.6
--- tint is {r,g,b} 0..255 (PlayRoomArt.tint); an own room moves each channel 40 percent of the way back to white, others are unchanged.
+-- Share of the Card Set room tint kept on a set's own painted Counter room: 0.3 means the gold wash is 70 percent lighter.
+ThemeScenes.OWN_ROOM_TINT_KEEP = 0.3
+-- tint is {r,g,b} 0..255 (PlayRoomArt.tint); an own room moves each channel 70 percent of the way back to white, others are unchanged.
 function ThemeScenes.shopRoomTint(own, tint)
 	if own ~= true then return tint end
 	local k = ThemeScenes.OWN_ROOM_TINT_KEEP
 	return { math.floor(255 + (tint[1] - 255) * k + 0.5), math.floor(255 + (tint[2] - 255) * k + 0.5), math.floor(255 + (tint[3] - 255) * k + 0.5) }
+end
+
+-- Whether the drawn green round card table is shown on the Counter: never on a set's own painted room (golden_gala), where the marble
+-- floor and shelves read; the classic room and every other set keep the existing rule (hidden only inside the painted classic room).
+function ThemeScenes.shopTableShown(own, hasTable, inPaintedRoom)
+	if own == true then return false end
+	return hasTable == true and inPaintedRoom ~= true
 end
 
 -- Which set a backdrop (menu, shop, map) shows: a Studio/Card Sets preview wins over the equipped skin, never saved.
