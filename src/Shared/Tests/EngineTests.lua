@@ -31087,6 +31087,23 @@ table.insert(tests, { name = "Shop buy UX: Buy plate says Need N when Tips are s
 	assert(src:find("ShopBuyUX", 1, true) and src:find("reduceShake", 1, true), "ShopCards uses the shake and checks Calm mode")
 end })
 
+table.insert(tests, { name = "Counter shop: Reroll is grey with a reason when Tips are short, wood brown when affordable, and a Patron sell confirm names the refund", fn = function()
+	local M = require(script.Parent.Parent.Engine.ShopBuyUX)
+	local short = M.rerollView(3, 1)
+	assert(not short.affordable and short.text == "Reroll 3, 2 short" and short.reason == "Need 2 more Tips to reroll.")
+	assert(short.fill[1] < 118, "grey, not the wood brown")
+	local ok = M.rerollView(3, 3)
+	assert(ok.affordable and ok.reason == nil and ok.text == "Reroll 3" and ok.fill[1] == 118)
+	assert(M.rerollView(3).affordable, "unknown Tips never greys the button")
+	local copy = require(script.Parent.Parent.Engine.ConfirmCopy).sell("The Regular", 3)
+	assert(copy.message:find("3 tips back", 1, true) and copy.yesText == "Sell it" and copy.noText == "Keep it")
+	assert(require(script.Parent.Parent.Engine.PatronSeats).sellLabel(3) == "Sell +3")
+	assert(not short.reason:lower():find("random", 1, true) and not short.reason:lower():find("luck", 1, true), "no gambling wording")
+	if not io then return end
+	local f = assert(io.open("src/Client/Shop.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("rerollView", 1, true), "the Counter draws the Reroll button from rerollView")
+end })
+
 table.insert(tests, { name = "Gameplay v2 Night cleared and Run complete: only a cleared Boss Round, Run complete on the last Night, plates inside the screen with a 48 px Continue", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local boss = { phase = "playing", targetScore = 100, roundScore = 120, tips = 5, round = 3, night = 2, nightCap = 8, bossModifier = { id = "bouncer" } }
