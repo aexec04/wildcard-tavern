@@ -70,3 +70,14 @@ Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with 
    DONE (audit, nothing new to build): built in the Gameplay v2 performance, accessibility and sound pass recorded in STATUS (Engine/Gameplay2Perf and its tests).
    DONE (21 to 23): Engine/Gameplay2Perf with the limit and a loop lint, the guide pulse on FxLoop, AuditV2 prints the live GuiObject count, boss entrance and tooltip cues wired, tests. The live counts need a Studio run.
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
+
+- Sim: Patron synergy pairs, report the top 10 and bottom 10 pairs by clear rate, nudge outliers. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: sim --pair-rates, 14,000 builds, every pair within 8.2 points of the average, no nudge (ECONOMY.md, bc8275c).
+- Test: Endless mode never produces a NaN or negative target at Night 100. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: test Endless Night 100, targetForRound through bosses, stakes and rules (git log: Test: Endless targetForRound).
+- Test: Daily Run seed gives the same cards for every player on a date. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: test over dates and Tips; found and fixed a real desync (the low Tips offer swap) on fixed boards (571f3ef).
+- Audit: every user visible string is 12 years old reading level and kid safe, list any long word. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: tools/long_words.lua, two Recipe lines reworded, test caps words at 13 letters (cfedfc6).
+- Audit: remote call rate limits, no remote can be spammed more than 20 per second without a cooldown. No spend. Concrete values, a test, one commit, STATUS line.
+   DONE: test, sustained 15 a second with a 30 burst, every handler checks its own bucket first (rate limit commit).

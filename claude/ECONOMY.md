@@ -294,6 +294,16 @@ Baseline sim (`lua tools/run_sim.lua --runs 600 --jobs 4 --bot decent`): win 43.
 - Reroll cost: 5, 7, 9, 11 ... (base 5, +2 per reroll in a visit). The first reroll costs more than a round win pays (4), so it is a choice, and the bot uses 0.15 a run. Frequent Visitor and Bargain Hunter lower it but `RunState.rerollCost` floors it at 1 Tip, so it is never free. No change.
 - Patron sell value: half the list price rounded down. A lasting discount (Regulars' Discount, -2) leaves the buy price at or above the sell value for every Patron (price 4 to 8), so buying and selling in a loop only loses Tips. Only the one shot Sale Day Tag or a haggle can pay back a Tip or two once, and the test `Patron sell value` pins both facts. No change.
 
+## Boss rule fairness, Nights 7 to 12
+
+`lua tools/run_sim.lua --boss-late --runs 1000 --jobs 6 --bot greedy` (about 40 minutes). The greedy bot is the middle skill (random: median Night 3, decent: median Night 7 with 43 percent wins). Each boss is forced on every boss round from Night 7 up in full Endless runs with random Patron buys; a cell counts only runs that reached that boss. Cells past Night 10 hold under 30 runs and say little, so the band is read on the Night 7 to 12 total (n 215 to 551 per boss).
+
+Clear rate over Nights 7 to 12, greedy bot, lowest to highest: bare_bones 39, everythings_out 40, big_tab 40, crowded_counter 39, stale_bread 42, lights_out 43, house_rules 44, thin_chips 44, flat_mult 44, quick_service 44, empty_handed 45, no_repeats 46, rushed_order 46, thin_soup 48, slow_simmer 48, house_minimum 50, double_tab 51, picked_over 52, sleepy_cook 53, short_staffed 53, bouncer 54, hearts_are_out 56, spades_are_out 56, no_vips 56, diamonds_are_out 57, clubs_are_out 57, steep_tab 57, the_tab 58, empty_pockets 58, pair_patrol 58, last_chance 58, short_notice 59, four_top 59, cold_start 61, penny_wise 61, picky_eater 57, rowdy_crowd 62, slow_night 62, quiet_corner 55, heavy_hands 64, wild_crowd 66, full_table 68, one_at_a_time 85.
+
+- Nothing is under 15 percent (the lowest is 39) and one rule sat at the top of the band: One at a Time, 85 percent overall and 87 to 100 percent on Nights 8 to 12 (play one card, target 65 percent lower). Its own number was eased one step: target multiplier 0.35 to 0.40 (60 percent lower, description updated). After: 80 percent overall (79, 82, 79, 86, 79, 78 by Night).
+- The other 42 rules are between 39 and 68 percent for the middle bot, so none needed a change. The bottom group (Bare Bones, Everything's Out, Big Tab, Crowded Counter, Stale Bread) is the Night 6 tier 3 group tuned in the boss rules section above.
+- Not run: the random bot (it reaches Night 7 in 4 percent of runs, too few for a cell) and the decent bot (its Night 7 and later runs were checked in the Endless table; a per boss decent sweep would take another 40 minutes). Pinned by the updated `One at a Time` target test.
+
 ## Patron pairs: best and worst by round clear rate
 
 `lua tools/run_sim.lua --pair-rates --runs 14000 --jobs 4 --min-builds 15` (random 4 Patron builds from Night 4, round clear rate of every pair in the build; 85 Patrons give 3,570 pairs, 3,479 had 15 or more builds, so each cell is 15 to 28 builds and noisy). Average round clear 92.4 percent.

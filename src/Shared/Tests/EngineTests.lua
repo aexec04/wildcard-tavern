@@ -4304,7 +4304,7 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 	expectEqual(bossTarget("lights_out", 6).targetScore, math.floor(base * 0.5))
 	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
-	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
+	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.4))
 	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 1.9))
 	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
@@ -4315,7 +4315,7 @@ table.insert(tests, { name = "Balance: boss descriptions state their tuned numbe
 	local expected = {
 		stale_bread = "25%", bare_bones = "28%", everythings_out = "30%",
 		thin_chips = "40%", flat_mult = "40%", big_tab = "nearly double",
-		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
+		lights_out = "halved", quick_service = "25%", one_at_a_time = "60%",
 		last_chance = "1 discard", empty_handed = "1 discard",
 	}
 	for id, text in pairs(expected) do
