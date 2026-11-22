@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 
 local Preview = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TwistPreview"))
 local OverlayManager = require(script.Parent.OverlayManager)
+local Cue = require(script.Parent.Cue)
 
 local TEXT = Color3.fromRGB(250, 240, 220)
 local GOLD = Color3.fromRGB(255, 214, 130)
@@ -103,8 +104,9 @@ local function build()
 	end)
 
 	local function close() backdrop.Visible = false end
-	ok.MouseButton1Click:Connect(close)
-	backdrop.MouseButton1Click:Connect(close)
+	-- one click sound per tap: the tap handlers play it, close() itself is silent (Escape and Overlay closes stay quiet)
+	ok.MouseButton1Click:Connect(function() Cue.play("button_click"); close() end)
+	backdrop.MouseButton1Click:Connect(function() Cue.play("button_click"); close() end)
 	OverlayManager.register("twist-popup", close)
 	pcall(function()
 		require(script.Parent.PopupDismiss).attach(backdrop, { policy = "cancel", close = close, panel = panel, outside = false, button = true })
@@ -122,6 +124,7 @@ function M.ask(dateKey)
 	built.line.Text = v.line
 	built.hint.Text = v.nextLine
 	built.ok.Text = v.close
+	if not built.backdrop.Visible then Cue.play("button_click") end -- opening taps once, a repeat tap while open stays quiet
 	built.backdrop.Visible = true
 end
 

@@ -14337,6 +14337,46 @@ table.insert(tests, { name = "Music pack and VIP rows: what you get, a price or 
 	end
 end })
 
+table.insert(tests, { name = "UI sound wiring pass 2: every new popup, plate and button plays one existing cue, none silent, none double fire, the cue exists and obeys the volume cap", fn = function()
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	local cue = SoundIds.button_click
+	if not cue then
+		for _, v in pairs(SoundIds) do
+			if type(v) == "table" and type(v.button_click) == "table" then cue = v.button_click end
+		end
+	end
+	expectTrue(cue ~= nil and cue.volume ~= nil and cue.volume <= 0.4, "button_click exists and stays at or under the 0.4 SFX cap")
+	if not (io and io.open) then return end
+	local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+	local function count(src, needle)
+		local n, at = 0, 1
+		while true do
+			local a, b = src:find(needle, at, true)
+			if not a then break end
+			n = n + 1; at = b + 1
+		end
+		return n
+	end
+	-- screen, file, the number of cue calls that must exist (one per tap handler, one on open), the call text
+	local wiring = {
+		{ screen = "Daily twist popup (Got it, outside tap, open)", file = "src/Client/TwistPopup.lua", cues = 3, needle = 'Cue.play("button_click")' },
+		{ screen = "Replay confirm", file = "src/Client/ReplayConfirm.lua", cues = 3, needle = "deps.playClickSfx()" },
+		{ screen = "Music pack Get button and track rows", file = "src/Client/MusicPanel.lua", cues = 2, needle = 'play("button_click")' },
+	}
+	for _, w in ipairs(wiring) do
+		local src = read(w.file)
+		expectEqual(count(src, w.needle), w.cues, w.screen .. " has exactly " .. w.cues .. " cue calls (no silent tap, no double fire)")
+	end
+	local tw = read("src/Client/TwistPopup.lua")
+	expectTrue(tw:find("TweenService", 1, true) == nil, "the twist popup adds no tween")
+	local closeBody = tw:match("local function close%(%)(.-)\n") or ""
+	expectTrue(closeBody:find("Cue", 1, true) == nil, "the twist popup close function is silent")
+	expectTrue(tw:find("if not built.backdrop.Visible then Cue.play", 1, true) ~= nil, "a second ask while open stays quiet")
+	expectTrue(read("src/Client/MapSelectPanel.lua"):find('rule = label(panel, "BossRule"', 1, true) ~= nil, "the boss rule line is a plain label, no sound owed")
+	local sidebar = read("src/Client/Sidebar.lua")
+	expectTrue(sidebar:find("TwistPopup", 1, true) ~= nil and count(sidebar, 'Cue.play("button_click")') == 0, "the twist plate tap sound comes from the popup, not played twice")
+end })
+
 table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
 	local TP = require(script.Parent.Parent.Engine.TwistPreview)
 	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
