@@ -557,6 +557,24 @@ return function(deps)
 		end)
 	end)
 
+	-- Exactly one Tavern Map plate: a stray duplicate (an older merged copy named TavernMap) is removed, and Studio prints each Account rect.
+	for _, d in ipairs(scroll:GetDescendants()) do
+		if d:IsA("TextButton") and d ~= settingsMapButton and (d.Name == "TavernMap" or d.Text == "Tavern Map") then
+			d:Destroy()
+		end
+	end
+	if game:GetService("RunService"):IsStudio() then
+		task.defer(function()
+			task.wait(1)
+			for _, b in ipairs(scroll:GetDescendants()) do
+				if b:IsA("TextButton") and b:GetAttribute("AccountButton") then
+					local rel = b.AbsolutePosition - scroll.AbsolutePosition
+					warn(string.format("[SettingsAccount] %s x=%d y=%d w=%d h=%d (scroll %dx%d)", b.Text, rel.X, rel.Y, b.AbsoluteSize.X, b.AbsoluteSize.Y, scroll.AbsoluteSize.X, scroll.AbsoluteSize.Y))
+				end
+			end
+		end)
+	end
+
 	for _, button in ipairs({ settingsHowToPlayButton, settingsLeaderboardButton }) do
 		button.MouseButton1Click:Connect(function()
 			playClickSfx()

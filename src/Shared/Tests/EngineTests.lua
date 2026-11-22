@@ -35382,6 +35382,28 @@ table.insert(tests, { name = "Settings panel: sits between y 110 and 850 at 957,
 	expectTrue(A.plateH >= 44, "Account plates are 44 px or taller")
 end })
 
+table.insert(tests, { name = "Settings Account: five plates from the live layout function sit inside the panel at four sizes, 44 px or more, none overlapping", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 800, 450 } }) do
+		local rr = SL.panelRects(sz[1], sz[2])
+		local rects = SL.accountRects(rr.scroll.w)
+		expectEqual(#rects, 5, "five Account rects")
+		for i, r in ipairs(rects) do
+			local tag = i .. " at " .. sz[1] .. "x" .. sz[2]
+			expectTrue(r.x >= 0 and r.x + r.w <= rr.scroll.w, "plate inside the scroll width " .. tag)
+			expectTrue(r.y >= 0 and r.h >= 44 and r.w >= 44, "plate 44 px or more " .. tag)
+			expectTrue(rr.panel.x + rr.scroll.x + r.x + r.w <= sz[1], "plate on screen " .. tag)
+			for j = i + 1, #rects do
+				local o = rects[j]
+				expectTrue(r.x + r.w <= o.x or o.x + o.w <= r.x or r.y + r.h <= o.y or o.y + o.h <= r.y, "plates " .. i .. " and " .. j .. " do not overlap at " .. sz[1] .. "x" .. sz[2])
+			end
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("[SettingsAccount]", 1, true) ~= nil and src:find('d.Name == "TavernMap"', 1, true) ~= nil, "Studio rect warn and the duplicate Tavern Map sweep exist")
+end })
+
 table.insert(tests, { name = "Season track: 44 px claim buttons, whole tiles, panel fits 800x450 to 1920x1080, current tier and locked premium marked", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	expectEqual(ST.BUTTON_H, 44)
