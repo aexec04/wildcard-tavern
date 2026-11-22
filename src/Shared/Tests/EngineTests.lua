@@ -38657,6 +38657,27 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Scoring hot path: 10000 hands with 5 Patrons score in under 3 seconds (about 0.3 s today), so a slow change is caught", fn = function()
+	if not os.clock then return end
+	local Deck = require(script.Parent.Parent.Engine.Deck)
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Sc = require(script.Parent.Parent.Engine.Scoring)
+	local Pat = require(script.Parent.Parent.Engine.Patrons)
+	local rng = SeededRng.new(5)
+	local owned = {}
+	for i = 1, 5 do owned[i] = Pat.Definitions[i * 7] end
+	local deck = Deck.newStandardDeck()
+	local t0 = os.clock()
+	for _ = 1, 10000 do
+		deck = Deck.shuffle(deck, rng)
+		local hand = { deck[1], deck[2], deck[3], deck[4], deck[5] }
+		local score = Sc.calculate(HE.evaluate(hand), owned, { handLevels = {}, rng = rng })
+		expectTrue(score == score and score > 0, "scores are real numbers")
+	end
+	local took = os.clock() - t0
+	expectTrue(took < 3, "10000 hands took " .. took .. " s (budget 3 s; tools/scoring_perf.lua times it)")
+end })
+
 table.insert(tests, { name = "File size watch: no big file grows more than 10 percent past its budget, and no new file starts above 1100 lines", fn = function()
 	if not (io and io.open and io.popen) then return end
 	-- budgets are the line counts of 2026-11-22; a file may grow 10 percent before this fails (split it or raise the budget on purpose)
