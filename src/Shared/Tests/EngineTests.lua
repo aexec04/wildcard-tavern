@@ -15888,6 +15888,25 @@ table.insert(tests, { name = "Tavern Map sources and registries contain no emoji
 	end
 end })
 
+table.insert(tests, { name = "PopupLayers: boss and HUD layers hide while any popup is open, none above an open popup", fn = function()
+	local L = require(script.Parent.Parent.Engine.PopupLayers)
+	local layers = {
+		{ name = "BossCard", z = 28 }, { name = "BossSeatCard", z = 28 }, { name = "BossScoutBanner", z = 58 },
+		{ name = "BossHoverTooltip", z = 60 }, { name = "TargetBox", z = 9 }, { name = "TipsPill", z = 9 },
+		{ name = "GearMenu", z = 40 }, { name = "SortToggle", z = 30 }, { name = "Hand", z = 5 },
+	}
+	local names = {}
+	for _, l in ipairs(layers) do names[#names + 1] = l.name end
+	local hidden = L.hiddenFor(1, names)
+	expectEqual(#hidden, 8, "every boss, HUD, gear and sort layer is hidden, the hand stays")
+	expectEqual(#L.hiddenFor(0, names), 0, "nothing hidden with no popup")
+	-- Deck tracker backdrop sits at ZIndex 20 and its panel at 21: with a popup open no table layer may draw above it
+	expectEqual(#L.violations(layers, 21, 1), 0, "no boss layer is above the open popup")
+	expectTrue(#L.violations(layers, 21, 0) > 0, "without the helper the boss card would sit above the popup")
+	expectTrue(L.SCROLL_BOTTOM_PAD >= 16, "the last Deck tracker row has bottom padding")
+	expectTrue(not L.shouldHide("Hand") and not L.shouldHide(nil), "other layers are left alone")
+end })
+
 table.insert(tests, { name = "PopupRules: newCueGate, makesSound and shouldShield are top-level functions that can be called", fn = function()
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectEqual(type(R.newCueGate), "function", "newCueGate is exported")
@@ -41870,14 +41889,14 @@ table.insert(tests, { name = "Repeated runs: 200 runs in one process each start 
 	local before = defSizes()
 	local firstTips
 	oneRun(0)
-	collectgarbage() collectgarbage()
+	pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
 	local base = collectgarbage("count")
 	for i = 1, 200 do
 		local t = oneRun(i)
 		firstTips = firstTips or t
 		expectEqual(t, firstTips, "run " .. i .. " starts with the same Tips as run 1")
 	end
-	collectgarbage() collectgarbage()
+	pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
 	local grown = collectgarbage("count") - base
 	expectTrue(grown < 4096, "200 runs left " .. math.floor(grown) .. " KB behind")
 	local after = defSizes()
@@ -45719,6 +45738,30 @@ table.insert(tests, { name = "Share line variety: win, loss, daily and endless e
 	expectTrue(#require(script.Parent.Parent.Engine.EndlessScreen).shareLine(14, 16) <= 80)
 	-- a seeded run still carries its code
 	expectTrue(SR.line({ night = 6 }, "ABC234"):find("ABC234", 1, true) ~= nil)
+end })
+
+
+table.insert(tests, { name = "SkipPlate: the plate names the Tag and one kind line (40 characters or less), only a rare Tag asks, 44 px, ink 7:1", fn = function()
+	local P = require(script.Parent.Parent.Engine.SkipPlate)
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local L = require(script.Parent.Parent.Engine.RoundSelectLayout)
+	expectTrue(P.text(nil) == "Skip", "no Tag yet: a plain Skip")
+	for _, tag in ipairs(Tags.Definitions) do
+		expectTrue(type(tag.short) == "string" and #tag.short > 0 and #tag.short <= P.MAX_LINE, tag.id .. " has a short line of 40 characters or less")
+		expectTrue(not tag.short:find("[\128-\255]") and not tag.short:find("[<>&]"), tag.id .. " short line is plain ASCII")
+		local text = P.text(tag)
+		expectTrue(text:find("Skip for " .. tag.name, 1, true) and text:find(tag.short, 1, true), tag.id .. " plate says the Tag and its line")
+		expectTrue(P.needsConfirm(tag) == false, tag.id .. " is common: one tap")
+	end
+	expectTrue(P.needsConfirm({ id = "x_rare", name = "Rare Tag", short = "Something big.", rare = true }), "a rare Tag asks first")
+	expectTrue(P.confirmCopy({ id = "x_rare", name = "Rare Tag", short = "Something big." }).message:find("Skip for Rare Tag?", 1, true), "the dialog names the Tag")
+	expectTrue(P.text({ id = "x", name = "A<B", short = "x & y" }):find("A&lt;B", 1, true), "markup in a name is escaped")
+	expectTrue(P.HEIGHT >= 44 and L.SKIP_H == P.HEIGHT, "the plate is 44 px and the layout agrees")
+	expectTrue(CS.contrastRatio(P.INK, P.FILL) >= P.MIN_CONTRAST, "ink on the Skip plate keeps 7:1")
+	if not io then return end
+	local f = assert(io.open("src/Client/RoundSelect.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("SkipPlate.text(state.currentRoundSkipTag)", 1, true) and c:find("SkipPlate.needsConfirm", 1, true), "the client draws the plate text and the rare confirm")
 end })
 
 return tests
