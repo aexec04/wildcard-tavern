@@ -93,3 +93,15 @@ A good run (one that clears Night 8) should end between Night 10 and 14. Only 94
 | 1.5 (now) | 10 | 57.4% | 48.1% | 61.5% | 62.5% | 50.0% | 40.0% | 50.0% |
 
 Nights 9 and up multiply Night 8's base score by 1.5 per Night (RunState ENDLESS_NIGHT_GROWTH); Nights 1 to 8 are unchanged. 1.6 left the median at 9, 1.4 also gave 10, so 1.5 is the gentlest step in band. Pinned by a test. The median over all runs stays Night 7 because most runs end before Night 8.
+
+## First run pacing, Nights 1 to 3 (`lua tools/run_sim.lua --pacing --runs 200 --jobs 4 --bot decent`)
+Welcome ease on (Nights 1 and 2 targets x0.85), 200 seeds, a bot that always plays its best legal hand.
+
+| Night | Hands per round | Discards per round | Night clear |
+|---|---|---|---|
+| 1 | 1.47 | 0.07 | 100.0% |
+| 2 | 1.41 | 0.08 | 100.0% |
+| 3 | 1.50 | 0.11 | 100.0% |
+
+The `builder` bot gives the same numbers. A bot that plays random cards (`--bot random`, a floor, not a player) clears 27 / 16 / 9 percent with 3.3 / 2.6 / 2.6 hands per round.
+Night 1 is over the 90 percent goal. Night 3 is at 100 percent, above the 60 to 85 percent band, but WelcomeEase only touches Nights 1 and 2 and can only make targets easier, so no WelcomeEase number was changed. The best-play bot is stronger than a new player, and Night 3 was already raised 20 percent. If real first runs show Night 3 as too easy, that is a Night 3 target step (NIGHT_TUNE), a design call for the user.

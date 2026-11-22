@@ -544,6 +544,8 @@ local function randomPlay(state, rng)
 end
 
 local function playRound(state, cfg, rng, rec)
+	local use = { hands = 0, discards = 0 }
+	state.simUse = use
 	for _ = 1, MAX_ACTIONS_PER_ROUND do
 		if state.roundOver then
 			return
@@ -551,6 +553,7 @@ local function playRound(state, cfg, rng, rec)
 		local result
 		if cfg.bot == "random" then
 			result = E.RunState.playHand(state, randomPlay(state, rng))
+			use.hands = use.hands + 1
 		else
 			local bestScore, combo = Sim.bestPlay(state)
 			local pace = (state.targetScore - state.roundScore) / state.handsRemaining
@@ -564,8 +567,10 @@ local function playRound(state, cfg, rng, rec)
 			end
 			if #toss > 0 then
 				result = E.RunState.discard(state, toss)
+				use.discards = use.discards + 1
 			else
 				result = E.RunState.playHand(state, combo.played)
+				use.hands = use.hands + 1
 				rec.handsPlayed[result.handName] = (rec.handsPlayed[result.handName] or 0) + 1
 			end
 		end
@@ -1075,6 +1080,7 @@ function Sim.runOne(cfg, seed)
 		nightOneBonusDiscards = cfg.nightOneDiscards,
 		stakeId = cfg.stake,
 		mode = cfg.mode,
+		welcomeEase = cfg.welcome == true,
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec
@@ -1112,6 +1118,8 @@ function Sim.runOne(cfg, seed)
 			round = round,
 			boss = isBoss,
 			cleared = not state.runOver,
+			hands = state.simUse and state.simUse.hands or 0,
+			discards = state.simUse and state.simUse.discards or 0,
 			pct = state.roundScore / math.max(1, state.targetScore),
 		})
 

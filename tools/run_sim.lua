@@ -67,7 +67,7 @@ local function parseArgs(argv)
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -132,6 +132,7 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.stake then table.insert(parts, "--stake"); table.insert(parts, run.stake) end
 	if run.mode then table.insert(parts, "--mode"); table.insert(parts, run.mode) end
 	if run.endless then table.insert(parts, "--endless") end
+	if run.welcome then table.insert(parts, "--welcome") end
 	if run.lateStart then
 		table.insert(parts, "--late-start"); table.insert(parts, run.lateStart)
 		table.insert(parts, "--late-count"); table.insert(parts, run.lateCount)
@@ -305,6 +306,33 @@ elseif cfg.endless and cfg.maxNight >= 15 then
 		cells[#cells + 1] = string.format("%5.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
 	end
 	print(string.format("%-9s %s", "clear", table.concat(cells, " ")))
+elseif cfg.pacing then
+	-- First run pacing: eased new profile, Nights 1 to 3, hands and discards used per round and clear rate per Night
+	cfg.welcome = true
+	local records = collect(runConfig({ maxNight = 3 }))
+	local stats = {}
+	for night = 1, 3 do
+		stats[night] = { rounds = 0, hands = 0, discards = 0, cleared = 0, entered = 0 }
+	end
+	for _, rec in ipairs(records) do
+		for _, r in ipairs(rec.rounds or {}) do
+			local st = stats[r.night]
+			if st then
+				st.rounds, st.hands, st.discards = st.rounds + 1, st.hands + (r.hands or 0), st.discards + (r.discards or 0)
+			end
+		end
+		local last = rec.deathNight or 99
+		for night = 1, 3 do
+			stats[night].entered = stats[night].entered + 1
+			if night < last then stats[night].cleared = stats[night].cleared + 1 end
+		end
+	end
+	print(string.format("First run pacing, bot %s, %d seeds, Welcome ease on. Per Night:", cfg.bot, #records))
+	print(string.format("%-6s %12s %16s %12s", "Night", "hands/round", "discards/round", "Night clear"))
+	for night = 1, 3 do
+		local st = stats[night]
+		print(string.format("%-6d %12.2f %16.2f %11.1f%%", night, st.hands / math.max(1, st.rounds), st.discards / math.max(1, st.rounds), 100 * st.cleared / math.max(1, st.entered)))
+	end
 elseif cfg.late then
 	-- Night 4 to 8 clear rate with 3, 4 and 5 random Patrons (cleared the Night / entered the Night)
 	print(string.format("Late Nights, bot %s, %d seeds per Patron count. Clear rate per Night:", cfg.bot, cfg.runs))
