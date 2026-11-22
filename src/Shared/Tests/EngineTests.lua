@@ -9828,10 +9828,31 @@ table.insert(tests, { name = "MenuTicker: run counts rounded, board line with na
 	end
 end })
 
+table.insert(tests, { name = "CollectionRewards: Flair group counts owned non default options, Tips only", fn = function()
+	local CR = require(script.Parent.Parent.Engine.CollectionRewards)
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local profile = PlayerProfile.new()
+	local p = CR.progress(profile).flair
+	expectTrue(p.total > 0, "flair has options to collect")
+	expectEqual(p.found, 0)
+	for pct, r in pairs(CR.Rewards.flair) do expectEqual(r.kind, "tips", "flair " .. pct .. " pays Tips") end
+	profile.flairOwned = profile.flairOwned or {}
+	for _, slot in ipairs(Flair.Slots) do
+		for _, option in ipairs(Flair.optionsFor(slot.id)) do
+			if not option.default then profile.flairOwned[option.id] = true end
+		end
+	end
+	expectEqual(CR.progress(profile).flair.percent, 100)
+	profile.pendingStartTips = 0
+	local ok, reward = CR.claim(profile, "flair", 50)
+	expectTrue(ok); expectEqual(profile.pendingStartTips, reward.amount)
+	expectFalse((CR.claim(profile, "flair", 50)), "claimed once")
+end })
+
 table.insert(tests, { name = "CollectionRewards: milestone math, claim once, rewards valid, new titles, safe migration", fn = function()
 	local CR = require(script.Parent.Parent.Engine.CollectionRewards)
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
-	expectEqual(#CR.Groups, 6)
+	expectEqual(#CR.Groups, 7)
 	expectEqual(table.concat(CR.Percents, ","), "25,50,75,100")
 	local seenTitles = {}
 	for _, g in ipairs(CR.Groups) do
@@ -9846,12 +9867,12 @@ table.insert(tests, { name = "CollectionRewards: milestone math, claim once, rew
 				expectTrue(not seenTitles[r.id], "one title per group"); seenTitles[r.id] = true
 			end
 		end
-		expectEqual(CR.Rewards[g.id][100].kind, "title")
+		expectEqual(CR.Rewards[g.id][100].kind, g.id == "flair" and "tips" or "title")
 	end
 	-- a new profile: nothing reached, nothing claimable, every ring at 0
 	local profile = PlayerProfile.new()
 	local view = CR.view(profile)
-	expectEqual(#view.groups, 6); expectEqual(view.claimable, 0)
+	expectEqual(#view.groups, 7); expectEqual(view.claimable, 0)
 	for _, row in ipairs(view.groups) do
 		expectEqual(row.percent, 0); expectEqual(#row.milestones, 4); expectTrue(row.total > 0, row.id .. " has entries")
 	end
@@ -36880,6 +36901,14 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 		for _, mode in ipairs({ "run", "pick" }) do
 			local L = Look.layout(w, h, mode)
 			expectTrue(L.button.h >= 44, "next step button is a 44 px touch target at " .. w)
+			if mode == "run" then
+				inside(L.invite, w, h, "invite at " .. w); inside(L.share, w, h, "share line at " .. w)
+				expectTrue(L.invite.h >= 44, "invite is a 44 px target at " .. w)
+				for _, o in ipairs({ L.banner, L.hero, L.chest, L.button, L.rewards, L.summary }) do
+					apart(L.invite, o, "invite and a plate at " .. w); apart(L.share, o, "share line and a plate at " .. w)
+				end
+				apart(L.invite, L.share, "invite and share line at " .. w)
+			end
 			local list = { L.banner, L.subtitle, L.hero, L.chest, L.button }
 			if mode == "run" then list[#list + 1] = L.rewards; list[#list + 1] = L.summary else for _, c in ipairs(L.cards) do list[#list + 1] = c end end
 			for i, r in ipairs(list) do
@@ -36890,6 +36919,9 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 		end
 	end
 	expectEqual(Look.commas(34750), "34,750", "score uses commas")
+	local line = Look.shareLine({ night = 8 }, { name = "Flush", score = 80 })
+	expectTrue(#line <= 200 and line:find("Night 8") and line:find("Flush"), "share line is plain text within the chat limit")
+	expectTrue(not line:find("http") and not line:lower():find("www"), "share line has no links")
 	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
 	expectEqual(#cols, 1, "no unlocks means no unlock column")
 	expectEqual(cols[1].value, "+150", "tips column")
