@@ -38657,6 +38657,53 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Datastore failure handling: retries wait longer each time, a flaky store recovers on the retry, a dead one leaves the saved profile untouched, and the blank fallback can never be saved", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local d = SaveLock.RETRY_DELAYS
+	for i = 2, #d do expectTrue(d[i] > d[i - 1], "load retry delay " .. i .. " is longer than the one before (backoff)") end
+	local total = 0
+	for _, x in ipairs(d) do total = total + x end
+	expectTrue(total <= 10, "a player never waits more than 10 seconds on a failing load")
+	for i = 2, #SaveLock.SAVE_RETRY_DELAYS do expectTrue(SaveLock.SAVE_RETRY_DELAYS[i] > SaveLock.SAVE_RETRY_DELAYS[i - 1]) end
+	-- a store that throws twice, then works
+	local saved = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local calls = 0
+	local flaky = { UpdateAsync = function(_, _, fn)
+		calls = calls + 1
+		if calls <= 2 then error("DataStore request was added to queue") end
+		local out = fn(saved)
+		if out then saved = out end
+	end }
+	local waits = {}
+	local status, stored = SaveLock.load(flaky, "k", "A", function() return 1000 end, d, function(s) waits[#waits + 1] = s end)
+	expectEqual(status, "ok")
+	expectEqual(stored.pendingStartTips, 12, "the real profile came back after the retries")
+	expectEqual(#waits, 2)
+	expectTrue(waits[1] == d[1] and waits[2] == d[2], "waited the backoff schedule in order")
+	-- a dead store: every attempt throws; whatever is stored stays exactly as it was
+	local keep = { stats = { bestNightReached = 7 }, pendingStartTips = 12 }
+	local dead = { UpdateAsync = function() error("503") end }
+	local s2 = SaveLock.load(dead, "k", "A", function() return 1000 end, d, function() end)
+	expectEqual(s2, "error")
+	expectEqual(SaveLock.save(dead, "k", PlayerProfile.new(), "A", function() return 1000 end, false, SaveLock.SAVE_RETRY_DELAYS, function() end), "error")
+	expectEqual(keep.pendingStartTips, 12)
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	-- the server marks a failed load as unsaveable, and a throw during load does too
+	local _, blocks = src:gsub("saveBlocked%[player%] = true", "")
+	expectTrue(blocks >= 2, "both load failure paths block saving: " .. blocks)
+	expectTrue(src:find("or saveBlocked[player] or", 1, true) ~= nil, "saveProfile returns early for a blocked player")
+	-- the notice is calm and kid safe
+	local notice = src:match('text = "(Your progress can\'t be saved right now[^"]*)"')
+	expectTrue(notice ~= nil and #notice <= 60, "a short notice is shown")
+	local lower = (notice or ""):lower()
+	for _, bad in ipairs({ "error", "fail", "datastore", "oops", "balatro" }) do expectFalse(lower:find(bad, 1, true), "notice avoids " .. bad) end
+	expectTrue(lower:find("you can still play", 1, true) ~= nil, "it tells the player they can keep playing")
+end })
+
 table.insert(tests, { name = "Hand level and reroll cost curves: every level Recipe costs 3 (one is affordable at the first Counter), rerolls climb 5, 7, 9 and stay above 0 under every discount", fn = function()
 	local Recipes = require(script.Parent.Parent.Engine.Recipes)
 	local Patrons = require(script.Parent.Parent.Engine.Patrons)
