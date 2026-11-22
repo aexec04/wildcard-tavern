@@ -40693,4 +40693,29 @@ table.insert(tests, { name = "Card Sets room tiles: each set's own Counter room,
 	end
 end })
 
+table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups wear the set panel and ink at 7:1 on every set, classic unchanged", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.popupStyleOf("classic_tavern"), nil, "classic keeps its popups")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local p = CS.popupStyleOf(set.id)
+			expectTrue(p ~= nil, set.id .. " has a popup style")
+			if p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " cream ink keeps 7:1 on the dark panel")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	if not io then return end
+	for _, name in ipairs({ "DeckTracker", "PokerHandsReference", "SeedRunDialog" }) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the popup skin")
+		end
+	end
+end })
+
 return tests
