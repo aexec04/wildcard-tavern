@@ -91,8 +91,9 @@ local BOSS_BLIND_MULTIPLIER_MIN = 2
 local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 
 -- Modest lift for Nights 2 and 3: the sim's strong bot cleared both 100% of the time.
--- Night 1 stays as is (WelcomeEase and the first-five-minutes win), Night 4 and later unchanged.
-local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2 }
+-- Night 1 stays as is (WelcomeEase and the first-five-minutes win). Nights 4 and 5 got a 10 percent step
+-- after the --late sim cleared them 89 to 92 percent with a 4 Patron build. Night 6 and later unchanged.
+local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2, [4] = 1.1, [5] = 1.1 }
 
 function RunState.nightBaseScoreFor(night)
 	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1)) * (NIGHT_TUNE[night] or 1)

@@ -62,12 +62,12 @@ local function parseArgs(argv)
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
-		["--discards"] = "discards",
+		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late",
 	}
 	local i = 1
 	while i <= #argv do
@@ -132,6 +132,10 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.stake then table.insert(parts, "--stake"); table.insert(parts, run.stake) end
 	if run.mode then table.insert(parts, "--mode"); table.insert(parts, run.mode) end
 	if run.endless then table.insert(parts, "--endless") end
+	if run.lateStart then
+		table.insert(parts, "--late-start"); table.insert(parts, run.lateStart)
+		table.insert(parts, "--late-count"); table.insert(parts, run.lateCount)
+	end
 	if run.randomPatrons then table.insert(parts, "--random-patrons") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
 	if run.packOffers then table.insert(parts, "--pack-offers"); table.insert(parts, run.packOffers) end
@@ -276,6 +280,26 @@ elseif cfg.bosses then
 	print(string.format("%-20s %8s %9s %8s %10s", "boss", "minNight", "attempts", "clear", "x average"))
 	for _, row in ipairs(rows) do
 		print(string.format("%-20s %8d %9d %7.1f%% %10.2f", row.id, row.minNight, row.tries, 100 * row.rate, row.rate / math.max(0.0001, average)))
+	end
+elseif cfg.late then
+	-- Night 4 to 8 clear rate with 3, 4 and 5 random Patrons (cleared the Night / entered the Night)
+	print(string.format("Late Nights, bot %s, %d seeds per Patron count. Clear rate per Night:", cfg.bot, cfg.runs))
+	print(string.format("%-9s %7s %7s %7s %7s %7s", "Patrons", "N4", "N5", "N6", "N7", "N8"))
+	for _, count in ipairs({ 3, 4, 5 }) do
+		local records = collect(runConfig({ lateStart = 4, lateCount = count, maxNight = 8 }))
+		local entered, cleared = {}, {}
+		for _, rec in ipairs(records) do
+			local reached = rec.deathNight or rec.nightReached or 4
+			for night = 4, 8 do
+				if night <= reached then entered[night] = (entered[night] or 0) + 1 end
+				if night < reached or (night == reached and not rec.deathNight) then cleared[night] = (cleared[night] or 0) + 1 end
+			end
+		end
+		local cells = {}
+		for night = 4, 8 do
+			cells[#cells + 1] = string.format("%6.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
+		end
+		print(string.format("%-9d %s", count, table.concat(cells, " ")))
 	end
 elseif cfg.combos then
 	-- Patron variety audit: random Patron buys, report picks, pairs and any Patron or pair that wins more than 90 percent

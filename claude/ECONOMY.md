@@ -69,3 +69,17 @@ Tips on arrival at each Counter visit (average, min):
 - Win rate with random picks: 17.5 percent (the value picking bot wins far more, so Patron choice matters).
 - Most picked Patrons: queens_gambit 28 runs (17.9 percent win), rising_dough 23 (34.8), summit_guide 23 (17.4), tip_jar 23 (30.4), all_matching 22 (18.2).
 - Best looking: rising_dough and tip_jar at 30 to 35 percent, far below 90. No Patron and no pair with at least 5 runs wins more than 90 percent, so no Patron numbers changed. Pairs are thin at 200 runs (no pair seen more than 6 times); raise --runs for pair detail.
+
+## Night 4 to 8 clear rate per Patron count (`--late`)
+`lua tools/run_sim.lua --late --runs 200 --bot decent` starts at Night 4 with 3, 4 or 5 random Patrons and prints the share of runs that cleared each Night after entering it.
+
+| Patrons | N4 | N5 | N6 | N7 | N8 |
+|---|---|---|---|---|---|
+| 3 before tune | 86.0% | 89.0% | 66.7% | 57.8% | 42.4% |
+| 4 before tune | 91.5% | 89.1% | 71.2% | 55.2% | 64.1% |
+| 5 before tune | 93.0% | 91.9% | 73.1% | 64.8% | 54.3% |
+| 3 after | 86.0% | 82.0% | 63.8% | 51.1% | 45.7% |
+| 4 after | 89.0% | 86.5% | 75.3% | 64.7% | 53.3% |
+| 5 after | 91.0% | 91.8% | 74.9% | 60.0% | 48.0% |
+
+Nothing is under 25%. Night 4 and 5 were over 85% for a 4 Patron build, so their base targets got one 10% step (`NIGHT_TUNE` 1.1 in RunState, pinned by test). They still sit a little over 85%: the sim hands out free Patrons, so a real first build is weaker. No second step taken.

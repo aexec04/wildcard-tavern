@@ -1083,6 +1083,17 @@ function Sim.runOne(cfg, seed)
 			table.insert(state.ownedPatrons, E.Patrons.getById(id))
 		end
 	end
+	if cfg.lateStart then
+		-- late-game audit: skip to Night lateStart holding lateCount random Patrons
+		local pool = {}
+		for _, def in ipairs(E.Patrons.Definitions) do table.insert(pool, def) end
+		for _ = 1, math.min(cfg.lateCount or 4, #pool) do
+			table.insert(state.ownedPatrons, table.remove(pool, rng(#pool)))
+		end
+		state.night, state.round = cfg.lateStart, 1
+		state.tips = math.max(state.tips, 10)
+		E.RunState.startRound(state)
+	end
 	if cfg.forcePasses then
 		for id in string.gmatch(cfg.forcePasses, "[^,]+") do
 			state.housePasses[id] = true
