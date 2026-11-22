@@ -66,6 +66,10 @@ function EngineLoader.load(sharedPath)
 	-- Boss and Challenge scoring rules. Optional so an older engine given with --src still loads.
 	local hasRules, rules = pcall(loadModule, sharedPath .. "/Engine/BossRules")
 	engine.BossRules = hasRules and rules or nil
+	-- any other Engine module by name (tools/economy_report.lua)
+	engine.loadEngineModule = function(name)
+		return loadModule(sharedPath .. "/Engine/" .. name)
+	end
 	return engine
 end
 

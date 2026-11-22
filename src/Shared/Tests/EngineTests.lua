@@ -38404,4 +38404,26 @@ table.insert(tests, { name = "Boss intro and Night clear: rule text fits two lin
 	expectTrue(read("src/Client/NightVictory.lua"):find('"night_clear"', 1, true) ~= nil, "Night clear plays its existing cue")
 end })
 
+table.insert(tests, { name = "Economy week: a 20 minute session pays every day, no day over 3x, XP never under a third, Tips floor holds", fn = function()
+	local EconomySim = require(script.Parent.Parent.Engine.EconomySim)
+	for _, start in ipairs({ 20780, 20788, 20795, 20802 }) do -- weeks fully inside a Season (Nov 23 and Dec 1, 8, 15)
+		local result = EconomySim.week(start)
+		expectEqual(#result.days, 7)
+		local tipsTotal = 0
+		for _, row in ipairs(result.days) do
+			expectTrue(row.xp >= 150, "every day pays rank XP, day " .. row.slot)
+			expectTrue(row.tips >= 2, "every day banks at least 2 Tips, day " .. row.slot)
+			expectTrue(row.tips <= 30, "never above the pending Tips cap")
+			tipsTotal = tipsTotal + row.tips
+		end
+		expectTrue(tipsTotal >= 50 and tipsTotal <= 120, "a week banks 50 to 120 Tips, got " .. tipsTotal)
+		for _, flag in ipairs(result.flags) do
+			expectTrue(not flag:find("over 3x"), "no day pays over 3x the others: " .. flag)
+			expectTrue(not flag:find(" xp ") and not flag:find("seasonXp"), "XP stays level: " .. flag)
+		end
+	end
+	local md = EconomySim.markdown(EconomySim.week(20780))
+	expectTrue(md:find("Week", 1, true) ~= nil and not md:lower():find("balatro"))
+end })
+
 return tests
