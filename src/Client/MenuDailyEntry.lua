@@ -64,7 +64,40 @@ function M.attach(parent, layoutOrder, onPlay)
 	play.MouseButton1Click:Connect(function()
 		if onPlay then onPlay() end
 	end)
+
+	-- Tomorrow's reward: one small line, a 44 px press target that opens the Daily Rewards panel. Hidden until there is a streak.
+	local tomorrow = Instance.new("TextButton")
+	tomorrow.Name = "TomorrowLine"
+	tomorrow.AnchorPoint = Vector2.new(0, 1)
+	tomorrow.Position = UDim2.new(0, 30, 1, -8)
+	tomorrow.Size = UDim2.new(1, -60 - Rules.BUTTON.w - 8, 0, Rules.TOMORROW_H)
+	tomorrow.BackgroundTransparency = 1
+	tomorrow.AutoButtonColor = false
+	tomorrow.Font = Enum.Font.GothamMedium
+	tomorrow.TextSize = 15
+	tomorrow.TextColor3 = GOLD
+	tomorrow.TextTransparency = 0
+	tomorrow.TextStrokeTransparency = 1
+	tomorrow.TextXAlignment = Enum.TextXAlignment.Left
+	tomorrow.TextTruncate = Enum.TextTruncate.AtEnd
+	tomorrow.Text = ""
+	tomorrow.Visible = false
+	tomorrow.ZIndex = 12
+	tomorrow.Parent = frame
+	tomorrow.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
+	end)
+	M.tomorrow = tomorrow
 	return frame
+end
+
+-- Called with every state push (from LoginStreakUI.update, pcall'd there).
+function M.update(state)
+	local label = M.tomorrow
+	if not label or not label.Parent or type(state) ~= "table" then return end
+	local line = Rules.tomorrowLine(state.login)
+	label.Text = line or ""
+	label.Visible = line ~= nil
 end
 
 return M

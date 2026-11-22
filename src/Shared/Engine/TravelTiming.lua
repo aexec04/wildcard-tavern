@@ -6,9 +6,9 @@
 
 local TravelTiming = {}
 
-TravelTiming.MIN = 1.2 -- never flash: the cover stays at least this long
-TravelTiming.MAX = 5 -- reveal anyway after this long
-TravelTiming.SKIP_AFTER = 1.0 -- a tap skips the wait only after this long
+TravelTiming.MIN = 0.8 -- never flash: the cover stays at least this long
+TravelTiming.MAX = 3 -- reveal anyway after this long (a wait over 3 s that is not a choice is cut)
+TravelTiming.SKIP_AFTER = 0.5 -- a tap skips the wait only after this long
 TravelTiming.REDUCED_MIN = 0.35 -- reduce-motion: a plain quick fade
 TravelTiming.REDUCED_MAX = 1.5
 

@@ -6047,11 +6047,11 @@ table.insert(tests, { name = "TravelTiming: min, max, ready early, ready late, s
 	expectEqual(TravelTiming.revealTime(0.1, true), TravelTiming.REDUCED_MIN, "reduced motion is a quick fade")
 	expectEqual(TravelTiming.revealTime(nil, true), TravelTiming.REDUCED_MAX)
 	expectTrue(not TravelTiming.shouldReveal(0.5, 0.1, false, false), "not before the minimum")
-	expectTrue(TravelTiming.shouldReveal(1.2, 0.1, false, false), "at the minimum when ready")
+	expectTrue(TravelTiming.shouldReveal(0.8, 0.1, false, false), "at the minimum when ready")
 	expectTrue(not TravelTiming.shouldReveal(2, nil, false, false), "waits while not ready")
-	expectTrue(TravelTiming.shouldReveal(5, nil, false, false), "reveals anyway at the maximum")
-	expectTrue(not TravelTiming.shouldReveal(0.5, 0.1, false, true), "a skip before 1s does nothing")
-	expectTrue(TravelTiming.shouldReveal(1.0, 0.1, false, true), "a skip after 1s lifts a ready cover")
+	expectTrue(TravelTiming.shouldReveal(3, nil, false, false), "reveals anyway at the maximum")
+	expectTrue(not TravelTiming.shouldReveal(0.4, 0.1, false, true), "a skip before 0.5s does nothing")
+	expectTrue(TravelTiming.shouldReveal(0.5, 0.1, false, true), "a skip after 0.5s lifts a ready cover")
 	expectTrue(not TravelTiming.shouldReveal(2, nil, false, true), "a skip never reveals an unready game")
 	expectTrue(not TravelTiming.shouldRun({ hasSeenTutorial = false }), "no transition over the tutorial")
 	expectTrue(TravelTiming.shouldRun({ hasSeenTutorial = true }) and TravelTiming.shouldRun({}), "normal runs get it")
@@ -32294,8 +32294,19 @@ end })
 
 table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note with the native green TavernKit Play Daily plate, same start function as the Daily action row, dropped first when the board is crowded", fn = function()
 	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
-	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 110 and D.ORDER > 0, "words and order: after the ticker (0)")
-	assert(D.BUTTON.h >= 30 and D.BUTTON.w >= 100, "a plate big enough to press")
+	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 124 and D.ORDER > 0, "words and order: after the ticker (0)")
+	assert(D.BUTTON.h >= 44 and D.BUTTON.w >= 100 and D.TOMORROW_H >= 44, "plates big enough to press, 44 px")
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	assert(D.tomorrowLine(nil) == nil and D.tomorrowLine({ streak = 0, today = 1, rewards = {} }) == nil, "no streak, no line")
+	local seen = {}
+	for streak = 1, 8 do
+		local line = D.tomorrowLine(LS.view({ loginStreak = streak, lastLoginDay = 5, loginClaimedDay = 5 }))
+		assert(line and #line <= 40 and line:sub(1, 10) == "Tomorrow: ", "a short Tomorrow line for streak " .. streak)
+		assert(not line:find("\u{2014}", 1, true) and not line:lower():find("balatro", 1, true), "clean text")
+		seen[streak] = line
+	end
+	assert(seen[1] == "Tomorrow: 40 XP" and seen[6] == "Tomorrow: Card back: Festival Ribbon", "slot 1 shows slot 2, slot 6 shows slot 7")
+	assert(seen[7] == "Tomorrow: 3 Tips" and seen[8] == seen[1] ~= nil and seen[8] == "Tomorrow: 40 XP", "the ladder loops after slot 7")
 	assert(D.LINE == "A new Daily starts every day at midnight UTC." and #D.LINE < 60, "plain reset wording, under 60 characters")
 	local bad = (D.TITLE .. D.LINE .. D.BUTTON_TEXT):lower()
 	assert(not bad:find("\u{2014}", 1, true) and not bad:find("--", 1, true) and not bad:find("balatro", 1, true), "no dashes, no banned word")
@@ -32305,6 +32316,7 @@ table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note wi
 	assert(menu:find("local function startDaily()", 1, true) and menu:find("MouseButton1Click:Connect(startDaily)", 1, true) and menu:find("MenuDailyEntry", 1, true), "one start function, wired to both")
 	local cl = read("src/Client/MenuDailyEntry.lua")
 	assert(cl:find("Kit.primaryButton", 1, true) and not cl:find("TweenService", 1, true), "the green kit plate, no tween of its own")
+	assert(cl:find("TomorrowLine", 1, true) and cl:find("Rules.TOMORROW_H", 1, true) and read("src/Client/LoginStreakUI.lua"):find("MenuDailyEntry", 1, true), "tomorrow line built, fed from the login state push")
 end })
 
 table.insert(tests, { name = "Patron name strip: every Patron name fits beside the power disc at the card widths of 1920x1080 and 1280x720", fn = function()
@@ -33701,6 +33713,24 @@ table.insert(tests, { name = "First five minutes: no wait over 20 s, and the gui
 		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "short lines")
 		expectFalse((h.line1 .. h.line2):find("\u{2014}", 1, true) ~= nil, "no em dash")
 	end
+end })
+
+table.insert(tests, { name = "First five minutes: no timed step that is not a choice runs over 3 s, a tap skips early, Calm and reduced motion are quicker", fn = function()
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local T = require(script.Parent.Parent.Engine.TravelTiming)
+	for _, w in ipairs(F.IDLE) do
+		if w.id == "night_intro" or w.id == "travel_cover" then expectTrue(w.seconds <= 3, w.id .. " is 3 s or less") end
+	end
+	expectTrue(T.MAX <= 3, "the travel cover never holds past 3 s")
+	expectTrue(T.revealTime(nil, false) <= 3, "even a slow load reveals within 3 s")
+	expectTrue(T.revealTime(0.1, false) <= 1, "a fast load waits under 1 s")
+	expectTrue(T.SKIP_AFTER <= 0.5, "a tap skips after half a second")
+	expectTrue(T.shouldReveal(0.5, 0.1, false, true), "a tap at 0.5 s lifts the cover when ready")
+	expectFalse(T.shouldReveal(0.6, nil, false, true), "a tap never lifts an unready game early")
+	expectTrue(T.REDUCED_MAX <= T.MAX and T.REDUCED_MIN <= T.MIN, "reduced motion is never slower")
+	local M2 = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectTrue(M2.nightIntro(false, false).total <= 1.2, "Night intro plate is 1.2 s")
+	expectEqual(M2.nightIntro(true, false), nil, "Calm mode has no timed intro")
 end })
 
 table.insert(tests, { name = "GamepadFocus: D-pad moves to the nearest button, wraps, starts top left, reaches every button of a menu and a popup grid", fn = function()

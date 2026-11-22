@@ -507,3 +507,8 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Golden Gala card face (2026-11-22)
 - Golden Gala draws the painted ivory classic face alone (no drape, paper tile or frame art) with the thin gold edge and foil. Index ink is at least 7 to 1 on its paper (other sets 4.5 to 1). Patron Power text stops short of its close X. Not yet checked in Studio Play.
+## First five minutes: shorter waits (2026-11-22)
+- The travel cover into a round holds 0.8 s at least and 3 s at most (was 1.2 and 5), a tap skips after 0.5 s; the Night intro stays 1.2 s and Calm mode has none. A test pins every timed non-choice step to 3 s or less. Not timed in Studio (no session here).
+
+## Daily return: tomorrow's reward on the Menu (2026-11-22)
+- The Daily Challenge note on the Notice Board shows a gold "Tomorrow: 40 XP" line from the Daily Rewards ladder (`MenuDailyEntry.tomorrowLine`, hidden until a streak exists, loops after slot 7). The line and the Play Daily plate are 44 px targets; tapping the line opens the Daily Rewards panel. Not screenshotted (no Studio session here).
