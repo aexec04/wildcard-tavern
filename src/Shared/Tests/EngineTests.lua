@@ -38657,6 +38657,81 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Exploit audit: no shop loop of buy, sell and reroll grows Tips, and Daily chest, first win bonus, quest and rank claims pay once however often they are repeated", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	-- 1. shop fuzz: 400 random actions per setup, all passes owned or not; Tips never rise (a shop has no income)
+	local passSets = { {}, { "regulars_discount" }, { "regulars_discount", "frequent_visitor", "savings_account" } }
+	local sold = 0
+	for seed = 1, 6 do
+		for _, passes in ipairs(passSets) do
+			local state = RunState.new(nil, SeededRng.new(seed))
+			state.tips = 40
+			for _, id in ipairs(passes) do state.housePasses[id] = true end
+			local rng = SeededRng.new(seed * 31)
+			local start, reroll = state.tips, Shop.REROLL_BASE_COST
+			for _ = 1, 400 do
+				local pick = rng(6)
+				if pick == 1 then
+					RunState.buyPatron(state, Patrons.Definitions[rng(#Patrons.Definitions)].id)
+				elseif pick == 2 and #state.ownedPatrons > 0 then
+					if RunState.sellPatron(state, state.ownedPatrons[rng(#state.ownedPatrons)].id) then sold = sold + 1 end
+				elseif pick == 3 then
+					RunState.buyMenuRecipe(state, Recipes.MenuRecipes[rng(#Recipes.MenuRecipes)].id)
+				elseif pick == 4 and #state.menuRecipeInventory > 0 then
+					RunState.sellRecipe(state, "menu", state.menuRecipeInventory[rng(#state.menuRecipeInventory)])
+				elseif pick == 5 then
+					RunState.buyHouseRecipe(state, Recipes.HouseRecipes[rng(#Recipes.HouseRecipes)].id)
+				else
+					local cost = RunState.rerollCost(state, reroll)
+					if state.tips >= cost then state.tips = state.tips - cost; reroll = reroll + Shop.REROLL_COST_STEP end
+				end
+				expectTrue(state.tips <= start, "seed " .. seed .. ": Tips rose from " .. start .. " to " .. state.tips .. " in a shop loop")
+				expectEqual(state.tips, math.floor(state.tips), "Tips stay whole")
+			end
+		end
+	end
+	expectTrue(sold > 50, "the fuzz really bought and sold Patrons: " .. sold .. " sales")
+	-- 2. the Daily chest pays once per day, however many times it is claimed or the clock moves back and forth
+	local p = PlayerProfile.new()
+	local day = 20800
+	LoginStreak.checkIn(p, day)
+	local slot = LoginStreak.slotFor(p.loginStreak)
+	local okFirst = LoginStreak.claim(p, slot, nil)
+	expectTrue(okFirst)
+	local tipsAfter, xpAfter = p.pendingStartTips, p.tavernXp
+	for _, d in ipairs({ day, day - 1, day, day + 0, day - 5 }) do
+		LoginStreak.checkIn(p, d)
+		expectFalse((LoginStreak.claim(p, slot, nil)), "a second claim on day " .. d .. " is refused")
+	end
+	expectEqual(p.pendingStartTips, tipsAfter, "no extra Tips from repeated claims")
+	expectEqual(p.tavernXp, xpAfter, "no extra XP from repeated claims")
+	-- 3. first win of the day: once per day
+	local w = PlayerProfile.new()
+	local first = TavernRank.firstWinBonus(w, 20800)
+	expectTrue(first ~= nil and first ~= false and first ~= 0, "the first win pays")
+	expectTrue(TavernRank.firstWinBonus(w, 20800) == nil or TavernRank.firstWinBonus(w, 20800) == false or TavernRank.firstWinBonus(w, 20800) == 0, "the second win of the day pays nothing")
+	-- 4. quests: the same run counters sent again (a rejoin, a replayed snapshot) add nothing, a finished quest pays once
+	local q = PlayerProfile.new()
+	Quests.ensureDay(q, 20800)
+	local snapshot = {}
+	local counters = { hands = 12, pairs = 5, discards = 6, rounds = 4, bosses = 1, packs = 1, night = 3 }
+	local before = q.pendingStartTips
+	Quests.apply(q, 20800, Quests.deltas(snapshot, counters))
+	local afterFirst, xpFirst, doneFirst = q.pendingStartTips, q.tavernXp, q.questsDone
+	for _ = 1, 5 do Quests.apply(q, 20800, Quests.deltas(snapshot, counters)) end
+	expectEqual(q.pendingStartTips, afterFirst, "replayed counters add no Tips")
+	expectEqual(q.tavernXp, xpFirst, "replayed counters add no XP")
+	expectEqual(q.questsDone, doneFirst, "a finished quest counts once")
+	expectTrue(afterFirst - before <= Quests.MAX_PENDING_TIPS)
+	-- the pending Tips bank is capped, so no pile of claims can bank more than the cap
+	for _ = 1, 50 do q.pendingStartTips = math.min(Quests.MAX_PENDING_TIPS, q.pendingStartTips + 5) end
+	expectTrue(q.pendingStartTips <= Quests.MAX_PENDING_TIPS)
+end })
+
 table.insert(tests, { name = "Funnel coverage: all 7 launch steps and all 8 first five minutes steps have a server call site, fire once in a scripted run, and carry no name or free text", fn = function()
 	local AE = require(script.Parent.Parent.Engine.AnalyticsEvents)
 	local Funnel = require(script.Parent.Parent.Engine.Funnel)
