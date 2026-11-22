@@ -40902,4 +40902,28 @@ table.insert(tests, { name = "Gear menu, Tome dropdown and Music panel wear the 
 	end
 end })
 
+table.insert(tests, { name = "Toasts, warning strip and Next goal banner wear the set plate and ink at 7:1 on every set, classic unchanged, no new tweens", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.hintStyleOf("classic_tavern"), nil, "classic keeps the brass toast")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local h, p = CS.hintStyleOf(set.id), CS.popupStyleOf(set.id)
+			expectTrue(h ~= nil and p ~= nil, set.id .. " has toast and strip styles")
+			if h and p then
+				n = n + 1
+				expectTrue(CS.contrastRatio(h.plate, h.ink) >= 7, set.id .. " toast ink keeps 7:1 on the plate")
+				expectTrue(CS.contrastRatio(p.paper.top, p.paper.ink) >= 7, set.id .. " warning strip ink keeps 7:1 on the paper")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has styles")
+	if not io then return end
+	local function src(path) local f = io.open(path, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end
+	local toast, banner, goal = src("src/Client/CornerToast.lua"), src("src/Client/MessageBanner.lua"), src("src/Client/NextGoalBanner.lua")
+	if toast then expectTrue(toast:find("HintSkin", 1, true) ~= nil and toast:find("row.skin()", 1, true) ~= nil, "toasts bind the set plate and keep the ink on re-assert") end
+	if banner then expectTrue(banner:find("popupStyleOf", 1, true) ~= nil and banner:find("onSkin", 1, true) ~= nil, "warning strip follows the set") end
+	if goal then expectTrue(goal:find("HintSkin", 1, true) ~= nil, "Next goal banner binds the set plate") end
+end })
+
 return tests

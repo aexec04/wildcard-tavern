@@ -103,6 +103,9 @@ local function newRow()
 	label.ZIndex = Z + 2
 	label.Parent = frame
 	local row = { frame = frame, label = label, icon = icon, shadow = shadow, order = nil }
+	-- the equipped Card Set dresses the toast: plate fill, edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the brass look. Colours only.
+	local okSkin, apply = pcall(function() return require(script.Parent.HintSkin).bind(frame, stroke, { label }, { plate = PLATE, edge = BRASS, ink = CREAM }) end)
+	row.skin = okSkin and apply or nil
 	frame.MouseButton1Click:Connect(function()
 		if row.order then
 			stack:dismiss(row.order)
@@ -143,7 +146,7 @@ local function fade(row, visible)
 			row.outTweens = nil
 			row.shadow.BackgroundTransparency = STYLE.shadowTransparency
 			row.label.TextTransparency, row.label.TextStrokeTransparency = 0, 1
-			row.label.TextColor3 = CREAM
+			if row.skin then row.skin() else row.label.TextColor3 = CREAM end
 			f.BackgroundTransparency = STYLE.paperTransparency
 		end
 	elseif not visible and f.Visible then
