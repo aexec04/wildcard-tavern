@@ -844,6 +844,20 @@ function CosmeticSets.mapStyleOf(setId)
 	}
 end
 
+-- The Tavern Map type word (Encounter, SHOP, EVENT, BOSS) on the select panel inset: the tag colour itself for classic and for any set where it
+-- already reads 4.5:1, otherwise lightened toward cream until it does (the set insets are tinted, so a green or purple tag can fall short).
+CosmeticSets.MAP_TAG_FALLBACK = { 250, 240, 220 }
+function CosmeticSets.mapTagOn(color, setId)
+	local m = setId and CosmeticSets.mapStyleOf(setId)
+	if not m then return color end
+	local c, guard = color, 0
+	while CosmeticSets.contrastRatio(c, m.inset) < CosmeticSets.MAP_MIN_CONTRAST and guard < 12 do
+		c = mix(c, CosmeticSets.MAP_TAG_FALLBACK, 0.2)
+		guard = guard + 1
+	end
+	return c
+end
+
 -- Tavern Ledger: the desk, leather cover, bookmark ribbons and run rows take the set. Ribbons keep cream ink at 4.5:1 (open one lighter), the
 -- two run-row papers keep the soft ledger ink (70,48,28) at 4.5:1. nil for classic so the ledger keeps its leather, red silk and cream paper.
 CosmeticSets.LEDGER_INK = { 70, 48, 28 }

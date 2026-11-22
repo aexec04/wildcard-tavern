@@ -275,6 +275,11 @@ function MapSelectPanel.new(deps)
 			put(line, r.line)
 			put(target, r.target)
 			typeRow.TextColor3 = tc
+			pcall(function() -- 4.5:1 on the equipped set's tinted inset (CosmeticSets.mapTagOn); classic keeps the plain tag colour
+				local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+				local c = CS.mapTagOn(tag.color, TavernKit.plateSetId())
+				typeRow.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
+			end)
 			typeRow.Text = d.typeIcon .. " " .. (d.status and (d.typeText .. "  |  " .. d.status) or d.typeText)
 			line.Text = d.line
 			if d.bossLine and r.rule then

@@ -42081,4 +42081,30 @@ table.insert(tests, { name = "Menu first impression: hotspots are 44 px and neve
 	expectTrue(seen >= 20, "the Menu files were scanned")
 end })
 
+table.insert(tests, { name = "Tavern Map road readability: node names are cream on the dark plate at 7:1, every type tag colour keeps 4.5:1 on the plate and on every set's panel inset, labels are 15 px or more", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local NR = require(Engine.MapNodeRules)
+	local PLATE, CREAM = { 34, 24, 16 }, { 250, 235, 200 }
+	expectTrue(CS.contrastRatio(CREAM, PLATE) >= 7, "cream node names on the dark label plate")
+	local tags = 0
+	for _, typeId in ipairs(NR.TYPES) do
+		local tag = NR.tagFor(typeId)
+		tags = tags + 1
+		expectTrue(CS.contrastRatio(tag.color, PLATE) >= 4.5, typeId .. " tag on the label plate")
+		for _, set in ipairs(CS.Definitions) do
+			local m = set.id ~= CS.DefaultId and CS.mapStyleOf(set.id) or nil
+			if m then expectTrue(CS.contrastRatio(CS.mapTagOn(tag.color, set.id), m.inset) >= 4.5, typeId .. " tag on the " .. set.id .. " panel inset") end
+		end
+		expectEqual(CS.mapTagOn(tag.color, "classic_tavern"), tag.color, "classic keeps the plain " .. typeId .. " tag colour")
+	end
+	expectEqual(tags, 4, "all four node types have a tag")
+	if not io then return end
+	local f = io.open("src/Client/JourneyMapGraph.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("l.TextSize = math.max(size, 15)", 1, true) ~= nil, "map label plates never go under 15 px")
+	expectTrue(src:find("Color3.fromRGB(34, 24, 16)", 1, true) ~= nil, "the label plate colour the test pins is the one drawn")
+end })
+
 return tests
