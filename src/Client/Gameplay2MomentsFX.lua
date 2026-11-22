@@ -270,9 +270,14 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 		t.Parent = plate
 		return t
 	end
-	local nameRow, ruleRow = Rules.bossIntroRows(textRect)
+	local nameRow, ruleRow, rewardRow = Rules.bossIntroRows(textRect)
 	line("Name", name, 28, "gold", Style.FONTS.title, nameRow.y, nameRow.h)
 	line("Rule", rule, 17, "cream", Style.FONTS.ui, ruleRow.y, ruleRow.h)
+	do -- the reward mirrors the payout of a Boss round (the Sidebar shows the same number)
+		local cfg = require(Engine:WaitForChild("RunState")).DefaultConfig
+		local rewardText = Rules.bossRewardLine((cfg.tipsPerRoundWin or 0) * 2)
+		if rewardText then line("Reward", rewardText, 16, "gold", Style.FONTS.ui, rewardRow.y, rewardRow.h) end
+	end
 	TweenService:Create(dim, TweenInfo.new(timing.slide), { BackgroundTransparency = timing.dim }):Play()
 	TweenService:Create(plate, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
 	task.delay(timing.slide + timing.hold, function()

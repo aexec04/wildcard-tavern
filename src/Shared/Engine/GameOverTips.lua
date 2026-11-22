@@ -22,7 +22,51 @@ function GameOverTips.pick(night, seed)
 	end
 	local n = #GameOverTips.TIPS
 	local i = (math.floor(tonumber(seed) or 0) % n) + 1
-	return GameOverTips.TIPS[i]
+	-- One tip chosen from what happened in the run. facts = { patrons = n, handsPlayed = n, discardsUsed = n, bestHandName = "Pair" }.
+-- Order: few Patrons, unused discards, low Mult hands. Falls back to pick() on Night 1, else nil. Kid-safe, one line.
+GameOverTips.FEW_PATRONS = "Hire more Patrons at The Counter: each one adds Chips or Mult."
+GameOverTips.UNUSED_DISCARDS = "You kept your Discards. Use them to dig for a better hand."
+GameOverTips.LOW_MULT = "Your hands stayed small. Try Flushes, Straights or five cards for more Mult."
+local LOW_HANDS = { ["High Card"] = true, ["Pair"] = true, ["Two Pair"] = true }
+
+function GameOverTips.forRun(facts, night, seed)
+	facts = type(facts) == "table" and facts or {}
+	local played = math.floor(tonumber(facts.handsPlayed) or 0)
+	if facts.patrons ~= nil and (tonumber(facts.patrons) or 0) < 2 then
+		return GameOverTips.FEW_PATRONS
+	end
+	if played >= 2 and facts.discardsUsed ~= nil and (tonumber(facts.discardsUsed) or 0) == 0 then
+		return GameOverTips.UNUSED_DISCARDS
+	end
+	if facts.bestHandName and LOW_HANDS[facts.bestHandName] then
+		return GameOverTips.LOW_MULT
+	end
+	return GameOverTips.pick(night, seed)
+end
+
+return GameOverTips.TIPS[i]
+end
+
+-- One tip chosen from what happened in the run. facts = { patrons = n, handsPlayed = n, discardsUsed = n, bestHandName = "Pair" }.
+-- Order: few Patrons, unused discards, low Mult hands. Falls back to pick() on Night 1, else nil. Kid-safe, one line.
+GameOverTips.FEW_PATRONS = "Hire more Patrons at The Counter: each one adds Chips or Mult."
+GameOverTips.UNUSED_DISCARDS = "You kept your Discards. Use them to dig for a better hand."
+GameOverTips.LOW_MULT = "Your hands stayed small. Try Flushes, Straights or five cards for more Mult."
+local LOW_HANDS = { ["High Card"] = true, ["Pair"] = true, ["Two Pair"] = true }
+
+function GameOverTips.forRun(facts, night, seed)
+	facts = type(facts) == "table" and facts or {}
+	local played = math.floor(tonumber(facts.handsPlayed) or 0)
+	if facts.patrons ~= nil and (tonumber(facts.patrons) or 0) < 2 then
+		return GameOverTips.FEW_PATRONS
+	end
+	if played >= 2 and facts.discardsUsed ~= nil and (tonumber(facts.discardsUsed) or 0) == 0 then
+		return GameOverTips.UNUSED_DISCARDS
+	end
+	if facts.bestHandName and LOW_HANDS[facts.bestHandName] then
+		return GameOverTips.LOW_MULT
+	end
+	return GameOverTips.pick(night, seed)
 end
 
 return GameOverTips
