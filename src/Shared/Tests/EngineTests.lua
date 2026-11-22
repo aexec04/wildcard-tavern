@@ -41800,6 +41800,26 @@ table.insert(tests, { name = "Draft pick cards: the wood frame wears the set pla
 	assert(not src:sub(i, i + 100):find("rarity", 1, true), "rarity colours are separate")
 end })
 
+table.insert(tests, { name = "Hand keys: R sorts by rank, S by suit, the mode reaches the sort handler, a sixth pick says why, the picked edge wears the set accent", fn = function()
+	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
+	local ctx = { tableActive = true, popupOpen = false, textBox = false }
+	local r, s = Map.action("keyboard", "R", ctx), Map.action("keyboard", "S", ctx)
+	assert(r and r.type == "sort" and r.mode == "rank", "R sorts by rank")
+	assert(s and s.type == "sort" and s.mode == "suit", "S sorts by suit")
+	assert(Map.action("keyboard", "R", { tableActive = true, popupOpen = true }) == nil, "R is silent in a popup")
+	assert(Map.action("keyboard", "R", { tableActive = true, textBox = true }) == nil, "R is silent in a text box")
+	local got = nil
+	Map.dispatch("keyboard", "R", ctx, { sort = function(m) got = m end })
+	assert(got == "rank", "the mode reaches the handler")
+	assert(table.concat(Map.hintLines(), " "):find("R sorts by rank", 1, true), "the key hint names R")
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local hub = f:read("*a"); f:close()
+	assert(hub:find("You can play up to 5 cards. Put one back first.", 1, true), "a sixth pick says why")
+	assert(hub:find("PickEdge", 1, true) and hub:find("ink and ink.accent", 1, true), "picked edge takes the set accent, gold for classic")
+end })
+
 table.insert(tests, { name = "Patron cue pill and Score plate words wear the set ink at 7:1 over every set, classic unchanged, no tween added", fn = function()
 	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

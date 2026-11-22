@@ -22,7 +22,7 @@ M.MAX_CARDS = 8
 
 local NUMBERS = { One = 1, Two = 2, Three = 3, Four = 4, Five = 5, Six = 6, Seven = 7, Eight = 8 }
 
-local KEYBOARD = { Space = "play", Return = "play", KeypadEnter = "play", D = "discard", X = "discard", S = "sort", Q = "patron" }
+local KEYBOARD = { Space = "play", Return = "play", KeypadEnter = "play", D = "discard", X = "discard", S = "sort", R = "sort", Q = "patron" }
 local GAMEPAD = { ButtonX = "play", ButtonY = "discard", ButtonA = "toggle", ButtonB = "back" }
 
 function M.action(device, keyName, ctx)
@@ -44,6 +44,7 @@ function M.action(device, keyName, ctx)
 	local n = NUMBERS[keyName]
 	if n then return { type = "card", pos = n } end
 	local kind = KEYBOARD[keyName]
+	if kind == "sort" then return { type = "sort", mode = keyName == "R" and "rank" or "suit" } end -- R sorts by rank, S by suit
 	return kind and { type = kind } or nil
 end
 
@@ -54,7 +55,7 @@ function M.dispatch(device, keyName, ctx, handlers)
 	if not act then return false end
 	local fn = handlers and handlers[act.type]
 	if type(fn) ~= "function" then return false end
-	local arg = act.pos or act.dir
+	local arg = act.pos or act.dir or act.mode
 	local ok = pcall(fn, arg)
 	return ok
 end
@@ -70,7 +71,7 @@ end
 
 function M.hintLines()
 	return {
-		"Keys: 1 to 8 pick a card, Space or Enter plays, D or X discards, S sorts, Q shows the Patron Power tip, Esc closes a popup.",
+		"Keys: 1 to 8 pick a card, Space or Enter plays, D or X discards, R sorts by rank, S by suit, Q shows the Patron Power tip, Esc closes a popup.",
 		"Gamepad: D-pad moves, A picks, X plays, Y discards, B goes back.",
 	}
 end

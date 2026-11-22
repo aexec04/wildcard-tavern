@@ -561,10 +561,10 @@ sortToggle = require(script.SortToggle).build(sortFrame, function(mode)
 	applyHandSortMode(mode)
 end)
 
-require(script.TableKeys).actions.sort = function() -- the S key: rank first, then suit, then rank again
+require(script.TableKeys).actions.sort = function(mode) -- R sorts by rank, S by suit (the same two modes as the toggle); no mode cycles
 	if not Shop.tutorial.allows("sort") then return end
 	SoundModule.playClickSfx(0.35)
-	applyHandSortMode(handSortMode == "rank" and "suit" or "rank")
+	applyHandSortMode((mode == "rank" or mode == "suit") and mode or (handSortMode == "rank" and "suit" or "rank"))
 end
 
 end -- do (Sort Hand buttons)
@@ -1565,7 +1565,7 @@ local function refreshCardVisual(index, usePop)
 
 	local selLift = SELECTED_LIFT
 	if isSelected then local ok, v = pcall(function() local s = button.Parent; return require(script.Gameplay2).selectedLift(SELECTED_LIFT, s.AbsolutePosition.Y + s.AbsoluteSize.Y / 2 + (s:GetAttribute("FanY") or 0) - button.AbsoluteSize.Y / (2 * (scaleObject.Scale > 0 and scaleObject.Scale or 1))) end); if ok and v then selLift = v end end -- capped per card: top stays 10 px under the "N of Target" line
-	do local edge = button:FindFirstChild("PickEdge"); if edge then edge.Visible = isSelected end end -- gold 3 px edge above the neighbours (see build)
+	do local edge = button:FindFirstChild("PickEdge"); if edge then edge.Visible = isSelected; if isSelected then pcall(function() local es = edge:FindFirstChildOfClass("UIStroke"); local ink = require(script.SetInk).get(); if es then es.Color = ink and ink.accent or Color3.fromRGB(240, 200, 90) end end) end end end -- gold 3 px edge above the neighbours (see build)
 	local lift = (isSelected and selLift or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	VisualHelpersModule.tweenTo(button, {
@@ -1839,6 +1839,7 @@ local function onCardClicked(index)
 			count = count + 1
 		end
 		if count >= 5 then
+			showWarning("You can play up to 5 cards. Put one back first.")
 			return
 		end
 		selected[index] = true
