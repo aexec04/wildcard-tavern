@@ -39874,6 +39874,48 @@ table.insert(tests, { name = "Card set identity: Frosted Garden, Mountain Festiv
 	end
 end })
 
+table.insert(tests, { name = "DebugGoto: any jump takes a :<cardSetId> suffix, the rest parses as before, unknown suffixes stay errors", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local cases = {
+		{ "haggle:winter_evening", "synth", "haggle", nil, "winter_evening" },
+		{ "haggle:good:golden_gala", "synth", "haggle", "good", "golden_gala" },
+		{ "boss1:dune_market", "synth", "boss1", nil, "dune_market" },
+		{ "shop:meadow_picnic", "synth", "shop", nil, "meadow_picnic" },
+		{ "menu:harbor_lights", "menu", nil, nil, "harbor_lights" },
+		{ "map:summit_camp", "map", nil, nil, "summit_camp" },
+		{ "news:tavern_feast", "news", nil, nil, "tavern_feast" },
+		{ "round1:closing_time", "round1", nil, nil, "closing_time" },
+		{ "  Menu : Snowy_Hearth ", "menu", nil, nil, "snowy_hearth" },
+	}
+	for _, c in ipairs(cases) do
+		local t, why = R.parse(c[1])
+		expectTrue(t ~= nil, c[1] .. " parses (" .. tostring(why) .. ")")
+		if t then
+			expectEqual(t.kind, c[2], c[1] .. " kind")
+			expectEqual(t.which, c[3], c[1] .. " screen")
+			expectEqual(t.variant, c[4], c[1] .. " variant")
+			expectEqual(t.setId, c[5], c[1] .. " set")
+		end
+	end
+	local t = R.parse("tome:cardsets:golden_gala")
+	expectTrue(t and t.kind == "tome" and t.page == "cosmeticSets" and t.setId == "golden_gala", "a Tome page takes a set")
+	-- the same values with no suffix are unchanged
+	local plain = R.parse("haggle")
+	expectTrue(plain and plain.which == "haggle" and plain.setId == nil, "haggle alone has no set")
+	local good = R.parse("haggle:good")
+	expectTrue(good and good.variant == "good" and good.setId == nil, "haggle:good keeps its variant and no set")
+	local boss = R.parse("boss1:some_boss")
+	expectTrue(boss and boss.variant == "some_boss" and boss.setId == nil, "boss1:<bossId> still reads the id as a Boss Round")
+	local nightMap = R.parse("map:night=3")
+	expectTrue(nightMap and nightMap.night == 3 and nightMap.setId == nil, "map:night=3 unchanged")
+	local r1 = R.parse("round1:mod=open_hands,tag=tip_jar")
+	expectTrue(r1 and r1.modId == "open_hands" and r1.setId == nil, "round1 options unchanged")
+	local nope, why = R.parse("haggle:not_a_set")
+	expectTrue(nope == nil and why ~= nil, "an unknown suffix is still an error")
+	local bad = R.parse("nonsense:golden_gala")
+	expectTrue(bad == nil, "an unknown screen with a real set is still an error")
+end })
+
 table.insert(tests, { name = "Card set identity: the ten biome and seasonal sets each have their own Counter room, keeper and plates, all ids unique", fn = function()
 	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
 	local SSA = require(script.Parent.Parent.Engine.ShopSceneArt)

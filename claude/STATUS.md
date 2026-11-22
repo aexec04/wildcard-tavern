@@ -516,6 +516,7 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Card set identity: the other ten sets (2026-11-22, not checked live in Studio)
 - Dune Market, Marsh Lanterns, Snowy Hearth, Harbor Lights, Tavern Feast, Harvest Table, Winter Table, Meadow Picnic, Riverside Evening and Summit Camp each have their own Counter room (`shop_room_<dune|marsh|hearth|harbor|feast|harvest|wtable|meadow|river|summit>`), redressed keeper and two plates (`pk_<key>_btn_dark` and `_btn_green`), same mechanism as above. Only Classic keeps the classic Counter; the Select bar and square plates stay classic for every set.
+- Studio DebugGoto: any jump takes a `:<cardSetId>` suffix (`haggle:winter_evening`, `boss1:dune_market`, `menu:meadow_picnic`, `map:harbor_lights`) and previews that set over the equipped one (`DebugGotoRules.splitSet`); it prints `[DebugGoto] screen set=<id> (<screen>)`. The preview was dropped on haggle, shop and boss1 before.
 
 ## Golden Gala card face (2026-11-22)
 - Golden Gala draws the painted ivory classic face alone (no drape, paper tile or frame art) with the thin gold edge and foil. Index ink is at least 7 to 1 on its paper (other sets 4.5 to 1). Patron Power text stops short of its close X. Not yet checked in Studio Play.
