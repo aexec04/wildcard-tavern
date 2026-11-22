@@ -506,6 +506,7 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 
 ## Golden Gala palace (2026-11-22, not checked live in Studio)
 - Golden Gala has its own painted places: a ballroom play room with a gold rail and plain burgundy velvet felt (bg and front, `dy` -26 against the classic front), a ballroom menu wall, a darker ballroom boss table and a gold shop room, wired in `Engine/ThemeScenes.lua` (menuBackdrop, bossTableBackground, shopBackdrop) with classic fallbacks. Map ground stays classic. Cost about $0.35 for 6 images. The live table (Client/Gameplay2) now reads the set's scene too: a normal round draws `table_scene:theme_gala_play` (slot `tablePlay`, burgundy velvet and gold rail, same layout as the reference tavern, 1 image about $0.04) and a Boss round the set's boss table, with the code banners off on set art. Before this the live table ignored the set room, so Gala still showed the green classic table. Studio look still due.
+- The Counter keeper wears a burgundy and gold courtier coat on Golden Gala (`shop_marlo_gala_behind` and `shop_marlo_gala_wave`, `ThemeScenes.shopKeeperIds`, applied by `Client/ShopBackdrop` on build, skin change and preview); every other set keeps Marlo. Studio look due.
 
 ## Golden Gala card face (2026-11-22)
 - Golden Gala draws the painted ivory classic face alone (no drape, paper tile or frame art) with the thin gold edge and foil. Index ink is at least 7 to 1 on its paper (other sets 4.5 to 1). Patron Power text stops short of its close X. Not yet checked in Studio Play.

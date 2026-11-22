@@ -107,6 +107,19 @@ function ThemeScenes.shopRoomId(setId)
 	return ContentArt.getImageId("shop_scene", "shop_room_a"), false
 end
 
+-- The keeper pieces for a set: its own painted keeper (golden_gala courtier) or the classic Marlo pieces.
+-- Returns behindId, waveId, own. Classic and every other set get shop_marlo_behind and shop_marlo_wave.
+local KEEPER_OF = { golden_gala = { behind = "shop_marlo_gala_behind", wave = "shop_marlo_gala_wave" } }
+function ThemeScenes.shopKeeperIds(setId)
+	local ContentArt = require(script.Parent.ContentArt)
+	local k = KEEPER_OF[setId]
+	if k then
+		local b, w = ContentArt.getImageId("shop_scene", k.behind), ContentArt.getImageId("shop_scene", k.wave)
+		if b then return b, w, true end
+	end
+	return ContentArt.getImageId("shop_scene", "shop_marlo_behind"), ContentArt.getImageId("shop_scene", "shop_marlo_wave"), false
+end
+
 -- Share of the Card Set room tint kept on a set's own painted Counter room: 0.6 means the gold wash is 40 percent lighter.
 ThemeScenes.OWN_ROOM_TINT_KEEP = 0.6
 -- tint is {r,g,b} 0..255 (PlayRoomArt.tint); an own room moves each channel 40 percent of the way back to white, others are unchanged.

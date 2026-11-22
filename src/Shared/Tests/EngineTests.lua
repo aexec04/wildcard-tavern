@@ -15881,7 +15881,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
-	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true, shop_room_gala = true,
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true, shop_room_gala = true, shop_marlo_gala_behind = true, shop_marlo_gala_wave = true,
 		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
@@ -37646,6 +37646,18 @@ table.insert(tests, { name = "ThemeScenes: golden_gala palace has a well formed 
 		expectTrue(gid ~= cid, "golden_gala and classic draw different Counter rooms")
 		expectEqual(select(1, TS.shopRoomId("winter_evening")), SSA.shop_room_a, "other sets keep the classic room")
 		expectEqual(select(1, TS.shopRoomId(nil)), SSA.shop_room_a, "no set means classic")
+		do -- the keeper: courtier for golden_gala, classic Marlo everywhere else (ShopBackdrop applies this on build, skin change and preview)
+			local gb, gw, gown = TS.shopKeeperIds("golden_gala")
+			local cb, cw, cown = TS.shopKeeperIds("classic_tavern")
+			expectEqual(gb, SSA.shop_marlo_gala_behind, "golden_gala keeper is the courtier")
+			expectEqual(gw, SSA.shop_marlo_gala_wave, "golden_gala keeper wave piece is the courtier")
+			expectTrue(good(gb) and good(gw) and gown == true and cown == false, "own keeper flag and valid ids")
+			expectEqual(cb, SSA.shop_marlo_behind, "classic keeper unchanged")
+			expectEqual(cw, SSA.shop_marlo_wave, "classic keeper wave unchanged")
+			expectTrue(gb ~= cb and gw ~= cw, "gala and classic keepers differ")
+			expectEqual(select(1, TS.shopKeeperIds("winter_evening")), SSA.shop_marlo_behind, "other sets keep Marlo")
+			expectEqual(select(1, TS.shopKeeperIds(nil)), SSA.shop_marlo_behind, "no set means Marlo")
+		end
 		local full = { 240, 235, 215 }
 		local lit = TS.shopRoomTint(true, full)
 		expectEqual(TS.shopRoomTint(false, full)[1], 240, "classic and other rooms keep the full tint")

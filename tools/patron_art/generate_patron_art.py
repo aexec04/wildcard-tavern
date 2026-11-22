@@ -308,6 +308,10 @@ for _k in ("theme_gala_menu", "theme_gala_boss", "theme_gala_play"):
     CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
     CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
 CATEGORY_OPTS["table_scene"]["references"]["theme_gala_play"] = "art-wip/table_scene/table_play_ref.png" # same layout and camera as the classic play table
+# Golden Gala palace keeper: edits of the classic Marlo pieces (same crop and pose), portrait 3:4
+for _k, _ref in (("shop_marlo_gala_behind", "shop_marlo_behind"), ("shop_marlo_gala_wave", "shop_marlo_wave")):
+    CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})[_k] = "1024x1536"
+    CATEGORY_OPTS["shop_scene"].setdefault("references", {})[_k] = "art-wip/shop_scene/%s.png" % _ref
 CATEGORY_OPTS["shop_scene"]["opaque"].append("shop_room_gala")
 CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})["shop_room_gala"] = "1536x1024"
 CATEGORY_OPTS["shop_scene"].setdefault("references", {})["shop_room_gala"] = "art-wip/shop_scene/shop_room_a.png"

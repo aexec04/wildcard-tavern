@@ -181,15 +181,21 @@ function ShopBackdrop.new(deps)
 	-- A Card Set with its own shop room (Golden Gala) draws that picture on Room and CounterFront and hides the classic wooden strip
 	-- (ShopScene CounterStrip) and the tavern layer (TavernScreens TavernScene); classic and every other set keep shop_room_a.
 	local function applyRoomArt()
-		local okS, id, own = pcall(function()
+		local okS, id, own, kb, kw = pcall(function()
 			local TS = require(Engine:WaitForChild("ThemeScenes"))
 			local skin = require(script.Parent.HudTheme).skin()
 			local previewId
 			local okV, view = pcall(function() return require(script.Parent.CosmeticSetsView) end)
 			if okV and view and view.previewSetId then previewId = view.previewSetId() end
 			local sid = TS.effectiveSetId(skin and skin.id, previewId)
-			return TS.shopRoomId(sid)
+			local rid, rown = TS.shopRoomId(sid)
+			local kb, kw = TS.shopKeeperIds(sid)
+			return rid, rown, kb, kw
 		end)
+		if okS and kb then -- the keeper follows the set too: courtier for golden_gala, Marlo for the rest (ShopScene reads self.marloId on each wave)
+			self.marloId, self.marloWaveId = kb, kw
+			if marlo then marlo.Image = kb end
+		end
 		if not okS or not id then return end
 		if roomImg then roomImg.Image = id end
 		if counterFront then counterFront.Image = id end
@@ -218,8 +224,8 @@ function ShopBackdrop.new(deps)
 	end
 	applyTint()
 	if gameRoot then gameRoot:GetAttributeChangedSignal("RoomTint"):Connect(applyTint) end
-	self.marloId = marloId
-	self.marloWaveId = ContentArt.getImageId("shop_scene", "shop_marlo_wave")
+	self.marloId = self.marloId or marloId
+	self.marloWaveId = self.marloWaveId or ContentArt.getImageId("shop_scene", "shop_marlo_wave")
 	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")
 	if poolId then
 		light.BackgroundTransparency = 1

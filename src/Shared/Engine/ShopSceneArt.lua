@@ -12,6 +12,8 @@ return {
 	["shop_counter_top"] = "rbxassetid://125809081130355",
 	["shop_light_pool"] = "rbxassetid://86060482506004",
 	["shop_marlo_behind"] = "rbxassetid://106144373711439",
+	["shop_marlo_gala_behind"] = "rbxassetid://70444405738203",
+	["shop_marlo_gala_wave"] = "rbxassetid://105262550892741",
 	["shop_marlo_wave"] = "rbxassetid://98238109368177",
 	["shop_offer_scroll_a"] = "rbxassetid://130489069975538",
 	["shop_offer_scroll_b"] = "rbxassetid://104583801741108",
