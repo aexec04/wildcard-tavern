@@ -40150,4 +40150,23 @@ table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear t
 	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
 end })
 
+table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 260, 44, setId) ~= nil, setId .. " Continue plate")
+	end
+	expectEqual(Style.resultPlate("primary", 260, 44, "classic_tavern"), nil, "classic Continue stays flat green")
+	for _, sz in ipairs({ { 800, 450 }, { 1280, 720 }, { 1920, 957 } }) do
+		local cr = Rules.continueRect({ w = 420, h = 300 })
+		expectTrue(cr.h >= 44, "Continue stays 44 px or more (" .. sz[1] .. "x" .. sz[2] .. ")")
+	end
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	if not fx then return end
+	expectTrue(fx:find('Kit.setPlateButton(btn, "primary")', 1, true) ~= nil, "Night clear Continue asks for the set plate")
+	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "Boss intro plate goes through the set aware painter")
+end })
+
 return tests

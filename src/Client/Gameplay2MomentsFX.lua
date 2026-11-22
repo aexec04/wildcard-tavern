@@ -103,6 +103,7 @@ local function night(root, lines)
 	btn.Size = UDim2.fromOffset(cr.w, cr.h)
 	btn.Position = UDim2.fromOffset(cr.x, cr.y)
 	btn.ZIndex = 44
+	pcall(function() Kit.setPlateButton(btn, "primary") end) -- the equipped Card Set's green plate; classic keeps the flat green
 	local closed = false
 	local function close()
 		if closed then return end
