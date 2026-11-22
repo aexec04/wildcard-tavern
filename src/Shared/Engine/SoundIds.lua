@@ -54,7 +54,7 @@ SoundIds.Cues = {
 }
 
 -- Quiet looping beds (not cues: Engine/Ambience sets the volume, 0.12 and 0.06 while scoring). Empty id = silent until picked.
-SoundIds.Ambience = { tavern = { id = "", volume = 0.12 } }
+SoundIds.Ambience = { tavern = { id = "rbxassetid://80194136724318", volume = 0.12 } } -- "Medieval Folk Tavern Ambient Melody" (187 s), see claude/AUDIO-CREDITS.md
 
 -- Optional alternates for the coin cascade (not the default, so nothing regresses): try them in Studio with DebugGoto "sfx:<cue>".
 SoundIds.CoinAlternates = { "rbxassetid://9113849583", "rbxassetid://9121189379" } -- "Coin Throws 2" (2.4 s), "BagOfCoins"
@@ -65,7 +65,7 @@ SoundIds.CueOrder = {
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
 	"score_tick", "score_total", "patron_trigger", "round_clear", "defeat",
-	"card_deselect", "shop_sell", "pack_open",
+	"card_deselect", "shop_sell", "pack_open", "jingle_run", "jingle_boss", "jingle_round",
 }
 
 -- the eleven cue names the backlog asked for; every one must exist in Cues (an empty id is a safe no-op)
@@ -74,10 +74,20 @@ SoundIds.Named = { "card_deal", "card_select", "card_play", "score_tick", "score
 -- Music tracks by key. `region_<id>` plays on the gameplay table while the Night's stop is in that region
 -- (empty = fall back to the plain gameplay track).
 SoundIds.Music = {
-	menu = "rbxassetid://137023744071437",
-	gameplay = "rbxassetid://132846105965979",
+	menu = "rbxassetid://98036668678766", -- Lantern Waltz, the default for the menu and the table (the old menu and table beds are kept in claude/AUDIO-CREDITS.md)
+	gameplay = "rbxassetid://98036668678766",
 	shop = "rbxassetid://86731472483471",
-	boss = "rbxassetid://133804416597931",
+	boss = "rbxassetid://1836104000", -- Boss Theme (Determined Epic Theme, 67 s)
+	boss_b = "rbxassetid://1846428560", -- Forces Of Nature B (122 s), alternates with the Boss Theme
+	-- the tavern rotation (Engine/MusicRotation): menu, table and map shuffle through these
+	lantern_waltz = "rbxassetid://98036668678766",
+	midnight_fiddle = "rbxassetid://117317104791371",
+	harvest_jig = "rbxassetid://98712372839588",
+	dragons_breath_inn = "rbxassetid://126739564081315",
+	dragon_hearth = "rbxassetid://111233827644639",
+	through_the_trees = "rbxassetid://88648897274533",
+	would_have_followed = "rbxassetid://119001521651646",
+	victory_fanfare = "rbxassetid://1845466596", -- listed in Music tracks so it can be heard; the jingle cue plays it once at the right moment
 	region_road = "",
 	region_meadow = "",
 	region_river = "",
@@ -89,8 +99,14 @@ SoundIds.Music = {
 	region_tavern = "",
 }
 
+-- One-shot victory jingles (played through Cues jingle_run, jingle_boss, jingle_round; Engine/MusicRotation.JINGLES says which moment)
+SoundIds.Cues.jingle_run = { id = "rbxassetid://1845466596", volume = 0.6, maxLength = 20 } -- Triumphant Fanfare: Run complete and the Victory screen
+SoundIds.Cues.jingle_boss = { id = "rbxassetid://1835323453", volume = 0.55, maxLength = 31 } -- March of Justice: a cleared Boss Round
+SoundIds.Cues.jingle_round = { id = "rbxassetid://83315768373322", volume = 0.5, maxLength = 14 } -- Conquering Heroes Link: a cleared normal round
+
 SoundIds.MusicOrder = {
-	"menu", "gameplay", "shop", "boss", "region_road", "region_meadow", "region_river", "region_peaks",
+	"menu", "gameplay", "shop", "boss", "boss_b", "lantern_waltz", "midnight_fiddle", "harvest_jig", "dragons_breath_inn", "dragon_hearth",
+	"through_the_trees", "would_have_followed", "victory_fanfare", "region_road", "region_meadow", "region_river", "region_peaks",
 	"region_desert", "region_swamp", "region_snow", "region_coast", "region_tavern",
 }
 

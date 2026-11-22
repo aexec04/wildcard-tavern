@@ -19,11 +19,17 @@ local M = {}
 M.PACK_PASS_ID = "music_pack"
 
 local ALL = {
-	{ id = "auto", name = "Tavern Mix", key = nil, pack = false }, -- the default: the right tune for each screen, free
-	{ id = "gameplay", name = "Card Table", key = "gameplay", pack = false },
-	{ id = "shop", name = "Counter Tune", key = "shop", pack = true },
-	{ id = "menu", name = "Tavern Doors", key = "menu", pack = true },
-	{ id = "boss", name = "Boss Round", key = "boss", pack = true },
+	{ id = "auto", name = "Tavern Mix", key = nil, pack = false }, -- the default: a shuffle of the tavern tracks (Engine/MusicRotation), free
+	{ id = "lantern_waltz", name = "Lantern Waltz", key = "lantern_waltz", pack = false },
+	{ id = "midnight_fiddle", name = "Midnight Fiddle", key = "midnight_fiddle", pack = false },
+	{ id = "harvest_jig", name = "Harvest Jig", key = "harvest_jig", pack = false },
+	{ id = "dragons_breath_inn", name = "Dragon's Breath Inn", key = "dragons_breath_inn", pack = false },
+	{ id = "dragon_hearth", name = "The Dragon's Hearth", key = "dragon_hearth", pack = false },
+	{ id = "through_the_trees", name = "Through the Trees", key = "through_the_trees", pack = false },
+	{ id = "would_have_followed", name = "I Would Have Followed", key = "would_have_followed", pack = false },
+	{ id = "boss", name = "Boss Theme", key = "boss", pack = false },
+	{ id = "victory_fanfare", name = "Victory Fanfare", key = "victory_fanfare", pack = false },
+	{ id = "shop", name = "Counter Tune", key = "shop", pack = true }, -- the one older track kept for the Music pack
 }
 
 M.TRACKS = {}
@@ -65,11 +71,7 @@ end
 -- (nothing plays from these rows today; the names are stand-ins for the real pack).
 M.SHOP_TITLE = "Music pack"
 M.SHOP_LINE = "More tunes for your tavern"
-M.SHOP_TRACKS = {
-	{ id = "shop_lantern", name = "Lantern Waltz", key = "lantern_waltz", placeholder = true },
-	{ id = "shop_fiddle", name = "Midnight Fiddle", key = "midnight_fiddle", placeholder = true },
-	{ id = "shop_jig", name = "Harvest Jig", key = "harvest_jig", placeholder = true },
-}
+M.SHOP_TRACKS = {} -- empty until the Music pack has real tracks; the section keeps its button for them
 
 -- The three shop rows for this player: { id, name, locked, playable, tag } where tag is the small right-hand word
 -- ("" when playable, "Coming soon" when owned but no real id yet, "Locked" when the pack is not owned).

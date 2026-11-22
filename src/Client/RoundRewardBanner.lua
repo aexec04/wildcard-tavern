@@ -137,7 +137,8 @@ function RoundRewardBanner.show(args)
 		require(script.Parent.PatronRow).celebrate()
 	end)
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
-	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end) -- no id yet: silent
+	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end)
+	pcall(function() require(script.Parent.Cue).play(args.boss and "jingle_boss" or "jingle_round", 1) end) -- the cleared-round jingle, once per clear (Engine/MusicRotation.JINGLES)
 	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true, 11) end) -- gold and purple, none in calm mode
 
 	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel, clearedRow = clearedRow, partsRow = partsRow }

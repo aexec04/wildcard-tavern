@@ -30,7 +30,7 @@
 
 return function(deps)
 	-- The popup is now a plate in Client/OverlayQueue (one at a time, first in the order).
-	local function showRoundReward(amount, titleOverride, interest)
+	local function showRoundReward(amount, titleOverride, interest, boss)
 		local OverlayQueue = require(script.Parent.OverlayQueue)
 		OverlayQueue.newRound()
 		-- Every round result (normal, boss, Night cleared, Tag rewards) is the one line corner banner: no big plate, no Continue,
@@ -39,7 +39,7 @@ return function(deps)
 		require(script.Parent.Announcer).submit({
 			id = "round_complete", kind = "round_complete", priority = 3, duration = 1.9,
 			show = function(done, msg)
-				Banner.show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest or 0, flavor = msg and msg.flavor, onClose = done })
+				Banner.show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest or 0, boss = boss == true, flavor = msg and msg.flavor, onClose = done })
 			end,
 			hide = function() Banner.close() end,
 		})

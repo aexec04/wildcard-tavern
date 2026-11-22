@@ -705,6 +705,7 @@ return function(deps)
 			end
 			if playSfx and SOUND_IDS then
 				require(script.Parent.Cue).play(isWin and "win" or "defeat", 1.2)
+				if isWin then pcall(function() require(script.Parent.Cue).play("jingle_run", 1) end) end -- Triumphant Fanfare, once per Victory screen
 			end
 			pcall(function() -- win: suit confetti and a springy title; loss: a gentle grey wash, no shake (all none in Calm mode)
 				local fx = require(script.Parent.CelebrationFX)

@@ -160,7 +160,7 @@ return function(deps)
 	local SoundFX = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundFX")) -- pitch ladder, jitter, gate, ducking, layers
 	local MUSIC_IDS = {
 		title = SoundIds.Music.menu,
-		gameplay = SOUND_IDS.backgroundMusic,        -- rbxassetid://132846105965979
+		gameplay = SoundIds.Music.gameplay,        -- Lantern Waltz by default (Engine/SoundIds, claude/AUDIO-CREDITS.md)
 		boss = SoundIds.Music.boss,
 		shop = SoundIds.Music.shop,
 	}
@@ -297,10 +297,20 @@ return function(deps)
 	backgroundMusic.SoundGroup = fadeGroup
 	local fadeToken = 0
 	local FADE_TIME = 0.5
+	local MusicRotation = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MusicRotation"))
+	local rotKey, lastTavernKey = nil, nil -- the library track playing now, and the last tavern track (so the rotation never repeats it)
+	local function logTrack(id)
+		if game:GetService("RunService"):IsStudio() then
+			local len = 0
+			pcall(function() len = backgroundMusic.TimeLength end)
+			print(string.format("[Music] track %s key=%s length=%.0f", tostring(id), tostring(rotKey), len))
+		end
+	end
 	local function swapTo(id)
 		currentTrackId = id
 		local wasPlaying = backgroundMusic.IsPlaying
 		backgroundMusic.SoundId = id
+		pcall(logTrack, id)
 		-- Respect the volume button's current mute state -- only actually
 		-- start playback if it was already playing (i.e. not muted), same
 		-- as every other volume-aware Play() call in this file.
@@ -327,7 +337,24 @@ return function(deps)
 	local function setMusicTrack(key, gain)
 		local previousKey = lastRequestedKey
 		lastRequestedKey = key
-		local id = customTrackId or MUSIC_IDS[key]
+		-- the tavern library (Engine/MusicRotation): the menu, table and map share one shuffled rotation that keeps playing across
+		-- screens, a Boss Round alternates its two themes, and the rotation resumes with a different track afterwards
+		local libKey = key
+		if not customTrackId then
+			if MusicRotation.isBossKey(key) then
+				libKey = MusicRotation.isBossKey(rotKey) and rotKey or MusicRotation.nextBoss(nil)
+			elseif MusicRotation.isRotationKey(key) then
+				if rotKey and not MusicRotation.isBossKey(rotKey) then
+					libKey = rotKey
+				else
+					libKey = lastTavernKey and MusicRotation.nextTavern(lastTavernKey) or "lantern_waltz"
+				end
+			end
+			rotKey = libKey
+			if not MusicRotation.isBossKey(libKey) and MUSIC_IDS[libKey] and MUSIC_IDS[libKey] ~= "" then lastTavernKey = libKey end
+		end
+		local id = customTrackId or MUSIC_IDS[libKey]
+		if not customTrackId and not playlistQueue then backgroundMusic.Looped = not (MusicRotation.isBossKey(libKey) or MusicRotation.isRotationKey(key)) end -- library tracks play through, then Ended picks the next
 		if not id or id == "" then
 			return
 		end
@@ -343,7 +370,7 @@ return function(deps)
 		fadeToken += 1
 		local mine = fadeToken
 		local calm = ClientSettings.get("reduceMotion") == true
-		if currentTrackId ~= nil and not customTrackId and MusicMix.shouldFade(previousKey, key) then
+		if currentTrackId ~= nil and not customTrackId and not calm and MusicMix.shouldFade(previousKey, key) then
 			local startVolume = fadeGroup.Volume
 			stepFade(startVolume, 0, calm, mine, function()
 				swapTo(id)
@@ -469,6 +496,16 @@ return function(deps)
 	backgroundMusic.Ended:Connect(function()
 		if playlistQueue then
 			playQueueIndex(pickNextQueueIndex())
+		elseif not customTrackId and rotKey then -- the library: the next tavern track (never a repeat) or the other Boss theme
+			local nextKey = MusicRotation.isBossKey(rotKey) and MusicRotation.nextBoss(rotKey) or MusicRotation.nextTavern(rotKey)
+			local id = MUSIC_IDS[nextKey]
+			if id and id ~= "" then
+				rotKey = nextKey
+				if not MusicRotation.isBossKey(nextKey) then lastTavernKey = nextKey end
+				fadeToken += 1
+				fadeGroup.Volume = bedGain
+				swapTo(id)
+			end
 		end
 	end)
 

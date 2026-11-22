@@ -5464,7 +5464,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
-		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat", "card_deselect", "shop_sell", "pack_open" }
+		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat", "card_deselect", "shop_sell", "pack_open", "jingle_run", "jingle_boss", "jingle_round" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(S.Named) do expectEqual(S.Cues[name] ~= nil, true, "named cue " .. name) end
 	for _, name in ipairs({ "score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }) do
@@ -31221,12 +31221,13 @@ table.insert(tests, { name = "MusicPicker: free and Music pack tracks, locked un
 	for _, t in ipairs(P.list(false)) do if t.locked then locked = locked + 1; expectTrue(not t.owned, "locked is not owned") else free = free + 1 end end
 	expectTrue(locked >= 1 and free >= 2, "some tracks are Music pack, some are free")
 	for _, t in ipairs(P.list(true)) do expectTrue(t.owned and not t.locked, t.id .. " unlocked once owned") end
-	expectEqual(P.effective("boss", false), "auto", "a locked track falls back to auto")
-	expectEqual(P.effective("boss", true), "boss", "an owned pack track plays")
-	expectEqual(P.effective("gameplay", false), "gameplay", "a free track plays without the pack")
+	expectEqual(P.effective("shop", false), "auto", "a locked track falls back to auto")
+	expectEqual(P.effective("shop", true), "shop", "an owned pack track plays")
+	expectEqual(P.effective("lantern_waltz", false), "lantern_waltz", "a free track plays without the pack")
+	expectEqual(P.effective("gameplay", false), "auto", "the retired Card Table choice falls back to auto")
 	expectEqual(P.effective("nonsense", true), "auto", "an unknown selection is auto")
 	expectEqual(P.assetFor("auto"), nil, "auto has no fixed asset")
-	expectTrue(P.assetFor("gameplay") == SoundIds.Music.gameplay, "a track plays its SoundIds asset")
+	expectTrue(P.assetFor("harvest_jig") == SoundIds.Music.harvest_jig, "a track plays its SoundIds asset")
 	local b0 = P.buyButton(0, false)
 	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "id 0 is disabled, Coming soon")
 	local b1 = P.buyButton(123, false)
@@ -31247,16 +31248,8 @@ end })
 table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked), buy states, panel rects at four screen sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local P, GP = require(E.MusicPicker), require(E.GamePasses)
-	expectEqual(#P.SHOP_TRACKS, 3, "three shop rows")
-	expectEqual(P.SHOP_TRACKS[1].name, "Lantern Waltz", "first shop name")
-	expectEqual(P.SHOP_TRACKS[2].name, "Midnight Fiddle", "second shop name")
-	expectEqual(P.SHOP_TRACKS[3].name, "Harvest Jig", "third shop name")
-	for _, r in ipairs(P.shopRows(false)) do
-		expectTrue(r.locked and not r.playable and r.placeholder and r.tag == "Locked", r.id .. " locked and unplayable without the pack")
-	end
-	for _, r in ipairs(P.shopRows(true)) do
-		expectTrue(r.locked and not r.playable and r.tag == "Coming soon", r.id .. " owned but no real id: Coming soon, still locked")
-	end
+	expectEqual(#P.SHOP_TRACKS, 0, "the three placeholder rows are real free tracks now; the pack section waits for new ones")
+	expectEqual(#P.shopRows(false), 0, "no shop rows")
 	expectEqual(GP.MUSIC_PACK, 0, "the pass id is 0")
 	local b0 = P.buyButton(GP.MUSIC_PACK, false)
 	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "pass id 0: Coming soon, disabled")
@@ -32134,8 +32127,8 @@ table.insert(tests, { name = "Sound and music pass: 1 s bed crossfade, every act
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
 	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
-	expectEqual(M.FADE_TIME, 1, "beds crossfade over 1 s")
-	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 1) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 1) < 1e-9, "Calm and normal both span 1 s")
+	expectEqual(M.FADE_TIME, 1.5, "beds crossfade over 1.5 s")
+	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 1.5) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 1.5) < 1e-9, "Calm and normal both span 1.5 s")
 	local have = {}
 	for _, m in ipairs(G.MOMENTS) do have[m.cue] = true end
 	for _, cue in ipairs({ "card_deal", "card_select", "card_deselect", "card_play", "score_tick", "score_total", "patron_trigger",
@@ -35761,6 +35754,68 @@ table.insert(tests, { name = "MapFitRules: hidden Endless stops take no road, th
 	expectEqual(R.clampScroll(-50, 800, 3000, 100, 500), 0)
 	expectTrue(select(1, R.gapsOk({ posX = { 0, 100, 200 } }, 3, 8, nil, 150)), "even road has no gap")
 	expectEqual(select(1, R.gapsOk({ posX = { 0, 100, 900 } }, 3, 8, nil, 150)), false)
+end })
+
+table.insert(tests, { name = "Music library: ids well formed, the three first tracks are free and unlocked, rotation never repeats, boss alternates, jingles play once, names are kid safe", fn = function()
+	local E = script.Parent.Parent.Engine
+	local R, S, P = require(E.MusicRotation), require(E.SoundIds), require(E.MusicPicker)
+	expectEqual(#R.TAVERN, 7, "seven tavern tracks")
+	local seen = {}
+	for _, t in ipairs(R.TAVERN) do
+		expectTrue(S.isValidId(S.Music[t.key]), t.key .. " has a well formed id")
+		expectTrue(not seen[S.Music[t.key]], t.key .. " id is unique")
+		seen[S.Music[t.key]] = true
+		expectTrue(not t.name:find("%f[%a]Ale%f[%A]"), t.name .. " has no alcohol word")
+	end
+	expectTrue(S.Music.menu == S.Music.lantern_waltz and S.Music.gameplay == S.Music.lantern_waltz, "the first track plays on the menu and the table by default")
+	expectTrue(S.isValidId(S.Ambience.tavern.id) and S.Ambience.tavern.volume == 0.12, "the ambience bed is wired at 0.12")
+	local byId = {}
+	for _, t in ipairs(P.list(false)) do byId[t.id] = t end
+	for _, id in ipairs({ "lantern_waltz", "midnight_fiddle", "harvest_jig", "dragons_breath_inn", "dragon_hearth", "through_the_trees", "would_have_followed", "boss", "victory_fanfare" }) do
+		expectTrue(byId[id] and byId[id].owned and not byId[id].locked, id .. " is free and unlocked")
+	end
+	expectEqual(byId.boss.name, "Boss Theme", "Boss Theme is listed")
+	expectEqual(byId.victory_fanfare.name, "Victory Fanfare", "Victory Fanfare is listed")
+	-- never the same track twice in a row, over every previous key and every random draw
+	for _, t in ipairs(R.TAVERN) do
+		for r = 1, 6 do
+			local nxt = R.nextTavern(t.key, function(n) return ((r - 1) % n) + 1 end)
+			expectTrue(nxt ~= t.key and S.isValidId(S.Music[nxt]), "no repeat after " .. t.key)
+		end
+	end
+	local k = "lantern_waltz"
+	for _ = 1, 200 do local n = R.nextTavern(k); expectTrue(n ~= k, "random draw never repeats"); k = n end
+	expectEqual(R.nextBoss(nil), "boss", "boss round starts with the Boss Theme")
+	expectEqual(R.nextBoss("boss"), "boss_b", "then Forces of Nature")
+	expectEqual(R.nextBoss("boss_b"), "boss", "and back")
+	expectTrue(S.isValidId(S.Music.boss) and S.isValidId(S.Music.boss_b), "boss ids are well formed")
+	expectTrue(R.isBossKey("boss") and not R.isBossKey("gameplay"), "boss keys")
+	expectTrue(R.isRotationKey("gameplay") and R.isRotationKey("menu") and R.isRotationKey("region_road") and not R.isRotationKey("boss") and not R.isRotationKey("shop"), "rotation keys: menu, table and map, never boss or shop")
+	-- boss returns to the rotation: the table key rotates again once the boss key ends
+	expectTrue(R.isRotationKey(require(E.MusicMix).bedFor("table").key), "after a Boss Round the table bed rotates again")
+	for _, cue in pairs(R.JINGLES) do expectTrue(S.cueId(cue) ~= nil, cue .. " has an id") end
+	expectEqual(R.jingleFor("run_complete"), "jingle_run", "Run complete")
+	expectEqual(R.jingleFor("victory_screen"), "jingle_run", "Victory screen")
+	expectEqual(R.jingleFor("boss_cleared"), "jingle_boss", "cleared Boss Round")
+	expectEqual(R.jingleFor("round_cleared"), "jingle_round", "cleared round")
+	expectEqual(R.jingleFor("nonsense"), nil, "unknown moment")
+	local gate = R.JingleGate.new()
+	expectTrue(gate:take("run_complete", "r1") and not gate:take("victory_screen", "r1"), "the run fanfare plays once for Run complete and the Victory screen")
+	expectTrue(gate:take("boss_cleared", 3) and not gate:take("boss_cleared", 3) and gate:take("boss_cleared", 4), "once per cleared boss")
+	expectTrue(gate:take("round_cleared", 1) and not gate:take("round_cleared", 1), "once per cleared round")
+	-- the choice persists: every pickable track is a valid saved setting
+	local PP = require(E.PlayerProfile)
+	for _, t in ipairs(P.TRACKS) do expectTrue(PP.SETTING_SPECS.musicTrack.choices[t.id] == true, t.id .. " is a valid saved musicTrack") end
+	-- mute: the jingles and the beds go through the Sound toggle (Client/Sound reads muted for SFX and music volume)
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local snd = read("src/Client/Sound.lua")
+	expectTrue(snd:find("MusicRotation", 1, true) and snd:find("[Music] track", 1, true), "Sound.lua rotates the library and prints [Music] track")
+	local credits = read("claude/AUDIO-CREDITS.md")
+	for _, key in ipairs({ "Lantern Waltz", "Midnight Fiddle", "Harvest Jig", "Dragon's Breath Inn", "Through the Trees", "I Would Have Followed", "Determined Epic Theme", "Forces Of Nature B", "Triumphant Fanfare", "March of Justice", "Conquering Heroes Link", "Medieval Folk Tavern Ambient Melody" }) do
+		expectTrue(credits:find(key, 1, true), "credits list " .. key)
+	end
+	expectTrue(not credits:lower():find("balatro", 1, true), "no banned word in the credits")
 end })
 
 return tests
