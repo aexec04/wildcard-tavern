@@ -40008,6 +40008,29 @@ table.insert(tests, { name = "Counter chrome per Card Set: tabs take the set pla
 	expectTrue(Style.isSetPiece("frost_wh_btn_dark") and not Style.isSetPiece("wh_btn_dark"), "a set plate is never tinted again")
 end })
 
+table.insert(tests, { name = "Boss round per Card Set: every set draws its own boss table or its own play room, never the classic tavern; classic unchanged", fn = function()
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local seen = 0
+	for _, setId in ipairs(PRA.ORDER) do
+		seen = seen + 1
+		local source, key = TS.bossBackdrop(setId)
+		expectTrue(source == "own" or source == "room", setId .. " never falls back to classic (" .. tostring(source) .. ")")
+		if source == "room" then
+			expectEqual(key, PRA.keys(setId).bg, setId .. " falls back to its own play room")
+			expectTrue(type(Art[key]) == "string" and Art[key]:match("^rbxassetid://%d+$") ~= nil and Art[key] ~= "rbxassetid://0", setId .. " play room picture is recorded")
+		else
+			expectTrue(TS.themeImageId(setId, "bossTableBackground") ~= nil, setId .. " own boss table resolves")
+		end
+	end
+	expectEqual(seen, 14, "all 14 sets checked")
+	for _, setId in ipairs({ "classic_tavern", "no_such_set" }) do
+		expectEqual((TS.bossBackdrop(setId)), "classic", tostring(setId) .. " keeps the classic boss table")
+	end
+	expectEqual((TS.bossBackdrop(nil)), "classic", "no set keeps the classic boss table")
+end })
+
 return tests
 
 

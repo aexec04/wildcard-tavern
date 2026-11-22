@@ -110,6 +110,16 @@ function ThemeScenes.themeImageId(setId, slot)
 	return require(script.Parent.ContentArt).getImageId(tab, id)
 end
 
+-- Which picture a boss round table draws for a set: "own" (the set's boss table art), "room" (no boss art yet: the set's own play room, key
+-- play_room_<set>_bg, never the classic tavern) or "classic" (Classic Tavern and unknown sets). Returns source, key-or-slot.
+function ThemeScenes.bossBackdrop(setId)
+	if ThemeScenes.known(setId) and setId ~= ThemeScenes.DEFAULT then
+		if THEME_ART[setId] and THEME_ART[setId].bossTableBackground then return "own", "bossTableBackground" end
+		if PlayRoomArt.SETS[setId] then return "room", PlayRoomArt.keys(setId).bg end
+	end
+	return "classic", nil
+end
+
 -- The Counter room picture for a set: its own painted shop room (golden_gala) or the classic shop_room_a.
 -- Returns id, own (own is true only when the set has its own picture; Client/ShopBackdrop then hides the classic strip and tavern layer).
 function ThemeScenes.shopRoomId(setId)

@@ -919,6 +919,17 @@ function M.install(deps)
 				local skin = require(script.Parent.HudTheme).skin()
 				return TS.themeImageId(skin and skin.id, key == "table_boss" and "bossTableBackground" or "tablePlay")
 			end)
+			if okT and setImg == nil and key == "table_boss" then -- no boss art for this set yet: its own play room, never the classic tavern
+				local okR, roomImg = pcall(function()
+					local TS = require(Engine:WaitForChild("ThemeScenes"))
+					local skin = require(script.Parent.HudTheme).skin()
+					local source, roomKey = TS.bossBackdrop(skin and skin.id)
+					if source ~= "room" then return nil end
+					local v = require(Engine:WaitForChild("PlaySceneArt"))[roomKey]
+					return (type(v) == "string" and v ~= "" and v ~= "rbxassetid://0") and v or nil
+				end)
+				if okR then setImg = roomImg end
+			end
 			local own = okT and setImg ~= nil and setImg ~= (key == "table_boss" and TableArt.table_boss_ref or TableArt.table_play_ref)
 			scene:SetAttribute("SetArt", own)
 			if own then img = setImg; bossRef = nil end
