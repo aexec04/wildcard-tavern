@@ -244,7 +244,7 @@ return function(deps)
 			for k, v in pairs(SettingsLayout.calmWrites(on)) do ClientSettings.set(k, v) end
 		end,
 	})
-	makeChoiceRow("reduceMotion", "Reduce Motion", "Still backgrounds and no travel animations.", OFF_ON)
+	makeChoiceRow("reduceMotion", "Reduce Motion", "Calmer scenes with less movement.", OFF_ON)
 	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
 	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
 	makeChoiceRow("largerText", "Larger Text", "Makes text 15 percent bigger where there is room.", OFF_ON)
@@ -388,7 +388,7 @@ return function(deps)
 		blurb.TextXAlignment = Enum.TextXAlignment.Left
 		blurb.TextYAlignment = Enum.TextYAlignment.Top
 		blurb.TextColor3 = SUBTLE
-		blurb.Text = "Show the one line tips again as you meet each part of the game."
+		blurb.Text = "Show the short tips again as you meet each part of the game."
 		blurb.ZIndex = 21
 		blurb.Parent = row
 		local replay = Instance.new("TextButton")
@@ -423,7 +423,7 @@ return function(deps)
 
 	-- ===== Display =====
 	makeHeader("Display")
-	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward pass owners get extra speed.", {
+	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward owners get extra speed.", {
 		{ "normal", "Normal" },
 		{ "fast", "Fast" },
 	})
