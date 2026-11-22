@@ -83,12 +83,24 @@ function CloseX.attach(panel, onClose, opts)
 		bar.Parent = disc
 	end
 
+	-- the equipped Card Set's disc colours (accent brass); classic keeps BRASS. Read at each event so a set equipped later applies at once.
+	local function discColors()
+		local ok, c = pcall(function()
+			local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+			return CS.closeDiscOf(require(script.Parent.TavernKit).plateSetId())
+		end)
+		if ok and c then return Color3.fromRGB(c.rest[1], c.rest[2], c.rest[3]), Color3.fromRGB(c.hover[1], c.hover[2], c.hover[3]) end
+		return BRASS, BRASS_HOVER
+	end
+	disc.BackgroundColor3 = (discColors())
+	pcall(function() require(script.Parent.HudTheme).onSkin(function() if disc.Parent then disc.BackgroundColor3 = (discColors()) end end) end)
 	hit.MouseEnter:Connect(function()
-		disc.BackgroundColor3 = BRASS_HOVER
+		local _, hover = discColors()
+		disc.BackgroundColor3 = hover
 		stroke.Color = Color3.fromRGB(255, 214, 120)
 	end)
 	hit.MouseLeave:Connect(function()
-		disc.BackgroundColor3 = BRASS
+		disc.BackgroundColor3 = (discColors())
 		stroke.Color = INK
 		disc.Position = UDim2.fromScale(0.5, 0.5)
 	end)

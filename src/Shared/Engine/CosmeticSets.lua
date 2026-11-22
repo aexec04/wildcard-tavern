@@ -598,6 +598,16 @@ function CosmeticSets.accentOf(set)
 	return CosmeticSets.faceStyleOf(set).border
 end
 
+-- The colour of a claim glow or current-tier ring (Season tiles, Daily Rewards today): the set accent, nil for classic or an unknown set so
+-- those keep their gold. A stroke only; text colours never come from here.
+function CosmeticSets.ringColorOf(setId)
+	if not setId or setId == CosmeticSets.DefaultId then return nil end
+	local set = CosmeticSets.getById(setId)
+	local a = set and CosmeticSets.accentOf(set)
+	if type(a) ~= "table" or #a < 3 then return nil end
+	return { a[1], a[2], a[3] }
+end
+
 -- Colours for the draw pile's frame and plate: the equipped back's pile style, nudged toward the equipped
 -- set's accent (a non-default set) so the pile matches the table. Returns { rim, plate, glow }.
 function CosmeticSets.pileStyleOf(set, back)
@@ -700,6 +710,44 @@ function CosmeticSets.contrastRatio(a, b)
 	local la, lb = luminance(a), luminance(b)
 	if la < lb then la, lb = lb, la end
 	return (la + 0.05) / (lb + 0.05)
+end
+
+-- The Menu wordmark in a Card Set's accent: { top, bottom, image } (rgb tables), the wordmark gold pulled 35 percent toward the accent and
+-- lightened until BOTH gradient stops keep 7:1 against the wordmark outline. `image` is the multiply tint for the painted wordmark (white
+-- pulled 30 percent toward the accent, never darker than the gold stops). nil for classic or an unknown set, so classic is untouched.
+CosmeticSets.WORDMARK_GOLD = { top = { 236, 205, 134 }, bottom = { 184, 146, 80 }, outline = { 46, 30, 14 } }
+CosmeticSets.WORDMARK_MIN_CONTRAST = 7
+function CosmeticSets.wordmarkTint(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local g = CosmeticSets.WORDMARK_GOLD
+	local function lit(gold)
+		local c = mix(gold, ring, 0.35)
+		local guard = 0
+		while CosmeticSets.contrastRatio(c, g.outline) < CosmeticSets.WORDMARK_MIN_CONTRAST and guard < 40 do
+			c = mix(c, { 255, 255, 255 }, 0.1)
+			guard = guard + 1
+		end
+		return c
+	end
+	local image = mix({ 255, 255, 255 }, ring, 0.30)
+	return { top = lit(g.top), bottom = lit(g.bottom), image = image }
+end
+
+-- The round close X disc in a Card Set's accent: { rest, hover } (rgb tables), brass pulled 50 percent toward the accent and darkened until the
+-- cream cross keeps 3:1 (a graphic needs 3:1); hover is a lighter step. nil for classic or an unknown set, so classic keeps its brass.
+CosmeticSets.CLOSE_BRASS = { 176, 138, 66 }
+CosmeticSets.CLOSE_CROSS = { 250, 240, 220 }
+function CosmeticSets.closeDiscOf(setId)
+	local ring = CosmeticSets.ringColorOf(setId)
+	if not ring then return nil end
+	local c = mix(CosmeticSets.CLOSE_BRASS, ring, 0.5)
+	local guard = 0
+	while CosmeticSets.contrastRatio(c, CosmeticSets.CLOSE_CROSS) < 3 and guard < 40 do
+		c = mix(c, { 30, 20, 12 }, 0.1)
+		guard = guard + 1
+	end
+	return { rest = c, hover = mix(c, { 255, 255, 255 }, 0.18) }
 end
 
 -- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).

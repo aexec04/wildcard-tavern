@@ -40287,4 +40287,150 @@ table.insert(tests, { name = "Per set Collection wall, Run Over and Victory wash
 	end
 end })
 
+table.insert(tests, { name = "Collection and Leaderboards tabs wear the equipped Card Set plates (lit green, others dark), classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local n = 0
+	for setId, map in pairs(Style.SET_PLATES) do
+		n = n + 1
+		expectEqual(Style.tabPlate(true, setId), map.wh_btn_green, setId .. " lit tab is the set green plate")
+		expectEqual(Style.tabPlate(false, setId), map.wh_btn_dark, setId .. " idle tab is the set dark plate")
+		expectTrue(Style.tabPlate(true, setId) ~= Style.tabPlate(false, setId), setId .. " lit and idle tabs differ")
+	end
+	expectTrue(n >= 14, "every Card Set has tab plates")
+	expectEqual(Style.tabPlate(true, "classic_tavern"), nil, "classic keeps the flat lit tab")
+	expectEqual(Style.tabPlate(false, nil), nil, "no set keeps the flat idle tab")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local col, lb, kit = read("src/Client/Collection.lua"), read("src/Client/DailyLeaderboard.lua"), read("src/Client/TavernKit.lua")
+	if not (col and lb and kit) then return end
+	expectTrue(col:find("setTabPlate(tabButton, lit)", 1, true) ~= nil, "Collection section tabs ask for the set plate")
+	expectTrue(col:find('setTabPlate(tabButtons.room, mode == "room")', 1, true) ~= nil, "Collection Gallery tab asks for the set plate")
+	expectTrue(col:find("RoomLayout.TABS.h - 2)", 1, true) ~= nil and col:find("AutomaticSize.None", 1, true) ~= nil, "a plated Collection tab gets a fixed width and keeps its height")
+	expectTrue(lb:find("Kit.setPlateTab(dailyTabButton", 1, true) ~= nil and lb:find("Kit.setPlateTab(friendsTabButton", 1, true) ~= nil, "Leaderboards tabs ask for the set plate")
+	expectTrue(kit:find("Style.tabPlate(active", 1, true) ~= nil, "setPlateTab asks the pure tab rule")
+	expectTrue(lb:find("CloseX", 1, true) ~= nil, "Leaderboards Close is the round X, not a plate")
+end })
+
+table.insert(tests, { name = "How to play, Quit confirm and Codes buttons wear the equipped Card Set plates, classic unchanged, 44 px targets kept", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 180, 48, setId) ~= nil, setId .. " green plate for Stay, Next and Redeem")
+		expectTrue(Style.resultPlate("secondary", 180, 48, setId) ~= nil, setId .. " dark plate for Quit, Back and Replay")
+	end
+	expectEqual(Style.resultPlate("primary", 180, 48, "classic_tavern"), nil, "classic keeps the flat buttons")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local how, quit, settings = read("src/Client/HowToPlay.lua"), read("src/Client/QuitConfirm.lua"), read("src/Client/Settings.lua")
+	if not (how and quit and settings) then return end
+	expectTrue(how:find('makeNavButton("Next", 130, "primary")', 1, true) ~= nil and how:find('makeNavButton("Back", 130, "secondary")', 1, true) ~= nil, "How to play Next and Back ask for set plates")
+	expectTrue(how:find('makeNavButton("Replay tutorial", 190, "secondary")', 1, true) ~= nil, "Replay tutorial asks for a set plate")
+	expectTrue(how:find("UDim2.new(0, w, 0, 42)", 1, true) ~= nil, "How to play nav buttons keep their 42 px height")
+	expectTrue(quit:find('"primary")', 1, true) ~= nil and quit:find('"secondary")', 1, true) ~= nil and quit:find("setPlateButton(b, kind)", 1, true) ~= nil, "Quit confirm Stay and Quit ask for set plates")
+	expectTrue(quit:find("UDim2.new(0, 180, 0, 48)", 1, true) ~= nil, "Quit confirm buttons keep 48 px")
+	expectTrue(settings:find('setPlateButton(redeem, "primary")', 1, true) ~= nil, "Codes Redeem asks for the set plate")
+	expectTrue(settings:find("UDim2.new(0, 120, 0, 44)", 1, true) ~= nil, "Codes Redeem keeps 44 px")
+end })
+
+table.insert(tests, { name = "Season and Daily Rewards rings and claim glows use the set accent, classic keeps gold, text colours untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.ringColorOf(nil), nil, "no set keeps gold")
+	expectEqual(CS.ringColorOf("classic_tavern"), nil, "classic keeps gold")
+	expectEqual(CS.ringColorOf("not_a_set"), nil, "unknown set keeps gold")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local c = CS.ringColorOf(set.id)
+			expectTrue(c ~= nil and #c == 3, set.id .. " has a ring colour")
+			if c then for i = 1, 3 do expectTrue(c[i] >= 0 and c[i] <= 255, set.id .. " ring channel in range") end end
+			n = n + 1
+		end
+	end
+	expectTrue(n >= 14, "every non classic Card Set has a ring colour")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local season, daily = read("src/Client/SeasonPanel.lua"), read("src/Client/DailyRewardsPanel.lua")
+	if not (season and daily) then return end
+	expectTrue(season:find("Kit.ringColor(GOLD)", 1, true) ~= nil and season:find("stroke.Color = ringGold", 1, true) ~= nil, "Season claim glow and Next ring use the set accent")
+	expectTrue(season:find("Kit.ringColor(Color3.fromRGB(255, 214, 90))", 1, true) ~= nil, "Season current tier ring uses the set accent")
+	expectTrue(daily:find("ringColor(GOLD)", 1, true) ~= nil, "Daily Rewards today ring uses the set accent")
+	expectTrue(season:find("TextColor3 = Color3.fromRGB(150, 100, 20), Text = \"Now\"", 1, true) ~= nil, "Season Now tag text colour unchanged")
+	expectTrue(daily:find("TextColor3 = INK, TextWrapped = true", 1, true) ~= nil or daily:find("TextColor3 = INK", 1, true) ~= nil, "Daily text stays dark ink")
+end })
+
+table.insert(tests, { name = "Menu wordmark takes the Card Set accent, 7:1 against its outline on every set, classic untouched, no layout change", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.wordmarkTint("classic_tavern"), nil, "classic keeps the gold wordmark")
+	expectEqual(CS.wordmarkTint(nil), nil, "no set keeps the gold wordmark")
+	local g, n, distinct = CS.WORDMARK_GOLD, 0, {}
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local t = CS.wordmarkTint(set.id)
+			expectTrue(t ~= nil, set.id .. " has a wordmark tint")
+			if t then
+				n = n + 1
+				expectTrue(CS.contrastRatio(t.top, g.outline) >= 7, set.id .. " top stop keeps 7:1")
+				expectTrue(CS.contrastRatio(t.bottom, g.outline) >= 7, set.id .. " bottom stop keeps 7:1")
+				expectTrue(t.image[1] >= 150 and t.image[2] >= 150 and t.image[3] >= 150, set.id .. " picture tint stays light")
+				distinct[table.concat(t.top, ",") .. "|" .. table.concat(t.bottom, ",")] = true
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set tints the wordmark")
+	local count = 0
+	for _ in pairs(distinct) do count = count + 1 end
+	expectTrue(count >= 8, "the sets read differently on the wordmark (" .. count .. " distinct)")
+	expectTrue(CS.contrastRatio(g.top, g.outline) >= 7, "classic gold top stop keeps 7:1 (its bottom stop is about 5.5:1 and stays untouched)")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local wm = read("src/Client/Wordmark.lua")
+	if not wm then return end
+	expectTrue(wm:find("CS.wordmarkTint(Kit.plateSetId())", 1, true) ~= nil, "the wordmark asks the pure tint rule")
+	expectTrue(wm:find("gradient.Color = ColorSequence.new", 1, true) ~= nil and wm:find("gradient.Transparency", 1, true) == nil, "only gradient Color stops change, never Transparency")
+	expectTrue(wm:find("applyTint", 1, true) ~= nil and wm:find("Hud.onSkin", 1, true) ~= nil, "equipping a set re-tints at once")
+end })
+
+table.insert(tests, { name = "Popup close X disc follows the Card Set accent, cream cross keeps 3:1 on every set, classic brass untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(CS.closeDiscOf("classic_tavern"), nil, "classic keeps brass")
+	expectEqual(CS.closeDiscOf(nil), nil, "no set keeps brass")
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			local d = CS.closeDiscOf(set.id)
+			expectTrue(d ~= nil, set.id .. " has a close disc")
+			if d then
+				n = n + 1
+				expectTrue(CS.contrastRatio(d.rest, CS.CLOSE_CROSS) >= 3, set.id .. " cross keeps 3:1 on the resting disc")
+				expectTrue(d.hover[1] >= d.rest[1] and d.hover[2] >= d.rest[2] and d.hover[3] >= d.rest[3], set.id .. " hover is lighter")
+			end
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a close disc")
+	if not io then return end
+	local f = io.open("src/Client/CloseX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("CS.closeDiscOf(", 1, true) ~= nil and src:find("BRASS, BRASS_HOVER", 1, true) ~= nil, "CloseX asks the pure rule and keeps classic brass")
+	expectTrue(src:find("Rules.DISC", 1, true) ~= nil and src:find("Rules.HIT", 1, true) ~= nil, "disc and 44 px hit sizes still come from CloseXRules")
+end })
+
+table.insert(tests, { name = "Night clear Continue wears the equipped Card Set plate, boss intro plate stays set aware, classic unchanged", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Rules = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 260, 44, setId) ~= nil, setId .. " Continue plate")
+	end
+	expectEqual(Style.resultPlate("primary", 260, 44, "classic_tavern"), nil, "classic Continue stays flat green")
+	for _, sz in ipairs({ { 800, 450 }, { 1280, 720 }, { 1920, 957 } }) do
+		local cr = Rules.continueRect({ w = 420, h = 300 })
+		expectTrue(cr.h >= 44, "Continue stays 44 px or more (" .. sz[1] .. "x" .. sz[2] .. ")")
+	end
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	if not fx then return end
+	expectTrue(fx:find('Kit.setPlateButton(btn, "primary")', 1, true) ~= nil, "Night clear Continue asks for the set plate")
+	expectTrue(fx:find('Kit.painted(plate, "orn_wide")', 1, true) ~= nil, "Boss intro plate goes through the set aware painter")
+end })
+
 return tests

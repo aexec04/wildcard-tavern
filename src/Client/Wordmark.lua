@@ -171,9 +171,40 @@ end
 
 -- The Menu calls this: a failure in the wordmark (painted or plain) must never blank the Menu. Falls back to the plain
 -- lettering, then to two empty frames the parallax and reveal code can still move.
+-- The equipped Card Set's accent on the wordmark: the painted picture is multiplied by a light tint, the plain lettering gets its gradient
+-- Color stops pulled toward the accent (Color only, never Transparency). Both keep 7:1 against the outline (CosmeticSets.wordmarkTint);
+-- classic and a set without an accent get the original colours back. Layout is never touched.
+function Wordmark.applyTint(title)
+	if not title or not title.Parent then return end
+	local ok, tint = pcall(function()
+		local Kit = require(script.Parent.TavernKit)
+		local CS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+		return CS.wordmarkTint(Kit.plateSetId())
+	end)
+	tint = ok and tint or nil
+	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	local image = title:FindFirstChild("WordmarkImage")
+	if image then image.ImageColor3 = tint and c3(tint.image) or Color3.new(1, 1, 1) end
+	local gradient = title:FindFirstChildOfClass("UIGradient")
+	if gradient then
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, tint and c3(tint.top) or GOLD_TOP),
+			ColorSequenceKeypoint.new(1, tint and c3(tint.bottom) or GOLD_BOTTOM),
+		})
+	end
+end
+
 function Wordmark.safeBuild(parent, opts)
 	local ok, result = pcall(Wordmark.build, parent, opts)
-	if ok and result then return result end
+	if ok and result then
+		pcall(function()
+			local Hud = require(script.Parent.HudTheme)
+			Wordmark.applyTint(result.title)
+			Hud.onSkin(function() Wordmark.applyTint(result.title) end) -- equipping a set re-tints the wordmark at once
+			require(script.Parent.CosmeticSetsView).onPreview(function() Wordmark.applyTint(result.title) end)
+		end)
+		return result
+	end
 	warn("[Wordmark] painted build failed, using plain lettering: " .. tostring(result))
 	local plain = {}
 	for k, v in pairs(opts or {}) do plain[k] = v end

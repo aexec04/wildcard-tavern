@@ -501,6 +501,9 @@ return function(deps)
 		redeem.ZIndex = 21
 		redeem.Parent = row
 		polishButton(redeem, 8)
+		if pcall(function() return require(script.Parent.TavernKit).setPlateButton(redeem, "primary") end) and redeem:GetAttribute("BasePiece") then
+			redeem.TextColor3 = Color3.fromRGB(250, 240, 220) -- the equipped Card Set's green plate; classic keeps the flat button
+		end
 		addButtonHoverScale(redeem)
 		local function send()
 			local text = box.Text

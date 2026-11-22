@@ -693,6 +693,17 @@ return function(deps)
 	-- ===== State =====
 	local activeTabId = CollectionBook.Tabs[1].id
 	local tabButtons = {}
+	-- The equipped Card Set's tab plate (green when lit, dark otherwise); classic keeps the flat browns. A fixed width from the text, since a
+	-- picture cannot follow an AutomaticSize button.
+	local function setTabPlate(tabButton, lit)
+		pcall(function()
+			local Kit = require(script.Parent.TavernKit)
+			if Kit.setPlateTab(tabButton, lit) then -- the picture follows Size changes, so the fixed width can come after
+				tabButton.AutomaticSize = Enum.AutomaticSize.None
+				tabButton.Size = UDim2.fromOffset(math.max(96, 28 + #tabButton.Text * 8), RoomLayout.TABS.h - 2)
+			end
+		end)
+	end
 	local openItem = nil -- the item shown on the detail card, if any
 
 	local function currentView()
@@ -1210,9 +1221,12 @@ return function(deps)
 				local counts = CollectionBook.tabCounts(view.sets)[tab.id]
 				tabButton.Text = counts and require(Engine:WaitForChild("CollectionCards")).tabText(tab.name, counts.found, counts.total) or tab.name
 			end
-			tabButton.BackgroundColor3 = (mode == "section" and tab.id == activeTabId) and ACTIVE_BROWN or BUTTON_BROWN
+			local lit = mode == "section" and tab.id == activeTabId
+			tabButton.BackgroundColor3 = lit and ACTIVE_BROWN or BUTTON_BROWN
+			setTabPlate(tabButton, lit)
 		end
 		tabButtons.room.BackgroundColor3 = mode == "room" and ACTIVE_BROWN or BUTTON_BROWN
+		setTabPlate(tabButtons.room, mode == "room")
 
 		-- The gallery room: the count on every name plate, and a New tag where something was found since the last visit.
 		do

@@ -303,6 +303,15 @@ return function(deps)
 		standardTabButton.BackgroundColor3 = (activeBucket == Leaderboards.STANDARD) and ACTIVE_TAB or IDLE_TAB
 		revivedTabButton.BackgroundColor3 = (activeBucket == Leaderboards.REVIVED) and ACTIVE_TAB or IDLE_TAB
 		friendsTabButton.BackgroundColor3 = (activeScope == Leaderboards.FRIENDS) and ACTIVE_TAB or IDLE_TAB
+		pcall(function() -- the equipped Card Set's tab plates (green when lit); classic keeps the flat browns above
+			local Kit = require(script.Parent.TavernKit)
+			Kit.setPlateTab(dailyTabButton, activeBoard == "daily")
+			Kit.setPlateTab(weeklyTabButton, activeBoard == "weekly")
+			Kit.setPlateTab(endlessTabButton, activeBoard == "endless")
+			Kit.setPlateTab(standardTabButton, activeBucket == Leaderboards.STANDARD)
+			Kit.setPlateTab(revivedTabButton, activeBucket == Leaderboards.REVIVED)
+			Kit.setPlateTab(friendsTabButton, activeScope == Leaderboards.FRIENDS)
+		end)
 	end
 
 	local function refreshLeaderboard()

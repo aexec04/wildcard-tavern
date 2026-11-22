@@ -349,17 +349,19 @@ function SeasonPanel.init(deps)
 		t.Parent = track
 		deps.roundCorner(t, 10)
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = (row.reached and not row.claimed) and GOLD or INK
+		local Kit = require(script.Parent.TavernKit)
+		local ringGold = Kit.ringColor(GOLD) -- the equipped Card Set's accent for the claim glow and the current tier ring; classic keeps gold
+		stroke.Color = (row.reached and not row.claimed) and ringGold or INK
 		stroke.Thickness = (row.reached and not row.claimed) and 3 or 1.5
 		local isNow = state_tier ~= nil and row.tier == state_tier
 		if isNow then
-			stroke.Color = Color3.fromRGB(255, 214, 90)
+			stroke.Color = Kit.ringColor(Color3.fromRGB(255, 214, 90))
 			stroke.Thickness = 4
 			t.BackgroundColor3 = Color3.fromRGB(240, 222, 170)
 		end
 		local isNext = state_next ~= nil and row.tier == state_next and not isNow
 		if isNext and not row.reached then
-			stroke.Color = GOLD
+			stroke.Color = ringGold
 			stroke.Thickness = 3
 		end
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border

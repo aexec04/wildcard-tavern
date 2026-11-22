@@ -73,7 +73,7 @@ function M.install(deps)
 	label(Flow.TITLE, 22, 14, 30, Color3.fromRGB(255, 214, 130), Enum.Font.GothamBold)
 	local message = label(Flow.MESSAGE, 16, 52, 60, TEXT, Enum.Font.Gotham)
 
-	local function button(text, anchorX, posX, color)
+	local function button(text, anchorX, posX, color, kind)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0, 180, 0, 48)
 		b.AnchorPoint = Vector2.new(anchorX, 0)
@@ -86,15 +86,17 @@ function M.install(deps)
 		b.ZIndex = 6002
 		b.Parent = panel
 		deps.polishButton(b, 12)
+		-- the equipped Card Set's plate (Stay green, Quit dark); classic keeps the flat buttons
+		if pcall(function() return require(script.Parent.TavernKit).setPlateButton(b, kind) end) and b:GetAttribute("BasePiece") then b.TextColor3 = Color3.fromRGB(250, 240, 220) end
 		return b
 	end
-	local stay = button(Flow.STAY, 0, 20, Color3.fromRGB(70, 110, 60))
+	local stay = button(Flow.STAY, 0, 20, Color3.fromRGB(70, 110, 60), "primary")
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 3
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = stay
-	local quit = button(Flow.QUIT, 1, -20, Color3.fromRGB(110, 70, 40))
+	local quit = button(Flow.QUIT, 1, -20, Color3.fromRGB(110, 70, 40), "secondary")
 
 	local function close()
 		Flow.cancel(state)

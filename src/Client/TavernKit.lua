@@ -341,6 +341,26 @@ function TavernKit.setPlateButton(host, kind)
 	return ok and img ~= nil
 end
 
+-- A tab plate (Collection and Leaderboards tabs): the equipped set's green plate while lit, its dark one otherwise; classic keeps the flat
+-- browns the caller sets. The tab needs a fixed Size (a plate painted behind an AutomaticSize button would have no width). True when drawn.
+function TavernKit.setPlateTab(host, active)
+	local piece = Style.tabPlate(active, plateSetId())
+	if not piece then return false end
+	local ok, img = pcall(function() return TavernKit.painted(host, piece) end)
+	if ok and img ~= nil then host.TextColor3 = Color3.fromRGB(250, 240, 220) end
+	return ok and img ~= nil
+end
+
+-- The equipped Card Set's accent for a claim glow or current-tier ring (a stroke, never text); `fallback` (the screen's gold) for classic.
+function TavernKit.ringColor(fallback)
+	local ok, c = pcall(function()
+		local CS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+		return CS.ringColorOf(plateSetId())
+	end)
+	if ok and c then return Color3.fromRGB(c[1], c[2], c[3]) end
+	return fallback
+end
+
 local buttonsHooked = false
 local function restyleButtons()
 	local sid = plateSetId()
