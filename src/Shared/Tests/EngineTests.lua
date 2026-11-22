@@ -39005,6 +39005,55 @@ table.insert(tests, { name = "FitAudit: the checker flags off screen, small touc
 	end
 end })
 
+table.insert(tests, { name = "Fit audit over all 14 sets at 800x450, 1024x768, 1366x768 and 1920x1080: Menu, Settings, Store, Collection and the Card Sets room keep fit, 44 px targets and readable set names", fn = function()
+	local Audit = require(script.Parent.FitAudit)
+	local Engine = script.Parent.Parent.Engine
+	local CS = require(Engine.CosmeticSets)
+	local CSL = require(Engine.CardSetsSceneLayout)
+	local screens = require(script.Parent.FitScreens)(function(name) return require(Engine[name]) end)
+	local keep = {}
+	for _, sc in ipairs(screens) do
+		if sc.name == "Menu" or sc.name == "Settings" or sc.name == "Store" or sc.name == "Collection" then keep[#keep + 1] = sc end
+	end
+	assert(#keep == 4, "Menu, Settings, Store and Collection are covered")
+	keep[#keep + 1] = {
+		name = "Card Sets room", lane = "menu",
+		rects = function(w, h)
+			local pw, ph = CSL.roomPanel(w, h)
+			local r = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, #CS.Definitions, 1)
+			local out = { hero = r.hero, shelf = r.shelf, prevButton = r.plates.prev, nextButton = r.plates.next }
+			for i, c in ipairs(r.cells) do out["name" .. i] = c.name end
+			return out
+		end,
+	}
+	local sets, runs = 0, 0
+	for _, set in ipairs(CS.Definitions) do
+		sets = sets + 1
+		-- the equipped set only changes colours, plates and art: rects come from layouts that never read it, so the audit must hold for each set
+		for _, sz in ipairs(Audit.SIZES) do
+			for _, sc in ipairs(keep) do
+				runs = runs + 1
+				if sc.name ~= "Card Sets room" or CSL.roomPanel(sz[1], sz[2]) >= CSL.ROOM_MIN.w then
+					for _, f in ipairs(Audit.checkScreen(sc, sz[1], sz[2])) do
+						assert(f.rule ~= "touch" and f.rule ~= "screen" and f.rule ~= "text", set.id .. " " .. sc.name .. " " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(f.detail))
+					end
+				end
+			end
+			-- the set name has to fit its tile name box in two lines at 14 px (about 0.55 em per letter)
+			local pw, ph = CSL.roomPanel(sz[1], sz[2])
+			if pw >= CSL.ROOM_MIN.w and ph >= CSL.ROOM_MIN.h then
+				local r = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, #CS.Definitions, 1)
+				local c = r.cells[1]
+				if c then
+					assert(#set.name * 14 * 0.55 <= 2 * (c.name.w - 4), set.id .. " name fits two lines at " .. sz[1] .. "x" .. sz[2])
+					assert(c.name.h >= 28, "two 14 px lines fit the name box")
+				end
+			end
+		end
+	end
+	assert(sets >= 14 and runs >= 14 * 4 * 5, "every set, size and screen was audited")
+end })
+
 table.insert(tests, { name = "TableKeyMap: keys map to table actions, guards block popups and text boxes, nothing fires in a popup", fn = function()
 	local Map = require(script.Parent.Parent.Engine.TableKeyMap)
 	local ok = { tableActive = true, popupOpen = false, textBox = false }
