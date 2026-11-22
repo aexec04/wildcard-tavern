@@ -38,9 +38,11 @@ end
 function M.slots(count, nightCap, shown)
 	local slots, n = {}, 0
 	for i = 1, count do
-		if i > nightCap or shown == nil or shown[i] or i == nightCap then
+		if shown == nil or shown[i] or i == nightCap then
 			slots[i] = n
 			n = n + 1
+		elseif i > nightCap then
+			slots[i] = math.max(0, n - 1) -- an Endless stop that is not drawn yet takes no road: it sits on the last drawn stop
 		else
 			slots[i] = n - 0.5
 		end
@@ -48,12 +50,18 @@ function M.slots(count, nightCap, shown)
 	return slots, n
 end
 
-local function positions(count, leftPad, spacing, mid, amp, slots)
+M.MAX_GAP_NODES = 1.6 -- Endless stops past the boss sit at most this many node widths apart (never under 200 px so plates stay clear)
+
+local function positions(count, leftPad, spacing, mid, amp, slots, nightCap, nodeSize)
 	local xs, ys = {}, {}
+	local endSpacing = math.min(spacing, math.max(M.MAX_GAP_NODES * nodeSize, 200))
 	for i = 1, count do
 		-- a gentle S: one slow sine along the route (neighbours differ by well under the spacing), not an up and down zigzag
 		local k = slots[i]
 		xs[i] = leftPad + k * spacing
+		if nightCap and i > nightCap and slots[nightCap] then
+			xs[i] = leftPad + slots[nightCap] * spacing + (k - slots[nightCap]) * endSpacing
+		end
 		ys[i] = mid + amp * math.sin(k * 1.05)
 	end
 	return xs, ys
@@ -85,7 +93,7 @@ local function overlap(a, b) return a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 
 -- true when no node's circle or label touches another node's circle or label
 function M.clear(res, names, nightCap)
 	local bx = M.boxes(res, names, nightCap)
-	local function drawn(i) return res.shown == nil or i > nightCap or i == nightCap or res.shown[i] end
+	local function drawn(i) return res.shown == nil or i == nightCap or res.shown[i] == true end
 	for i = 1, #bx do
 		for j = i + 1, #bx do
 			if drawn(i) and drawn(j) and (overlap(bx[i].circle, bx[j].circle) or overlap(bx[i].circle, bx[j].label) or overlap(bx[i].label, bx[j].circle) or overlap(bx[i].label, bx[j].label)) then
@@ -124,17 +132,46 @@ function M.layout(sw, sh, names, nightCap, shown, current)
 	local s = math.max(spacing, currentSize + 8)
 	while true do
 		res.spacing = s
-		res.posX, res.posY = positions(count, leftPad, s, mid, amp, slots)
+		res.posX, res.posY = positions(count, leftPad, s, mid, amp, slots, nightCap, nodeSize)
 		if s >= 420 or M.clear(res, names, nightCap) then break end
 		s = s + 4
 	end
 	local labelW = clamp(math.floor(res.spacing * 0.85), 150, 230)
 	res.labelW = labelW
-	res.canvasW = math.floor(leftPad + (select(2, M.slots(count, nightCap, shown)) - 1) * res.spacing + rightPad)
+	local lastDrawnX = 0
+	for i = 1, count do
+		if shown == nil or shown[i] or i == nightCap then lastDrawnX = math.max(lastDrawnX, res.posX[i]) end
+	end
+	res.canvasW = math.floor(lastDrawnX + rightPad)
 	res.canvasH = viewH -- one screen tall: the whole route is in view
 	local lastX = res.posX[math.min(nightCap, count)] or 0
 	res.fits = lastX + math.max(bossSize / 2, math.min(labelW, RouteRules.PLATE_MAX) / 2) <= viewW
 	return res
+end
+
+-- scroll x (canvas x of the view's left edge) that keeps the canvas filled and the current stop, or else the next stop, in view
+function M.clampScroll(x, viewW, canvasW, currentX, nextX, margin)
+	margin = margin or 60
+	local maxX = math.max(0, canvasW - viewW)
+	x = clamp(x, 0, maxX)
+	local anchor = currentX or nextX
+	if not anchor then return x end
+	local lo = math.max(0, anchor + margin - viewW) -- the anchor stays inside [x + margin, x + viewW - margin]
+	local hi = math.min(maxX, anchor - margin)
+	if lo > hi then return clamp(anchor - viewW / 2, 0, maxX) end
+	return clamp(x, lo, hi)
+end
+
+-- true when no two consecutive drawn stops are more than maxGap px apart (returns false and the offending index otherwise)
+function M.gapsOk(res, count, nightCap, shown, maxGap)
+	local prev
+	for i = 1, count do
+		if shown == nil or shown[i] or i == nightCap then
+			if prev and res.posX[i] - res.posX[prev] > maxGap then return false, i end
+			prev = i
+		end
+	end
+	return true
 end
 
 return M

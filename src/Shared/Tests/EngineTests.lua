@@ -35675,4 +35675,34 @@ table.insert(tests, { name = "AnalyticsEvents: names stable and unique, payload 
 	expectTrue(none.step(p, "menu_opened")); expectEqual(none.bossLost(p, "x"), false)
 end })
 
+table.insert(tests, { name = "MapFitRules: hidden Endless stops take no road, the canvas ends at the boss, gaps stay short, the scroll keeps the current stop in view", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapFitRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	local shown = {}
+	for i = 1, #names do shown[i] = (i <= 4) end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local res = R.layout(sz[1], sz[2], names, JM.NightCap, shown, 1)
+		expectTrue(res.canvasW <= res.posX[JM.NightCap] + res.rightPad + 1, "canvas ends at the boss when Endless is hidden at " .. tag)
+		for i = JM.NightCap + 1, #names do
+			expectTrue(res.posX[i] <= res.posX[JM.NightCap], "hidden Endless stop " .. i .. " adds no road at " .. tag)
+		end
+		-- everything drawn (run won): Endless stops sit at most 1.6 node widths (or 200 px) apart and stay clear
+		local all = R.layout(sz[1], sz[2], names, JM.NightCap, nil, 1)
+		local cap = math.max(R.MAX_GAP_NODES * all.nodeSize, 200)
+		for i = JM.NightCap + 2, #names do
+			expectTrue(all.posX[i] - all.posX[i - 1] <= cap + 1, "Endless gap capped at " .. tag)
+		end
+		expectTrue(R.clear(all, names, JM.NightCap), "all drawn: nothing overlaps at " .. tag)
+		-- scroll clamp: far right of the map still holds the current stop
+		local x = R.clampScroll(99999, sz[1], 3000, 300, 700)
+		expectTrue(300 >= x + 60 and 300 <= x + sz[1] - 60, "current stop in view after a far right drag at " .. tag)
+	end
+	expectEqual(R.clampScroll(-50, 800, 3000, 100, 500), 0)
+	expectTrue(select(1, R.gapsOk({ posX = { 0, 100, 200 } }, 3, 8, nil, 150)), "even road has no gap")
+	expectEqual(select(1, R.gapsOk({ posX = { 0, 100, 900 } }, 3, 8, nil, 150)), false)
+end })
+
 return tests

@@ -1636,6 +1636,22 @@ return function(deps)
 		if requestRender then requestRender() end
 	end
 	scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(fitPanel)
+	do -- the view always keeps the current stop (or the next one) on screen, so the camera never drifts into bare road
+		local clamping = false
+		scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+			if clamping or debugOn or not currentNode then return end
+			local cp = scroll.CanvasPosition
+			local nx = MapFit.clampScroll(cp.X, scroll.AbsoluteSize.X, scroll.CanvasSize.X.Offset, posX[currentNode], posX[currentNode + 1])
+			if math.abs(nx - cp.X) > 0.5 then
+				clamping = true
+				scroll.CanvasPosition = Vector2.new(nx, cp.Y) -- no tween, so Calm mode needs no special case
+				clamping = false
+				if RunService:IsStudio() then
+					warn(string.format("[MapView] clamped x %d to %d, current %d at x %d", cp.X, nx, currentNode, posX[currentNode] or -1))
+				end
+			end
+		end)
+	end
 	frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutPanel)
 
 	local function popNode(node)
