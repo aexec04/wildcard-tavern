@@ -12277,6 +12277,11 @@ table.insert(tests, { name = "Roadmap art: every registry entry has a prompt, ne
 		challenges = ids(require(Engine.Challenges).Definitions),
 		store_bundles = ids(require(Engine.Store).Items),
 	}
+	-- every Store item has its own painted bundle card, and the Store menu icon is registered
+	for _, item in ipairs(require(Engine.Store).Items) do
+		expectTrue(ContentArt.store_bundles[item.id] ~= nil, "store item " .. tostring(item.id) .. " has bundle art")
+	end
+	expectTrue(ContentArt.menu_icons.store ~= nil, "menu_icons store icon is registered")
 	valid.challenges.quick_run = true -- the Quick Run tile in Run Setup (a RunModes mode, not a Challenges entry)
 	for cat, set in pairs(valid) do
 		for key in pairs(ContentArt[cat]) do expectTrue(set[key], cat .. " art key " .. key .. " is a registry id") end
