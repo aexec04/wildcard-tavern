@@ -51,6 +51,10 @@ local function night(root, lines)
 	local prior = root:FindFirstChild("NightClearedPlate")
 	if prior then prior:Destroy() end
 	local n = lines.night
+	if n.runComplete and lines.summary then -- Run complete is the full purple and gold Victory screen (Client/VictoryScreen)
+		local gui = root:FindFirstAncestorOfClass("ScreenGui")
+		if gui and pcall(function() require(script.Parent.VictoryScreen).show(gui, lines) end) then return end
+	end
 	local size = root.AbsoluteSize
 	local rect = Rules.nightPlate(size.X, size.Y, n.runComplete)
 	local timing = Rules.clearTiming(calm(), fast())

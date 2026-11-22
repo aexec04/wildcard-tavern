@@ -14,7 +14,7 @@
 local MenuGate = {}
 
 MenuGate.RUN_MODALS = {
-	ChoiceBackdrop = true, RoadChoiceBackdrop = true, NightVictoryBackdrop = true, RunSummaryBackdrop = true,
+	ChoiceBackdrop = true, RoadChoiceBackdrop = true, NightVictoryBackdrop = true, RunSummaryBackdrop = true, VictoryBackdrop = true,
 	OverlayQueueBackdrop = true, WinCardBackdrop = true, BossFlashOverlay = true,
 }
 

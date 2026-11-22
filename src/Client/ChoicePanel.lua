@@ -318,6 +318,23 @@ end
 local function render()
 	local choice = lastChoice
 	local show = choice ~= nil and not menuIsOpen()
+	local victory = require(script.Parent.VictoryScreen)
+	if show and choice.kind == "reward" then -- the Night clear Patron reward is the purple and gold Victory screen's 3 cards
+		ui.backdrop.Visible = false
+		if pcall(victory.showPick, ui.screenGui, choice, function(id)
+			if clickLocked then return end
+			clickLocked = true
+			task.delay(0.4, function() clickLocked = false end)
+			ui.playClickSfx()
+			ui.choiceRemote:FireServer(id)
+		end, function()
+			ui.playClickSfx()
+			ui.choiceRemote:FireServer("decline")
+		end) then
+			return
+		end
+	end
+	victory.hidePick() -- never closes the Run complete screen
 	if not show then
 		ui.backdrop.Visible = false
 		return
@@ -538,7 +555,7 @@ function ChoicePanel.init(deps)
 
 	ui = {
 		skip = skipButton, backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit, back = backButton,
-		menuFrame = deps.menuFrame, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
+		screenGui = deps.screenGui, menuFrame = deps.menuFrame, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, choiceRemote = deps.choiceRemote,
 	}
 	fit()

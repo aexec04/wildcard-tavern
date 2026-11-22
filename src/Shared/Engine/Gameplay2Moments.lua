@@ -53,6 +53,10 @@ function M.clearLines(prev, now)
 	local lines = { title = "Target cleared", score = string.format("Score %d of %d", score, target), tips = string.format("Tips +%d", earned), tipsEarned = earned }
 	lines.night = M.nightLines(prev)
 	lines.unlockItems = now.unlockNotice and now.unlockNotice.items or nil
+	lines.summary = { -- the Victory screen's numbers: only what the run really tracks
+		tipsEarned = earned, unlockCount = lines.unlockItems and #lines.unlockItems or 0, score = score,
+		night = floor(prev.night), cap = floor(prev.nightCap), hands = floor(now.handsPlayedTotal), tipsTotal = floor(now.tipsEarnedTotal),
+	}
 	return lines
 end
 

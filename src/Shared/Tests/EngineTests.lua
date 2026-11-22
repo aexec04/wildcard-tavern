@@ -34756,4 +34756,42 @@ table.insert(tests, { name = "Assets: id 203785492 (wrong-type ContentId warning
 	expectTrue(out == "", "no source file holds 203785492, found: " .. out)
 end })
 
+table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 11 px or more, only real rewards and stats", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local function inside(r, w, h, what) expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, what .. " inside the screen") end
+	local function apart(a, b, what) expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, what .. " do not overlap") end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = Look.layout(w, h, mode)
+			local list = { L.banner, L.subtitle, L.hero, L.chest, L.button }
+			if mode == "run" then list[#list + 1] = L.rewards; list[#list + 1] = L.summary else for _, c in ipairs(L.cards) do list[#list + 1] = c end end
+			for i, r in ipairs(list) do
+				inside(r, w, h, mode .. " plate " .. i .. " at " .. w)
+				for j = i + 1, #list do apart(r, list[j], mode .. " plates " .. i .. "," .. j .. " at " .. w) end
+			end
+			expectTrue(Look.fontSize(22, L.scale) >= 11 and Look.fontSize(1, L.scale) == 11, "text floor is 11 px at " .. w)
+		end
+	end
+	expectEqual(Look.commas(34750), "34,750", "score uses commas")
+	local cols = Look.rewardColumns({ tipsEarned = 150, unlockCount = 0 })
+	expectEqual(#cols, 1, "no unlocks means no unlock column")
+	expectEqual(cols[1].value, "+150", "tips column")
+	expectEqual(#Look.rewardColumns({ tipsEarned = 0, unlockCount = 2 }), 2, "unlocks get a column")
+	local rows = Look.summaryRows({ score = 1200, night = 8, cap = 8, hands = 31, tipsTotal = 90 }, { name = "Flush", score = 80 })
+	expectEqual(rows[1].value, "1,200", "final round score row")
+	expectEqual(rows[2].value, "Flush", "best hand row")
+	expectEqual(rows[3].value, "8 of 8", "night reached row")
+	expectEqual(Look.summaryRows({}, nil)[2].value, "-", "no best hand shows a dash")
+	local MG = require(script.Parent.Parent.Engine.MenuGate)
+	expectTrue(MG.mustHide("VictoryBackdrop", true), "MenuGate knows the Victory backdrop")
+	expectTrue(require(script.Parent.Parent.Engine.ResultGuard).mustHide({ VictoryBackdrop = true }), "ResultGuard knows the Victory backdrop")
+	local M2 = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local prev = { phase = "playing", targetScore = 100, roundScore = 90, tips = 5, round = 3, bossModifier = { id = "x" }, night = 8, nightCap = 8 }
+	local lines = M2.clearLines(prev, { phase = "shop", roundScore = 150, tips = 15, handsPlayedTotal = 31, tipsEarnedTotal = 90 })
+	expectTrue(lines and lines.night and lines.night.runComplete, "final Night boss clear is Run complete")
+	expectEqual(lines.summary.hands, 31, "summary carries the hands played")
+	expectEqual(lines.summary.tipsEarned, 10, "summary carries the Tips earned")
+end })
+
 return tests
