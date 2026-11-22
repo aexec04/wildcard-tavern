@@ -135,6 +135,21 @@ return function(deps)
 		label.Text = text
 		label.ZIndex = 21
 		label.Parent = scroll
+		-- a thin rule under the section name in the equipped Card Set accent (gold for classic); a child, so the list layout ignores it
+		local rule = Instance.new("Frame")
+		rule.Name = "HeaderRule"
+		rule.AnchorPoint = Vector2.new(0, 1)
+		rule.Position = UDim2.new(0, 0, 1, 0)
+		rule.Size = UDim2.new(1, 0, 0, 2)
+		rule.BorderSizePixel = 0
+		rule.BackgroundColor3 = require(script.Parent.TavernKit).ringColor(Color3.fromRGB(222, 182, 104))
+		rule.ZIndex = 21
+		rule.Parent = label
+		pcall(function()
+			require(script.Parent.HudTheme).onSkin(function()
+				if rule.Parent then rule.BackgroundColor3 = require(script.Parent.TavernKit).ringColor(Color3.fromRGB(222, 182, 104)) end
+			end)
+		end)
 	end
 
 	-- One row: label + description on the left, a value button on the
@@ -274,8 +289,8 @@ return function(deps)
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }
 
-	-- ===== Comfort (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
-	makeHeader("Comfort")
+	-- ===== Accessibility (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
+	makeHeader("Accessibility")
 	makeChoiceRow("calmMode", "Calm Mode", S("settings.calm.hint"), OFF_ON, {
 		keys = { reduceMotion = true, reduceFlashing = true, reduceShake = true },
 		get = function()
@@ -345,8 +360,40 @@ return function(deps)
 		end)
 	end
 
-	-- ===== Help =====
-	makeHeader("Help")
+	-- ===== Display =====
+	makeHeader("Display")
+	makeChoiceRow("animSpeed", "Animation Speed", S("settings.animSpeed.hint"), {
+		{ "normal", "Normal" },
+		{ "fast", "Fast" },
+	})
+	makeChoiceRow("performanceMode", "Performance Mode", S("settings.performanceMode.hint"), OFF_ON)
+	makeChoiceRow("roundHints", "Round Hints", S("settings.roundHints.hint"), { { false, "Off" }, { true, "On" } })
+	makeChoiceRow("confirmDiscard", "Confirm Before Discard", S("settings.confirmDiscard.hint"), OFF_ON)
+	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", S("settings.holdConfirm.hint"), {
+		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
+	})
+	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
+		local hint = Instance.new("TextLabel")
+		hint.Name = "KeysHint"
+		hint.Size = UDim2.new(1, -16, 0, 96)
+		hint.LayoutOrder = order()
+		hint.BackgroundTransparency = 1
+		hint.Font = Enum.Font.Merriweather
+		hint.TextSize = 15
+		hint.TextWrapped = true
+		hint.TextXAlignment = Enum.TextXAlignment.Left
+		hint.TextYAlignment = Enum.TextYAlignment.Top
+		hint.TextColor3 = SUBTLE
+		hint.TextTransparency = 0
+		hint.TextStrokeTransparency = 1
+		hint.Text = table.concat(require(game:GetService("ReplicatedStorage").Shared.Engine.TableKeyMap).hintLines(), "\n")
+		hint.ZIndex = 21
+		hint.Parent = scroll
+	end
+
+	-- ===== Account =====
+	makeHeader("Account")
+	makeChoiceRow("allowSpectators", "Allow Spectators", S("settings.allowSpectators.hint"), { { false, "Off" }, { true, "On" } })
 
 	-- Replay Tutorial: the 24 step walkthrough again (Skip is always on screen while it runs)
 	if deps.replayTutorial then
@@ -395,9 +442,11 @@ return function(deps)
 		polishButton(go, 8)
 		addButtonHoverScale(go)
 		go.MouseButton1Click:Connect(function()
-			playClickSfx()
-			settingsBackdrop.Visible = false
-			pcall(deps.replayTutorial)
+			-- a calm confirm first (Client/ReplayConfirm): replaying changes no saved progress
+			require(script.Parent.ReplayConfirm).ask(function()
+				settingsBackdrop.Visible = false
+				pcall(deps.replayTutorial)
+			end)
 		end)
 	end
 
@@ -461,6 +510,58 @@ return function(deps)
 		end)
 	end
 
+
+	local ACC = SettingsLayout.ACCOUNT
+	local function makeAccountRow()
+		local rowFrame = Instance.new("Frame")
+		rowFrame.Size = UDim2.new(1, 0, 0, ACC.plateH)
+		rowFrame.LayoutOrder = order()
+		rowFrame.BackgroundTransparency = 1
+		rowFrame.ZIndex = 21
+		rowFrame.Parent = scroll
+		-- No list layout here on purpose:TavernKit.painted parents each plate picture as a SIBLING of the button, and a list layout
+		-- would give every picture its own slot and push the buttons one panel width to the right (live, Nov 22). Plates are placed by Position.
+		return rowFrame
+	end
+	local accountRow = makeAccountRow()
+	local accountRow2 = makeAccountRow()
+
+	local function makeAccountButton(text, layoutOrder, iconName, parentRow, perRow)
+		perRow = perRow or ACC.perRow
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
+		button.Position = UDim2.new((layoutOrder - 1) / perRow, (layoutOrder - 1) * ACC.gap / perRow, 0, 0) -- slot i: i * (width + gap)
+		button.TextWrapped = true
+		button.LayoutOrder = layoutOrder
+		button.Font = Enum.Font.Merriweather
+		button.TextSize = ACC.textSize
+		button.Text = text
+		button.BackgroundColor3 = BUTTON
+		button.TextColor3 = TEXT
+		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
+		button.Parent = parentRow or accountRow
+		polishButton(button, 12)
+		addButtonHoverScale(button)
+		-- The one shared ornate dark plate (same as the gear menu and All actions) with its own painted icon; every Account
+		-- button gets exactly one plate and one icon, a flat brown look stays if the art does not load.
+		local Kit = require(script.Parent.TavernKit)
+		button:SetAttribute("AccountButton", true)
+		button:SetAttribute("FlatFace", true) -- SetSkin draws no set plate over it: the brass kit plate always shows, whatever Card Set is equipped
+		pcall(backPlate, button)
+		pcall(Kit.painted, button, SettingsLayout.PLATE)
+		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
+		return button
+	end
+
+	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, "bulb")
+	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, "bars")
+	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, "pause")
+	settingsMainMenuButton.Name = "MainMenu"
+	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
+	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, "crown", accountRow2, ACC.secondRow)
+	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
+	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
+	settingsMapButton.Name = "TavernMap"
 
 	-- Codes box: the typed text only goes to the server (Engine/Codes.lua), which answers with a toast
 	do
@@ -556,95 +657,6 @@ return function(deps)
 			if enterPressed then send() end
 		end)
 	end
-
-	-- ===== Display =====
-	makeHeader("Display")
-	makeChoiceRow("animSpeed", "Animation Speed", S("settings.animSpeed.hint"), {
-		{ "normal", "Normal" },
-		{ "fast", "Fast" },
-	})
-	makeChoiceRow("performanceMode", "Performance Mode", S("settings.performanceMode.hint"), OFF_ON)
-
-	-- ===== Gameplay =====
-	makeHeader("Gameplay")
-	makeChoiceRow("roundHints", "Round Hints", S("settings.roundHints.hint"), { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("confirmDiscard", "Confirm Before Discard", S("settings.confirmDiscard.hint"), OFF_ON)
-	makeChoiceRow("allowSpectators", "Allow Spectators", S("settings.allowSpectators.hint"), { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", S("settings.holdConfirm.hint"), {
-		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
-	})
-	do -- the key hint (Engine/TableKeyMap.hintLines, same text as How to play)
-		local hint = Instance.new("TextLabel")
-		hint.Name = "KeysHint"
-		hint.Size = UDim2.new(1, -16, 0, 96)
-		hint.LayoutOrder = order()
-		hint.BackgroundTransparency = 1
-		hint.Font = Enum.Font.Merriweather
-		hint.TextSize = 15
-		hint.TextWrapped = true
-		hint.TextXAlignment = Enum.TextXAlignment.Left
-		hint.TextYAlignment = Enum.TextYAlignment.Top
-		hint.TextColor3 = SUBTLE
-		hint.TextTransparency = 0
-		hint.TextStrokeTransparency = 1
-		hint.Text = table.concat(require(game:GetService("ReplicatedStorage").Shared.Engine.TableKeyMap).hintLines(), "\n")
-		hint.ZIndex = 21
-		hint.Parent = scroll
-	end
-
-	-- ===== Account =====
-	makeHeader("Account")
-	local ACC = SettingsLayout.ACCOUNT
-	local function makeAccountRow()
-		local rowFrame = Instance.new("Frame")
-		rowFrame.Size = UDim2.new(1, 0, 0, ACC.plateH)
-		rowFrame.LayoutOrder = order()
-		rowFrame.BackgroundTransparency = 1
-		rowFrame.ZIndex = 21
-		rowFrame.Parent = scroll
-		-- No list layout here on purpose:TavernKit.painted parents each plate picture as a SIBLING of the button, and a list layout
-		-- would give every picture its own slot and push the buttons one panel width to the right (live, Nov 22). Plates are placed by Position.
-		return rowFrame
-	end
-	local accountRow = makeAccountRow()
-	local accountRow2 = makeAccountRow()
-
-	local function makeAccountButton(text, layoutOrder, iconName, parentRow, perRow)
-		perRow = perRow or ACC.perRow
-		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1 / perRow, -math.ceil(ACC.gap * (perRow - 1) / perRow), 0, ACC.plateH)
-		button.Position = UDim2.new((layoutOrder - 1) / perRow, (layoutOrder - 1) * ACC.gap / perRow, 0, 0) -- slot i: i * (width + gap)
-		button.TextWrapped = true
-		button.LayoutOrder = layoutOrder
-		button.Font = Enum.Font.Merriweather
-		button.TextSize = ACC.textSize
-		button.Text = text
-		button.BackgroundColor3 = BUTTON
-		button.TextColor3 = TEXT
-		button.ZIndex = 24 -- plate backing (21) and picture (23) sit under it, above the panel art (Global z order)
-		button.Parent = parentRow or accountRow
-		polishButton(button, 12)
-		addButtonHoverScale(button)
-		-- The one shared ornate dark plate (same as the gear menu and All actions) with its own painted icon; every Account
-		-- button gets exactly one plate and one icon, a flat brown look stays if the art does not load.
-		local Kit = require(script.Parent.TavernKit)
-		button:SetAttribute("AccountButton", true)
-		button:SetAttribute("FlatFace", true) -- SetSkin draws no set plate over it: the brass kit plate always shows, whatever Card Set is equipped
-		pcall(backPlate, button)
-		pcall(Kit.painted, button, SettingsLayout.PLATE)
-		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
-		return button
-	end
-
-	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, "bulb")
-	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, "bars")
-	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, "pause")
-	settingsMainMenuButton.Name = "MainMenu"
-	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
-	local settingsDailyButton = makeAccountButton("Daily Rewards", 1, "crown", accountRow2, ACC.secondRow)
-	-- Tavern Map: reachable from Settings too (opens over the table during a round, closing returns to it)
-	local settingsMapButton = makeAccountButton("Tavern Map", 2, "spade", accountRow2, ACC.secondRow)
-	settingsMapButton.Name = "TavernMap"
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
@@ -765,6 +777,9 @@ return function(deps)
 	require(script.Parent.QuitConfirm).install({
 		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
 		polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
+	})
+	require(script.Parent.ReplayConfirm).install({
+		screenGui = deps.screenGui, polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
 	})
 	OverlayManager.registerOpener("quitToTavern", function()
 		require(script.Parent.QuitConfirm).ask()

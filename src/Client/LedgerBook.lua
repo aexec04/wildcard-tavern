@@ -30,6 +30,7 @@ function LedgerBook.build(deps, desk)
 	local Stakes = require(Engine:WaitForChild("Stakes"))
 	local Patrons = require(Engine:WaitForChild("Patrons"))
 	local Achievements = require(Engine:WaitForChild("Achievements"))
+	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local Cue = require(script.Parent.Cue)
@@ -383,7 +384,7 @@ function LedgerBook.build(deps, desk)
 		for i, line in ipairs(Pages.lifeLines(stats, titleDef and titleDef.title or nil)) do leader("right", 5 + i, line.label, line.value) end
 	end
 
-	local function hallLeft(stats)
+	local function hallLeft(stats, state)
 		heading("left", "Hall of Fame")
 		local sz = metrics()
 		local bests = Pages.bests(stats.recent, Pages.BESTS_SHOWN)
@@ -406,6 +407,11 @@ function LedgerBook.build(deps, desk)
 			stamp(note, UDim2.new(1, -(stampSize + 4), 0.5, -stampSize // 2), e.won, stampSize)
 		end
 		if #bests == 0 then emptyNote("left") end
+		-- favourites on the two ruled lines left under the three notes
+		local top = Pages.mostPlayedPatron(stats.recent)
+		local patronDef = top and Patrons.getById(top.id)
+		local setDef = state and state.cosmetics and CosmeticSets.getById(state.cosmetics.equippedSetId)
+		for i, line in ipairs(Pages.favoriteLines(stats, patronDef and patronDef.name, setDef and setDef.name)) do leader("left", 7 + i, line.label, line.value) end
 	end
 
 	local function hallRight(stats)
@@ -557,7 +563,7 @@ function LedgerBook.build(deps, desk)
 			return
 		end
 		if side == "left" then
-			if pageIndex == 1 then storyLeft(stats) elseif pageIndex == 2 then hallLeft(stats) else recordsLeft(stats) end
+			if pageIndex == 1 then storyLeft(stats) elseif pageIndex == 2 then hallLeft(stats, state) else recordsLeft(stats) end
 		else
 			if pageIndex == 1 then storyRight(stats, state) elseif pageIndex == 2 then hallRight(stats) else recordsRight(stats) end
 		end

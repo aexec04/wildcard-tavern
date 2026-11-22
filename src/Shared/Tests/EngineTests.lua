@@ -9744,6 +9744,32 @@ table.insert(tests, { name = "TavernRank: 30 ranks, rising XP, every rank has a 
 	expectTrue(view.maxed and view.rank == 30 and view.need == 0)
 end })
 
+table.insert(tests, { name = "TavernRank rewards pin: Tips never fall between ranks, no content is given twice, titles have unique kid safe names", fn = function()
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local seen, names, lastTips, tipsTotal = {}, {}, 0, 0
+	for r = 2, TavernRank.MAX_RANK do
+		local reward = TavernRank.Rewards[r]
+		if reward.kind == "tips" then
+			expectTrue(reward.amount >= lastTips, "rank " .. r .. " Tips do not fall below the last Tips reward")
+			lastTips = reward.amount
+			tipsTotal = tipsTotal + reward.amount
+		else
+			local key = reward.kind .. ":" .. reward.id
+			expectTrue(not seen[key], key .. " is given once")
+			seen[key] = true
+		end
+		if reward.kind == "title" then
+			local name = Achievements.getById(reward.id).name
+			expectTrue(not names[name], "unique title " .. name)
+			names[name] = true
+			expectTrue(not name:lower():find("balatro") and not name:find("\226\128\148") and #name <= 24, "safe short title " .. name)
+		end
+	end
+	expectEqual(TavernRank.Rewards[5].id, "table_regular")
+	expectEqual(TavernRank.Rewards[30].id, "grand_host")
+	expectEqual(tipsTotal, 115,"total Tips across all ranks is pinned")
+end })
+
 table.insert(tests, { name = "TavernRank.addXp: rewards are granted once, in order, nothing is lost on a big jump, Tips are capped", fn = function()
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
 	local profile = PlayerProfile.new()
@@ -10274,6 +10300,24 @@ table.insert(tests, { name = "MenuTicker: run counts rounded, board line with na
 	expectEqual(select(1, MT.text({}, 0 / 0 ~= 0 / 0 and 1 or 1)), MT.FlavorLines[2])
 	for _, line in ipairs(MT.FlavorLines) do
 		expectTrue(not line:find("—") and #line <= 60, "short, no dashes: " .. line)
+	end
+end })
+
+table.insert(tests, { name = "MenuTicker: 12 or more kid safe lines, each 60 characters or less, unique, never the same line twice in a row over a year of days", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MenuTicker)
+	expectTrue(#MT.FlavorLines >= 12, "at least 12 lines")
+	local seen = {}
+	for _, line in ipairs(MT.FlavorLines) do
+		expectTrue(#line <= 60 and #line > 0, "60 characters or less: " .. line)
+		expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not line:lower():find("balatro"), "no em dash, double dash or banned word: " .. line)
+		expectTrue(not seen[line], "unique: " .. line)
+		seen[line] = true
+	end
+	local prev
+	for day = 0, 400 do
+		local line = MT.text({}, day)
+		expectTrue(line ~= prev, "day " .. day .. " repeats the previous line")
+		prev = line
 	end
 end })
 
@@ -14330,6 +14374,53 @@ table.insert(tests, { name = "LedgerPages: stats map to story, hall and records 
 	expectEqual(LP.step(1, -1), 1, "no page before the first")
 	expectEqual(LP.step(3, 1), 3, "no page after the last")
 	expectEqual(LP.step(1, 1), 2, "next page")
+end })
+
+table.insert(tests, { name = "LedgerPages favourites: most played Patron from the recent runs, stable ties, Card Set line, short labels, two lines fit under three notes", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	local Layout = require(script.Parent.Parent.Engine.LedgerLayout)
+	expectEqual(LP.mostPlayedPatron(nil), nil)
+	expectEqual(LP.mostPlayedPatron({}), nil)
+	expectEqual(LP.mostPlayedPatron({ { patrons = {} } }), nil)
+	local top = LP.mostPlayedPatron({ { patrons = { "b_id", "a_id" } }, { patrons = { "b_id" } }, { patrons = { 7, "a_id" } } })
+	expectEqual(top.id, "a_id", "a tie goes to the alphabetically first id")
+	expectEqual(top.runs, 2)
+	expectEqual(LP.mostPlayedPatron({ { patrons = { "x" } }, { patrons = { "x", "y" } } }).id, "x")
+	local lines = LP.favoriteLines({}, "The Regular", "Winter Evening")
+	expectEqual(#lines, 2)
+	expectEqual(lines[1].value, "The Regular"); expectEqual(lines[2].value, "Winter Evening")
+	expectEqual(LP.favoriteLines({}, nil, nil)[1].value, "None yet")
+	for _, l in ipairs(lines) do
+		expectTrue(#l.label <= 14 and not l.label:find("\226\128\148") and not l.label:find("%-%-"), "short plain label " .. l.label)
+	end
+	-- the Hall of Fame page: three notes use ruled lines 2 to 7, so lines 8 and 9 are free for the two favourites
+	expectEqual(LP.BESTS_SHOWN * 2 + 1, 7)
+	expectTrue(Layout.span("left", 9) ~= nil, "ruled line 9 exists on the left page")
+end })
+
+table.insert(tests, { name = "ReplayFlow: one confirm per request, safe kid wording, Replay Tutorial asks first, runs only the walkthrough and never touches the profile", fn = function()
+	local RF = require(script.Parent.Parent.Engine.ReplayFlow)
+	local s = RF.new()
+	expectTrue(RF.request(s), "the confirm opens")
+	expectFalse(RF.request(s), "not twice")
+	expectTrue(RF.confirm(s), "Replay once")
+	expectFalse(RF.confirm(s), "a double tap cannot replay twice")
+	RF.finish(s)
+	expectTrue(RF.request(s), "a new request may open after it finished")
+	RF.cancel(s)
+	expectFalse(RF.confirm(s), "Not now then Replay does nothing")
+	for _, w in ipairs({ RF.TITLE, RF.MESSAGE, RF.YES, RF.NO }) do
+		expectTrue(not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. w)
+	end
+	expectTrue(RF.MESSAGE:find("progress", 1, true) ~= nil, "the message says progress is safe")
+	if io and io.open then
+		local function read(p) local f = assert(io.open(p, "r")); local t = f:read("*a"); f:close(); return t end
+		local settings = read("src/Client/Settings.lua")
+		expectTrue(settings:find("ReplayConfirm).ask(function()", 1, true) ~= nil, "the Replay button asks first")
+		local confirm = read("src/Client/ReplayConfirm.lua")
+		expectTrue(not confirm:find("FireServer", 1, true) and not confirm:find("InvokeServer", 1, true) and not confirm:find("hasSeenTutorial", 1, true), "the confirm never writes the profile or the tutorial flag")
+		expectTrue(confirm:find("TweenService", 1, true) == nil, "no tween")
+	end
 end })
 
 table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, empty note is friendly", fn = function()
@@ -25028,10 +25119,29 @@ table.insert(tests, { name = "LoadProgress: monotonic, clamped 0 to 1, reaches 1
 	expectTrue(LP.MIN_VISIBLE >= 1.2 and LP.SKIP_AFTER == 25, "timings from the brief")
 end })
 
-table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, short enough for one 15 px line, the shuffle uses each once; the launch screen is wired and uses no tiny text", fn = function()
+table.insert(tests, { name = "LoadingTips: 20 unique tips of 60 characters or less, plain text with no dashes, the shuffle uses each once and never repeats back to back across cycles; the launch screen is wired and uses no tiny text", fn = function()
 	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
 	local LP = require(script.Parent.Parent.Engine.LoadProgress)
-	expectEqual(#Tips.TIPS, 12, "twelve tips")
+	expectEqual(#Tips.TIPS, 20, "twenty tips")
+	expectEqual(Tips.MAX_LENGTH, 60)
+	local uniq = {}
+	for _, tip in ipairs(Tips.TIPS) do expectFalse(uniq[tip], "unique tip: " .. tip); uniq[tip] = true end
+	for seed = 1, 60 do -- the screen walks one shuffle round and round: three laps never show the same tip twice in a row
+		local order, prev = Tips.order(seed), nil
+		for step = 1, #order * 3 do
+			local idx = order[((step - 1) % #order) + 1]
+			expectTrue(idx ~= prev, "seed " .. seed .. " repeats a tip at step " .. step)
+			prev = idx
+		end
+	end
+	local teaches = { bond = false, level = false, daily = false }
+	for _, tip in ipairs(Tips.TIPS) do
+		local l = tip:lower()
+		if l:find("bond", 1, true) then teaches.bond = true end
+		if l:find("level", 1, true) then teaches.level = true end
+		if l:find("twist", 1, true) then teaches.daily = true end
+	end
+	expectTrue(teaches.bond and teaches.level and teaches.daily, "tips teach Bonds, hand levels and the Daily twist")
 	for i, tip in ipairs(Tips.TIPS) do
 		expectFalse(tip:find("-", 1, true) ~= nil or tip:find("\226\128\148", 1, true) ~= nil or tip:find("\226\128\147", 1, true) ~= nil, "tip " .. i .. " has no dash")
 		expectTrue(#tip <= Tips.MAX_LENGTH, "tip " .. i .. " fits one line")
@@ -25044,7 +25154,7 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 	for _, idx in ipairs(order) do seen[idx] = true end
 	local n = 0
 	for _ in pairs(seen) do n = n + 1 end
-	expectTrue(#order == 12 and n == 12, "every tip exactly once")
+	expectTrue(#order == 20 and n == 20, "every tip exactly once")
 	local DG = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(DG.parse("loading").percent, 60, "loading freezes at 60")
 	expectEqual(DG.parse("loading:25").percent, 25, "loading:<n>")
@@ -30799,7 +30909,7 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	local f = assert(io.open("src/Client/Settings.lua", "r"))
 	local src = f:read("*a")
 	f:close()
-	local display = src:find('makeHeader("Comfort")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
+	local display = src:find('makeHeader("Accessibility")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
 	local gameplay = src:find('makeHeader("Sound")', 1, true)
 	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
 	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
@@ -30841,6 +30951,26 @@ table.insert(tests, { name = "PackReveal: a card can be kept only once face up, 
 	assert(R.TAKE_ALL_HEIGHT == 44 and R.takeAllWord(2, 2) == "Take all" and R.takeAllWord(1, 3) == "Reveal all", "Take all is 44 px and only offered when every card can be kept")
 	assert(R.markWord(true) == "Owned" and R.markWord(false) == "New", "face-up cards read Owned or New")
 	assert(R.isStrong("epic") and R.isStrong("mythical") and not R.isStrong("uncommon") and not R.isStrong(nil), "Rare and above are strong")
+end })
+table.insert(tests, { name = "PackReveal.look: every set gets an accent edge at 3:1, Rare and above glow, Common and Calm never glow, wording has no Robux or odds claim", fn = function()
+	local R = require(script.Parent.Parent.Engine.PackReveal)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		for _, rarity in ipairs({ "common", "rare", "epic", "legendary", "mythical" }) do
+			local look = R.look(set.id, rarity, false)
+			expectTrue(CS.contrastRatio(look.edge, CS.FOCUS_RING_BACKING) >= 3, set.id .. " edge reads on the dark wood")
+			expectEqual(look.glow ~= nil, R.isStrong(rarity), set.id .. " " .. rarity .. " glow only when strong")
+			expectEqual(R.look(set.id, rarity, true).glow, nil, set.id .. " " .. rarity .. " has no glow in Calm mode")
+		end
+	end
+	for _, w in ipairs({ R.TAP_WORD, R.SKIP_WORD, R.REVEAL_WORD, R.markWord(true), R.markWord(false), R.keepWord("patron", false), R.keepWord("patron", true) }) do
+		expectTrue(not w:find("Robux") and not w:find("%%") and not w:find("\226\128\148"), "kid safe wording: " .. w)
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/PackRevealFX.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PackReveal.look", 1, true) ~= nil and src:find("plateSetId", 1, true) ~= nil, "the reveal asks for the set look")
+	end
 end })
 table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, owns no loop, and every plate text is ASCII", fn = function()
 	if not (io and io.open) then return end
@@ -41847,6 +41977,160 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 			local src = f:read("*a"); f:close()
 			expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find(".dark(", 1, true) ~= nil, name .. " binds the popup skin")
 		end
+	end
+end })
+
+table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display and Account, every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local titles = {}
+	for i, s in ipairs(SL.SECTIONS) do titles[i] = s.title end
+	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Account", "four groups")
+	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
+	local seen, n = {}, 0
+	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
+	expectEqual(n, 15, "every Settings row is listed")
+	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local panelH = size[2] * SL.PANEL.fh
+		local scrollH = panelH - SL.PANEL.top - SL.PANEL.bottomReserve
+		expectTrue(scrollH >= SL.PANEL.rowH, size[1] .. "x" .. size[2] .. " the scroll shows at least one full row")
+		expectTrue(size[2] * (SL.PANEL.fy + SL.PANEL.fh) <= size[2], size[1] .. "x" .. size[2] .. " the panel stays on screen")
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/Settings.lua", "r"))
+		local src = f:read("*a"); f:close()
+		local last = 0
+		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Account", "About" }) do
+			local at = src:find('makeHeader("' .. name .. '")', 1, true)
+			expectTrue(at ~= nil and at > last, name .. " header is built in order")
+			last = at or last
+		end
+		expectTrue(src:find('makeHeader("Comfort")', 1, true) == nil and src:find('makeHeader("Gameplay")', 1, true) == nil and src:find('makeHeader("Help")', 1, true) == nil, "the old groups are gone")
+		expectTrue(src:find("HeaderRule", 1, true) ~= nil and src:find("ringColor", 1, true) ~= nil, "headers carry the set accent rule")
+		local codes = src:find('Name = "CodesRow"', 1, true) or src:find('row.Name = "CodesRow"', 1, true)
+		local acct = src:find('makeHeader("Account")', 1, true)
+		local about = src:find('makeHeader("About")', 1, true)
+		expectTrue(codes and acct and about and codes > acct and codes < about, "the Codes box sits at the foot of the Account group")
+	end
+end })
+
+table.insert(tests, { name = "StuckHint: shows only with no Discards, one or two hands left and a pace that will miss the Target, once per round, never in the guided hand, kind safe text", fn = function()
+	local SH = require(script.Parent.Parent.Engine.StuckHint)
+	local base = { handsRemaining = 1, discardsRemaining = 0, roundScore = 100, targetScore = 600, roundStartHands = 4, night = 2, round = 3 }
+	local function with(over)
+		local s = {}
+		for k, v in pairs(base) do s[k] = v end
+		for k, v in pairs(over) do s[k] = v end
+		return s
+	end
+	local hint = SH.check(base)
+	expectTrue(hint ~= nil and hint.key == "2-3", "stuck: 100 over 3 hands, one hand left, 600 needed")
+	expectEqual(SH.check(with({ discardsRemaining = 1 })), nil, "a Discard left means not stuck")
+	expectEqual(SH.check(with({ handsRemaining = 3 })), nil, "more than two hands left")
+	expectEqual(SH.check(with({ handsRemaining = 0 })), nil, "no hands left, the round is over")
+	expectEqual(SH.check(with({ roundScore = 580 })), nil, "on pace to clear")
+	expectEqual(SH.check(with({ roundScore = 700 })), nil, "already cleared")
+	expectEqual(SH.check(with({ handsRemaining = 4, roundStartHands = 4 })), nil, "no hand played yet, no pace to judge")
+	expectEqual(SH.check(with({ guidedFirstHand = true })), nil, "never during the guided first hand")
+	expectEqual(SH.check(with({ tutorial = true })), nil, "never in the tutorial")
+	expectEqual(SH.check(nil), nil); expectEqual(SH.check({}), nil)
+	expectTrue(SH.shouldShow(nil, hint), "the first time shows")
+	expectFalse(SH.shouldShow(hint.key, hint), "once per round")
+	expectTrue(SH.shouldShow(hint.key, SH.check(with({ round = 4 }))), "the next round may show again")
+	for _, w in ipairs({ hint.line1, hint.line2 }) do
+		expectTrue(#w <= 60 and not w:find("\226\128\148") and not w:find("%-%-") and not w:find("-", 1, true) and not w:lower():find("balatro"), "kind short text: " .. w)
+		expectTrue(not w:lower():find("lose") and not w:lower():find("fail") and not w:lower():find("can't"), "no scolding: " .. w)
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/StuckHintPlate.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(not src:find("TweenService", 1, true) and not src:find("FxLoop", 1, true), "no tween or loop, so Calm mode is identical")
+		expectTrue(src:find("Active = false", 1, true) ~= nil, "display only, takes no clicks")
+		local g = assert(io.open("src/Client/ConceptTPlay.lua", "r"))
+		expectTrue(g:read("*a"):find("StuckHintPlate", 1, true) ~= nil, "the table draws it")
+		g:close()
+	end
+end })
+
+table.insert(tests, { name = "DailyStamps: one stamp per ladder day in the set accent with a readable check, today pulses only while claimable and never in Calm mode, a missed day gets a kind line", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStamps)
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local profile = PlayerProfile.new()
+	LS.checkIn(profile, 100)
+	local view = LS.view(profile)
+	local states = DS.states(view)
+	expectEqual(#states, 7, "one stamp slot per ladder day")
+	expectEqual(states[1].state, "today"); expectTrue(states[1].pulse, "today pulses while its reward waits")
+	expectEqual(states[2].state, "ahead"); expectFalse(states[2].pulse)
+	LS.claim(profile, 1, nil)
+	local claimed = DS.states(LS.view(profile))
+	expectEqual(claimed[1].state, "stamped", "a claimed day wears a stamp")
+	expectFalse(claimed[1].pulse, "nothing pulses once it is claimed")
+	expectEqual(DS.pulse(false, true).seconds, 1.2)
+	expectTrue(DS.PULSE_SECONDS >= 1 / 3 * 2, "slow enough to stay under 3 flashes a second")
+	expectEqual(DS.pulse(true, true), nil, "Calm mode and Reduce motion: no pulse")
+	expectEqual(DS.pulse(false, false), nil, "no pulse when nothing waits")
+	for _, set in ipairs(CS.Definitions) do
+		local c = DS.stampColors(set.id)
+		expectTrue(CS.contrastRatio(c.fill, c.ink) >= 3, set.id .. " check mark reads on its stamp at 3:1")
+	end
+	expectEqual(DS.stampColors(CS.DefaultId).fill[1], 246, "classic keeps the gold stamp")
+	expectEqual(DS.streakLine({ streak = 3, best = 3 }), "Streak: 3 days")
+	expectEqual(DS.streakLine({ streak = 1, best = 1 }), "Streak: 1 day")
+	local fresh = DS.streakLine({ streak = 1, best = 6 })
+	expectTrue(fresh:find("Fresh start", 1, true) ~= nil and fresh:find("6", 1, true) ~= nil, "a missed day starts fresh without scolding")
+	expectTrue(not fresh:find("lost") and not fresh:find("broke") and not fresh:find("missed") and not fresh:find("\226\128\148"), "kid safe wording")
+	expectEqual(LS.view(profile).best, 1, "the view carries the best streak")
+	if io and io.open then
+		local f = assert(io.open("src/Client/DailyRewardsPanel.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("DailyStamps.pulse(", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil and src:find("DailyStamps.stampColors", 1, true) ~= nil, "the panel uses the stamp rules and the calm switch")
+	end
+end })
+
+table.insert(tests, { name = "Card Sets hero preview flip: 0.25 s when a different tile is picked, never in Calm mode, not on a repaint, the face fan and back sit side by side with a 44 px Equip on every set and size", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(L.flipPlan(false, "a", "b").seconds, 0.25)
+	expectEqual(L.flipPlan(false, nil, "a").seconds, 0.25, "the first pick flips")
+	expectEqual(L.flipPlan(false, "a", "a"), nil, "a repaint of the same pick does not flip")
+	expectEqual(L.flipPlan(true, "a", "b"), nil, "Calm mode and Reduce motion never flip")
+	expectEqual(L.flipPlan(false, "a", nil), nil)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(size[1], size[2])
+		local room = L.room(pw, ph - L.TOP - L.BOTTOM, #CS.Definitions, 1)
+		expectTrue(room.ok, size[1] .. " the room fits")
+		local hp = room.parts or L.heroParts(room.hero)
+		expectTrue(hp.button.h >= 44, size[1] .. " Equip is 44 px or more")
+		expectTrue(hp.back.x >= hp.fan[1].x, size[1] .. " the back sits right of the fan, side by side")
+		expectTrue(hp.back.x + hp.back.w <= hp.felt.x + hp.felt.w and hp.back.x >= hp.felt.x, size[1] .. " the back is inside the felt")
+	end
+	if io and io.open then
+		local f = assert(io.open("src/Client/CardSetsRoom.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("Layout.flipPlan(", 1, true) ~= nil and src:find("reduceShake", 1, true) ~= nil, "the room asks the flip rule and the calm switch")
+	end
+end })
+
+table.insert(tests, { name = "Spectate overlay, badge and viewers list wear the set panel, edge and ink at 7:1 on every set, Leave takes the set plate", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if p then
+			n = n + 1
+			expectTrue(CS.contrastRatio(p.dark.fill, p.dark.ink) >= 7, set.id .. " ink keeps 7:1 on the watcher panel")
+			expectTrue(CS.contrastRatio(p.dark.edge, p.dark.fill) >= 1.2, set.id .. " edge is distinct from the fill")
+		end
+	end
+	expectTrue(n >= 14, "every non classic set has a popup style")
+	if io and io.open then
+		local f = assert(io.open("src/Client/SpectatePanel.lua", "r"))
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PopupSkin", 1, true) ~= nil and src:find("Skin.dark(overlay", 1, true) ~= nil, "the overlay binds the popup skin")
+		expectTrue(src:find("Skin.dark(badge", 1, true) ~= nil and src:find("Skin.dark(list", 1, true) ~= nil, "the badge and the viewers list bind it too")
+		expectTrue(src:find("setPlateButton(leaveButton", 1, true) ~= nil, "Leave takes the set plate")
 	end
 end })
 

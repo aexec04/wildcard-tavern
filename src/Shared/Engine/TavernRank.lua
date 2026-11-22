@@ -55,14 +55,14 @@ TavernRank.Rewards = {
 	[15] = { kind = "title", id = "house_captain" },
 	[16] = { kind = "tips", amount = 6 }, [17] = { kind = "tips", amount = 6 },
 	[18] = { kind = "tips", amount = 7 },
-	[19] = { kind = "tips", amount = 6 },
+	[19] = { kind = "tips", amount = 7 },
 	[20] = { kind = "title", id = "hall_warden" },
 	[21] = { kind = "tips", amount = 7 }, [22] = { kind = "tips", amount = 7 },
 	[23] = { kind = "cardBack", id = "winter_frost" },
 	[24] = { kind = "set", id = "festival_night" },
 	[25] = { kind = "tips", amount = 8 }, [26] = { kind = "tips", amount = 8 },
 	[27] = { kind = "tips", amount = 10 },
-	[28] = { kind = "tips", amount = 9 }, [29] = { kind = "tips", amount = 9 },
+	[28] = { kind = "tips", amount = 10 }, [29] = { kind = "tips", amount = 10 },
 	[30] = { kind = "title", id = "grand_host" },
 }
 

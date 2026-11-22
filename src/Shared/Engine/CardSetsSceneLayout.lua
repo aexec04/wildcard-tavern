@@ -151,6 +151,14 @@ function M.roomPanel(screenW, screenH)
 end
 
 -- inside the hero: name plate, a mini table (with a fan of 5 cards and the back on a stand, or one large back), a description, the button
+-- The card back turns over once when a different tile is picked: { seconds = 0.25 }, or nil in Calm mode and Reduce motion (no cover, no
+-- tween) and when the pick did not change (a repaint of the same entry).
+M.FLIP_SECONDS = 0.25
+function M.flipPlan(calm, lastKey, key)
+	if calm == true or key == nil or key == lastKey then return nil end
+	return { seconds = M.FLIP_SECONDS }
+end
+
 function M.heroParts(hero)
 	local plate = { x = hero.x + 12, y = hero.y + 10, w = hero.w - 24, h = 34 }
 	local bw = math.min(200, hero.w - 24)

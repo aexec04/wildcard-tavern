@@ -85,6 +85,30 @@ function LedgerPages.lifeLines(stats, titleName)
 	}
 end
 
+-- The Patron seated in the most of the last runs (ties: the alphabetically first id). nil when no run lists a Patron.
+function LedgerPages.mostPlayedPatron(recent)
+	local counts = {}
+	for _, e in ipairs(recent or {}) do
+		for _, id in ipairs(e.patrons or {}) do
+			if type(id) == "string" then counts[id] = (counts[id] or 0) + 1 end
+		end
+	end
+	local bestId, bestRuns
+	for id, n in pairs(counts) do
+		if not bestId or n > bestRuns or (n == bestRuns and id < bestId) then bestId, bestRuns = id, n end
+	end
+	return bestId and { id = bestId, runs = bestRuns } or nil
+end
+
+-- Page 2 favourites lines (two short ruled lines under the best runs). The Card Set is the one equipped now.
+-- patronName and setName are display names looked up by the client, nil shows "None yet".
+function LedgerPages.favoriteLines(stats, patronName, setName)
+	return {
+		{ label = "Most played", value = patronName or "None yet" },
+		{ label = "Card Set", value = setName or "None yet" },
+	}
+end
+
 -- Page 2 content.
 function LedgerPages.hall(stats, titleName)
 	stats = stats or {}
