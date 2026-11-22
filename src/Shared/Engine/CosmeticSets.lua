@@ -368,9 +368,17 @@ end
 -- Optional painted-table tint of a set (or set id): { felt = {r,g,b}, wood = {r,g,b} } multipliers, nil keeps the table exactly as painted.
 function CosmeticSets.tableTintOf(setOrId)
 	local set = type(setOrId) == "string" and CosmeticSets.getById(setOrId) or setOrId
-	local t = type(set) == "table" and set.tableTint or nil
-	if type(t) ~= "table" or type(t.felt) ~= "table" or type(t.wood) ~= "table" then return nil end
-	return t
+	if type(set) ~= "table" or set.id == CosmeticSets.DefaultId then return nil end
+	local t = set.tableTint
+	if type(t) == "table" and type(t.felt) == "table" and type(t.wood) == "table" then return t end
+	-- no explicit tint: derive one from the set's accent so every non-default set changes the felt (calm, never below 90)
+	local a = CosmeticSets.accentOf(set)
+	if type(a) ~= "table" then return nil end
+	local function lift(c, k) return math.max(90, math.floor(255 + (c - 255) * k + 0.5)) end
+	return {
+		felt = { lift(a[1], 0.62), lift(a[2], 0.62), lift(a[3], 0.62) },
+		wood = { lift(a[1], 0.35), lift(a[2], 0.35), lift(a[3], 0.35) },
+	}
 end
 
 function CosmeticSets.getById(id)

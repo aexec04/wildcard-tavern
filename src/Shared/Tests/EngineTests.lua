@@ -5897,6 +5897,22 @@ table.insert(tests, { name = "PlayRail: painted tray rects sit on the lip, stay 
 	expectTrue(Rail.BACK_Z < 1 and Rail.FRONT_Z > 20, "back below every card, front above them")
 end })
 
+table.insert(tests, { name = "CosmeticSets.tableTintOf: every non-classic set tints the felt visibly and has its own card back", fn = function()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local t = CosmeticSets.tableTintOf(set.id)
+		if set.id == CosmeticSets.DefaultId then
+			expectTrue(t == nil, "classic keeps the painted felt")
+		else
+			expectTrue(t ~= nil, set.id .. " tints the table")
+			local far = math.max(255 - t.felt[1], 255 - t.felt[2], 255 - t.felt[3])
+			expectTrue(far >= 40, set.id .. " felt tint is visible (" .. far .. ")")
+			for _, v in ipairs({ t.felt[1], t.felt[2], t.felt[3] }) do expectTrue(v >= 60 and v <= 255, set.id .. " felt calm") end
+			expectTrue(set.cardBackId ~= nil and set.cardBackId ~= "classic", set.id .. " has its own card back")
+		end
+	end
+end })
+
 table.insert(tests, { name = "CosmeticSets.tableTintOf: Mountain Festival tints the table cool, the default and others stay untouched", fn = function()
 	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
 	local t = CosmeticSets.tableTintOf("festival_night")
