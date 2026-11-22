@@ -519,11 +519,16 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 	local flight = MothFlight.new()
 	local last = 0
 	local t0 = os.clock()
+	local wasHidden = false
 	RunService.Heartbeat:Connect(function()
 		if not backdrop.Visible then
-			flight:step(0, { w = 1, h = 1, lx = 0, ly = 0, hidden = true }) -- loops stop when hidden; the moth starts over
+			if not wasHidden then -- reset once on the way out; a hidden Collection costs nothing per frame
+				wasHidden = true
+				flight:step(0, { w = 1, h = 1, lx = 0, ly = 0, hidden = true }) -- loops stop when hidden; the moth starts over
+			end
 			return
 		end
+		wasHidden = false
 		local now = os.clock()
 		local dt = math.min(now - last, 0.25)
 		if dt < 0.05 then return end

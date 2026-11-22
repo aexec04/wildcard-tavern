@@ -36424,4 +36424,30 @@ table.insert(tests, { name = "Music mix: duck attacks over 0.2 s, interrupted fa
 	expectTrue(read("src/Client/Sound.lua"):find("Mute cuts the effects that are playing too", 1, true) ~= nil, "Mute stops playing effects")
 end })
 
+table.insert(tests, { name = "Performance guard: hidden screens idle, loops disconnect when their owner closes", fn = function()
+	if not io then return end
+	local function read(path) local fh = io.open(path, "r"); if not fh then return "" end; local c = fh:read("a"); fh:close(); return c end
+	local gal = read("src/Client/CollectionGallery.lua")
+	expectTrue(gal:find("wasHidden", 1, true) ~= nil, "Collection gallery resets its moth once, not every hidden frame")
+	local amb = read("src/Client/AmbientLife.lua")
+	expectTrue(amb:find("next(scenes) == nil and connection", 1, true) ~= nil, "AmbientLife drops its Heartbeat when no scene is left")
+	expectTrue(read("src/Client/Tooltip.lua"):find("activeConn:Disconnect() activeConn = nil", 1, true) ~= nil, "Tooltip drops its per frame placer on hide")
+	local col = read("src/Client/Collection.lua")
+	expectTrue(col:find("cardFloat:Disconnect()", 1, true) ~= nil, "Collection detail float disconnects in hideDetail")
+	-- the shared hub: a finished or cancelled effect leaves nothing behind and a pause costs no steps
+	local FxLoop = require(script.Parent.Parent.Engine.FxLoop)
+	local hub = FxLoop.new()
+	local h = hub.add(function() return false end, 0)
+	hub.add(function() return true end, 0)
+	hub.step(0.1, 0)
+	expectEqual(hub.count(), 1, "a finished effect is dropped")
+	h.cancel()
+	expectEqual(hub.count(), 0, "a cancelled effect is dropped")
+	hub.setPaused("hidden", true)
+	local ran = 0
+	hub.add(function() ran = ran + 1 end, 0)
+	hub.step(0.1, 0)
+	expectEqual(ran, 0, "a paused hub runs nothing")
+end })
+
 return tests
