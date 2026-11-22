@@ -44663,6 +44663,46 @@ table.insert(tests, { name = "Deck tracker: a marked card shows its badge, a Mar
 	expectTrue(src:find("or entry.mark then", 1, true) ~= nil, "a marked card glows in the tracker")
 end })
 
+table.insert(tests, { name = "Boss rule chip: Frozen Hand, Quiet Tavern and Short Table have a drawn icon of shapes at 7:1, inside the square, and one kind line of 60 characters or less", fn = function()
+	local Glyphs = require(script.Parent.Parent.Engine.BossRuleGlyphs)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local want = { "frozen_hand", "quiet_tavern", "short_table" }
+	expectEqual(table.concat(Glyphs.ids(), ","), table.concat(want, ","), "exactly the three new rules have a drawn glyph")
+	expectTrue(Glyphs.get("the_bouncer") == nil and Glyphs.get(nil) == nil, "any other boss keeps its letter icon")
+	for _, id in ipairs(want) do
+		local g = Glyphs.get(id)
+		expectTrue(g and #g.shapes >= 3, id .. " has a drawn glyph of shapes")
+		for i, s in ipairs(g.shapes) do
+			local lim = 0
+			expectTrue(s.kind == "rect" or s.kind == "round", id .. " shape " .. i .. " is a rect or a circle (no emoji, no picture)")
+			expectTrue(s.x >= lim and s.y >= lim and s.x + s.w <= 1 and s.y + s.h <= 1, id .. " shape " .. i .. " sits inside the icon square")
+			local ratio = CosmeticSets.contrastRatio(s.color, Glyphs.PLATE)
+			expectTrue(ratio >= Glyphs.MIN_CONTRAST, id .. " shape " .. i .. " reads at 7:1 on the plate, got " .. string.format("%.1f", ratio))
+		end
+		local def = BossRounds.getById(id)
+		expectTrue(def ~= nil and #def.description <= 60, id .. " rule line is one kind line of 60 characters or less")
+		expectTrue(not def.description:lower():find("alcohol"), id .. " line is kid safe")
+	end
+	local f = io and io.open and io.open("src/Client/Gameplay2MomentsFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("BossGlyph", 1, true) ~= nil and src:find("bdef and bdef.id", 1, true) ~= nil, "the rule chip draws the glyph for the boss id")
+	local g = io.open("src/Client/Gameplay2.lua", "r")
+	if g then
+		local hub = g:read("*a")
+		g:close()
+		expectTrue(hub:find("BOSS_INTRO_ENABLED", 1, true) == nil, "the boss intro flag is not touched here")
+	end
+	local p = io.open("src/Client/PhaseA.lua", "r")
+	if p then
+		local pa = p:read("*a")
+		p:close()
+		expectTrue(pa:find("local BOSS_INTRO_ENABLED = false", 1, true) ~= nil, "the boss intro stays off")
+	end
+end })
+
 table.insert(tests, { name = "Mark badges: every mark has a painted badge id, the tracker draws it over the plate and keeps the drawn letter as the fallback", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local Card = require(script.Parent.Parent.Engine.Card)

@@ -386,6 +386,7 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.BossIcon.Text = Rules.bossIcon(bdef and bdef.rules)
 		rulePlate.BossIcon.TextSize = math.max(12, math.min(16, side - 6))
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
+			pcall(function() require(script.Parent.BossGlyph).apply(rulePlate.BossIcon, bdef and bdef.id, tintSet.edge) end) -- drawn icon for the Nights 7 to 12 rules, letter icon for the rest
 		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
 		rulePlate.Edge.Color = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
 		-- the slim rule chip wears the Card Set plate, edge and ink at 7:1 (CosmeticSets.hintStyleOf); classic keeps the boss rule tint
