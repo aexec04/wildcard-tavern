@@ -40070,4 +40070,21 @@ table.insert(tests, { name = "Result screens: Victory Continue and Skip wear the
 	end
 end })
 
+table.insert(tests, { name = "Menu Play and Season Claim All wear the equipped Card Set plate through the shared kit", fn = function()
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local play = read("src/Client/MenuPlayButton.lua")
+	local season = read("src/Client/SeasonPanel.lua")
+	local kit = read("src/Client/TavernKit.lua")
+	if not (play and season and kit) then return end
+	expectTrue(play:find('paintedButton(plaque, "primary")', 1, true) ~= nil, "Menu Play uses the set aware plate")
+	expectTrue(season:find('setPlateButton(claimAll, "primary")', 1, true) ~= nil, "Season Claim All uses the set plate")
+	expectTrue(kit:find("Style.resultPlate(kind", 1, true) ~= nil, "setPlateButton asks the pure plate rule")
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for setId in pairs(Style.SET_PLATES) do
+		expectTrue(Style.resultPlate("primary", 190, 44, setId) ~= nil, setId .. " has a Claim All plate")
+	end
+	expectEqual(Style.resultPlate("primary", 190, 44, "classic_tavern"), nil, "classic Claim All stays flat green")
+end })
+
 return tests
