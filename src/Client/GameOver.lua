@@ -362,6 +362,10 @@ return function(deps)
 			if okU and line then add(line, { tone = "gold" }) end
 		end
 		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
+		do -- one kind line about the next Starting Deck to open (nothing when every deck is open)
+			local okD, deckLine = pcall(function() return require(Engine:WaitForChild("RunOverHint")).line(state.startingDecks) end)
+			if okD and deckLine then add(deckLine, { TextSize = 16, tone = "soft" }) end
+		end
 		local seedInfo = SeedDisplay.label(state)
 		if seedInfo then -- a Seed Run's code is tappable: the share box opens with the code selected, ready to copy
 			add(seedInfo.text .. (seedInfo.shareable and "  (tap to copy)" or ""), { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft", copy = seedInfo.shareable and seedInfo.value or nil })

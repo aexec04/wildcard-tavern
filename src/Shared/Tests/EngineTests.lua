@@ -44853,4 +44853,27 @@ table.insert(tests, { name = "Pre run screen at four sizes: panel, option scroll
 	end
 end })
 
+table.insert(tests, { name = "Run Over deck hint: names the nearest locked Starting Deck and its Night, nothing once every deck is open, 60 characters or less, no dashes, wired into the fact lines", fn = function()
+	local H = require(script.Parent.Parent.Engine.RunOverHint)
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local fresh = H.line(SD.view({ stats = { bestNightReached = 0 } }))
+	expectEqual(fresh, "Next deck: Lucky Deck opens at Night 3.")
+	expectEqual(H.line(SD.view({ stats = { bestNightReached = 3 } })), "Next deck: Slim Deck opens at Night 5.")
+	expectEqual(H.line(SD.view({ stats = { bestNightReached = 5 } })), nil, "every deck open: no line")
+	expectEqual(H.line(nil), nil)
+	expectEqual(H.line({}), nil)
+	for best = 0, 6 do
+		local line = H.line(SD.view({ stats = { bestNightReached = best } }))
+		if line then
+			expectTrue(#line <= H.MAX_LEN, line .. " fits 60 characters")
+			expectTrue(not line:find("\226\128\148") and not line:find("%-%-") and not line:lower():find("balatro"), line .. " is clean text")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('RunOverHint")).line(state.startingDecks)', 1, true) ~= nil, "Run Over shows the deck hint line")
+	end
+end })
+
 return tests
