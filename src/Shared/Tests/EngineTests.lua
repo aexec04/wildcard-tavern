@@ -36809,4 +36809,90 @@ table.insert(tests, { name = "First hand guidance: wrong inputs never advance or
 	expectFalse(G.isGuided(1, false, false, true), "the tutorial run has its own flow")
 end })
 
+-- PATRON SYNERGY CHECK: no Patron is dead (each one changes a score, earns Tips, or carries a rule or round-win hook),
+-- copiers copy, and no pair of Patrons runs away on a sample hand. Probe: tools/_probe_synergy.lua.
+local function synergyWitness(owned, cards, held, ctxExtra)
+	local ctx = { allPlayedCards = cards, heldCards = held, handsRemaining = 0, discardsRemaining = 2, isLastHand = true, night = 3, round = 2,
+		tips = 10, roundsCleared = 4, bossesCleared = 1, handsPlayedTotal = 40, discardsUsedTotal = 6, patronsSold = 1,
+		handStatsBefore = { ["Pair"] = 8, ["Two Pair"] = 8, ["Flush"] = 1, ["Straight"] = 1 }, alreadyPlayedThisHandTypeThisRound = true,
+		rng = Scoring.noLuck, handLevels = {} }
+	for k, v in pairs(ctxExtra or {}) do ctx[k] = v end
+	local result = HandEvaluator.evaluate(cards)
+	local score, _, _, extra = Scoring.calculate(result, owned, ctx)
+	return score, extra.tipsEarned
+end
+
+table.insert(tests, { name = "Patron synergy: no Patron is dead, copiers copy, and no pair runs away past 25x on a normal hand", fn = function()
+	local function C(r, s) return Card.new(r, s) end
+	local witnesses = {
+		{ { C(14, "Clubs"), C(11, "Clubs"), C(12, "Spades"), C(10, "Clubs"), C(3, "Clubs") }, { C(13, "Hearts"), C(4, "Hearts") } },
+		{ { C(10, "Hearts"), C(11, "Spades"), C(12, "Diamonds"), C(13, "Clubs"), C(14, "Hearts") }, { C(9, "Hearts") } },
+		{ { C(8, "Hearts"), C(8, "Spades"), C(3, "Diamonds") }, { C(2, "Hearts") } },
+		{ { C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), C(13, "Hearts") }, { C(4, "Clubs") } },
+		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(3, "Clubs"), C(3, "Hearts") }, { C(4, "Clubs") } },
+		{ { C(8, "Hearts"), C(8, "Spades"), C(3, "Diamonds"), C(3, "Clubs"), C(12, "Hearts") }, { C(4, "Clubs") } },
+		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(9, "Clubs"), C(12, "Hearts") }, { C(4, "Clubs") } },
+		{ { C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(8, "Clubs"), C(3, "Hearts") }, { C(4, "Clubs") } },
+		{ { C(2, "Hearts"), C(5, "Spades"), C(7, "Diamonds"), C(9, "Clubs"), C(13, "Hearts") }, { C(4, "Clubs") }, { handsRemaining = 3, isLastHand = false, alreadyPlayedThisHandTypeThisRound = false } },
+	}
+	local partner = Patrons.getById("the_bard")
+	local dead = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		local hooks = p.onRoundWin or p.handSizeDelta or p.discardsDelta or p.handsDelta or p.rerollDelta or p.id == "nest_egg"
+		local alive = hooks ~= nil and hooks ~= false
+		for _, w in ipairs(witnesses) do
+			if alive then break end
+			local base, baseTips = synergyWitness({}, w[1], w[2], w[3])
+			-- copiers sit next to a Patron that always fires; Full House Crowd needs company
+			local line, plain = { p, partner, partner }, { partner, partner }
+			if p.id == "the_apprentice" or p.id == "second_opinion" then
+				line, plain = { partner, p }, { partner }
+			end
+			local s, tips = synergyWitness(line, w[1], w[2], w[3])
+			local s0, tips0 = synergyWitness(plain, w[1], w[2], w[3])
+			if s ~= s0 or tips ~= tips0 then
+				alive = true
+			end
+			local s1, tips1 = synergyWitness({ p }, w[1], w[2], w[3])
+			if s1 ~= base or tips1 ~= baseTips then alive = true end
+		end
+		if not alive then dead[#dead + 1] = p.id end
+	end
+	expectEqual(#dead, 0, "Patrons that never change a score, earn Tips or carry a hook: " .. table.concat(dead, ", "))
+
+	-- copiers: The Understudy copies its right neighbor, The Apprentice its left, Second Opinion the leftmost
+	local hand = witnesses[3]
+	local bardAlone = synergyWitness({ partner }, hand[1], hand[2])
+	local understudy = synergyWitness({ Patrons.getById("the_understudy"), partner }, hand[1], hand[2])
+	local apprentice = synergyWitness({ partner, Patrons.getById("the_apprentice") }, hand[1], hand[2])
+	local second = synergyWitness({ partner, Patrons.getById("second_opinion") }, hand[1], hand[2])
+	expectTrue(understudy > bardAlone, "The Understudy adds the Bard it copies")
+	expectTrue(apprentice > bardAlone, "The Apprentice adds the Bard it copies")
+	expectTrue(second > bardAlone, "Second Opinion adds the Bard it copies")
+
+	-- runaway ceiling: no pair multiplies a normal hand (Pair or better) past 25x (today's top is Regulars Round + Stack of Plates at 20.4x after 40 hands). A bare High Card is left out: its base
+	-- is about 5 points, so a late-run flat bonus (Stack of Plates +80 Chips, VIP Table +8 Mult) reads as 50x and is by design.
+	local hands = {
+		{ C(8, "Hearts"), C(8, "Spades"), C(3, "Diamonds"), C(9, "Clubs"), C(12, "Hearts") },
+		{ C(5, "Hearts"), C(6, "Spades"), C(7, "Diamonds"), C(8, "Clubs"), C(9, "Hearts") },
+		{ C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), C(13, "Hearts") },
+		{ C(8, "Hearts"), C(8, "Spades"), C(8, "Diamonds"), C(3, "Clubs"), C(3, "Hearts") },
+	}
+	local held = { C(13, "Clubs"), C(13, "Spades"), C(12, "Diamonds") }
+	local worst, worstPair = 0, ""
+	local defs = Patrons.Definitions
+	for _, cards in ipairs(hands) do
+		local base = synergyWitness({}, cards, held)
+		for i = 1, #defs do
+			for j = i + 1, #defs do
+				local s = synergyWitness({ defs[i], defs[j] }, cards, held)
+				if s / base > worst then
+					worst, worstPair = s / base, defs[i].id .. " + " .. defs[j].id
+				end
+			end
+		end
+	end
+	expectTrue(worst <= 25, "a Patron pair runs away: " .. worstPair .. " x" .. tostring(worst))
+end })
+
 return tests
