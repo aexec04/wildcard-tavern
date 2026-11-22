@@ -38595,6 +38595,48 @@ table.insert(tests, { name = "ScoreText and Endless extremes: nothing is inf, Na
 	end
 end })
 
+table.insert(tests, { name = "Rate limits: a spammed remote averages at most 20 calls a second, each handler checks its own bucket first, buckets are per player", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RateLimit)
+	-- 1000 calls a second for 10 s, 60 s and a cold start: allowed calls per second stay at 20 or under after the burst
+	for _, seconds in ipairs({ 10, 60 }) do
+		RL.forget(7)
+		local allowed = 0
+		for i = 0, seconds * 1000 - 1 do
+			if RL.allow(7, "Rem.Spam", i / 1000) then allowed = allowed + 1 end
+		end
+		expectTrue(allowed / seconds <= 20, seconds .. " s of spam allowed " .. allowed .. " calls (" .. allowed / seconds .. " a second)")
+		expectTrue(allowed >= RL.PER_SECOND * seconds * 0.9, "normal play is not throttled: the refill is real")
+	end
+	expectTrue(RL.PER_SECOND <= 20 and RL.BURST <= 40, "sustained rate and burst are bounded")
+	-- one player's spam never spends another player's or another remote's tokens
+	RL.forget(7); RL.forget(8)
+	for i = 0, 200 do RL.allow(7, "Rem.A", i / 1000) end
+	expectFalse(RL.allow(7, "Rem.A", 0.201), "the spammed bucket is empty")
+	expectTrue(RL.allow(7, "Rem.B", 0.201), "another remote of the same player is unaffected")
+	expectTrue(RL.allow(8, "Rem.A", 0.201), "another player is unaffected")
+	-- every server handler checks its limit before doing anything else, under a key of its own
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local keys, handlers = {}, 0
+	for i, l in ipairs(lines) do
+		local name = l:match("^Rem%.([%w_]+)%.OnServerEvent:Connect")
+		if name and not name:find("^Debug") then
+			handlers = handlers + 1
+			local key = (lines[i + 1] or ""):match('RateLimit%.allow%(player%.UserId, "([^"]+)"')
+			expectTrue(key ~= nil, name .. ": the first line of the handler is its rate limit check")
+			if key then
+				expectFalse(keys[key], name .. " shares its rate limit key " .. key .. " with " .. tostring(keys[key]))
+				keys[key] = name
+			end
+		end
+	end
+	expectTrue(handlers >= 55, "the audit saw every remote handler: " .. handlers)
+end })
+
 table.insert(tests, { name = "Daily Run: the same date gives every player the same shop and cards whatever their Tips, and a fixed board never swaps an offer for low Tips", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local dayStart = 1788134400
