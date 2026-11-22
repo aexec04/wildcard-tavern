@@ -20,6 +20,9 @@ local MapSelectPanel = {}
 
 local CREAM = Color3.fromRGB(250, 240, 220)
 local GOLD_TXT = Color3.fromRGB(255, 205, 90)
+-- ZIndex is absolute (ScreenGui draws Global): the panel and its parts sit at Z to Z+3, above every map layer, the header kit (40 to 42) and the
+-- compass (44 to 47), under the hover card (60)
+local Z = 52
 
 local function put(inst, r)
 	inst.Position = UDim2.fromOffset(r.x, r.y)
@@ -42,7 +45,7 @@ local function label(parent, name, size, font)
 	l.TextTruncate = Enum.TextTruncate.AtEnd
 	l.RichText = true
 	l.Active = false
-	l.ZIndex = 49
+	l.ZIndex = Z + 2
 	l.Parent = parent
 	return l
 end
@@ -50,7 +53,7 @@ end
 function MapSelectPanel.new(deps)
 	local panel = TavernKit.plate(deps.parent, UDim2.fromOffset(320, 130))
 	panel.Name = "SelectPanel"
-	panel.ZIndex = 47 -- above every map layer (decor 40, compass 44 to 47), under the hover card (60)
+	panel.ZIndex = Z
 	panel.Visible = false
 	panel.Active = true -- a click on the panel never falls through to the map
 	-- A plain carved wood panel: the 9-sliced ornate art put its swirl on one end and the text over it, so the trim is a 3 px gold line
@@ -65,7 +68,7 @@ function MapSelectPanel.new(deps)
 		stud.BackgroundColor3 = Color3.fromRGB(226, 182, 88)
 		stud.BorderSizePixel = 0
 		stud.Active = false
-		stud.ZIndex = 48
+		stud.ZIndex = Z + 1
 		stud.Parent = panel
 	end
 	-- dark carved wood with gold trim, like the header (a lighter wood band across the top, Color only gradient)
@@ -95,7 +98,7 @@ function MapSelectPanel.new(deps)
 			fr.SliceScale = 0.1 -- 17 px of carved border, drawn above the Inset so all of it shows
 			fr.Size = UDim2.fromScale(1, 1)
 			fr.Active = false
-			fr.ZIndex = 47
+			fr.ZIndex = Z
 			fr.Parent = panel
 		end
 	end
@@ -108,7 +111,7 @@ function MapSelectPanel.new(deps)
 		inset.BackgroundColor3 = Color3.fromRGB(88, 58, 34)
 		inset.BorderSizePixel = 0
 		inset.Active = false
-		inset.ZIndex = 47
+		inset.ZIndex = Z
 		inset.Parent = panel
 		local s = Instance.new("UIStroke")
 		s.Color = Color3.fromRGB(226, 182, 88)
@@ -122,7 +125,7 @@ function MapSelectPanel.new(deps)
 	art.BackgroundColor3 = Color3.fromRGB(70, 52, 34)
 	art.BorderSizePixel = 0
 	art.Active = false
-	art.ZIndex = 48
+	art.ZIndex = Z + 1
 	art.Parent = panel
 	do
 		local c = Instance.new("UICorner")
@@ -148,7 +151,7 @@ function MapSelectPanel.new(deps)
 	local target = label(panel, "Target", 16)
 	local go = TavernKit.primaryButton(panel, "Continue")
 	go.Name = "Continue"
-	go.ZIndex = 49
+	go.ZIndex = Z + 2
 	go.Activated:Connect(function()
 		if go:GetAttribute("Enabled") and deps.onContinue then deps.onContinue() end
 	end)
@@ -157,7 +160,7 @@ function MapSelectPanel.new(deps)
 	tabToggle.BackgroundTransparency = 1
 	tabToggle.Text = ""
 	tabToggle.Size = UDim2.fromScale(1, 1)
-	tabToggle.ZIndex = 50
+	tabToggle.ZIndex = Z + 3
 	tabToggle.Visible = false
 	tabToggle.Parent = panel
 
@@ -249,7 +252,7 @@ function MapSelectPanel.new(deps)
 		current = { desc = desc, artId = artId, iconText = iconText }
 		if artImage then artImage:Destroy() artImage = nil end
 		if deps.PatronPlaque and artId then
-			artImage = deps.PatronPlaque.applyById(art, artId, { emojiLabel = icon, zIndex = 49, cornerRadius = 8 })
+			artImage = deps.PatronPlaque.applyById(art, artId, { emojiLabel = icon, zIndex = Z + 2, cornerRadius = 8 })
 		end
 		panel.Visible = true
 		apply()

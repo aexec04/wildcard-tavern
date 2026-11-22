@@ -37808,4 +37808,18 @@ table.insert(tests, { name = "WelcomeEase: first runs eased on Nights 1 and 2, n
 	expectEqual(WelcomeEase.cleanSaved(99, 0), 3)
 end })
 
+table.insert(tests, { name = "Tavern Map header banners hang from the top edge, at least 48 wide and 24 below the bar, clear of the title and stats, at four sizes", fn = function()
+	local H = require(script.Parent.Parent.Engine.MapHeaderRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local Hl = H.layout(sz[1], sz[2])
+		if Hl.bannerL then
+			expectTrue(Hl.bannerL.y == 0 and Hl.bannerR.y == 0 and Hl.bannerL.w >= 48 and Hl.bannerL.h >= Hl.bar.h + 24, "banners hang from the top edge at " .. tag)
+			expectTrue(Hl.bannerL.x + Hl.bannerL.w <= Hl.title.x and Hl.bannerR.x >= Hl.stats.x + Hl.stats.w, "banners sit left of the title and right of the stats at " .. tag)
+		end
+	end
+	local big = H.layout(1920, 957)
+	expectTrue(big.bannerL and big.bannerL.w >= 80 and big.bannerL.h >= 130, "the 1920 banners are about 86 x 146")
+end })
+
 return tests

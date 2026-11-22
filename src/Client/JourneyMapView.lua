@@ -1069,6 +1069,9 @@ return function(deps)
 			local isCurrent = currentIndex == index and not isCleared
 			-- the Night's boss is the destination: always drawn (fog or not), drawn above the fog, subdued while it is far
 			local shownNode = states[index] == "revealed" or (node.ntype == "boss" and data.kind ~= "endless")
+			-- far locked stops stay a silhouette: no name until the stop is the current or the next one
+			local farLocked = locked and not isCurrent and data.night ~= nil and data.night > math.max(view.reached, view.night, 1) + 1
+			node.name.Text = farLocked and "???" or data.info.name
 			node.button.Visible = shownNode
 			node.name.Visible = shownNode
 			node.typeTag.Visible = shownNode
@@ -1108,6 +1111,7 @@ return function(deps)
 			node.tag.Visible = false -- the reward leaves the name: it shows in the lower left panel only, so no chip sits on a label
 			node.haloStroke.Color = (selectedIndex == index and not isCurrent) and Color3.fromRGB(255, 205, 90) or accentHere
 			setPulse(node, (isCurrent or look.glow) and shownNode and frame.Visible)
+			if not unlocking and shownNode then node.scale.Scale = isCurrent and 1.15 or 1 end -- the current stop reads about 15 percent larger
 		end
 
 		local endlessEntered = view.reached > JourneyMap.NightCap
@@ -1612,7 +1616,17 @@ return function(deps)
 		panelShifting = false
 	end
 	local function layoutPanel()
+		-- the panel lives in the map frame kit (a sibling of the map, above every map layer, never clipped by the map frame)
+		local kit = frame.Parent and frame.Parent:FindFirstChild("MapFrameKit")
+		if kit and selectPanel.panel.Parent ~= kit then
+			selectPanel.panel.Parent = kit
+		end
 		local size = frame.AbsoluteSize
+		if not (size.X > 0 and size.Y > 0) then
+			-- a just shown overlay can still report 0 x 0: use the screen, never leave the panel on its default spot
+			local cam = workspace.CurrentCamera
+			size = cam and cam.ViewportSize or size
+		end
 		if size.X > 0 and size.Y > 0 then selectPanel.layout(size.X, size.Y) end
 		fitPanel()
 	end
@@ -2254,9 +2268,18 @@ return function(deps)
 						if not anc.Visible then hider = anc:GetFullName() .. " Visible=false" break end
 						anc = anc.Parent
 					end
+					-- what is drawn on top of the panel's centre (first entries are topmost): finds an occluder at once
+					local top = {}
+					pcall(function()
+						local pg = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+						for i, g in ipairs(pg:GetGuiObjectsAtPosition(math.floor(pp.X + ps.X / 2), math.floor(pp.Y + ps.Y / 2))) do
+							if i > 4 then break end
+							top[#top + 1] = g.Name .. "@z" .. g.ZIndex
+						end
+					end)
 					warn(string.format("[MapPanel] %s selected=%s visible=%s mode=%s pos %d,%d size %dx%d parent=%s z=%d hiddenBy=%s",
 						tag, tostring(selectedIndex), tostring(p.Visible), selectPanel.mode(), pp.X, pp.Y, ps.X, ps.Y,
-						p.Parent and p.Parent:GetFullName() or "nil", p.ZIndex, hider))
+						p.Parent and p.Parent:GetFullName() or "nil", p.ZIndex, hider) .. " topAtCentre=" .. table.concat(top, ","))
 				end
 			end
 			openPanel("open")
