@@ -14287,6 +14287,50 @@ table.insert(tests, { name = "ReplayFlow: one confirm per request, safe kid word
 	end
 end })
 
+table.insert(tests, { name = "TwistPreview: every day has a name, one kind line and a different Tomorrow hint, the popup wears every set and the plate opens it", fn = function()
+	local TP = require(script.Parent.Parent.Engine.TwistPreview)
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function safe(w, what)
+		expectTrue(type(w) == "string" and w ~= "" and not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. what)
+	end
+	local seen = {}
+	for day = 1, 24 do
+		local key = string.format("2026-12-%02d", day)
+		local v = TP.view(key)
+		expectFalse(v.empty, key .. " has a twist")
+		expectEqual(v.name, DM.forDate(key).name, key .. " shows the same twist the run uses")
+		expectTrue(#v.line <= 60, key .. " line is short")
+		expectTrue(v.nextLine:find("Tomorrow: ", 1, true) == 1, key .. " names tomorrow")
+		expectEqual(v.nextLine, "Tomorrow: " .. DM.forDate(string.format("2026-12-%02d", day + 1)).name, key .. " tomorrow matches the next day")
+		expectTrue(v.nextLine ~= "Tomorrow: " .. v.name, key .. " tomorrow differs from today")
+		safe(v.line, key); safe(v.name, key); safe(v.title, "title"); safe(v.close, "close")
+		seen[v.name] = true
+	end
+	local n = 0 for _ in pairs(seen) do n = n + 1 end
+	expectEqual(n, #DM.Definitions, "every twist shows up")
+	local bad = TP.view("not a date")
+	expectTrue(bad.empty and bad.line == TP.EMPTY and bad.nextLine == "", "a bad key shows the safe empty line")
+	safe(TP.EMPTY, "empty")
+	expectTrue(TP.view(nil).empty, "nil key is empty")
+	for _, set in ipairs(CS.Definitions) do
+		local p = CS.popupStyleOf(set.id)
+		if set.id ~= "classic_tavern" then
+			expectTrue(p ~= nil and p.dark ~= nil, set.id .. " has popup colours for the twist popup")
+		end
+	end
+	if io and io.open then
+		local function read(f) local h = assert(io.open(f, "r")); local t = h:read("*a"); h:close(); return t end
+		local popup = read("src/Client/TwistPopup.lua")
+		expectTrue(popup:find("PopupSkin", 1, true) and popup:find("setPlateButton", 1, true), "the popup wears the set paper, plate and ink")
+		expectTrue(popup:find("TweenService", 1, true) == nil, "no tween, Calm mode identical")
+		expectTrue(popup:find("FireServer", 1, true) == nil, "display only")
+		expectTrue(popup:find("PopupDismiss", 1, true) and popup:find("OverlayManager.register", 1, true), "Escape and outside tap close it")
+		expectTrue(popup:find("Size = UDim2.new(1, -40", 1, true) and popup:find("Size = UDim2.new(0, 180, 0, 48)", 1, true), "the Got it button is 48 px")
+		expectTrue(read("src/Client/Sidebar.lua"):find("TwistPopup", 1, true) ~= nil, "the Daily twist plate opens it")
+	end
+end })
+
 table.insert(tests, { name = "LedgerPages.fmt: thousands separators, no K or M, empty note is friendly", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(LP.fmt(0), "0", "zero")
