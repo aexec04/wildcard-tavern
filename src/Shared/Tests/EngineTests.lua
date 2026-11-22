@@ -35385,6 +35385,26 @@ table.insert(tests, { name = "Phone and tablet: Counter shop scene fits 1024x768
 	end
 end })
 
+table.insert(tests, { name = "Daily return hook: claimed chest shows the next reward countdown, streak stays on the plate, serif font", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	expectEqual(D.countdownText(5 * 3600 + 12 * 60 + 9), "5h 12m")
+	expectEqual(D.countdownText(42 * 60), "42m")
+	expectEqual(D.countdownText(20), "<1m")
+	expectEqual(D.countdownText(nil), "<1m")
+	local done = D.view({ streak = 4, secondsToNextDay = 7260, rewards = { { day = 4, today = true, claimed = true, label = "x" } } }, nil)
+	expectEqual(done.chestText, "Next in 2h 1m")
+	expectEqual(done.streakText, "Streak: 4 days")
+	expectTrue(done.pulse == false, "no pulse while waiting")
+	local ready = D.view({ streak = 4, secondsToNextDay = 7260, rewards = { { day = 4, today = true, claimable = true, label = "x" } } }, nil)
+	expectEqual(ready.chestText, "Claim reward")
+	expectTrue(ready.pulse == true)
+	if io then
+		local f = assert(io.open("src/Client/DailyStrip.lua", "r")); local c = f:read("a"); f:close()
+		expectTrue(c:find("Enum.Font.Merriweather", 1, true) and not c:find("Enum.Font.Gotham", 1, true), "painted serif, no Gotham")
+		expectTrue(c:find("Kit.still()", 1, true), "pulse is static in Calm mode")
+	end
+end })
+
 table.insert(tests, { name = "Daily return: claimable chest says Claim reward and pulses, unclaimed and claimed states read clearly, Next goal bar is still in Calm mode", fn = function()
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
 	local ready = D.view({ streak = 3, rewards = { { day = 3, today = true, claimable = true, label = "50 Tips" } } }, nil)

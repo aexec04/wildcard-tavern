@@ -29,6 +29,15 @@ local function plural(n, word)
 	return n .. " " .. word .. (n == 1 and "" or "s")
 end
 
+-- "5h 12m", "42m" or "<1m": the wait until the next UTC day, when the next reward can be claimed.
+function M.countdownText(secs)
+	secs = math.max(0, math.floor(tonumber(secs) or 0))
+	local h, m = math.floor(secs / 3600), math.floor((secs % 3600) / 60)
+	if h >= 1 then return h .. "h " .. m .. "m" end
+	if m >= 1 then return m .. "m" end
+	return "<1m"
+end
+
 function M.view(login, quests)
 	login = type(login) == "table" and login or {}
 	quests = type(quests) == "table" and quests or {}
@@ -65,6 +74,9 @@ function M.view(login, quests)
 			break
 		elseif r.today and r.claimed then
 			out.chest, out.chestText, out.rewardLabel = "opened", "Claimed today", r.label
+			if tonumber(login.secondsToNextDay) then
+				out.chestText = "Next in " .. M.countdownText(login.secondsToNextDay)
+			end
 		end
 	end
 	return out
