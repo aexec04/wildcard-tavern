@@ -433,7 +433,7 @@ return function(deps)
 		local title = Instance.new("TextLabel")
 		title.Size = UDim2.new(1, 0, 0, 22)
 		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
+		title.Font = Enum.Font.Merriweather
 		title.TextSize = 16
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.TextColor3 = TEXT
@@ -444,7 +444,7 @@ return function(deps)
 		box.Name = "CodeBox"
 		box.Size = UDim2.new(1, -130, 0, 44)
 		box.Position = UDim2.new(0, 0, 0, 26)
-		box.Font = Enum.Font.GothamBold
+		box.Font = Enum.Font.Merriweather
 		box.TextSize = 16
 		box.TextColor3 = TEXT
 		box.PlaceholderText = "Type a code"
@@ -460,7 +460,7 @@ return function(deps)
 		redeem.Size = UDim2.new(0, 120, 0, 44)
 		redeem.AnchorPoint = Vector2.new(1, 0)
 		redeem.Position = UDim2.new(1, -4, 0, 26)
-		redeem.Font = Enum.Font.GothamBold
+		redeem.Font = Enum.Font.Merriweather
 		redeem.TextSize = 15
 		redeem.TextColor3 = TEXT
 		redeem.BackgroundColor3 = BUTTON
@@ -513,8 +513,8 @@ return function(deps)
 		hint.Size = UDim2.new(1, -16, 0, 96)
 		hint.LayoutOrder = order()
 		hint.BackgroundTransparency = 1
-		hint.Font = Enum.Font.Gotham
-		hint.TextSize = 14
+		hint.Font = Enum.Font.Merriweather
+		hint.TextSize = 15
 		hint.TextWrapped = true
 		hint.TextXAlignment = Enum.TextXAlignment.Left
 		hint.TextYAlignment = Enum.TextYAlignment.Top
