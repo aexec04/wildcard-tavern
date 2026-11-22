@@ -199,5 +199,21 @@ do
 	check("no soft locks for the greedy bot", softLocks == 0, tostring(softLocks))
 end
 
+-- Night table: every round is recorded, Night rows are consistent, clear shares only fall by Night.
+do
+	local NightTable = require("NightTable")
+	local t = NightTable.collect(Sim, "greedy", 8, 1)
+	local ok, monotone = true, true
+	for n = 1, 8 do
+		local row = t.nights[n]
+		ok = ok and row.cleared <= row.reached and row.reached <= t.runs
+		if n > 1 then
+			monotone = monotone and row.reached <= t.nights[n - 1].cleared
+		end
+	end
+	check("night table rows consistent", ok and t.nights[1].reached == 8)
+	check("night table: reached never exceeds the last Night cleared", monotone)
+end
+
 print(failed == 0 and "\nAll simulator checks passed" or ("\n" .. failed .. " simulator check(s) failed"))
 os.exit(failed == 0 and 0 or 1)

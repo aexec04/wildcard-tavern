@@ -1078,6 +1078,14 @@ function Sim.runOne(cfg, seed)
 		local bossId = state.bossModifier and state.bossModifier.id
 		local night, round = state.night, state.round
 		playRound(state, cfg, botRng, rec)
+		rec.rounds = rec.rounds or {}
+		table.insert(rec.rounds, {
+			night = night,
+			round = round,
+			boss = isBoss,
+			cleared = not state.runOver,
+			pct = state.roundScore / math.max(1, state.targetScore),
+		})
 
 		if bossId then
 			table.insert(rec.bosses, { id = bossId, night = night, cleared = not state.runOver })
