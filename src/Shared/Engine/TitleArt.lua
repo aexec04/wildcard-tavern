@@ -53,7 +53,7 @@ return {
 	["legend_9"] = "rbxassetid://110430262261297",
 	["lighthouse_friend"] = "rbxassetid://101207212416601",
 	["loft_climber"] = "rbxassetid://81065081190946",
-	["map_spots"] = "rbxassetid://97067226899929",
+	["map_spots"] = "rbxassetid://127194506279217",
 	["marsh_master"] = "rbxassetid://82587158208358",
 	["marsh_strider"] = "rbxassetid://113290388212732",
 	["marsh_wader"] = "rbxassetid://136694362442846",

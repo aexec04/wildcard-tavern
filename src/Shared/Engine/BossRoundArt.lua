@@ -46,7 +46,7 @@ return {
 	["stale_bread"] = "rbxassetid://73910921408622",
 	["steep_tab"] = "rbxassetid://70452073260799",
 	["the_tab"] = "rbxassetid://104483373523957",
-	["thin_chips"] = "rbxassetid://92490816310496",
+	["thin_chips"] = "rbxassetid://123102211864250",
 	["thin_soup"] = "rbxassetid://110750652140289",
 	["wild_crowd"] = "rbxassetid://104512543878187",
 }

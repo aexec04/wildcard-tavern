@@ -22,5 +22,5 @@ return {
 	["menu_scroll_top"] = "rbxassetid://90773005864173",
 	["menu_seal_gold"] = "rbxassetid://103552665609453",
 	["menu_seal_red"] = "rbxassetid://71172065980860",
-	["menu_wall_far"] = "rbxassetid://132316973639107",
+	["menu_wall_far"] = "rbxassetid://78961894178894",
 }

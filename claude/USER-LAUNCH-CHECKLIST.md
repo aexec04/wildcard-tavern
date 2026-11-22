@@ -25,7 +25,8 @@ Plain steps for things only you can do. Do them in order. Tick each box as you g
    - Both of you: join, finish the first Night, open the Store, quit to the Tavern, rejoin. Check your run came back.
    - Write down anything confusing they said out loud.
 9. [ ] **Test on a real phone.** Join on your own phone. Check: you can read all text, buttons are easy to press, the Menu, Tome, Store and Settings all open and close, and nothing is cut off at the edge.
-10. [ ] **Last check.** Run the `/ship-check` skill in Claude Code and fix anything it lists.
+10. [ ] **Check every uploaded image for moderation flags.** Creator Hub > Creations > Decals or Images: open each image the game uses and look for a moderated or removed mark. A flagged image shows blank in game. Replace it before you Publish.
+11. [ ] **Last check.** Run the `/ship-check` skill in Claude Code and fix anything it lists.
 
 ## Part 2: Publish
 
