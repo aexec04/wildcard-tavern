@@ -22284,7 +22284,7 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 			expectTrue(p.felt.h < 140 or fi.cardH >= 60, "cards are readable on a roomy table")
 			expectTrue(inside(p.big, p.felt), "the large back is inside the felt")
 			expectTrue(p.prop == nil or (inside(p.prop, p.table) and p.prop.y + p.prop.h <= p.rail.y), "the prop stands above the rail")
-			expectTrue(p.button.w >= 120 and p.button.h >= 36, "Equip button big enough")
+			expectTrue(p.button.w >= 120 and p.button.h >= 44, "Equip button is a 44 px target")
 			expectFalse(hit(p.button, p.desc) or hit(p.desc, p.table) or hit(p.plate, p.table), "hero parts do not overlap")
 			for i, r in ipairs(p.fan) do
 				expectTrue(inside(r, p.table), "fan card inside the table")
@@ -39353,6 +39353,50 @@ table.insert(tests, { name = "Settings plates: every Settings button wears a who
 	local _, n = src:gsub("Kit%.painted, button, SettingsLayout%.PLATE", "")
 	local _, m = src:gsub("TavernKit%)%.painted, button, SettingsLayout%.PLATE", "")
 	expectEqual(n + m, 2, "Account and Hold to Confirm buttons use SettingsLayout.PLATE")
+end })
+
+tests[#tests + 1] = ({ name = "Golden Gala shows an ivory face with dark readable ink on every set tile, hero button is 44 px", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local set = CS.getById("golden_gala")
+	local face = CS.faceStyleOf(set)
+	expectTrue(face.paper[1] >= 240 and face.paper[2] >= 225 and face.paper[3] >= 190, "Golden Gala paper is ivory, not olive")
+	for _, isRed in ipairs({ true, false }) do
+		local st = CS.indexStyle(set, isRed)
+		expectTrue(CS.contrastRatio(st.ink, st.plate) >= 4.5, "Golden Gala rank ink reads 4.5 to 1")
+	end
+	for _, def in ipairs(CS.Definitions) do
+		local st = CS.indexStyle(def, false)
+		expectTrue(CS.contrastRatio(st.ink, st.plate) >= 4.5, def.id .. " tile ink reads 4.5 to 1")
+	end
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		local room = L.room(pw, ph - L.TOP - L.BOTTOM, 16, 1)
+		expectTrue(room.parts.button.h >= 44, "hero button 44 px at " .. sz[1])
+	end
+end })
+
+tests[#tests + 1] = ({ name = "Plated buttons: for every real button size the chosen plate piece keeps its slice corners inside the button and leaves a centre that fills", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	-- sizes used by Menu All actions, Settings (Account, Hold to Confirm, toggles), Store Buy and Close, Tome tabs, Quests, Season, Music, hero Equip
+	local sizes = { { 228, 56 }, { 110, 44 }, { 160, 44 }, { 200, 44 }, { 44, 44 }, { 120, 44 }, { 150, 44 }, { 104, 44 }, { 300, 56 }, { 705, 44 }, { 340, 48 }, { 90, 34 }, { 128, 44 } }
+	for _, kind in ipairs({ "primary", "secondary" }) do
+		for _, s in ipairs(sizes) do
+			local piece = Style.buttonPiece(kind, s[1], s[2])
+			local def = Style.PAINTED[piece]
+			expectTrue(def ~= nil, piece .. " is a registered piece")
+			if def.inset then
+				local sl = Style.paintedSlice(piece, s[1], s[2])
+				local cols = (def.inset.l + def.inset.r) * sl.scale
+				local rows = (def.inset.t + def.inset.b) * sl.scale
+				expectTrue(cols < s[1] and rows < s[2], piece .. " corners fit " .. s[1] .. "x" .. s[2])
+				expectTrue(def.inset.l * 2 < def.src[1] and def.inset.t * 2 < def.src[2], piece .. " centre exists in the picture")
+				expectTrue(s[1] - cols >= 0.1 * s[1] and s[2] - rows >= 0.1 * s[2], piece .. " centre fills at " .. s[1] .. "x" .. s[2])
+			end
+		end
+	end
+	local bad = Style.plateAudit({ { 228, 56 }, { 110, 44 }, { 160, 44 }, { 44, 44 } })
+	expectEqual(#bad, 0, "plateAudit clean at the real button sizes: " .. table.concat(bad, "; "))
 end })
 
 return tests

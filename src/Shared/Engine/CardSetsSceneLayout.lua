@@ -154,7 +154,7 @@ end
 function M.heroParts(hero)
 	local plate = { x = hero.x + 12, y = hero.y + 10, w = hero.w - 24, h = 34 }
 	local bw = math.min(200, hero.w - 24)
-	local button = { x = hero.x + math.floor((hero.w - bw) / 2), y = hero.y + hero.h - 10 - 38, w = bw, h = 38 }
+	local button = { x = hero.x + math.floor((hero.w - bw) / 2), y = hero.y + hero.h - 10 - 44, w = bw, h = 44 }
 	local descH = hero.h < 300 and 0 or 30 -- a short window drops the description line, the table keeps its size
 	local desc = { x = hero.x + 12, y = button.y - 6 - descH, w = hero.w - 24, h = descH }
 	local ty = plate.y + plate.h + 8
@@ -230,7 +230,7 @@ function M.room(areaW, areaH, n, page)
 	local rows = math.max(0, math.floor(shelf.h / rowH))
 	local parts = M.heroParts(hero)
 	local out = { cols = cols, rows = math.max(rows, 1), hero = hero, shelf = shelf, parts = parts, cells = {} }
-	out.ok = hero.w >= 200 and hero.h >= 160 and tileW >= 60 and rows >= 1 and parts.table.h >= 64
+	out.ok = hero.w >= 200 and hero.h >= 160 and tileW >= 60 and rows >= 1 and parts.table.h >= 56
 	out.perPage = cols * out.rows
 	out.pages = math.max(1, math.ceil(n / out.perPage))
 	out.page = math.max(1, math.min(out.pages, page or 1))
