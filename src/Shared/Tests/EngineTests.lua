@@ -31991,7 +31991,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 24, "twenty four painted pieces: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice) and the nine whole-picture plates")
+	expectTrue(n == 27, "twenty seven painted pieces: the eight plain, the seven ornate (orn_target is the Target plate as a nine-slice), the nine whole-picture plates and the three Golden Gala palace plates")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -34600,6 +34600,32 @@ table.insert(tests, { name = "Painted plates: no plate id is cropped at any audi
 	local broken = TS.plateAudit({ { 300, 124 } })
 	TS.PAINTED.wood_plate = keep
 	assert(#broken >= 1, "audit catches an inset larger than the picture")
+end })
+
+table.insert(tests, { name = "Golden Gala plates: classic and other sets keep the classic button pieces, gala resolves its own with the same size and insets", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	for _, set in ipairs({ nil, "classic", "round1:ice" }) do
+		expectEqual(Style.buttonPiece("primary", 310, 80, set), "wh_btn_green", "primary whole is classic for " .. tostring(set))
+		expectEqual(Style.buttonPiece("secondary", 310, 80, set), "wh_btn_dark", "secondary whole is classic for " .. tostring(set))
+		expectEqual(Style.buttonPiece("primary", 900, 44, set), "orn_btn_green", "Select bar is classic for " .. tostring(set))
+		expectEqual(Style.buttonPiece("secondary", 60, 60, set), "orn_btn_dark", "square is classic for " .. tostring(set))
+	end
+	local g = "golden_gala"
+	expectEqual(Style.buttonPiece("primary", 310, 80, g), "gala_wh_btn_green", "gala primary whole")
+	expectEqual(Style.buttonPiece("secondary", 310, 80, g), "gala_wh_btn_dark", "gala secondary whole")
+	expectEqual(Style.buttonPiece("primary", 900, 44, g), "gala_orn_btn_green", "gala Select bar")
+	for classic, gala in pairs(Style.SET_PLATES.golden_gala) do
+		local c, p = Style.PAINTED[classic], Style.PAINTED[gala]
+		expectEqual(p.src[1], c.src[1], gala .. " width matches " .. classic)
+		expectEqual(p.src[2], c.src[2], gala .. " height matches " .. classic)
+		expectEqual(p.whole, c.whole, gala .. " whole flag matches")
+		if c.inset then
+			expectEqual(p.inset.l, c.inset.l, gala .. " inset l"); expectEqual(p.inset.t, c.inset.t, gala .. " inset t")
+			expectEqual(p.inset.r, c.inset.r, gala .. " inset r"); expectEqual(p.inset.b, c.inset.b, gala .. " inset b")
+		end
+		expectTrue(Art[p.art] and Art[p.art] ~= Art[c.art], gala .. " has its own picture id")
+	end
 end })
 
 table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole picture near its aspect and the ornate nine-slice elsewhere; every screen uses it", fn = function()

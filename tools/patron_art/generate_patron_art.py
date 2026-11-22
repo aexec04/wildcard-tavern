@@ -308,6 +308,9 @@ for _k in ("theme_gala_menu", "theme_gala_boss", "theme_gala_play"):
     CATEGORY_OPTS["table_scene"]["opaque"].append(_k)
     CATEGORY_OPTS["table_scene"]["sizes"][_k] = "1536x1024"
 CATEGORY_OPTS["table_scene"]["references"]["theme_gala_play"] = "art-wip/table_scene/table_play_ref.png" # same layout and camera as the classic play table
+# Golden Gala palace button plates: edits of the classic plates, same aspect
+for _k, _ref in (("pk_gala_btn_dark", "pk_w_btn_dark"), ("pk_gala_btn_green", "pk_w_btn_green"), ("pk_gala_orn_btn_green", "pk_orn_btn_green")):
+    CATEGORY_OPTS["painted_kit"]["references"][_k] = "art-wip/painted_kit/%s.png" % _ref
 # Golden Gala palace keeper: edits of the classic Marlo pieces (same crop and pose), portrait 3:4
 for _k, _ref in (("shop_marlo_gala_behind", "shop_marlo_behind"), ("shop_marlo_gala_wave", "shop_marlo_wave")):
     CATEGORY_OPTS["shop_scene"].setdefault("sizes", {})[_k] = "1024x1536"

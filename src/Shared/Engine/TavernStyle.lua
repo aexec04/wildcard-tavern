@@ -103,6 +103,10 @@ M.PAINTED = {
 	wh_score = { art = "pk_w_score", whole = true, src = { 1482, 362 } },
 	wh_small = { art = "pk_w_pill_small", whole = true, src = { 1336, 386 } },
 	wh_btn_dark = { art = "pk_w_btn_dark", whole = true, src = { 1382, 402 } },
+	-- Golden Gala palace plates: same sizes, insets and text safe area as the classic pieces (tools/_gala_plate_fit.py), so only the picture differs
+	gala_wh_btn_dark = { art = "pk_gala_btn_dark", whole = true, src = { 1382, 402 } },
+	gala_wh_btn_green = { art = "pk_gala_btn_green", whole = true, src = { 1498, 410 } },
+	gala_orn_btn_green = { art = "pk_gala_orn_btn_green", full = true, src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
 	wh_btn_green = { art = "pk_w_btn_green", whole = true, src = { 1498, 410 } },
 	wh_btn_sq = { art = "pk_w_btn_sq", whole = true, src = { 1329, 652 } },
 	wh_count = { art = "pk_w_count", whole = true, src = { 1443, 425 } },
@@ -179,14 +183,30 @@ end
 -- wood one. A button near the whole-picture aspect (2.6 to 5.2 wide for 1) wears the finished wh_btn picture; any other shape (a full width
 -- Select bar, a square icon button, an unmeasured plate) wears the ornate nine-slice of the same family, so nothing stretches.
 M.BUTTON_ASPECT = { min = 2.6, max = 5.2 }
-function M.buttonPiece(kind, w, h)
+function M.buttonPiece(kind, w, h, setId)
 	local green = kind ~= "secondary"
-	if not (w and h and w > 1 and h > 1) then return green and "wh_btn_green" or "wh_btn_dark" end -- not laid out yet: the whole picture (a 0 aspect used to pick the thin nine-slice, which read flat)
-	local a = w / h
-	if a >= M.BUTTON_ASPECT.min and a <= M.BUTTON_ASPECT.max then
-		return green and "wh_btn_green" or "wh_btn_dark"
+	local piece
+	if not (w and h and w > 1 and h > 1) then
+		piece = green and "wh_btn_green" or "wh_btn_dark" -- not laid out yet: the whole picture (a 0 aspect used to pick the thin nine-slice, which read flat)
+	else
+		local a = w / h
+		if a >= M.BUTTON_ASPECT.min and a <= M.BUTTON_ASPECT.max then
+			piece = green and "wh_btn_green" or "wh_btn_dark"
+		else
+			piece = green and "orn_btn_green" or "orn_btn_dark"
+		end
 	end
-	return green and "orn_btn_green" or "orn_btn_dark"
+	return M.setPiece(piece, setId)
+end
+
+-- A Card Set's own plate for a classic piece name (golden_gala: palace velvet and emerald). Every other set, and any piece the set does not
+-- repaint (the dark nine-slice), keeps the classic piece, so classic is unchanged.
+M.SET_PLATES = {
+	golden_gala = { wh_btn_dark = "gala_wh_btn_dark", wh_btn_green = "gala_wh_btn_green", orn_btn_green = "gala_orn_btn_green" },
+}
+function M.setPiece(piece, setId)
+	local map = setId and M.SET_PLATES[setId]
+	return (map and map[piece]) or piece
 end
 
 -- Plate size clamp: a plate is never smaller than its padding needs.
