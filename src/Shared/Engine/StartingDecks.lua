@@ -82,4 +82,12 @@ function StartingDecks.view(profile)
 	return rows
 end
 
+-- What one pick tile says: the title with the card count, and one line (the rule, or the unlock rule while locked). Nothing else is drawn.
+StartingDecks.TILE_HEIGHT = 66 -- design px of a pre run pick card, 44 px or more at every window size the setup scroll allows
+function StartingDecks.tile(row)
+	local title = tostring(row.icon or "") .. " " .. tostring(row.name) .. ", " .. tostring(row.size) .. " cards"
+	local line = row.open and row.text or ("Locked. " .. tostring(row.hint))
+	return title, line
+end
+
 return StartingDecks

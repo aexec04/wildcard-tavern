@@ -283,7 +283,7 @@ return function(deps)
 		descLabel.TextSize = 15
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = plate and Color3.fromRGB(table.unpack(plate.sub)) or (locked and Color3.fromRGB(90, 70, 48) or INK)
+		descLabel.TextColor3 = plate and Color3.fromRGB(table.unpack(plate.sub)) or (locked and Color3.fromRGB(40, 28, 16) or INK)
 		descLabel.Text = description
 		descLabel.ZIndex = 26
 		descLabel.Parent = card
@@ -338,8 +338,9 @@ return function(deps)
 			local rows = latest and latest.startingDecks or StartingDecks.view(nil)
 			for i, row in ipairs(rows) do
 				local locked = not row.open
-				local card, clickCatcher = makePickCard(runSetupScroll, START_DECK_CARD_BASE + i, row.icon .. " " .. row.name,
-					locked and ("Locked. " .. row.hint) or row.text, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked)
+				local tileTitle, tileLine = StartingDecks.tile(row)
+				local card, clickCatcher = makePickCard(runSetupScroll, START_DECK_CARD_BASE + i, tileTitle,
+					tileLine, row.id == selectedStartingDeckId, DECK_VARIANT_ACCENT, locked)
 				table.insert(startingDeckCards, card)
 				table.insert(newlyBuiltCards, card)
 				if locked then

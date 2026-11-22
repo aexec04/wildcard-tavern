@@ -44770,4 +44770,20 @@ table.insert(tests, { name = "Boon chip: clear spot beside the top bar at four s
 	expectTrue(checked >= 14, "every Card Set was checked: " .. checked)
 end })
 
+table.insert(tests, { name = "Starting deck tiles: title carries the real card count, locked tiles say the unlock rule, tiles are 66 design px (44 px or more), locked ink keeps 4.5:1 on the dim parchment", fn = function()
+	local SD = require(script.Parent.Parent.Engine.StartingDecks)
+	local fresh = SD.view({ stats = { bestNightReached = 0 } })
+	expectEqual(#fresh, 3)
+	for _, row in ipairs(fresh) do
+		local title, line = SD.tile(row)
+		expectTrue(title:find(tostring(#SD.build(row.id)) .. " cards", 1, true) ~= nil, row.id .. " title shows the real card count: " .. title)
+		expectTrue(#line <= 60 and line ~= "", row.id .. " line is one short line: " .. line)
+		if not row.open then expectTrue(line:find("Night", 1, true) ~= nil and line:find("Locked", 1, true) ~= nil, row.id .. " says how to unlock") end
+	end
+	local open = SD.view({ stats = { bestNightReached = 5 } })
+	for _, row in ipairs(open) do expectTrue(row.open, row.id .. " opens by Night 5") end
+	expectTrue(SD.TILE_HEIGHT >= 44)
+	expectTrue(CosmeticSets.contrastRatio({ 40, 28, 16 }, { 150, 134, 104 }) >= 4.5, "locked tile ink is 4.5:1 on the dim parchment")
+end })
+
 return tests
