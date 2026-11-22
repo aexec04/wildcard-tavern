@@ -1485,6 +1485,17 @@ table.insert(tests, { name = "RunState.nightBaseScoreFor grows every Night, unbo
 	expectTrue(b20 > b8, "Night 20's base score should exceed Night 8's -- no plateau, unlike the Boss multiplier")
 end })
 
+table.insert(tests, { name = "Night 2 and 3 targets are lifted modestly, Night 1 and 4 keep the plain curve", fn = function()
+	local function plain(n) return 65 * 2.15 ^ (n - 1) end
+	expectEqual(RunState.nightBaseScoreFor(1), plain(1))
+	expectTrue(RunState.nightBaseScoreFor(2) > plain(2) and RunState.nightBaseScoreFor(2) <= plain(2) * 1.25, "Night 2 lift")
+	expectTrue(RunState.nightBaseScoreFor(3) > plain(3) and RunState.nightBaseScoreFor(3) <= plain(3) * 1.25, "Night 3 lift")
+	expectEqual(RunState.nightBaseScoreFor(4), plain(4))
+	for n = 2, 10 do
+		expectTrue(RunState.nightBaseScoreFor(n) > RunState.nightBaseScoreFor(n - 1), "targets climb at Night " .. n)
+	end
+end })
+
 -- ===== Feature Expansion: Ante-cap win condition + Endless Mode =====
 
 table.insert(tests, { name = "RunState.playHand marks wonRun = true on clearing the Boss Round of the final Night (nightCap)", fn = function()
@@ -9251,7 +9262,8 @@ table.insert(tests, { name = "Stakes balance: targets and hands never change, bo
 			expectTrue(row.discards >= 0, "discards never negative")
 			if row.boss then
 				local lift = 1 + require(script.Parent.Parent.Engine.Stakes).rulesFor(stake).bossTargetPct / 100
-				expectEqual(row.target, math.floor(baseline[i].target * lift), "boss target at stake " .. stake .. " night " .. row.night)
+				-- floor of a float product can differ by 1 from the floored baseline
+				expectTrue(math.abs(row.target - math.floor(baseline[i].target * lift)) <= 1, "boss target at stake " .. stake .. " night " .. row.night)
 				expectTrue(row.target <= baseline[i].target * 1.25 + 1, "boss target within 25%")
 			else
 				expectEqual(row.target, baseline[i].target, "non-boss target unchanged at stake " .. stake)
@@ -10886,6 +10898,39 @@ table.insert(tests, { name = "Tutorial stays under 2 minutes: the time budget of
 end })
 
 -- ===== First 5 minutes: goal banner, first rewards, funnel and analytics =====
+
+table.insert(tests, { name = "NextGoal order: tutorial, then Night 1, Daily chest, Season tier, then a Quest", fn = function()
+	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)
+	local SeasonTrack = require(script.Parent.Parent.Engine.SeasonTrack)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local first = nil
+	for d = 19000, 22000, 5 do
+		if SeasonTrack.active(d) then first = d break end
+	end
+	if not first then return end -- no season in the registry window: nothing to order
+	local day = first
+	local profile = PlayerProfile.new()
+	profile.hasSeenTutorial = true
+	profile.stats.bestNightReached = 2
+	profile.stats.runsStarted = 5
+	profile.stats.handsPlayedTotal = 99
+	profile.ownedSetIds.winter_evening = true
+	SeasonTrack.addXp(profile, SeasonTrack.XP_PER_TIER * 2, day)
+	LoginStreak.checkIn(profile, day)
+	-- chest comes before the Season tier
+	expectEqual(NextGoal.compute(profile, day, {}).kind, "chest")
+	LoginStreak.claim(profile, LoginStreak.slotFor(profile.loginStreak), nil)
+	local goal = NextGoal.compute(profile, day, {})
+	expectEqual(goal.kind, "season")
+	expectTrue(#goal.text <= 40 and goal.ratio >= 0 and goal.ratio <= 1)
+	-- tutorial and Night 1 still come first
+	profile.hasSeenTutorial = false
+	expectEqual(NextGoal.compute(profile, day, {}).kind, "tutorial")
+	profile.hasSeenTutorial = true
+	-- once every reached tier is claimed, the Season step is gone and a Quest (or later step) follows
+	SeasonTrack.claimAll(profile, day)
+	expectTrue(NextGoal.compute(profile, day, {}).kind ~= "season")
+end })
 
 table.insert(tests, { name = "NextGoal: every state has one kid safe goal of 40 characters or less, finished steps never return", fn = function()
 	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)

@@ -116,7 +116,7 @@ return function(deps)
 	board.pin(rankNote, function()
 		pcall(OverlayManager.open, "legend")
 	end)
-	local GOAL_TARGET = { tutorial = "tutorial", quest = "quests", unlock = "collection", rank = "legend" }
+	local GOAL_TARGET = { tutorial = "tutorial", quest = "quests", season = "season", unlock = "collection", rank = "legend" }
 	board.pin(goalNote, function()
 		local target = GOAL_TARGET[require(script.Parent.NextGoalBanner).kind]
 		local owner = target and Layout.hotspotOf(target)

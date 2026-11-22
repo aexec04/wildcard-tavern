@@ -91,8 +91,12 @@ local BLIND_MULTIPLIER_BIG = 1.5
 local BOSS_BLIND_MULTIPLIER_MIN = 2
 local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 
+-- Modest lift for Nights 2 and 3: the sim's strong bot cleared both 100% of the time.
+-- Night 1 stays as is (WelcomeEase and the first-five-minutes win), Night 4 and later unchanged.
+local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2 }
+
 function RunState.nightBaseScoreFor(night)
-	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1))
+	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1)) * (NIGHT_TUNE[night] or 1)
 end
 
 function RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
