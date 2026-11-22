@@ -358,6 +358,14 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		-- set pips: black suits lean toward the set's pip colour, red suits only a little (stay readable)
 		ink = ink:Lerp(rgb(setFace.pip), isRed and 0.2 or 0.5)
 	end
+	local pipOutline = nil
+	if not colorblind then
+		local dp = CosmeticSets.darkPipStyle(setDef, isRed)
+		if dp then
+			ink = Color3.fromRGB(dp.ink[1], dp.ink[2], dp.ink[3])
+			pipOutline = Color3.fromRGB(dp.outline[1], dp.outline[2], dp.outline[3])
+		end
+	end
 	local drawSpecial = function() addSpecialLayers(face, card, zIndex) end
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
 	-- of the card's width and ~8% of its height); they used to start at

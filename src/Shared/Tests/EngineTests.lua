@@ -42625,6 +42625,27 @@ table.insert(tests, { name = "Dark face sets: corner index is light ink on a dar
 	assert(CS.indexStyle(CS.getById("golden_gala"), false).dark == nil and CS.indexStyle(CS.getById("frosted_garden"), false).dark == nil, "Frosted Garden and Golden Gala unchanged")
 end })
 
+table.insert(tests, { name = "Dark face sets: centre pips are light ink with a dark outline at 4.5:1 on every dark set, light sets untouched", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, red in ipairs({ true, false }) do
+			local st = CS.darkPipStyle(set, red)
+			if set.darkFace and not CS.faceStyleOf(set).neutral then
+				n = n + 1
+				assert(st and st.ink[1] >= 240, set.id .. " pip ink is light")
+				local face = CS.faceStyleOf(set)
+				local ground = { (face.pip[1] + 8) // 2, (face.pip[2] + 14) // 2, (face.pip[3] + 24) // 2 }
+				assert(CS.contrastRatio(st.ink, ground) >= 4.5, set.id .. " pip reads at 4.5:1")
+				assert(st.outline[1] < 40, set.id .. " pip has a dark outline")
+			else
+				assert(st == nil, set.id .. " light face keeps its pip ink")
+			end
+		end
+	end
+	assert(n >= 2, "at least one dark set checked")
+end })
+
 table.insert(tests, { name = "Table dress: empty Patron seats lean firmly toward each set's colours, further than before", fn = function()
 	local TD = require(script.Parent.Parent.Engine.TableDress)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

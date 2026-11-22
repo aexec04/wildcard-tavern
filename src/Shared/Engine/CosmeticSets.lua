@@ -974,6 +974,22 @@ function CosmeticSets.indexStyle(set, isRed)
 	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
 end
 
+-- Centre pip look on a dark painted face: { ink, outline } (light ink, dark outline) with ink at 4.5:1 or more against the
+-- face's deep tone. Returns nil for classic and light faces (they keep the set pip ink).
+function CosmeticSets.darkPipStyle(set, isRed)
+	if not (set and set.darkFace) then return nil end
+	local face = CosmeticSets.faceStyleOf(set)
+	if face.neutral then return nil end
+	local ground = mix(face.pip, { 8, 14, 24 }, 0.5)
+	local ink = isRed and { 255, 176, 160 } or { 250, 244, 226 }
+	local n = 0
+	while CosmeticSets.contrastRatio(ink, ground) < 4.5 and n < 10 do
+		ink = mix(ink, { 255, 255, 255 }, 0.2)
+		n = n + 1
+	end
+	return { ink = ink, outline = { 8, 14, 24 } }
+end
+
 -- Gamepad focus ring colour for a set: the set accent lightened toward white until it keeps 3:1 against the dark wood behind buttons;
 -- classic and unknown sets keep the gold ring. Returns {r,g,b}.
 CosmeticSets.FOCUS_RING_GOLD = { 246, 196, 70 }
