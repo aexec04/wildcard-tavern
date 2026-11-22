@@ -25378,7 +25378,7 @@ table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed sta
 	end
 	local a, b = G.hint(true, 0, 0, false), G.hint(true, 0, 2, false)
 	assert(a.target == "card" and b.target == "play" and a.pulse and a.line1 ~= "" and a.line2 ~= "" and b.line1 ~= a.line1)
-	assert(G.hint(true, 1, 0, false) == nil and G.hint(false, 0, 0, false) == nil and G.hint(nil, 0, 0, false) == nil)
+	assert(G.hint(true, 3, 0, false) == nil and G.hint(false, 0, 0, false) == nil and G.hint(nil, 0, 0, false) == nil)
 	assert(G.hint(true, 0, 0, true).pulse == false and G.hint(true, 0, 1, true).pulse == false)
 	for _, h in ipairs({ a, b }) do assert(not (h.line1 .. h.line2):find("[\226\128\148]") and not (h.line1 .. h.line2):find("%-%-")) end
 end })
@@ -29987,7 +29987,7 @@ table.insert(tests, { name = "Guided hint: the plate sits between the Patron pil
 		assert(p.x >= 0 and p.x + p.w <= v[1], "plate on screen at " .. v[1])
 	end
 	-- the hint points at the card until one is picked, then at Play Hand, and ends after the first hand
-	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 1, 2, false) == nil)
+	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 3, 2, false) == nil)
 	assert(G.hint(true, 0, 1, false).target == "play" and G.hint(true, 0, 0, false).cards == 2, "Play Hand is the target as soon as a card is picked")
 	assert(G.hint(true, 0, 2, false).line1 == "Play your hand")
 end })
@@ -32956,7 +32956,7 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectTrue(a and a.target == "card", "no card picked: the hint points at a card")
 	local b = GH.hint(true, 0, 1, false)
 	expectTrue(b and b.target == "play", "one card picked: the hint points at Play Hand")
-	expectEqual(GH.hint(true, 1, 0, false), nil, "after the first hand the guided hint is gone")
+	expectEqual(GH.hint(true, 3, 0, false), nil, "after the third hand the guided hint is gone")
 	expectEqual(GH.hint(false, 0, 0, false), nil, "not a guided run: no hint")
 	for _, h in ipairs({ a, b }) do
 		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "each hint line is short (two lines, one glance)")
@@ -33148,6 +33148,22 @@ table.insert(tests, { name = "First impression: at most 6 taps from the Menu to 
 	expectEqual(G.hint(true, 0, 1, false).target, "play", "one card picked: point at Play Hand")
 	expectEqual(G.hint(true, 0, 3, false).target, "play", "more cards: still Play Hand")
 	expectEqual(G.hint(true, 0, 1, true).pulse, false, "Calm mode: no pulse")
+end })
+
+table.insert(tests, { name = "First five minutes: no wait over 20 s, and the guided hint carries hands 2 and 3 then ends", fn = function()
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id .. " stays under " .. F.MAX_IDLE .. " s") end
+	expectEqual(G.hint(true, 1, 0, false).target, "card", "after hand 1 with nothing picked: point at the cards")
+	expectEqual(G.hint(true, 1, 2, false).target, "play", "after hand 1 with cards picked: point at Play Hand")
+	expectTrue(G.hint(true, 2, 0, false) ~= nil, "hand 3 is still guided")
+	expectEqual(G.hint(true, 3, 0, false), nil, "the hint ends after hand 3")
+	expectEqual(G.hint(false, 1, 0, false), nil, "an unguided run never gets it")
+	expectEqual(G.hint(true, 1, 1, true).pulse, false, "Calm mode: no pulse")
+	for _, h in ipairs({ G.hint(true, 1, 0, false), G.hint(true, 2, 1, false) }) do
+		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "short lines")
+		expectFalse((h.line1 .. h.line2):find("\u{2014}", 1, true) ~= nil, "no em dash")
+	end
 end })
 
 table.insert(tests, { name = "Gameplay2Tier: quiet, pulse, burst and OVERKILL by hand total versus Target, Combo pill from 3 triggers, Calm mode one static label, everything inside the centre block", fn = function()
@@ -37255,7 +37271,7 @@ table.insert(tests, { name = "First hand guidance: wrong inputs never advance or
 	expectEqual(G.hint(true, 0, 0, false).target, "card")
 	expectEqual(G.hint(true, 0, 1, false).target, "play")
 	expectEqual(G.hint(true, 0, 5, false).target, "play")
-	expectEqual(G.hint(true, 1, 0, false), nil)
+	expectEqual(G.hint(true, 3, 0, false), nil)
 	expectEqual(G.hint(false, 0, 0, false), nil)
 	expectFalse(G.isGuided(2, false, false, false), "a second run is never guided")
 	expectFalse(G.isGuided(1, false, false, true), "the tutorial run has its own flow")

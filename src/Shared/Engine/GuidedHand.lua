@@ -15,6 +15,7 @@
 
 local M = {}
 
+M.FOLLOW_UP_HANDS = 2 -- hands after the first that still get a hint line (the hint ends after hand 3)
 M.STARTER = "the_regular" -- +4 Mult on every hand, easy to read, painted card exists
 
 function M.isGuided(runsStarted, seeded, rush, tutorial)
@@ -30,7 +31,14 @@ function M.apply(state)
 end
 
 function M.hint(guided, handsPlayed, selectedCount, calm)
-	if not guided or (tonumber(handsPlayed) or 0) >= 1 then return nil end
+	local played = tonumber(handsPlayed) or 0
+	if not guided or played >= M.FOLLOW_UP_HANDS + 1 then return nil end
+	if played >= 1 then -- the first hand is in: two more short lines so the next minute is never silent, then the hint ends
+		if (tonumber(selectedCount) or 0) < 1 then
+			return { line1 = "Nice! Now pick more cards.", line2 = "Reach the Target to clear the round.", target = "card", cards = 1, pulse = not calm }
+		end
+		return { line1 = "Play your hand", line2 = "Discard swaps weak cards.", target = "play", pulse = not calm }
+	end
 	if (tonumber(selectedCount) or 0) < 1 then -- one picked card is already a legal hand: from then on Play Hand is the one thing to press
 		return { line1 = "Tap two cards to pick them.", line2 = "You can pick up to five.", target = "card", cards = 2, pulse = not calm }
 	end
