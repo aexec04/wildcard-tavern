@@ -408,6 +408,11 @@ function CosmeticSets.isUnlocked(profile, setId, ownedPassIds)
 	return false
 end
 
+CosmeticSets.RegionNames = {
+	meadow = "the Wildflower Meadow", river = "the Willow River", peaks = "the Mountain Peaks", desert = "the Golden Dunes",
+	swamp = "the Misty Marsh", snow = "the Frosty Hills", coast = "the Lantern Coast", tavern = "the Tavern Gate",
+}
+
 -- Short player-facing text for how to get a set.
 function CosmeticSets.unlockText(set)
 	local unlock = set.unlock
@@ -421,13 +426,14 @@ function CosmeticSets.unlockText(set)
 		local a = Achievements.getById(unlock.id)
 		return "Achievement: " .. (a and a.name or "?")
 	elseif unlock.kind == "gamepass" then
-		return "Game Pass"
+		return "Get it in the Shop with a Game Pass."
 	elseif unlock.kind == "biome" then
-		return "Reach the end of the " .. tostring(unlock.region) .. " road"
+		return "Clear " .. (CosmeticSets.RegionNames[unlock.region] or "the road") .. " on the Map."
 	elseif unlock.kind == "season" then
-		return "Tavern Season premium reward"
+		local name = tostring(unlock.seasonId):gsub("_", " "):gsub("(%a)(%a*)", function(a, b) return a:upper() .. b end)
+		return "Season reward: " .. name .. "."
 	end
-	return ""
+	return "Keep playing to unlock."
 end
 
 -- The set to actually show: the equipped one if it still exists and is
