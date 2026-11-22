@@ -69,6 +69,7 @@ function M.bossRing() return BOSS_RED end
 
 -- Rects relative to the node centre. size = the circle's diameter, labelW = the name plate width.
 M.NAME_H, M.TAG_H, M.GAP = 24, 20, 4
+M.TAG_CLEAR = 10 -- name plate bottom to type chip top: the 2 px gap plus 8 px clearance, so a tall plate never touches the chip
 
 function M.parts(size, labelW)
 	local r = size / 2
@@ -79,7 +80,7 @@ function M.parts(size, labelW)
 		ring = { x = -r, y = -r, w = size, h = size },
 		badge = { x = bx - badge / 2, y = -bx - badge / 2, w = badge, h = badge },
 		name = name,
-		tag = { x = -labelW / 2, y = name.y + name.h + 2, w = labelW, h = M.TAG_H },
+		tag = { x = -labelW / 2, y = name.y + name.h + M.TAG_CLEAR, w = labelW, h = M.TAG_H },
 	}
 end
 

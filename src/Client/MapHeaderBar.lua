@@ -276,6 +276,10 @@ function MapHeaderBar.attach(panel, onClose)
 		cells.night.Text = string.format("Night %d%s%d", math.floor(stats.night), sl, math.floor(stats.nights))
 		cells.journey.Text = string.format("Journey %d%s%d", math.floor(stats.done), sl, math.floor(stats.total))
 		cells.keys.Text = string.format("Keys %d", math.floor(stats.keys))
+		local showKeys = math.floor(stats.keys) > 0 -- a Keys pill nobody holds is clutter: hidden at 0
+		cells.keys.Visible = showKeys
+		icons.keys.Visible = showKeys
+		seps[2].Visible = showKeys
 	end
 
 	local function both() relayout() view.refresh() end

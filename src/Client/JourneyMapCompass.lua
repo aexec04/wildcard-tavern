@@ -30,7 +30,7 @@ return function(deps)
 	-- Keys counter next to the compass: Keys open locked roads (Engine/Keys.lua).
 	local keysPill = Instance.new("TextLabel")
 	keysPill.Name = "KeysCounter"
-	keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 46)
+	keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 70)
 	keysPill.Size = UDim2.fromOffset(86, 36)
 	keysPill.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	keysPill.Text = "Keys 0"
@@ -48,7 +48,7 @@ return function(deps)
 	icon.Name = "CompassIcon"
 	-- Top left, just under the "Find me" button; this is the map's only compass (the old decorative
 	-- compass_rose doodle was removed from JourneyMapScenery).
-	icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)
+	icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 62)
 	icon.Size = UDim2.fromOffset(40, 40) -- small and brass, like the header's round X
 	icon.BackgroundColor3 = PARCHMENT
 	icon.Text = "N"
@@ -84,7 +84,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "CompassPanel"
-	panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 98)
+	panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 122)
 	panel.Size = UDim2.fromOffset(300, 366)
 	panel.BackgroundColor3 = PARCHMENT
 	panel.BorderSizePixel = 0

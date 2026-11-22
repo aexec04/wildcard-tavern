@@ -28178,9 +28178,9 @@ table.insert(tests, { name = "Tavern Map: its title and top-left controls are cl
 	expectTrue(full:find("MapHeaderBar", 1, true) ~= nil, "the header is the MapHeaderBar")
 	expectTrue(view:find('findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)', 1, true) ~= nil)
 	expectTrue(view:find("findMe.Position = UDim2.fromOffset(14, 8)", 1, true) == nil)
-	expectTrue(compass:find("icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)", 1, true) ~= nil, "the compass keeps its place under Find me")
-	expectTrue(compass:find("keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 46)", 1, true) ~= nil)
-	expectTrue(compass:find("panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 98)", 1, true) ~= nil)
+	expectTrue(compass:find("icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 62)", 1, true) ~= nil, "the compass keeps its place under Find me")
+	expectTrue(compass:find("keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 70)", 1, true) ~= nil)
+	expectTrue(compass:find("panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 122)", 1, true) ~= nil)
 	-- the banner's outline: on with the letters, off with them
 	expectTrue(popup:find("juiceEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual", 1, true) ~= nil, "an outline around the letters")
 	local show = popup:find("juiceBanner.TextTransparency = 0", 1, true)
@@ -35276,6 +35276,23 @@ table.insert(tests, { name = "Table QA: Patron Power only on Night 1 round 1, it
 	if g then expectTrue(g:find('"Deck " .. DeckCountText.spaced', 1, true) ~= nil, "deck counter carries the word Deck") end
 end })
 
+table.insert(tests, { name = "Tavern Map QA: type chip clears the name plate by 8 px, Find me is a 44 px plate, Keys hidden at 0, boss keeps one ring, no swords emoji", fn = function()
+	local N = require(script.Parent.Parent.Engine.MapNodeRules)
+	local p = N.parts(100, 230)
+	expectTrue(p.tag.y - (p.name.y + p.name.h) >= 8, "8 px clearance between plate and chip")
+	local S = require(script.Parent.Parent.Engine.MapSelectRules)
+	expectTrue(S.TYPE_ICON.encounter ~= "\u{2694}", "the crossed swords emoji is gone")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local v = read("src/Client/JourneyMapView.lua")
+	if v then
+		expectTrue(v:find("findMe.Size = UDim2.fromOffset(104, 44)", 1, true) ~= nil and v:find("findMe.TextSize = 16", 1, true) ~= nil, "Find me 44 px high, 16 px text")
+		expectTrue(v:find('~= "boss" then -- a boss keeps its one crimson ring', 1, true) ~= nil, "no inner gold ring on a boss")
+	end
+	local h = read("src/Client/MapHeaderBar.lua")
+	if h then expectTrue(h:find("cells.keys.Visible = showKeys", 1, true) ~= nil, "Keys cell hidden at 0") end
+end })
+
 table.insert(tests, { name = "Boss backdrop: table_boss_ref is recorded, the Boss round draws it with the reference candle spots, the wash stays thin", fn = function()
 	local TA = require(script.Parent.Parent.Engine.TableSceneArt)
 	expectTrue(type(TA.table_boss_ref) == "string" and TA.table_boss_ref:find("rbxassetid://", 1, true) == 1, "table_boss_ref id")
@@ -35858,7 +35875,8 @@ table.insert(tests, { name = "MapSelectRules.pickMode: the panel steps down from
 		expectEqual(R.pickMode(zone, {}), "full", "nothing under it: full")
 		local farAway = { x = zone.x + zone.w + 50, y = zone.y, w = 40, h = 40 }
 		expectEqual(R.pickMode(zone, { farAway }), "full", "a node beside it does not shrink it")
-		local top = { x = zone.x + 10, y = zone.y + 4, w = 40, h = 20 } -- only in the top part of the zone
+		local top = { x = zone.x + 10, y = zone.y + zone.h - math.min(zone.h, R.FULL_MAX_H) + 4, w = 40, h = 20 } -- only in the top part of the (capped) full panel
+		expectTrue(R.panelRect(zone, "full").h <= 220, "the full panel is at most 220 px high")
 		local m = R.pickMode(zone, { top })
 		expectTrue(m == "compact" or m == "tab", "a node over the top of the zone shrinks the panel (" .. m .. ")")
 		local bottom = { x = zone.x + 10, y = zone.y + zone.h - 10, w = 40, h = 8 }

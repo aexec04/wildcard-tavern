@@ -18,7 +18,7 @@ local TypeRules = require(script.Parent.MapNodeRules)
 
 local M = {}
 
-M.TYPE_ICON = { encounter = "\u{2694}", shop = "\u{1FA99}", event = "?", boss = "\u{1F451}" }
+M.TYPE_ICON = { encounter = "\u{25C6}", shop = "\u{1FA99}", event = "?", boss = "\u{1F451}" }
 M.TYPE_WORD = { encounter = "Encounter", shop = "Shop", event = "Event", boss = "Boss" }
 M.PAD = 16 -- clear inner padding: text never reaches the gold trim
 
@@ -70,9 +70,11 @@ local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
 -- Heights of the three modes: full = the whole zone, compact = name + Continue only, tab = one small plate with the name.
 M.COMPACT_H, M.TAB_H = 56, 36
+M.FULL_MAX_H = 220 -- the full panel never grows past this: no empty parchment between the description and the Target line
 
 function M.panelRect(zone, mode)
 	local h = zone.h
+	if mode == "full" then h = math.min(zone.h, M.FULL_MAX_H) end
 	if mode == "compact" then h = math.min(zone.h, M.COMPACT_H) end
 	if mode == "tab" then h = math.min(zone.h, M.TAB_H) end
 	local w = mode == "tab" and math.min(zone.w, 200) or zone.w

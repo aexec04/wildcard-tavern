@@ -397,7 +397,7 @@ return function(deps)
 		local haloScale = Instance.new("UIScale")
 		haloScale.Parent = halo
 		-- second gold ring just outside the medallion (a double ring); child of the halo so it shows and hides with it
-		do
+		if MapNodeRules.typeOf(data.kind, nil, data.night == JourneyMap.NightCap) ~= "boss" then -- a boss keeps its one crimson ring, no second gold ring
 			local ring = Instance.new("Frame")
 			ring.Name = "InnerRing"
 			ring.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1479,9 +1479,9 @@ return function(deps)
 	findMe.Name = "FindMe"
 	-- (below the header strip: at y 8 it sat under Roblox's own top-left buttons and could not be pressed)
 	findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)
-	findMe.Size = UDim2.fromOffset(80, 24) -- small, at the left just under the header
+	findMe.Size = UDim2.fromOffset(104, 44) -- a 44 px plate (touch size), 16 px label
 	findMe.Font = Enum.Font.GothamBold
-	findMe.TextSize = 14
+	findMe.TextSize = 16
 	findMe.TextColor3 = CREAM
 	findMe.TextTransparency = 0
 	findMe.TextStrokeTransparency = 1
