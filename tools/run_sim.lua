@@ -55,18 +55,19 @@ local function parseArgs(argv)
 		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--src"] = "src",
 		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss", ["--mode"] = "mode",
 		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
-		["--build"] = "build", ["--patron-list"] = "patronList",
+		["--build"] = "build", ["--patron-list"] = "patronList", ["--daily-twist"] = "dailyTwist",
 	}
 	local numbers = {
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
-		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount",	}
+		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds",
+	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
 	}
 	local i = 1
 	while i <= #argv do
@@ -121,6 +122,9 @@ local function workerArgs(run, firstRun, count, outPath)
 	end
 	if run.forcePatron then
 		table.insert(parts, "--force-patron"); table.insert(parts, run.forcePatron)
+	end
+	if run.dailyTwist then
+		table.insert(parts, "--daily-twist"); table.insert(parts, run.dailyTwist)
 	end
 	if run.forcePasses then
 		table.insert(parts, "--force-passes"); table.insert(parts, run.forcePasses)
@@ -289,7 +293,7 @@ elseif cfg.endless and cfg.maxNight >= 15 then
 		local last = rec.deathNight or rec.nightReached or 1
 		reached[#reached + 1] = last
 		if last >= 9 then endlessReached[#endlessReached + 1] = last end
-		for night = 9, 15 do
+		for night = 7, 20 do
 			if night <= last then entered[night] = (entered[night] or 0) + 1 end
 			if night < last or (night == last and not rec.deathNight) then cleared[night] = (cleared[night] or 0) + 1 end
 		end
@@ -298,11 +302,14 @@ elseif cfg.endless and cfg.maxNight >= 15 then
 	table.sort(endlessReached)
 	print(string.format("Endless, bot %s, %d seeds, random Patron picks. Median Night reached %d (all runs); %d runs got past Night 8, their median Night %d",
 		cfg.bot, #records, reached[math.ceil(#reached / 2)] or 0, #endlessReached, endlessReached[math.ceil(#endlessReached / 2)] or 0))
-	print(string.format("%-9s %s", "Night", "9      10     11     12     13     14     15"))
-	local cells = {}
-	for night = 9, 15 do
+	local heads, cells, counts = {}, {}, {}
+	for night = 7, math.min(20, cfg.maxNight) do
+		heads[#heads + 1] = string.format("%6d", night)
 		cells[#cells + 1] = string.format("%5.1f%%", 100 * (cleared[night] or 0) / math.max(1, entered[night] or 0))
+		counts[#counts + 1] = string.format("%6d", entered[night] or 0)
 	end
+	print(string.format("%-9s %s", "Night", table.concat(heads, " ")))
+	print(string.format("%-9s %s", "runs in", table.concat(counts, " ")))
 	print(string.format("%-9s %s", "clear", table.concat(cells, " ")))
 elseif cfg.pacing then
 	-- First run pacing: eased new profile, Nights 1 to 3, hands and discards used per round and clear rate per Night
@@ -428,6 +435,60 @@ elseif cfg.offers then
 		end
 	end
 	print(string.format("%-6s %7d %11.1f%% %13.1f%% %8.1f%% %19.1f%% %7.1f%%", "all", total.n, pct(total.same, total.n), pct(total.overlap, total.n), pct(total.owned, total.n), pct(total.broke, total.open), pct(total.poor, total.open)))
+elseif cfg.dailyTwists then
+	-- Daily twists: win rate of every twist against the no twist baseline (same seeds, same bot). Within 15 points is fair.
+	local function winRate(twist)
+		local records = collect(runConfig({ dailyTwist = twist }))
+		local wins = 0
+		for _, rec in ipairs(records) do if rec.won then wins = wins + 1 end end
+		return 100 * wins / math.max(1, #records), #records
+	end
+	local base, n = winRate(nil)
+	print(string.format("Daily twists, bot %s, %d runs each, same seeds. Baseline (no twist) win rate %.1f%%. Outside 15 points is flagged.", cfg.bot, n, base))
+	print(string.format("%-16s %8s %9s", "twist", "win", "vs base"))
+	for _, def in ipairs(engine.loadEngineModule("DailyModifiers").Definitions) do
+		local rate = winRate(def.id)
+		print(string.format("%-16s %7.1f%% %+8.1f%s", def.id, rate, rate - base, math.abs(rate - base) > 15 and "  <-- outside" or ""))
+	end
+elseif cfg.pairRates then
+	-- Patron synergy pairs: random 4 Patron builds from Night 4, round clear rate of every pair held together (6 pairs per build)
+	local records = collect(runConfig({ lateStart = 4, lateCount = 4, maxNight = 8 }))
+	local per, total, totalRounds = {}, 0, 0
+	for _, rec in ipairs(records) do
+		local cleared, played = 0, 0
+		for _, r in ipairs(rec.rounds or {}) do
+			played = played + 1
+			if r.cleared then cleared = cleared + 1 end
+		end
+		total, totalRounds = total + cleared, totalRounds + played
+		local ids = rec.startPatrons or {}
+		table.sort(ids)
+		for a = 1, #ids do
+			for b = a + 1, #ids do
+				local key = ids[a] .. " + " .. ids[b]
+				local s = per[key] or { builds = 0, cleared = 0, played = 0 }
+				s.builds, s.cleared, s.played = s.builds + 1, s.cleared + cleared, s.played + played
+				per[key] = s
+			end
+		end
+	end
+	local avg = 100 * total / math.max(1, totalRounds)
+	local rows = {}
+	for key, s in pairs(per) do
+		if s.builds >= (cfg.minBuilds or 25) then rows[#rows + 1] = { key = key, s = s, rate = 100 * s.cleared / math.max(1, s.played) } end
+	end
+	table.sort(rows, function(a, b) if a.rate ~= b.rate then return a.rate > b.rate end return a.key < b.key end)
+	print(string.format("Patron pairs, bot %s, %d builds of 4 from Night 4, average round clear %.1f%%, %d pairs with %d or more builds", cfg.bot, #records, avg, #rows, cfg.minBuilds or 25))
+	local function show(from, to)
+		for i = from, to do
+			local r = rows[i]
+			if r then print(string.format("%3d. %-46s %6d %8.1f%% %+7.1f%s", i, r.key, r.s.builds, r.rate, r.rate - avg, math.abs(r.rate - avg) > 15 and "  <-- outlier" or "")) end
+		end
+	end
+	print("Top 10:")
+	show(1, math.min(10, #rows))
+	print("Bottom 10:")
+	show(math.max(1, #rows - 9), #rows)
 elseif cfg.patronRates then
 	-- Per Patron clear rate: random 4 Patron builds from Night 4, score = share of Night 4 to 8 rounds cleared by builds holding the Patron
 	local records = collect(runConfig({ lateStart = 4, lateCount = 4, maxNight = 8 }))

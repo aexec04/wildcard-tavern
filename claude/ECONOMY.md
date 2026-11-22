@@ -249,3 +249,16 @@ Clear rate before the change (n = 400 on Night 3, 353 on Night 6, 45 on Night 9)
 - Night 6 under 40 percent: big_tab 37.4, bare_bones 35.4, everythings_out 32.3. Each got its own number eased by one step: Big Tab target 2.0x to 1.9x ("nearly double"), Everything's Out 0.68 to 0.70 (cut 30 percent), Bare Bones 0.70 to 0.72 (cut 28 percent). The order Stale Bread 0.75, Bare Bones, Everything's Out still holds.
 - After, Night 6: big_tab 40.5, bare_bones 39.1, everythings_out 35.4, stale_bread 44.5 (unchanged). Everything's Out is still 4.6 under the line and Bare Bones 0.9 under (inside sampling noise); one more step would squeeze the three tier 3 cuts into 25, 28 and 30 percent apart, so I stopped at one step. Needs the user only if they want Everything's Out higher: a further step to 0.72 means rebalancing Bare Bones and Stale Bread too.
 - Pinned by the test `Boss rule sim pin` plus the updated Everything's Out, Bare Bones and boss target tests.
+
+## Endless curve, Night 7 to 20, three bots
+
+`lua tools/run_sim.lua --endless --max-night 20 --runs 600 --bot <random|greedy|decent>` (random Patron buys, Night clear rate among runs that entered the Night; "in" is how many runs got there).
+
+| Bot | median Night | past Night 8 | Night 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| random | 3 | 3 of 600 | 50.0 (in 24) | 25.0 (12) | 0.0 (3) | none | | | |
+| greedy | 6 | 30 of 600 | 47.5 (179) | 35.3 (85) | 43.3 (30) | 38.5 (13) | 20.0 (5) | 0.0 (1) | none |
+| decent | 7 | 72 of 600 | 48.8 (361) | 40.9 (176) | 44.4 (72) | 50.0 (32) | 31.2 (16) | 60.0 (5) | 33.3 (3) |
+
+- Nothing is free for a bad bot: the random bot never clears Night 9 and none of its runs reach Night 10. A good bot is not walled: the decent bot clears Nights 9 to 13 between 31 and 60 percent. Night 14 and later had 1 run or none, so those cells say nothing; the curve there is the 1.5x per Night growth from the earlier Endless task.
+- No number changed. The test `Endless curve Night 7 to 20` pins that every round target grows with the Night, the boss round stays above round 2, and the base grows 1.5x per Night from Night 10 on.

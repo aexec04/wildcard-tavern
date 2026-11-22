@@ -38657,6 +38657,26 @@ table.insert(tests, { name = "Save round trip: a well used profile survives save
 	expectEqual(old.settings.performanceMode, false, "new fields default safely")
 end })
 
+table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	for round = 1, 3 do
+		local last = 0
+		for night = 7, 20 do
+			local t = ER.clampTarget(RunState.targetScoreFor(night, round, 3, 8))
+			expectTrue(t > last, "Night " .. night .. " round " .. round .. " must beat the Night before (" .. t .. " vs " .. last .. ")")
+			expectEqual(t, math.floor(t))
+			last = t
+		end
+	end
+	for night = 7, 20 do
+		expectTrue(RunState.targetScoreFor(night, 3, 3, 8) > RunState.targetScoreFor(night, 2, 3, 8), "the boss round is the hardest of Night " .. night)
+	end
+	for night = 10, 20 do
+		local ratio = RunState.nightBaseScoreFor(night) / RunState.nightBaseScoreFor(night - 1)
+		expectTrue(math.abs(ratio - 1.5) < 1e-6, "Night " .. night .. " base grows 1.5x, got " .. ratio)
+	end
+end })
+
 table.insert(tests, { name = "Remote functions: all five (three leaderboards, challenge seed, menu ticker) cap how often one player can call them, and board and scope junk is normalised", fn = function()
 	local LB = require(script.Parent.Parent.Engine.Leaderboards)
 	local junk = { 0 / 0, math.huge, -1, 0, "", "x", "global", {}, { 1 }, true, false, function() end }
