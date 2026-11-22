@@ -35282,4 +35282,24 @@ table.insert(tests, { name = "Store wording: items, price lines and declined not
 	expectTrue(#Store.declinedNotice("Card Set Bundle") < 60, "calm message stays short")
 end })
 
+table.insert(tests, { name = "Generated art registries never hold a placeholder id", fn = function()
+	if not io or not io.popen then return end
+	local list = io.popen("ls src/Shared/Engine")
+	if not list then return end
+	local checked = 0
+	for name in list:lines() do
+		if name:match("Art%.lua$") then
+			local f = io.open("src/Shared/Engine/" .. name, "r")
+			if f then
+				local src = f:read("a"); f:close()
+				checked = checked + 1
+				expectTrue(not src:find('%]%s*=%s*"rbxassetid://0"'), name .. " holds rbxassetid://0")
+				expectTrue(not src:find('%]%s*=%s*"rbxassetid://"'), name .. " holds an empty rbxassetid")
+			end
+		end
+	end
+	list:close()
+	expectTrue(checked > 40, "scanned the art registries")
+end })
+
 return tests
