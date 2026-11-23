@@ -1823,6 +1823,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 	local isSeeded = seedMode == "seed"
 	local forceStandard = seededRng ~= nil -- every seeded mode (daily/weekly/seed) forces standard/standard, for the same "everyone/both of you actually start from the identical place" reason Daily always has
 
+	print(("[RunReset] new run for %s (mode %s, previous phase %s)"):format(player.Name, tostring(seedMode or (rush and "rush") or (quick and "quick") or (isTutorial and "tutorial") or "normal"), tostring(sessions[player] and sessions[player].phase)))
 	sessions[player] = {
 		state = RunState.new({
 			deckVariantId = forceStandard and "standard" or deckVariantId,
@@ -3567,6 +3568,11 @@ Rem.RestartRun.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.RestartRun", os.clock()) then return end
 	local session = sessions[player]
 	if not session then
+		return
+	end
+	-- Only a finished run restarts here (Play Again). A stray or replayed RestartRun mid run must not wipe it; Settings > Restart Run uses AbandonRun.
+	if session.phase ~= "gameover" then
+		print(("[RunReset] ignored RestartRun from %s mid run (phase %s)"):format(player.Name, tostring(session.phase)))
 		return
 	end
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last

@@ -34454,6 +34454,20 @@ table.insert(tests, { name = "Card hover is smooth: moving the hover repaints on
 	end
 end })
 
+table.insert(tests, { name = "Run resets are explained and guarded: every new run prints one [RunReset] line, RestartRun only restarts a finished run, the table scene reset prints its reason", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Server/init.server.lua", "r"); local srv = f:read("a"); f:close()
+	f = io.open("src/Client/init.client.lua", "r"); local cli = f:read("a"); f:close()
+	local a = srv:find("Rem.RestartRun.OnServerEvent", 1, true)
+	local seg = srv:sub(a, a + 1200)
+	expectTrue(seg:find('session.phase ~= "gameover"', 1, true) ~= nil, "RestartRun mid run is ignored")
+	expectTrue(seg:find("[RunReset] ignored", 1, true) ~= nil, "the ignored restart says why")
+	expectTrue(srv:find("[RunReset] new run for", 1, true) ~= nil, "startNewSession prints one reason line")
+	local _, n = srv:gsub("%[RunReset%] new run for", "")
+	expectEqual(n, 1, "one reason line, not one per caller")
+	expectTrue(cli:find("[RunReset] table scene reset", 1, true) ~= nil, "the client names why the table scene reset")
+end })
+
 table.insert(tests, { name = "One music loop at a time: a fake pool walks every screen change and never holds more than one looping music Sound, MusicMixFX makes no Sound", fn = function()
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local pool = { loops = {} }

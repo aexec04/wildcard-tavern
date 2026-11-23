@@ -1175,6 +1175,7 @@ require(script.LazyPanel).wrap("runsetup", require(script.RunSetup), "menuNewRun
 	-- just the gameover->playing transition render() already covers.
 	onBeginRun = function()
 		pcall(require(script.OverlayManager).closeAllExcept, "") -- Begin Run: no Preview mode or fading panel survives into the run
+		print("[RunReset] table scene reset: Begin Run")
 		PhaseAModule.resetRun()
 		require(script.GameplayScene).get().reset()
 	end,
@@ -2563,6 +2564,7 @@ local function render(state)
 	-- starting a new run without ever reaching gameover) is wired via
 	-- onBeginRun below.
 	if lastPhase == "gameover" and state.phase ~= "gameover" then
+		print("[RunReset] table scene reset: a new run began after Run Over")
 		PhaseAModule.resetRun()
 		require(script.GameplayScene).get().reset()
 	end
