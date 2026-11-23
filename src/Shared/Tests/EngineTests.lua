@@ -52880,6 +52880,27 @@ table.insert(tests, { name = "Counter Haggle ledger: the book is the largest cen
 	end
 end })
 
+table.insert(tests, { name = "Daily strip: the timer and the whole Goals line fit their columns on one line at four sizes", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local quests = { quests = { { done = true, goal = 1, progress = 1 }, { done = false, goal = 3, progress = 1, desc = "Win rounds" }, { done = false, goal = 2, progress = 0 } } }
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local strip = D.menuRect(sz[1], sz[2])
+		if strip then
+			local v = D.view({ secondsToNextDay = 19 * 3600 + 21 * 60, rewards = { { today = true, claimed = true, day = 1, label = "x" } } }, quests)
+			expectEqual(v.chestText, "Next in 19h 21m", "timer text at " .. tag)
+			local c = D.chestRect(strip)
+			local inner = c.w - 2 * D.CHEST_PAD
+			local ts = F.bestSize(v.chestText, inner, c.h, 12, 16)
+			expectTrue(ts ~= nil and F.width(v.chestText, ts) <= inner, "the timer fits inside the chest plate on one line at " .. tag)
+			local goalW = D.columns(strip).goalW
+			local gs = F.bestSize(v.goalShort, goalW, 24, 14, 15)
+			expectTrue(gs ~= nil and F.width(v.goalShort, gs) <= goalW, "the whole word '" .. v.goalShort .. "' fits the Goals column at 14 px or more at " .. tag)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")

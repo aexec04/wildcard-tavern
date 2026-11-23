@@ -144,10 +144,10 @@ end
 
 -- The Streak and Goal columns left of the chest, in strip pixels: the Streak column takes about a quarter of the strip (92 to 130 px), the Goal
 -- column starts 8 px after it and ends 12 px before the chest plate, so neither word runs under the chest.
-M.START_X, M.COL_GAP, M.GOAL_GAP = 30, 8, 12
+M.START_X, M.COL_GAP, M.GOAL_GAP = 30, 4, 8 -- tight enough that "Goals 1/3" shows whole at 14 px on the narrowest menu strip (1309 wide)
 function M.columns(strip)
 	local c = M.chestRect(strip)
-	local streakW = math.max(92, math.min(130, math.floor(strip.w * 0.25)))
+	local streakW = math.max(88, math.min(130, math.floor(strip.w * 0.22)))
 	local goalX = M.START_X + streakW + M.COL_GAP
 	return { streak = { x = M.START_X, w = streakW }, goalX = goalX, goalW = math.max(40, c.x - goalX - M.GOAL_GAP), chest = c }
 end
