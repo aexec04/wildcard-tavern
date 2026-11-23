@@ -53136,7 +53136,57 @@ table.insert(tests, { name = "NightVictory: the Enter Endless Nights button is t
 	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
 end })
 
+table.insert(tests, { name = "DebugGoto smoke: sample keys parse, every boss1:<id> names a real Boss Round, the same key twice re-arms", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	assert(CosmeticSets.getById("winter_evening"), "sample set id is real")
+	local keys = { "menu", "news", "round1", "round1:winter_evening", "round1:mod=open_hands,tag=tip_jar", "tome:collection", "tome:cardsets:x",
+		"freshsave", "daily", "daily:done", "weekly", "seed", "store", "store:packs", "season", "collection", "collection:patrons",
+		"cardset:winter_evening", "settings", "share", "tavernmap:night=3", "map", "map:night=2", "haggle", "haggle:good", "haggle:bad",
+		"road", "runover", "runover:win", "boss1", "packroom", "rarity", "rarity:2", "wildcard", "legendary", "loading", "loading:40",
+		"patrons:4", "playhand", "playhand:keep", "beatslow:on", "beatslow:freeze", "beatslow:off", "sfx:coin", "sfx:ladder", "sfx:roundwin",
+		"scale:1280x720", "scale:off", "menu:meadow_picnic", "boss1:dune_market" }
+	for _, k in ipairs(keys) do
+		local target, why = R.parse(k)
+		assert(target ~= nil, "key '" .. k .. "' parses: " .. tostring(why))
+	end
+	local n = 0
+	for _, def in ipairs(BossRounds.Definitions) do
+		n = n + 1
+		local target = R.parse("boss1:" .. def.id)
+		assert(target and target.which == "boss1" and target.variant == def.id, "boss1:" .. def.id .. " parses to that boss")
+		assert(BossRounds.getById(def.id) == def, def.id .. " resolves")
+		assert(type(def.minNight) == "number" and def.minNight >= 1 and def.minNight <= 12, def.id .. " has a Night 1 to 12")
+	end
+	assert(n >= 12, "at least 12 Boss Rounds")
+	assert(BossRounds.getById("not_a_boss") == nil, "unknown boss id does not resolve")
+	local steps = R.assignSteps("menu", "menu")
+	assert(#steps == 2 and steps[1] == "" and steps[2] == "menu", "same key is cleared then set")
+	assert(select(1, R.parse(steps[1])) == nil, "the clearing value does nothing")
+	assert(#R.assignSteps("menu", "round1") == 1, "a different key is set directly")
+	assert(#R.assignSteps(nil, "menu") == 1, "first jump is set directly")
+end })
+table.insert(tests, { name = "DebugGoto server remotes: every Debug remote handler refuses outside Studio on its first line", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	local count = 0
+	for i, l in ipairs(lines) do
+		local name = l:match("^Rem%.(Debug%w+)%.OnServerEvent:Connect")
+		if name then
+			count = count + 1
+			assert(lines[i + 1] and lines[i + 1]:find("if not RunService:IsStudio() then return end", 1, true), name .. " checks IsStudio on its first line")
+		end
+	end
+	assert(count >= 6, "found the Debug remotes (" .. count .. ")")
+end })
+
 return tests
+
 
 
 
