@@ -47346,4 +47346,32 @@ table.insert(tests, { name = "Table HUD plates: Play Hand, Discard, Rank, Suit, 
 	end
 end })
 
+table.insert(tests, { name = "Boss round top row: Target, boss plate, Round scroll and Tips never overlap at four sizes", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, BC = require(Eng.Gameplay2Layout), require(Eng.BossCard)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local row = { target = r.target, tips = r.tips, round = r.round }
+		local plate = BC.plateRect(r)
+		if plate then row.bossPlate = plate end
+		local card = BC.cardRect(r, w, h)
+		if card then row.bossCard = card end
+		local names = {}
+		for k in pairs(row) do names[#names + 1] = k end
+		table.sort(names)
+		for i = 1, #names do
+			for j = i + 1, #names do
+				local a, b = names[i], names[j]
+				-- the boss plate replaces the scroll, so those two share a rect by design
+				if not ((a == "bossPlate" and b == "round") or (a == "round" and b == "bossPlate")) then
+					expectTrue(not hit(row[a], row[b]), a .. " and " .. b .. " overlap at " .. w .. "x" .. h)
+				end
+			end
+		end
+		if plate then expectTrue(not hit(plate, r.target) and not hit(plate, r.tips), "boss plate clear of Target and Tips at " .. w .. "x" .. h) end
+	end
+end })
+
 return tests

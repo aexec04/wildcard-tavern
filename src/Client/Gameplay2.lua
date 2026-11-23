@@ -457,6 +457,12 @@ function M.install(deps)
 				local tw = pl:FindFirstChild("Value") or pl:FindFirstChild("Word")
 				if tw then tw.TextScaled = false; tw.TextSize = ts end
 			end
+			local tv = target:FindFirstChild("Value") or target:FindFirstChild("Word")
+			if tv then -- "Target: 90 / 120" shrinks to the plate instead of being cut off at either end (a long boss target, a narrow bar)
+				tv.TextScaled = true; tv.TextTruncate = Enum.TextTruncate.None
+				local cap = tv:FindFirstChild("FitCap") or Instance.new("UITextSizeConstraint")
+				cap.Name = "FitCap"; cap.MaxTextSize = ts; cap.MinTextSize = 14; cap.Parent = tv
+			end
 		end
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		for _, pr in ipairs({ { handsPill, r.playCount }, { discardsPill, r.discardCount } }) do -- cream 18 px words, smaller only when the pill is too short for them
