@@ -7975,7 +7975,7 @@ table.insert(tests, { name = "Tutorial forced input: only the scripted cards, Pl
 	end
 end })
 
-table.insert(tests, { name = "Tutorial Skip button: 24px inside the edge, below the icon row and Tips chip, scales down on small screens", fn = function()
+table.insert(tests, { name = "Tutorial Skip button: 24px inside the edge, below the icon row and Tips chip, never scaled below 44 px", fn = function()
 	local TS = require(script.Parent.Parent.Engine.TutorialStart)
 	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 2560, 1440 } }) do
 		local L = TS.skipLayout(v[1], v[2])
@@ -7986,7 +7986,7 @@ table.insert(tests, { name = "Tutorial Skip button: 24px inside the edge, below 
 		expectTrue(L.right + L.width * L.scale <= v[1] / 2, "fully on screen")
 	end
 	expectEqual(TS.skipLayout(2560, 1440).scale, 1)
-	expectTrue(TS.skipLayout(800, 450).scale < 1)
+	expectEqual(TS.skipLayout(800, 450).scale, 1) -- never shrunk below a 44 px touch target
 end })
 
 table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy a Patron and a Pack, tabs, Reroll, then Next Round and Finish", fn = function()
@@ -53488,6 +53488,71 @@ table.insert(tests, { name = "Settings, Store and Tome header plates: contrast 4
 	expectTrue(SL.contrast(ST.BUTTON.plate.text, ST.BUTTON.plate.fill) >= 4.5 and SL.contrast(ST.BUTTON.buy.text, ST.BUTTON.buy.fill) >= 4.5, "Store buttons read")
 	expectTrue(ST.BUTTON.textSize >= 14, "Store button text 14 px or more")
 	for _, pg in pairs(TH.PAGES) do expectTrue(TH.contrast(pg) >= 4.5, "Tome header ink reads on the plate") end
+end })
+
+table.insert(tests, { name = "First run tutorial: every step caption fits in two lines, stays off its target and Play Hand at 1920x957, 1280x720 and 800x360, Skip and Finish are 44 px, ink reads at 4.5:1, no reward or boon step", fn = function()
+	local TSteps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local TStart = require(script.Parent.Parent.Engine.TutorialStart)
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	local function meets(a, b) return TSteps.meets(a, b) end
+	for _, v in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 360 } }) do
+		local W, H = v[1], v[2]
+		local view = { w = W, h = H }
+		-- stand-in rects for the pieces a step points at: the hand along the bottom, Play Hand beside it, the left
+		-- board, the Counter rows, the Next Round plate
+		local skipL = TStart.skipLayout(W, H)
+		local skip = { x = W - skipL.right - skipL.width * skipL.scale, y = skipL.top, w = skipL.width * skipL.scale, h = skipL.height * skipL.scale }
+		expectTrue(skip.h >= 44, "Skip is 44 px tall on screen at " .. W .. "x" .. H)
+		expectTrue(skip.x >= 0 and skip.x + skip.w <= W and skip.y + skip.h <= H, "Skip is on screen")
+		local play = { x = W - 230, y = H - 120, w = 190, h = 56 }
+		local targets = {
+			handCards = { x = W * 0.18, y = H - 200, w = W * 0.56, h = 150 },
+			play = play,
+			menuPlay = { x = W / 2 - 120, y = H * 0.55, w = 240, h = 64 },
+			selectButton = { x = W / 2 - 100, y = H * 0.6, w = 200, h = 56 },
+			sidebarScore = { x = 12, y = 120, w = 220, h = 90 },
+			shopTips = { x = W - 240, y = 70, w = 170, h = 48 },
+			shopPatronsRow = { x = W * 0.15, y = 110, w = W * 0.7, h = 150 },
+			nextRound = { x = W - 250, y = H - 100, w = 200, h = 56 },
+		}
+		for _, step in ipairs(TSteps.Steps) do
+			if step.action ~= "ok" then
+				local rs = TSteps.ribbonSize(step.text, W)
+				expectTrue(rs.lines <= 2, step.id .. " wraps to at most 2 lines at " .. W .. " (" .. rs.lines .. ")")
+				expectTrue(rs.h >= rs.lines * TSteps.LINE_H and rs.w <= W - 24, step.id .. " plate fits its lines and the screen")
+				local target = targets[step.target] or targets.shopPatronsRow
+				local avoid = { skip }
+				if step.target ~= "play" then avoid[#avoid + 1] = play end
+				local put = TSteps.placeCaption(view, target, rs, avoid)
+				local rect = { x = put.x, y = put.y, w = rs.w, h = rs.h }
+				expectTrue(put.x >= 0 and put.y >= 0 and put.x + rs.w <= W and put.y + rs.h <= H, step.id .. " caption on screen at " .. W .. "x" .. H)
+				expectTrue(not meets(rect, target), step.id .. " caption never covers its target at " .. W .. "x" .. H)
+				if W >= 1280 and step.target ~= "play" then
+					expectTrue(put.clear and not meets(rect, play), step.id .. " caption clear of Play Hand at " .. W)
+				end
+			end
+		end
+	end
+	-- the Finish card
+	local last = TSteps.Steps[#TSteps.Steps]
+	expectEqual(last.action, "ok", "the last step is Finish")
+	expectTrue(TSteps.ribbonSize(last.text, 800).lines <= 2, "the Finish line is short")
+	-- no Reward or Night boon step: the steps are table, Counter and Finish only
+	for _, step in ipairs(TSteps.Steps) do
+		local id = step.id:lower()
+		expectTrue(not id:find("reward") and not id:find("boon") and not id:find("choice"), step.id .. " is not a reward or boon step")
+		local words = 0
+		for _ in step.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= TSteps.MAX_WORDS, step.id .. " is 12 words at most")
+	end
+	expectTrue(LL.contrast({ 250, 235, 200 }, { 70, 48, 30 }) >= 4.5, "caption ink on its plate")
+	expectTrue(LL.contrast({ 250, 235, 200 }, { 56, 104, 52 }) >= 4.5, "Finish ink on its button")
+	expectTrue(LL.contrast({ 250, 235, 200 }, { 52, 36, 22 }) >= 4.5, "Skip ink on its plate")
+	if not io then return end
+	local f = assert(io.open("src/Client/TutorialWalkthrough.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("okButton.Size = UDim2.fromOffset(140, 44)", 1, true) ~= nil, "Finish button is 44 px tall")
+	expectTrue(src:find("okButton.BackgroundColor3 = Color3.fromRGB(56, 104, 52)", 1, true) ~= nil, "Finish colour is the one the test measures")
+	expectTrue(src:find("Steps.placeCaption(", 1, true) ~= nil and src:find("Steps.ribbonSize(", 1, true) ~= nil, "the walkthrough places the caption with the shared rules")
 end })
 
 return tests

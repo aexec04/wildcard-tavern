@@ -29,7 +29,7 @@ function TutorialStart.showNewRibbon(profile, dismissed)
 end
 
 -- Where the Skip button sits: top right, at least 24px inside the screen edge (the gold border), below the
--- corner icon row (12..66) and the Tips chip (18..52) with an 18px gap, scaled down on small screens.
+-- corner icon row (12..66) and the Tips chip (18..52) with an 18px gap. It is never scaled down: 44 px tall on every screen.
 -- The words around Skip, one line each: the button says what it does, the dialog says where to replay it, one hold confirms.
 TutorialStart.SKIP_TEXT = "Skip tutorial"
 TutorialStart.SKIP_TITLE = "Skip the tutorial?"
@@ -39,7 +39,7 @@ TutorialStart.SKIP_WIDTH = 150
 TutorialStart.SKIP_MARGIN = 24
 TutorialStart.SKIP_TOP = 84
 function TutorialStart.skipLayout(viewW, viewH)
-	local scale = math.max(0.75, math.min(1, math.min(viewW / 1280, viewH / 720)))
+	local scale = 1 -- (a smaller scale made the touch target under 44 px on phones)
 	return { right = TutorialStart.SKIP_MARGIN, top = TutorialStart.SKIP_TOP, scale = scale, width = TutorialStart.SKIP_WIDTH, height = 44, minTouch = 44 }
 end
 

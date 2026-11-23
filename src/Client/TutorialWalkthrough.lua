@@ -147,7 +147,7 @@ return function(deps)
 	okButton.Name = "TutorialOk"
 	okButton.AnchorPoint = Vector2.new(0.5, 0)
 	okButton.Size = UDim2.fromOffset(140, 44)
-	okButton.BackgroundColor3 = Color3.fromRGB(86, 140, 80)
+	okButton.BackgroundColor3 = Color3.fromRGB(56, 104, 52)
 	okButton.Font = Enum.Font.GothamBold
 	okButton.TextSize = 18
 	okButton.TextColor3 = Color3.fromRGB(250, 235, 200)
@@ -394,17 +394,34 @@ return function(deps)
 			tapButton.Visible = currentStep ~= nil and currentStep.action == "tap"
 			-- ribbon below the cutout (above when there is no room), centred on it, kept on screen; the arrow
 			-- sits between the ribbon and the target, pointing at it
-				local rw, rh = ribbon.AbsoluteSize.X, 56
-				local avoid, gp0 = {}, gui.AbsolutePosition
-				for _, b in ipairs({ deps.playButton, deps.discardButton }) do
-					if typeof(b) == "Instance" and b:IsA("GuiObject") and b.Visible and b ~= currentList[1] then
-						avoid[#avoid + 1] = { x = b.AbsolutePosition.X - gp0.X, y = b.AbsolutePosition.Y - gp0.Y, w = b.AbsoluteSize.X, h = b.AbsoluteSize.Y }
-					end
+			-- (Engine/TutorialSteps.placeCaption: never on the lit target, and clear of Play Hand and Skip when a spot allows)
+			local rs = Steps.ribbonSize(ribbonText.Text, size.X)
+			ribbonText.TextSize = Steps.TEXT_SIZE
+			ribbon.Size = UDim2.fromOffset(rs.w, rs.h)
+			local rw, rh = rs.w, rs.h
+			local gp0 = gui.AbsolutePosition
+			local avoid = {}
+			local function avoidInst(inst)
+				if inst and typeof(inst) == "Instance" and inst:IsA("GuiObject") and visible(inst) then
+					local p, s = inst.AbsolutePosition, inst.AbsoluteSize
+					avoid[#avoid + 1] = { x = p.X - gp0.X, y = p.Y - gp0.Y, w = s.X, h = s.Y }
 				end
-				local place = Steps.captionPlace({ x = x, y = y, w = w, h = h }, { w = size.X, h = size.Y }, rw, rh, avoid)
-				ribbon.Position = UDim2.fromOffset(place.x, place.y)
-				arrow.Position = UDim2.fromOffset(place.arrowX, place.arrowY)
-				arrow.Text = place.arrow
+			end
+			if currentStep and currentStep.target ~= "play" then avoidInst(TutorialBus.resolve("play")) end
+			if skipButton.Visible then avoidInst(skipButton) end
+			local put = Steps.placeCaption({ w = size.X, h = size.Y }, { x = x, y = y, w = w, h = h }, { w = rw, h = rh }, avoid)
+			ribbon.Position = UDim2.fromOffset(put.x, put.y)
+			if put.side == "below" then
+				arrow.Position, arrow.Text = UDim2.fromOffset(x + w / 2, y + h + 22), "^"
+			elseif put.side == "above" then
+				arrow.Position, arrow.Text = UDim2.fromOffset(x + w / 2, y - 22), "v"
+			elseif put.side == "right" then
+				arrow.Position, arrow.Text = UDim2.fromOffset(x + w + 24, y + h / 2), "<"
+			elseif put.side == "left" then
+				arrow.Position, arrow.Text = UDim2.fromOffset(x - 24, y + h / 2), ">"
+			else
+				arrow.Visible = false -- the plate is away from the target: no arrow pointing across the screen
+			end
 			-- The caption and its arrow never sit on the Skip button (Engine/TutorialSteps.clearOfSkip). The Tips plate at
 			-- the Counter is right above that button: the caption under it was half covered, and the arrow stood on it.
 			if skipButton.Visible then
