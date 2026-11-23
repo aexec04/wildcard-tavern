@@ -617,6 +617,26 @@ table.insert(tests, { name = "PatronSeats: Sell plate shows the refund, order te
 	expectTrue(five.total <= 1700, "five groups fit a wide zone")
 end })
 
+table.insert(tests, { name = "PatronSeats.nameFit: every Patron name fits one line in the seat label at every strip size", fn = function()
+	local S = require(script.Parent.Parent.Engine.PatronSeats)
+	local TF = require(script.Parent.Parent.Engine.TextFit)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local f = S.nameFit("Savings Club", 104)
+	expectEqual(f.text, "Savings Club")
+	expectTrue(f.size >= 11 and TF.width(f.text, f.size) <= 104 - 8, "Savings Club on one line at the widest group")
+	for _, w in ipairs({ 1700, 1100, 800, 640, 400 }) do
+		for n = 2, 8 do
+			local sz = S.stripSize(w, n)
+			local labelW = sz.groupW - sz.btn * 2 - 4
+			for _, p in ipairs(Patrons.Definitions) do
+				local r = S.nameFit(p.name, labelW)
+				expectTrue(r.size >= 11 and r.size <= 15, "size in range")
+				expectTrue(TF.width(r.text, r.size) <= math.max(1, labelW - 8) + 1 or #r.text <= 4, "one line for " .. tostring(p.name))
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "PatronSeatStrip: no tween, ASCII arrows, wired to the MovePatron remote and PreviewGuard", fn = function()
 	if not io then return end
 	local function read(p) local f = io.open(p, "r"); if not f then return nil end local s = f:read("*a"); f:close(); return s end

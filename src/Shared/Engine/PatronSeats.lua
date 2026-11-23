@@ -31,6 +31,17 @@ function M.canMove(i, n, dir)
 	return target >= 1 and target <= n
 end
 
+-- The seat name on one line: { size, text }. Largest size 15 down to 11 that fits labelW minus 4 px each side, else clipped at 11.
+function M.nameFit(name, labelW)
+	local TextFit = require(script.Parent.TextFit)
+	name = tostring(name or "")
+	local w = math.max(1, labelW - 8)
+	for s = 15, 11, -1 do
+		if TextFit.width(name, s) <= w then return { size = s, text = name } end
+	end
+	return { size = 11, text = TextFit.clip(name, w, 11) }
+end
+
 function M.stripSize(zoneW, n)
 	n = math.max(1, math.floor(n))
 	local group = math.floor((zoneW - (n - 1) * M.GAP) / n)
