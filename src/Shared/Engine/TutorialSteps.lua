@@ -185,6 +185,68 @@ function TutorialSteps.clearOfSkip(ribbon, arrow, skip, target, screenW)
 	return out
 end
 
+-- The caption plate: wide enough that a 12 word line wraps to two lines at most, tall enough for its lines, and never
+-- wider than the screen. Text is 20 px (GothamBold, about 0.62 em per character, an estimate the test uses too).
+TutorialSteps.TEXT_SIZE = 20
+TutorialSteps.LINE_H = 24
+TutorialSteps.RIBBON_MAX_W = 460
+TutorialSteps.RIBBON_MIN_H = 56
+function TutorialSteps.ribbonSize(text, viewW)
+	local w = math.max(240, math.min(TutorialSteps.RIBBON_MAX_W, (viewW or 1280) - 24))
+	local perLine = math.max(8, math.floor((w - 24) / (TutorialSteps.TEXT_SIZE * 0.62)))
+	local lines, used = 1, 0
+	for word in tostring(text or ""):gmatch("%S+") do
+		local need = #word + (used > 0 and 1 or 0)
+		if used > 0 and used + need > perLine then
+			lines, used = lines + 1, #word
+		else
+			used = used + need
+		end
+	end
+	return { w = w, h = math.max(TutorialSteps.RIBBON_MIN_H, lines * TutorialSteps.LINE_H + 16), lines = lines }
+end
+
+-- Where the caption plate goes. target and every avoid entry are { x, y, w, h } in screen space (avoid: the Play Hand
+-- button, Skip, anything the plate must not hide); ribbon = { w, h }; view = { w, h }. The plate never covers the
+-- lit target (the card or button the player is told to press) and, when any spot allows it, never covers an avoid
+-- rect either. Order: below the target, above, right, left, then the top and bottom of the screen.
+-- Returns { x, y, side = "below"|"above"|"right"|"left"|"top"|"bottom", clear = true when no avoid rect is covered }.
+function TutorialSteps.placeCaption(view, target, ribbon, avoid)
+	local air, edge = TutorialSteps.CAPTION_AIR, 8
+	local W, H, rw, rh = view.w, view.h, ribbon.w, ribbon.h
+	local function cx(v) return math.max(edge, math.min(v, W - rw - edge)) end
+	local function cy(v) return math.max(edge, math.min(v, H - rh - edge)) end
+	local midX, midY = target.x + target.w / 2 - rw / 2, target.y + target.h / 2 - rh / 2
+	local cands = {
+		{ side = "below", x = cx(midX), y = target.y + target.h + 44 },
+		{ side = "above", x = cx(midX), y = target.y - 44 - rh },
+		{ side = "right", x = target.x + target.w + 48, y = cy(midY) },
+		{ side = "left", x = target.x - 48 - rw, y = cy(midY) },
+		{ side = "top", x = cx(W / 2 - rw / 2), y = edge },
+		{ side = "bottom", x = cx(W / 2 - rw / 2), y = H - rh - edge },
+	}
+	local function inside(c) return c.x >= edge and c.y >= edge and c.x + rw <= W - edge and c.y + rh <= H - edge end
+	local function rect(c) return { x = c.x, y = c.y, w = rw, h = rh } end
+	local function grow(r) return { x = r.x - air, y = r.y - air, w = r.w + 2 * air, h = r.h + 2 * air } end
+	local function onTarget(c) return TutorialSteps.meets(rect(c), target) end
+	local function onAvoid(c)
+		for _, a in ipairs(avoid or {}) do
+			if TutorialSteps.meets(rect(c), grow(a)) then return true end
+		end
+		return false
+	end
+	for _, c in ipairs(cands) do
+		if inside(c) and not onTarget(c) and not onAvoid(c) then c.clear = true return c end
+	end
+	for _, c in ipairs(cands) do
+		if inside(c) and not onTarget(c) then c.clear = false return c end
+	end
+	local c = cands[1]
+	c.y = cy(c.y)
+	c.clear = false
+	return c
+end
+
 -- The caption is always the step's own line (never a generic fallback while a different thing is spotlighted).
 function TutorialSteps.captionFor(step)
 	if step and type(step.text) == "string" and step.text ~= "" then return step.text end
