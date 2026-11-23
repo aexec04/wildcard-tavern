@@ -48412,6 +48412,20 @@ table.insert(tests, { name = "Card Sets are cosmetic: scoring, hand evaluation, 
 	end
 end })
 
+table.insert(tests, { name = "Patron text audit: all Patron effect lines are 60 characters or less, have no dashes and name their numbers", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local count = 0
+	for id, p in pairs(Patrons.Definitions) do
+		count = count + 1
+		local d = p.description
+		expectTrue(type(d) == "string" and #d > 0, id .. " has a description")
+		expectTrue(#d <= 60, id .. " description is 60 characters or less (" .. #d .. ")")
+		expectTrue(not d:find("\226\128\148") and not d:find("\226\128\147") and not d:find(" %- "), id .. " description has no dashes")
+		expectTrue(d:find("%d") ~= nil or d:find("^Copies"), id .. " description names its numbers")
+	end
+	expectTrue(count >= 93, "audited every Patron (" .. count .. ")")
+end })
+
 return tests
 
 
