@@ -1500,8 +1500,9 @@ table.insert(tests, { name = "Night 2 and 3 targets are lifted modestly, Night 1
 	expectTrue(RunState.nightBaseScoreFor(2) > plain(2) and RunState.nightBaseScoreFor(2) <= plain(2) * 1.25, "Night 2 lift")
 	expectTrue(RunState.nightBaseScoreFor(3) > plain(3) and RunState.nightBaseScoreFor(3) <= plain(3) * 1.25, "Night 3 lift")
 	expectEqual(RunState.nightBaseScoreFor(4), plain(4) * 1.1)
-	expectEqual(RunState.nightBaseScoreFor(5), plain(5) * 1.1)
-	expectEqual(RunState.nightBaseScoreFor(6), plain(6))
+	expectEqual(RunState.nightBaseScoreFor(5), plain(5) * 1.25, "Night 5 second step after boons and marks")
+	expectEqual(RunState.nightBaseScoreFor(6), plain(6) * 1.1, "Night 6 first step after boons and marks")
+	expectEqual(RunState.nightBaseScoreFor(7), plain(7))
 	for n = 2, 10 do
 		expectTrue(RunState.nightBaseScoreFor(n) > RunState.nightBaseScoreFor(n - 1), "targets climb at Night " .. n)
 	end
