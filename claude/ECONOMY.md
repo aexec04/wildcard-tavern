@@ -389,6 +389,18 @@ First pass (before tuning, decent / greedy / builder lift): Spare Hand +15.2 / +
 
 Open: Wider Grip reads +15.8 for the greedy bot only because greedy never discards, so the Discard cost is free to it; decent and builder read +9.4 and +13.4 (builder is inside the sampling noise of the 12 point line). Friendly Prices reads +13.8 for builder, also inside the noise. If a later sim with more runs confirms either over 12, drop Wider Grip to 2 less Discards or Friendly Prices to a one time discount. Pinned by the test "NightBoons balance".
 
+## Starting decks: Classic, Lucky, Slim (`lua tools/run_sim.lua --start-decks --runs 500 --jobs 8 --bot decent|builder|greedy`)
+
+Rule: every deck within 10 points of Classic. 500 runs, sampling noise about 4 points.
+
+| Deck | decent win | builder win | greedy win |
+| --- | --- | --- | --- |
+| Classic | 36.2 | 38.6 | 17.0 |
+| Lucky | 33.0 (-3.2) | 39.6 (+1.0) | 17.2 (+0.2) |
+| Slim | 37.8 (+1.6) | 42.8 (+4.2) | 22.6 (+5.6) |
+
+All within the band, so no deck value changed. Slim is the strongest on every bot (+1.6 to +5.6), as intended for a thinner deck that repeats good cards; Lucky is level with Classic.
+
 ## Quest Tips and Pocket Change against the shop (`lua tools/run_sim.lua --shop-econ --runs 100 --jobs 2 --start-tips 30 --boon pocket_change`)
 
 Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon on every Night. Measured with the first Pocket Change (+3 Tips); the boon is now +1 Tip (see the boon balance below), so the real margin is wider.
