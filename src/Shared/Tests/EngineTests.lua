@@ -45854,6 +45854,44 @@ table.insert(tests, { name = "SellUndo: sell then Undo within 5 seconds restores
 	end
 end })
 
+table.insert(tests, { name = "SetGlow: a newly formed set lights its member seats once in a 4.5:1 accent, a broken set glows again when it re-forms, rings stay with the seats, no tween", fn = function()
+	local SG = require(script.Parent.Parent.Engine.SetGlow)
+	local SB = require(script.Parent.Parent.Engine.SetBonuses)
+	for id, c in pairs(SG.ACCENTS) do expectTrue(SG.contrast(c) >= 4.5, id .. " accent contrast " .. SG.contrast(c)) end
+	for _, d in ipairs(SB.Definitions) do expectTrue(SG.ACCENTS[d.id] ~= nil, d.id .. " has an accent") end
+	-- find three Patrons that form a set together
+	local ids
+	for i = 1, #Patrons.Definitions do
+		for j = i + 1, #Patrons.Definitions do
+			for k = j + 1, #Patrons.Definitions do
+				local try = { Patrons.Definitions[i].id, Patrons.Definitions[j].id, Patrons.Definitions[k].id }
+				if #SB.formed(try) > 0 then ids = try break end
+			end
+			if ids then break end
+		end
+		if ids then break end
+	end
+	expectTrue(ids ~= nil, "some three Patrons form a set")
+	local known = {}
+	expectEqual(#SG.fresh(known, { ids[1], ids[2] }), 0)
+	local first = SG.fresh(known, ids)
+	expectTrue(#first >= 1 and #first[1].members >= 2, "the set forms")
+	expectEqual(#SG.fresh(known, ids), 0, "glows once")
+	expectEqual(#SG.fresh(known, { ids[1] }), 0)
+	expectTrue(#SG.fresh(known, ids) >= 1, "breaks, then re-forms: glows again")
+	local rects = { slots = {} }
+	for i = 1, 5 do rects.slots[i] = { card = { x = 100 * i, y = 50, w = 80, h = 120 } } end
+	local rings = SG.rings(rects, first[1])
+	expectEqual(#rings, #first[1].members)
+	for _, r in ipairs(rings) do expectTrue(r.w == 88 and r.h == 128, "outset 4 px") end
+	expectEqual(#SG.rings({ slots = {} }, first[1]), 0, "missing seats are skipped")
+	expectEqual(#SG.fresh({}, nil), 0, "junk input")
+	if io then
+		local f = assert(io.open("src/Client/SetGlowFX.lua", "r")); local src = f:read("*a"); f:close()
+		expectTrue(not src:find("TweenService", 1, true), "no tween, so Calm is static")
+	end
+end })
+
 return tests
 
 

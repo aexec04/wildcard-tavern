@@ -983,6 +983,11 @@ function M.install(deps)
 			end
 			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids, lastState.nightBoon and lastState.nightBoon.id)
 		end)
+		pcall(function() -- the seats of a newly formed Patron set glow once in the set accent (Engine/SetGlow)
+			local ids = {}
+			for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end
+			require(script.Parent.SetGlowFX).update(layer, Layout.rects(size.X, size.Y), ids)
+		end)
 		pcall(function() require(script.Parent.BoonChip).update(layer, lastState, size.X, size.Y) end) -- the active Night boon chip, set plated, tap for the line
 		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)
 		pcall(function() require(script.Parent.NightIntroFX).update(layer, lastState, size.X, size.Y) end) -- Night N, the room and the rule, 1.2 s, tap to skip, none in Calm
