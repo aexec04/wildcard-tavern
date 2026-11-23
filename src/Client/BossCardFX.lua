@@ -139,9 +139,11 @@ local function buildTop(layer)
 	nm.TextTruncate = Enum.TextTruncate.AtEnd
 	local bar = Instance.new("Frame"); bar.Name = "Bar"; bar.BackgroundColor3 = Color3.fromRGB(52, 14, 14); bar.BorderSizePixel = 0; bar.Active = false; bar.ZIndex = 9; bar.Parent = f
 	local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 6); bc.Parent = bar
-	local bs = Instance.new("UIStroke"); bs.Color = Color3.fromRGB(246, 196, 70); bs.Thickness = 1.5; bs.Parent = bar
+	local bs = Instance.new("UIStroke"); bs.Color = Color3.fromRGB(246, 196, 70); bs.Thickness = 2.5; bs.Parent = bar
 	local fill = Instance.new("Frame"); fill.Name = "Fill"; fill.BackgroundColor3 = Color3.fromRGB(205, 40, 36); fill.BorderSizePixel = 0; fill.Active = false; fill.ZIndex = 10; fill.Parent = bar
-	local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0, 6); fc.Parent = fill
+	local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0, 4); fc.Parent = fill
+	local fg = Instance.new("UIGradient"); fg.Color = ColorSequence.new(Color3.fromRGB(236, 78, 64), Color3.fromRGB(158, 24, 24)); fg.Rotation = 90; fg.Parent = fill -- a lit top edge, so the bar reads as a filled gauge in a frame, not a flat slab
+	fill.Position = UDim2.fromOffset(4, 4)
 	local num = label(bar, "Num", Enum.Font.GothamBold, CREAM, 11)
 	num.Size = UDim2.fromScale(1, 1); num.TextStrokeTransparency = 0.4; num.TextStrokeColor3 = Color3.fromRGB(30, 8, 8)
 	local night = label(f, "Night", Enum.Font.Gotham, Color3.fromRGB(226, 205, 160), 9)
@@ -275,9 +277,9 @@ function M.update(layer, state, rects, viewW, viewH)
 	bar.Num.Visible = true
 	local want = Rules.fraction(cur, total)
 	if calm() or lastFill == nil then
-		bar.Fill.Size = UDim2.fromScale(want, 1)
+		bar.Fill.Size = UDim2.new(want, -8 * want, 1, -8)
 	elseif lastFill ~= want then
-		TweenService:Create(bar.Fill, TweenInfo.new(Rules.TWEEN_SECONDS), { Size = UDim2.fromScale(want, 1) }):Play()
+		TweenService:Create(bar.Fill, TweenInfo.new(Rules.TWEEN_SECONDS), { Size = UDim2.new(want, -8 * want, 1, -8) }):Play()
 	end
 	lastFill = want
 	local handName = false
