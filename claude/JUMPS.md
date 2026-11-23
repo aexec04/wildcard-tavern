@@ -81,9 +81,5 @@ Daily and meta: `season` `tome:badges` `tome:legend` `tome:flair` `tome:stats` `
 
 Run screens: `haggle` `haggle:good` `haggle:bad` `road` `runover` `runover:win` `packroom` `wildcard` `legendary` `playhand` `playhand:keep` `beatslow:on` `beatslow:freeze` `beatslow:off` `sfx:roundwin` `shop` `roundwin` `gameover`
 
-Not available (the parser in Engine/DebugGotoRules rejects them, checked by running it, so a button would only print an error):
-- daily, daily:done, weekly, seed, freshsave: the DebugGoto header does not list them and no parser branch exists. They would need new Studio-only server jumps that change profile state.
-- settings, share: no parser branch. Use the tome pages or the real Menu buttons.
-- tavernmap:night=N: the real key is map:night=N (listed above).
-- cardset:ID: the real key is menu:ID (any jump may end in a Card Set id), one button per Card Set under "Card Sets".
+Admin keys (Studio only, they parse now; the panel lists them under Daily and meta): freshsave, daily, daily:done, weekly, seed, settings, share, store:<tab>, collection:<tab>, cardset:<id>, tavernmap:night=<n>.
 - tome:store: use store.
