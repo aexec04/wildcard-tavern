@@ -5006,6 +5006,37 @@ table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values
 	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
 end })
 
+table.insert(tests, { name = "Finale check: the Victory and Endless screens keep every plate on screen and apart at four sizes, sit above the Daily strip, and the strip is off outside Round Select", fn = function()
+	local VL = require(script.Parent.Parent.Engine.VictoryLook)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local PR = require(script.Parent.Parent.Engine.PopupRules)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, ph in ipairs({ "playing", "shop", "victory", "won", "gameOver", "endless", "event", "blessing" }) do
+		expectFalse(D.visible(ph), "the Daily strip is off during " .. ph)
+	end
+	expectTrue(PR.isPopupName("VictoryBackdrop"), "the Victory scene is a shielded full-screen popup root")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = VL.layout(w, h, mode)
+			local names = mode == "pick" and { "banner", "subtitle", "button", "nextStep" } or { "banner", "subtitle", "button", "invite", "nextStep", "rewards", "summary" }
+			local rects = {}
+			for _, k in ipairs(names) do
+				local r = L[k]
+				expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, k .. " on screen at " .. w .. "x" .. h .. " " .. mode)
+				rects[#rects + 1] = { k, r }
+			end
+			if mode == "pick" then for i, c in ipairs(L.cards) do expectTrue(c.x >= 0 and c.x + c.w <= w and c.y + c.h <= h, "pick card " .. i .. " on screen at " .. w) end end
+			for i = 1, #rects do
+				for j = i + 1, #rects do
+					expectFalse(hit(rects[i][2], rects[j][2]), rects[i][1] .. " and " .. rects[j][1] .. " do not overlap at " .. w .. "x" .. h .. " " .. mode)
+				end
+			end
+			expectTrue(L.button.w >= 44 and L.button.h >= 44, "Continue is 44 px or more at " .. w .. "x" .. h)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Boss rule intro line: shows once per boss round, never over a popup or the intro cinematic, hidden by popups", fn = function()
 	local GM = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local PL = require(script.Parent.Parent.Engine.PopupLayers)
