@@ -77,8 +77,16 @@ function M.withinTap(dx, dy, w, h)
 end
 
 -- tooltip text of a hand card: "Queen of Hearts" and one line per garnish, special or stamp (CardData = Engine/Card)
+M.MYSTERY_TIP = "Mystery card\nThe True Wildcard. Play it and it becomes the card that scores the most."
+
+-- the hidden True Wildcard: still face down, so its tip must not give away the rank and suit it was dealt as
+function M.isMystery(card)
+	return type(card) == "table" and card.isTrueWildcard == true and card.wildcardLocked ~= true
+end
+
 function M.cardTip(card, CardData)
 	if type(card) ~= "table" then return "" end
+	if M.isMystery(card) then return M.MYSTERY_TIP end
 	local names = (CardData and CardData.RankNames) or {}
 	local lines = {}
 	if card.rank and card.suit then

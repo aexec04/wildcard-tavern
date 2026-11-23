@@ -3940,6 +3940,33 @@ table.insert(tests, { name = "Playing the True Wildcard locks it in as whichever
 	expectTrue(wildcardCard.wildcardLocked)
 end })
 
+table.insert(tests, { name = "Mystery card: tooltip explains it in one kind line without leaking rank or suit, reveals true card and scores once played", fn = function()
+	local TG = require(script.Parent.Parent.Engine.TouchGestures)
+	local CardData = require(script.Parent.Parent.Engine.Card)
+	local card = C(7, "Hearts")
+	card.isTrueWildcard = true
+	card.wildcardLocked = false
+	expectTrue(TG.isMystery(card), "a hidden True Wildcard is a Mystery card")
+	local tip = TG.cardTip(card, CardData)
+	expectTrue(tip:find("Mystery card", 1, true) ~= nil and tip:find("becomes", 1, true) ~= nil, "the tip explains the Mystery card")
+	expectTrue(tip:find("Hearts", 1, true) == nil and tip:find("Seven", 1, true) == nil and tip:find("7", 1, true) == nil, "the tip never leaks the dealt rank or suit")
+	expectFalse(tip:lower():find("balatro"))
+	expectTrue(#TG.MYSTERY_TIP <= 100, "the tip stays short")
+	-- played: it becomes the best card, scores, and the tip turns back into a plain card name
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand = { card, C(9, "Hearts"), C(9, "Diamonds"), C(9, "Clubs") }
+	local result = RunState.playHand(state, { 1, 2, 3, 4 })
+	expectEqual(result.handName, "Four of a Kind")
+	expectEqual(result.wildcardResolution.rank, 9)
+	expectEqual(card.rank, 9)
+	expectTrue(card.wildcardLocked and not TG.isMystery(card), "the card is revealed")
+	expectTrue(result.score > 0 and result.score == result.score and result.score < math.huge, "the hand scored a real number")
+	expectTrue(TG.cardTip(card, CardData):find("Nine", 1, true) ~= nil or TG.cardTip(card, CardData):find("9", 1, true) ~= nil, "revealed tip names the true card")
+	-- a normal card is never a Mystery card
+	expectFalse(TG.isMystery(C(2, "Clubs")))
+	expectFalse(TG.isMystery(nil))
+end })
+
 table.insert(tests, { name = "A locked True Wildcard plays as a normal card and never re-resolves", fn = function()
 	local card = C(9, "Spades")
 	card.isTrueWildcard = true
@@ -24340,7 +24367,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
 		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },

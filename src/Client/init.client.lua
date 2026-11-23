@@ -2068,6 +2068,12 @@ local function rebuildHand(handData, phase)
 			isHiddenWildcard,
 			card -- Garnish / Special / Stamp: the universal pattern is drawn from it (Engine/SpecialPatterns)
 		)
+		if isHiddenWildcard then -- the face down Mystery card explains itself on hover (touch uses the long press, Engine/TouchGestures)
+			pcall(function()
+				local TG = require(ReplicatedStorage.Shared.Engine.TouchGestures)
+				addTooltip(button, function() return TG.isMystery(card) and TG.MYSTERY_TIP or "" end)
+			end)
+		end
 
 		-- PHASE C ("mind-blowing plan" Signature Mechanic): the one True
 		-- Wildcard card shows "???" instead of its real dealt rank/suit
