@@ -19,7 +19,7 @@ Any key may end in `:<cardSetId>` (for example `haggle:winter_evening`, `menu:me
 | `daily:done`, `weekly` | The Daily leaderboard |
 | `settings` | Settings |
 | `share` | The win Run Over screen with the Invite and Share lines |
-| `map`, `map:night=N`, `tavernmap:night=N` | The Tavern Map (N is 1 to 8) |
+| `map`, `map:night=<n>`, `tavernmap:night=<n>` | The Tavern Map (n is 1 to 8) |
 | `loading`, `loading:<0..100>` | The loading screen frozen at 60 percent, or that percent |
 | `spectate` | Needs a second player, only warns |
 
@@ -75,15 +75,13 @@ Per-id keys are built from the registries: one `boss3:<id>` button per Boss Roun
 - `shop:20` `endrun` `endrun:win`
 - `patrons:1` `patrons:5`
 
-Menu screens: `news` `collection` `tome:cardsets` `loading` `map:night=1` `map:night=4` `map:night=8` `rarity`
+Menu screens: `news` `collection` `tome:cardsets` `loading` `map:night=1` `map:night=4` `map:night=8` `rarity` `settings` `share`
 
-Daily and meta: `season` `tome:badges` `tome:legend` `tome:flair` `tome:stats` `perf` `scale:800x450` `scale:1024x768` `scale:off` `sfx:ladder`
+Daily and meta: `daily` `daily:done` `weekly` `seed` `freshsave` `season` `tome:badges` `tome:legend` `tome:flair` `tome:stats` `perf` `scale:800x450` `scale:1024x768` `scale:off` `sfx:ladder`
 
 Run screens: `haggle` `haggle:good` `haggle:bad` `road` `runover` `runover:win` `packroom` `wildcard` `legendary` `playhand` `playhand:keep` `beatslow:on` `beatslow:freeze` `beatslow:off` `sfx:roundwin` `shop` `roundwin` `gameover`
 
-Not available (the parser in Engine/DebugGotoRules rejects them, checked by running it, so a button would only print an error):
-- daily, daily:done, weekly, seed, freshsave: the DebugGoto header does not list them and no parser branch exists. They would need new Studio-only server jumps that change profile state.
-- settings, share: no parser branch. Use the tome pages or the real Menu buttons.
+Key aliases:
 - tavernmap:night=N: the real key is map:night=N (listed above).
 - cardset:ID: the real key is menu:ID (any jump may end in a Card Set id), one button per Card Set under "Card Sets".
 - tome:store: use store.
