@@ -16602,6 +16602,30 @@ table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag n
 	end
 end })
 
+table.insert(tests, { name = "Counter price chips: every chip is on screen, inside its offer column, 14 px text or more, drawn above the next row, no ClipsDescendants on the card chain", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local Shape = require(script.Parent.Parent.Engine.CardShape)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 } }) do
+		for _, art in ipairs({ 250, 210 }) do
+			local sh = Shape.shape("patron", art / 250, true)
+			local ov = SL.cardOverlays(sh.w, sh.artTop, sh.artH, sh.bannerTop, 0, {})
+			expectTrue(ov.price.x >= 0 and ov.price.x + ov.price.w <= sh.w, "price chip inside its column at " .. size[1] .. "x" .. size[2])
+			expectTrue(ov.price.y + ov.price.h - sh.h <= 22, "price chip reaches at most 22 px under the card, the plate hangs there by design (" .. (ov.price.y + ov.price.h - sh.h) .. " px)")
+			expectTrue(ov.price.h >= 28, "price chip stays 28 px tall")
+		end
+	end
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/ShopCards.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local a = src:find('Name = "PriceTag"', 1, true)
+	local seg = a and src:sub(a, a + 1400) or ""
+	expectTrue(seg:find("ZIndex = PZ", 1, true) ~= nil and seg:find("TextSize = 18", 1, true) ~= nil, "chip draws on its own high layer with 18 px text")
+	expectTrue(src:find("PZ = Z + 20", 1, true) ~= nil, "the chip layer sits above the pack and offer bodies")
+	local body = src:find('Name = "Body"', 1, true)
+	expectTrue(body and src:sub(body, body + 300):find("ClipsDescendants = true", 1, true) == nil, "the card body does not clip its price chip")
+end })
+
 table.insert(tests, { name = "Counter round 2: price text sits above its tag, Buy leaves the tag free, no-Marlo offers are centred, fallback band is lighter than the wall", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- offers and packs centred on the stage when Marlo is not painted
@@ -16621,7 +16645,7 @@ table.insert(tests, { name = "Counter round 2: price text sits above its tag, Bu
 		local f = io.open("src/Client/ShopCards.lua", "r")
 		if f then
 			local src = f:read("*a"); f:close()
-			expectTrue(src:find("ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable", 1, true) ~= nil, "price number draws above the tag")
+			expectTrue(src:find("ZIndex = PZ + 2, TextStrokeTransparency = 1, TextColor3 = affordable", 1, true) ~= nil, "price number draws above the tag")
 			expectTrue(src:find("math.max(80, W - 20)", 1, true) ~= nil, "Buy button is full card width (tag is above the ribbon, drawer below)")
 		end
 	end

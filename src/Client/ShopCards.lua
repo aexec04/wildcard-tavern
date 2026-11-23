@@ -474,16 +474,17 @@ function ShopCards.new(deps)
 
 		-- ===== Price tag at the lower right of the art, above the name ribbon =====
 		if spec.price then
+			local PZ = Z + 20 -- the plate hangs under the card, so it draws above the next row, the packs and the table rim
 			local tag = frame(body, { Name = "PriceTag", Position = UDim2.fromOffset(ov.price.x, ov.price.y),
-				Size = UDim2.fromOffset(ov.price.w, ov.price.h), BackgroundColor3 = GOLD, ZIndex = Z + 1 })
+				Size = UDim2.fromOffset(ov.price.w, ov.price.h), BackgroundColor3 = GOLD, ZIndex = PZ })
 			corner(tag, 8)
 			stroke(tag, Color3.fromRGB(110, 76, 34), 2, 0)
-			local coin = frame(tag, { Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Color3.fromRGB(246, 208, 96), ZIndex = Z + 2 })
+			local coin = frame(tag, { Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Color3.fromRGB(246, 208, 96), ZIndex = PZ + 1 })
 			corner(coin, 8)
 			stroke(coin, Color3.fromRGB(150, 100, 30), 2, 0)
 			label(tag, { Position = UDim2.fromOffset(26, 0), Size = UDim2.new(1, -30, 1, 0), Text = tostring(math.floor(spec.price)),
-				TextSize = 18, ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable and PRICE_OK or PRICE_BAD, TextXAlignment = Enum.TextXAlignment.Center })
-			pcall(function() require(script.Parent.ConceptTSkin).pricePill(tag, spec.price, affordable, Z + 1) end) -- painted pill like the play HUD; no art id keeps the gold tag
+				TextSize = 18, ZIndex = PZ + 2, TextStrokeTransparency = 1, TextColor3 = affordable and PRICE_OK or PRICE_BAD, TextXAlignment = Enum.TextXAlignment.Center })
+			pcall(function() require(script.Parent.ConceptTSkin).pricePill(tag, spec.price, affordable, PZ) end) -- painted pill like the play HUD; no art id keeps the gold tag
 		end
 
 		-- ===== Input: one transparent button over the body, then the action drawer =====
