@@ -46720,4 +46720,55 @@ table.insert(tests, { name = "Card Sets page: hero name plate, Equip plate and e
 	end
 end })
 
+table.insert(tests, { name = "Leaderboard, Quests, Daily Rewards and Season popups: rows 44 px, panels and the close X on screen, nothing overlaps, at four sizes", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local CX = require(script.Parent.Parent.Engine.CloseXRules)
+	local SP = require(script.Parent.Parent.Engine.SeasonPreview)
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- fixed panel sizes the Client builds (QuestsPanel 560 x PANEL_H 416, DailyRewardsPanel 760 x PANEL_H 360, SeasonPanel 0.86 wide x 520);
+	-- each is centred, so it needs this much room
+	local FIXED = { { "Quests", 560, 416 }, { "Daily Rewards", 760, 360 }, { "Season", nil, 520, 0.86 } }
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- Leaderboard
+		local L = LT.layout(W, H)
+		expectTrue(L.panel.w <= W and L.panel.h <= H, tag .. " Leaderboard panel on screen (" .. L.panel.w .. "x" .. L.panel.h .. ")")
+		expectTrue(L.scroll.x >= 0 and L.scroll.y >= 0 and L.scroll.x + L.scroll.w <= L.panel.w and L.scroll.y + L.scroll.h <= L.panel.h and L.scroll.h >= LT.ROW_H, tag .. " Leaderboard list inside the panel and holds a row")
+		expectTrue(LT.ROW_H >= 44 and LT.MIN_TEXT >= 14 and LT.ROW_TEXT >= 14, tag .. " Leaderboard rows are 44 px with 14 px text")
+		expectFalse(hit(L.scroll, { x = L.close.x, y = L.close.y, w = L.close.w, h = L.close.h }), tag .. " Leaderboard list clear of the foot plate")
+		expectTrue(CX.fits(L.panel.w, L.panel.h, "topRight"), tag .. " Leaderboard close X (44 px) is inside the panel")
+		local parts = LT.rowParts(L.scroll.w, "#10", "Night 99,999  |  Best hand 9,999,999")
+		expectFalse(hit(parts.rank, parts.name) or hit(parts.name, parts.stats) or hit(parts.rank, parts.stats), tag .. " Leaderboard row parts do not overlap")
+		expectTrue(parts.stats.x + parts.stats.w <= L.scroll.w + 0.5 and parts.name.w >= LT.NAME_MIN_W, tag .. " Leaderboard row fits the list width")
+		-- fixed panels
+		for _, f in ipairs(FIXED) do
+			local pw = f[2] or math.floor(W * f[4])
+			local ph = f[3]
+			local shownW = math.min(pw, W)
+			expectTrue(ph <= H, tag .. " " .. f[1] .. " panel height " .. ph .. " fits the screen")
+			expectTrue(CX.fits(shownW, ph, "topRight"), tag .. " " .. f[1] .. " close X (44 px) is inside the panel")
+			expectTrue(shownW >= 480 or W < 560, tag .. " " .. f[1] .. " panel keeps a readable width (" .. shownW .. ")")
+		end
+		-- Quests card: the bar and text stop 12 px before the 104 px reward plate, the card is 96 px tall (three fit the 416 panel)
+		local cardH, rewardW, rewardRight, barX = 96, 104, 12, 86
+		expectTrue(3 * cardH + 2 * 10 + 44 + 6 <= 416 - 44, tag .. " three Quests cards sit between the header and the footer")
+		expectTrue(560 - 40 - (rewardW + rewardRight + 12) - barX >= 200, tag .. " Quests bar keeps a readable width before the reward plate")
+		-- Season: tile row and buttons
+		expectTrue(ST.BUTTON_H >= 44, tag .. " Season claim buttons are 44 px")
+		local fit = ST.fit(W, H, true)
+		expectTrue(fit.shownW <= W and fit.shownH <= H, tag .. " Season panel with its premium row fits the screen (" .. math.floor(fit.shownW) .. "x" .. math.floor(fit.shownH) .. ")")
+		expectTrue(fit.tiles >= 3 and fit.scale >= 0.8, tag .. " Season shows " .. fit.tiles .. " tiles at scale " .. fit.scale)
+		local P = SP.layout(W, H)
+		local items = { { "heading", P.heading }, { "art", P.art }, { "title", P.title }, { "status", P.status }, { "claim", P.claim }, { "close", P.close } }
+		for i = 1, #items do
+			local r = items[i][2]
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= P.panel.w and r.y + r.h <= P.panel.h, tag .. " Season preview " .. items[i][1] .. " inside its panel")
+			for j = i + 1, #items do expectFalse(hit(r, items[j][2]), tag .. " Season preview " .. items[i][1] .. " and " .. items[j][1] .. " do not overlap") end
+		end
+		expectTrue(P.claim.h >= 44 and P.close.h >= 44 and P.panel.w <= W and P.panel.h <= H, tag .. " Season preview buttons are 44 px and the panel is on screen")
+	end
+end })
+
 return tests
