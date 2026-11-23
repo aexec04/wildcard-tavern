@@ -34445,8 +34445,23 @@ table.insert(tests, { name = "Sound and music pass: 1 s bed crossfade, every act
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
 	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
-	expectEqual(M.FADE_TIME, 1.5, "beds crossfade over 1.5 s")
-	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 1.5) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 1.5) < 1e-9, "Calm and normal both span 1.5 s")
+	expectEqual(M.FADE_TIME, 0.5, "beds crossfade over 0.5 s")
+	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 0.5) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 0.5) < 1e-9, "Calm and normal both span 0.5 s")
+	do -- Menu to table to Menu keeps one song, with no restart from zero (the level steps, the song is not swapped)
+		local screens = { "menu", "table", "menu", "map", "table", "menu" }
+		local playing = M.bedFor(screens[1], nil).key
+		for i = 2, #screens do
+			local nextKey = M.bedFor(screens[i], nil).key
+			expectTrue(M.keepsSong(playing, nextKey), screens[i - 1] .. " to " .. screens[i] .. " keeps the song")
+			playing = nextKey
+		end
+		expectFalse(M.keepsSong("gameplay", "boss"), "a Boss round swaps the song")
+		expectFalse(M.keepsSong(nil, "gameplay"), "the first request starts a song")
+		for _, sc in ipairs({ "menu", "table", "map", "boss", "shop", "runover" }) do
+			local f = M.fade(false)
+			expectTrue(f[#f][1] == 0 and f[#f][2] == 1, "the " .. sc .. " crossfade ends exactly at the new level, never a pop")
+		end
+	end
 	local have = {}
 	for _, m in ipairs(G.MOMENTS) do have[m.cue] = true end
 	for _, cue in ipairs({ "card_deal", "card_select", "card_deselect", "card_play", "score_tick", "score_total", "patron_trigger",

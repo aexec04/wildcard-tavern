@@ -5,7 +5,7 @@ local MusicMix = {}
 
 MusicMix.MAX_VOICES = 3
 MusicMix.TENSION_BELOW = 0.5 -- the tension layer starts when the round score is under this share of the Target on the last hand
-MusicMix.FADE_TIME = 1.5 -- seconds for a bed crossfade
+MusicMix.FADE_TIME = 0.5 -- seconds for a bed crossfade (a screen change only steps the level; the song keeps its place)
 MusicMix.STEPS, MusicMix.STEPS_CALM = 12, 4 -- volume steps in a crossfade (no tween either way; Calm uses fewer, bigger steps)
 MusicMix.MIN_CLEAR_STEP = 0.01
 
@@ -96,6 +96,16 @@ end
 -- should a new bed crossfade? Any change of key while something plays; the same key never restarts
 function MusicMix.shouldFade(fromKey, toKey)
 	return fromKey ~= nil and toKey ~= nil and fromKey ~= toKey
+end
+
+-- Menu to table to Menu keeps one song: the menu, table and map beds all draw on the one tavern rotation (Engine/MusicRotation),
+-- so a screen change between them asks for the song already playing and only steps the level; the shop and a Boss round have their own songs.
+-- Returns true when a change from bed key `fromKey` to `toKey` keeps the playing song (no restart, no swap).
+function MusicMix.keepsSong(fromKey, toKey)
+	local R = require(script.Parent.MusicRotation)
+	if fromKey == nil or toKey == nil then return false end
+	if fromKey == toKey then return true end
+	return R.isRotationKey(fromKey) and R.isRotationKey(toKey)
 end
 
 -- same song asked for again: does the bed level need a step? A fade that was cut short leaves the level off the gain, so the
