@@ -46824,6 +46824,159 @@ table.insert(tests, { name = "Night table: Nights 1 to 8 targets, hands, discard
 	end
 end })
 
+-- RUN STATE AUDIT: abandoning a run, quitting mid round and rejoining, and starting the Daily more than once.
+do
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local RunAbandon = require(script.Parent.Parent.Engine.RunAbandon)
+	local function copy(v)
+		if type(v) ~= "table" then return v end
+		local out = {}
+		for k, x in pairs(v) do out[k] = copy(x) end
+		return out
+	end
+	local function sameExcept(a, b, skipPath, path, msg)
+		for k, v in pairs(a) do
+			local here = path .. "." .. tostring(k)
+			if here ~= skipPath then
+				if type(v) == "table" then
+					expectTrue(type(b[k]) == "table", msg .. ": " .. here .. " kept its shape")
+					if type(b[k]) == "table" then sameExcept(v, b[k], skipPath, here, msg) end
+				else
+					expectEqual(b[k], v, msg .. ": " .. here .. " unchanged")
+				end
+			end
+		end
+		for k in pairs(b) do
+			expectTrue(a[k] ~= nil or path .. "." .. tostring(k) == skipPath, msg .. ": no new field " .. path .. "." .. tostring(k))
+		end
+	end
+	local function serverSource()
+		if not (io and io.open) then return nil end
+		local f = io.open("src/Server/init.server.lua", "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local function occurrences(src, needle)
+		local count, at = 0, 1
+		while true do
+			local s, e = src:find(needle, at, true)
+			if not s then return count end
+			count, at = count + 1, e + 1
+		end
+	end
+
+	table.insert(tests, { name = "Run state audit: abandoning a run counts it once, pays nothing, and only an open run can be abandoned", fn = function()
+		local profile = PlayerProfile.new()
+		profile.pendingStartTips = 6
+		local before = copy(profile)
+		-- every phase of a run in progress counts once and changes only the abandoned counter
+		for i, phase in ipairs({ "roundSelect", "playing", "shop", "nightVictory" }) do
+			local ok = RunAbandon.abandon({ phase = phase, state = {} }, profile, PlayerProfile)
+			expectTrue(ok, phase .. " can be abandoned")
+			expectEqual(profile.stats.runsAbandoned, i, "one abandon adds exactly one")
+		end
+		before.stats.runsAbandoned = profile.stats.runsAbandoned
+		sameExcept(before, profile, nil, "profile", "abandoning grants nothing: Tips, XP, wins, unlocks, quests")
+		-- a finished run, a draft that has not started and no session at all are refused and change nothing
+		for _, session in ipairs({ { phase = "gameover", state = {} }, { phase = "draft", state = {} }, { state = {} }, { phase = "playing" }, "x" }) do
+			local ok = RunAbandon.abandon(session, profile, PlayerProfile)
+			expectFalse(ok, "a run that is not in progress is refused")
+		end
+		expectEqual(profile.stats.runsAbandoned, 4, "refused abandons count nothing")
+		expectEqual(RunAbandon.abandon({ phase = "playing", state = {} }, nil, PlayerProfile), true, "no profile loaded: still fine, nothing to count")
+		-- the server: one fresh session replaces the old one, the profile is marked for the normal save, nothing is submitted
+		local src = serverSource()
+		if not src then return end
+		local from = src:find("Rem.AbandonRun.OnServerEvent:Connect", 1, true)
+		expectTrue(from ~= nil, "the abandon handler is found")
+		local rest = src:sub(from)
+		local handler = rest:sub(1, (rest:find("\nend)", 1, true)) or #rest)
+		expectEqual(occurrences(handler, "RunAbandon.abandon("), 1, "the server abandons once per request")
+		expectEqual(occurrences(handler, "startNewSession("), 1, "and starts one fresh session")
+		expectEqual(occurrences(handler, "saveProfile("), 0, "no extra save, the profile is saved by the normal path")
+		expectEqual(occurrences(handler, "Leaderboard"), 0, "nothing is sent to a leaderboard")
+		expectTrue(handler:find("RateLimit.allow", 1, true) ~= nil, "rate limited")
+	end })
+
+	table.insert(tests, { name = "Run state audit: quitting mid round saves the profile once, keeps no run in it, and a rejoin starts clean with no Patron or Tips carried over", fn = function()
+		local profile = PlayerProfile.new()
+		profile.pendingStartTips = 4
+		-- a run in progress: Tips and a Patron held, a hand played
+		local state = RunState.new({}, SeededRng.new(21))
+		RunState.startRound(state)
+		pcall(RunState.playHand, state, { 1, 2 })
+		state.tips = 37
+		table.insert(state.ownedPatrons, Patrons.getById("tip_jar"))
+		-- nothing about the live run is a profile field, so a save cannot store it
+		for _, key in ipairs({ "ownedPatrons", "hand", "deck", "roundScore", "targetScore", "handsRemaining", "discardsRemaining", "state", "session", "run", "tips" }) do
+			expectEqual(profile[key], nil, "the profile has no " .. key)
+		end
+		-- save and load twice (leave, rejoin, leave, rejoin): the profile never changes, nothing is paid twice
+		local once = PlayerProfile.migrate(copy(profile))
+		local twice = PlayerProfile.migrate(copy(once))
+		sameExcept(once, twice, nil, "profile", "a second rejoin")
+		expectEqual(twice.pendingStartTips, 4, "banked Tips stay as saved")
+		-- the next run starts from nothing
+		local fresh = RunState.new({}, SeededRng.new(22))
+		expectEqual(#fresh.ownedPatrons, 0, "no Patron carried over")
+		expectEqual(fresh.night, 1)
+		expectEqual(fresh.round, 1)
+		expectTrue(fresh.tips ~= 37, "the old Tips did not carry over")
+		local src = serverSource()
+		if not src then return end
+		local from = src:find("Players.PlayerRemoving:Connect(function(player)\n\t-- Final save attempt", 1, true)
+		expectTrue(from ~= nil, "the leave handler is found")
+		local rest = src:sub(from)
+		local handler = rest:sub(1, (rest:find("\nend)", 1, true)) or #rest)
+		expectEqual(occurrences(handler, "saveProfile("), 1, "the profile is saved once when a player leaves")
+		expectTrue(handler:find("sessions[player] = nil", 1, true) ~= nil and handler:find("profiles[player] = nil", 1, true) ~= nil, "session and profile are dropped")
+		expectTrue(handler:find("saveProfile(player, true)", 1, true) < handler:find("profiles[player] = nil", 1, true), "the save comes before the profile is dropped")
+		-- once per run flags guard the end of run grants
+		expectEqual(occurrences(src, "session.historyRecorded = true"), 1, "the run history entry is written once per run")
+		expectTrue(src:find("not session.easeTipsGiven", 1, true) ~= nil and src:find("session.easeTipsGiven = true", 1, true) ~= nil, "the welcome Tips are banked once per run")
+	end })
+
+	table.insert(tests, { name = "Run state audit: the Daily Run starts the same every time, a second start earns nothing extra, and a worse run never lowers the saved best", fn = function()
+		local seed = SeededRng.dailySeed()
+		local function startDaily()
+			local state = RunState.new({}, SeededRng.new(seed))
+			RunState.startRound(state)
+			return state
+		end
+		local a, b = startDaily(), startDaily()
+		expectEqual(a.targetScore, b.targetScore, "same target")
+		expectEqual(#a.hand, #b.hand, "same hand size")
+		for i = 1, #a.hand do
+			expectEqual(Card.toString(a.hand[i]), Card.toString(b.hand[i]), "same card " .. i .. " dealt on the second start")
+		end
+		-- play the first one a little, then start again: the new run is a clean copy of the first deal, nothing carries over
+		pcall(RunState.playHand, a, { 1, 2 })
+		a.tips = 99
+		local c = startDaily()
+		expectEqual(c.tips, b.tips, "the second start has the starting Tips, not the abandoned run's")
+		expectEqual(c.roundScore, 0, "and no score")
+		-- the leaderboard keeps one row per player per day and only ever the best
+		expectEqual(Leaderboards.keepBest(nil, 500), 500, "a first score is kept")
+		expectEqual(Leaderboards.keepBest(500, 300), 500, "a worse second run never lowers the best")
+		expectEqual(Leaderboards.keepBest(500, 800), 800, "a better one replaces it")
+		expectEqual(Leaderboards.keepBest(500, 500), 500, "the same score changes nothing")
+		local src = serverSource()
+		if not src then return end
+		local from = src:find("local function trackDailyProgress(player)", 1, true)
+		local to = src:find("-- WEEKLY CHALLENGE (Phase 16): same idea", 1, true)
+		expectTrue(from ~= nil and to ~= nil and from < to, "the Daily tracker is found")
+		local tracker = src:sub(from, to - 1)
+		expectTrue(tracker:find("pending.depth >= depth", 1, true) ~= nil, "a run that is no deeper than the queued one queues nothing")
+		expectTrue(tracker:find("Leaderboards.acceptEntry", 1, true) ~= nil, "the server judges the entry itself")
+		local startAt = src:find("Rem.StartDailyChallenge.OnServerEvent:Connect", 1, true)
+		local startHandler = src:sub(startAt, startAt + 600)
+		expectTrue(startHandler:find("RateLimit.allow", 1, true) ~= nil, "starting the Daily is rate limited")
+		expectEqual(occurrences(startHandler, "PlayerProfile."), 0, "starting the Daily writes nothing to the profile (no reward for starting it twice)")
+	end })
+end
+
 table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text says, once, and a skipped round never pays twice", fn = function()
 	local Tags = require(script.Parent.Parent.Engine.Tags)
 	local function fresh()
