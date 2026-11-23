@@ -175,6 +175,16 @@ function StorePanel.refresh()
 	end
 	local state = ui.getLatestState and ui.getLatestState()
 	local view = state and state.store
+	if view then
+		local built = false
+		for _, child in ipairs(ui.row:GetChildren()) do
+			if child:IsA("GuiObject") then built = true break end
+		end
+		-- the same items, owned states and prices as the cards on screen: keep them (no teardown on every state tick)
+		if not ui.buildCache:shouldBuild(Store.viewKey(view, priceCache)) and built then return end
+	else
+		ui.buildCache:reset()
+	end
 	for _, child in ipairs(ui.row:GetChildren()) do
 		if child:IsA("GuiObject") then
 			child:Destroy()
@@ -266,7 +276,7 @@ function StorePanel.init(deps)
 	resize() -- the Close plate exists now
 
 	ui = {
-		resize = resize,
+		resize = resize, buildCache = Store.newBuildCache(),
 		backdrop = backdrop, panel = panel, row = row, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, purchaseRemote = deps.purchaseRemote, getLatestState = deps.getLatestState,
 		popIn = deps.popIn, popOut = deps.popOut,

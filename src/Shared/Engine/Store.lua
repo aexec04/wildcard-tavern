@@ -338,4 +338,30 @@ function Store.cleanSaved(rawPurchases, rawReceipts, rawVipDay)
 	return purchases, receipts, day
 end
 
+-- A string that changes only when something the cards show changes (which items, owned, buyable, the price line). The Store panel keeps
+-- the cards it built while this key is the same, so a state tick or a click on the same tab never tears the cards down and rebuilds them.
+function Store.viewKey(view, priceCache)
+	local parts = {}
+	for i, row in ipairs((view and view.items) or {}) do
+		parts[i] = table.concat({
+			tostring(row.id), row.owned and "o" or "-", row.available and "a" or "-", row.studioFree and "s" or "-",
+			row.listOnly and "l" or "-", Store.priceLine(row, priceCache),
+		}, ":")
+	end
+	return table.concat(parts, "|")
+end
+
+-- A tiny memo of the last build: shouldBuild(key) is true when the key is new, false when the cards on screen are still right.
+function Store.newBuildCache()
+	local c = { key = nil, builds = 0 }
+	function c:shouldBuild(key)
+		if self.key == key then return false end
+		self.key = key
+		self.builds = self.builds + 1
+		return true
+	end
+	function c:reset() self.key = nil end
+	return c
+end
+
 return Store

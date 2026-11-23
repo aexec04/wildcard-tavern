@@ -44655,6 +44655,33 @@ table.insert(tests, { name = "Card Backs room: same plate frames as Card Sets, e
 	end
 end })
 
+table.insert(tests, { name = "Store build cache: the same view builds the cards once, a changed owned state or price builds again, Calm and ticks never rebuild", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local profile = PlayerProfile.new()
+	local view = Store.view(profile, {}, false)
+	expectTrue(#view.items > 0, "the Store lists items")
+	local prices = {}
+	local cache = Store.newBuildCache()
+	local k1 = Store.viewKey(view, prices)
+	expectTrue(cache:shouldBuild(k1), "the first open builds")
+	for _ = 1, 50 do -- a state tick or a click on the same tab 50 times
+		expectFalse(cache:shouldBuild(Store.viewKey(Store.view(profile, {}, false), prices)), "same view reuses the cards")
+	end
+	expectEqual(cache.builds, 1, "one build for fifty refreshes")
+	local priced = { items = { { id = "x", name = "X", robloxId = 5, available = true, owned = false } } }
+	cache:reset()
+	expectTrue(cache:shouldBuild(Store.viewKey(priced, {})), "a row without a price builds")
+	expectTrue(cache:shouldBuild(Store.viewKey(priced, { [5] = "R$ 99" })), "a price arriving builds again")
+	expectFalse(cache:shouldBuild(Store.viewKey(priced, { [5] = "R$ 99" })), "the same price reuses the cards")
+	local owned = Store.view(profile, { vip = true }, false)
+	expectTrue(Store.viewKey(owned, prices) ~= Store.viewKey(view, prices), "owning the VIP pass changes the key")
+	local before = cache.builds
+	expectTrue(cache:shouldBuild(Store.viewKey(owned, prices)), "an owned change builds")
+	expectEqual(cache.builds, before + 1, "exactly one more build")
+	cache:reset()
+	expectTrue(cache:shouldBuild(Store.viewKey(owned, prices)), "reset (the Store closed or no view) builds again")
+end })
+
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local LL = require(Engine.LoadingLayout)
