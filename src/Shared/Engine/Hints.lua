@@ -28,7 +28,7 @@ Hints.Definitions = {
 		trigger = function(state) return state.phase == "playing" and (state.handsPlayedTotal or 0) >= 1 end },
 	{ id = "first_patron", icon = "🧑‍🍳", target = "patrons", text = "Patrons score for you every hand. Keep them happy.",
 		trigger = function(state) return count(state.ownedPatrons) >= 1 end },
-	{ id = "first_recipe", icon = "📖", target = "recipes", text = "Recipes are one-use boosts. Use one from the shop.",
+	{ id = "first_recipe", icon = "📖", target = "recipes", text = "Recipes are one use helpers: tap one, pick cards, press Use.",
 		trigger = function(state)
 			return count(state.houseRecipeInventory) + count(state.menuRecipeInventory) + count(state.secretRecipeInventory) >= 1
 		end },

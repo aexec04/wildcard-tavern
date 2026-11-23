@@ -30,6 +30,8 @@ M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
 M.SEATS = 5
 M.SORT_GAP = 8
 M.REF_SPAN = 0.506 -- Patron seats span (1255 - 410) / 1672 of the width in the reference mockup
+M.TRAY_HEAD_H = 18 -- the "Recipes" heading plate (14 px text)
+M.TRAY_GAP = 2 -- between the tray's rows
 M.REF_MIN_W, M.REF_MIN_H = 1200, 600 -- smaller windows keep the compact proportions (cards and the tray need the room)
 -- top bar words (Target: 65, Tips: 0, the scroll's two lines) grow with the plate height: reference text is about 44 px at 1672 on an 85 px plate
 function M.barTextSize(plateH) return math.max(16, math.min(40, round((tonumber(plateH) or 0) * 0.5))) end
@@ -180,13 +182,20 @@ function M.rects(w, h)
 	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
 	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
 	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
-	local ty = qy + require(script.Parent:WaitForChild("GearMenu")).quickRowH(w) + 8 -- one row below the Speaker and Pause buttons (Engine/GearMenu.quickRects)
-	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
+	local panelTop = qy + require(script.Parent:WaitForChild("GearMenu")).quickRowH(w) + 2 -- the wood plate starts 2 px under the Speaker and Pause buttons
+	-- the "Recipes" heading takes one 22 px row above the slots; on phone-landscape heights with no spare row (the tray would then reach the
+	-- hand) the heading is left out and the tray keeps its old geometry (the Use plate still says "Pick a Recipe")
+	local tySlim = panelTop + 3
+	local ty = tySlim + M.TRAY_HEAD_H
+	local withHead = ty + 2 * M.MIN_TOUCH + M.TRAY_GAP <= handTop - 4
+	if not withHead then ty = tySlim end
+	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + M.TRAY_GAP <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
+		if withHead then r.trayHeading = box(pad, tySlim, trayW, M.TRAY_HEAD_H) end
 		local sw2 = math.floor((trayW - 8) / 2)
 		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)
 		r.traySlot2 = box(pad + sw2 + 8, ty, sw2, M.MIN_TOUCH)
-		r.trayUse = box(pad, ty + M.MIN_TOUCH + 6, sw2, M.MIN_TOUCH)
-		r.traySell = box(pad + sw2 + 8, ty + M.MIN_TOUCH + 6, sw2, M.MIN_TOUCH)
+		r.trayUse = box(pad, ty + M.MIN_TOUCH + M.TRAY_GAP, sw2, M.MIN_TOUCH)
+		r.traySell = box(pad + sw2 + 8, ty + M.MIN_TOUCH + M.TRAY_GAP, sw2, M.MIN_TOUCH)
 	end
 	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
 	local shift = round(0.015 * w) -- a hand of eight shifts this far left (ConceptTLayout.handFor)
@@ -199,7 +208,7 @@ function M.rects(w, h)
 	r.sortRank = box(sx, sy, sw, sh)
 	r.sortSuit = box(sx + sw + sgap, sy, sw, sh) -- two separate plates with a gap between
 	if r.trayUse then -- the prompt plate (Pick 2 cards / Suit: Hearts) when a third row fits above Rank and Suit, else the Use plate says it
-		local py = r.trayUse.y + M.MIN_TOUCH + 6
+		local py = r.trayUse.y + M.MIN_TOUCH + M.TRAY_GAP
 		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
@@ -255,14 +264,26 @@ function M.banners(w, h)
 	local out = { right = box(round(0.8553 * w), y, rw, round(rw / M.BANNER_ASPECT.right)) }
 	local left = box(round(0.1705 * w), y, lw, round(lw / M.BANNER_ASPECT.left))
 	-- the consumables tray (top left) wins: slide the banner right of it, and leave it out when it no longer fits before the top bar
-	for _, k in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
-		local t = r[k]
+	local panel = M.trayPanel(r)
+	for _, k in ipairs({ "trayPanel", "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
+		local t = k == "trayPanel" and panel or r[k]
 		if t and left.x < t.x + t.w + 8 and t.x < left.x + left.w and left.y < t.y + t.h and t.y < left.y + left.h then
 			left.x = t.x + t.w + 8
 		end
 	end
 	if left.x + left.w + 8 <= r.bar.x then out.left = left end
 	return out
+end
+
+-- One wood plate behind the whole tray (heading, slots, Use, Sell and the prompt), so it reads as a single panel. It is the frame
+-- the tray's own rects sit inside, so it is derived here and not part of M.rects (the overlap audits compare sibling rects).
+function M.trayPanel(r)
+	if not (r and r.traySlot1 and r.traySell) then return nil end
+	local last = r.trayPrompt or r.traySell
+	local top = r.trayHeading or r.traySlot1
+	local x0 = math.max(0, top.x - 6)
+	local y0 = top.y - 3
+	return box(x0, y0, (r.traySell.x + r.traySell.w + 6) - x0, last.y + last.h + 4 - y0)
 end
 
 -- The deck viewer opens from the book AND its count plate: one click rect from the top of the book to the bottom of the plate.

@@ -19,6 +19,10 @@ local PackRoom = require(script.Parent:WaitForChild("PackRoom"))
 local M = {}
 
 M.SLOTS = 2
+M.HEADING = "Recipes" -- the plate above the slots, so a new player knows what these are
+M.EMPTY_TEXT = "Empty slot"
+M.PICK_RECIPE = "Pick a Recipe" -- the Use plate until a Recipe is armed
+M.FIRST_TIME = "Recipes are one use helpers: tap one, pick the cards it needs, then press Use" -- Hints first_recipe says it in 12 words
 M.CHAR_W = 7 -- px per character at 14 px, a little generous
 M.SUITS = { "Spades", "Hearts", "Clubs", "Diamonds" }
 M.TIERS = { house = "Common", menu = "Uncommon", secret = "Rare" } -- the tier word on each card, never colour alone
@@ -40,6 +44,7 @@ local function slotFor(category, id, def)
 		category = category,
 		id = id,
 		name = def.name or id,
+		icon = def.icon or "",
 		label = M.label(def.name or id),
 		tier = M.TIERS[category],
 		need = def.cardCount and { min = def.cardCount.min, max = def.cardCount.max } or nil,
@@ -73,24 +78,38 @@ local function plural(n, word) return n == 1 and ("1 " .. word) or (n .. " " .. 
 
 function M.flow(slot, selectedCount, suit, picked)
 	if not slot or slot.empty then
-		return { phase = "empty", prompt = "", useText = "Use", canUse = false }
+		return { phase = "empty", prompt = "", info = "", useText = M.PICK_RECIPE, canUse = false }
 	end
 	if not picked then
-		return { phase = "idle", prompt = "", useText = "Use", canUse = false }
+		return { phase = "idle", prompt = "", info = "", useText = M.PICK_RECIPE, canUse = false }
 	end
 	local n = selectedCount or 0
 	local need = slot.need
 	if not need then
-		return { phase = "ready", prompt = slot.name, useText = "Use", canUse = true }
+		return { phase = "ready", prompt = slot.name, info = slot.text, useText = "Use", canUse = true }
 	end
 	local want = need.min == need.max and plural(need.min, "card") or (need.min .. " to " .. plural(need.max, "card"))
 	if n < need.min or n > need.max then
-		return { phase = "pick", prompt = "Pick " .. want, useText = "Pick " .. need.min .. (need.min == need.max and "" or "+"), canUse = false }
+		return { phase = "pick", prompt = "Pick " .. want, info = slot.text, useText = "Pick " .. want, canUse = false }
 	end
 	if slot.needsSuit then
-		return { phase = "ready", prompt = "Suit: " .. (suit or M.SUITS[1]) .. ". Tap to change", useText = "Use " .. (suit or M.SUITS[1]), canUse = true }
+		return { phase = "ready", prompt = "Suit: " .. (suit or M.SUITS[1]) .. ". Tap to change", info = slot.text, useText = "Use " .. (suit or M.SUITS[1]), canUse = true }
 	end
-	return { phase = "ready", prompt = slot.name, useText = "Use", canUse = true }
+	return { phase = "ready", prompt = slot.name, info = slot.text, useText = "Use", canUse = true }
+end
+
+-- What the prompt plate says: the armed Recipe's own description (what it does) while the player is still picking, the suit
+-- line when a suit is asked for, else the description again. Empty when nothing is armed.
+function M.promptLine(flow, slot)
+	if not slot or slot.empty or not flow then return "" end
+	if slot.needsSuit and flow.phase == "ready" then return flow.prompt end
+	return flow.info ~= "" and flow.info or flow.prompt
+end
+
+-- The slot plate: icon and name (the tier is the rim colour and the Tier attribute), or "Empty slot".
+function M.slotText(slot)
+	if not slot or slot.empty then return M.EMPTY_TEXT end
+	return (slot.icon ~= "" and (slot.icon .. " ") or "") .. slot.label
 end
 
 function M.useArgs(slot, indices, suit)

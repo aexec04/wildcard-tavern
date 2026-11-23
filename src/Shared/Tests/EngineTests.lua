@@ -33936,6 +33936,65 @@ table.insert(tests, { name = "Gear menu quick buttons: speaker and the one gear 
 	expectTrue(not c:find("GearButton", 1, true) and c:find("quick.pause.MouseButton1Click", 1, true) and c:find("setOpen(not isOpen)", 1, true), "no top right gear: the round gear opens the dropdown")
 end })
 
+table.insert(tests, { name = "Recipe tray for new players: heading, icon and name slots, Empty slot, grey Pick a Recipe, description on the prompt plate, one wood panel clear of every other plate", fn = function()
+	local E = script.Parent.Parent.Engine
+	local T, L, Recipes, GM, Hints = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.GearMenu), require(E.Hints)
+	expectEqual(T.HEADING, "Recipes", "heading word")
+	expectEqual(T.EMPTY_TEXT, "Empty slot", "empty slot says so")
+	expectEqual(T.PICK_RECIPE, "Pick a Recipe", "Use plate before arming")
+	local fi = T.flow({ empty = true }, 0, "Spades", false)
+	expectTrue(fi.useText == "Pick a Recipe" and fi.canUse == false, "an empty slot cannot be used")
+	expectEqual(T.slotText({ empty = true }), "Empty slot")
+	local seen = 0
+	for _, list in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
+		for _, def in ipairs(list) do
+			local key = list == Recipes.HouseRecipes and "houseRecipeInventory" or (list == Recipes.MenuRecipes and "menuRecipeInventory" or "secretRecipeInventory")
+			local slot = T.held({ [key] = { def.id } }).slots[1]
+			expectFalse(slot.empty, def.id .. " is held")
+			expectTrue(slot.text ~= "" and slot.text == (def.description or ""), def.id .. " keeps its description")
+			local idle = T.flow(slot, 0, "Spades", false)
+			expectEqual(idle.useText, "Pick a Recipe", def.id .. " idle Use plate")
+			expectFalse(idle.canUse, def.id .. " idle cannot use")
+			local armed = T.flow(slot, 0, "Spades", true)
+			if slot.need then
+				expectTrue(armed.useText:find("^Pick %d") ~= nil and armed.useText:find("card") ~= nil, def.id .. " armed asks for cards: " .. armed.useText)
+				expectEqual(T.promptLine(armed, slot), slot.text, def.id .. " prompt plate shows what it does")
+			end
+			local text = T.slotText(slot)
+			expectTrue(text:find(slot.label, 1, true) ~= nil and (slot.icon == "" or text:find(slot.icon, 1, true) == 1), def.id .. " slot shows icon then name")
+			expectFalse(text:find("\226\128\148") ~= nil or text:find("%-%-") ~= nil, def.id .. " no dashes")
+			seen = seen + 1
+		end
+	end
+	expectTrue(seen >= 10, "walked the Recipe registry (" .. seen .. ")")
+	local hint = Hints.getById("first_recipe")
+	expectTrue(Hints.wordCount(hint.text) <= Hints.MAX_WORDS and hint.text:find("Use", 1, true) and hint.text:find("tap", 1, true), "the first Recipe hint explains tap, pick, Use in 12 words or fewer")
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local tag = w .. "x" .. h
+		local panel = L.trayPanel(r)
+		if r.traySlot1 then
+			expectTrue(panel ~= nil, tag .. " tray has its wood panel")
+			expectTrue(panel.x >= 0 and panel.y >= 0 and panel.x + panel.w <= w and panel.y + panel.h <= h, tag .. " panel on screen")
+			for _, k in ipairs({ "trayHeading", "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
+				local c = r[k]
+				if c then expectTrue(c.x >= panel.x and c.y >= panel.y and c.x + c.w <= panel.x + panel.w and c.y + c.h <= panel.y + panel.h, tag .. " " .. k .. " inside the panel") end
+			end
+			local q = GM.quickRects(w, h)
+			for _, nm in ipairs({ "speaker", "pause", "tome" }) do expectFalse(hit(panel, q[nm]), tag .. " panel clear of the " .. nm .. " button") end
+			for i, s in ipairs(r.slots) do
+				for _, part in ipairs({ s.card, s.label, s.pill }) do expectFalse(hit(panel, part), tag .. " panel clear of Patron seat " .. i) end
+			end
+			for _, k in ipairs({ "gear", "bar", "hand", "play", "discard", "sortRank", "sortSuit", "stage" }) do
+				if r[k] and k ~= "stage" then expectFalse(hit(panel, r[k]), tag .. " panel clear of " .. k) end
+			end
+			if h >= 600 then expectTrue(r.trayHeading ~= nil and r.trayHeading.h >= 18, tag .. " has the Recipes heading") end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, L, Recipes, RS = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.RunState)
