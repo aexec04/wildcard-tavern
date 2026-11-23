@@ -53720,6 +53720,67 @@ table.insert(tests, { name = "VictoryLook compact pick: short windows drop the a
 	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 } }) do expectFalse(Look.layout(sz[1], sz[2], "pick").compactCards, sz[1] .. " keeps the portrait cards") end
 end })
 
+table.insert(tests, { name = "Choice screens live readability: first Patron pick, Blessing, Night boon and event at 1280x720 and 800x360 have 14 px text, readable ink, 44 px buttons, nothing off screen", fn = function()
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/ChoicePanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local Engine = script.Parent.Parent.Engine
+	local stubs = {
+		PatronPlaque = { apply = function() return nil end, applyById = function() return nil end }, ClientSettings = { get = function(k) return k == "reduceShake" or "fast" end },
+		ModalStage = { mount = function() return nil end, setKind = function() end },
+		SmoothVignette = {}, SoftGlow = {}, PopupDismiss = { attach = function() end },
+	}
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	setmetatable(stubs.SmoothVignette, { __index = function() return function() end end })
+	setmetatable(stubs.SoftGlow, { __index = function() return function() end end })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({
+				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), ChoiceRuleFit = require(Engine.ChoiceRuleFit), PatronCardSpec = require(Engine.PatronCardSpec),
+				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
+			})
+		end }
+	end }
+	local Patrons, RunModifiers, NightBoons = require(Engine.Patrons), require(Engine.RunModifiers), require(Engine.NightBoons)
+	local patronOpts, blessOpts = {}, {}
+	for i = 1, 3 do
+		local p = Patrons.Definitions[i * 7]
+		patronOpts[i] = { id = p.id, name = p.name, icon = p.icon, line1 = p.description or "", line2 = "" }
+		local m = RunModifiers.Definitions[i]
+		blessOpts[i] = { id = m.id, name = m.name, icon = m.icon, line1 = RunModifiers.line("+", m.blessing), line2 = RunModifiers.line("-", m.curse) }
+	end
+	local choices = {
+		patron = { kind = "patron", title = "Choose your first Patron", icon = "?", options = patronOpts },
+		blessing = { kind = "modifier", title = "Choose a blessing", text = "Every blessing comes with a catch.", icon = "?", options = blessOpts },
+		boon = NightBoons.draft({ night = 2 }, true, function(n) return 1 end),
+	}
+	local found = {}
+	local function painted(l) return l.TextStrokeTransparency ~= nil and l.TextStrokeTransparency <= 0.5 end
+	for _, name in ipairs({ "patron", "blessing", "boon" }) do
+		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+			local ChoicePanel = FakeGui.load("src/Client/ChoicePanel.lua", env) -- fresh module: it keeps its built cards in locals
+			local gui, menu, root = FakeGui.new("ScreenGui"), FakeGui.new("Frame"), FakeGui.new("Frame")
+			gui.AbsoluteSize = { X = size[1], Y = size[2] }
+			menu.Visible, root.Visible = false, true
+			local ok, err = pcall(ChoicePanel.init, { screenGui = gui, menuFrame = menu, root = root, polishButton = function() end,
+				roundCorner = function() end, playClickSfx = function() end, choiceRemote = {} })
+			if not ok then error("ChoicePanel.init: " .. tostring(err), 0) end
+			ChoicePanel.update({ choice = choices[name] })
+			local backdrop = gui:FindFirstChild("ChoiceBackdrop")
+			FakeGui.layout(gui, size[1], size[2])
+			local res = Audit.audit(backdrop, size[1], size[2], { paintedOk = painted })
+			expectTrue(res.seen >= 4 and res.buttons >= 1, name .. " " .. size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
+			for _, f in ipairs(res) do found[#found + 1] = name .. " " .. size[1] .. "x" .. size[2] .. " " .. f end
+		end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "the choice screens have " .. #found .. " readability findings")
+end })
+
 return tests
 
 

@@ -12,7 +12,7 @@ local BoonPickLook = {}
 
 BoonPickLook.CARD_W, BoonPickLook.CARD_H = 230, 300
 BoonPickLook.TAP_MIN = 44
-BoonPickLook.BUTTON_MAX = 48
+BoonPickLook.BUTTON_MAX = 56 -- short windows scale the panel to about 0.84: 56 design px is still 44 on screen
 BoonPickLook.CHOSEN_TEXT = "Chosen"
 BoonPickLook.CHOSEN_EDGE = 4
 BoonPickLook.DIM_TRANSPARENCY = 0.45
