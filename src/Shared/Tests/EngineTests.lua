@@ -46302,6 +46302,68 @@ table.insert(tests, { name = "Counter price chips: every price tag sits inside i
 	end
 end })
 
+table.insert(tests, { name = "Loading screen and menu banners: no banner overlaps the wordmark or a hotspot, loading parts stay clear of each other, at four sizes", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LoadingLayout)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function box(l, t, r, b) return { x = l, y = t, w = r - l, h = b - t } end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- loading screen
+		local R = LL.rects(W, H)
+		local parts = { { "title", R.title }, { "bar", R.bar }, { "status", R.status }, { "tip", R.tip }, { "skip", R.skip } }
+		for i = 1, #parts do
+			local p = parts[i][2]
+			expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= W + 0.5 and p.y + p.h <= H + 0.5, tag .. " loading " .. parts[i][1] .. " on screen")
+			for j = i + 1, #parts do expectFalse(hit(p, parts[j][2]), tag .. " loading " .. parts[i][1] .. " does not overlap " .. parts[j][1]) end
+		end
+		expectTrue(R.skip.h >= 44 and R.skip.w >= 44, tag .. " loading Skip is a 44 px target")
+		expectTrue(R.status.h >= LL.STATUS_TEXT and R.tip.h >= 2 * LL.TIP_TEXT and LL.TIP_TEXT >= 14, tag .. " loading text lines have room, 14 px or more")
+		-- menu (the Tavern Room, Engine/MenuRoomLayout): the wordmark (glyph top at y 12, width 27.5 percent of the screen) and the banners
+		local MR = require(script.Parent.Parent.Engine.MenuRoomLayout)
+		local glyphW = math.floor(W * 0.275 + 0.5)
+		local wordmark = { x = (W - glyphW) / 2, y = ML.WORDMARK.minGlyphTop, w = glyphW, h = math.floor(glyphW * 75 / 528 + 0.5) }
+		local room = MR.layout(W, H)
+		local spots = {}
+		for _, id in ipairs(MR.stripOrder) do
+			local r = room[id]
+			spots[#spots + 1] = { id, box(r.l, r.t, r.r, r.b) }
+		end
+		for _, sp in ipairs(spots) do
+			expectTrue(sp[2].x >= 0 and sp[2].y >= 0 and sp[2].x + sp[2].w <= W + 1 and sp[2].y + sp[2].h <= H + 1, tag .. " hotspot " .. sp[1] .. " on screen")
+			expectTrue(sp[2].w >= 44 and sp[2].h >= 44, tag .. " hotspot " .. sp[1] .. " is a 44 px target (" .. sp[2].w .. "x" .. sp[2].h .. ")")
+			expectFalse(hit(sp[2], wordmark), tag .. " hotspot " .. sp[1] .. " clear of the wordmark" .. string.format(" (spot %.0f,%.0f %.0fx%.0f wordmark %.0f,%.0f %.0fx%.0f)", sp[2].x, sp[2].y, sp[2].w, sp[2].h, wordmark.x, wordmark.y, wordmark.w, wordmark.h))
+		end
+		-- banners: the Daily strip in the bottom row, and the notes pinned on the cork
+		local strip = DS.menuRect(W, H)
+		if strip then
+			expectTrue(strip.x >= 0 and strip.y >= 0 and strip.x + strip.w <= W and strip.y + strip.h <= H, tag .. " menu Daily strip on screen")
+			expectFalse(hit(strip, wordmark), tag .. " menu Daily strip clear of the wordmark")
+			for _, sp in ipairs(spots) do
+				-- "play" is the whole painted card table: the strip stands over its lower right corner and takes that click (the sign
+				-- column and the deck ring are checked below), so only the props that carry their own action must stay clear
+				if sp[1] ~= "play" then
+					expectFalse(hit(strip, sp[2]), tag .. " menu Daily strip clear of hotspot " .. sp[1])
+				end
+			end
+			expectFalse(hit(strip, box(MR.toPixels(MR.deck, W, H))), tag .. " menu Daily strip clear of the deck ring")
+			expectTrue(strip.x > math.floor(W / 2) + DS.MENU_SIGN_HALF, tag .. " menu Daily strip clear of the Deal Me In sign column")
+		end
+		local cork = box(MR.corkRect(W, H))
+		expectTrue(cork.w > 0 and cork.h > 0, tag .. " the cork has a size")
+		expectFalse(hit(cork, wordmark), tag .. " the cork notes clear of the wordmark")
+		local slots = MR.noteSlots(cork.w, cork.h, { 86, 86, 70 }, 3, 2)
+		for i, nr in ipairs(slots.rects) do
+			expectTrue(nr.x >= 0 and nr.y >= 0 and nr.x + nr.w <= cork.w + 0.5 and nr.y + nr.h <= cork.h + 0.5, tag .. " note " .. i .. " inside the cork")
+			for j = i + 1, #slots.rects do expectFalse(hit(nr, slots.rects[j]), tag .. " notes " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(slots.show[3], tag .. " the Next goal note stays on the board")
+		expectTrue(ML.keepWordmarkOnScreen(-28, 4) >= 8, tag .. " a full parallax lift still keeps the glyph 12 px from the top")
+	end
+end })
+
 table.insert(tests, { name = "Victory and Run Over: 44 px buttons, nothing overlaps, long Patron names truncate, text 14 px or more, at four sizes", fn = function()
 	local VL = require(script.Parent.Parent.Engine.VictoryLook)
 	local RO = require(script.Parent.Parent.Engine.RunOverLayout)
