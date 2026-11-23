@@ -54105,4 +54105,67 @@ table.insert(tests, { name = "Table HUD sizes: at 1280x720, 1920x1080 and 800x36
 	end
 end })
 
+table.insert(tests, { name = "Round Select compact card: at 800x360, 1280x720 and 1920x1080 Select, Skip and Target keep 44 px, three cards fit with 12 px margins and no plates overlap", fn = function()
+	local L = require(script.Parent.Parent.Engine.RoundSelectLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 800, 360 }, { 1280, 720 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local m = L.metrics(w, h)
+		expectEqual(m.compact, h < 800, "compact below 800 px high, " .. w .. "x" .. h)
+		local r = L.rects(w, h, true)
+		for i, c in ipairs(r.cards) do
+			local tag = "card " .. i .. " at " .. w .. "x" .. h
+			expectTrue(c.select.h >= 43.99 and c.skip.h >= 43.99, "Select and Skip at least 44 px tall, " .. tag)
+			expectTrue(c.target.h >= 35.99, "Target plate keeps 36 px, " .. tag)
+			expectTrue(c.panel.x >= 12 and c.panel.x + c.panel.w <= w - 12, "12 px side margin, " .. tag)
+			expectTrue(c.panel.y >= 0 and c.panel.y + c.panel.h <= h - 4, "card on screen, " .. tag)
+			expectTrue(not hit(c.select, c.skip) and not hit(c.select, c.target) and not hit(c.skip, c.target), "plates do not overlap, " .. tag)
+			if i > 1 then expectTrue(c.panel.x - (r.cards[i - 1].panel.x + r.cards[i - 1].panel.w) >= 27.9, "28 px gap, " .. tag) end
+		end
+		expectTrue(r.tips.y + r.tips.h <= r.cards[1].panel.y or r.tips.x + r.tips.w <= r.cards[3].panel.x, "Tips chip clear of the cards at " .. w .. "x" .. h)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/RoundSelect.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("RSL.isCompact(vpY)", 1, true) and c:find("applyCompact", 1, true), "the client swaps to the compact card on short windows")
+end })
+
+table.insert(tests, { name = "Counter on a short window (800x360): one row of cards, packs on screen, bell and ledger 44 px, nothing overlaps; 1280x720 and 1920x1080 keep 44 px touch props", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w - 0.01 and b.x < a.x + a.w - 0.01 and a.y < b.y + b.h - 0.01 and b.y < a.y + a.h - 0.01 end
+	for _, sz in ipairs({ { 800, 360 }, { 1280, 720 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h, { offers = 3, packs = 2 })
+		local tag = w .. "x" .. h
+		local all = {}
+		for i, o in ipairs(r.offers) do all[#all + 1] = { "offer" .. i, o } end
+		for i, o in ipairs(r.packs) do all[#all + 1] = { "pack" .. i, o } end
+		for _, k in ipairs({ "bell", "ledger" }) do
+			local p = r.props[k]
+			expectTrue(p.h >= 43.99 and p.w >= 43.99, k .. " is a 44 px touch target at " .. tag)
+			all[#all + 1] = { k, p }
+		end
+		all[#all + 1] = { "leave", r.leave }
+		all[#all + 1] = { "tabs", r.tabs }
+		all[#all + 1] = { "nextBoss", r.nextBoss }
+		for _, it in ipairs(all) do
+			local p = it[2]
+			expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= w + 0.01 and p.y + p.h <= h + 0.01, it[1] .. " on screen at " .. tag)
+		end
+		expectTrue(r.leave.h >= 44 and r.tabs.h >= 44, "Next Round and tabs at least 44 px at " .. tag)
+		if h < L.SHORT_BELOW then
+			expectTrue(r.short and r.phone, "short layout flagged at " .. tag)
+			expectTrue(r.offers[1].w >= 110 and r.packs[1].w >= 110, "cards at least 110 px wide at " .. tag)
+			for i = 1, #all do
+				for j = i + 1, #all do
+					expectTrue(not hit(all[i][2], all[j][2]), all[i][1] .. " and " .. all[j][1] .. " do not overlap at " .. tag)
+				end
+			end
+			expectTrue(not hit(r.bubble, r.leave) and not hit(r.bubble, r.props.bell) and not hit(r.bubble, r.props.ledger), "speech plate clear of the buttons at " .. tag)
+			expectTrue(r.bubble.x + r.bubble.w <= w and r.bubble.y + r.bubble.h <= h, "speech plate on screen at " .. tag)
+		else
+			expectTrue(not r.short, "not the short layout at " .. tag)
+		end
+	end
+end })
+
 return tests

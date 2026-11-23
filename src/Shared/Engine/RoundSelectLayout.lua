@@ -19,29 +19,53 @@ M.SELECT_H, M.SKIP_H, M.TARGET_H, M.EDGE = 44, 44, 36, 10 -- SKIP_H is Engine/Sk
 M.TIPS_W, M.TIPS_H, M.TIPS_RIGHT, M.TIPS_TOP = 150, 34, 20, 18
 M.TIP_GAP = 8
 
+-- COMPACT cards: windows shorter than COMPACT_BELOW px. The card is built shorter (no tall image area, so the title, Tag line, Target plate,
+-- Select and Skip keep their real 44 px size) instead of shrinking the 620 px card under a UIScale, which made the buttons 17 to 36 px.
+M.COMPACT_BELOW = 800
+M.CW_C, M.CH_C, M.MAX_FIT_C = 210, 256, 1.5
+M.PHONE_BELOW = 600 -- under this the header shrinks to the title and the strip gap closes up
+M.ROW_TOP_PHONE, M.ROW_BOTTOM_PHONE, M.TIPS_TOP_PHONE = 48, 12, 6
+
+function M.isCompact(h) return h < M.COMPACT_BELOW end
+
+-- { compact, cardW, cardH, rowTop, rowBottom, scale } for a screen of w x h.
+function M.metrics(w, h)
+	local rowW = w - 2 * M.ROW_SIDE
+	if not M.isCompact(h) then
+		local rowH = h - M.ROW_TOP - M.ROW_BOTTOM
+		return { compact = false, cardW = M.CARD_W, cardH = M.CARD_H, rowTop = M.ROW_TOP, rowBottom = M.ROW_BOTTOM,
+			scale = CardFit.scale(h, rowW, rowH, M.CARD_H, M.CARD_W, M.MAX_FIT, M.MIN_FIT) }
+	end
+	local phone = h < M.PHONE_BELOW
+	local top, bottom = phone and M.ROW_TOP_PHONE or M.ROW_TOP, phone and M.ROW_BOTTOM_PHONE or M.ROW_BOTTOM
+	local rowH = h - top - bottom
+	local s = CardFit.scale(h, rowW, rowH, M.CH_C, M.CW_C, M.MAX_FIT_C, 0.5)
+	return { compact = true, cardW = M.CW_C, cardH = M.CH_C, rowTop = top, rowBottom = bottom, scale = s }
+end
+
 function M.scale(w, h)
-	local rowW, rowH = w - 2 * M.ROW_SIDE, h - M.ROW_TOP - M.ROW_BOTTOM
-	return CardFit.scale(h, rowW, rowH, M.CARD_H, M.CARD_W, M.MAX_FIT, M.MIN_FIT)
+	return M.metrics(w, h).scale
 end
 
 local function rect(x, y, w, h) return { x = x, y = y, w = w, h = h } end
 
 function M.rects(w, h, hasSkip)
-	local s = M.scale(w, h)
-	local cw, ch, gap = M.CARD_W * s, M.CARD_H * s, CardFit.padding(s, M.CARD_W)
+	local m = M.metrics(w, h)
+	local s, rowTop = m.scale, m.rowTop
+	local cw, ch, gap = m.cardW * s, m.cardH * s, CardFit.padding(s, m.cardW)
 	local x0 = (w - (cw * CardFit.COUNT + gap * (CardFit.COUNT - 1))) / 2
 	local out = { scale = s, cards = {} }
 	for i = 1, CardFit.COUNT do
-		local x, bottom = x0 + (i - 1) * (cw + gap), M.ROW_TOP + ch
+		local x, bottom = x0 + (i - 1) * (cw + gap), rowTop + ch
 		local inner = cw - 2 * M.EDGE * s
 		out.cards[i] = {
-			panel = rect(x, M.ROW_TOP, cw, ch),
+			panel = rect(x, rowTop, cw, ch),
 			select = rect(x + M.EDGE * s, bottom - (M.EDGE + M.SKIP_H + 6 + M.SELECT_H) * s, inner, M.SELECT_H * s),
 			skip = hasSkip and rect(x + M.EDGE * s, bottom - (M.EDGE + M.SKIP_H) * s, inner, M.SKIP_H * s) or nil,
 			target = rect(x + M.EDGE * s, bottom - (M.EDGE + M.SKIP_H + 6 + M.SELECT_H + 8 + M.TARGET_H) * s, inner, M.TARGET_H * s),
 		}
 	end
-	out.tips = rect(w - M.TIPS_RIGHT - M.TIPS_W, M.TIPS_TOP, M.TIPS_W, M.TIPS_H)
+	out.tips = rect(w - M.TIPS_RIGHT - M.TIPS_W, (m.compact and h < M.PHONE_BELOW) and M.TIPS_TOP_PHONE or M.TIPS_TOP, M.TIPS_W, M.TIPS_H)
 	return out
 end
 

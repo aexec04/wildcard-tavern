@@ -32,6 +32,7 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
+ShopSceneLayout.SHORT_BELOW = 420 -- under this height a wide window uses the one row layout (800x360: the table cards were 77 px wide, the packs ran off the bottom)
 ShopSceneLayout.FACE_X0, ShopSceneLayout.FACE_X1, ShopSceneLayout.FACE_H = 0.25, 0.75, 0.35 -- Marlo's face: middle half of his rect, top 35 percent
 ShopSceneLayout.BOSS_MAX_W = 620
 ShopSceneLayout.BOSS_PAD = 28 -- text keeps this far inside the ornate gold ends
@@ -470,8 +471,9 @@ function ShopSceneLayout.rects(W, H, counts)
 	W, H = math.max(W, 1), math.max(H, 1)
 	local nOffers = (counts and counts.offers) or 3
 	local nPacks = (counts and counts.packs) or 2
-	local phone = ShopSceneLayout.isPhone(W, H)
-	local out = { phone = phone, area = rect(0, 0, W, H), wall = rect(0, 0, W, H) }
+	local short = H < ShopSceneLayout.SHORT_BELOW and not ShopSceneLayout.isPhone(W, H) -- a wide but short window (phone landscape)
+	local phone = ShopSceneLayout.isPhone(W, H) or short
+	local out = { phone = phone, short = short, area = rect(0, 0, W, H), wall = rect(0, 0, W, H) }
 
 	-- controls along the top
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
@@ -483,7 +485,7 @@ function ShopSceneLayout.rects(W, H, counts)
 	local leaveW, leaveH = clamp(W * 0.14, 110, 220), 64
 	out.leave = rect(W - leaveW - 12, H - leaveH - 12, leaveW, leaveH)
 
-	local counterH = H * (phone and 0.50 or 0.34)
+	local counterH = H * (short and 0.42 or (phone and 0.50 or 0.34))
 	local counterY = H - counterH
 	out.counter = rect(0, counterY, W, counterH)
 	out.surfaceY = math.floor(counterY + counterH * (phone and 0.12 or 0.32) + 0.5)
@@ -553,6 +555,38 @@ function ShopSceneLayout.rects(W, H, counts)
 		for i, r in ipairs(out.offers) do
 			out.shadows[i] = rect(r.x + r.w * 0.1, r.y + r.h - 6, r.w * 0.8, 12) -- a soft oval under each Patron card
 		end
+	elseif short then
+		-- SHORT window (phone landscape): ONE row of every Patron and pack on the full width between the Next boss plate and the
+		-- bottom strip, so the cards keep real size. Marlo, his speech plate, the ledger and the bell share that bottom strip, the
+		-- bell and ledger at the full 44 px touch size.
+		local T = ShopSceneLayout.MIN_TOUCH
+		local stripH = leaveH
+		local stripY = H - 12 - stripH
+		local total = nOffers + nPacks
+		local gap = 8
+		out.bandX0, out.bandX1 = 8, math.floor(W - 8)
+		local top = tabsBottom + 6
+		local bottom = stripY - 8
+		local cardH = math.min(bottom - top, ((W - 16 - gap * (total - 1)) / total) / ShopSceneLayout.CARD_RATIO)
+		local cardW = cardH * ShopSceneLayout.CARD_RATIO
+		local x0 = (W - (cardW * total + gap * (total - 1))) / 2
+		for k = 1, total do
+			local r = rect(x0 + (k - 1) * (cardW + gap), top + (bottom - top - cardH) / 2, cardW, cardH)
+			if k <= nOffers then
+				out.offers[k] = r
+				out.shadows[k] = rect(r.x + r.w * 0.1, r.y + r.h - 6, r.w * 0.8, 8)
+			else
+				out.packs[k - nOffers] = r
+			end
+		end
+		local marloH = stripH
+		out.marlo = rect(8, stripY, marloH * ShopSceneLayout.MARLO_RATIO, marloH)
+		local bell = rect(out.leave.x - 8 - 48, stripY + (stripH - T) / 2, 48, T)
+		local ledger = rect(bell.x - 8 - 64, bell.y, 64, T)
+		out.props = { bell = bell, ledger = ledger }
+		out.light = rect(8, out.surfaceY, W - 16, counterH * 0.4)
+		local bx = out.marlo.x + out.marlo.w + 8
+		out.bubble = rect(bx, stripY + (stripH - ShopSceneLayout.BUBBLE_H) / 2, math.max(80, ledger.x - 8 - bx), ShopSceneLayout.BUBBLE_H)
 	else
 		local marloH = H * 0.24
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
