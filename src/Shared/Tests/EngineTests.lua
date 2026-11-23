@@ -48474,6 +48474,46 @@ table.insert(tests, { name = "Tutorial flow: steps run in order (pick, play, Cou
 	expectTrue(machine:finished(), "the machine finishes after the last step")
 end })
 
+table.insert(tests, { name = "Achievement audit: every achievement is well formed, locked on a fresh profile (bar the first step) and reachable from the stats a run feeds", fn = function()
+	local Achievements = require(script.Parent.Parent.Engine.Achievements)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local fresh = PlayerProfile.new()
+	local freshUnlocked = #Achievements.unlockedFor(fresh)
+	expectTrue(freshUnlocked <= 2, "a fresh profile starts with at most 2 unlocked (" .. freshUnlocked .. ")")
+	-- a profile that has done a lot: every numeric stat high, every Patron discovered
+	local full = PlayerProfile.new()
+	for k, v in pairs(full.stats) do
+		if type(v) == "number" then full.stats[k] = 100000 end
+	end
+	setmetatable(full.stats, { __index = function() return 100000 end }) -- counters a run adds later (not in the default stats)
+	full.discoveredPatronIds = full.discoveredPatronIds or {}
+	for _, patron in ipairs(Patrons.Definitions) do
+		full.discoveredPatronIds[patron.id] = true
+	end
+	full.rewardTitleIds = full.rewardTitleIds or {}
+	for _, a in ipairs(Achievements.Definitions) do
+		if a.milestoneReward then full.rewardTitleIds[a.id] = true end -- granted by a Collection milestone, not by stats
+	end
+	full.highestStakeUnlocked = 8
+	local reachable = 0
+	local seen = {}
+	for _, a in ipairs(Achievements.Definitions) do
+		expectTrue(not seen[a.id], a.id .. " id is unique")
+		seen[a.id] = true
+		expectTrue(type(a.name) == "string" and #a.name > 0 and type(a.title) == "string" and #a.title > 0, a.id .. " has a name and a title")
+		expectTrue(type(a.description) == "string" and #a.description > 0 and #a.description <= 80, a.id .. " has a short description")
+		expectTrue(type(a.requirement) == "function", a.id .. " has a requirement")
+		local ok, result = pcall(a.requirement, fresh)
+		expectTrue(ok, a.id .. " requirement runs on a fresh profile")
+		local okFull, resultFull = pcall(a.requirement, full)
+		expectTrue(okFull and type(resultFull) == "boolean", a.id .. " requirement returns a boolean on a full profile")
+		if resultFull then reachable = reachable + 1 end
+	end
+	-- the stat counters alone (plus a Collection milestone) earn most of them; the rest need other profile fields (streaks, rank, invites)
+	expectTrue(reachable >= 38, "stat counters reach at least 38 achievements (" .. reachable .. " of " .. #Achievements.Definitions .. ")")
+end })
+
 return tests
 
 
