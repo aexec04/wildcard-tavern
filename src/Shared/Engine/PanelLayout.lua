@@ -9,6 +9,8 @@ local PanelLayout = {}
 
 PanelLayout.STRIP_BOTTOM = 63 -- group tabs (y 3 to 37) plus the hanging bookmark ribbons (y 39 to 63)
 PanelLayout.STRIP_NUDGE = 40
+PanelLayout.BACK_W, PanelLayout.BACK_H = 84, 34 -- the "< Back" plate at the strip's left edge, as tall as the group tabs; the tab rows start at BACK_ROW_X
+PanelLayout.BACK_ROW_X = 92
 PanelLayout.EXPANDED_MARGIN = 96 -- an expanded panel is (screen height - this) tall, so it is 48px off the top before the nudge
 PanelLayout.TOGGLE_INSET = 8 -- toggle sits this far below the panel top
 PanelLayout.TOGGLE_SIZE = 30

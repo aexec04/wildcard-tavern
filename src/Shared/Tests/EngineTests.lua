@@ -25854,6 +25854,24 @@ table.insert(tests, { name = "PanelLayout.fullScreenGap: a full screen panel who
 	end
 end })
 
+table.insert(tests, { name = "Collection Back plate: on screen, clear of the tab rows and of the full screen page, readable (4.5:1) at 1920x957, 1506x751 and 800x450", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local PG = require(script.Parent.Parent.Engine.PanelGroups)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local where = " at " .. W .. "x" .. H
+		local stripW = math.min(0.9 * W, 1100)
+		local x0, y0 = (W - stripW) / 2, 3
+		expectTrue(x0 >= 0 and y0 >= 0 and x0 + PL.BACK_W <= W and y0 + PL.BACK_H <= H, "Back is on screen" .. where)
+		expectTrue(PL.BACK_W + 4 <= PL.BACK_ROW_X, "the tab rows start right of Back" .. where)
+		expectTrue(y0 + PL.BACK_H <= PL.STRIP_BOTTOM, "Back stays inside the strip" .. where)
+		expectTrue(PL.fullScreenRect(W, H).y >= y0 + PL.BACK_H, "the Collection page starts below Back, so it never covers it" .. where)
+	end
+	expectTrue(PL.BACK_H >= 34, "Back is as tall as the group tabs")
+	local wood = { 92, 62, 36 }
+	expectTrue(PG.contrast(PG.textOn(wood), wood) >= 4.5, "Back text on its wood plate reads at 4.5:1")
+end })
+
 table.insert(tests, { name = "PanelLayout.fullScreenRect: Collection, Card Sets, Badges, Legend, Flair and Stats fill the screen below the tab strip at 1920x1080, 1280x720 and 800x600", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	for _, id in ipairs({ "collection", "cosmeticSets", "badges", "legend", "flair", "stats" }) do expectTrue(PL.FULL_SCREEN[id], id .. " is a full-screen page") end
