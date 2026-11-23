@@ -67,7 +67,9 @@ end
 function M.patronRow(w, h, n)
 	n = math.max(0, math.min(math.floor(tonumber(n) or M.SEATS), 8))
 	local ref = w >= M.REF_MIN_W and h >= M.REF_MIN_H
-	local top = round((ref and 0.131 or 0.115) * h) -- reference: seats start at y 125 of 941, under the 100 px bar with room for the boss banner
+	local top = round((ref and 0.131 or 0.115) * h)
+	if not ref and h < 500 then top = math.max(top, 45) end -- phone landscape: the 40 px bar ends at y 44, the seats start 1 px under it (never under the bar)
+	-- reference: seats start at y 125 of 941, under the 100 px bar with room for the boss banner
 	local labelH, pillH = math.max(16, round((ref and 0.018 or 0.036) * h)), math.max(ref and 17 or 18, round((ref and 0.019 or 0.042) * h)) -- on the reference screen slim rows keep the Score plate at its mockup height
 	local ch = round((ref and 0.197 or 0.205) * h) -- the mockup seat is 205 of 941 tall (reference screens: 14 px taller than the first pass at 957)
 	local cw = round(ch * M.CARD_ASPECT)
@@ -175,8 +177,9 @@ function M.rects(w, h)
 	local handW = round((w < 1000 and 0.68 or 0.67) * w) -- reference fan spans x 300 to 1410 of 1672 (0.664 wide, centre 0.511) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2 + (w < 1000 and 0 or 0.011 * w)), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
-	local stTop = rowBottom + (ref and 0 or 8)
-	local stH = math.max(24, handTop - 6 - stTop) -- the score is one quiet line, so a short stage is fine
+	local short = h < 500
+	local stTop = rowBottom + ((ref or short) and 0 or 8)
+	local stH = short and math.max(12, handTop - 2 - stTop) or math.max(24, handTop - 6 - stTop) -- phone landscape: the stage ends 2 px above the hand, never over it -- the score is one quiet line, so a short stage is fine
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
 	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
