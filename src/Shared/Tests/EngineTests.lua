@@ -52470,6 +52470,57 @@ table.insert(tests, { name = "Mobile and tablet audit: HUD, Counter and pack pla
 	end
 end })
 
+table.insert(tests, { name = "Settings and Share audit: every toggle saves through setSetting and survives a rejoin, share lines are kid safe and carry no score or banned word", fn = function()
+	local E = script.Parent.Parent.Engine
+	local Share = require(E.ShareResult)
+	local Variants = require(E.ShareVariants)
+	local DailyShare = require(E.DailyShare)
+	-- every boolean toggle (Calm mode pieces, mute, hints, and the rest): flip once, save, rejoin, same value; a repeat changes nothing
+	local flipped = {}
+	local profile = PlayerProfile.new()
+	for key, spec in pairs(PlayerProfile.SETTING_SPECS) do
+		if spec.kind == "boolean" then
+			local ok = PlayerProfile.setSetting(profile, key, not spec.default)
+			expectTrue(ok, key .. " saves when flipped")
+			expectFalse((PlayerProfile.setSetting(profile, key, not spec.default)), key .. " does not save twice for the same value")
+			flipped[key] = not spec.default
+		end
+	end
+	expectTrue(PlayerProfile.setSetting(profile, "musicVolume", 0.8) and PlayerProfile.setSetting(profile, "sfxVolume", 0.2), "volume sliders save")
+	local rejoined = PlayerProfile.migrate(profile)
+	for key, want in pairs(flipped) do
+		expectEqual(rejoined.settings[key], want, key .. " is restored on rejoin")
+	end
+	expectEqual(rejoined.settings.musicVolume, 0.8, "music volume is restored")
+	expectEqual(rejoined.settings.sfxVolume, 0.2, "sound volume is restored")
+	for _, calm in ipairs({ "reduceMotion", "reduceFlashing", "reduceShake", "performanceMode" }) do
+		expectTrue(PlayerProfile.SETTING_SPECS[calm] ~= nil, calm .. " is a saved setting")
+	end
+	-- share text: every variant for every kind, plus the plain, seeded, challenge and Daily lines
+	local banned = { "balatro", "beer", "wine", "booze", "cocktail", "whiskey", "vodka", "rum", "tobacco", "cigar", "smok", "drunk", "alcohol" }
+	local lines = {}
+	local ctxs = { { night = 3, hand = "Flush" }, { night = 8, won = true, hand = "Pair" }, { night = 2, name = "Brave Lantern", twist = "Slim Deck" }, { night = 12 }, {} }
+	for _, kind in ipairs(Variants.KINDS) do
+		for _, ctx in ipairs(ctxs) do
+			for seed = 0, 5 do lines[#lines + 1] = Variants.line(kind, ctx, seed) end
+		end
+	end
+	local summary = { night = 5, won = false, bestHand = { name = "Straight", score = 4321 } }
+	lines[#lines + 1] = Share.line(summary)
+	lines[#lines + 1] = Share.line(summary, "ABC123")
+	lines[#lines + 1] = Share.challengeLine(summary, "ABC123")
+	lines[#lines + 1] = DailyShare.line(summary, "2026-11-23", "Slim Deck")
+	for _, line in ipairs(lines) do
+		local lower = line:lower()
+		for _, w in ipairs(banned) do expectTrue(not lower:find(w, 1, true), "share line has no " .. w .. ": " .. line) end
+		expectTrue(not line:find("\226\128\148") and not line:find("%-%-"), "share line has no dash: " .. line)
+	end
+	-- the plain lines never print the score; only the seeded line shows the best hand, and the challenge line carries the code but no score
+	expectTrue(not Share.line(summary):find("4321", 1, true), "the plain share line carries no score")
+	expectTrue(not Share.challengeLine(summary, "ABC123"):find("4321", 1, true), "the challenge line carries no score")
+	expectTrue(Share.challengeLine(summary, "ABC123"):find("ABC123", 1, true) ~= nil, "the challenge line carries the seed code")
+end })
+
 return tests
 
 
