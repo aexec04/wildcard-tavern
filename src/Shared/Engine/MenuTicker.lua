@@ -23,6 +23,10 @@ MenuTicker.FlavorLines = {
 	"Set spotlight: try a new Card Set from the Tome.",
 	"Season reminder: claim your tier rewards today.",
 	"Tip: a Patron that fits your hand scores the most.",
+	"Marks: pick one at the Counter to power up a card.",
+	"Night boons: a small lift when a new Night opens.",
+	"Starting decks: Lucky and Slim change how a run feels.",
+	"Map events: stop at an event and pick what you like.",
 }
 
 -- Rounded so the number never looks exact or fake: 0 to 9 is "a few", then steps of 10, 50 and 100.

@@ -38945,6 +38945,29 @@ table.insert(tests, { name = "Ambient bed per Card Set: no set is louder than th
 	expectTrue(src:find("Ambience.volume(muted, ClientSettings.get(\"sfxVolume\")", 1, true) ~= nil, "the loop follows Mute and the Sound slider")
 end })
 
+table.insert(tests, { name = "Menu hint rotation: Marks, Night boons, Starting decks and Map events each get one kind line of 60 characters or less, and every line is reachable by the daily rotation", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MenuTicker)
+	for _, topic in ipairs({ "Marks", "Night boons", "Starting decks", "Map events" }) do
+		local count = 0
+		for _, line in ipairs(MT.FlavorLines) do
+			if line:sub(1, #topic + 1) == topic .. ":" then count = count + 1 end
+		end
+		expectEqual(count, 1, topic .. " has exactly one line")
+	end
+	for _, line in ipairs(MT.FlavorLines) do
+		expectTrue(#line <= 60, "60 characters or less: " .. line)
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "plain words: " .. line)
+		for _, bad in ipairs({ "random", "chance", "odds", "gamble", "pay ", "robux", "buy" }) do
+			expectTrue(not line:lower():find(bad, 1, true), line .. " never says " .. bad)
+		end
+	end
+	-- every line shows up within one rotation, and the Marks line matches the real rule (a Counter pack, Tips only)
+	local shown = {}
+	for day = 0, #MT.FlavorLines - 1 do shown[(MT.text({}, day))] = true end
+	for _, line in ipairs(MT.FlavorLines) do expectTrue(shown[line], "reachable: " .. line) end
+	expectTrue(require(script.Parent.Parent.Engine.Marks).PRICE > 0, "Marks are a Counter buy")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
