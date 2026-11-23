@@ -9,7 +9,13 @@
 	  M.newsLine(row)            -> "Harvest Week" (the event name, two lines at most)
 	  M.newsTime(row)            -> "4 days left" / "Last day" / "Starts tomorrow"
 	  M.rankLines(view)          -> { main = "Rank 1  71 / 80 XP", reward = "Next: +3 Tips" or nil }
+	  M.soonLine(soon)           -> "Soon: <event name>", cut to two lines like the live event line
+	  M.wrapWidth(x, w)          -> w, less any amount that would leave under TextFit.SIDE (12 px) between the word and the note edge
+	  M.lineCount(text, size, w) -> lines the text needs in wrapWidth, never under 1
+	  M.oneLineSize(text, w, size) -> size, or the largest smaller size (12 at least) at which the text fits one line of width w
 ]]
+
+local TextFit = require(script.Parent:WaitForChild("TextFit"))
 
 local M = {}
 
@@ -34,6 +40,29 @@ function M.newsLine(row)
 	if type(row) ~= "table" then return "" end
 	-- the name only (the long sentence stays in the News panel); with the time line the plate is three lines at most
 	return M.fit(tostring(row.name or ""), M.MAX_NEWS_LINES)
+end
+
+function M.soonLine(soon)
+	if type(soon) ~= "table" then return "" end
+	return M.fit("Soon: " .. tostring(soon.name or ""), M.MAX_NEWS_LINES)
+end
+
+M.NOTE_W = 300 -- Engine/MenuRoomLayout.NOTE_W
+
+function M.wrapWidth(x, w)
+	local margin = M.NOTE_W - (x + w) -- space left between the label and the note edge
+	return w - math.max(0, TextFit.SIDE - margin)
+end
+
+function M.lineCount(text, size, w)
+	return TextFit.lines(text, size, w)
+end
+
+function M.oneLineSize(text, w, size)
+	for s = size, 12, -1 do
+		if TextFit.width(text, s) <= w then return s end
+	end
+	return 12
 end
 
 function M.newsTime(row)

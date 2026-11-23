@@ -35644,6 +35644,45 @@ table.insert(tests, { name = "Boss intro: the plate stands below the Patron row 
 	expectTrue(read("src/Client/Gameplay2.lua"):find("deps.actionFrame.ClipsDescendants = false", 1, true), "the Discard frame is never clipped")
 end })
 
+table.insert(tests, { name = "Menu banners: Soon, Rank and Next goal lines wrap inside 12 px of the note edge, event names take two lines at most at 1920x957, 1506x751, 1309x751, and the Client applies it", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuNoteText)
+	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Live = require(script.Parent.Parent.Engine.LiveEvents)
+	expectEqual(M.wrapWidth(12, 276), 276, "a label already 12 px from the edge keeps its width")
+	expectEqual(M.wrapWidth(12, 278), 276, "a label 10 px from the edge loses 2 px")
+	expectTrue(M.NOTE_W - (12 + M.wrapWidth(12, 278)) >= F.SIDE, "the margin is at least 12 px")
+	expectEqual(M.soonLine({ name = "Harvest Week" }), "Soon: Harvest Week", "the Soon line")
+	local names = { "Harvest Week", "Moonlit Marathon With A Very Long Festival Name Indeed" }
+	for _, ev in ipairs(Live.Definitions or Live.EVENTS or {}) do names[#names + 1] = ev.name end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 } }) do
+		local l, t, r, b = R.corkRect(sz[1], sz[2])
+		local scale = R.noteSlots(r - l, b - t, {}).scale
+		local want = math.ceil(R.MIN_TEXT / scale)
+		local w = M.wrapWidth(12, 276)
+		for _, name in ipairs(names) do
+			local line = M.soonLine({ name = name })
+			expectTrue(#line <= M.LINE_CHARS * 2, sz[1] .. " " .. name .. " is cut to two lines of text")
+			if #name <= 30 then expectTrue(M.lineCount(line, want, w) <= 3, sz[1] .. " " .. name .. " takes at most 3 estimated lines at " .. want .. " px") end
+		end
+		local rank = M.rankLines({ rank = 30, into = 1234, need = 5678, nextReward = { kind = "tips", amount = 300 } })
+		for _, text in ipairs({ rank.main, rank.reward }) do
+			local size = M.oneLineSize(text, w, want)
+			expectTrue(size >= 12 and (F.width(text, size) <= w or size == 12), sz[1] .. " one line size keeps " .. text .. " off the edge")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/MenuBoard.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("NoteText.wrapWidth", 1, true) ~= nil and t:find("NoteText.lineCount", 1, true) ~= nil and t:find("NoteText.oneLineSize", 1, true) ~= nil, "MenuBoard applies the fit")
+	end
+	local g = io and io.open and io.open("src/Client/NewsPanel.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("NoteText.soonLine(soon)", 1, true) ~= nil, "the Soon banner is cut to two lines")
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
