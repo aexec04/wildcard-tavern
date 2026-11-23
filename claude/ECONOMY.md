@@ -351,3 +351,21 @@ Clear rate over Nights 7 to 12, greedy bot, lowest to highest: bare_bones 39, ev
 | full_suit_feast + meadow_bee | 15 | 84.2 |
 
 - Every pair is within 8.2 points of the average (the outlier line is 15), so no Patron number changed. Overtime is in 6 of the bottom 10, but its single Patron clear rate was within 2.8 points of the average in the earlier Patron rates sweep; it is a mild drag, not an outlier, and a bigger sample would be needed to justify a nudge.
+
+## One dominant Patron: free-from-start lift (`lua tools/run_sim.lua --patron-lift --patron-list ID,ID --runs 150 --bot decent`)
+
+Rule: no Patron may lift the win rate more than 12 points alone. Control (no free Patron) was 37 to 41 percent. The first pass showed five over the line, all run counters that grow with the run. Each was cut one small step, then re-run.
+
+| Patron | Before | After | Lift before | Lift after |
+| --- | --- | --- | --- | --- |
+| Stack of Plates | +2 Chips per hand, cap +100 | cap +50 | +24.7 | +8.7 |
+| Rising Dough | cap +12 Mult | cap +10 | +22.0 | +7.3 |
+| Bread Starter | cap x2 | cap x1.6 | +21.3 | +8.0 |
+| Repeat Customer | x3 Mult | x2.5 Mult | +14.7 | +6.0 |
+| Tip Jar | 4 Tips per win | 2 Tips per win | +22.0 | +10.0 |
+
+Others sampled (Vip Table +10, House Favorite +7, Small Plate +4, the rest within 2) are under the line. Sampling noise on 150 runs is about 4 points. A full 93 Patron lift sweep takes over 10 minutes, so only the suspects were re-run; use `--patron-list` to check others. Pinned by the test "Patron lift".
+
+## Synergy audit
+
+See `claude/synergy-audit.md` (`lua tools/synergy_audit.lua`). 20 Patrons had only the "flat" tag and so no hint or Bond partner; each now carries a real tag (scaling, rulebender, pairs, flush, straight, ranks). Side effect: Bonds give a small bonus when both ends trigger, so these 20 can now bond. Not re-simmed beyond the lift runs above; re-check if the win rate drifts.

@@ -632,13 +632,20 @@ elseif cfg.patronLift then
 	local control = Report.aggregate(collect(runConfig()))
 	print(Report.summaryLine("control (no free Patron)", control))
 	local rows = {}
+	local only
+	if cfg.patronList then
+		only = {}
+		for id in tostring(cfg.patronList):gmatch("[^,]+") do only[id] = true end
+	end
 	for _, def in ipairs(engine.Patrons.Definitions) do
+		if only and not only[def.id] then goto skipLift end
 		local summary = Report.aggregate(collect(runConfig({ forcePatron = def.id })))
 		local econ = summary.econ[def.id]
 		table.insert(rows, {
 			id = def.id, price = def.price, win = summary.winRate, median = summary.medianDeathNight,
 			econTips = econ and econ.tips / summary.runs or 0,
 		})
+		::skipLift::
 	end
 	table.sort(rows, function(a, b)
 		return a.win > b.win

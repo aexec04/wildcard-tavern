@@ -3540,7 +3540,9 @@ end })
 
 table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER owned Patron", fn = function()
 	local crowd = Patrons.getById("full_house_crowd")
-	local theRegular = Patrons.getById("the_regular")
+	local theRegular = {}
+	for k, v in pairs(Patrons.getById("the_regular")) do theRegular[k] = v end
+	theRegular.tags = { "flat" } -- a copy with no bond tag, so only the +4 Mult counts
 	local luckyDice = Patrons.getById("lucky_dice")
 	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
 	local _, _, multAlone = Scoring.calculate(hand, { crowd }, {})
@@ -10498,7 +10500,7 @@ table.insert(tests, { name = "Synergy: every Patron has 1 to 3 valid tags, owned
 	expectEqual(#fan, 1); expectEqual(fan[1].tag, "flush"); expectEqual(fan[1].reason, "Fits the hand you play most.")
 	local pairPatron = Synergy.tagsFor({ id = "pair_bonds" }, ctx)
 	expectEqual(#pairPatron, 2); expectEqual(pairPatron[1].tag, "scaling", "owned tag, listed after dominant and economy")
-	expectEqual(#Synergy.tagsFor(Patrons.getById("the_regular"), ctx), 0, "a flat Patron shows nothing")
+	expectEqual(#Synergy.tagsFor({ id = "the_regular", tags = { "flat" } }, ctx), 0, "a flat Patron shows nothing")
 	local fresh = Synergy.context({}, {})
 	local jar = Synergy.tagsFor(Patrons.getById("tip_jar"), fresh)
 	expectEqual(#jar, 1); expectEqual(jar[1].tag, "economy"); expectEqual(jar[1].reason, "You have no Tips Patron yet.")
@@ -13334,7 +13336,7 @@ table.insert(tests, { name = "Bonds: detection, no bond for one Patron, once per
 	expectEqual(1, #Bonds.find({ a, b }))
 	expectEqual("Twin Pact", Bonds.find({ a, b })[1].name)
 	expectEqual(3, #Bonds.find({ a, b, c })) -- three pairs of Patrons
-	expectEqual(0, #Bonds.find({ a, Patrons.getById("the_regular") })) -- "flat" never bonds
+	expectEqual(0, #Bonds.find({ a, Patrons.getById("suit_yourself") })) -- no shared tag, no bond
 	expectEqual("pairs", Bonds.formedIds({ a, b, c })[1])
 	expectEqual(1, #Bonds.formedIds({ a, b, c }))
 	for _, def in ipairs(Bonds.Definitions) do
@@ -32297,7 +32299,8 @@ table.insert(tests, { name = "Gameplay v2 synergy hints: a gold thread joins nei
 	assert(links[1].a == 1 and links[1].b == 2 and links[1].tag == "pairs" and links[1].word ~= "")
 	assert(links[2].a == 3 and links[2].b == 4 and links[2].tag == "flush")
 	assert(#S.links({ "lucky_dice", "suit_yourself" }) == 0, "different themes do not link")
-	assert(#S.links({ "the_regular", "curtain_call" }) == 0, "the flat tag never counts")
+	assert(#S.links({ "the_regular", "lucky_dice" }) == 0, "no shared tag, no link")
+	assert(#S.links({ "the_regular", "curtain_call" }) == 1, "two scaling Patrons link")
 	assert(#S.links({ "lucky_dice", nil, "regulars_round" }) == 0 and #S.links({}) == 0 and #S.links({ "lucky_dice" }) == 0, "only neighbours, gaps and single seats give nothing")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local r = L.rects(sz[1], sz[2])
@@ -41843,6 +41846,40 @@ table.insert(tests, { name = "Tutorial time: Menu to the first cleared round tak
 	local idle = 0
 	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id); idle = idle + w.seconds end
 	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
+end })
+
+-- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
+table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local counts = {}
+	for _, d in ipairs(P.Definitions) do
+		for _, t in ipairs(d.tags or {}) do
+			if t ~= "flat" then counts[t] = (counts[t] or 0) + 1 end
+		end
+	end
+	for _, d in ipairs(P.Definitions) do
+		local partner = false
+		for _, t in ipairs(d.tags or {}) do
+			if t ~= "flat" and counts[t] >= 2 then partner = true end
+		end
+		expectTrue(partner, d.id .. " has no partner Patron that shares a tag")
+	end
+end })
+
+-- DOMINANT PATRONS: the lift sim showed Tip Jar, Bread Starter and Stack of Plates far above the rest; each was cut one small step.
+table.insert(tests, { name = "Patron lift: Tip Jar pays 2 Tips, Bread Starter tops out at x1.6, Stack of Plates at +50 Chips, Rising Dough at +10, Repeat Customer x2.5", fn = function()
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local function get(id) for _, p in ipairs(P.Definitions or P) do if p.id == id then return p end end end
+	local jar = get("tip_jar")
+	local st = { tips = 0 }
+	jar.onRoundWin(st)
+	expectEqual(st.tips, 2, "Tip Jar pays 2 Tips per round win")
+	local bread = get("bread_starter").effect({}, { handsPlayedTotal = 100 })
+	expectEqual(bread.multMultiplier, 1.6, "Bread Starter cap")
+	local plates = get("stack_of_plates").effect({}, { handsPlayedTotal = 100 })
+	expectEqual(plates.chips, 50, "Stack of Plates cap")
+	expectEqual(get("rising_dough").effect({}, { roundsCleared = 40 }).mult, 10, "Rising Dough cap")
+	expectEqual(get("repeat_customer").effect({}, { alreadyPlayedThisHandTypeThisRound = true }).multMultiplier, 2.5, "Repeat Customer")
 end })
 
 -- PERFORMANCE BUDGET: a source count of the tween call sites in the files that run on a hand play and on a shop open (the fake
