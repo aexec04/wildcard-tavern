@@ -118,7 +118,7 @@ function RoundRewardBanner.show(args)
 
 	-- three rows: "Round Complete  +$4 Tips" (counts up), "Target cleared  Score 199 of 65" in the gold heading, then the parts or the flavor line
 	local toast = Payout.toastLines(args.amount, args.interest or 0)
-	local mainRow = label(gui, toast.main, 20, GOLD_TEXT, 1, Enum.Font.GothamBold)
+	local mainRow = label(gui, Payout.countLine(0, data.total), 20, GOLD_TEXT, 1, Enum.Font.GothamBold)
 	mainRow.Name = "Main"
 	pcall(function() require(script.Parent.ConceptTSkin).title(mainRow, { 255, 214, 130 }) end) -- serif gold with a dark outline
 	local clearedRow = label(gui, pendingScore and ("Target cleared  " .. pendingScore) or RewardBanner.clearedLine(args.score, args.target), 16, GOLD_TEXT, 2, Enum.Font.GothamBold)
@@ -133,7 +133,7 @@ function RoundRewardBanner.show(args)
 	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= "" and not partsRow.Visible -- one third row only
 
 	pcall(function() -- the Tips count up one coin at a time, then every Patron hops in order (none in Calm mode)
-		require(script.Parent.CelebrationFX).countUp(mainRow, Payout.breakdown(args.amount, args.interest or 0).total, function(n) return Payout.toastLines(n, 0).main end)
+		require(script.Parent.CelebrationFX).countUp(mainRow, Payout.breakdown(args.amount, args.interest or 0).total, function(n) return Payout.countLine(n, data.total) end)
 		require(script.Parent.PatronRow).celebrate()
 	end)
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
@@ -165,7 +165,7 @@ function RoundRewardBanner.show(args)
 			return
 		end
 		gui.GroupTransparency = 1 - alpha
-		mainRow.Text = Payout.toastLines(RewardBanner.countAt(plan, data.total, t), 0).main
+		mainRow.Text = Payout.countLine(RewardBanner.countAt(plan, data.total, t), data.total)
 	end))
 end
 

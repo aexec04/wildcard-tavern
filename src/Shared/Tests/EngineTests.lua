@@ -23772,9 +23772,9 @@ table.insert(tests, { name = "RoundPayout: breakdown lines add up to the real to
 	local b = P.breakdown(9, 2)
 	expectEqual(b.reward, 7, "reward is total minus interest")
 	expectEqual(#b.lines, 3, "reward, interest, total")
-	expectEqual(b.lines[1].text, "Round reward +$7", "reward line")
-	expectEqual(b.lines[2].text, "Interest +$2", "interest line")
-	expectTrue(b.lines[3].total and b.lines[3].text == "Total +$9 Tips", "total line")
+	expectEqual(b.lines[1].text, "Round reward +7", "reward line")
+	expectEqual(b.lines[2].text, "Interest +2", "interest line")
+	expectTrue(b.lines[3].total and b.lines[3].text == "Total +9 Tips", "total line")
 	local n = P.breakdown(5, 0)
 	expectEqual(#n.lines, 2, "no interest line when none was paid")
 	expectEqual(P.breakdown(3, 99).reward, 0, "interest never exceeds the total")
@@ -23955,10 +23955,10 @@ end })
 table.insert(tests, { name = "Round Complete is a one line toast (no Continue, gone in 1.8 s); the big plate is at most 55 percent of the screen and any click closes it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundPayout)
 	local t = P.toastLines(4, 0)
-	expectEqual(t.main, "Round Complete  +$4 Tips", "one line: Round Complete  +$4 Tips")
+	expectEqual(t.main, "Round Complete  +4 Tips", "one line: Round Complete  +4 Tips")
 	expectEqual(t.sub, nil, "no second line when no interest was paid")
 	local t2 = P.toastLines(4, 1)
-	expectTrue(t2.main == "Round Complete  +$4 Tips" and t2.sub == "Round reward $3 + Interest $1", "with interest a small second line names the parts")
+	expectTrue(t2.main == "Round Complete  +4 Tips" and t2.sub == "Round reward 3 + Interest 1", "with interest a small second line names the parts")
 	local B = require(script.Parent.Parent.Engine.RewardBanner)
 	local n = B.plan("normal", false)
 	expectTrue(n.fadeIn + n.hold + n.fadeOut <= 1.2 + 1e-9, "the toast fades itself out after 1.2 s")
@@ -46637,6 +46637,39 @@ table.insert(tests, { name = "Scoring order: for 30 fixed hands, Chips and Mult 
 	local count = 0
 	for _ in pairs(seenNames) do count = count + 1 end
 	expectTrue(count >= 4, "the 30 hands cover several hand types, got " .. count)
+end })
+
+table.insert(tests, { name = "Round Complete banner: the +N Tips figure equals Round reward plus Interest plus Savings Club, says Tips not $, and never counts +0", fn = function()
+	local Payout = require(script.Parent.Parent.Engine.RoundPayout)
+	local club = Patrons.getById("savings_club")
+	for _, held in ipairs({ 0, 3, 4, 9, 20, 40 }) do
+		for _, withClub in ipairs({ false, true }) do
+			for _, boss in ipairs({ false, true }) do
+				local state = RunState.new(nil, SeededRng.new(held + 1))
+				state.tips = held
+				if boss then state.round = state.config.roundsPerNight end
+				if withClub then state.ownedPatrons = { club } end
+				state.targetScore = 1
+				local before = state.tips
+				RunState.playHand(state, { 1, 2 })
+				expectTrue(state.roundOver and state.roundScore >= 1, "the round is won")
+				expectTrue(state.lastRoundReward <= state.tips - before, "the payout is part of the Tips gained")
+				local total = state.lastRoundReward
+				local b = Payout.breakdown(total, state.lastInterest or 0)
+				expectEqual(b.reward + b.interest, total, "reward plus interest is the figure shown (held " .. held .. ")")
+				expectTrue(total >= 1, "a won round always pays at least 1 Tip")
+				local t = Payout.toastLines(total, state.lastInterest or 0)
+				expectTrue(t.main == string.format("Round Complete  +%d Tips", total), "the main line shows the real total: " .. t.main)
+				expectTrue(not t.main:find("$", 1, true) and not (t.sub or ""):find("$", 1, true), "Tips only, no $ sign")
+				expectTrue(Payout.countLine(0, total) == "Round Complete  +1 Tips" or total == 0, "the count starts at +1, never +0")
+				expectEqual(Payout.countLine(total, total), t.main, "the count ends on the real total")
+				expectTrue(not Payout.countLine(0, total):find("+0 ", 1, true), "never +0 when Tips were paid")
+			end
+		end
+	end
+	expectEqual(Payout.breakdown(6, 1).reward, 5, "6 Tips with 1 interest is a round reward of 5")
+	expectEqual(Payout.toastLines(6, 1).sub, "Round reward 5 + Interest 1")
+	expectEqual(Payout.countLine(0, 0), "Round Complete  +0 Tips", "nothing paid reads honestly")
 end })
 
 -- ===== Tavern Map event nodes =====
