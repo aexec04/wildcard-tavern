@@ -152,6 +152,8 @@ function M.update(state)
 	-- the word is cream on the plate (never a set accent), inset CHEST_PAD from both plate edges, and shrinks to fit rather than touching them
 	chest.TextColor3 = color("cream")
 	chest.TextScaled = true
+	local shade = chest:FindFirstChild("Shade") -- a UIGradient on a text button tints its word too: the dark ramp made the cream timer read red on red
+	if shade and shade:IsA("UIGradient") then shade.Enabled = false end
 	local label = chest:FindFirstChild("KitLabel")
 	if label then
 		label.TextColor3 = color("cream")
