@@ -48514,6 +48514,19 @@ table.insert(tests, { name = "Achievement audit: every achievement is well forme
 	expectTrue(reachable >= 38, "stat counters reach at least 38 achievements (" .. reachable .. " of " .. #Achievements.Definitions .. ")")
 end })
 
+table.insert(tests, { name = "Endless curve: Night 9 and later targets grow smoothly, never jumping more than 1.6x between Nights", fn = function()
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	for round = 1, 3 do
+		local prev = RunState.targetScoreFor(8, round)
+		for night = 9, 30 do
+			local target = RunState.targetScoreFor(night, round)
+			expectTrue(target > prev, "Night " .. night .. " round " .. round .. " is above Night " .. (night - 1))
+			expectTrue(target <= prev * 1.6, "Night " .. night .. " round " .. round .. " is at most 1.6x Night " .. (night - 1) .. " (" .. string.format("%.2f", target / prev) .. ")")
+			prev = target
+		end
+	end
+end })
+
 return tests
 
 
