@@ -46074,4 +46074,41 @@ table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the conf
 	end
 end })
 
+table.insert(tests, { name = "Daily strip and Counter: clickable rects stay on screen and never overlap at 1920x957, 1280x720, 1024x600, 800x450", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function onScreen(r, W, H) return r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = DS.rect(W, H)
+		expectTrue(onScreen(strip, W, H) and strip.h >= 44, tag .. " daily strip on screen and touchable")
+		local chest = DS.chestRect(strip)
+		expectTrue(chest.w >= 44 and chest.h >= 44 and chest.x >= 0 and chest.x + chest.w <= strip.w and chest.y >= 0 and chest.y + chest.h <= strip.h, tag .. " chest inside the strip")
+		local menu = DS.menuRect(W, H)
+		if menu then
+			expectTrue(onScreen(menu, W, H), tag .. " menu strip on screen")
+			expectTrue(menu.x > math.floor(W / 2) + DS.MENU_SIGN_HALF, tag .. " menu strip clear of the sign column")
+			local mc = DS.chestRect(menu)
+			expectTrue(mc.x + mc.w <= menu.w, tag .. " menu chest inside the strip")
+		end
+		local r = SL.rects(W, H, { offers = 3, packs = 2 })
+		local list = { { "tabs", r.tabs }, { "nextBoss", r.nextBoss }, { "leave", r.leave } }
+		for i, o in ipairs(r.offers) do list[#list + 1] = { "offer" .. i, o } end
+		for i, o in ipairs(r.packs) do list[#list + 1] = { "pack" .. i, o } end
+		for _, e in ipairs(list) do
+			expectTrue(e[2] and e[2].w > 0 and e[2].h > 0, tag .. " " .. e[1] .. " has a size")
+			if e[2] and (e[1] == "tabs" or e[1] == "leave") then
+				expectTrue(onScreen(e[2], W, H) and e[2].h >= 44, tag .. " " .. e[1] .. " on screen and 44 px tall")
+			end
+		end
+		for i = 1, #list do
+			for j = i + 1, #list do
+				expectFalse(hit(list[i][2], list[j][2]), tag .. " " .. list[i][1] .. " does not overlap " .. list[j][1])
+			end
+		end
+	end
+end })
+
 return tests
