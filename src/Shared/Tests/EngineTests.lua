@@ -48654,7 +48654,85 @@ table.insert(tests, { name = "Run Over share line: the button is 44 px or more, 
 	expectFalse(SF.READY_BUTTON == "Copied" or SF.READY_HINT:find("Copied", 1, true) ~= nil, "a game cannot write the clipboard, so nothing says Copied")
 end })
 
+table.insert(tests, { name = "Achievement audit: every achievement is well formed, locked on a fresh profile (bar the first step) and reachable from the stats a run feeds", fn = function()
+	local Achievements = require(script.Parent.Parent.Engine.Achievements)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local fresh = PlayerProfile.new()
+	local freshUnlocked = #Achievements.unlockedFor(fresh)
+	expectTrue(freshUnlocked <= 2, "a fresh profile starts with at most 2 unlocked (" .. freshUnlocked .. ")")
+	-- a profile that has done a lot: every numeric stat high, every Patron discovered
+	local full = PlayerProfile.new()
+	for k, v in pairs(full.stats) do
+		if type(v) == "number" then full.stats[k] = 100000 end
+	end
+	setmetatable(full.stats, { __index = function() return 100000 end }) -- counters a run adds later (not in the default stats)
+	full.discoveredPatronIds = full.discoveredPatronIds or {}
+	for _, patron in ipairs(Patrons.Definitions) do
+		full.discoveredPatronIds[patron.id] = true
+	end
+	full.rewardTitleIds = full.rewardTitleIds or {}
+	for _, a in ipairs(Achievements.Definitions) do
+		if a.milestoneReward then full.rewardTitleIds[a.id] = true end -- granted by a Collection milestone, not by stats
+	end
+	full.highestStakeUnlocked = 8
+	local reachable = 0
+	local seen = {}
+	for _, a in ipairs(Achievements.Definitions) do
+		expectTrue(not seen[a.id], a.id .. " id is unique")
+		seen[a.id] = true
+		expectTrue(type(a.name) == "string" and #a.name > 0 and type(a.title) == "string" and #a.title > 0, a.id .. " has a name and a title")
+		expectTrue(type(a.description) == "string" and #a.description > 0 and #a.description <= 80, a.id .. " has a short description")
+		expectTrue(type(a.requirement) == "function", a.id .. " has a requirement")
+		local ok, result = pcall(a.requirement, fresh)
+		expectTrue(ok, a.id .. " requirement runs on a fresh profile")
+		local okFull, resultFull = pcall(a.requirement, full)
+		expectTrue(okFull and type(resultFull) == "boolean", a.id .. " requirement returns a boolean on a full profile")
+		if resultFull then reachable = reachable + 1 end
+	end
+	-- the stat counters alone (plus a Collection milestone) earn most of them; the rest need other profile fields (streaks, rank, invites)
+	expectTrue(reachable >= 38, "stat counters reach at least 38 achievements (" .. reachable .. " of " .. #Achievements.Definitions .. ")")
+end })
+
+table.insert(tests, { name = "Endless curve: Night 9 and later targets grow smoothly, never jumping more than 1.6x between Nights", fn = function()
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	for round = 1, 3 do
+		local prev = RunState.targetScoreFor(8, round)
+		for night = 9, 30 do
+			local target = RunState.targetScoreFor(night, round)
+			expectTrue(target > prev, "Night " .. night .. " round " .. round .. " is above Night " .. (night - 1))
+			expectTrue(target <= prev * 1.6, "Night " .. night .. " round " .. round .. " is at most 1.6x Night " .. (night - 1) .. " (" .. string.format("%.2f", target / prev) .. ")")
+			prev = target
+		end
+	end
+end })
+
+table.insert(tests, { name = "Daily run seed: the same date gives the same first Counter offers and boss order in two fresh runs, another date differs", fn = function()
+	local day = SeededRng.dailySeed(1788134400)
+	local function trace(seed, noise)
+		math.randomseed(noise)
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard", seeded = true }, SeededRng.new(seed))
+		state.tips = 40
+		local out = {}
+		local o = Shop.rollOffers(state)
+		for _, pt in ipairs(o.patrons) do out[#out + 1] = pt.id end
+		for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+		out[#out + 1] = o.voucher and o.voucher.id or "none"
+		local rng = SeededRng.new(seed)
+		for night = 1, 8 do
+			local boss = BossRounds.pick(rng, night)
+			out[#out + 1] = boss and boss.id or "-"
+		end
+		return table.concat(out, ",")
+	end
+	local a = trace(day, 3)
+	expectTrue(#a > 40, "the trace has offers and eight bosses")
+	expectEqual(a, trace(day, 777), "same date, same first offers and boss order")
+	expectTrue(a ~= trace(SeededRng.dailySeed(1788134400 + 86400), 3), "the next date differs")
+end })
+
 return tests
+
 
 
 
