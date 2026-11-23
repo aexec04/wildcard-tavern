@@ -31463,6 +31463,47 @@ table.insert(tests, { name = "Collection header: no Next unlock line, the bar is
 	end
 end })
 
+table.insert(tests, { name = "Tome pages: Back returns to the screen the visit began on (table, Round Select, shop, menu, map); a tab switch hides the old page at once", fn = function()
+	local PO = require(script.Parent.Parent.Engine.PanelOrigin)
+	local PM = require(script.Parent.Parent.Engine.PopMotion)
+	for _, screen in ipairs({ "table", "roundSelect", "shop", "menu", "map" }) do
+		local st = PO.new()
+		PO.opened(st, screen)
+		for _ = 1, 4 do PO.opened(st, "menu") end -- Collection, Card Sets, Badges, Legend hops keep the origin
+		expectEqual(PO.backTarget(st).screen, screen, "Back goes to " .. screen)
+		expectTrue(PO.backTarget(st).close, "Back closes the pages")
+	end
+	local page, popup = PM.plan(false, true), PM.plan(false, false)
+	expectEqual(PM.outDuration(page, true, true), PM.INSTANT, "a page that another page replaces leaves at once")
+	expectEqual(PM.outDuration(page, true, false), PM.DURATION, "a plain close of a page still fades")
+	expectEqual(PM.outDuration(popup, false, true), PM.DURATION, "a small popup keeps its fade")
+	expectEqual(PM.outDuration(PM.plan(true, true), true, false), PM.INSTANT, "Calm mode is instant")
+	-- one page open at a time: model the six Tome pages through OverlayManager.open's close-all-then-open
+	local visible, closers = {}, {}
+	local pages = { "collection", "cosmeticSets", "badges", "legend", "flair", "stats" }
+	for _, id in ipairs(pages) do closers[id] = function() visible[id] = false end end
+	local function open(id)
+		for other, fn in pairs(closers) do if other ~= id then fn() end end
+		visible[id] = true
+	end
+	for _, id in ipairs({ "collection", "cosmeticSets", "badges", "legend", "flair", "stats", "collection" }) do
+		open(id)
+		local n = 0
+		for _, v in pairs(visible) do if v then n = n + 1 end end
+		expectEqual(n, 1, "only " .. id .. " is visible after switching to it")
+	end
+	local f = io and io.open and io.open("src/Client/OverlayManager.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("closeAllExcept(name)", 1, true) ~= nil and src:find("switching", 1, true) ~= nil, "OverlayManager.open closes every other page and reports the switch")
+		local vh = io.open("src/Client/VisualHelpers.lua", "r")
+		if vh then
+			local vs = vh:read("*a"); vh:close()
+			expectTrue(vs:find("OverlayManager).switching()", 1, true) ~= nil, "popOut asks whether a page switch is under way")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, full screen pages fade only, Calm mode is static", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PopMotion)
 	local normal = PM.plan(false, false)
