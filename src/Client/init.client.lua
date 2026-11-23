@@ -904,6 +904,15 @@ do -- Tavern News panel (Client/NewsPanel.lua): the banner on the menu opens it
 	end)
 	if not ok then warn("[Client] NewsPanel failed: " .. tostring(err)) end
 end
+do -- What's new plate (Client/WhatsNewPlate.lua): once per update, only over the Menu
+	local ok, err = pcall(function()
+		require(script.WhatsNewPlate).init({
+			screenGui = screenGui, menuFrame = MenuScreen.menuFrame, remote = remotes:WaitForChild("DismissWhatsNew"),
+			playClickSfx = SoundModule.playClickSfx, roundCorner = VisualHelpersModule.roundCorner,
+		})
+	end)
+	if not ok then warn("[Client] WhatsNewPlate failed: " .. tostring(err)) end
+end
 do -- The Tavern Store (Client/StorePanel.lua): opened from the menu tile and once after the second run
 	local ok, err = pcall(function()
 		require(script.StorePanel).init({
@@ -2275,6 +2284,7 @@ local function render(state)
 	pcall(require(script.MenuTicker).update, state) -- best Night and best hand line on the menu plate
 	pcall(require(script.StorePanel).update, state) -- keeps an open Store current; opens it once after the second run
 	pcall(require(script.NewsPanel).update, state) -- News banner on the menu and the News panel, display only
+	pcall(require(script.WhatsNewPlate).update, state) -- the one What's new plate on the menu, display only
 	pcall(require(script.FeelHooks).update, state) -- coin, discard and shuffle sounds from state changes, audio only
 	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win

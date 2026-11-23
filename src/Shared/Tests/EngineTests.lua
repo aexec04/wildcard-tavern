@@ -38763,7 +38763,7 @@ table.insert(tests, { name = "Store: readable button plates, 24 px under the car
 	local Store = require(script.Parent.Parent.Engine.Store)
 	for _, def in ipairs(Store.Items) do
 		if def.id == "vip" then
-			expectEqual(def.description, "A little sparkle for regulars. A second badge slot, no power.")
+			expectEqual(def.description, "A gold star and a second badge slot, no power.")
 			expectTrue(#def.description <= 62, "VIP text is short enough for three lines")
 		end
 	end
@@ -38772,6 +38772,155 @@ table.insert(tests, { name = "Store: readable button plates, 24 px under the car
 	expectTrue(src:find("TextTruncate = Enum.TextTruncate.AtEnd", 1, true) ~= nil, "card text is limited to its box")
 	expectTrue(not src:find("Take (Studio)", 1, true), "no Studio wording on a button")
 	expectTrue(src:find('paintButton(button, "plate", row.listOnly)', 1, true) ~= nil, "Info keeps the gold outline")
+end })
+
+table.insert(tests, { name = "Store tiles: launch icon id wins, then bundle art, then emoji; Buy plate 44 px; ink 7:1 on the tile paper", fn = function()
+	local LI = require(script.Parent.Parent.Engine.LaunchIcons)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local bundle = require(script.Parent.Parent.Engine.StoreBundleArt)
+	for id, art in pairs(LI.Ids) do
+		expectTrue(LI.wellFormed(art), "launch icon " .. tostring(id) .. " is a real image id")
+		local known = false
+		for _, item in ipairs(Store.Items) do if item.id == id then known = true end end
+		expectTrue(known, "launch icon key " .. tostring(id) .. " is a Store item")
+	end
+	for _, item in ipairs(Store.Items) do
+		local pick = LI.imageFor(item.id, bundle)
+		if LI.Ids[item.id] then expectEqual(pick, LI.Ids[item.id]) else expectEqual(pick, bundle[item.id]) end
+	end
+	expectEqual(LI.imageFor("vip", {}), LI.Ids.vip) -- nothing anywhere: nil, the drawn emoji stays
+	expectEqual(LI.imageFor("no_such_item", bundle), nil)
+	expectEqual(LI.wellFormed("rbxassetid://0"), false)
+	expectEqual(LI.wellFormed("rbxassetid://123"), true)
+	expectTrue(CS.contrastRatio({ 60, 40, 22 }, { 222, 198, 150 }) >= 7, "ink on parchment 7:1")
+	if not io then return end
+	local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("UDim2.new(1, -36, 0, 44)", 1, true) ~= nil, "Buy plate is 44 px tall")
+	expectTrue(src:find("LaunchIcons", 1, true) ~= nil, "the tile asks LaunchIcons first")
+end })
+
+table.insert(tests, { name = "Purchase copy honesty: every pass, product and bundle line is plain, kid safe, no fake discount or pay to win wording, tile lines 60 characters or less", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	local banned = { "discount", "sale", "% off", "save ", "best value", "limited", "hurry", "random", "chance", "odds", "lucky", "mystery", "loot",
+		"boost", "stronger", "advantage", "win more", "pay to", "cheaper", "lower price", "balatro", "—", "–", "--" }
+	local lines = {}
+	local function add(where, text) lines[#lines + 1] = { where = where, text = text } end
+	for _, item in ipairs(Store.Items) do
+		expectTrue(type(item.description) == "string" and #item.description > 0, item.id .. " has a description")
+		add("store " .. item.id .. " description", item.description)
+		add("store " .. item.id .. " name", item.name)
+		for i, perk in ipairs(item.perks or {}) do add("store " .. item.id .. " perk " .. i, perk) end
+		-- tiles: the description and every perk fit in 60 characters
+		expectTrue(#item.description <= 60, item.id .. " tile description is 60 characters or less (" .. #item.description .. ")")
+		for i, perk in ipairs(item.perks or {}) do expectTrue(#perk <= 60, item.id .. " perk " .. i .. " is 60 characters or less") end
+		if item.category == "cosmetic" then
+			local lowDesc = item.description:lower()
+			expectTrue(lowDesc:find("looks only", 1, true) or lowDesc:find("no power", 1, true) or item.contents ~= nil or item.seasonPremium ~= nil,
+				item.id .. " says it is cosmetic or holds only cosmetics")
+		end
+	end
+	for _, pass in ipairs(GamePasses.Definitions) do add("pass " .. pass.id, pass.description); add("pass " .. pass.id .. " name", pass.name) end
+	for _, product in ipairs(GamePasses.DeveloperProducts or {}) do add("product " .. product.id, product.description); add("product " .. product.id .. " name", product.name) end
+	expectTrue(#lines >= 20, "the audit lists every line (" .. #lines .. ")")
+	for _, l in ipairs(lines) do
+		expectTrue(type(l.text) == "string", l.where .. " has text")
+		local low = tostring(l.text):lower()
+		for _, word in ipairs(banned) do
+			expectTrue(not low:find(word, 1, true), l.where .. " must not say '" .. word .. "'")
+		end
+	end
+	expectEqual(#Store.audit(), 0)
+end })
+
+table.insert(tests, { name = "What's new plate: once per update, new profiles skip it, old saves see it once, junk is safe, fits four sizes with a 44 px dismiss", fn = function()
+	local WN = require(script.Parent.Parent.Engine.WhatsNew)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(#WN.Entries, 3)
+	for i, line in ipairs(WN.Entries) do
+		expectTrue(#line <= WN.MAX_LINE, "line " .. i .. " is 60 characters or less")
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "line " .. i .. " is plain text")
+	end
+	-- a brand new profile has nothing to catch up on; an older save without the field sees the plate once
+	expectEqual(WN.view(PlayerProfile.new()), nil)
+	local old = PlayerProfile.migrate({})
+	expectTrue(WN.view(old) ~= nil, "an old save sees the plate")
+	expectEqual(#WN.view(old).lines, 3)
+	expectTrue(WN.dismiss(old), "dismiss moves to the current version")
+	expectEqual(WN.view(old), nil)
+	expectEqual(WN.dismiss(old), false) -- a second dismiss changes nothing (no extra save)
+	-- it survives a save and load
+	expectEqual(PlayerProfile.migrate(old).whatsNewSeen, WN.VERSION)
+	expectEqual(WN.view(PlayerProfile.migrate(old)), nil)
+	-- raising the version shows it again, junk never errors or changes the profile
+	for _, junk in ipairs({ "x", -4, 0/0, math.huge, {}, true, 99 }) do
+		expectTrue(WN.cleanSaved(junk) >= 0 and WN.cleanSaved(junk) <= WN.VERSION, "cleanSaved stays in range")
+	end
+	expectEqual(WN.view(nil), nil)
+	expectEqual(WN.dismiss("junk"), false)
+	-- layout: inside the screen, lines inside the plate and clear of each other, dismiss plate 44 px
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 957 } }) do
+		local r = WN.layout(sz[1], sz[2])
+		local p = r.plate
+		expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= sz[1] and p.y + p.h <= sz[2], "plate on screen at " .. sz[1] .. "x" .. sz[2])
+		local function inside(a) return a.x >= p.x and a.y >= p.y and a.x + a.w <= p.x + p.w and a.y + a.h <= p.y + p.h end
+		expectTrue(inside(r.title) and inside(r.button), "title and button inside the plate")
+		local prevBottom = r.title.y + r.title.h
+		for i, l in ipairs(r.lines) do
+			expectTrue(inside(l) and l.y >= prevBottom, "line " .. i .. " inside and below the one above")
+			prevBottom = l.y + l.h
+		end
+		expectTrue(r.button.y >= prevBottom, "button below the last line")
+		expectTrue(r.button.h >= 44 and r.button.w >= 44, "Got it is 44 px or more")
+	end
+	if not io then return end
+	local f = assert(io.open("src/Server/init.server.lua", "r")); local srv = f:read("a"); f:close()
+	expectTrue(srv:find('RateLimit.allow(player.UserId, "Rem.DismissWhatsNew"', 1, true) ~= nil, "the dismiss remote is rate limited")
+	f = assert(io.open("src/Client/WhatsNewPlate.lua", "r")); local cli = f:read("a"); f:close()
+	expectTrue(not cli:find("TweenService", 1, true), "no tween, Calm mode is static")
+end })
+
+table.insert(tests, { name = "Invite and spectate states: every state has one kind line of 60 characters or less, engine reasons map to them, the toast plate fits four sizes", fn = function()
+	local IS = require(script.Parent.Parent.Engine.InviteStates)
+	for _, key in ipairs({ "sent", "joined", "declined", "full", "unavailable", "failed", "private", "blocked", "notInRun", "already", "self", "stopped", "removed", "unknown" }) do
+		local line = IS.Lines[key]
+		expectTrue(type(line) == "string" and #line > 0, key .. " has a line")
+		expectTrue(#line <= IS.MAX_LINE, key .. " is 60 characters or less (" .. #line .. ")")
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), key .. " is plain text")
+		expectTrue(not line:lower():find("error", 1, true) and not line:lower():find("denied", 1, true), key .. " is kind, not a raw error")
+	end
+	-- every reason the engine can give maps to a kind line, never to the raw engine text
+	for reason, key in pairs(IS.Reasons) do
+		expectEqual(IS.spectateLine(reason), IS.Lines[key])
+		if key ~= "stopped" then expectTrue(IS.Lines[key] ~= reason, reason .. " is reworded") end -- "Stopped watching." was already kind
+	end
+	local Sp = require(script.Parent.Parent.Engine.Spectate)
+	local state = Sp.new()
+	local _, why1 = Sp.canWatch(state, 1, 1); expectEqual(IS.spectateLine(why1), IS.Lines.self)
+	local _, why2 = Sp.canWatch(state, 1, 2, { allows = false }); expectEqual(IS.spectateLine(why2), IS.Lines.private)
+	local _, why3 = Sp.canWatch(state, 1, 2, { blocked = true }); expectEqual(IS.spectateLine(why3), IS.Lines.blocked)
+	local _, why4 = Sp.canWatch(state, "x", 2); expectEqual(IS.spectateLine(why4), IS.Lines.unknown)
+	for i = 1, Sp.MAX_SPECTATORS do Sp.watch(state, 100 + i, 5) end
+	local _, whyFull = Sp.canWatch(state, 99, 5); expectEqual(IS.spectateLine(whyFull), IS.Lines.full)
+	expectEqual(IS.spectateLine("junk"), IS.Lines.unknown)
+	expectEqual(IS.spectateLine(nil), IS.Lines.unknown)
+	expectEqual(IS.line("no_such_state"), IS.Lines.unknown)
+	-- the toast: inside the screen, 52 px tall, room for two 16 px lines of the longest line
+	local longest = 0
+	for _, line in pairs(IS.Lines) do longest = math.max(longest, #line) end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 957 } }) do
+		local r = IS.plate(sz[1], sz[2])
+		expectTrue(r.x >= 12 and r.x + r.w <= sz[1] - 12 and r.y >= 0 and r.y + r.h <= sz[2], "toast on screen at " .. sz[1] .. "x" .. sz[2])
+		expectTrue(r.h >= 44, "toast is 44 px or taller")
+		-- 16 px Gotham averages about 9 px per character: the longest line must fit in two lines of the plate width
+		expectTrue(longest * 9 <= 2 * (r.w - 16), "the longest line fits two lines at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Server/init.server.lua", "r")); local srv = f:read("a"); f:close()
+	expectTrue(srv:find('reason = require(Engine.InviteStates).spectateLine(reason)', 1, true) ~= nil, "the server sends the kind line, not the engine reason")
+	f = assert(io.open("src/Client/InvitePrompt.lua", "r")); local cli = f:read("a"); f:close()
+	expectTrue(cli:find("GameInvitePromptClosed", 1, true) ~= nil and cli:find('"declined"', 1, true) ~= nil and cli:find('"sent"', 1, true) ~= nil, "sent and declined are both shown")
 end })
 
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
@@ -44221,7 +44370,7 @@ table.insert(tests, { name = "Name and title display: a 20 character name clips 
 	expectTrue(NF.maxChars(0, 14) == NF.MIN_CHARS and NF.maxChars(nil, nil) == NF.MIN_CHARS)
 	local LBT = require(script.Parent.Parent.Engine.LeaderboardText)
 	local lay = LBT.layout(800, 450)
-	local nameW = lay.scroll.w - 220 -- the name label's width in DailyLeaderboard
+	local nameW = LBT.rowParts(lay.scroll.w - 6, "#10", LBT.stats(false, 12, 5)).name.w -- the name label's width in DailyLeaderboard
 	expectTrue(NF.maxChars(nameW, 14) >= 20 + #" (you)", "a 20 character name and (you) fit a row at 800x450")
 	-- titles
 	expectEqual(NF.withTitle("Sam", "Regular", 30), "Sam  |  Regular")
@@ -45890,6 +46039,59 @@ table.insert(tests, { name = "SetGlow: a newly formed set lights its member seat
 		local f = assert(io.open("src/Client/SetGlowFX.lua", "r")); local src = f:read("*a"); f:close()
 		expectTrue(not src:find("TweenService", 1, true), "no tween, so Calm is static")
 	end
+end })
+
+table.insert(tests, { name = "Leaderboard row plates: rank, name and stats never overlap with the biggest scores at four sizes, text is 14 px, ink reads 4.5:1 on the classic rows and the row plate of every Card Set", fn = function()
+	local LBT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local CS = CosmeticSets
+	local ratio = CS.contrastRatio
+	expectEqual(LBT.ROW_TEXT, 14)
+	expectTrue(LBT.ROW_H >= 44)
+	local ranks = { "#1", "#10", "#1,000", "#99,999" }
+	local statsList = {
+		LBT.stats(false, 1, 0), LBT.stats(false, 99999, 99999), LBT.stats(true, 12, 480), LBT.stats(true, 99999, 9999999),
+	}
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local lay = LBT.layout(sz[1], sz[2])
+		local rowW = lay.scroll.w - 6 -- the scroll bar
+		for _, rank in ipairs(ranks) do
+			for _, stats in ipairs(statsList) do
+				local label = sz[1] .. "x" .. sz[2] .. " " .. rank .. " " .. stats
+				local p = LBT.rowParts(rowW, rank, stats)
+				local order = { p.rank, p.name, p.stats }
+				for i, r in ipairs(order) do
+					expectTrue(r.x >= LBT.ROW_PAD and r.w > 0 and r.h == LBT.ROW_H and r.x + r.w <= rowW - LBT.ROW_PAD + 0.5, label .. " part " .. i .. " is inside the row")
+					if i > 1 then
+						expectTrue(r.x >= order[i - 1].x + order[i - 1].w + LBT.ROW_PAD - 0.5, label .. " part " .. i .. " clears part " .. (i - 1))
+					end
+				end
+				expectTrue(p.name.w >= LBT.NAME_MIN_W, label .. " the name keeps " .. p.name.w .. " px")
+				expectTrue(p.stats.w >= LBT.textWidth(stats, false), label .. " the stats line fits whole: " .. p.stats.w)
+				expectTrue(p.rank.w >= LBT.textWidth(rank, true), label .. " the rank fits whole")
+			end
+		end
+	end
+	-- the classic rows (brown plate, you row, cream name, soft stats, gold rank) read 4.5:1
+	local classicRow, classicYou = { 50, 42, 34 }, { 80, 60, 32 }
+	for _, bg in ipairs({ classicRow, classicYou }) do
+		for _, ink in ipairs({ { 250, 240, 220 }, { 200, 185, 165 }, { 255, 214, 130 } }) do
+			expectTrue(ratio(ink, bg) >= 4.5, "classic row ink " .. table.concat(ink, ",") .. " on " .. table.concat(bg, ",") .. " is " .. ratio(ink, bg))
+		end
+	end
+	-- every Card Set's row plate: name, stats on the plain and the you row, and the rank badge ink on its badge
+	local checked = 0
+	for _, set in ipairs(CS.Definitions) do
+		local st = CS.rowStyleOf(set.id)
+		if st then
+			checked = checked + 1
+			for _, bg in ipairs({ st.row, st.hot }) do
+				expectTrue(ratio(st.ink, bg) >= 4.5, set.id .. " name ink 4.5:1")
+				expectTrue(ratio(st.sub, bg) >= 4.5, set.id .. " stats ink 4.5:1")
+			end
+			expectTrue(ratio(st.badgeInk, st.badge) >= 4.5, set.id .. " rank badge ink 4.5:1")
+		end
+	end
+	expectTrue(checked >= 13, "every themed Card Set checked: " .. checked)
 end })
 
 return tests

@@ -29,7 +29,7 @@ Store.MAX_RECEIPTS = 100
 Store.Items = {
 	{
 		id = "starter_pack", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Starter Pack",
-		description = "A card back, a Card Set and a title to start your collection.",
+		description = "A card back, a Card Set and a title. Looks only.",
 		contents = { cardBacks = { "gilded_ledger" }, sets = { "winter_evening" }, titles = { "founding_guest" } },
 		perks = { "Gilded Ledger card back", "Winter Evening Card Set", "Title: Founding Guest" },
 	},
@@ -41,7 +41,7 @@ Store.Items = {
 	},
 	{
 		id = "vip", category = "cosmetic", kind = "pass", passId = "vip", icon = "⭐", name = "VIP",
-		description = "A little sparkle for regulars. A second badge slot, no power.",
+		description = "A gold star and a second badge slot, no power.",
 		perks = { "Gold star beside your name", "A second badge slot" },
 	},
 	{
@@ -57,7 +57,7 @@ Store.Items = {
 local function flairItem(id, flairId, name, icon, what)
 	return {
 		id = id, category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = icon, name = name, section = "flair",
-		description = "Flair for your table: " .. what .. ". Looks only, never changes your score.",
+		description = "Flair: " .. what .. ". Looks only.",
 		contents = { flair = { flairId } }, perks = { name },
 	}
 end
@@ -67,19 +67,19 @@ Store.Items[#Store.Items + 1] = flairItem("flair_crown_finisher", "crown_finishe
 Store.Items[#Store.Items + 1] = flairItem("flair_star_aura", "star_aura", "Star Aura", "🌟", "a star aura around your name")
 Store.Items[#Store.Items + 1] = {
 	id = "flair_bundle", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
-	description = "All four Store Flair pieces at a lower price. Looks only, never changes your score.",
+	description = "All four Flair pieces in one bundle. Looks only.",
 	contents = { flair = { "rainbow_numbers", "ribbon_trail", "crown_finisher", "star_aura" } },
 	perks = { "Rainbow Numbers", "Ribbon Trail", "Crown Flash", "Star Aura" },
 }
 -- one premium pass per season (`seasonPremium` = the season id); bought once per season
 Store.Items[#Store.Items + 1] = {
 	id = "premium_harvest_moon", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
-	seasonPremium = "harvest_moon", description = "A second reward row on every tier of the Harvest Moon season. Looks only.",
+	seasonPremium = "harvest_moon", description = "A second reward row on every Harvest Moon tier.",
 	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
 Store.Items[#Store.Items + 1] = {
 	id = "premium_winter_welcome", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
-	seasonPremium = "winter_welcome", description = "A second reward row on every tier of the Winter Welcome season. Looks only.",
+	seasonPremium = "winter_welcome", description = "A second reward row on every Winter Welcome tier.",
 	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
 

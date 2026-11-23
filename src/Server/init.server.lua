@@ -959,6 +959,7 @@ local function serializeState(session, player)
 		lastInterest = state.lastInterest, -- the interest paid at the last round win (hint "first_interest")
 		season = profiles[player] and require(Engine.SeasonTrack).view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
+		whatsNew = profiles[player] and require(Engine.WhatsNew).view(profiles[player]) or nil, -- the one What's new plate, until dismissed
 		dailyTheme = LiveEvents.dailyLabel(LoginStreak.dayNumber(os.time())), -- text beside the Daily date only
 		store = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio()) or nil,
 		storePrompt = storePrompts[player], -- seq: open the Store on the Starter Pack once
@@ -2728,6 +2729,17 @@ Rem.MarkSeenNew.OnServerEvent:Connect(function(player, keys)
 	end
 end)
 
+-- WHAT'S NEW: the client sends nothing; the profile moves to the current plate version.
+Rem.DismissWhatsNew.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.DismissWhatsNew", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile then return end
+	if require(Engine.WhatsNew).dismiss(profile) then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
 -- RUN SUMMARY: the badge is rebuilt from the server's own run state, the client sends nothing.
 Rem.SaveBadge.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.SaveBadge", os.clock()) then return end
@@ -3288,7 +3300,7 @@ Rem.SpectateAction.OnServerEvent:Connect(function(player, action, arg)
 		local targetProfile = target and profiles[target]
 		local targetSession = target and sessions[target]
 		if not target or not targetProfile or not targetSession or targetSession.phase == "gameover" or targetSession.isTutorial then
-			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = "That player is not in a run." })
+			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = require(Engine.InviteStates).line("notInRun") })
 			return
 		end
 		local previous = Spec.M.watching(Spec.state, player.UserId)
@@ -3296,7 +3308,7 @@ Rem.SpectateAction.OnServerEvent:Connect(function(player, action, arg)
 			allows = Spec.M.allows(targetProfile), blocked = Spec.M.isBlocked(targetProfile, player.UserId),
 		})
 		if not ok then
-			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = reason })
+			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = require(Engine.InviteStates).spectateLine(reason) })
 			return
 		end
 		Analytics.single(player, "spectate_started", 1, {}) -- tuning data (capped)
@@ -3309,7 +3321,7 @@ Rem.SpectateAction.OnServerEvent:Connect(function(player, action, arg)
 		local target = Spec.M.stop(Spec.state, player.UserId)
 		local targetPlayer = target and Players:GetPlayerByUserId(target)
 		if targetPlayer then Spec.notifyCount(targetPlayer) end
-		Spec.send({ player.UserId }, { kind = "ended", reason = "Stopped watching." })
+		Spec.send({ player.UserId }, { kind = "ended", reason = require(Engine.InviteStates).line("stopped") })
 	elseif action == "react" then
 		local ok, targetId = Spec.M.reaction(Spec.state, player.UserId, arg, os.clock())
 		if ok then
@@ -3325,7 +3337,7 @@ Rem.SpectateAction.OnServerEvent:Connect(function(player, action, arg)
 				if Spec.M.block(profile, targetId) then
 					profileDirty[player] = true
 					local removed = Spec.M.enforce(Spec.state, player.UserId, true, function(id) return id == targetId end)
-					Spec.release(player, removed, "You were removed from this table.")
+					Spec.release(player, removed, require(Engine.InviteStates).line("removed"))
 				end
 			elseif Spec.M.unblock(profile, targetId) then
 				profileDirty[player] = true

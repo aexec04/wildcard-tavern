@@ -23,6 +23,7 @@ Rem.BuyCosmeticSet = newRemote("BuyCosmeticSet") -- (player, setId)
 Rem.EquipCosmeticSet = newRemote("EquipCosmeticSet") -- (player, setId)
 Rem.ClaimLoginReward = newRemote("ClaimLoginReward") -- (player, rewardDay)
 Rem.MarkSeenNew = newRemote("MarkSeenNew") -- (player, array of "kind:id" keys): clears New ribbons, validated against what the profile owns
+Rem.DismissWhatsNew = newRemote("DismissWhatsNew") -- (player): the What's new plate was dismissed, saved as the current version
 Rem.SaveBadge = newRemote("SaveBadge") -- (player): saves the finished run's badge as the profile badge
 Rem.EquipCardBack = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 Rem.EquipJourneyReward = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
