@@ -376,7 +376,7 @@ function DebugGoto.init(deps)
 			elseif target.kind == "opener" then
 				OverlayManager.closeAllExcept("")
 				showMenu()
-				if not OverlayManager.open(target.opener) then error("no opener for " .. target.opener) end
+				if not OverlayManager.open(target.opener, target.arg) then error("no opener for " .. target.opener) end
 			elseif target.kind == "map" then
 				-- the real Tavern Map: Client/Journey registers its opener (the corner button's path) on this module
 				OverlayManager.closeAllExcept("")

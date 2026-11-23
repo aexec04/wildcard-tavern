@@ -10,7 +10,7 @@ LeaderboardText.SKELETON_ROWS = 3 -- placeholder rows shown while the board load
 LeaderboardText.SHIMMER_SECONDS = 1.2 -- one light sweep; not played at all in Calm mode or Reduce motion
 
 LeaderboardText.MIN_TEXT = 14
-LeaderboardText.MIN_PANEL_W = 620 -- six tab buttons share one row, they need this much
+LeaderboardText.MIN_PANEL_W = 700 -- six tab buttons share one row, plus 56 px kept clear for the round close X
 LeaderboardText.MIN_PANEL_H = 330
 LeaderboardText.LOADING = "Loading the board..."
 LeaderboardText.OFFLINE = "Couldn't reach the board. Press Close and try again in a moment."
@@ -46,7 +46,22 @@ end
 
 -- yourBestOk false: couldn't check. yourBest nil: no score yet.
 function LeaderboardText.yourBest(endless, period, ok, best)
-	if not ok then return LeaderboardText.BEST_FAILED end
+	if not ok then -- The six tab rects (x, y, w, h) by name, in panel pixels: Daily, Weekly, Endless, Global on the left, Standard and Revived on the right.
+function LeaderboardText.tabRects(vw, vh)
+	local L = LeaderboardText
+	local lay = L.layout(vw, vh)
+	local r = {}
+	for i, name in ipairs({ "daily", "weekly", "endless", "global" }) do
+		r[name] = { x = L.TAB_LEFT + (i - 1) * L.TAB_STEP, y = L.TAB_TOP, w = L.TAB_W, h = L.TAB_H }
+	end
+	r.standard = { x = lay.tabsRight.x, y = L.TAB_TOP, w = L.TAB_W, h = L.TAB_H }
+	r.revived = { x = lay.tabsRight.x + L.TAB_W + 6, y = L.TAB_TOP, w = L.TAB_W_WIDE, h = L.TAB_H }
+	return r
+end
+
+LeaderboardText.TAB_LABELS = { daily = "Daily", weekly = "Weekly", endless = "Endless", global = "Global", standard = "Standard", revived = "Revived" }
+
+return LeaderboardText.BEST_FAILED end
 	if not best then
 		return "No score " .. period .. " yet. Finish a run to get on the board!"
 	end
@@ -96,16 +111,57 @@ function LeaderboardText.rowParts(rowW, rankText, statsText)
 	}
 end
 
+-- Vertical rows of the panel, shared with Client/DailyLeaderboard: tab buttons are 44 px tall (touch size), then the title, the
+-- "your best" line, the scroll, and a 44 px Close button 12 px above the bottom edge.
+LeaderboardText.TAB_H = 44
+LeaderboardText.TAB_TOP = 8 -- clear space between the plate border and the tab row
+LeaderboardText.TAB_LEFT = 12
+LeaderboardText.TAB_W = 96
+LeaderboardText.TAB_STEP = 100
+LeaderboardText.TAB_W_WIDE = 108 -- Revived: the longest label
+LeaderboardText.CLOSE_X_RESERVE = 56 -- the round close X (44 px hit area, 8 px inset) owns the top right corner
+LeaderboardText.EMPTY_TEXT = 16 -- the friendly line on an empty board
+LeaderboardText.TITLE_Y = 58
+LeaderboardText.TITLE_H = 26
+LeaderboardText.BEST_Y = 86
+LeaderboardText.BEST_H = 20
+LeaderboardText.SCROLL_Y = 110
+LeaderboardText.CLOSE_H = 44
+LeaderboardText.CLOSE_W = 140
+LeaderboardText.BOTTOM_PAD = 12
+LeaderboardText.SCROLL_GAP = 8
+
 -- Rects (x, y, w, h) inside the panel, matching DailyLeaderboard's layout.
 function LeaderboardText.layout(vw, vh)
-	local w, h = LeaderboardText.panelSize(vw, vh)
+	local L = LeaderboardText
+	local w, h = L.panelSize(vw, vh)
+	local closeY = h - L.BOTTOM_PAD - L.CLOSE_H
 	return {
 		panel = { w = w, h = h },
-		tabsLeft = { x = 0, y = 0, w = 288 + 90, h = 26 },
-		tabsRight = { x = w - 186, y = 0, w = 186, h = 26 },
-		scroll = { x = 15, y = 77, w = w - 30, h = h - 142 },
-		close = { x = w / 2 - 70, y = h - 50, w = 140, h = 40 },
+		tabsLeft = { x = L.TAB_LEFT, y = L.TAB_TOP, w = 3 * L.TAB_STEP + L.TAB_W, h = L.TAB_H },
+		tabsRight = { x = w - L.CLOSE_X_RESERVE - L.TAB_W_WIDE - 6 - L.TAB_W, y = L.TAB_TOP,
+			w = L.TAB_W + 6 + L.TAB_W_WIDE, h = L.TAB_H },
+		closeX = { x = w - 8 - 44, y = 8, w = 44, h = 44 },
+		title = { x = 0, y = L.TITLE_Y, w = w, h = L.TITLE_H },
+		best = { x = 0, y = L.BEST_Y, w = w, h = L.BEST_H },
+		scroll = { x = 15, y = L.SCROLL_Y, w = w - 30, h = closeY - L.SCROLL_GAP - L.SCROLL_Y },
+		close = { x = w / 2 - L.CLOSE_W / 2, y = closeY, w = L.CLOSE_W, h = L.CLOSE_H },
 	}
 end
+
+-- The six tab rects (x, y, w, h) by name, in panel pixels: Daily, Weekly, Endless, Global on the left, Standard and Revived on the right.
+function LeaderboardText.tabRects(vw, vh)
+	local L = LeaderboardText
+	local lay = L.layout(vw, vh)
+	local r = {}
+	for i, name in ipairs({ "daily", "weekly", "endless", "global" }) do
+		r[name] = { x = L.TAB_LEFT + (i - 1) * L.TAB_STEP, y = L.TAB_TOP, w = L.TAB_W, h = L.TAB_H }
+	end
+	r.standard = { x = lay.tabsRight.x, y = L.TAB_TOP, w = L.TAB_W, h = L.TAB_H }
+	r.revived = { x = lay.tabsRight.x + L.TAB_W + 6, y = L.TAB_TOP, w = L.TAB_W_WIDE, h = L.TAB_H }
+	return r
+end
+
+LeaderboardText.TAB_LABELS = { daily = "Daily", weekly = "Weekly", endless = "Endless", global = "Global", standard = "Standard", revived = "Revived" }
 
 return LeaderboardText

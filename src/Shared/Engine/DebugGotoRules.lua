@@ -28,6 +28,9 @@ DebugGotoRules.OPENERS = {
 	daily = "dailyRewards", ["daily:done"] = "dailyLeaderboard", weekly = "dailyLeaderboard", settings = "settings",
 }
 
+-- an extra argument handed to the opener: the weekly key opens the leaderboard on its Weekly tab
+DebugGotoRules.OPENER_ARGS = { weekly = "weekly" }
+
 -- every admin jump key, for the header comment and the tests
 DebugGotoRules.ADMIN_KEYS = { "freshsave", "daily", "daily:done", "weekly", "seed", "store", "store:<tab>", "season", "collection", "collection:<tab>",
 	"cardset:<id>", "settings", "share", "tavernmap:night=<n>" }
@@ -228,7 +231,7 @@ function DebugGotoRules.parseCore(value)
 	end
 	if text == "freshsave" then return { kind = "freshsave" } end -- a brand new profile (Studio-only server remote) then the menu
 	local opener = DebugGotoRules.OPENERS[text]
-	if opener then return { kind = "opener", opener = opener, key = text } end
+	if opener then return { kind = "opener", opener = opener, key = text, arg = DebugGotoRules.OPENER_ARGS[text] } end
 	if text == "seed" then return { kind = "round1" } end -- the fixed-seed run (DebugGotoRules.SEED_CODE)
 	if text == "share" then return { kind = "synth", which = "runover", variant = "win" } end -- the win screen holds the Invite and Share lines
 	local tavernNight = text:match("^tavernmap:night=(%d+)$")

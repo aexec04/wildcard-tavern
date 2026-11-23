@@ -114,10 +114,10 @@ return function(deps)
 	addSoftShadow(leaderboardPanel, 18)
 
 	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.
-	local function makeTabButton(text, xOffset, xScale)
+	local function makeTabButton(text, xOffset, xScale, width)
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(0, 90, 0, 26)
-		button.Position = UDim2.new(xScale or 0, xOffset, 0, 0)
+		button.Size = UDim2.new(0, width or LBText.TAB_W, 0, LBText.TAB_H)
+		button.Position = UDim2.new(xScale or 0, xOffset, 0, LBText.TAB_TOP)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 14
 		button.Text = text
@@ -127,23 +127,34 @@ return function(deps)
 		button.Parent = leaderboardPanel
 		polishButton(button, 8)
 		addButtonHoverScale(button)
+		-- the selected tab wears a gold underline (child of the button, shown by updateTabHighlight)
+		local underline = Instance.new("Frame")
+		underline.Name = "SelectedUnderline"
+		underline.AnchorPoint = Vector2.new(0.5, 1)
+		underline.Size = UDim2.new(1, -16, 0, 3)
+		underline.Position = UDim2.new(0.5, 0, 1, -3)
+		underline.BackgroundColor3 = Color3.fromRGB(255, 214, 96)
+		underline.BorderSizePixel = 0
+		underline.Visible = false
+		underline.ZIndex = 23
+		underline.Parent = button
 		return button
 	end
 
-	local dailyTabButton = makeTabButton("\240\159\147\133 Daily", 0)
-	local weeklyTabButton = makeTabButton("\240\159\151\147 Weekly", 96)
+	local dailyTabButton = makeTabButton("\240\159\147\133 Daily", LBText.TAB_LEFT)
+	local weeklyTabButton = makeTabButton("\240\159\151\147 Weekly", LBText.TAB_LEFT + LBText.TAB_STEP)
 	-- ONE MORE ROUND: Standard/Revived toggle, right-aligned on the same row.
-	local standardTabButton = makeTabButton("Standard", -186, 1)
-	local revivedTabButton = makeTabButton("\u{1F4AB} Revived", -90, 1)
+	local standardTabButton = makeTabButton("Standard", -(LBText.CLOSE_X_RESERVE + LBText.TAB_W_WIDE + 6 + LBText.TAB_W), 1)
+	local revivedTabButton = makeTabButton("\u{1F4AB} Revived", -(LBText.CLOSE_X_RESERVE + LBText.TAB_W_WIDE), 1, LBText.TAB_W_WIDE)
 	-- FRIENDS: toggles the board between everyone and only your Roblox friends (plus you).
 	-- ENDLESS board tab, and the scope toggle (it shows the scope you are on: Global or Friends).
-	local endlessTabButton = makeTabButton("\u{267E} Endless", 192)
-	local friendsTabButton = makeTabButton("\u{1F30D} Global", 288)
+	local endlessTabButton = makeTabButton("\u{267E} Endless", LBText.TAB_LEFT + 2 * LBText.TAB_STEP)
+	local friendsTabButton = makeTabButton("\u{1F30D} Global", LBText.TAB_LEFT + 3 * LBText.TAB_STEP)
 	friendsTabButton.TextSize = 15
 
 	local leaderboardTitle = Instance.new("TextLabel")
-	leaderboardTitle.Size = UDim2.new(1, 0, 0, 26)
-	leaderboardTitle.Position = UDim2.new(0, 0, 0, 32)
+	leaderboardTitle.Size = UDim2.new(1, 0, 0, LBText.TITLE_H)
+	leaderboardTitle.Position = UDim2.new(0, 0, 0, LBText.TITLE_Y)
 	leaderboardTitle.BackgroundTransparency = 1
 	leaderboardTitle.Font = Enum.Font.GothamBold
 	leaderboardTitle.TextSize = 22
@@ -153,8 +164,8 @@ return function(deps)
 	leaderboardTitle.Parent = leaderboardPanel
 
 	local yourBestLabel = Instance.new("TextLabel")
-	yourBestLabel.Size = UDim2.new(1, 0, 0, 18)
-	yourBestLabel.Position = UDim2.new(0, 0, 0, 58)
+	yourBestLabel.Size = UDim2.new(1, 0, 0, LBText.BEST_H)
+	yourBestLabel.Position = UDim2.new(0, 0, 0, LBText.BEST_Y)
 	yourBestLabel.BackgroundTransparency = 1
 	yourBestLabel.Font = Enum.Font.Gotham
 	yourBestLabel.TextSize = 14
@@ -167,7 +178,7 @@ return function(deps)
 	revivedBadge.Name = "RevivedBadge"
 	revivedBadge.AnchorPoint = Vector2.new(1, 0)
 	revivedBadge.Size = UDim2.new(0, 100, 0, 20)
-	revivedBadge.Position = UDim2.new(1, -15, 0, 58)
+	revivedBadge.Position = UDim2.new(1, -15, 0, LBText.BEST_Y)
 	revivedBadge.BackgroundColor3 = Color3.fromRGB(70, 120, 150)
 	revivedBadge.Font = Enum.Font.GothamBold
 	revivedBadge.TextSize = 14
@@ -179,8 +190,8 @@ return function(deps)
 	roundCorner(revivedBadge, 9)
 
 	local leaderboardScroll = Instance.new("ScrollingFrame")
-	leaderboardScroll.Size = UDim2.new(1, -30, 1, -142)
-	leaderboardScroll.Position = UDim2.new(0, 15, 0, 77)
+	leaderboardScroll.Size = UDim2.new(1, -30, 1, -(LBText.SCROLL_Y + LBText.SCROLL_GAP + LBText.CLOSE_H + LBText.BOTTOM_PAD))
+	leaderboardScroll.Position = UDim2.new(0, 15, 0, LBText.SCROLL_Y)
 	leaderboardScroll.BackgroundTransparency = 1
 	leaderboardScroll.BorderSizePixel = 0
 	leaderboardScroll.ScrollBarThickness = 8
@@ -195,8 +206,8 @@ return function(deps)
 	leaderboardLayout.Parent = leaderboardScroll
 
 	local leaderboardCloseButton = Instance.new("TextButton")
-	leaderboardCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	leaderboardCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+	leaderboardCloseButton.Size = UDim2.new(0, LBText.CLOSE_W, 0, LBText.CLOSE_H)
+	leaderboardCloseButton.Position = UDim2.new(0.5, -LBText.CLOSE_W / 2, 1, -(LBText.BOTTOM_PAD + LBText.CLOSE_H))
 	leaderboardCloseButton.Font = Enum.Font.GothamBold
 	leaderboardCloseButton.TextSize = 16
 	leaderboardCloseButton.Text = "Close"
@@ -325,12 +336,12 @@ return function(deps)
 
 	local function makeLeaderboardMessage(text)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, 0, 0, 44)
+		label.Size = UDim2.new(1, 0, 0, 64)
 		label.TextWrapped = true
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.Gotham
-		label.TextSize = 14
-		label.TextColor3 = Color3.fromRGB(200, 185, 165)
+		label.TextSize = LBText.EMPTY_TEXT
+		label.TextColor3 = Color3.fromRGB(225, 210, 190)
 		label.Text = text
 		label.ZIndex = 21
 		label.Parent = leaderboardScroll
@@ -345,9 +356,19 @@ return function(deps)
 	-- GLOBAL (everyone, cached on the server) or FRIENDS.
 	local activeScope = Leaderboards.GLOBAL
 
-	local ACTIVE_TAB = Color3.fromRGB(110, 80, 40)
+	local ACTIVE_TAB = Color3.fromRGB(150, 108, 44)
 	local IDLE_TAB = Color3.fromRGB(70, 55, 40)
 	local function updateTabHighlight()
+		local function underline(button, on)
+			local u = button:FindFirstChild("SelectedUnderline")
+			if u then u.Visible = on end
+		end
+		underline(dailyTabButton, activeBoard == "daily")
+		underline(weeklyTabButton, activeBoard == "weekly")
+		underline(endlessTabButton, activeBoard == "endless")
+		underline(standardTabButton, activeBucket == Leaderboards.STANDARD)
+		underline(revivedTabButton, activeBucket == Leaderboards.REVIVED)
+		underline(friendsTabButton, activeScope == Leaderboards.FRIENDS)
 		dailyTabButton.BackgroundColor3 = (activeBoard == "daily") and ACTIVE_TAB or IDLE_TAB
 		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and ACTIVE_TAB or IDLE_TAB
 		endlessTabButton.BackgroundColor3 = (activeBoard == "endless") and ACTIVE_TAB or IDLE_TAB
@@ -495,18 +516,20 @@ return function(deps)
 	-- Escape and a click on the dark area close it (Client/PopupDismiss).
 	require(script.Parent.PopupDismiss).attach(leaderboardBackdrop, { id = "dailyLeaderboard", panel = leaderboardPanel, button = true })
 
-	local function openLeaderboard()
+	local function openLeaderboard(board)
 		playClickSfx()
 		OverlayManager.closeAllExcept("dailyLeaderboard")
+		-- the Studio jump key weekly opens on the Weekly tab; every other open starts on Daily
+		activeBoard = (board == "weekly" or board == "endless") and board or "daily"
 		activeBucket = Leaderboards.STANDARD -- every open starts on Standard
 		activeScope = Leaderboards.GLOBAL -- and on the Global board
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end
-	leaderboardButton.MouseButton1Click:Connect(openLeaderboard)
+	leaderboardButton.MouseButton1Click:Connect(function() openLeaderboard() end)
 	OverlayManager.registerOpener("dailyLeaderboard", openLeaderboard) -- the Menu's chalkboard hotspot
 	if deps.menuTickerButton then -- the main menu strip's "Daily board" button opens the same overlay
-		deps.menuTickerButton.MouseButton1Click:Connect(openLeaderboard)
+		deps.menuTickerButton.MouseButton1Click:Connect(function() openLeaderboard() end)
 	end
 
 	return {}
