@@ -48,9 +48,9 @@ function MusicMix.tension(state)
 	return (tonumber(state.roundScore) or 0) < target * MusicMix.TENSION_BELOW
 end
 
--- gain of the tension layer on top of its bed (the boss track is already tense, so it adds nothing there)
+-- gain of a tension layer on top of the bed: always 0, because only one music loop may play at a time (a second looping
+-- track doubled the bed). MusicMix.tension still says when the last hand is tense, for cues and visuals.
 function MusicMix.tensionGain(screen)
-	if screen == "table" or screen == "map" then return 0.5 end
 	return 0
 end
 

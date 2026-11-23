@@ -34398,7 +34398,7 @@ table.insert(tests, { name = "Music mix: one bed per screen on existing ids, ste
 	expectFalse(M.tension({ phase = "playing", targetScore = 1000, roundScore = 400, handsRemaining = 2 }), "not the last hand")
 	expectFalse(M.tension({ phase = "shop", targetScore = 1000, roundScore = 0, handsRemaining = 1 }), "not on the table")
 	expectFalse(M.tension({ phase = "playing", targetScore = 1000, roundScore = 0, handsRemaining = 1, roundOver = true }), "round already over")
-	expectEqual(M.tensionGain("shop"), 0); expectEqual(M.tensionGain("boss"), 0); expectTrue(M.tensionGain("table") > 0)
+	for _, scr in ipairs({ "menu", "map", "table", "boss", "shop", "runover" }) do expectEqual(M.tensionGain(scr), 0, scr .. " has no second music loop") end
 	-- voices
 	expectEqual(#M.voices({ bed = true, outgoing = true, sting = true, tension = true }), 3, "never more than 3 voices")
 	expectEqual(table.concat(M.voices({ bed = true, outgoing = true, sting = true, tension = true }), ","), "bed,sting,outgoing", "tension is the one dropped")
@@ -34430,6 +34430,26 @@ table.insert(tests, { name = "Music mix: one bed per screen on existing ids, ste
 		expectFalse(src:sub(a, b):find("TweenService", 1, true) ~= nil, "the bed crossfade makes no tweens")
 		f = io.open("src/Client/init.client.lua", "r"); src = f:read("a"); f:close()
 		expectTrue(src:find("MusicMixFX", 1, true) ~= nil, "the hub hands the bed choice to MusicMixFX")
+	end
+end })
+
+table.insert(tests, { name = "One music loop at a time: a fake pool walks every screen change and never holds more than one looping music Sound, MusicMixFX makes no Sound", fn = function()
+	local M = require(script.Parent.Parent.Engine.MusicMix)
+	local pool = { loops = {} }
+	local function setBed(key) -- what Client/Sound.setMusicTrack does: one Sound, its id swapped
+		pool.loops = { bed = key }
+	end
+	local count = function() local n = 0 for _ in pairs(pool.loops) do n = n + 1 end return n end
+	local screens = { "menu", "map", "table", "boss", "shop", "runover", "menu", "table", "map", "boss", "table", "shop", "runover" }
+	for _, scr in ipairs(screens) do
+		setBed(M.bedFor(scr, scr == "table" and "region_snow" or nil).key)
+		if M.tensionGain(scr) > 0 then pool.loops.tension = "boss" end -- the old second loop
+		expectTrue(count() <= 1, "at most one music loop on " .. scr)
+	end
+	if io and io.open then
+		local f = io.open("src/Client/MusicMixFX.lua", "r"); local src = f:read("a"); f:close()
+		expectFalse(src:find('Instance.new("Sound")', 1, true) ~= nil, "MusicMixFX creates no Sound")
+		expectFalse(src:find("Looped", 1, true) ~= nil, "MusicMixFX loops nothing")
 	end
 end })
 
