@@ -6,6 +6,12 @@ function M.landY(fanY, liftY)
 	return (fanY or 0) - math.max(0, liftY or 0)
 end
 
+-- The one pick lift every path uses: the full 24 px (FeelTuning.SELECTED_LIFT), never cut by room, scale or a tween.
+M.FULL = 24
+function M.pickLift(want)
+	return (want and want > 0) and want or M.FULL
+end
+
 -- The lift one card shows: a pick lifts it by selLift, a hover adds hoverLift on the hovered card only. Hovering another card never
 -- changes this card, so a picked card never drops.
 function M.cardLift(picked, hovered, selLift, hoverLift)

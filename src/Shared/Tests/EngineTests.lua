@@ -49372,6 +49372,24 @@ table.insert(tests, { name = "Daily run seed: the same date gives the same first
 	expectTrue(a ~= trace(SeededRng.dailySeed(1788134400 + 86400), 3), "the next date differs")
 end })
 
+table.insert(tests, { name = "Pick lift: every pick settles at the full 24 px, the client lift comes from HandLift.pickLift and is never capped by room", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	local FeelTuning = require(script.Parent.Parent.Engine.FeelTuning)
+	expectEqual(FeelTuning.SELECTED_LIFT, 24, "the spec lift is 24")
+	expectEqual(HL.pickLift(FeelTuning.SELECTED_LIFT), 24, "a pick lifts 24")
+	expectEqual(HL.pickLift(nil), 24, "no wanted lift falls back to 24")
+	expectEqual(HL.pickLift(0), 24, "a zero lift is not trusted")
+	expectEqual(HL.cardLift(true, false, HL.pickLift(24), 10), 24, "picked, not hovered: 24")
+	expectEqual(HL.cardLift(true, true, HL.pickLift(24), 10), 34, "picked and hovered adds the hover lift")
+	expectEqual(HL.plan({ { picked = true, y = 7, fanY = 7, liftY = 24, age = 1 } }, 24)[1], -17, "a settled pick resting flat is lifted to the full 24")
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(not src:find("L.capLift(lift, restTop", 1, true), "the client no longer cuts the pick lift per card")
+		expectTrue(src:find("HandLift", 1, true) ~= nil, "Gameplay2.selectedLift uses HandLift.pickLift")
+	end
+end })
+
 return tests
 
 

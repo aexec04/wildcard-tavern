@@ -1135,14 +1135,8 @@ end
 function M.selectedLift(want, restTop)
 	if not (current and current.isActive()) then return nil end
 	local L = require(Engine:WaitForChild("Gameplay2Layout"))
-	local lift = L.selectedLift(current.rects(), want, math.max(20, PreviewRules.H))
-	local progBottom
-	pcall(function()
-		local gui = game:GetService("Players").LocalPlayer.PlayerGui
-		local row = gui:FindFirstChild("ScoreProgress", true)
-		if row and row.Visible then progBottom = row.AbsolutePosition.Y + row.AbsoluteSize.Y end
-	end)
-	return L.capLift(lift, restTop, progBottom)
+	-- always the full lift (Engine/HandLift.pickLift): the old per card cap near the progress line gave 5, 10 or 15 px; the picked card draws above it
+	return require(Engine:WaitForChild("HandLift")).pickLift(L.selectedLift(current.rects(), want, math.max(20, PreviewRules.H)))
 end
 
 function M.playedBand()
