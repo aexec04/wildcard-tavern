@@ -52838,6 +52838,35 @@ table.insert(tests, { name = "NightVictory: the Enter Endless Nights button is t
 	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
 end })
 
+table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates", fn = function()
+	local Keys = require(script.Parent.Parent.Engine.AdminJumpKeys)
+	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local Engine = script.Parent.Parent.Engine
+	expectTrue(Keys.shouldBuild(true) == true, "builds in Studio")
+	expectTrue(Keys.shouldBuild(false) == false and Keys.shouldBuild(nil) == false and Keys.shouldBuild("yes") == false, "never builds outside Studio")
+	expectTrue(Keys.ROW_HEIGHT >= 44, "44 px rows")
+	local ids = { recipe = require(Engine.Recipes).HouseRecipes[1].id, boss = require(Engine.BossRounds).Definitions[1].id }
+	local list = Keys.list(ids)
+	local seen = {}
+	for _, e in ipairs(list) do
+		expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
+		expectTrue(not seen[e.value], "no duplicate key " .. e.value)
+		seen[e.value] = true
+		expectTrue(type(e.label) == "string" and #e.label > 0, "label for " .. e.value)
+	end
+	for _, want in ipairs({ "night:1", "night:12", "boon", "reward", "victory", "sellpatron", "patrons:5", "shop:20", "endrun", "endrun:win", "boss2:" .. ids.boss, "boss12:" .. ids.boss, "store", "map" }) do
+		expectTrue(seen[want], "listed: " .. want)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/AdminJumpPanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("Keys.shouldBuild(RunService:IsStudio())", 1, true) ~= nil, "panel checks the Studio guard before building")
+	expectTrue(src:find("Keys.ROW_HEIGHT", 1, true) ~= nil and src:find("Keys.list(ids)", 1, true) ~= nil, "buttons come from the one key table")
+	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
+	local g = assert(io.open("src/Client/DebugGoto.lua", "r")); local dg = g:read("a"); g:close()
+	local guard, build = dg:find("if not RunService:IsStudio() then return end", 1, true), dg:find("AdminJumpPanel", 1, true)
+	expectTrue(guard and build and guard < build, "DebugGoto builds the panel only after its Studio guard")
+end })
+
 return tests
 
 

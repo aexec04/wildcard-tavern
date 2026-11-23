@@ -45,6 +45,10 @@ end
 function DebugGoto.init(deps)
 	if not RunService:IsStudio() then return end
 	local Rules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DebugGotoRules"))
+	-- owners' jump list (Studio only; the guard above already returned otherwise): a tab at the screen edge, see Client/AdminJumpPanel
+	pcall(function()
+		require(script.Parent.AdminJumpPanel).init(Players.LocalPlayer.PlayerGui:WaitForChild("GameUI", 10), function() return DebugGoto.getState and DebugGoto.getState() end)
+	end)
 	local OverlayManager = require(script.Parent.OverlayManager)
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local player = Players.LocalPlayer
