@@ -6,7 +6,7 @@
 ]]
 local FeelTuning = {
 	HOVER_LIFT = 10,
-	SELECTED_LIFT = 28, -- a picked card rises 28 px; the stage sits above the hand, so it never reaches the Patron pills (tested at three sizes)
+	SELECTED_LIFT = 24, -- a picked card rises 24 px; the stage sits above the hand, so it never reaches the Patron pills (tested at three sizes)
 	NEIGHBOUR_SPREAD = 6, -- Gameplay v2: the two cards next to the hovered one slide 6 px away
 	HOVER_EASE = 0.08,
 	PATRON_PULSE = 0.25,

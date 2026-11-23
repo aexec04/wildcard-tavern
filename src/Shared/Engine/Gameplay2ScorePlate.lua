@@ -54,7 +54,7 @@ M.MIN_FONT = 14
 -- The idle Score plate must stay clear of the hand: the live hand frame rises above the layout rect (HandSizing.frameFor), so the stage the
 -- plate may use ends GAP px above the highest card top. `handTop` is that frame's y; the stage only ever shrinks (never under MIN_H).
 M.HAND_GAP = 10
-M.PICK_LIFT = 28 -- a picked card rises this far above the card tops: the idle plate ends HAND_GAP above the highest picked card
+M.PICK_LIFT = 24 -- a picked card rises this far above the card tops: the idle plate ends HAND_GAP above the highest picked card
 M.IDLE_MIN_FONT = 18 -- idle numeral minimum: the caption and the "o of N" line stay even on a short stage
 M.NAME_NUDGE = 6 -- the hand name in the caption row drops this far so it clears the carved top border
 M.CAP_H = 30-- the caption row (reference: Score about 28 px)

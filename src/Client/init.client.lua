@@ -1244,8 +1244,8 @@ local SELECTED_HOVER_SCALE = 1.04
 -- neighbors lift a little too, falling off with distance, like fanning a
 -- hand of cards toward your thumb. Pure position/scale tweening, no color
 -- or transparency tricks, so this is safe against the addGloss-style bug.
-local HOVER_LIFT = 10 -- Gameplay v2 feel: hover 10 px, selected 28 px, neighbours spread 6 px, 0.08 s ease (Engine/FeelTuning)
-local SELECTED_LIFT = 28
+local HOVER_LIFT = 10 -- Gameplay v2 feel: hover 10 px, selected 24 px, neighbours spread 6 px, 0.08 s ease (Engine/FeelTuning)
+local SELECTED_LIFT = 24
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ===== Collection Gallery overlay =====
@@ -2238,7 +2238,12 @@ end
 
 refreshHandSort = function()
 	if latestState and not require(script.RevealHold).holding() then -- (the table stays as it is while a round-ending hand's reveal plays)
+		local keep = {} -- a sort only reorders the cards: the picked ones stay picked (Engine/HandSelection)
+		for i in pairs(selected) do keep[i] = true end
 		rebuildHand(latestState.hand, latestState.phase)
+		local restored = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandSelection")).restore(keep, #latestState.hand)
+		for i in pairs(restored) do selected[i] = true; refreshCardVisual(i, false) end
+		if next(restored) then refreshScorePreview() end
 	end
 end
 
