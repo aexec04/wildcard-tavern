@@ -31420,6 +31420,33 @@ table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every grou
 	end
 end })
 
+table.insert(tests, { name = "Collection header: no Next unlock line, the bar is plain with a 44 px hover plate; Back returns to the origin of the visit", fn = function()
+	local PO = require(script.Parent.Parent.Engine.PanelOrigin)
+	for _, screen in ipairs({ "table", "menu", "map" }) do
+		local st = PO.new()
+		PO.opened(st, screen)
+		for _, hop in ipairs({ "tome tab", "collection", "quests", "collection" }) do PO.opened(st, "menu") end -- tab hops never change the origin
+		local t = PO.backTarget(st)
+		expectTrue(t.close and t.screen == screen, "Back returns to the " .. screen .. " every time")
+		expectTrue(PO.backTarget(st).screen == screen, "a second Back asks the same place")
+		PO.closed(st)
+		PO.opened(st, "map")
+		expectTrue(PO.backTarget(st).screen == "map", "a new visit records its own origin after " .. screen)
+	end
+	expectTrue(PO.backTarget(PO.new()).screen == "menu", "no visit falls back to the Menu")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("Next unlock", 1, true) == nil and src:find("overallUnlock", 1, true) == nil, "Collection shows no Next unlock line")
+	expectTrue(src:find("math.max(44, RoomLayout.BAR.h)", 1, true) ~= nil, "hover and tap target is at least 44 px")
+	expectTrue(src:find("MouseButton1Click:Connect(function() infoPlate.Visible", 1, true) ~= nil, "tap toggles the plate")
+	local tabs = io.open("src/Client/PanelTabs.lua", "r")
+	if tabs then
+		local ts = tabs:read("*a"); tabs:close()
+		expectTrue(ts:find("previous", 1, true) == nil, "PanelTabs keeps no history of pages")
+	end
+end })
+
 table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
 	local TH = require(script.Parent.Parent.Engine.TomeHeader)
 	expectTrue(TH.PAD >= 16 and TH.SIDE >= 16, "padding and border clearance are at least 16 px")

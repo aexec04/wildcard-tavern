@@ -31,12 +31,16 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local INK = Color3.fromRGB(60, 40, 22)
 
-local current, previous -- panel ids: the open one, and the one the player came from
+local PanelOrigin = require(Engine:WaitForChild("PanelOrigin"))
+local current -- panel id: the open one
+local visit = PanelOrigin.new() -- the screen under the pages (table, menu, map), remembered once per visit
+local screenProbe -- optional fn() -> "table" | "menu" | "map", set by whoever knows the screen
 
--- Pure helper (unit-testable): which id Back should open, or nil for "close to the Menu".
-function PanelTabs.backTarget(currentId, previousId)
-	if previousId and previousId ~= currentId then return previousId end
-	return nil
+function PanelTabs.setScreenProbe(fn) screenProbe = fn end
+
+-- Back never walks a history of pages: it closes them and shows the origin of the visit.
+function PanelTabs.backTarget()
+	return PanelOrigin.backTarget(visit)
 end
 
 function PanelTabs.go(id)
@@ -51,8 +55,7 @@ function PanelTabs.setStep(id, fn)
 end
 
 function PanelTabs.back(id)
-	local target = PanelTabs.backTarget(id, previous)
-	if target and OverlayManager.open(target) then return end
+	PanelTabs.backTarget() -- always the origin: close every page, the screen underneath is untouched
 	OverlayManager.closeAllExcept(nil)
 end
 
@@ -249,9 +252,15 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 		if backdrop.Visible then
 			pcall(clearStrip)
-			if current ~= id then previous, current = current, id end
+			local screen
+			if screenProbe then local ok, s = pcall(screenProbe); if ok then screen = s end end
+			PanelOrigin.opened(visit, screen) -- only the first page of a visit records the origin
+			current = id
 		elseif current == id then
 			current = nil
+			task.defer(function() -- a switch to another page opens it in the same frame; only a real close ends the visit
+				if current == nil then PanelOrigin.closed(visit) end
+			end)
 		end
 	end)
 	if panel and PanelLayout.FULL_SCREEN[id] then pcall(require(script.Parent.PanelFullScreen).apply, backdrop, panel, id) end
