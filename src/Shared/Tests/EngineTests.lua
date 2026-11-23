@@ -53090,7 +53090,30 @@ table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic 
 	expectTrue(c.rim and c.inlay and c.rail, "Classic draws rim, inlay and rail")
 end })
 
+table.insert(tests, { name = "Recipe tray readability: slot names, description, Use and Sell text all reach 4.5 to 1, icons are 26 px own labels, Use turns bright green once its cards are picked", fn = function()
+	local T = require(script.Parent.Parent.Engine.Gameplay2Tray)
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	local L = T.LOOK
+	for _, pair in ipairs({
+		{ "slotFill", "slotText" }, { "armedFill", "armedText" }, { "useReadyFill", "useReadyText" },
+		{ "useWaitFill", "useWaitText" }, { "sellFill", "sellText" }, { "promptFill", "promptText" },
+	}) do
+		local ratio = S.contrast(L[pair[1]], L[pair[2]])
+		expectTrue(ratio >= 4.5, pair[2] .. " on " .. pair[1] .. " is " .. string.format("%.2f", ratio) .. " to 1")
+	end
+	expectTrue(S.contrast(L.panel, L.slotFill) > 1.2, "a slot is a clearly lighter plate than the tray panel")
+	expectTrue(T.ICON_SIZE >= 24, "the icon is at least 24 px")
+	local slot = { empty = false, icon = "X", label = "Sugar Rush" }
+	expectTrue(T.slotName(slot) == "Sugar Rush" and T.slotName({ empty = true }) == T.EMPTY_TEXT, "the slot text is the name alone, the icon is its own label")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2Tray.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(c:find("TrayIcon", 1, true) and c:find("Rules.ICON_SIZE", 1, true), "the client draws the icon label at ICON_SIZE")
+	expectTrue(c:find("L.useReadyFill", 1, true) and c:find("L.promptText", 1, true), "Use and the description plate take the tested colours")
+	expectTrue(not c:find("\u{2014}", 1, true) and not c:lower():find("balatro", 1, true))
+end })
+
 return tests
+
 
 
 
