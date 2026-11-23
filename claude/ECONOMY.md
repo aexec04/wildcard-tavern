@@ -424,6 +424,23 @@ The target "within 8 to 16 points" cannot hold for every Patron when the average
 
 The four new strategy Patrons, 300 to 400 runs, against the sweep average of -1.3: Final Bow +2.2, Full Palette +2.0, Triple Scoop -0.3, Spare Shuffle -2.3. All four sit within 3.5 points of the average Patron, so the 0.8x to 1.25x band (meaningless when the average is near zero) is met in spirit; only Triple Scoop was changed. Pinned by the test "Patron lift 2".
 
+## Tips economy, Nights 1 to 12 with the new Patrons (`lua tools/run_sim.lua --shop-econ --runs 200 --jobs 8 --bot decent --endless --shop-nights 12`)
+
+Average Tips on hand and Patrons held at each Counter visit (runs that reached the visit, 200 seeds). Full Palette, Triple Scoop, Spare Shuffle, Final Bow, boons and marks are all in the pool.
+
+| Visit | Runs | Avg Tips | Patrons |
+| --- | --- | --- | --- |
+| N1 R2 | 200 | 4.0 | 1.0 |
+| N2 R1 | 200 | 7.1 | 2.1 |
+| N3 R1 | 200 | 7.2 | 4.3 |
+| N4 R1 | 200 | 8.4 | 5.0 |
+| N6 R1 | 197 | 8.9 | 5.2 |
+| N8 R1 | 125 | 8.5 | 5.3 |
+| N10 R1 | 36 | 9.7 | 5.4 |
+| N12 R1 | 15 | 10.9 | 5.9 |
+
+A normal player buys roughly one Patron per round early and has all five seats by Night 4, then holds 8 to 12 Tips at every visit, enough for a reroll (5) or a pack, so the shop is never dead. The hardest twist for Tips, Penny Pincher (Tips pay 75 percent), still gives 0.8 Patrons by the end of Night 1 and 3.7 by Night 3 (3.0 Tips at the very first visit, below the cheapest Patron at 4, but that twist also makes Patrons count 50 percent more and the start draft gives one). No price or payout changed.
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
