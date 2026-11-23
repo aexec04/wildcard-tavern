@@ -339,18 +339,17 @@ return function(deps)
 		local lines = {}
 		local function add(text, props) lines[#lines + 1] = { text = text, props = props or {} } end
 		local best = summary and summary.bestHand or bestHand
-		do -- one line: this run's best hand and the Night it reached
-			local okR, runLine = pcall(function() return require(Engine:WaitForChild("BestLine")).runLine(best and best.name, state.night) end)
+		do -- one line for this run: its biggest hand
+			local okR, runLine = pcall(function() return require(Engine:WaitForChild("BestLine")).runLine(best and best.name, best and best.score) end)
 			if okR and runLine then add(runLine, { TextSize = 16, tone = "gold" }) end
 		end
-		if best then add(string.format("Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
 		do
 			local ST = require(Engine:WaitForChild("ScoreText"))
 			add("Final score: " .. ST.short(state.roundScore) .. " / " .. ST.short(state.targetScore))
 		end
 		add(string.format("Tips banked: %d", math.floor(state.tips or 0)))
 		do -- best Night and best hand so far, from profile stats
-			local okB, bestLine = pcall(function() return require(Engine:WaitForChild("BestLine")).text(state.profileStats) end)
+			local okB, bestLine = pcall(function() return require(Engine:WaitForChild("BestLine")).recordLine(state.profileStats) end)
 			if okB and bestLine then add(bestLine, { tone = "soft" }) end
 		end
 		if summary then

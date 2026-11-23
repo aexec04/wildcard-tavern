@@ -24388,7 +24388,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 		local factText = {}
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do factText[#factText + 1] = c.Text end
 		local all = table.concat(factText, "\n")
-		for _, want in ipairs({ "Biggest hand: Full House: 604", "Final score: 604 / 3,174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
+		for _, want in ipairs({ "Biggest hand: Full House, 604 points","Final score: 604 / 3,174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
 			expectTrue(all:find(want, 1, true) ~= nil, "the facts say '" .. want .. "' at " .. size[1])
 		end
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
@@ -36034,7 +36034,7 @@ end })
 table.insert(tests, { name = "Run Over: summary names the night, best hand, score, Patrons and unlocks; Play Again and Menu are painted, One More Round stays", fn = function()
 	if not io then return end
 	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
-	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: ", "Patrons used", "unlockLine(names)", "Next unlock: ",
+	for _, needle in ipairs({ "You made it to Night %d, Round %d", "runLine(best and best.name","Final score: ", "Patrons used", "unlockLine(names)", "Next unlock: ",
 		'"PlayAgain", "Play Again"', '"BackToTavern", "Back to Tavern"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
 		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
 	end
@@ -42755,14 +42755,23 @@ end })
 table.insert(tests, { name = "BestLine.runLine: Best hand and Night on one 16 px line, fits the Run Over layout at 800x450 to 1920x1080", fn = function()
 	local BL = require(script.Parent.Parent.Engine.BestLine)
 	local L = require(script.Parent.Parent.Engine.RunOverLayout)
-	expectEqual(BL.runLine("Flush", 3), "Best hand: Flush, Night 3")
-	expectEqual(BL.runLine("Pair", 0), "Best hand: Pair")
+	expectEqual(BL.runLine("High Card", 15), "Biggest hand: High Card, 15 points")
+	expectEqual(BL.runLine("Pair", 0), "Biggest hand: Pair")
 	expectTrue(BL.runLine(nil, 3) == nil and BL.runLine("", 3) == nil)
-	expectTrue(#BL.runLine("Royal Flush With Many Extra Words In The Name", 99999) <= BL.MAX_CHARS)
+	expectTrue(#BL.runLine("Royal Flush With Many Extra Words In The Name", 99999) <= BL.RUN_MAX_CHARS)
 	expectFalse(BL.runLine("Flush", 3):lower():find("balatro"))
+	-- the record line is labelled as a record and never repeats the run line (win, loss, Endless all use the same two lines)
+	expectEqual(BL.recordLine({ bestNightReached = 5, bestHandScore = 15 }), "Your record: Night 5, best hand 15")
+	expectEqual(BL.recordLine({ bestNightReached = 9 }), "Your record: Night 9")
+	expectTrue(BL.recordLine({}) == nil and BL.recordLine(nil) == nil)
+	expectTrue(#BL.recordLine({ bestNightReached = 999999, bestHandScore = 1e300 }) <= BL.RUN_MAX_CHARS)
+	for _, run in ipairs({ { "Flush", 1240 }, { "High Card", 15 }, { "Straight Flush", 88000 } }) do
+		local a, b = BL.runLine(run[1], run[2]), BL.recordLine({ bestNightReached = 5, bestHandScore = 15 })
+		expectTrue(a:sub(1, 7) ~= b:sub(1, 7), "run line and record line read differently")
+	end
 	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1920, 1080 } }) do
 		local C = L.columns(sz[1])
-		local factsH = (L.estimateLines(BL.runLine("Straight Flush", 8), C.leftW, 16) + 6) * 24
+		local factsH = (L.estimateLines(BL.runLine("Straight Flush", 880000), C.leftW, 16) + L.estimateLines(BL.recordLine({ bestNightReached = 8, bestHandScore = 880000 }), C.leftW, 14) + 6) * 24
 		local r = L.compute(sz[1], sz[2], { factsH = factsH, patrons = 5, primary = 2, more = 5 })
 		for _, rc in ipairs(r.primary) do expectTrue(rc.h >= 44, "buttons stay 44 px at " .. sz[1]) end
 		expectTrue(r.panel.w * r.scale <= sz[1] + 0.01 and r.panel.h * r.scale <= sz[2] + 0.01, "fits at " .. sz[1])
