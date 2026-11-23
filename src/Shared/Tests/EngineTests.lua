@@ -48401,6 +48401,17 @@ table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, tim
 	end
 end })
 
+table.insert(tests, { name = "Card Sets are cosmetic: scoring, hand evaluation, rounds and the sim never read CosmeticSets", fn = function()
+	if not io then return end
+	for _, file in ipairs({ "src/Shared/Engine/Scoring.lua", "src/Shared/Engine/HandEvaluator.lua", "src/Shared/Engine/RoundPayout.lua", "tools/sim/Sim.lua" }) do
+		local f = io.open(file, "r")
+		if f then
+			local text = f:read("*a"); f:close()
+			expectTrue(text:find("CosmeticSets", 1, true) == nil, file .. " does not read CosmeticSets")
+		end
+	end
+end })
+
 return tests
 
 
