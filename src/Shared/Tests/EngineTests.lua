@@ -35744,6 +35744,36 @@ table.insert(tests, { name = "Season popup: every tier and premium reward name f
 	end
 end })
 
+table.insert(tests, { name = "Quests popup: every quest name and line fits its row at 12 px or more with 12 px clear of the reward plate, progress reads N of M, claimed rows say Claimed, and the Client applies the fit", fn = function()
+	local Q = require(script.Parent.Parent.Engine.Quests)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	expectEqual(Q.TEXT_W, 306, "520 wide card, words from 86, 12 px before the plate")
+	-- the words end 12 px left of the reward plate at four panel sizes (the panel is a fixed 560 wide, the list 40 less)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local cardW = math.min(560, sz[1]) - 40
+		local textRight = Q.TEXT_X + (cardW - (Q.TEXT_X + Q.REWARD_W + Q.REWARD_RIGHT + Q.TEXT_GAP) - 0)
+		local rewardLeft = cardW - Q.REWARD_RIGHT - Q.REWARD_W
+		expectTrue(rewardLeft - textRight >= Q.TEXT_GAP - 0.01, sz[1] .. "x" .. sz[2] .. " words end 12 px before the reward plate")
+	end
+	for _, def in ipairs(Q.Definitions) do
+		local ns, ds = Q.fitSize(def.name, 18), Q.fitSize(def.desc, 15)
+		expectTrue(ns >= 12 and ds >= 12, def.id .. " sizes are 12 px or more")
+		expectTrue(F.width(def.name, ns) <= Q.TEXT_W, def.id .. " name fits its row")
+		expectTrue(F.width(def.desc, ds) <= Q.TEXT_W, def.id .. " line fits its row at " .. ds .. " px")
+		expectTrue(#def.desc <= 60, def.id .. " line is short")
+	end
+	if io and io.open then
+		local f = io.open("src/Client/QuestsPanel.lua", "r")
+		if f then
+			local t = f:read("*a"); f:close()
+			expectTrue(t:find("QuestRules.fitSize(row.desc, 15)", 1, true) ~= nil and t:find("QuestRules.fitSize(row.name, 18)", 1, true) ~= nil, "the Client sizes the quest name and line with Quests.fitSize")
+			expectTrue(t:find('Text = "Claimed"', 1, true) ~= nil, "claimed rows read Claimed in words")
+			expectTrue(t:find("QuestRules.progressText(row)", 1, true) ~= nil, "progress is drawn from QuestRules.progressText")
+		end
+	end
+	expectTrue(Q.progressText({ progress = 2, goal = 8, done = false }):find("2 of 8", 1, true) ~= nil, "progress reads N of M")
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
@@ -39212,7 +39242,7 @@ table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
 	local q = read("src/Client/QuestsPanel.lua")
-	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
+	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.BAR_X + QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
 	expectTrue(q:find("TextSize = 14, TextColor3 = skin and skin.sub or INK, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
 	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
 	local d = read("src/Client/DailyRewardsPanel.lua")
