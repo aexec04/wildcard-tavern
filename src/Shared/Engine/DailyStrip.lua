@@ -20,7 +20,7 @@ M.MIN_TOUCH = 44
 M.HEIGHT = 48
 M.MAX_W = 620
 M.MARGIN = 12
-M.CHEST_PAD, M.CHEST_MIN_W, M.CHEST_MAX_W = 12, 150, 170 -- the chest word stays 12 px inside the plate edge
+M.CHEST_PAD, M.CHEST_MIN_W, M.CHEST_MAX_W = 12, 174, 194 -- the chest word stays 12 px inside the plate edge (24 px wider than before, so "Next in 19h 38m" has room)
 
 function M.visible(phase)
 	return phase == "roundSelect" -- Run Over hides it: the faded strip showed through under the panel
@@ -60,7 +60,7 @@ function M.view(login, quests)
 	elseif #rows > 0 then
 		out.goalDone = true
 		out.progress, out.goal = 1, 1
-		out.goalText = "All daily goals done"
+		out.goalText = "Goals done"
 	else
 		out.goalDone = false
 		out.progress, out.goal = 0, 1
@@ -136,6 +136,16 @@ function M.menuRect(w, h)
 	local sh = math.max(M.HEIGHT, M.MIN_TOUCH)
 	-- level with All actions: both end 16 px above the bottom edge
 	return { x = left, y = h - M.MENU_GAP - sh, w = sw, h = sh }
+end
+
+-- The Streak and Goal columns left of the chest, in strip pixels: the Streak column takes about a quarter of the strip (92 to 130 px), the Goal
+-- column starts 8 px after it and ends 12 px before the chest plate, so neither word runs under the chest.
+M.START_X, M.COL_GAP, M.GOAL_GAP = 30, 8, 12
+function M.columns(strip)
+	local c = M.chestRect(strip)
+	local streakW = math.max(92, math.min(130, math.floor(strip.w * 0.25)))
+	local goalX = M.START_X + streakW + M.COL_GAP
+	return { streak = { x = M.START_X, w = streakW }, goalX = goalX, goalW = math.max(40, c.x - goalX - M.GOAL_GAP), chest = c }
 end
 
 function M.chestRect(strip)

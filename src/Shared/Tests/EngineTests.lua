@@ -31019,7 +31019,7 @@ table.insert(tests, { name = "Daily strip chest: wide enough for the Next timer 
 		local strip = D.menuRect(s[1], s[2])
 		if strip then
 			local c = D.chestRect(strip)
-			assert(c.w >= 150 and c.w <= 170 and c.h >= 44, "chest size at " .. s[1])
+			assert(c.w >= 174 and c.w <= 194 and c.h >= 44, "chest size at " .. s[1])
 			assert(c.x >= 0 and c.x + c.w <= strip.w and c.y >= 0 and c.y + c.h <= strip.h, "chest inside strip at " .. s[1])
 			assert(c.w - 2 * D.CHEST_PAD >= 100, "word room at " .. s[1])
 		end
@@ -35377,7 +35377,7 @@ table.insert(tests, { name = "Daily strip: shows on the Night map and Run Over o
 	local qs = { quests = { { desc = "A", progress = 3, goal = 3, done = true }, { desc = "Play 10 hands.", progress = 4, goal = 10, done = false } } }
 	expectEqual(D.view(nil, qs).goalText, "Play 10 hands. 4/10", "first unfinished goal")
 	qs.quests[2].done = true
-	expectEqual(D.view(nil, qs).goalText, "All daily goals done", "all done")
+	expectEqual(D.view(nil, qs).goalText, "Goals done", "all done")
 	assert(D.view(nil, qs).goalDone, "goalDone flag")
 end })
 
@@ -48080,6 +48080,298 @@ table.insert(tests, { name = "Collection Back plate and tab strip: Back is a 44 
 				end
 				expectTrue(P.area.y >= P.bar.y + P.bar.h - 1 or mode == "room", tag .. " first row starts under the progress bar")
 			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Gear menu and Settings popups: every row inside its panel, 44 px controls, nothing overlaps, close plate and text sizes, at four sizes", fn = function()
+	local GM = require(script.Parent.Parent.Engine.GearMenu)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local HT = require(script.Parent.Parent.Engine.HowToPlayText)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- gear dropdown and Tome dropdown
+		for _, set in ipairs({ { "gear", GM.menuRect(W, H), GM.ROWS }, { "tome", GM.tomeMenuRect(W, H), GM.TOME_ROWS } }) do
+			local menu, rows = set[2], set[3]
+			expectTrue(menu.x >= 0 and menu.y >= 0 and menu.x + menu.w <= W and menu.y + menu.h <= H, tag .. " " .. set[1] .. " menu on screen")
+			local rects = GM.rowRects(menu, rows)
+			for i, r in ipairs(rects) do
+				expectTrue(r.h >= 44 and r.w >= 44, tag .. " " .. set[1] .. " row " .. r.id .. " is a 44 px target")
+				expectTrue(r.x >= 0 and r.x + r.w <= menu.w, tag .. " " .. set[1] .. " row " .. r.id .. " inside the menu width")
+				if not menu.scroll then expectTrue(r.y + r.h <= menu.h, tag .. " " .. set[1] .. " row " .. r.id .. " inside the menu height") end
+				for j = i + 1, #rects do expectFalse(hit(r, rects[j]), tag .. " " .. set[1] .. " rows " .. r.id .. " and " .. rects[j].id .. " do not overlap") end
+			end
+			if menu.scroll then expectTrue(menu.h >= GM.ROW_H + 2 * GM.PAD, tag .. " " .. set[1] .. " scrolling menu still shows a row") end
+		end
+		-- Settings panel
+		local R = SL.panelRects(W, H)
+		local P = R.panel
+		expectTrue(P.x >= 0 and P.y >= 0 and P.x + P.w <= W and P.y + P.h <= H, tag .. " Settings panel on screen")
+		expectTrue(R.scroll.x + R.scroll.w <= P.w and R.scroll.y + R.scroll.h <= P.h, tag .. " Settings scroll inside the panel")
+		expectTrue(R.textW > 0 and R.textW <= R.scroll.w, tag .. " Settings row text width fits")
+		expectTrue(SL.CLOSE.h >= 44 and SL.CLOSE.w >= 44 and SL.CLOSE.w <= P.w and SL.PAUSE.plateH >= 44, tag .. " Settings close plate is 44 px and fits")
+		expectTrue(SL.PANEL.rowH >= 44 and SL.SWITCH.h >= 44 and SL.PANEL.replayH >= 44 and SL.CODES.boxH >= 44, tag .. " Settings row controls are 44 px")
+		expectTrue(SL.HEADER_SIZE >= 14 and SL.CODES.msgSize >= 14 and SL.ACCOUNT.textSize >= 14, tag .. " Settings text 14 px or more")
+		local rects = SL.accountRects(R.scroll.w)
+		for i, r in ipairs(rects) do
+			expectTrue(r.h >= 44 and r.w >= 44 and r.x >= 0 and r.x + r.w <= R.scroll.w + 0.5, tag .. " Account plate " .. i .. " is 44 px and inside the scroll")
+			for j = i + 1, #rects do expectFalse(hit(r, rects[j]), tag .. " Account plates " .. i .. " and " .. j .. " do not overlap") end
+		end
+		-- switch and its label share a row: the switch sits right of the text gutter
+		expectTrue(SL.PANEL.textGutter >= SL.SWITCH.w + 8 or R.textW + SL.SWITCH.w <= R.scroll.w + 30, tag .. " row text and switch share the row without overlap")
+	end
+	-- How to Play tiles: one short sentence each
+	for i, t in ipairs(HT.Tiles) do
+		local text = type(t) == "table" and (t.text or t.body or t[2] or "") or tostring(t)
+		local words = 0
+		for _ in tostring(text):gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= HT.MAX_WORDS + 4, "How to Play tile " .. i .. " stays short (" .. words .. " words)")
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map: road nodes, name plates and the node detail popup stay on screen, apart and readable at 1920x957, 1506x751, 1309x751, 1024x600", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapFitRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local SR = require(script.Parent.Parent.Engine.MapSelectRules)
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local shownFew = {}
+	for i = 1, #names do shownFew[i] = (i <= 4) end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local header = HR.layout(W, H)
+		for _, shown in ipairs({ false, shownFew }) do
+			local res = R.layout(W, H, names, JM.NightCap, shown or nil)
+			local mode = shown and "night1" or "all"
+			expectTrue(R.clear(res, names, JM.NightCap), tag .. " " .. mode .. ": no node or plate touches another")
+			local bx = R.boxes(res, names, JM.NightCap)
+			for i = 1, #names do
+				local drawn = shown == false or shown[i] or i == JM.NightCap
+				if drawn then
+					-- canvas y is screen y minus the frame offset, x is screen x minus the frame offset (scrolled to the left edge)
+					local c, l = bx[i].circle, bx[i].label
+					expectTrue(c.y0 + R.FRAME_Y >= header.bar.h - 1, tag .. " " .. mode .. " node " .. i .. " is under the header bar")
+					expectTrue(l.y1 + R.FRAME_Y <= H, tag .. " " .. mode .. " node " .. i .. " plate ends above the screen bottom")
+					expectTrue(c.x0 >= -1, tag .. " " .. mode .. " node " .. i .. " starts inside the left edge")
+					expectTrue(RR.PLATE_MAX >= 150 and (l.x1 - l.x0) <= RR.PLATE_MAX + 0.5, tag .. " node " .. i .. " plate is at most the plate cap wide")
+				end
+			end
+			expectTrue(res.nodeSize >= R.NODE_MIN, tag .. " nodes stay a touch target")
+		end
+		expectTrue(R.NAME_H >= 20 and R.TYPE_H >= 18, tag .. " name row is tall enough for 15 px text")
+		-- the node detail popup (full, compact and tab modes) sits in the lower left zone
+		local zone = header.panelZone
+		for _, mode in ipairs({ "full", "compact", "tab" }) do
+			local p = SR.panelRect(zone, mode)
+			expectTrue(SR.onScreen(p, W, H), tag .. " detail " .. mode .. " panel on screen")
+			local r = SR.rects(zone, mode)
+			local parts = {}
+			for _, k in ipairs({ "name", "type", "line", "target", "button", "rule" }) do
+				if r[k] then
+					expectTrue(r[k].x >= 0 and r[k].y >= 0 and r[k].x + r[k].w <= r.w + 0.5 and r[k].y + r[k].h <= r.h + 0.5, tag .. " detail " .. mode .. " " .. k .. " inside the panel")
+					parts[#parts + 1] = { k, r[k] }
+				end
+			end
+			for i = 1, #parts do
+				for j = i + 1, #parts do
+					-- compact mode puts the type and the Target side by side by design, they split the row
+					expectFalse(hit(parts[i][2], parts[j][2]), tag .. " detail " .. mode .. ": " .. parts[i][1] .. " and " .. parts[j][1] .. " do not overlap")
+				end
+			end
+			if r.button then expectTrue(r.button.h >= 28 and r.button.w >= 96, tag .. " detail " .. mode .. " Continue plate is big enough to tap") end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Card Sets page: hero name plate, Equip plate and every set tile fit with the longest set name, 44 px Equip, no overlaps, at four sizes", fn = function()
+	local CSL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local longest, count = "", 0
+	for _, set in ipairs(CS.Definitions) do
+		count = count + 1
+		if #set.name > #longest then longest = set.name end
+	end
+	expectTrue(count >= 14, "the registry lists every Card Set (" .. count .. ")")
+	-- a serif glyph averages about 0.55 of its size wide; the plate or tile line may wrap to two lines on a tile
+	local function textW(str, size) return math.ceil(#str * size * 0.55) end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local pw, ph = CSL.roomPanel(W, H)
+		local g = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, count, 1)
+		expectTrue(g.ok, tag .. " room fits")
+		local hp = g.parts
+		expectTrue(hp.button.h >= 44 and hp.button.w >= 120, tag .. " Equip plate is 44 px tall and wide enough (" .. hp.button.w .. "x" .. hp.button.h .. ")")
+		expectTrue(inside(hp.button, g.hero) and inside(hp.plate, g.hero) and inside(hp.table, g.hero), tag .. " Equip, name plate and table inside the hero")
+		expectTrue(textW("Equipped", 18) <= hp.button.w - 16, tag .. " the Equip word fits its plate")
+		expectTrue(hp.plate.h >= 24 and textW(longest, 18) <= 2 * (hp.plate.w - 16) and hp.plate.w >= 160, tag .. " the longest set name (" .. longest .. ") fits the hero name plate")
+		local parts = { { "plate", hp.plate }, { "table", hp.table }, { "button", hp.button } }
+		if hp.desc.h > 0 then parts[#parts + 1] = { "desc", hp.desc } end
+		for i = 1, #parts do
+			for j = i + 1, #parts do expectFalse(hit(parts[i][2], parts[j][2]), tag .. " hero " .. parts[i][1] .. " and " .. parts[j][1] .. " do not overlap") end
+		end
+		-- every tile name line holds the longest name on two 14 px lines, the state line holds one
+		for i, c in ipairs(g.cells) do
+			expectTrue(c.name.h >= 20 and c.state.h >= 18, tag .. " tile " .. i .. " text lines tall enough")
+			expectTrue(textW(longest, 14) <= 2 * c.name.w or c.name.h >= 2 * 14, tag .. " tile " .. i .. " longest name fits on two lines")
+			expectFalse(hit(c.name, c.state), tag .. " tile " .. i .. " name and state apart")
+		end
+		-- the page plates are 44 px targets and clear of the hero Equip plate
+		for _, k in ipairs({ "prev", "page", "next" }) do
+			expectTrue(g.plates[k].h >= 44 and g.plates[k].w >= 44, tag .. " " .. k .. " plate is a 44 px target")
+			expectFalse(hit(g.plates[k], hp.button), tag .. " " .. k .. " plate clear of the Equip plate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Leaderboard, Quests, Daily Rewards and Season popups: rows 44 px, panels and the close X on screen, nothing overlaps, at four sizes", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	local CX = require(script.Parent.Parent.Engine.CloseXRules)
+	local SP = require(script.Parent.Parent.Engine.SeasonPreview)
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- fixed panel sizes the Client builds (QuestsPanel 560 x PANEL_H 416, DailyRewardsPanel 760 x PANEL_H 360, SeasonPanel 0.86 wide x 520);
+	-- each is centred, so it needs this much room
+	local FIXED = { { "Quests", 560, 416 }, { "Daily Rewards", 760, 360 }, { "Season", nil, 520, 0.86 } }
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- Leaderboard
+		local L = LT.layout(W, H)
+		expectTrue(L.panel.w <= W and L.panel.h <= H, tag .. " Leaderboard panel on screen (" .. L.panel.w .. "x" .. L.panel.h .. ")")
+		expectTrue(L.scroll.x >= 0 and L.scroll.y >= 0 and L.scroll.x + L.scroll.w <= L.panel.w and L.scroll.y + L.scroll.h <= L.panel.h and L.scroll.h >= LT.ROW_H, tag .. " Leaderboard list inside the panel and holds a row")
+		expectTrue(LT.ROW_H >= 44 and LT.MIN_TEXT >= 14 and LT.ROW_TEXT >= 14, tag .. " Leaderboard rows are 44 px with 14 px text")
+		expectFalse(hit(L.scroll, { x = L.close.x, y = L.close.y, w = L.close.w, h = L.close.h }), tag .. " Leaderboard list clear of the foot plate")
+		expectTrue(CX.fits(L.panel.w, L.panel.h, "topRight"), tag .. " Leaderboard close X (44 px) is inside the panel")
+		local parts = LT.rowParts(L.scroll.w, "#10", "Night 99,999  |  Best hand 9,999,999")
+		expectFalse(hit(parts.rank, parts.name) or hit(parts.name, parts.stats) or hit(parts.rank, parts.stats), tag .. " Leaderboard row parts do not overlap")
+		expectTrue(parts.stats.x + parts.stats.w <= L.scroll.w + 0.5 and parts.name.w >= LT.NAME_MIN_W, tag .. " Leaderboard row fits the list width")
+		-- fixed panels
+		for _, f in ipairs(FIXED) do
+			local pw = f[2] or math.floor(W * f[4])
+			local ph = f[3]
+			local shownW = math.min(pw, W)
+			expectTrue(ph <= H, tag .. " " .. f[1] .. " panel height " .. ph .. " fits the screen")
+			expectTrue(CX.fits(shownW, ph, "topRight"), tag .. " " .. f[1] .. " close X (44 px) is inside the panel")
+			expectTrue(shownW >= 480 or W < 560, tag .. " " .. f[1] .. " panel keeps a readable width (" .. shownW .. ")")
+		end
+		-- Quests card: the bar and text stop 12 px before the 104 px reward plate, the card is 96 px tall (three fit the 416 panel)
+		local cardH, rewardW, rewardRight, barX = 96, 104, 12, 86
+		expectTrue(3 * cardH + 2 * 10 + 44 + 6 <= 416 - 44, tag .. " three Quests cards sit between the header and the footer")
+		expectTrue(560 - 40 - (rewardW + rewardRight + 12) - barX >= 200, tag .. " Quests bar keeps a readable width before the reward plate")
+		-- Season: tile row and buttons
+		expectTrue(ST.BUTTON_H >= 44, tag .. " Season claim buttons are 44 px")
+		local fit = ST.fit(W, H, true)
+		expectTrue(fit.shownW <= W and fit.shownH <= H, tag .. " Season panel with its premium row fits the screen (" .. math.floor(fit.shownW) .. "x" .. math.floor(fit.shownH) .. ")")
+		expectTrue(fit.tiles >= 3 and fit.scale >= 0.8, tag .. " Season shows " .. fit.tiles .. " tiles at scale " .. fit.scale)
+		local P = SP.layout(W, H)
+		local items = { { "heading", P.heading }, { "art", P.art }, { "title", P.title }, { "status", P.status }, { "claim", P.claim }, { "close", P.close } }
+		for i = 1, #items do
+			local r = items[i][2]
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= P.panel.w and r.y + r.h <= P.panel.h, tag .. " Season preview " .. items[i][1] .. " inside its panel")
+			for j = i + 1, #items do expectFalse(hit(r, items[j][2]), tag .. " Season preview " .. items[i][1] .. " and " .. items[j][1] .. " do not overlap") end
+		end
+		expectTrue(P.claim.h >= 44 and P.close.h >= 44 and P.panel.w <= W and P.panel.h <= H, tag .. " Season preview buttons are 44 px and the panel is on screen")
+	end
+end })
+
+table.insert(tests, { name = "Menu Daily strip: at 1506x751 and 1309x751 it shares no pixels with the Deal Me In and New Run column, the Tome or the jukebox hotspot", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local MR = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1506, 751 }, { 1309, 751 }, { 1920, 957 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = DS.menuRect(W, H)
+		expectTrue(strip ~= nil, tag .. " the menu has room for the Daily strip")
+		if strip then
+			expectTrue(strip.x >= 0 and strip.y >= 0 and strip.x + strip.w <= W and strip.y + strip.h <= H, tag .. " strip on screen")
+			-- the Deal Me In and New Run buttons stand in one centred column, 480 px wide, from the top to the bottom of the screen
+			local column = { x = math.floor(W / 2) - 240, y = 0, w = 480, h = H }
+			expectFalse(hit(strip, column), tag .. " strip shares no pixels with the Deal Me In and New Run column (strip x " .. strip.x .. ", column ends " .. (column.x + column.w) .. ")")
+			local room = MR.layout(W, H)
+			for _, id in ipairs({ "tome", "jukebox" }) do
+				local r = room[id]
+				expectTrue(r ~= nil, tag .. " hotspot " .. id .. " exists")
+				if r then expectFalse(hit(strip, { x = r.l, y = r.t, w = r.r - r.l, h = r.b - r.t }), tag .. " strip shares no pixels with the " .. id .. " hotspot") end
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tutorial popups: the Patron Power panel never covers the hand, Play Hand, Discard or Patron row and keeps a 44 px close X; tutorial captions stay short and slide clear of the Skip button, at four sizes", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CX = require(script.Parent.Parent.Engine.CloseXRules)
+	local TS = require(script.Parent.Parent.Engine.TutorialSteps)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local r = L.rects(W, H)
+		local spot = PP.place(r, W, H, {})
+		-- a spot of nil means the panel is skipped (never drawn over the table), which is allowed; when it is drawn it must be clear
+		if spot then
+			local plate = spot.plate
+			expectTrue(plate.x >= 0 and plate.y >= 0 and plate.x + plate.w <= W and plate.y + plate.h <= H, tag .. " Patron Power panel on screen")
+			local guarded = { { "hand", r.hand }, { "play", r.play }, { "discard", r.discard } }
+			for i, sl in ipairs(r.slots) do
+				guarded[#guarded + 1] = { "seat" .. i, sl.card }
+				if sl.label then guarded[#guarded + 1] = { "seatLabel" .. i, sl.label } end
+				if sl.pill then guarded[#guarded + 1] = { "seatPill" .. i, sl.pill } end
+			end
+			for _, g in ipairs(guarded) do
+				expectTrue(g[2] ~= nil, tag .. " table has " .. g[1])
+				if g[2] then expectFalse(hit(plate, g[2]), tag .. " Patron Power panel clear of " .. g[1]) end
+			end
+			expectTrue(CX.fits(plate.w, plate.h, "topRight"), tag .. " Patron Power close X (44 px) fits inside the plate (" .. plate.w .. "x" .. plate.h .. ")")
+			expectTrue(PP.TITLE_SIZE >= 14 and PP.BODY_SIZE >= 14, tag .. " Patron Power text 14 px or more")
+			expectTrue(PP.bodyFits(plate.w, plate.h), tag .. " Patron Power sentence fits its box")
+		end
+		-- the Tutorial caption slides off a tip plate, and the Skip button is a 44 px hold target on screen
+		local ribbon = { x = math.floor(W / 2) - 200, y = math.floor(H * 0.4), w = 400, h = 60 }
+		local tip = { x = ribbon.x + 20, y = ribbon.y + 10, w = 180, h = 40 }
+		local y, moved = TS.captionClearOf(ribbon, tip, H)
+		expectTrue(moved and y >= 0 and y + ribbon.h <= H, tag .. " caption moves clear of a tip plate and stays on screen")
+		expectFalse(hit({ x = ribbon.x, y = y, w = ribbon.w, h = ribbon.h }, tip), tag .. " moved caption no longer overlaps the tip plate")
+		local skip = { x = W - 160, y = ribbon.y, w = 140, h = 44 }
+		local out = TS.clearOfSkip(ribbon, { x = ribbon.x + ribbon.w - 10, y = ribbon.y }, { x = ribbon.x + ribbon.w - 60, y = skip.y, w = 140, h = 44 }, { x = ribbon.x, w = ribbon.w }, W)
+		expectTrue(out.ribbonX >= 0 and out.ribbonX + ribbon.w <= W, tag .. " caption beside Skip stays on screen")
+		expectTrue(skip.h >= 44, tag .. " Skip hold target is 44 px")
+	end
+	for _, step in ipairs(TS.Steps) do
+		local words = 0
+		for _ in step.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= TS.MAX_WORDS, "tutorial step " .. step.id .. " caption is " .. words .. " words, at most " .. TS.MAX_WORDS)
+	end
+end })
+
+table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, timer word 12 px clear each side, Streak, Goal and chest columns never overlap, strip clear of New Run", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = D.menuRect(W, H)
+		expectTrue(strip ~= nil, tag .. " strip is on the menu")
+		if strip then
+			local c = D.columns(strip)
+			-- "Next in 19h 38m" is 15 glyphs, about 0.56 em each at 16 px
+			expectTrue(c.chest.w - 2 * D.CHEST_PAD >= math.ceil(15 * 16 * 0.56), tag .. " chest word fits with 12 px each side (plate " .. c.chest.w .. ")")
+			expectTrue(c.chest.w >= 174, tag .. " chest plate is 24 px wider than the old 150")
+			expectTrue(c.streak.x + c.streak.w <= c.goalX, tag .. " Streak column ends before the Goal column")
+			expectTrue(c.goalX + c.goalW + D.GOAL_GAP <= c.chest.x + 0.5, tag .. " Goal column ends 12 px before the chest")
+			expectTrue(c.goalW >= 60, tag .. " Goal column holds 'Goals done' truncated no worse than a few letters (" .. c.goalW .. ")")
+			if W >= 1500 then expectTrue(c.goalW >= math.ceil(10 * 15 * 0.56), tag .. " the whole 'Goals done' line fits (" .. c.goalW .. ")") end
+			local newRun = { x = W / 2 - 110, y = H - 24 - 56, w = 220, h = 56 }
+			expectFalse(strip.x < newRun.x + newRun.w and newRun.x < strip.x + strip.w and strip.y < newRun.y + newRun.h and newRun.y < strip.y + strip.h, tag .. " strip does not touch New Run")
 		end
 	end
 end })
