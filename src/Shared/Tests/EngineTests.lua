@@ -51620,6 +51620,125 @@ table.insert(tests, { name = "Calm mode and accessibility effects: Calm removes 
 	end
 end })
 
+-- RECIPES, TAGS AND BLESSINGS AUDIT: every hand type at levels 0 to 5 scores base + growth x level (pinned numbers; claude/reference has
+-- art only), and Menu Recipes, Tags and a Blessing keep stacking correctly over three Nights of one run.
+table.insert(tests, { name = "Recipes, Tags and Blessings: hand levels 0 to 5 score exactly, and they stack correctly across 3 Nights", fn = function()
+	local Strangers = require(script.Parent.Parent.Engine.Strangers)
+	local samples = {
+		["High Card"]       = { C(14, "Spades"), C(9, "Hearts"), C(7, "Clubs"), C(4, "Diamonds"), C(2, "Spades") },
+		["Pair"]            = { C(9, "Spades"), C(9, "Hearts"), C(7, "Clubs"), C(4, "Diamonds"), C(2, "Spades") },
+		["Two Pair"]        = { C(9, "Spades"), C(9, "Hearts"), C(7, "Clubs"), C(7, "Diamonds"), C(2, "Spades") },
+		["Three of a Kind"] = { C(9, "Spades"), C(9, "Hearts"), C(9, "Clubs"), C(4, "Diamonds"), C(2, "Spades") },
+		["Straight"]        = { C(5, "Spades"), C(6, "Hearts"), C(7, "Clubs"), C(8, "Diamonds"), C(9, "Spades") },
+		["Flush"]           = { C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), C(13, "Hearts") },
+		["Full House"]      = { C(9, "Spades"), C(9, "Hearts"), C(9, "Clubs"), C(4, "Diamonds"), C(4, "Spades") },
+		["Four of a Kind"]  = { C(9, "Spades"), C(9, "Hearts"), C(9, "Clubs"), C(9, "Diamonds"), C(2, "Spades") },
+		["Straight Flush"]  = { C(5, "Hearts"), C(6, "Hearts"), C(7, "Hearts"), C(8, "Hearts"), C(9, "Hearts") },
+	}
+	local pinned = { -- { base chips, base mult, chips per level, mult per level }
+		["High Card"] = { 5, 1, 10, 1 }, ["Pair"] = { 10, 2, 15, 1 }, ["Two Pair"] = { 20, 2, 20, 1 },
+		["Three of a Kind"] = { 30, 3, 25, 3 }, ["Straight"] = { 30, 4, 30, 3 }, ["Flush"] = { 40, 5, 25, 3 },
+		["Full House"] = { 40, 4, 30, 3 }, ["Four of a Kind"] = { 60, 7, 30, 3 }, ["Straight Flush"] = { 100, 8, 40, 4 },
+	}
+	local count = 0
+	for name, e in pairs(pinned) do
+		count = count + 1
+		local result = HandEvaluator.evaluate(samples[name])
+		expectEqual(result.name, name, name .. " sample is that hand")
+		local cardChips = 0
+		for _, c in ipairs(result.scoringCards) do cardChips = cardChips + Card.chipValue(c) end
+		local last = -1
+		for level = 0, 5 do
+			local score, chips, mult = Scoring.calculate(result, {}, { handLevels = { [name] = level }, rng = neverHitRng })
+			expectEqual(chips, e[1] + e[3] * level + cardChips, name .. " level " .. level .. " Chips")
+			expectEqual(mult, e[2] + e[4] * level, name .. " level " .. level .. " Mult")
+			expectEqual(score, chips * mult, name .. " level " .. level .. " score is Chips x Mult")
+			expectTrue(score > last, name .. " level " .. level .. " scores more than the level before")
+			last = score
+		end
+	end
+	expectEqual(count, 9, "all nine hand types checked")
+	expectEqual(#Recipes.MenuRecipes, 9, "one Menu Recipe per hand type")
+	for _, r in ipairs(Recipes.MenuRecipes) do
+		local state = RunState.new(nil, SeededRng.new(3))
+		for n = 1, 5 do
+			local ok = r.apply(state)
+			expectTrue(ok and state.handLevels[r.handName] == n, r.handName .. " Recipe use " .. n .. " reaches level " .. n)
+		end
+		for other in pairs(pinned) do
+			if other ~= r.handName then expectEqual(state.handLevels[other] or 0, 0, r.handName .. " Recipe leaves " .. other .. " alone") end
+		end
+	end
+
+	-- three Nights of one run
+	local state = RunState.new(nil, SeededRng.new(11))
+	state.bossRoundsEnabled = false
+	local function playPair()
+		state.hand = { C(9, "Spades"), C(9, "Hearts"), C(2, "Clubs"), C(4, "Diamonds"), C(6, "Spades"), C(8, "Hearts"), C(11, "Clubs"), C(13, "Diamonds") }
+		state.targetScore = 1000000000
+		local before = state.roundScore
+		RunState.playHand(state, { 1, 2 })
+		return state.roundScore - before
+	end
+	expectEqual(playPair(), (10 + 18) * 2, "level 0 Pair scores 56")
+	state.roundOver = true
+	state.tips = 20
+	local ok = RunState.buyMenuRecipe(state, "level_pair")
+	expectTrue(ok and state.tips == 17, "buying the Pair Recipe charges its 3 Tips once")
+	ok = RunState.useMenuRecipe(state, "level_pair")
+	expectTrue(ok and state.handLevels["Pair"] == 1 and #state.menuRecipeInventory == 0, "using it levels Pair once and spends the Recipe")
+	expectFalse(RunState.useMenuRecipe(state, "level_pair"), "a used Recipe cannot be used twice")
+	expectEqual(state.handLevels["Pair"], 1, "a refused use changes no level")
+	for night = 2, 3 do
+		state.round = state.config.roundsPerNight
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		expectEqual(state.night, night, "reached Night " .. night)
+		expectEqual(state.handLevels["Pair"], 1, "Pair level survives into Night " .. night)
+	end
+	expectEqual(playPair(), (10 + 15 + 18) * (2 + 1), "level 1 Pair on Night 3 scores (Chips + 15) x (Mult + 1)")
+
+	-- Tip Jar Tag: pays its stated Tips once on each of three Nights, never as much as a real win
+	for night = 1, 3 do
+		local s = RunState.new(nil, SeededRng.new(40 + night))
+		s.bossRoundsEnabled = false
+		s.night = night
+		RunState.startRound(s)
+		s.currentRoundSkipTag = Tags.getById("tip_jar")
+		s.tips = 0
+		local want = math.min(math.ceil(s.config.tipsPerRoundWin / 2) + (night - 1), s.config.tipsPerRoundWin - 1)
+		local roundBefore = s.round
+		local tag, result = RunState.skipRound(s)
+		expectTrue(tag.id == "tip_jar" and result.kind == "tips" and result.amount == want, "Night " .. night .. " Tip Jar says " .. want .. " Tips")
+		expectEqual(s.tips, want, "Night " .. night .. " Tip Jar paid once, no round win reward on top")
+		expectEqual(s.round, roundBefore + 1, "skip moves on one round")
+		expectTrue(want < s.config.tipsPerRoundWin, "a Tip Jar never beats a real win")
+		expectFalse(s.roundOver, "a skipped round is not a win, so no shop and no second payout")
+	end
+	local sale = RunState.new(nil, SeededRng.new(9))
+	sale.bossRoundsEnabled = false
+	sale.currentRoundSkipTag = Tags.getById("sale_day")
+	local _, res = RunState.skipRound(sale)
+	expectTrue(res.kind == "discount" and res.amount == 3 and sale.nextShopDiscount == 3, "Sale Day sets a 3 Tip discount once")
+	sale.roundOver = true
+	RunState.advanceToNextRound(sale)
+	expectEqual(sale.nextShopDiscount, nil, "the discount is gone after that shop visit")
+
+	-- Blessing: bought once, it keeps adding its field every Night after
+	local blessed = RunState.new(nil, SeededRng.new(3))
+	local hot = Strangers.getById("hot_pan")
+	expectEqual(hot.blessing.field, "scorePct", "The Hot Pan is the Mult Blessing")
+	blessed.night = 3
+	blessed.tips = 10
+	expectTrue(Strangers.accept(blessed, "hot_pan"), "the Blessing can be taken")
+	expectEqual(blessed.tips, 10 - hot.price, "it is charged once")
+	expectEqual(Strangers.field(blessed, "scorePct"), hot.blessing.value, "the Blessing adds its listed percent")
+	blessed.night = 6
+	expectEqual(Strangers.field(blessed, "scorePct"), hot.blessing.value, "still on three Nights later")
+	local plain = RunState.new(nil, SeededRng.new(3))
+	expectEqual(Strangers.field(plain, "scorePct"), 0, "no Blessing, no bonus")
+end })
+
 return tests
 
 
