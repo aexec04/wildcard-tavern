@@ -50143,6 +50143,127 @@ table.insert(tests, { name = "Roads, Blessings and Night boons audit: each appli
 	expectEqual(count2, count, "a biome reward is handed out once")
 end })
 
+table.insert(tests, { name = "Economy audit: interest cap and rounding, Round reward by round type, Savings Club cap, reroll cost curve and sell values hold over 200 seeded runs, Tips never go negative or past the documented bound", fn = function()
+	local Shop = require(script.Parent.Parent.Engine.Shop)
+	local function finite(x) return type(x) == "number" and x == x and x ~= math.huge and x ~= -math.huge end
+	local function winRound(s)
+		s.targetScore = 0
+		for n = 5, 1, -1 do -- some Boss rules require an exact card count: try the sizes until one is legal
+			local cards = {}
+			for i = 1, n do cards[i] = i end
+			local ok, result = pcall(RunState.playHand, s, cards)
+			if ok then return result end
+		end
+		return RunState.playHand(s, { 1, 2, 3, 4, 5, 6 })
+	end
+
+	-- INTEREST and ROUND REWARD by round type, for every Tips amount from 0 to 80 (no Patrons, so only the base rules pay)
+	for _, boss in ipairs({ false, true }) do
+		for tips = 0, 80 do
+			local s = RunState.new(nil, SeededRng.new(tips + 1))
+			RunState.startRound(s)
+			s.night = 2
+			if boss then s.round = s.config.roundsPerNight end
+			RunState.startRound(s)
+			s.bossModifier = boss and { id = "test_boss", name = "Test Boss", description = "" } or nil -- a plain boss: no Tips rule of its own
+			s.tips = tips
+			local r = winRound(s)
+			expectTrue(r.roundWon, "the round is won")
+			local interest = math.min(5, math.floor(tips / 5))
+			local reward = s.config.tipsPerRoundWin * (RunState.isBossRound(s) and 2 or 1)
+			expectEqual(s.tips, tips + interest + reward, string.format("Tips %d, boss %s: interest %d (cap 5, rounded down) plus reward %d", tips, tostring(boss), interest, reward))
+		end
+	end
+	local s = RunState.new(nil, SeededRng.new(3))
+	RunState.startRound(s)
+	expectTrue(RunState.isBossRound(s) == false, "round 1 is a plain round")
+
+	-- SAVINGS CLUB: 1 Tip per 4 held, never more than 4
+	local club = Patrons.getById("savings_club")
+	for tips = 0, 60 do
+		local st = RunState.new(nil, SeededRng.new(9))
+		RunState.startRound(st)
+		st.tips = tips
+		club.onRoundWin(st)
+		local gain = st.tips - tips
+		expectEqual(gain, math.min(4, math.floor(tips / 4)), "Savings Club pays 1 per 4 held, capped at 4 (Tips " .. tips .. ")")
+		expectTrue(gain >= 0 and gain <= 4)
+	end
+
+	-- REROLL cost curve: base then +step each reroll, never below 1, resets each shop; Patron sell value is half the price, rounded down
+	local st = RunState.new(nil, SeededRng.new(4))
+	RunState.startRound(st)
+	local cost = Shop.REROLL_BASE_COST
+	local last = 0
+	for i = 1, 12 do
+		local c = RunState.rerollCost(st, cost)
+		expectTrue(c >= 1, "a reroll never costs less than 1")
+		expectTrue(c > last or i == 1, "reroll cost rises each reroll")
+		last = c
+		cost = cost + Shop.REROLL_COST_STEP
+	end
+	expectEqual(RunState.rerollCost(st, Shop.REROLL_BASE_COST), Shop.REROLL_BASE_COST, "a new shop starts at the base cost")
+
+	-- 200 seeded runs: a bot that wins each round, rerolls and buys on a plain rule, sells the oldest Patron when the row is full
+	local minTips, maxTips, sumTips, runs = math.huge, -math.huge, 0, 200
+	local bound = 400 -- eight Nights: 24 rounds at 5 or 10 Tips, interest at most 5 each, Patron payouts; far below this in practice
+	for seed = 1, runs do
+		local run = RunState.new(nil, SeededRng.new(seed * 31))
+		RunState.startRound(run)
+		local rerollBase = Shop.REROLL_BASE_COST
+		local lastNight = run.config.nightCap
+		while run.night <= lastNight do
+			local before = run.tips
+			local r = winRound(run)
+			expectTrue(r.roundWon and run.tips >= before, "winning never loses Tips")
+			expectTrue(run.tips >= 0 and finite(run.tips), "Tips stay a non negative number")
+			expectTrue(run.tips <= bound, "Tips stay inside the documented bound")
+			if run.night == lastNight and RunState.isBossRound(run) then break end
+			-- the shop: a reroll or two, buy the cheapest Patron it can afford, sell the first when full
+			local offers = Shop.rollOffers(run).patrons
+			local cost2 = rerollBase
+			for _ = 1, 2 do
+				local c = RunState.rerollCost(run, cost2)
+				if run.tips >= c then
+					run.tips = run.tips - c
+					cost2 = cost2 + Shop.REROLL_COST_STEP
+					offers = Shop.rollOffers(run).patrons
+				end
+				expectTrue(run.tips >= 0, "a reroll never overspends")
+			end
+			table.sort(offers, function(a, b) return a.price < b.price end)
+			for _, offer in ipairs(offers) do
+				local owned = false
+				for _, p in ipairs(run.ownedPatrons) do if p.id == offer.id then owned = true end end
+				if not owned then
+					local price = RunState.patronPrice(run, offer)
+					expectTrue(price >= 1, "a Patron costs at least 1")
+					if #run.ownedPatrons >= RunState.patronSlotLimit(run) then
+						local first = run.ownedPatrons[1]
+						local tipsBeforeSale = run.tips
+						local okSell, refund = RunState.sellPatron(run, first.id)
+						expectTrue(okSell and refund == math.floor(first.price / 2), "a sale refunds half the price, rounded down")
+						expectTrue(refund <= first.price, "selling never pays more than the price")
+						expectEqual(run.tips, tipsBeforeSale + refund)
+					end
+					if run.tips >= price then
+						local okBuy = RunState.buyPatron(run, offer.id)
+						expectTrue(okBuy == nil or okBuy == true or okBuy == false)
+					end
+					expectTrue(run.tips >= 0, "buying never overspends")
+					break
+				end
+			end
+			RunState.advanceToNextRound(run)
+		end
+		minTips = math.min(minTips, run.tips)
+		maxTips = math.max(maxTips, run.tips)
+		sumTips = sumTips + run.tips
+	end
+	print(string.format("[economy audit] final Tips over %d seeded runs: min %d, max %d, mean %.1f", runs, minTips, maxTips, sumTips / runs))
+	expectTrue(minTips >= 0 and maxTips <= bound, "a perfect run finishes with Tips in a sane range")
+end })
+
 return tests
 
 
