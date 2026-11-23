@@ -46684,6 +46684,96 @@ do
 	end
 end
 
+-- PATRON AUDIT: one test per Patron. Each ability fires once per hand (one entry per kind in the score breakdown, and exactly
+-- the amounts that show up in the Chips and Mult), a second identical hand gives the same result (no hidden state), and with
+-- other Patrons it fires in seat order, left to right, whichever seat it takes.
+do
+	local audited = {}
+	local function cardsOf(spec)
+		local list = {}
+		for i, pair in ipairs(spec) do list[i] = Card.new(pair[1], pair[2]) end
+		return list
+	end
+	local function handsToTry()
+		local specs = {
+			{ { 2, "Hearts" }, { 5, "Spades" }, { 7, "Diamonds" }, { 9, "Clubs" }, { 13, "Hearts" } }, -- High Card
+			{ { 9, "Hearts" }, { 9, "Spades" }, { 2, "Clubs" }, { 3, "Diamonds" }, { 4, "Clubs" } }, -- Pair
+			{ { 9, "Hearts" }, { 9, "Spades" }, { 4, "Clubs" }, { 4, "Diamonds" }, { 13, "Clubs" } }, -- Two Pair
+			{ { 9, "Hearts" }, { 9, "Spades" }, { 9, "Clubs" }, { 3, "Diamonds" }, { 4, "Clubs" } }, -- Three of a Kind
+			{ { 5, "Hearts" }, { 6, "Spades" }, { 7, "Clubs" }, { 8, "Diamonds" }, { 9, "Clubs" } }, -- Straight
+			{ { 2, "Hearts" }, { 5, "Hearts" }, { 7, "Hearts" }, { 9, "Hearts" }, { 13, "Hearts" } }, -- Flush
+			{ { 9, "Hearts" }, { 9, "Spades" }, { 9, "Clubs" }, { 4, "Diamonds" }, { 4, "Clubs" } }, -- Full House
+			{ { 9, "Hearts" }, { 9, "Spades" }, { 9, "Clubs" }, { 9, "Diamonds" }, { 4, "Clubs" } }, -- Four of a Kind
+		}
+		local out = {}
+		for i, spec in ipairs(specs) do
+			local cards = cardsOf(spec)
+			out[i] = { result = HandEvaluator.evaluate(cards), cards = cards }
+		end
+		return out
+	end
+	local function ctxFor(cards)
+		return { allPlayedCards = cards, heldCards = {}, handsRemaining = 2, discardsRemaining = 2, isLastHand = false, night = 3, round = 2,
+			tips = 5, roundsCleared = 2, bossesCleared = 1, handsPlayedTotal = 4, discardsUsedTotal = 1, patronsSold = 0, handStatsBefore = {},
+			handLevels = {}, rng = function() return 1 end }
+	end
+	local function patronEntries(breakdown, patronId)
+		local mine = {}
+		for i, entry in ipairs(breakdown) do
+			local src = entry.source
+			if src and src.type == "patron" and src.patronId == patronId and not src.bond then
+				mine[#mine + 1] = { index = i, kind = entry.kind, amount = entry.amount }
+			end
+		end
+		return mine
+	end
+	local function near(a, b, msg) expectTrue(math.abs(a - b) <= 1e-6 * math.max(1, math.abs(b)), msg .. " (got " .. tostring(a) .. ", want " .. tostring(b) .. ")") end
+	-- a fixed Patron that fires on every hand, used to check seat order
+	local function referencePatron(id, chips) return { id = id, name = id, effect = function() return { chips = chips } end } end
+
+	for _, def in ipairs(Patrons.Definitions) do
+		table.insert(tests, { name = "Patron audit: " .. def.id .. " fires once per hand, adds exactly what the breakdown shows, and scores in seat order", fn = function()
+			audited[def.id] = true
+			expectTrue(type(def.effect) == "function", def.id .. " has an effect")
+			for _, hand in ipairs(handsToTry()) do
+				local baseScore, baseChips, baseMult = Scoring.calculate(hand.result, {}, ctxFor(hand.cards))
+				local score, chips, mult, extra = Scoring.calculate(hand.result, { def }, ctxFor(hand.cards))
+				local mine = patronEntries(extra.breakdown, def.id)
+				local seen = {}
+				local addChips, addMult, xmult, addTips = 0, 0, 1, 0
+				for _, e in ipairs(mine) do
+					expectFalse(seen[e.kind], def.id .. " adds one " .. e.kind .. " entry per hand on " .. hand.result.name)
+					seen[e.kind] = true
+					if e.kind == "chips" then addChips = addChips + e.amount
+					elseif e.kind == "mult" then addMult = addMult + e.amount
+					elseif e.kind == "xmult" then xmult = xmult * e.amount
+					elseif e.kind == "tips" then addTips = addTips + e.amount end
+				end
+				near(chips, baseChips + addChips, def.id .. " Chips match its breakdown on " .. hand.result.name)
+				near(mult, (baseMult + addMult) * xmult, def.id .. " Mult matches its breakdown on " .. hand.result.name)
+				expectTrue(score == score and score ~= math.huge and score >= 0, def.id .. " never makes NaN, inf or a negative score")
+				near(extra.tipsEarned, addTips, def.id .. " Tips match its breakdown on " .. hand.result.name)
+				-- the same hand again gives the same answer: no hidden counter inside the Patron
+				local again = Scoring.calculate(hand.result, { def }, ctxFor(hand.cards))
+				expectEqual(again, score, def.id .. " scores a repeat of the same hand the same")
+				expectTrue(score >= 0 and baseScore >= 0, "scores stay valid")
+			end
+			-- seat order: with a fixed Patron on the other side, the earlier seat always reports first
+			local ref = referencePatron("audit_ref", 7)
+			for _, hand in ipairs(handsToTry()) do
+				for _, order in ipairs({ { def, ref }, { ref, def } }) do
+					local _, _, _, extra = Scoring.calculate(hand.result, order, ctxFor(hand.cards))
+					local firstId, secondId = order[1].id, order[2].id
+					local a, b = patronEntries(extra.breakdown, firstId), patronEntries(extra.breakdown, secondId)
+					if #a > 0 and #b > 0 then
+						expectTrue(a[#a].index < b[1].index, firstId .. " reports before " .. secondId .. " when seated first on " .. hand.result.name)
+					end
+				end
+			end
+		end })
+	end
+end
+
 table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text says, once, and a skipped round never pays twice", fn = function()
 	local Tags = require(script.Parent.Parent.Engine.Tags)
 	local function fresh()
