@@ -44,7 +44,11 @@ return function(deps)
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, volumeBackdrop)
 
 	local volumePanel = Instance.new("Frame")
-	volumePanel.Size = UDim2.new(0, 380, 0, 270)
+	local AudioRows = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("AudioRows"))
+	local audioCam = workspace.CurrentCamera
+	local audioView = audioCam and audioCam.ViewportSize or Vector2.new(1280, 720)
+	local audioLayout = AudioRows.layout(audioView.X, audioView.Y)
+	volumePanel.Size = UDim2.new(0, audioLayout.panel.w, 0, audioLayout.panel.h)
 	volumePanel.AnchorPoint = Vector2.new(0.5, 0.5)
 	volumePanel.Position = UDim2.fromScale(0.5, 0.5)
 	volumePanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
@@ -75,7 +79,7 @@ return function(deps)
 
 	-- Holds only the layout and its rows (no decorative frames).
 	local rows = Instance.new("Frame")
-	rows.Size = UDim2.new(1, -40, 0, 180)
+	rows.Size = UDim2.new(1, -40, 0, audioLayout.contentH)
 	rows.Position = UDim2.new(0, 20, 0, 44)
 	rows.BackgroundTransparency = 1
 	rows.ZIndex = 21
@@ -125,19 +129,35 @@ return function(deps)
 	end, function(newValue)
 		ClientSettings.set("musicVolume", newValue / 100)
 	end, percent, 1, Detents.snap)
+	local function addLine(order, text)
+		local l = Instance.new("TextLabel")
+		l.Name = "Line" .. order
+		l.Size = UDim2.new(1, 0, 0, AudioRows.LINE_H)
+		l.BackgroundTransparency = 1
+		l.Font = Enum.Font.Merriweather
+		l.TextSize = 14
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.TextColor3 = Color3.fromRGB(215, 200, 175)
+		l.Text = text
+		l.LayoutOrder = order
+		l.ZIndex = 21
+		l.Parent = rows
+	end
+	addLine(2, AudioRows.LINES.music)
 
 	local refreshSfx = deps.makeSliderRow(rows, "SFX", 0, 100, function()
 		return math.floor(ClientSettings.get("sfxVolume") * 100 + 0.5)
 	end, function(newValue)
 		ClientSettings.set("sfxVolume", newValue / 100)
-	end, percent, 2, Detents.snap)
+	end, percent, 3, Detents.snap)
+	addLine(4, AudioRows.LINES.sfx)
 
 	-- Mute and Reset share one 44 px row (two plates, 8 px apart)
 	local buttonRow = Instance.new("Frame")
 	buttonRow.Name = "SoundButtons"
 	buttonRow.Size = UDim2.new(1, 0, 0, 44)
 	buttonRow.BackgroundTransparency = 1
-	buttonRow.LayoutOrder = 3
+	buttonRow.LayoutOrder = 5
 	buttonRow.ZIndex = 21
 	buttonRow.Parent = rows
 	local buttonLayout = Instance.new("UIListLayout")
@@ -145,6 +165,8 @@ return function(deps)
 	buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	buttonLayout.Padding = UDim.new(0, 8)
 	buttonLayout.Parent = buttonRow
+
+	addLine(6, AudioRows.LINES.mute)
 
 	local muteButton = Instance.new("TextButton")
 	muteButton.Size = UDim2.new(0.5, -4, 1, 0)

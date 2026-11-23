@@ -44574,6 +44574,30 @@ table.insert(tests, { name = "Toast column clears the Tips pill at four sizes, t
 	end
 end })
 
+table.insert(tests, { name = "AudioRows: Music, SFX and Mute each have one kind line, the Volume popup fits four sizes, knob touch target is 44 px", fn = function()
+	local A = require(script.Parent.Parent.Engine.AudioRows)
+	for _, key in ipairs({ "music", "sfx", "mute" }) do
+		local line = A.LINES[key]
+		expectTrue(type(line) == "string" and #line > 0 and #line <= 60, key .. " line is 60 characters or less")
+		expectTrue(not line:find("\u{2014}", 1, true) and not line:find("--", 1, true), key .. " line has no dashes")
+	end
+	expectEqual(A.KNOB_HIT, 44, "knob touch target")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = A.layout(sz[1], sz[2])
+		expectTrue(L.panel.w <= sz[1] and L.panel.h <= sz[2], "panel fits " .. sz[1] .. "x" .. sz[2])
+		expectEqual(L.panel.h, L.wanted, "panel is not squeezed at " .. sz[1] .. "x" .. sz[2])
+		local order = { "music", "musicLine", "sfx", "sfxLine", "buttons", "muteLine" }
+		local prevBottom = 0
+		for _, k in ipairs(order) do
+			local r = L[k]
+			expectTrue(r.y >= prevBottom and r.x >= 0 and r.x + r.w <= L.panel.w, k .. " is inside and below the row above")
+			expectTrue(r.y + r.h <= L.panel.h, k .. " ends inside the panel")
+			prevBottom = r.y + r.h
+		end
+		expectTrue(L.sfx.h >= 44 and L.buttons.h >= 44, "slider and button rows are 44 px or more")
+	end
+end })
+
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local LL = require(Engine.LoadingLayout)
