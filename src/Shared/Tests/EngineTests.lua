@@ -46398,6 +46398,28 @@ table.insert(tests, { name = "HoverGlow: one shared Round Select style glow, not
 	expectTrue(shine:find("RESTING_GLOW ~= true", 1, true) ~= nil, "the Patron rarity glow no longer rests")
 end })
 
+table.insert(tests, { name = "JourneyDetailLayout: no text under the Equip button or the picture, one card per stop, Boss label only on a boss stop", fn = function()
+	local L = require(script.Parent.Parent.Engine.JourneyDetailLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, w in ipairs({ 400, 360, 320 }) do
+		local r = L.rects(w)
+		for _, t in ipairs({ "icon", "name", "boss", "desc", "reward", "how" }) do
+			for _, o in ipairs({ "equip", "swatch", "close" }) do
+				if not (t == "desc" and o == "close") then
+					expectTrue(not hit(r[t], r[o]), t .. " clear of " .. o .. " at " .. w)
+				end
+			end
+			expectTrue(r[t].x >= 0 and r[t].x + r[t].w <= w and r[t].y + r[t].h <= L.H, t .. " inside the card at " .. w)
+		end
+		expectTrue(not hit(r.equip, r.swatch) and r.equip.y + r.equip.h <= L.H, "Equip row inside the card, clear of the picture")
+		expectTrue(r.how.y + r.how.h <= r.equip.y, "the unlock line ends above the Equip row")
+	end
+	expectTrue(L.showBossLine("boss") and not L.showBossLine("encounter") and not L.showBossLine(nil), "Boss label only on a boss stop")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/JourneyMapView.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("panelRef.p.hide()", 1, true) ~= nil and src:find("if openIndex then selectPanel.hide()", 1, true) ~= nil, "the lower left panel hides while the rewards card is open")
+end })
+
 return tests
 
 

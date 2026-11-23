@@ -1169,37 +1169,40 @@ return function(deps)
 	card.Name = "NodeDetail"
 	card.AnchorPoint = Vector2.new(1, 1) -- lower right, above the candle: the lower left is the selection panel
 	card.Position = UDim2.new(1, -14, 1, -90)
-	card.Size = UDim2.new(0, 400, 0, 176)
+	local DL = require(Engine:WaitForChild("JourneyDetailLayout")) -- one card per stop, a row of its own for every text and the buttons
+	local DR = DL.rects(DL.W)
+	local function at(r) return UDim2.fromOffset(r.x, r.y), UDim2.fromOffset(r.w, r.h) end
+	card.Size = UDim2.new(0, DL.W, 0, DL.H)
 	card.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 	card.Visible = false
 	card.ZIndex = 40
 	card.Parent = frame
 	deps.polishPanel(card, 10, "wood")
 	local cardLimit = Instance.new("UISizeConstraint")
-	cardLimit.MaxSize = Vector2.new(400, 176)
+	cardLimit.MaxSize = Vector2.new(DL.W, DL.H)
 	cardLimit.Parent = card
 
 	local function cardText(props)
 		props.ZIndex = 42
 		return text(card, props)
 	end
-	local cardIcon = cardText({ Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(10, 8), TextSize = 30, TextWrapped = false })
-	local cardName = cardText({ Size = UDim2.new(1, -150, 0, 22), Position = UDim2.fromOffset(54, 8), Font = Enum.Font.GothamBold,
+	local cardIcon = cardText({ Size = UDim2.fromOffset(DR.icon.w, DR.icon.h), Position = UDim2.fromOffset(DR.icon.x, DR.icon.y), TextSize = 30, TextWrapped = false })
+	local cardName = cardText({ Size = UDim2.fromOffset(DR.name.w, DR.name.h), Position = UDim2.fromOffset(DR.name.x, DR.name.y), Font = Enum.Font.GothamBold,
 		TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardBoss = cardText({ Size = UDim2.new(1, -150, 0, 18), Position = UDim2.fromOffset(54, 28), TextSize = 14,
+	local cardBoss = cardText({ Size = UDim2.fromOffset(DR.boss.w, DR.boss.h), Position = UDim2.fromOffset(DR.boss.x, DR.boss.y), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardDesc = cardText({ Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, 48), TextSize = 14,
+	local cardDesc = cardText({ Size = UDim2.fromOffset(DR.desc.w, DR.desc.h), Position = UDim2.fromOffset(DR.desc.x, DR.desc.y), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local cardReward = cardText({ Size = UDim2.new(1, -76, 0, 40), Position = UDim2.fromOffset(10, 86), Font = Enum.Font.GothamBold,
+	local cardReward = cardText({ Size = UDim2.fromOffset(DR.reward.w, DR.reward.h), Position = UDim2.fromOffset(DR.reward.x, DR.reward.y), Font = Enum.Font.GothamBold,
 		TextSize = 16, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local cardHow = cardText({ Size = UDim2.new(1, -110, 0, 34), Position = UDim2.fromOffset(10, 128), TextSize = 14,
+	local cardHow = cardText({ Size = UDim2.fromOffset(DR.how.w, DR.how.h), Position = UDim2.fromOffset(DR.how.x, DR.how.y), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 
 	-- Reward preview swatch (right side): card-back colors, or an icon tile.
 	local swatch = Instance.new("Frame")
 	swatch.AnchorPoint = Vector2.new(1, 0)
-	swatch.Position = UDim2.new(1, -12, 0, 90)
-	swatch.Size = UDim2.fromOffset(46, 64)
+	swatch.Position = UDim2.new(0, DR.swatch.x + DR.swatch.w, 0, DR.swatch.y)
+	swatch.Size = UDim2.fromOffset(DR.swatch.w, DR.swatch.h)
 	swatch.ZIndex = 42
 	swatch.Parent = card
 	deps.roundCorner(swatch, 6)
@@ -1209,9 +1212,8 @@ return function(deps)
 	local swatchIcon = text(swatch, { Size = UDim2.fromScale(1, 1), TextSize = 24, TextWrapped = false, ZIndex = 43 })
 
 	local equipButton = Instance.new("TextButton")
-	equipButton.AnchorPoint = Vector2.new(1, 1)
-	equipButton.Position = UDim2.new(1, -66, 1, -10)
-	equipButton.Size = UDim2.fromOffset(96, 30)
+	equipButton.Position = UDim2.fromOffset(DR.equip.x, DR.equip.y) -- its own row under every text
+	equipButton.Size = UDim2.fromOffset(DR.equip.w, DR.equip.h)
 	equipButton.Font = Enum.Font.GothamBold
 	equipButton.TextSize = 14
 	equipButton.TextColor3 = CREAM
@@ -1263,10 +1265,11 @@ return function(deps)
 		if data.kind == "endless" then
 			cardBoss.Text = "Boss III and beyond"
 			cardBoss.TextColor3 = PURPLE
+		elseif DL.showBossLine(nodes[openIndex] and nodes[openIndex].ntype) then
+			cardBoss.Text = JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)].label -- a real boss stop only
+			cardBoss.TextColor3 = SOFT
 		else
 			cardBoss.Text = ""
-				.. JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)].label
-			cardBoss.TextColor3 = SOFT
 		end
 
 		swatch.Visible = reward ~= nil
@@ -1328,11 +1331,13 @@ return function(deps)
 		selectedIndex = index
 		if requestRender then requestRender() end
 		card.Visible = true
+		if panelRef.p then panelRef.p.hide() end -- one card per stop: the lower left panel steps aside while the rewards card is open
 		fillCard()
 	end
 	local function closeDetail()
 		openIndex = nil
 		card.Visible = false
+		if panelRef.refresh and selectedIndex then panelRef.refresh() end -- the lower left panel returns
 	end
 
 	closeCard.MouseButton1Click:Connect(function()
@@ -1645,6 +1650,7 @@ return function(deps)
 		fitPanel()
 	end
 	local function refreshPanel()
+		if openIndex then selectPanel.hide() return end -- the rewards card is open: one card per stop
 		if selectedIndex and nodes[selectedIndex] then
 			local desc, artId, iconText = panelDescription(selectedIndex)
 			selectPanel.show(desc, artId, iconText)
@@ -1653,6 +1659,7 @@ return function(deps)
 			selectPanel.hide()
 		end
 	end
+	panelRef.refresh = refreshPanel
 	selectNode = function(index)
 		local node = nodes[index]
 		if not node then return end
