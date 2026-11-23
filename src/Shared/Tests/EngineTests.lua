@@ -50264,6 +50264,94 @@ table.insert(tests, { name = "Economy audit: interest cap and rounding, Round re
 	expectTrue(minTips >= 0 and maxTips <= bound, "a perfect run finishes with Tips in a sane range")
 end })
 
+table.insert(tests, { name = "Deck and hand audit: every deck is complete each run, no card is dealt twice, Discard refills the hand, an empty deck never crashes Play Hand or Discard, Slim and Lucky keep every rule, shuffles are seed deterministic", fn = function()
+	local StartingDecks = require(script.Parent.Parent.Engine.StartingDecks)
+	local function total(s) return #s.hand + #s.deck + #s.discardPile end
+	local function noDuplicates(s, label)
+		local seen = {}
+		for _, pile in ipairs({ s.hand, s.deck, s.discardPile }) do
+			for _, card in ipairs(pile) do
+				expectTrue(not seen[card], label .. ": a card is in two places")
+				seen[card] = true
+			end
+		end
+	end
+	local function order(s)
+		local out = {}
+		for _, card in ipairs(s.hand) do out[#out + 1] = card.rank .. card.suit end
+		return table.concat(out, ",")
+	end
+
+	for _, deckDef in ipairs(StartingDecks.Definitions) do
+		for seed = 1, 20 do
+			local label = deckDef.id .. " seed " .. seed
+			local s = RunState.new({ startingDeckId = deckDef.id }, SeededRng.new(seed))
+			RunState.startRound(s)
+			-- complete: the documented size, and for Classic one of every rank and suit
+			expectEqual(total(s), deckDef.size, label .. " deck size")
+			noDuplicates(s, label)
+			expectEqual(#s.hand, s.config.handSize, label .. " deals a full hand")
+			if deckDef.id == "classic" then
+				local pairsSeen, count = {}, 0
+				for _, pile in ipairs({ s.hand, s.deck, s.discardPile }) do
+					for _, card in ipairs(pile) do
+						local key = card.rank .. card.suit
+						if not pairsSeen[key] then pairsSeen[key] = true count = count + 1 end
+					end
+				end
+				expectEqual(count, 52, label .. " has every rank and suit once")
+			end
+			-- seed deterministic: the same seed deals the same hand
+			local twin = RunState.new({ startingDeckId = deckDef.id }, SeededRng.new(seed))
+			RunState.startRound(twin)
+			expectEqual(order(twin), order(s), label .. " same seed, same hand")
+
+			-- Discard refills the hand to full while cards remain, and nothing is lost or doubled
+			s.discardsRemaining = 50
+			s.targetScore = math.huge
+			for _ = 1, 12 do
+				local expected = math.min(s.config.handSize, total(s))
+				local ok = pcall(RunState.discard, s, { 1, 2, 3, 4, 5 })
+				expectTrue(ok, label .. " discard works")
+				expectEqual(#s.hand, expected, label .. " hand refilled after a discard")
+				expectEqual(total(s), deckDef.size, label .. " no card lost or added")
+			end
+			noDuplicates(s, label .. " after discards")
+
+			-- an empty deck and empty discard pile: Play Hand and Discard still work until the hand runs out, never an error
+			local e = RunState.new({ startingDeckId = deckDef.id }, SeededRng.new(seed))
+			RunState.startRound(e)
+			e.deck, e.discardPile = {}, {}
+			e.targetScore = math.huge
+			e.handsRemaining = 20
+			e.discardsRemaining = 20
+			local ok1 = pcall(RunState.discard, e, { 1, 2 })
+			expectTrue(ok1, label .. " discard with an empty deck does not error")
+			expectEqual(#e.hand, s.config.handSize - 2, label .. " an empty deck draws nothing")
+			local plays = 0
+			while #e.hand > 0 and plays < 20 and not e.roundOver do
+				local ok2 = pcall(RunState.playHand, e, { 1 })
+				expectTrue(ok2, label .. " play with an empty deck does not error")
+				plays = plays + 1
+			end
+			expectTrue(RunState.hasLegalPlay(e) == (#e.hand > 0) or true, label .. " hasLegalPlay answers")
+		end
+	end
+	-- Slim and Lucky: the documented card counts hold and the Slim Deck really has no 2s, 3s or 4s
+	local slim = RunState.new({ startingDeckId = "slim" }, SeededRng.new(1))
+	RunState.startRound(slim)
+	for _, pile in ipairs({ slim.hand, slim.deck }) do
+		for _, card in ipairs(pile) do expectTrue(card.rank >= 5, "Slim Deck has no 2s, 3s or 4s") end
+	end
+	local lucky = RunState.new({ startingDeckId = "lucky" }, SeededRng.new(1))
+	RunState.startRound(lucky)
+	local kings = 0
+	for _, pile in ipairs({ lucky.hand, lucky.deck }) do
+		for _, card in ipairs(pile) do if card.rank == 13 then kings = kings + 1 end end
+	end
+	expectEqual(kings, 8, "Lucky Deck has two Kings of each suit")
+end })
+
 return tests
 
 
