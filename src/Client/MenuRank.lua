@@ -123,6 +123,8 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	text.Font = Enum.Font.GothamBold
 	text.TextSize = 16
 	text.TextXAlignment = Enum.TextXAlignment.Left
+	text.TextYAlignment = Enum.TextYAlignment.Top -- if the board ever gives the label a taller box, the line stays on top, clear of the XP bar
+	text.TextTruncate = Enum.TextTruncate.AtEnd
 	text.TextColor3 = CREAM
 	pcall(function() -- equipped Card Set plate, edge and ink at 7:1, classic unchanged
 		require(script.Parent.HintSkin).bind(frame, stroke, { text }, { plate = WOOD, edge = GOLD, ink = CREAM })
