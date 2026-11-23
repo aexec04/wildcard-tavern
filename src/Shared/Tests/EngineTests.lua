@@ -46111,4 +46111,42 @@ table.insert(tests, { name = "Daily strip and Counter: clickable rects stay on s
 	end
 end })
 
+table.insert(tests, { name = "Collection tabs: every tab pages 0 and 200 entries, places its slots, and the close plate is a 44 px target on screen at four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local tabs = {}
+	for id in pairs(SL.SCENES) do tabs[#tabs + 1] = id end
+	table.sort(tabs)
+	expectTrue(#tabs >= 6, "section tabs found: " .. #tabs)
+	for _, id in ipairs(tabs) do
+		for _, n in ipairs({ 0, 1, 200 }) do
+			local items = {}
+			for i = 1, n do items[i] = { id = id .. i } end
+			local pages = SL.pageCount(n, id)
+			expectTrue(pages >= 1 and pages == math.max(1, math.ceil(n / SL.perPage(id))), id .. " page count for " .. n)
+			local seen = 0
+			for pg = 1, pages do
+				local got = SL.pageItems(items, id, pg)
+				expectTrue(#got <= SL.perPage(id), id .. " page " .. pg .. " holds at most per-page entries")
+				seen = seen + #got
+			end
+			expectTrue(seen == n, id .. " pages cover all " .. n .. " entries (" .. seen .. ")")
+			expectTrue(SL.clampPage(99, n, id) == pages and SL.clampPage(-3, n, id) == 1, id .. " page clamps")
+		end
+		for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+			local p = SL.place(id, sz[1], sz[2] - 120, 1)
+			expectTrue(p and #p.slots == #SL.scene(id).rows * #SL.scene(id).cols, id .. " places every slot at " .. sz[1])
+		end
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local P = RL.panel(W, H, 24, nil, "section")
+		local tag = W .. "x" .. H
+		expectTrue(P.close.x >= 0 and P.close.y >= 0 and P.close.x + P.close.w <= W and P.close.y + P.close.h <= H, tag .. " close plate on screen")
+		expectTrue(P.close.h >= 44 and P.close.w >= 44, tag .. " close plate is a 44 px target (" .. P.close.w .. "x" .. P.close.h .. ")")
+		expectTrue(P.close.y >= P.filter.y + P.filter.h, tag .. " close plate is below the filter plate")
+		expectTrue(P.area.y + P.area.h <= P.filter.y, tag .. " scene area ends above the filter plate")
+	end
+end })
+
 return tests
