@@ -46795,4 +46795,51 @@ table.insert(tests, { name = "Menu Daily strip: at 1506x751 and 1309x751 it shar
 	end
 end })
 
+table.insert(tests, { name = "Tutorial popups: the Patron Power panel never covers the hand, Play Hand, Discard or Patron row and keeps a 44 px close X; tutorial captions stay short and slide clear of the Skip button, at four sizes", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PatronPowerPanel)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CX = require(script.Parent.Parent.Engine.CloseXRules)
+	local TS = require(script.Parent.Parent.Engine.TutorialSteps)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local r = L.rects(W, H)
+		local spot = PP.place(r, W, H, {})
+		-- a spot of nil means the panel is skipped (never drawn over the table), which is allowed; when it is drawn it must be clear
+		if spot then
+			local plate = spot.plate
+			expectTrue(plate.x >= 0 and plate.y >= 0 and plate.x + plate.w <= W and plate.y + plate.h <= H, tag .. " Patron Power panel on screen")
+			local guarded = { { "hand", r.hand }, { "play", r.play }, { "discard", r.discard } }
+			for i, sl in ipairs(r.slots) do
+				guarded[#guarded + 1] = { "seat" .. i, sl.card }
+				if sl.label then guarded[#guarded + 1] = { "seatLabel" .. i, sl.label } end
+				if sl.pill then guarded[#guarded + 1] = { "seatPill" .. i, sl.pill } end
+			end
+			for _, g in ipairs(guarded) do
+				expectTrue(g[2] ~= nil, tag .. " table has " .. g[1])
+				if g[2] then expectFalse(hit(plate, g[2]), tag .. " Patron Power panel clear of " .. g[1]) end
+			end
+			expectTrue(CX.fits(plate.w, plate.h, "topRight"), tag .. " Patron Power close X (44 px) fits inside the plate (" .. plate.w .. "x" .. plate.h .. ")")
+			expectTrue(PP.TITLE_SIZE >= 14 and PP.BODY_SIZE >= 14, tag .. " Patron Power text 14 px or more")
+			expectTrue(PP.bodyFits(plate.w, plate.h), tag .. " Patron Power sentence fits its box")
+		end
+		-- the Tutorial caption slides off a tip plate, and the Skip button is a 44 px hold target on screen
+		local ribbon = { x = math.floor(W / 2) - 200, y = math.floor(H * 0.4), w = 400, h = 60 }
+		local tip = { x = ribbon.x + 20, y = ribbon.y + 10, w = 180, h = 40 }
+		local y, moved = TS.captionClearOf(ribbon, tip, H)
+		expectTrue(moved and y >= 0 and y + ribbon.h <= H, tag .. " caption moves clear of a tip plate and stays on screen")
+		expectFalse(hit({ x = ribbon.x, y = y, w = ribbon.w, h = ribbon.h }, tip), tag .. " moved caption no longer overlaps the tip plate")
+		local skip = { x = W - 160, y = ribbon.y, w = 140, h = 44 }
+		local out = TS.clearOfSkip(ribbon, { x = ribbon.x + ribbon.w - 10, y = ribbon.y }, { x = ribbon.x + ribbon.w - 60, y = skip.y, w = 140, h = 44 }, { x = ribbon.x, w = ribbon.w }, W)
+		expectTrue(out.ribbonX >= 0 and out.ribbonX + ribbon.w <= W, tag .. " caption beside Skip stays on screen")
+		expectTrue(skip.h >= 44, tag .. " Skip hold target is 44 px")
+	end
+	for _, step in ipairs(TS.Steps) do
+		local words = 0
+		for _ in step.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= TS.MAX_WORDS, "tutorial step " .. step.id .. " caption is " .. words .. " words, at most " .. TS.MAX_WORDS)
+	end
+end })
+
 return tests
