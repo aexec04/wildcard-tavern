@@ -372,7 +372,7 @@ function ShopBackdrop.new(deps)
 			if r.props[name] then
 				place(img, r.props[name])
 				img.ScaleType = Enum.ScaleType.Fit -- the crop of the props sheet keeps its own shape: Stretch squashed the book into a wide slab
-				img.Visible = true
+				img.Visible = self.propsHidden ~= true -- the open pack screen hides the ledger book and other props behind its buttons
 			else
 				img.Visible = false
 			end
@@ -385,6 +385,16 @@ function ShopBackdrop.new(deps)
 			for _, piece in ipairs(older) do
 				if not managed[piece] then piece.Visible = true end
 			end
+		end
+	end
+	function self.setPropsHidden(on)
+		on = on == true
+		if self.propsHidden == on then return end
+		self.propsHidden = on
+		if on then
+			for _, img in pairs(props) do img.Visible = false end
+		else
+			self.relayout()
 		end
 	end
 	shopFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() self.relayout() end)

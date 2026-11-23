@@ -943,6 +943,7 @@ return function(deps)
 	-- While the pack panel is open every other Counter piece (price tags, tooltip frame, Reroll, slots) is hidden;
 	-- the marker attribute lets the close restore exactly what was hidden here.
 	local function setCounterHiddenForPack(on)
+		if shopBackdrop and shopBackdrop.setPropsHidden then shopBackdrop.setPropsHidden(on) end -- the Haggle ledger book prop showed under the Confirm button
 		if on then -- Marlo's speech plate would sit on the pack screen's own hint line
 			local plate = shopFrame:FindFirstChild("PeddlerBubble")
 			if plate then plate.Visible = false end

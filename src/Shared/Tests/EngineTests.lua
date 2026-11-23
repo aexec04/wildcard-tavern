@@ -21585,6 +21585,21 @@ table.insert(tests, { name = "Peddler speech bubble: hidden when its text is emp
 	expectTrue(shop:find('child.Name ~= "PeddlerBubble"', 1, true) ~= nil, "setCounterHiddenForPack leaves the bubble alone")
 end })
 
+table.insert(tests, { name = "Pack panel hides the Counter props (Haggle ledger book) so no book shows under Confirm, and they return on close", fn = function()
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not f then return end -- Studio has no io
+	local shop = f:read("*a")
+	f:close()
+	local s, e = shop:find("local function setCounterHiddenForPack", 1, true)
+	expectTrue(s ~= nil, "setCounterHiddenForPack exists")
+	expectTrue(shop:sub(s, e + 300):find("shopBackdrop.setPropsHidden(on)", 1, true) ~= nil, "pack open and close toggle the backdrop props")
+	local g = io.open("src/Client/ShopBackdrop.lua", "r")
+	local bd = g:read("*a")
+	g:close()
+	expectTrue(bd:find("function self.setPropsHidden", 1, true) ~= nil, "backdrop exposes setPropsHidden")
+	expectTrue(bd:find("self.propsHidden ~= true", 1, true) ~= nil, "relayout keeps props hidden while a pack is open")
+end })
+
 table.insert(tests, { name = "Painted plate pictures never outlive their hidden plate: the pack panel skips PaintPiece siblings and Marlo's plate picture follows the bubble", fn = function()
 	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
 	if not f then return end -- Studio has no io
