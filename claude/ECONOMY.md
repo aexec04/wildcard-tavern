@@ -401,6 +401,24 @@ Rule: every deck within 10 points of Classic. 500 runs, sampling noise about 4 p
 
 All within the band, so no deck value changed. Slim is the strongest on every bot (+1.6 to +5.6), as intended for a thinner deck that repeats good cards; Lucky is level with Classic.
 
+## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
+
+Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
+
+| Case | decent | builder |
+| --- | --- | --- |
+| No marks | 36.2 | 38.6 |
+| Marks bought (--marks 1) | 35.6 (-0.6) | 37.6 (-1.0) |
+
+| Legendary Patron free from the start, with marks on | Lift over 37.3 (decent, 300 runs) |
+| --- | --- |
+| Boon Keeper | +1.3 |
+| Jolly Jester | +1.0 |
+| Clover Queen | +1.0 |
+| Duke Goldleaf | +1.0 |
+
+All inside the band and no worse than baseline, so nothing was tuned. The sim bot has little spare Tips (8 on average at a shop), so it buys few Marks and picks no boons for Boon Keeper; the marks and Legendary lifts are therefore a floor, not what a player who commits to marks sees. If marks feel weak in play, raise Gilded or Lucky one step; the sim does not say they are too strong.
+
 ## Quest Tips and Pocket Change against the shop (`lua tools/run_sim.lua --shop-econ --runs 100 --jobs 2 --start-tips 30 --boon pocket_change`)
 
 Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon on every Night. Measured with the first Pocket Change (+3 Tips); the boon is now +1 Tip (see the boon balance below), so the real margin is wider.
