@@ -53747,7 +53747,7 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 	local Audit = require(script.Parent.LiveReadability)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "HudKit", "ResultButtonHit" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "HudKit", "ResultButtonHit", "TavernStyle" }) do map[n] = require(E[n]) end
 	local stubs = {
 		ParticleBurst = function() return { burst = function() end } end,
 		ClientSettings = { get = function() return true end },
@@ -54382,6 +54382,35 @@ table.insert(tests, { name = "Quests panel fit: the panel scale keeps it on scre
 		local names = {}
 		for _, o in ipairs(small) do names[#names + 1] = o.name .. " " .. o.w .. "x" .. o.h end
 		expectEqual(#small, 0, name .. " has buttons under 44 px on screen: " .. table.concat(names, ", "))
+	end
+end })
+
+table.insert(tests, { name = "Victory plates: art slots keep the picture's aspect at 1280x720 and 800x360, serif title, no Stretch plate, burst off in calm mode", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local L = Look.layout(size[1], size[2], "run")
+		for key, slot in pairs({ victory_banner = L.banner, victory_hero = L.hero, victory_chest = L.chest }) do
+			local want = Look.artAspect(key)
+			local got = slot.w / slot.h
+			expectTrue(math.abs(got - want) / want < 0.03, key .. " slot aspect " .. got .. " vs art " .. want .. " at " .. size[1] .. "x" .. size[2])
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local t = f:read("*a"); f:close(); return t
+	end
+	local nv = read("src/Client/NightVictory.lua")
+	if nv then
+		expectTrue(nv:find("ScaleType.Stretch", 1, true) == nil, "Night victory plate is never a Stretch image")
+		expectTrue(nv:find("Style.FONTS.title", 1, true) ~= nil and nv:find("Font = SERIF", 1, true) ~= nil and nv:find("value.Font = SERIF", 1, true) ~= nil, "Night victory text uses the painted serif")
+		local a = nv:find('if ClientSettings.get("reduceShake") then return end', 1, true)
+		local b = nv:find("burst(UDim2.fromOffset", 1, true)
+		expectTrue(a ~= nil and b ~= nil and a < b, "Night victory gold burst is skipped in calm mode")
+	end
+	local vs = read("src/Client/VictoryScreen.lua")
+	if vs then
+		expectTrue(vs:find("if not calm() then", 1, true) ~= nil, "Victory confetti is skipped in calm mode")
 	end
 end })
 

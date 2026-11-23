@@ -38,6 +38,8 @@ return function(deps)
 	local HudKit = require(Engine:WaitForChild("HudKit"))
 	local ResultButtonHit = require(Engine:WaitForChild("ResultButtonHit"))
 	local HudTheme = require(script.Parent.HudTheme)
+	local Style = require(Engine:WaitForChild("TavernStyle"))
+	local SERIF = Enum.Font[Style.FONTS.title] or Enum.Font.GothamBold -- the same painted serif as TavernKit.title
 	local INK = Color3.fromRGB(52, 34, 18)
 	local INK_TITLE = Color3.fromRGB(104, 54, 12)
 	local TILE = Color3.fromRGB(236, 220, 184) -- parchment stat tiles
@@ -60,7 +62,7 @@ return function(deps)
 	-- Same painted plate as Round Complete (the equipped set's kit plate), dark code-drawn plate when the set has none.
 	local panel = Instance.new("ImageLabel")
 	panel.Name = "Plate"
-	panel.ScaleType = Enum.ScaleType.Stretch
+	panel.ScaleType = Enum.ScaleType.Fit -- the plate is drawn at its own 560 x 520 size, so Fit never squashes it
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Size = UDim2.fromOffset(PLATE_W, PLATE_H)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
@@ -117,7 +119,7 @@ return function(deps)
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 32), Font = Enum.Font.GothamBold,
+	label({ Size = UDim2.new(1, 0, 0, 32), Font = SERIF, TextStrokeTransparency = 0.5, TextStrokeColor3 = Color3.fromRGB(52, 34, 18),
 		TextSize = 24, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
 	label({ Size = UDim2.new(1, 0, 0, 34), TextSize = 14,
 		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The doors stay open for Endless Nights." }, INK)
@@ -142,7 +144,7 @@ return function(deps)
 		value.Size = UDim2.new(1, -8, 0, 38)
 		value.Position = UDim2.fromOffset(4, 4)
 		value.BackgroundTransparency = 1
-		value.Font = Enum.Font.GothamBold
+		value.Font = SERIF
 		value.TextSize = 18
 		value.TextColor3 = INK_TITLE
 		value.TextTransparency = 0
@@ -275,6 +277,7 @@ return function(deps)
 			scale.Parent = panel
 			TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		end
+		if ClientSettings.get("reduceShake") then return end -- calm mode: no gold burst
 		task.delay(0.1, function()
 			local size = deps.screenGui.AbsoluteSize
 			burst(UDim2.fromOffset(size.X / 2, size.Y * 0.4), GOLD, 40)

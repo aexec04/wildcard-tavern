@@ -29,6 +29,14 @@ M.BBOX = {
 local function round(n) return math.floor(n + 0.5) end
 M.MIRROR = { victory_chest = true }
 M.IMAGE_PX = 1024
+-- pixel size of each generated picture (width, height); a slot must have the aspect of the picture's opaque box or the art is squashed
+M.IMAGE_SIZE = { victory_banner = { 1536, 1024 }, victory_button = { 1536, 1024 }, victory_hero = { 1024, 1536 }, victory_chest = { 1024, 1024 } }
+-- width / height of a picture's opaque box in pixels
+function M.artAspect(key)
+	local bb, sz = M.BBOX[key], M.IMAGE_SIZE[key]
+	if not bb or not sz then return nil end
+	return ((bb[3] - bb[1]) * sz[1]) / ((bb[4] - bb[2]) * sz[2])
+end
 function M.bbox(key)
 	local bb = M.BBOX[key]
 	if bb and M.MIRROR[key] then return { 1 - bb[3], bb[2], 1 - bb[1], bb[4] } end
@@ -55,7 +63,7 @@ function M.layout(w, h, mode)
 		scale = s,
 		banner = R(320, 14, 640, 211),
 		subtitle = R(320, 226, 640, 36),
-		hero = R(20, 300, 280, 407),
+		hero = R(20, 300, 280, 381), -- 280 x 381 is the aspect of the hero's opaque box (M.artAspect), not squashed
 		chest = R(990, 430, 240, 276),
 		button = R(510, 540, 260, 96),
 		nextStep = R(320, 640, 640, 26), -- under Continue (ends at 636) and above the share line, never over it
