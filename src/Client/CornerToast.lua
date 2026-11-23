@@ -16,6 +16,7 @@
 	In Studio the first toast prints one [CornerToast] line with its AbsolutePosition and size.
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -35,7 +36,7 @@ local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 local PLATE = rgb(STYLE.paper)
 local BRASS = rgb(STYLE.edge)
 local CREAM = rgb(STYLE.ink) -- dark ink on paper (name kept from the old dark plate)
-local Z = 140 -- over the Choice screen (60 to 66) and the HUD, under the OverlayQueue plates (150)
+local Z = Layers.effect + 40 -- over the Choice screen (60 to 66) and the HUD, under the OverlayQueue plates (150)
 
 local stack = Rules.new()
 local gui, holder

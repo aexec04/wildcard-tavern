@@ -26,6 +26,23 @@ PopupLayers.NAMES = {
 PopupLayers.FULL_SCREEN = {
 	CollectionBackdrop = true, StoreBackdrop = true, SeasonBackdrop = true, DailyRewardsBackdrop = true, QuestsBackdrop = true,
 }
+-- Every other Backdrop the Client creates is a partial popup: the table stays alive behind it and only the NAMES layers above hide.
+-- A test scans src/Client for every `Name = "...Backdrop"` and fails when one is in neither list, so a new page cannot be forgotten.
+PopupLayers.PARTIAL = {
+	Backdrop = true, -- FlairDressingRoom inner dimmer
+	RoadChoiceBackdrop = true, ReplayConfirmBackdrop = true, DeckTrackerBackdrop = true, QuitConfirmBackdrop = true,
+	SeedRunBackdrop = true, ConfirmBackdrop = true, FlairBackdrop = true, HowToPlayBackdrop = true, VictoryBackdrop = true,
+	NightVictoryBackdrop = true, HandRefBackdrop = true, MusicBackdrop = true, OverlayQueueBackdrop = true,
+	JourneyBackdrop = true, ShopBackdrop = true, DailyLeaderboardBackdrop = true, BoonsPageBackdrop = true,
+	ChoiceBackdrop = true, SeasonPreviewBackdrop = true, CosmeticSetsBackdrop = true, VolumeBackdrop = true,
+	TwistPopupBackdrop = true, LegendBackdrop = true, CollectionRewardsBackdrop = true, SettingsBackdrop = true,
+	StatsBackdrop = true, RunSetupBackdrop = true, WinCardBackdrop = true, RestartConfirmBackdrop = true,
+	BadgesBackdrop = true, NewsBackdrop = true,
+}
+function PopupLayers.isClassified(name)
+	return PopupLayers.FULL_SCREEN[name] == true or PopupLayers.PARTIAL[name] == true
+end
+
 function PopupLayers.coversTable(name)
 	return type(name) == "string" and PopupLayers.FULL_SCREEN[name] == true
 end

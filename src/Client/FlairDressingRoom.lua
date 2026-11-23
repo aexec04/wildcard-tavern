@@ -15,6 +15,7 @@
 	deps: screenGui, roundCorner, polishButton, playClickSfx, particleBurst
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local TextService = game:GetService("TextService")
@@ -187,10 +188,10 @@ function FlairDressingRoom.build(deps, panel)
 	deps.polishButton(closeButton, 8)
 
 	-- ===== the single reusable tooltip =====
-	local tip = make("Frame", deps.screenGui, { Name = "FlairTooltip", BackgroundColor3 = Color3.fromRGB(30, 22, 16), Visible = false, ZIndex = 190, Active = false })
+	local tip = make("Frame", deps.screenGui, { Name = "FlairTooltip", BackgroundColor3 = Color3.fromRGB(30, 22, 16), Visible = false, ZIndex = Layers.effect + 90, Active = false })
 	round(tip, 8)
 	stroke(tip, GOLD, 1.5)
-	local tipText = make("TextLabel", tip, { Position = UDim2.fromOffset(8, 6), Size = UDim2.new(1, -16, 1, -12), ZIndex = 191, Font = Enum.Font.GothamMedium,
+	local tipText = make("TextLabel", tip, { Position = UDim2.fromOffset(8, 6), Size = UDim2.new(1, -16, 1, -12), ZIndex = Layers.effect + 91, Font = Enum.Font.GothamMedium,
 		TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 	local mirror -- assigned below; the tooltip stays off it
 

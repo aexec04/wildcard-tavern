@@ -8,6 +8,7 @@
 	Pass ownership arrives with the game state: init.client.lua hands every state to MusicPanel.setState(state, SoundModule).
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -21,7 +22,7 @@ local OverlayManager = require(script.Parent.OverlayManager)
 
 local M = {}
 
-local Z = 5200
+local Z = Layers.popup + 200
 local ownsPack, soundModule = false, nil
 local weSetTrack = false -- true while the track playing is the one we picked (so "auto" only clears our own override)
 local rowsHost, buyButton, buyLabel, backdrop, sPrice

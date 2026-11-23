@@ -1,3 +1,4 @@
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 -- Combo counter: "COMBO x3" pops beside the score popup when hands keep scoring in a round. VISUAL ONLY: it never
 -- changes a score (rules in Engine/ScoreFeel). One label is created once and reused for every hand, so scoring a
 -- hand allocates nothing here. The combo resets when a round starts or a hand scores nothing.
@@ -30,7 +31,7 @@ function ComboCounter.init(screenGui)
 	label.TextStrokeTransparency = 1
 	label.Visible = false
 	label.Active = false
-	label.ZIndex = 110
+	label.ZIndex = Layers.effect + 10
 	label.Parent = screenGui
 	scale = Instance.new("UIScale")
 	scale.Parent = label

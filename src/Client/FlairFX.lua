@@ -12,13 +12,14 @@
 	Fed by setState(state) from render; reads state.flair (Flair.view).
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local FlairFX = {}
 
 local MAX_PARTICLES = 24
 local PREVIEW_COUNT, PREVIEW_SIZE = 24, 11 -- previews are bigger and fuller than in-run effects
-FlairFX.PANEL_Z = 200 -- previews draw above every panel (FlairPanel uses 40 to 46, Spectate less)
+FlairFX.PANEL_Z = Layers.effect + 100 -- previews draw above every panel (FlairPanel uses 40 to 46, Spectate less)
 local BIG_HANDS = { ["Flush"] = true, ["Full House"] = true, ["Four of a Kind"] = true, ["Straight Flush"] = true }
 
 local current -- state.flair

@@ -6,6 +6,7 @@
 	SellUndoPlate.show(screenGui, refund, onUndo)   replaces any plate already showing
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local SellUndo = require(Engine:WaitForChild("SellUndo"))
@@ -32,7 +33,7 @@ function SellUndoPlate.show(screenGui, refund, onUndo)
 	plate.Size = UDim2.fromOffset(r.w, r.h)
 	plate.BackgroundColor3 = Color3.fromRGB(43, 28, 18)
 	plate.BorderSizePixel = 0
-	plate.ZIndex = 300
+	plate.ZIndex = Layers.effect + 200
 	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 10); corner.Parent = plate
 	local stroke = Instance.new("UIStroke"); stroke.Color = Color3.fromRGB(242, 207, 114); stroke.Thickness = 2; stroke.Parent = plate
 
@@ -42,7 +43,7 @@ function SellUndoPlate.show(screenGui, refund, onUndo)
 	label.Font = Enum.Font.GothamBold; label.TextSize = 16; label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextColor3 = Color3.fromRGB(250, 240, 214); label.TextTransparency = 0; label.TextStrokeTransparency = 1
 	label.TextTruncate = Enum.TextTruncate.AtEnd
-	label.Text = SellUndo.line(refund); label.ZIndex = 301; label.Parent = plate
+	label.Text = SellUndo.line(refund); label.ZIndex = Layers.effect + 201; label.Parent = plate
 
 	local undo = Instance.new("TextButton")
 	undo.Name = "UndoButton"; undo.AutoButtonColor = true
@@ -50,7 +51,7 @@ function SellUndoPlate.show(screenGui, refund, onUndo)
 	undo.BackgroundColor3 = Color3.fromRGB(242, 207, 114); undo.BorderSizePixel = 0
 	undo.Font = Enum.Font.GothamBold; undo.TextSize = 16; undo.TextColor3 = Color3.fromRGB(43, 28, 18)
 	undo.TextTransparency = 0; undo.TextStrokeTransparency = 1
-	undo.Text = SellUndo.button(SellUndo.WINDOW); undo.ZIndex = 302; undo.Parent = plate
+	undo.Text = SellUndo.button(SellUndo.WINDOW); undo.ZIndex = Layers.effect + 202; undo.Parent = plate
 	local ucorner = Instance.new("UICorner"); ucorner.CornerRadius = UDim.new(0, 8); ucorner.Parent = undo
 
 	plate.Parent = screenGui

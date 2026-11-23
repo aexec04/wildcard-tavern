@@ -9,6 +9,7 @@
 	BoonsPage.openView(view)  opens any view with the same row shape (the Marks and Legends page uses it)
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
@@ -54,14 +55,14 @@ local function build()
 	backdrop.AutoButtonColor = false
 	backdrop.Text = ""
 	backdrop.Visible = false
-	backdrop.ZIndex = 6000
+	backdrop.ZIndex = Layers.confirm
 	backdrop.Parent = screenGui
 
 	local panel = Instance.new("Frame")
 	panel.Name = "BoonsPanel"
 	panel.BackgroundColor3 = PLATE
 	panel.Active = true
-	panel.ZIndex = 6001
+	panel.ZIndex = Layers.confirm + 1
 	panel.Parent = backdrop
 	local edge = Instance.new("UIStroke")
 	edge.Color = Color3.fromRGB(200, 160, 84)
@@ -80,7 +81,7 @@ local function build()
 	list.ScrollBarThickness = 6
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	list.CanvasSize = UDim2.new(0, 0, 0, 0)
-	list.ZIndex = 6002
+	list.ZIndex = Layers.confirm + 2
 	list.Parent = panel
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -94,7 +95,7 @@ local function build()
 	close.TextSize = 18
 	close.TextColor3 = CREAM
 	close.BackgroundColor3 = Color3.fromRGB(70, 110, 60)
-	close.ZIndex = 6002
+	close.ZIndex = Layers.confirm + 2
 	close.Parent = panel
 	pcall(function() require(script.Parent.TavernKit).setPlateButton(close, "primary") end)
 
@@ -140,7 +141,7 @@ function M.openView(view)
 		tile.Size = UDim2.new(1, -10, 0, L.rowH)
 		tile.BackgroundColor3 = ink and ink.plate or ROW
 		tile.BackgroundTransparency = 0
-		tile.ZIndex = 6003
+		tile.ZIndex = Layers.confirm + 3
 		tile.Parent = built.list
 		local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = tile
 		local s = Instance.new("UIStroke"); s.Color = ink and ink.accent or Color3.fromRGB(200, 160, 84); s.Thickness = row.seen and 2 or 1
@@ -156,7 +157,7 @@ function M.openView(view)
 		host.Active = false
 		host.Position = icon.Position
 		host.Size = icon.Size
-		host.ZIndex = 6004
+		host.ZIndex = Layers.confirm + 4
 		host.Parent = tile
 		pcall(function()
 			local img = require(script.Parent.ArtIcon).apply(host, row.art or "boon_icons", row.artKey or row.id, icon, { cornerRadius = 8 })

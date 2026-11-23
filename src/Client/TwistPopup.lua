@@ -8,6 +8,7 @@
 	TwistPopup.ask(dateKey)   opens (or refreshes) the popup; builds itself under the ScreenGui on first use
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
@@ -34,7 +35,7 @@ local function build()
 	backdrop.AutoButtonColor = false
 	backdrop.Text = ""
 	backdrop.Visible = false
-	backdrop.ZIndex = 6000
+	backdrop.ZIndex = Layers.confirm
 	backdrop.Parent = screenGui
 
 	local panel = Instance.new("Frame")
@@ -44,7 +45,7 @@ local function build()
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.Active = true
-	panel.ZIndex = 6001
+	panel.ZIndex = Layers.confirm + 1
 	panel.Parent = backdrop
 	local cap = Instance.new("UISizeConstraint")
 	cap.MaxSize = Vector2.new(420, 240)
@@ -69,7 +70,7 @@ local function build()
 		l.TextColor3 = color
 		l.TextYAlignment = Enum.TextYAlignment.Top
 		l.Text = ""
-		l.ZIndex = 6002
+		l.ZIndex = Layers.confirm + 2
 		l.Parent = panel
 		return l
 	end
@@ -87,7 +88,7 @@ local function build()
 	ok.TextSize = 18
 	ok.BackgroundColor3 = Color3.fromRGB(70, 110, 60)
 	ok.TextColor3 = TEXT
-	ok.ZIndex = 6002
+	ok.ZIndex = Layers.confirm + 2
 	ok.Parent = panel
 	pcall(function() require(script.Parent.TavernKit).setPlateButton(ok, "primary") end)
 	local ring = Instance.new("UIStroke")

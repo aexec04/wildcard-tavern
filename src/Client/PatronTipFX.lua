@@ -9,6 +9,7 @@
 	PatronTipFX.hide()
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PatronTips = require(Engine:WaitForChild("PatronTips"))
@@ -23,7 +24,7 @@ local CREAM = Color3.fromRGB(245, 232, 200)
 local GOLD = Color3.fromRGB(246, 196, 70)
 local PLATE = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill
 -- one opaque layer above every Patron seat, badge, glow and halo (the seat pieces end near 46, callouts 80); under toasts (140)
-local Z = 120
+local Z = Layers.effect + 20
 local plate, highlights = nil, {}
 local token = 0 -- a newer show or a hide cancels a plate that is still waiting its delay
 

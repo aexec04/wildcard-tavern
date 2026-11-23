@@ -1,3 +1,4 @@
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 -- Daily login rewards, shown as a plate in the post-round overlay queue (Client/OverlayQueue.lua).
 -- Self-contained so the hub only calls init(menuFrame, remote, playClick) once and update(state) from render.
 -- Display only: the server (Engine/LoginStreak.lua) decides streaks and claims.
@@ -43,7 +44,7 @@ local function label(parent, props)
 	l.TextColor3 = INK
 	l.TextTransparency = 0
 	l.TextStrokeTransparency = 1
-	l.ZIndex = 153
+	l.ZIndex = Layers.effect + 53
 	for k, v in pairs(props) do
 		l[k] = v
 	end
@@ -170,7 +171,7 @@ local function flyCoin()
 	coin.Position = UDim2.fromOffset(from.X, from.Y)
 	coin.Size = UDim2.fromOffset(40, 40)
 	coin.BackgroundTransparency = 1
-	coin.ZIndex = 220
+	coin.ZIndex = Layers.effect + 120
 	coin.Parent = gui
 	local img = paintIcon(coin, { art = "tips" }, 40, 221)
 	local t = TweenService:Create(coin, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -197,7 +198,7 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 	ladder.BackgroundTransparency = 1
 	ladder.LayoutOrder = 2
 	ladder.Size = UDim2.new(1, 0, 0, slot + 16)
-	ladder.ZIndex = 153
+	ladder.ZIndex = Layers.effect + 53
 	ladder.Parent = holder
 	local ll = Instance.new("UIListLayout")
 	ll.FillDirection = Enum.FillDirection.Horizontal
@@ -211,13 +212,13 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 		cell.LayoutOrder = i
 		cell.BackgroundTransparency = 1
 		cell.Size = UDim2.fromOffset(slot, slot + 16)
-		cell.ZIndex = 153
+		cell.ZIndex = Layers.effect + 53
 		cell.Parent = ladder
 		local disc = Instance.new("Frame")
 		disc.Size = UDim2.fromOffset(slot, slot)
 		disc.BackgroundColor3 = row.claimed and GREEN or (row.today and PARCHMENT or DIM)
 		disc.BorderSizePixel = 0
-		disc.ZIndex = 154
+		disc.ZIndex = Layers.effect + 54
 		disc.Parent = cell
 		corner(disc, slot)
 		stroke(disc, row.today and GOLD or INK, row.today and 3 or 1.5)
@@ -237,7 +238,7 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 		Name = "LaterHint", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 18), Text = laterText, TextSize = 15, TextColor3 = ink,
 		Font = Enum.Font.Gotham,
 	})
-	hint.ZIndex = 154
+	hint.ZIndex = Layers.effect + 54
 	local later = Instance.new("TextButton") -- "Not now": same brass plate look as Claim, keeps the reward claimable
 	later.Name = "NotNow"
 	later.LayoutOrder = 4
@@ -248,7 +249,7 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 	later.TextColor3 = CREAM
 	later.Text = "Not now"
 	later.AutoButtonColor = true
-	later.ZIndex = 154
+	later.ZIndex = Layers.effect + 54
 	later.Parent = holder
 	corner(later, 8)
 	stroke(later, GOLD, 2)

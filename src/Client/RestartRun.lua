@@ -14,6 +14,7 @@
 	Returns: { button, refresh() }  refresh() re-evaluates visible/enabled (call when Settings opens)
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -79,7 +80,7 @@ local function build(deps)
 	backdrop.AutoButtonColor = false
 	backdrop.Text = ""
 	backdrop.Visible = false
-	backdrop.ZIndex = 5040
+	backdrop.ZIndex = Layers.confirm + 40
 	backdrop.Parent = screenGui
 
 	local panel = Instance.new("Frame")
@@ -88,7 +89,7 @@ local function build(deps)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.Active = true -- sinks clicks so only the dim area cancels
-	panel.ZIndex = 5041
+	panel.ZIndex = Layers.confirm + 41
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 14, "wood")
 	if deps.addSoftShadow then deps.addSoftShadow(panel, 16) end
@@ -101,7 +102,7 @@ local function build(deps)
 	title.TextSize = 22
 	title.TextColor3 = Color3.fromRGB(255, 214, 130)
 	title.Text = "Restart Run?"
-	title.ZIndex = 5042
+	title.ZIndex = Layers.confirm + 42
 	title.Parent = panel
 
 	local message = Instance.new("TextLabel")
@@ -114,7 +115,7 @@ local function build(deps)
 	message.TextColor3 = TEXT
 	message.TextYAlignment = Enum.TextYAlignment.Top
 	message.Text = MESSAGE
-	message.ZIndex = 5042
+	message.ZIndex = Layers.confirm + 42
 	message.Parent = panel
 
 	-- Cancel: the default, highlighted
@@ -126,7 +127,7 @@ local function build(deps)
 	cancel.Text = "Cancel"
 	cancel.BackgroundColor3 = Color3.fromRGB(70, 110, 60)
 	cancel.TextColor3 = TEXT
-	cancel.ZIndex = 5042
+	cancel.ZIndex = Layers.confirm + 42
 	cancel.Parent = panel
 	polishButton(cancel, 12)
 	local cancelStroke = Instance.new("UIStroke")
@@ -151,7 +152,7 @@ local function build(deps)
 	restart.TextColor3 = TEXT
 	restart.AutoButtonColor = false
 	restart.ClipsDescendants = true
-	restart.ZIndex = 5042
+	restart.ZIndex = Layers.confirm + 42
 	restart.Parent = panel
 	polishButton(restart, 12)
 	local fill = Instance.new("Frame") -- parented to the button so it survives clones/hover scale
@@ -161,7 +162,7 @@ local function build(deps)
 	fill.BackgroundTransparency = 0.45
 	fill.BorderSizePixel = 0
 	fill.Active = false
-	fill.ZIndex = 5043
+	fill.ZIndex = Layers.confirm + 43
 	fill.Parent = restart
 	restart.TextTransparency = 0
 	restart.TextStrokeTransparency = 0.5
@@ -216,7 +217,7 @@ local function build(deps)
 		label.TextColor3 = TEXT
 		label.TextWrapped = true
 		label.Text = text
-		label.ZIndex = 5060
+		label.ZIndex = Layers.confirm + 60
 		label.Parent = screenGui
 		deps.polishPanel(label, 8, "wood")
 		task.delay(2.6, function()

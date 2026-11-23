@@ -9,6 +9,7 @@
 	Every call is wrapped in pcall and runs in its own thread, so a social service error never touches gameplay.
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local Players = game:GetService("Players")
 local SocialService = game:GetService("SocialService")
 local TweenService = game:GetService("TweenService")
@@ -50,7 +51,7 @@ local function toast(anchor, text)
 	label.TextStrokeTransparency = 1
 	label.TextWrapped = true
 	label.Text = text
-	label.ZIndex = 200
+	label.ZIndex = Layers.effect + 100
 	label.Active = false
 	label.Parent = gui
 	local corner = Instance.new("UICorner")

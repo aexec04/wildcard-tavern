@@ -13,6 +13,7 @@
 	HandTouchFX.swallow() -> true while a click that follows a drag or long press must be ignored
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -58,7 +59,7 @@ local function showTip(anchor, text)
 	plate.TextSize = 16
 	plate.TextWrapped = true
 	plate.Text = text
-	plate.ZIndex = 400
+	plate.ZIndex = Layers.effect + 300
 	local w = 260
 	local lines = math.max(1, math.ceil(#text / 30)) + select(2, text:gsub("\n", ""))
 	local h = 20 + lines * 20

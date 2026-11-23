@@ -25,6 +25,7 @@
 	The modal shows and hides with the shared popIn/popOut helpers (VisualHelpers.lua).
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ConfirmCopy = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ConfirmCopy"))
 
@@ -51,7 +52,7 @@ return function(deps)
 	confirmBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	confirmBackdrop.BackgroundTransparency = 0.35
 	confirmBackdrop.Visible = false
-	confirmBackdrop.ZIndex = 35
+	confirmBackdrop.ZIndex = Layers.confirm
 	confirmBackdrop.Parent = screenGui
 
 	local function corner(inst, r)
@@ -69,7 +70,7 @@ return function(deps)
 	confirmPanel.BackgroundColor3 = WOOD
 	confirmPanel.BorderSizePixel = 0
 	confirmPanel.Active = true -- sinks clicks: the dark area behind is the only thing that cancels
-	confirmPanel.ZIndex = 35
+	confirmPanel.ZIndex = Layers.confirm
 	confirmPanel.Parent = confirmBackdrop
 	corner(confirmPanel, 14)
 	local edge = Instance.new("UIStroke")
@@ -87,7 +88,7 @@ return function(deps)
 		stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
 		stud.BorderSizePixel = 0
 		stud.Active = false
-		stud.ZIndex = 39
+		stud.ZIndex = Layers.confirm + 4
 		stud.Parent = confirmPanel
 		corner(stud, 5)
 	end
@@ -100,7 +101,7 @@ return function(deps)
 	sheet.BackgroundColor3 = Color3.fromRGB(238, 222, 186)
 	sheet.BorderSizePixel = 0
 	sheet.Active = false
-	sheet.ZIndex = 36
+	sheet.ZIndex = Layers.confirm + 1
 	sheet.Parent = confirmPanel
 	corner(sheet, 10)
 	local sheetEdge = Instance.new("UIStroke")
@@ -124,7 +125,7 @@ return function(deps)
 		l.TextTransparency = 0
 		l.TextStrokeTransparency = 1
 		l.Text = ""
-		l.ZIndex = 37
+		l.ZIndex = Layers.confirm + 2
 		l.Parent = sheet
 		return l
 	end
@@ -150,7 +151,7 @@ return function(deps)
 		b.TextColor3 = CREAM
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1
-		b.ZIndex = 38
+		b.ZIndex = Layers.confirm + 3
 		b.Parent = sheet
 		polishButton(b, 10)
 		addButtonHoverScale(b)

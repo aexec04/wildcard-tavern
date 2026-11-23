@@ -13734,11 +13734,12 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	local panel = io.open("src/Client/FlairPanel.lua", "r"):read("*a") .. io.open("src/Client/FlairDressingRoom.lua", "r"):read("*a")
 	expectTrue(pb:find("options.zIndex or 30", 1, true) ~= nil, "default zIndex stays 30")
 	expectTrue(pb:find("particle.ZIndex = zIndex", 1, true) ~= nil, "particles use the zIndex option")
-	local panelZ = tonumber(fx:match("FlairFX%.PANEL_Z = (%d+)"))
+	local panelZ = tonumber(fx:match("FlairFX%.PANEL_Z = (%d+)")) or (100 + (tonumber(fx:match("FlairFX%.PANEL_Z = Layers%.effect %+ (%d+)")) or -1000))
 	expectTrue(panelZ ~= nil, "PANEL_Z is defined")
 	local maxZ = 0
 	for z in panel:gmatch("ZIndex = (%d+)") do maxZ = math.max(maxZ, tonumber(z)) end
 	for z in panel:gmatch("zIndex = (%d+)") do maxZ = math.max(maxZ, tonumber(z)) end
+	for z in panel:gmatch("Layers%.effect %+ (%d+)") do maxZ = math.max(maxZ, 100 + tonumber(z)) end
 	expectTrue(maxZ > 0 and panelZ > maxZ, "PANEL_Z above every FlairPanel ZIndex")
 	expectTrue(fx:find("trailBurst(burst, pos, option, true, z)", 1, true) ~= nil, "trail preview passes the zIndex")
 	expectTrue(fx:find("finisherBurst(burst, pos, option, true, z, true)", 1, true) ~= nil, "finisher preview passes the zIndex")
@@ -18572,6 +18573,7 @@ table.insert(tests, { name = "ShopTips.packPlacer: reads the live rows and contr
 	local rs = {}
 	function rs:WaitForChild(name)
 		if name == "TooltipSpec" then return { __module = TooltipSpec } end
+		if name == "Layers" then return { __module = require(script.Parent.Parent.Engine.Layers) } end
 		return rs
 	end
 	local env = setmetatable({ game = { GetService = function() return rs end }, require = function(m) return m.__module end }, { __index = _G })
@@ -20226,7 +20228,7 @@ table.insert(tests, { name = "OverlayQueue sends small notices to the corner toa
 		st.services.ReplicatedStorage = { WaitForChild = function()
 			return { WaitForChild = function()
 				return FakeGui.folder({
-					CornerToastRules = require(Engine.CornerToastRules), OverlayQueueRules = require(Engine.OverlayQueueRules), HudKit = require(Engine.HudKit), ToastPlacement = require(Engine.ToastPlacement),
+					CornerToastRules = require(Engine.CornerToastRules), OverlayQueueRules = require(Engine.OverlayQueueRules), HudKit = require(Engine.HudKit), ToastPlacement = require(Engine.ToastPlacement), Layers = require(Engine.Layers),
 				})
 			end }
 		end }
@@ -34580,10 +34582,10 @@ table.insert(tests, { name = "Confirm popups sit above every HUD layer (ZIndex a
 	for _, file in ipairs({ "src/Client/RestartRun.lua", "src/Client/QuitConfirm.lua" }) do
 		local src = read(file)
 		local n = 0
-		for name, z in src:gmatch("(%w+)%.ZIndex = (%d+)") do
+		for name, z in src:gmatch("(%w+)%.ZIndex = ([^\n]+)") do
 			if name ~= "button" then
 				n = n + 1
-				expectTrue(tonumber(z) >= 5000, file .. " " .. name .. " ZIndex " .. z .. " is under the popup layer")
+				expectTrue(tonumber(z) and tonumber(z) >= 5000 or z:find("Layers.confirm", 1, true) ~= nil or z:find("Layers.popup", 1, true) ~= nil, file .. " " .. name .. " ZIndex " .. z .. " is under the popup layer")
 			end
 		end
 		expectTrue(n >= 3, file .. " sets its confirm ZIndexes")
@@ -38414,8 +38416,8 @@ table.insert(tests, { name = "Patron tip plate: on screen and clear of the HUD f
 	if not io then return end
 	local f = io.open("src/Client/PatronTipFX.lua", "r"); local src = f and f:read("*a") or ""; if f then f:close() end
 	expectTrue(src:find("TipDisc", 1, true) == nil and src:find("t.icon", 1, true) == nil, "no badge in the picture, no emoji icon on the tag line")
-	local z = tonumber(src:match("local Z = (%d+)")) or 0
-	expectTrue(z >= 100 and z < 140 and src:find("ZIndex = 6%d") == nil, "the plate sits above every seat piece and below toasts")
+	local z = tonumber(src:match("local Z = (%d+)")) or (100 + (tonumber(src:match("local Z = Layers%.effect %+ (%d+)")) or -1000))
+	expectTrue(z >= 100 and z < 140 and src:find("ZIndex = 6%d") == nil and src:find("Layers.confirm", 1, true) == nil, "the plate sits above every seat piece and below toasts")
 	expectTrue(src:find("frame.Active = true", 1, true) ~= nil and src:find("[PatronTip]", 1, true) ~= nil, "plate sinks input and prints in Studio")
 end })
 
@@ -46765,7 +46767,7 @@ table.insert(tests, { name = "Gear menu: Restart run is first and mid run, Main 
 	local function read(p) local f = assert(io.open(p, "r")); local t = f:read("a"); f:close(); return t end
 	local r = read("src/Client/RestartRun.lua")
 	expectTrue(r:find('registerOpener("restartRun", open)', 1, true) ~= nil, "gear row opens the confirm")
-	expectTrue(r:find("ZIndex = 50", 1, true) ~= nil or r:find("ZIndex = 5", 1, true) ~= nil, "confirm on the popup layer")
+	expectTrue(r:find("ZIndex = Layers.confirm", 1, true) ~= nil, "confirm on the popup layer")
 	for _, f in ipairs({ "src/Client/GearMenu.lua", "src/Client/QuitConfirm.lua", "src/Shared/Engine/GearMenu.lua", "src/Shared/Engine/QuitFlow.lua", "src/Shared/Engine/SettingsLayout.lua" }) do
 		expectTrue(read(f):find('"Quit to Tavern"', 1, true) == nil, f .. " has no Quit to Tavern label")
 	end
@@ -46862,6 +46864,122 @@ table.insert(tests, { name = "PopupLayers: full screen pages hide the whole tabl
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/PopupLayers.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find('FindFirstChild("GameRoot")', 1, true) ~= nil and src:find("coverCount > 0", 1, true) ~= nil, "client hides GameRoot while a full screen page is open")
+	expectTrue(src:find("FullScreenBase", 1, true) ~= nil, "a solid base sits under every full screen page so the sky never shows through")
+end })
+
+
+-- Layers: the one place that decides how high anything draws
+local function layersClientFiles()
+	if not (io and io.popen) then return nil end
+	local p = io.popen('ls src/Client 2>/dev/null')
+	if not p then return nil end
+	local files = {}
+	for name in p:lines() do
+		if name:sub(-4) == ".lua" then files[#files + 1] = name end
+	end
+	p:close()
+	if #files == 0 then return nil end
+	return files
+end
+local function layersRead(path)
+	local f = io.open(path, "r")
+	if not f then return nil end
+	local s = f:read("a"); f:close()
+	return s
+end
+
+table.insert(tests, { name = "Layers: bands are ordered table, effect, gear, screen, popup, confirm, toast and bandOf places a ZIndex", fn = function()
+	local L = require(script.Parent.Parent.Engine.Layers)
+	expectEqual(L.bandOf(1), "table", "1 is the table")
+	expectEqual(L.bandOf(99), "table", "99 is still the table")
+	expectEqual(L.bandOf(100), "effect", "100 starts the effects")
+	expectEqual(L.bandOf(999), "effect", "999 ends the effects")
+	expectEqual(L.bandOf(L.gear), "gear", "gear")
+	expectEqual(L.bandOf(L.screen + 500), "screen", "screens and pages")
+	expectEqual(L.bandOf(L.popup + 3), "popup", "popups")
+	expectEqual(L.bandOf(L.confirm + 2), "confirm", "confirms")
+	expectEqual(L.bandOf(L.toast), "toast", "toasts")
+	expectEqual(L.bandOf(nil), nil, "junk input")
+	expectEqual(L.bandOf(0), nil, "zero is not a layer")
+	local last = 0
+	for _, name in ipairs(L.ORDER) do
+		expectTrue(L[name] > last, name .. " sits above the band before it")
+		last = L[name]
+	end
+	expectTrue(L.isAtLeast(L.confirm + 1, "popup"), "a confirm is at least popup height")
+	expectFalse(L.isAtLeast(L.effect + 80, "popup"), "an effect is below a popup")
+end })
+
+table.insert(tests, { name = "Layers: no Client file uses a ZIndex literal of 100 or more outside Layers.lua", fn = function()
+	local files = layersClientFiles()
+	if not files then return end
+	local bad = {}
+	for _, name in ipairs(files) do
+		local src = layersRead("src/Client/" .. name)
+		if src then
+			local n = 0
+			for line in (src .. "\n"):gmatch("(.-)\n") do
+				n = n + 1
+				local code = line:gsub("%-%-.*$", "")
+				for _, pat in ipairs({ "[Zz][Ii]ndex%s*=%s*(%d+)", "PANEL_Z%s*=%s*(%d+)", "%f[%w_][Zz]%s*=%s*(%d+)" }) do
+					for num in code:gmatch(pat) do
+						if tonumber(num) >= 100 then bad[#bad + 1] = "src/Client/" .. name .. ":" .. n .. " (" .. num .. ")" end
+					end
+				end
+			end
+		end
+	end
+	expectEqual(#bad, 0, "bare ZIndex of 100 or more, take it from Engine/Layers: " .. table.concat(bad, ", "))
+end })
+
+table.insert(tests, { name = "Layers: every Backdrop the Client creates is listed as FULL_SCREEN or PARTIAL in Engine/PopupLayers", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PopupLayers)
+	local files = layersClientFiles()
+	if not files then return end
+	local missing, seen = {}, 0
+	for _, name in ipairs(files) do
+		local src = layersRead("src/Client/" .. name)
+		if src then
+			for b in src:gmatch('Name%s*=%s*"([%w_]*Backdrop)"') do
+				seen = seen + 1
+				if not PL.isClassified(b) then missing[#missing + 1] = b .. " (" .. name .. ")" end
+			end
+		end
+	end
+	expectTrue(seen >= 30, "the scan finds the Backdrops")
+	expectEqual(#missing, 0, "add to PopupLayers.FULL_SCREEN or PopupLayers.PARTIAL: " .. table.concat(missing, ", "))
+	for n in pairs(PL.FULL_SCREEN) do expectFalse(PL.PARTIAL[n] == true, n .. " is in both lists") end
+end })
+
+table.insert(tests, { name = "Layers: every confirm plate draws on the confirm band, above every popup and HUD layer", fn = function()
+	local L = require(script.Parent.Parent.Engine.Layers)
+	if not (io and io.open) then return end
+	for _, name in ipairs({ "RestartRun", "QuitConfirm", "ReplayConfirm", "ConfirmDialog" }) do
+		local src = layersRead("src/Client/" .. name .. ".lua")
+		expectTrue(src ~= nil, name .. " exists")
+		if src then
+			expectTrue(src:find("Layers.confirm", 1, true) ~= nil, name .. " takes its ZIndex from Layers.confirm")
+			for line in (src .. "\n"):gmatch("(.-)\n") do
+				local code = line:gsub("%-%-.*$", "")
+				if code:find("%.ZIndex%s*=") and not code:find("button%.ZIndex") then
+					expectTrue(code:find("Layers.confirm", 1, true) ~= nil, name .. ": " .. code:gsub("^%s+", ""))
+				end
+			end
+		end
+	end
+	expectTrue(L.confirm > L.popup and L.popup > L.gear, "confirm above popup above gear")
+end })
+
+table.insert(tests, { name = "Layers: the Studio overlay audit script and its usage note exist", fn = function()
+	if not (io and io.open) then return end
+	local a = layersRead("tools/overlay_audit.luau")
+	expectTrue(a ~= nil, "tools/overlay_audit.luau exists")
+	if a then
+		expectTrue(a:find("PASS", 1, true) ~= nil and a:find("DebugGoto", 1, true) ~= nil, "prints PASS and drives DebugGoto")
+		expectTrue(a:find("DisplayOrder", 1, true) ~= nil and a:find("ZIndex", 1, true) ~= nil, "compares DisplayOrder and ZIndex")
+	end
+	local d = layersRead("claude/skills/wildcard-tavern-ui-integration-rules.md")
+	expectTrue(d ~= nil and d:find("overlay_audit", 1, true) ~= nil, "the UI rules note says to run the audit")
 end })
 
 return tests

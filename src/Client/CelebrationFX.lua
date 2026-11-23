@@ -9,6 +9,7 @@
 	defeatWash(dim) -> fn            a gentle grey wash fades in over 0.8 s behind the panel; call the returned fn to remove it
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local C = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Celebration"))
@@ -41,7 +42,7 @@ function M.winConfetti(screenGui)
 	holder.BackgroundTransparency = 1
 	holder.Size = UDim2.fromScale(1, 1)
 	holder.Active = false
-	holder.ZIndex = 200
+	holder.ZIndex = Layers.effect + 100
 	holder.Parent = screenGui
 	local parts = {}
 	for i, p in ipairs(plan.pieces) do
@@ -57,7 +58,7 @@ function M.winConfetti(screenGui)
 		l.TextStrokeTransparency = 0.5
 		l.TextStrokeColor3 = Color3.fromRGB(40, 24, 14)
 		l.Active = false
-		l.ZIndex = 200
+		l.ZIndex = Layers.effect + 100
 		l.Visible = false
 		l.Parent = holder
 		parts[i] = l

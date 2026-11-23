@@ -10,6 +10,7 @@
 	the bubble sits at the bottom centre, so a renamed element can never break a hint.
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -73,7 +74,7 @@ local function build()
 	bubble.AutoButtonColor = false
 	bubble.Text = ""
 	bubble.Visible = false
-	bubble.ZIndex = 180
+	bubble.ZIndex = Layers.effect + 80
 	bubble.Parent = gui
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
@@ -94,7 +95,7 @@ local function build()
 	icon.TextColor3 = Color3.fromRGB(46, 32, 20)
 	icon.TextTransparency = 0
 	icon.TextStrokeTransparency = 1
-	icon.ZIndex = 181
+	icon.ZIndex = Layers.effect + 81
 	icon.Parent = bubble
 
 	local text = Instance.new("TextLabel")
@@ -110,7 +111,7 @@ local function build()
 	text.TextWrapped = true
 	text.RichText = true
 	text.TextXAlignment = Enum.TextXAlignment.Left
-	text.ZIndex = 181
+	text.ZIndex = Layers.effect + 81
 	text.Parent = bubble
 
 	local arrow = Instance.new("TextLabel")
@@ -126,7 +127,7 @@ local function build()
 	arrow.TextStrokeTransparency = 1
 	arrow.Text = "▼"
 	arrow.Visible = false
-	arrow.ZIndex = 181
+	arrow.ZIndex = Layers.effect + 81
 	arrow.Parent = bubble
 
 	bubble.MouseButton1Click:Connect(hide)

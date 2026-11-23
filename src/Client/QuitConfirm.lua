@@ -8,6 +8,7 @@
 	QuitConfirm.ask()          opens the popup (also the OverlayManager opener "quitToTavern")
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -42,7 +43,7 @@ function M.install(deps)
 	backdrop.AutoButtonColor = false
 	backdrop.Text = ""
 	backdrop.Visible = false
-	backdrop.ZIndex = 6000
+	backdrop.ZIndex = Layers.confirm
 	backdrop.Parent = deps.screenGui
 
 	local panel = Instance.new("Frame")
@@ -51,7 +52,7 @@ function M.install(deps)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.Active = true
-	panel.ZIndex = 6001
+	panel.ZIndex = Layers.confirm + 1
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 14, "wood")
 
@@ -66,7 +67,7 @@ function M.install(deps)
 		l.TextColor3 = color
 		l.TextYAlignment = Enum.TextYAlignment.Top
 		l.Text = text
-		l.ZIndex = 6002
+		l.ZIndex = Layers.confirm + 2
 		l.Parent = panel
 		return l
 	end
@@ -83,7 +84,7 @@ function M.install(deps)
 		b.Text = text
 		b.BackgroundColor3 = color
 		b.TextColor3 = TEXT
-		b.ZIndex = 6002
+		b.ZIndex = Layers.confirm + 2
 		b.Parent = panel
 		deps.polishButton(b, 12)
 		-- the equipped Card Set's plate (Stay green, Quit dark); classic keeps the flat buttons

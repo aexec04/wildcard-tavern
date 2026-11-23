@@ -6,6 +6,7 @@
 	kit can restyle it later. Calm mode and Reduce motion: the menu appears at once, no tween.
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
@@ -19,7 +20,7 @@ local ButtonLabelTop = require(script.Parent.ButtonLabelTop)
 
 local M = {}
 
-local Z = 900 -- above the table, the Counter and the Night map, under every popup (popups start at 5000)
+local Z = Layers.gear -- above the table, the Counter and the Night map, under every popup (popups start at 5000)
 
 local function rgb(name) local c = Style.rgb(name); return Color3.fromRGB(c[1], c[2], c[3]) end
 

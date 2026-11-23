@@ -16,6 +16,7 @@
 	a zero-arg function evaluated on each hover.
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -38,7 +39,7 @@ function Tooltip.new(screenGui)
 	frame.BorderSizePixel = 0
 	frame.Visible = false
 	frame.Active = false
-	frame.ZIndex = 100
+	frame.ZIndex = Layers.effect
 	frame.Parent = screenGui
 
 	local corner = Instance.new("UICorner")
@@ -76,7 +77,7 @@ function Tooltip.new(screenGui)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.RichText = false
 	label.Text = ""
-	label.ZIndex = 101
+	label.ZIndex = Layers.effect + 1
 	pcall(function() -- the equipped Card Set tints the plate, edge and ink at 7:1; classic keeps the colours above
 		require(script.Parent.HintSkin).bind(frame, border, { label }, {
 			plate = frame.BackgroundColor3, edge = border.Color, ink = label.TextColor3 })

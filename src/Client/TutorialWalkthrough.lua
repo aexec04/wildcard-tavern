@@ -23,6 +23,7 @@
 	          notifyDiscardUsed, notifyEnteredShop, notifyNextRoundClicked }
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -33,7 +34,7 @@ local TutorialStart = require(ReplicatedStorage:WaitForChild("Shared"):WaitForCh
 
 local PAD = 10
 local DIM = 0.5
-local Z = 110
+local Z = Layers.effect + 10
 
 return function(deps)
 	local root = deps.root

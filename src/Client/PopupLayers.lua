@@ -51,7 +51,19 @@ function PopupLayers.install(screenGui)
 	end
 	-- One switch for full screen pages: hide the whole table (GameRoot) so nothing from it can show through or sit above the page.
 	local coverCount, rootHeld, rootConn = 0, false, nil
+	-- a solid base under every full screen page, so the 3D world (sky) never shows through a page that has a see through strip
+	local base = Instance.new("Frame")
+	base.Name = "FullScreenBase"
+	base.Size = UDim2.fromScale(1, 1)
+	base.Position = UDim2.fromScale(0, 0)
+	base.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
+	base.BorderSizePixel = 0
+	base.Visible = false
+	base.Active = false
+	base.ZIndex = 2
+	base.Parent = screenGui
 	local function applyCover()
+		base.Visible = coverCount > 0
 		local root = screenGui:FindFirstChild("GameRoot")
 		if not (root and root:IsA("GuiObject")) then return end
 		if coverCount > 0 then

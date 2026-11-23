@@ -13,6 +13,7 @@
 	OverlayQueue.newRound()
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -70,7 +71,7 @@ local function build()
 	backdrop.BorderSizePixel = 0
 	backdrop.Active = true
 	backdrop.Visible = false
-	backdrop.ZIndex = 150
+	backdrop.ZIndex = Layers.effect + 50
 	backdrop.Parent = gui
 	-- Escape presses the plate's Continue (or closes a notice) via Client/PopupDismiss, policy "button".
 	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = function() if pressCurrent then pressCurrent() end end, button = true })
@@ -83,7 +84,7 @@ local function build()
 	plate.BackgroundColor3 = PARCHMENT
 	plate.BackgroundTransparency = 0
 	plate.Active = true
-	plate.ZIndex = 151
+	plate.ZIndex = Layers.effect + 51
 	plate.Parent = backdrop
 	plateCorner = Instance.new("UICorner")
 	plateCorner.CornerRadius = UDim.new(0, 14)
@@ -114,7 +115,7 @@ local function build()
 	iconArt.BackgroundTransparency = 1
 	iconArt.ScaleType = Enum.ScaleType.Fit
 	iconArt.Visible = false
-	iconArt.ZIndex = 152
+	iconArt.ZIndex = Layers.effect + 52
 	iconArt.Parent = plate
 	title = label(plate, "Title", 22, Enum.Font.GothamBold, GOLD_TEXT, 152)
 	title.LayoutOrder = 2
@@ -129,7 +130,7 @@ local function build()
 	rowsHolder.LayoutOrder = 4
 	rowsHolder.Size = UDim2.new(1, 0, 0, 0)
 	rowsHolder.AutomaticSize = Enum.AutomaticSize.Y
-	rowsHolder.ZIndex = 152
+	rowsHolder.ZIndex = Layers.effect + 52
 	rowsHolder.Parent = plate
 	local rowList = Instance.new("UIListLayout")
 	rowList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -142,7 +143,7 @@ local function build()
 	customHolder.LayoutOrder = 5
 	customHolder.Size = UDim2.new(1, 0, 0, 0)
 	customHolder.Visible = false
-	customHolder.ZIndex = 152
+	customHolder.ZIndex = Layers.effect + 52
 	customHolder.Parent = plate
 
 	button = Instance.new("TextButton")
@@ -155,7 +156,7 @@ local function build()
 	button.TextColor3 = Color3.fromRGB(40, 28, 16)
 	button.Text = "Continue"
 	button.AutoButtonColor = true
-	button.ZIndex = 153
+	button.ZIndex = Layers.effect + 53
 	button.Parent = plate
 	local bc = Instance.new("UICorner")
 	bc.CornerRadius = UDim.new(0, 8)

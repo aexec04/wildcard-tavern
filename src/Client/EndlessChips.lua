@@ -11,6 +11,7 @@
 	module: init(deps) once, update(state) from render()
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local TweenService = game:GetService("TweenService")
 
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -67,7 +68,7 @@ function EndlessChips.init(deps)
 	banner.TextStrokeTransparency = 1
 	banner.Text = ""
 	banner.Visible = false
-	banner.ZIndex = 120
+	banner.ZIndex = Layers.effect + 20
 	banner.Active = false
 	banner.Parent = deps.root
 	corner(banner, 8)

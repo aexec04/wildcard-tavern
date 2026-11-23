@@ -17,6 +17,7 @@
 	init(deps): { screenGui, particleBurst }   (the Watch buttons live in the Friend Presence card, Client/PhaseB.lua)
 ]]
 
+local Layers = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Layers"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -57,7 +58,7 @@ function SpectatePanel.init(deps)
 		l.TextTransparency = 0
 		l.TextStrokeTransparency = 1
 		l.TextSize = 15
-		l.ZIndex = 131
+		l.ZIndex = Layers.effect + 31
 		for k, v in pairs(props) do
 			l[k] = v
 		end
@@ -75,7 +76,7 @@ function SpectatePanel.init(deps)
 	overlay.BackgroundTransparency = 0.05
 	overlay.BorderSizePixel = 0
 	overlay.Visible = false
-	overlay.ZIndex = 130
+	overlay.ZIndex = Layers.effect + 30
 	overlay.Parent = gui
 	local sizeLimit = Instance.new("UISizeConstraint")
 	sizeLimit.MaxSize = Vector2.new(SpectateLayout.WIDTH_MAX, SpectateLayout.HEIGHT)
@@ -96,7 +97,7 @@ function SpectatePanel.init(deps)
 	header.BackgroundColor3 = Color3.fromRGB(96, 66, 38)
 	header.BorderSizePixel = 0
 	header.Active = false
-	header.ZIndex = 131 -- created before the title and sub line, so they draw on it
+	header.ZIndex = Layers.effect + 31 -- created before the title and sub line, so they draw on it
 	header.Parent = overlay
 	local hc = Instance.new("UICorner")
 	hc.CornerRadius = UDim.new(0, 14)
@@ -108,7 +109,7 @@ function SpectatePanel.init(deps)
 	headLine.BackgroundColor3 = GOLD
 	headLine.BorderSizePixel = 0
 	headLine.Active = false
-	headLine.ZIndex = 131
+	headLine.ZIndex = Layers.effect + 31
 	headLine.Parent = overlay
 
 	local title = label(overlay, { Size = UDim2.new(1, -24, 0, 28), Position = UDim2.fromOffset(12, 4), TextSize = 22, TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left, Text = "Watching" })
@@ -122,7 +123,7 @@ function SpectatePanel.init(deps)
 	barBack.Size = UDim2.new(1, -24, 0, 22)
 	barBack.BackgroundColor3 = Color3.fromRGB(70, 52, 36)
 	barBack.BorderSizePixel = 0
-	barBack.ZIndex = 131
+	barBack.ZIndex = Layers.effect + 31
 	barBack.Parent = overlay
 	local bc = Instance.new("UICorner")
 	bc.CornerRadius = UDim.new(0, 11)
@@ -131,12 +132,12 @@ function SpectatePanel.init(deps)
 	barFill.Size = UDim2.fromScale(0, 1)
 	barFill.BackgroundColor3 = GOLD
 	barFill.BorderSizePixel = 0
-	barFill.ZIndex = 132
+	barFill.ZIndex = Layers.effect + 32
 	barFill.Parent = barBack
 	local bfc = Instance.new("UICorner")
 	bfc.CornerRadius = UDim.new(0, 11)
 	bfc.Parent = barFill
-	local barText = label(barBack, { Size = UDim2.fromScale(1, 1), ZIndex = 133, TextColor3 = INK, TextSize = 14, Text = "" })
+	local barText = label(barBack, { Size = UDim2.fromScale(1, 1), ZIndex = Layers.effect + 33, TextColor3 = INK, TextSize = 14, Text = "" })
 
 	local lastPlayed = label(overlay, { Size = UDim2.new(1, -24, 0, 30), Position = UDim2.fromOffset(12, 86), TextSize = 20, Text = "" })
 
@@ -145,7 +146,7 @@ function SpectatePanel.init(deps)
 	handRow.Position = UDim2.fromOffset(12, 122)
 	handRow.Size = UDim2.new(1, -24, 0, 84)
 	handRow.BackgroundTransparency = 1
-	handRow.ZIndex = 131
+	handRow.ZIndex = Layers.effect + 31
 	handRow.Parent = overlay
 	local handLayout = Instance.new("UIListLayout")
 	handLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -163,7 +164,7 @@ function SpectatePanel.init(deps)
 	reactRow.Position = UDim2.new(0, 12, 1, SpectateLayout.rects(0).react[2] - SpectateLayout.HEIGHT)
 	reactRow.Size = UDim2.new(1, -24, 0, SpectateLayout.REACT_H)
 	reactRow.BackgroundTransparency = 1
-	reactRow.ZIndex = 131
+	reactRow.ZIndex = Layers.effect + 31
 	reactRow.Parent = overlay
 	local reactLayout = Instance.new("UIListLayout")
 	reactLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -182,7 +183,7 @@ function SpectatePanel.init(deps)
 		b.TextColor3 = CREAM
 		b.BackgroundColor3 = WOOD
 		b.Text = ""
-		b.ZIndex = 132
+		b.ZIndex = Layers.effect + 32
 		b.Parent = reactRow
 		-- emoji glyph in its own label so painted art (SpectateArt, category "spectate") can replace it once generated
 		local glyph = Instance.new("TextLabel")
@@ -192,10 +193,10 @@ function SpectatePanel.init(deps)
 		glyph.TextSize = 22
 		glyph.TextColor3 = CREAM
 		glyph.Text = emote.icon
-		glyph.ZIndex = 133
+		glyph.ZIndex = Layers.effect + 33
 		glyph.Parent = b
 		pcall(function()
-			require(script.Parent.ArtIcon).apply(b, "spectate", emote.id, glyph, { cornerRadius = 8, zIndex = 134 })
+			require(script.Parent.ArtIcon).apply(b, "spectate", emote.id, glyph, { cornerRadius = 8, zIndex = Layers.effect + 34 })
 		end)
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0, 8)
@@ -226,7 +227,7 @@ function SpectatePanel.init(deps)
 		f.Text = icon
 		f.TextTransparency = 0
 		f.TextStrokeTransparency = 1
-		f.ZIndex = 170
+		f.ZIndex = Layers.effect + 70
 		f.Active = false
 		f.Parent = gui
 		if calm() then
@@ -245,21 +246,21 @@ function SpectatePanel.init(deps)
 		f.Size = UDim2.fromOffset(52, 78)
 		f.BackgroundColor3 = Color3.fromRGB(250, 244, 230)
 		f.BorderSizePixel = 0
-		f.ZIndex = 132
+		f.ZIndex = Layers.effect + 32
 		f.Parent = handRow
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0, 6)
 		c.Parent = f
 		local color = SUIT_RED[card.suit] and Color3.fromRGB(190, 40, 40) or Color3.fromRGB(30, 30, 40)
-		label(f, { Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 6), TextColor3 = color, TextSize = 24, ZIndex = 133, Text = RANK_TEXT[card.rank] or tostring(card.rank) })
-		label(f, { Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 36), TextColor3 = color, TextSize = 28, ZIndex = 133, Text = SUIT_GLYPH[card.suit] or "?" })
+		label(f, { Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 6), TextColor3 = color, TextSize = 24, ZIndex = Layers.effect + 33, Text = RANK_TEXT[card.rank] or tostring(card.rank) })
+		label(f, { Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 36), TextColor3 = color, TextSize = 28, ZIndex = Layers.effect + 33, Text = SUIT_GLYPH[card.suit] or "?" })
 		if card.garnish or card.special or card.stamp then
 			local dot = Instance.new("Frame")
 			dot.Size = UDim2.fromOffset(10, 10)
 			dot.Position = UDim2.new(1, -13, 0, 3)
 			dot.BackgroundColor3 = GOLD
 			dot.BorderSizePixel = 0
-			dot.ZIndex = 134
+			dot.ZIndex = Layers.effect + 34
 			dot.Parent = f
 			local dc = Instance.new("UICorner")
 			dc.CornerRadius = UDim.new(1, 0)
@@ -334,7 +335,7 @@ function SpectatePanel.init(deps)
 	leaveButton.BackgroundColor3 = Color3.fromRGB(236, 220, 184)
 	leaveButton.AutoButtonColor = true
 	leaveButton.Text = "Leave"
-	leaveButton.ZIndex = 132
+	leaveButton.ZIndex = Layers.effect + 32
 	leaveButton.Parent = overlay
 	local lc = Instance.new("UICorner")
 	lc.CornerRadius = UDim.new(0, 8)
@@ -350,7 +351,7 @@ function SpectatePanel.init(deps)
 	end
 	leaveButton.MouseButton1Click:Connect(leave)
 	-- the other exits: the round X (CloseX) and Escape (PopupDismiss) both mean Leave; a click on the dark area stays off (the overlay is a strip)
-	pcall(function() require(script.Parent.CloseX).attach(overlay, leave, { z = 133 }) end)
+	pcall(function() require(script.Parent.CloseX).attach(overlay, leave, { z = Layers.effect + 33 }) end)
 	pcall(function()
 		require(script.Parent.PopupDismiss).attach(overlay, { policy = "dismiss", close = leave, panel = overlay, outside = false, button = true })
 	end)
