@@ -44598,6 +44598,39 @@ table.insert(tests, { name = "AudioRows: Music, SFX and Mute each have one kind 
 	end
 end })
 
+table.insert(tests, { name = "Card Backs room: same plate frames as Card Sets, every back name fits two 14 px lines, every back is on a page, at four sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local Backs = require(script.Parent.Parent.Engine.CardBacks)
+	local Sets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local nBacks, nSets = #Backs.Definitions, #Sets.Definitions
+	expectTrue(nBacks > 0 and nSets > 0, "both lists exist")
+	local function lines(text, width)
+		local per, n, cur = 14 * 0.52, 1, 0 -- about 7.3 px a character in the serif at 14 px
+		for word in text:gmatch("%S+") do
+			local w = #word * per
+			expectTrue(w <= width, "the word " .. word .. " fits one line")
+			if cur > 0 and cur + per + w > width then n = n + 1; cur = w else cur = cur + (cur > 0 and per or 0) + w end
+		end
+		return n
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		local W, H = pw, ph - L.TOP - L.BOTTOM
+		local a, b = L.room(W, H, nSets, 1), L.room(W, H, nBacks, 1)
+		expectEqual(a.cols, b.cols, "same columns")
+		expectEqual(a.cells[1].tile.w, b.cells[1].tile.w, "same tile frame width")
+		-- the picture may be a little shorter when more entries must share the pages (CardSetsSceneLayout.room), never by much
+		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 10, "tile frame heights stay within 10 px")
+		local seen = 0
+		for page = 1, b.pages do seen = seen + #L.room(W, H, nBacks, page).cells end
+		expectEqual(seen, nBacks, "every back is on some page at " .. sz[1] .. "x" .. sz[2])
+		local nameW = b.cells[1].name.w
+		for _, def in ipairs(Backs.Definitions) do
+			expectTrue(lines(def.name, nameW) <= 2, def.name .. " fits two lines at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+end })
+
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local LL = require(Engine.LoadingLayout)
