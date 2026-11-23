@@ -68,6 +68,8 @@ function EngineLoader.load(sharedPath)
 	engine.BossRules = hasRules and rules or nil
 	local hasDecks, decks = pcall(loadModule, sharedPath .. "/Engine/StartingDecks")
 	engine.StartingDecks = hasDecks and decks or nil
+	local hasBoons, boons = pcall(loadModule, sharedPath .. "/Engine/NightBoons")
+	engine.NightBoons = hasBoons and boons or nil
 	local hasBook, book = pcall(loadModule, sharedPath .. "/Engine/CollectionBook")
 	engine.CollectionBook = hasBook and book or nil -- rarity lookups for tools/patron_roster.lua
 	-- any other Engine module by name (tools/economy_report.lua)

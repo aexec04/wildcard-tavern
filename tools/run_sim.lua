@@ -56,19 +56,19 @@ local function parseArgs(argv)
 		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--start-deck"] = "startDeck", ["--src"] = "src",
 		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss", ["--mode"] = "mode",
 		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
-		["--build"] = "build", ["--patron-list"] = "patronList", ["--daily-twist"] = "dailyTwist",
+		["--build"] = "build", ["--patron-list"] = "patronList", ["--daily-twist"] = "dailyTwist", ["--boon"] = "boon", ["--boon-list"] = "boonList",
 	}
 	local numbers = {
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--marks"] = "marks", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
-		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
+		["--first-run"] = "firstRun", ["--start-tips"] = "startTips", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
 		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds", ["--boss-from"] = "bossFrom",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--start-decks"] = "startDecks", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--boss-late"] = "bossLate", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing",
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--boss-late"] = "bossLate", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing", ["--boons"] = "boons", ["--boss-boons"] = "bossBoons",
 	}
 	local i = 1
 	while i <= #argv do
@@ -121,6 +121,8 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.marks then
 		table.insert(parts, "--marks"); table.insert(parts, run.marks)
 	end
+	if run.boon then table.insert(parts, "--boon"); table.insert(parts, run.boon) end
+	if run.startTips then table.insert(parts, "--start-tips"); table.insert(parts, run.startTips) end
 	if run.forceBoss then
 		table.insert(parts, "--force-boss"); table.insert(parts, run.forceBoss)
 	end
@@ -248,6 +250,15 @@ elseif cfg.ladder then
 	end
 	if cfg.json then
 		Report.writeJson(cfg.json, "ladder", summaries.decent)
+	end
+elseif cfg.boons then
+	-- Night boons (Engine/NightBoons): the bot takes the same boon on every Night 2 to 12 ("none" is the baseline)
+	local only = cfg.boonList and ("," .. cfg.boonList .. ",")
+	runAndSummarize("boon=none", { boon = nil })
+	for _, def in ipairs(engine.NightBoons.Definitions) do
+		if not only or only:find("," .. def.id .. ",", 1, true) then
+			runAndSummarize("boon=" .. def.id, { boon = def.id })
+		end
 	end
 elseif cfg.startDecks then
 	for _, def in ipairs(engine.StartingDecks.Definitions) do
@@ -476,6 +487,40 @@ elseif cfg.bossLate then
 		if rate and allT >= 20 and (rate < 15 or rate > 85) then flag = "  <-- outside" end
 		print(string.format("%-20s %s  %s%s", row.id, table.concat(cells, " "), rate and string.format("%4.0f%% (%d)", rate, allT) or "--", flag))
 	end
+elseif cfg.bossBoons then
+	-- Boss rule x Night boon, Nights 7 to 12: one cell = boss clear percent over every boss round of that run set (n attempts).
+	-- Flags a cell under 5 percent (unwinnable) or over 95 percent (trivial) with at least 20 attempts. --boss-list limits the bosses.
+	local onlyThese = cfg.bossList and ("," .. cfg.bossList .. ",")
+	local boons = { false }
+	for _, def in ipairs(engine.NightBoons.Definitions) do boons[#boons + 1] = def.id end
+	local flagged, header = {}, { string.format("%-18s", "boss") }
+	for _, b in ipairs(boons) do header[#header + 1] = string.format("%5.5s", b or "none") end
+	print(string.format("Boss rule x boon, Nights 7 to 12, bot %s, %d runs per cell, random Patron buys, clear percent.", cfg.bot, cfg.runs))
+	print(table.concat(header, " "))
+	for _, def in ipairs(engine.BossRounds.Definitions) do
+		if not onlyThese or onlyThese:find("," .. def.id .. ",", 1, true) then
+			local cells = { string.format("%-18.18s", def.id) }
+			for _, b in ipairs(boons) do
+				local tries, wins = 0, 0
+				for _, rec in ipairs(collect(runConfig({ forceBoss = def.id, bossFrom = 7, randomPatrons = true, endless = true, maxNight = 12, boon = b or nil }))) do
+					for _, boss in ipairs(rec.bosses or {}) do
+						if boss.id == def.id and boss.night >= 7 and boss.night <= 12 then
+							tries = tries + 1
+							if boss.cleared then wins = wins + 1 end
+						end
+					end
+				end
+				local rate = tries > 0 and 100 * wins / tries or nil
+				cells[#cells + 1] = rate and string.format("%5.0f", rate) or "   --"
+				if rate and tries >= 20 and (rate < 5 or rate > 95) then
+					flagged[#flagged + 1] = string.format("%s + %s: %.0f%% of %d", def.id, b or "none", rate, tries)
+				end
+			end
+			print(table.concat(cells, " "))
+		end
+	end
+	print("Flagged (under 5 or over 95 percent, 20+ attempts): " .. (#flagged == 0 and "none" or ""))
+	for _, line in ipairs(flagged) do print("  " .. line) end
 elseif cfg.dailyTwists then
 	-- Daily twists: win rate of every twist against the no twist baseline (same seeds, same bot). Within 15 points is fair.
 	local function winRate(twist)

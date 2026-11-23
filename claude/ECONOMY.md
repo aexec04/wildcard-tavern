@@ -366,9 +366,32 @@ Rule: no Patron may lift the win rate more than 12 points alone. Control (no fre
 
 Others sampled (Vip Table +10, House Favorite +7, Small Plate +4, the rest within 2) are under the line. Sampling noise on 150 runs is about 4 points. A full 93 Patron lift sweep takes over 10 minutes, so only the suspects were re-run; use `--patron-list` to check others. Pinned by the test "Patron lift".
 
+## Night boons: win rate lift over no boon (`lua tools/run_sim.lua --boons --runs 500 --jobs 8 --bot decent|greedy|builder`)
+
+The bot takes the same boon on every Night 2 to 12. Rule: no boon lifts the win rate more than 12 points, none is worse than no boon. 500 runs per cell, sampling noise about 4 points. Baselines (no boon): decent 36.2 percent, greedy 17.0, builder 38.6. The table is the final tuned set, lift in points.
+
+| Boon | decent | greedy | builder |
+| --- | --- | --- | --- |
+| Spare Hand (+1 Hand before the Boss) | +4.8 | +2.6 | +6.6 |
+| Spare Discard | +7.6 | +2.6 | +7.8 |
+| Wider Grip (+1 card, 1 less Discard) | +9.4 | +15.8 | +13.4 |
+| Opening Flourish (x1.4) | +10.4 | +7.4 | +11.8 |
+| Warm Welcome | +6.6 | +5.2 | +5.8 |
+| Pocket Change (+1 Tip) | +4.4 | +5.4 | +8.4 |
+| Free Reroll | +2.4 | +3.0 | +3.6 |
+| Friendly Prices (1 less) | +9.8 | +8.8 | +13.8 |
+| Pack Deal | +4.4 | +5.0 | +10.6 |
+| Boss Ready (+1 Hand, 2 less Discards on the Boss) | +7.2 | +11.6 | +3.0 |
+| Boss Prep | +7.8 | +3.4 | +8.0 |
+| Steady Pace | +5.6 | +4.2 | +7.0 |
+
+First pass (before tuning, decent / greedy / builder lift): Spare Hand +15.2 / +13.8 / +15.4, Wider Grip +16.0 / +15.8 / +21.6, Pocket Change (+3 Tips) +16.2 / +14.2 / +22.2, Friendly Prices (2 off) +24.6 / +22.0 / +27.8, Boss Ready (+1 Hand) +14.6 / +12.4 / +14.8, Opening Flourish (x1.5) +7.6 / +8.4 / +12.4. Changes: Spare Hand no longer applies on the Boss round, Wider Grip and Boss Ready now trade Discards for the extra card or Hand, Pocket Change +3 to +1 Tip (+2 still lifted decent by 20 points because early Tips buy the first Patrons), Friendly Prices 2 off to 1 off, Opening Flourish x1.5 to x1.4.
+
+Open: Wider Grip reads +15.8 for the greedy bot only because greedy never discards, so the Discard cost is free to it; decent and builder read +9.4 and +13.4 (builder is inside the sampling noise of the 12 point line). Friendly Prices reads +13.8 for builder, also inside the noise. If a later sim with more runs confirms either over 12, drop Wider Grip to 2 less Discards or Friendly Prices to a one time discount. Pinned by the test "NightBoons balance".
+
 ## Quest Tips and Pocket Change against the shop (`lua tools/run_sim.lua --shop-econ --runs 100 --jobs 2 --start-tips 30 --boon pocket_change`)
 
-Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon (+3 Tips) on every Night.
+Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon on every Night. Measured with the first Pocket Change (+3 Tips); the boon is now +1 Tip (see the boon balance below), so the real margin is wider.
 
 | Visit | Avg Tips, baseline | Avg Tips, full bank + Pocket Change | Patrons, baseline | Patrons, full bank + Pocket Change |
 | --- | --- | --- | --- | --- |

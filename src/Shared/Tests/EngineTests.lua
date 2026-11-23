@@ -41909,7 +41909,7 @@ table.insert(tests, { name = "Quest Tips and Pocket Change: the banked Tips cap 
 	end
 	expectEqual(profile.pendingStartTips, TavernRank.MAX_PENDING_TIPS, "claims fill the bank to the cap and no further")
 	local pocket = NB.getById("pocket_change")
-	expectTrue(pocket.tips <= 3, "Pocket Change stays at 3 Tips")
+	expectTrue(pocket.tips <= 3, "Pocket Change stays at 3 Tips or less")
 	-- a full bank on Night 1 plus Pocket Change on Nights 2 to 5
 	local available = TavernRank.MAX_PENDING_TIPS + 4 * pocket.tips
 	local prices = {}
@@ -43747,6 +43747,38 @@ local function boonRun(night, round)
 	return state
 end
 
+-- BOON BALANCE (claude/ECONOMY.md, tools/run_sim.lua --boons): after the 500 run sim no boon may lift the win rate over 12 points.
+-- These are the tuned values, pinned.
+table.insert(tests, { name = "NightBoons balance: the tuned values stay (Spare Hand skips the Boss, Wider Grip and Boss Ready trade Discards, Pocket Change 1, Friendly Prices 1, Flourish x1.4)", fn = function()
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	expectEqual(NB.getById("pocket_change").tips, 1)
+	expectEqual(NB.getById("patron_discount").patronOff, 1)
+	expectEqual(NB.getById("opening_flourish").firstHandPct, 40)
+	local hand, grip, ready = NB.getById("extra_hand"), NB.getById("wider_grip"), NB.getById("boss_hand")
+	expectTrue(hand.hands == 1 and hand.skipBoss == true, "Spare Hand is +1 Hand before the Boss round")
+	expectTrue(grip.handSize == 1 and grip.discards == -1, "Wider Grip trades a Discard for a card")
+	expectTrue(ready.bossHands == 1 and ready.bossDiscards == -2, "Boss Ready trades 2 Discards for a Hand")
+	for _, def in ipairs(NB.Definitions) do
+		expectTrue(#def.text <= 44, def.id .. " text stays one short line: " .. #def.text)
+	end
+	-- Spare Hand: a normal round gets the Hand, the Boss round does not
+	local s = boonRun(3, 1)
+	local before = s.handsRemaining
+	NB.apply(s, "extra_hand")
+	expectEqual(s.handsRemaining, before + 1)
+	expectEqual(NB.field(s, "hands"), 1)
+	s.round = s.config.roundsPerNight
+	RunState.startRound(s)
+	expectTrue(s.isBossRound)
+	expectEqual(NB.field(s, "hands"), 0, "no extra Hand on the Boss round")
+	-- Boss Ready: the Boss round has one more Hand and fewer Discards, never below 0
+	local b = boonRun(3, 1)
+	NB.apply(b, "boss_hand")
+	b.round = b.config.roundsPerNight
+	RunState.startRound(b)
+	expectTrue(b.isBossRound and b.discardsRemaining >= 0, "discards never go negative")
+end })
+
 table.insert(tests, { name = "NightBoons: 12 kid safe boons, each with a name, icon and one short line", fn = function()
 	local NB = require(script.Parent.Parent.Engine.NightBoons)
 	expectEqual(#NB.Definitions, 12)
@@ -43797,7 +43829,7 @@ table.insert(tests, { name = "NightBoons: Spare Hand and Spare Discard change th
 	expectEqual(s2.discardsRemaining, discards + 1)
 end })
 
-table.insert(tests, { name = "NightBoons: Pocket Change pays 3 Tips, a bad id changes nothing", fn = function()
+table.insert(tests, { name = "NightBoons: Pocket Change pays 1 Tip, a bad id changes nothing", fn = function()
 	local NB = require(script.Parent.Parent.Engine.NightBoons)
 	local state = boonRun(4)
 	local tips = state.tips
@@ -43805,7 +43837,7 @@ table.insert(tests, { name = "NightBoons: Pocket Change pays 3 Tips, a bad id ch
 	expectEqual(state.tips, tips)
 	expectTrue(state.nightBoon == nil)
 	expectTrue(NB.apply(state, "pocket_change"))
-	expectEqual(state.tips, tips + 3)
+	expectEqual(state.tips, tips + 1)
 	expectEqual(NB.apply(boonRun(1), "pocket_change"), false, "no boon on Night 1")
 end })
 
@@ -43816,7 +43848,7 @@ table.insert(tests, { name = "NightBoons: prices, Free Reroll and boss round boo
 	local patron = Patrons.Definitions[1]
 	local base = RunState.patronPrice(state, patron)
 	NB.apply(state, "patron_discount")
-	expectEqual(RunState.patronPrice(state, patron), math.max(1, base - 2))
+	expectEqual(RunState.patronPrice(state, patron), math.max(1, base - 1))
 	local s2 = boonRun(3)
 	local rc = RunState.rerollCost(s2, 5)
 	NB.apply(s2, "free_reroll")
@@ -43837,7 +43869,7 @@ table.insert(tests, { name = "NightBoons: scoring boons raise the score and the 
 	local state = boonRun(2)
 	expectEqual(NB.scorePct(state, true), 0)
 	NB.apply(state, "opening_flourish")
-	expectEqual(NB.scorePct(state, true), 50)
+	expectEqual(NB.scorePct(state, true), 40)
 	expectEqual(NB.scorePct(state, false), 0)
 	NB.apply(state, "warm_welcome")
 	expectEqual(NB.scorePct(state, true), 10, "one boon per Night, the last pick replaces")

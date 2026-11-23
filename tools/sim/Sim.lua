@@ -1120,6 +1120,7 @@ function Sim.runOne(cfg, seed)
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec
+	if cfg.startTips then state.tips = state.tips + cfg.startTips end -- --start-tips N: Tips banked from quests and chests
 	if cfg.forcePatron then
 		for id in string.gmatch(cfg.forcePatron, "[^,]+") do
 			table.insert(state.ownedPatrons, E.Patrons.getById(id))
@@ -1183,6 +1184,9 @@ function Sim.runOne(cfg, seed)
 		end
 		Sim.shopVisit(state, cfg, botRng, rec)
 		E.RunState.advanceToNextRound(state)
+		if cfg.boon and state.round == 1 and E.NightBoons.offeredAt(state.night) and not state.runOver then
+			E.NightBoons.apply(state, cfg.boon) -- --boon ID: the same boon every Night 2 to 12
+		end
 	end
 
 	rec.finalTips = state.tips
