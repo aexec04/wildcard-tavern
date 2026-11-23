@@ -48648,6 +48648,56 @@ table.insert(tests, { name = "Remote audit: every remote in Remotes.lua and the 
 	expectTrue(handlers >= 60, "every client fired handler was seen (" .. handlers .. ")")
 end })
 
+table.insert(tests, { name = "Data save audit: profiles saved at the last three schema versions load at the next version with every old field kept and every new field defaulted", fn = function()
+	local N = PlayerProfile.SCHEMA_VERSION
+	local function base(version)
+		return {
+			version = version,
+			stats = { runsStarted = 12, runsWon = 3, bestNightReached = 7 },
+			ownedSetIds = { winter_evening = true },
+			equippedSetId = "winter_evening",
+			discoveredPatronIds = { tip_jar = true },
+			tavernXp = 340, loginStreak = 5, pendingStartTips = 9,
+		}
+	end
+	local oldest = base(nil) -- before the version field existed
+	local middle = base(N - 1)
+	middle.settings = { musicVolume = 0.4 }
+	middle.questsDone = 7
+	local newest = PlayerProfile.migrate(base(N)) -- a full profile as saved today
+	newest.seasonId = require(script.Parent.Parent.Engine.SeasonTrack).Seasons[1].id
+	newest.seasonXp = 55
+	newest.settings.musicVolume = 0.3
+	local fixtures = { { name = "N-2", raw = oldest }, { name = "N-1", raw = middle }, { name = "N", raw = newest } }
+	local function keeps(p)
+		return p.stats.runsStarted == 12 and p.stats.runsWon == 3 and p.stats.bestNightReached == 7
+			and p.ownedSetIds.winter_evening == true and p.equippedSetId == "winter_evening"
+			and p.discoveredPatronIds.tip_jar == true and p.tavernXp == 340 and p.loginStreak == 5 and p.pendingStartTips == 9
+	end
+	local saved = PlayerProfile.SCHEMA_VERSION
+	PlayerProfile.SCHEMA_VERSION = N + 1 -- the build that is one version newer than every fixture
+	local ok, err = pcall(function()
+		local fresh = PlayerProfile.new()
+		for _, fx in ipairs(fixtures) do
+			local p = PlayerProfile.migrate(fx.raw)
+			expectTrue(keeps(p), fx.name .. " kept its old fields")
+			expectEqual(p.version, N + 1, fx.name .. " is stamped with the new version")
+			for key, default in pairs(fresh) do
+				expectTrue(p[key] ~= nil, fx.name .. " has a default for " .. key)
+				expectEqual(type(p[key]), type(default), fx.name .. " has the right type for " .. key)
+			end
+			local again = PlayerProfile.migrate(p)
+			expectTrue(keeps(again), fx.name .. " keeps them on a second round trip")
+		end
+		expectEqual(PlayerProfile.migrate(middle).settings.musicVolume, 0.4)
+		expectEqual(PlayerProfile.migrate(middle).questsDone, 7)
+		expectEqual(PlayerProfile.migrate(newest).seasonXp, 55)
+		expectEqual(PlayerProfile.migrate(newest).settings.musicVolume, 0.3)
+	end)
+	PlayerProfile.SCHEMA_VERSION = saved
+	expectTrue(ok, tostring(err))
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
