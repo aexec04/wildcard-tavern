@@ -21,6 +21,7 @@ return function(deps)
 	local Engine = deps.Engine
 	local WorldMap = require(Engine:WaitForChild("WorldMap"))
 	local Discoveries = require(Engine:WaitForChild("Discoveries"))
+	local MapTips = require(Engine:WaitForChild("MapTooltips"))
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 	local GOLD = Color3.fromRGB(222, 182, 104)
@@ -161,7 +162,7 @@ return function(deps)
 						local region = WorldMap.Regions[spot.region]
 						return {
 							title = SPOT_NAMES[spot.kind] or "Hidden spot", biome = region and region.name or "",
-							line = claimed and "You already found this." or "Tap to open it for a reward.", done = claimed == true,
+							line = claimed and MapTips.SPOT_DONE or MapTips.SPOT_NEW, done = claimed == true,
 						}
 					end, { noGlow = true })
 					if not claimed then

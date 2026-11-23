@@ -19,7 +19,8 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local BRIGHT = Color3.fromRGB(255, 232, 150)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local DARK = Color3.fromRGB(46, 32, 22)
-local CARD_W, CARD_H = 250, 104
+local Tips = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("MapTooltips"))
+local CARD_W, CARD_H = Tips.CARD_W, Tips.CARD_H
 
 function MapHover.new(opts)
 	local canvas = opts.canvas
@@ -62,7 +63,7 @@ function MapHover.new(opts)
 	end
 	local titleLabel = line(8, 24, 18, CREAM)
 	local biomeLabel = line(34, 20, 15, GOLD)
-	local bodyLabel = line(56, 44, 15, CREAM)
+	local bodyLabel = line(56, Tips.BODY_H, Tips.BODY_SIZE, CREAM)
 	bodyLabel.Font = Enum.Font.GothamMedium
 
 	local pinnedTarget
@@ -73,14 +74,10 @@ function MapHover.new(opts)
 		local anchor = target.AnchorPoint
 		local cx = pos.X.Offset + (0.5 - anchor.X) * size.X
 		local top = pos.Y.Offset - anchor.Y * size.Y
-		local x = math.clamp(cx, CARD_W / 2 + 4, math.max(CARD_W / 2 + 4, canvas.AbsoluteSize.X - CARD_W / 2 - 4))
-		if top - CARD_H - 8 >= 0 then
-			card.AnchorPoint = Vector2.new(0.5, 1)
-			card.Position = UDim2.fromOffset(x, top - 8)
-		else -- no room above: below the object
-			card.AnchorPoint = Vector2.new(0.5, 0)
-			card.Position = UDim2.fromOffset(x, top + size.Y + 8)
-		end
+		local c = canvas.AbsoluteSize
+		local r = Tips.place(cx, top, size.Y, c.X, c.Y > 0 and c.Y or math.huge) -- always inside the map canvas
+		card.AnchorPoint = Vector2.new(0, 0)
+		card.Position = UDim2.fromOffset(r.x, r.y)
 	end
 
 	local function show(target, getInfo)
@@ -88,7 +85,7 @@ function MapHover.new(opts)
 		if not ok or type(info) ~= "table" then return end
 		titleLabel.Text = info.title or "???"
 		biomeLabel.Text = info.biome or "???"
-		bodyLabel.Text = (info.done and "Cleared. " or "") .. (info.line or "")
+		bodyLabel.Text = (info.done and Tips.CLEARED or "") .. (info.line or "")
 		place(target)
 		card.Visible = true
 		shownFor = target

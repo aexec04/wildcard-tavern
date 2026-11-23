@@ -31412,7 +31412,8 @@ table.insert(tests, { name = "Accessibility: Text Size is Normal or Large on the
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('makeChoiceRow("largerText", "Text Size"', 1, true) ~= nil, "Settings row is named Text Size")
-		expectTrue(src:find('{ true, "Large" }', 1, true) ~= nil, "Settings row offers Large")
+		expectTrue(src:find("SettingsLayout.SIZE_WORDS", 1, true) ~= nil, "Settings row offers Normal and Large from SettingsLayout.SIZE_WORDS")
+		expectEqual(require(script.Parent.Parent.Engine.SettingsLayout).SIZE_WORDS[2][2], "Large", "the words are Normal and Large")
 	end
 end })
 table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, corner letter and ink, and key text reads at 4.5:1 on card paper", fn = function()
@@ -48397,6 +48398,144 @@ table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, tim
 			if W >= 1500 then expectTrue(c.goalW >= math.ceil(10 * 15 * 0.56), tag .. " the whole 'Goals done' line fits (" .. c.goalW .. ")") end
 			local newRun = { x = W / 2 - 110, y = H - 24 - 56, w = 220, h = 56 }
 			expectFalse(strip.x < newRun.x + newRun.w and newRun.x < strip.x + strip.w and strip.y < newRun.y + newRun.h and newRun.y < strip.y + strip.h, tag .. " strip does not touch New Run")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Menu text fit: Tip pill, Daily strip Streak, Goal and chest words fit their plate with 12 px side margin at four sizes (shrink 12 to 18 px, never wider)", fn = function()
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Life = require(script.Parent.Parent.Engine.MenuLife)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	expectEqual(F.SIDE, 12, "side margin")
+	expectEqual(F.bestSize("x", 100, 20, 12, 18), 18, "a short word keeps the max size")
+	expectEqual(F.clip("Goals done", 500, 12), "Goals done", "a fitting line is unchanged")
+	expectTrue(F.clip(string.rep("word ", 20), 100, 12):sub(-3) == "...", "a long line ends in an ellipsis")
+	expectEqual(F.bestSize(string.rep("x", 80), 50, 20, 12, 18), nil, "an impossible fit reports nil")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local tip = Life.tipRect(W, H)
+		if tip then
+			for _, t in ipairs(Life.TIPS) do
+				local s = F.bestSize(t, tip.w - 2 * F.SIDE, tip.h - 8, 12, 18)
+				expectTrue(s ~= nil, tag .. " tip fits its plate in two lines at 12 px or more: " .. t)
+			end
+		end
+		local strip = D.menuRect(W, H)
+		if strip then
+			local c = D.columns(strip)
+			local Rules_H = 2 * 14 + 4 -- two lines at the smallest size, inside the 48 px strip
+			local words = { "Streak: 100 days", "Streak: starts today" }
+			for _, w in ipairs(words) do
+				expectTrue(F.bestSize(w, c.streak.w, Rules_H, 12, 15) ~= nil, tag .. " Streak line fits the column in two lines: " .. w)
+			end
+			expectTrue(F.width(F.clip("Goals done", c.goalW, 12), 12) <= c.goalW, tag .. " Goals done is clipped to the Goal column")
+			for _, q in ipairs(Quests.Definitions) do
+				local line = q.desc .. " " .. q.goal .. "/" .. q.goal
+				local shown = F.clip(line, c.goalW, 12)
+				expectTrue(F.width(shown, 12) <= c.goalW, tag .. " quest line is clipped to the Goal column: " .. line)
+			end
+			for _, w in ipairs({ "Next in 19h 38m", "Claim reward", "Claimed today" }) do
+				expectTrue(F.bestSize(w, c.chest.w - 2 * D.CHEST_PAD, 20, 14, 16) ~= nil, tag .. " chest word fits one line: " .. w)
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
+	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
+	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
+		local r = P.rect(cardW, "select")
+		local rest = P.centre(r, P.ANCHOR_X, P.ANCHOR_Y, 1)
+		local hover = P.centre(r, P.ANCHOR_X, P.ANCHOR_Y, P.HOVER_SCALE)
+		local tag = "card " .. cardW
+		expectEqual(r.h, 44, tag .. " Select plate is 44 px tall")
+		expectTrue(math.abs(hover.x - rest.x) <= 4, tag .. " hover centre x moves at most 4 px (" .. (hover.x - rest.x) .. ")")
+		expectTrue(math.abs(hover.y - rest.y) <= 4, tag .. " hover centre y moves at most 4 px (" .. (hover.y - rest.y) .. ")")
+		local skip = P.rect(cardW, "skip")
+		expectTrue(r.y + r.h < skip.y, tag .. " Skip sits below Select")
+	end
+	-- the old left anchored plate slid more than 4 px, which is why the anchor is centred now
+	local r = P.rect(340, "select")
+	expectTrue(math.abs(P.centre(r, 0, 1, P.HOVER_SCALE).x - P.centre(r, 0, 1, 1).x) > 4, "a left anchor would have moved the centre")
+end })
+
+table.insert(tests, { name = "Tavern Map tooltips: every card line is one kind sentence of 60 characters or less, wraps in 3 lines, and the card stays inside the canvas at four sizes", fn = function()
+	local T = require(script.Parent.Parent.Engine.MapTooltips)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local lines = T.allLines()
+	expectTrue(#lines >= 12, "every fixed and doodle line is listed (" .. #lines .. ")")
+	for _, l in ipairs(lines) do
+		expectTrue(#l <= T.LINE_MAX, "tooltip line is 60 characters or less: " .. l)
+		expectFalse(l:find("%-%-") ~= nil or l:find("\226\128\148") ~= nil, "no dashes: " .. l)
+		expectTrue(F.lines(l, T.BODY_SIZE, T.BODY_W) * (T.BODY_SIZE + 2) <= T.BODY_H, "line wraps inside the body box: " .. l)
+	end
+	for key, info in pairs(T.DECOR) do
+		expectTrue(#info[1] > 0 and #info[1] <= 24, "doodle " .. key .. " has a short title")
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, t in ipairs({ { 0, 0 }, { W, 0 }, { W / 2, H / 2 }, { 0, H - 40 }, { W, H - 40 }, { W / 2, 10 } }) do
+			local r = T.place(t[1], t[2], 40, W, H)
+			local tag = W .. "x" .. H .. " target " .. t[1] .. "," .. t[2]
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H, tag .. " card inside the canvas")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Settings: Calm Mode and Larger Text show the word On or Off as well as the colour, and both words read on their fill", fn = function()
+	local L = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(L.word(true), "On", "on word")
+	expectEqual(L.word(false), "Off", "off word")
+	expectEqual(#L.OFF_ON, 2, "two states")
+	expectEqual(L.OFF_ON[1][1], false, "first state is off")
+	expectEqual(L.OFF_ON[1][2], "Off", "off string")
+	expectEqual(L.OFF_ON[2][2], "On", "on string")
+	expectEqual(L.SIZE_WORDS[1][2], "Normal", "text size off word")
+	expectEqual(L.SIZE_WORDS[2][2], "Large", "text size on word")
+	expectTrue(L.contrast(L.SWITCH.onFill, L.SWITCH.onText) >= 4.5, "On word readable on its fill")
+	expectTrue(L.contrast(L.SWITCH.offFill, L.SWITCH.offText) >= 4.5, "Off word readable on its fill")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("local OFF_ON = SettingsLayout.OFF_ON", 1, true) ~= nil, "the toggles take their words from SettingsLayout.OFF_ON")
+		expectTrue(src:find('makeChoiceRow("calmMode", "Calm Mode", S("settings.calm.hint"), OFF_ON', 1, true) ~= nil, "Calm Mode shows On or Off")
+		expectTrue(src:find('"Text Size", S("settings.largerText.hint"), SettingsLayout.SIZE_WORDS', 1, true) ~= nil, "Text Size shows Normal or Large")
+	end
+end })
+
+table.insert(tests, { name = "Collection Patron wall: every locked Patron shows a kind unlock hint of 40 characters or less, no dashes, never a raw id", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local LH = require(script.Parent.Parent.Engine.LockedHints)
+	local n = 0
+	for _, p in ipairs(Patrons.Definitions) do
+		n = n + 1
+		local hint = LH.forCollection("patrons", LH.forContent("patron", p.id), nil)
+		expectTrue(type(hint) == "string" and #hint > 0, p.id .. " has a hint")
+		expectTrue(#hint <= 40, p.id .. " hint is 40 characters or less (" .. #hint .. "): " .. hint)
+		expectFalse(hint:find("-", 1, true) ~= nil or hint:find("\226\128", 1, true) ~= nil, p.id .. " hint has no dash: " .. hint)
+		expectFalse(hint:find(p.id, 1, true) ~= nil, p.id .. " hint never shows the raw id")
+		expectFalse(hint:find("_", 1, true) ~= nil, p.id .. " hint has no underscore id")
+	end
+	expectTrue(n >= 90, "all Patrons were checked (" .. n .. ")")
+end })
+
+table.insert(tests, { name = "Loading screen tips: at least 12 kid safe tips of 60 characters or less rotate, no tip twice in a row over many laps and seeds, none mentions banned themes", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
+	expectTrue(#Tips.TIPS >= 12, "at least 12 tips")
+	local banned = { "beer", "ale ", "wine", "whiskey", "rum ", "liquor", "tankard", "stein", "mug", "cigar", "tobacco", "skull", "blood", "gun ", "kill", "die ", "real money", "cash" }
+	for i, tip in ipairs(Tips.TIPS) do
+		expectTrue(#tip <= 60, "tip " .. i .. " is 60 characters or less")
+		local l = " " .. tip:lower() .. " "
+		for _, w in ipairs(banned) do expectFalse(l:find(w, 1, true) ~= nil, "tip " .. i .. " has no " .. w) end
+	end
+	for seed = 1, 200 do
+		local order, prev = Tips.order(seed), nil
+		for step = 1, #order * 2 do
+			local idx = order[((step - 1) % #order) + 1]
+			expectTrue(idx ~= prev, "seed " .. seed .. " step " .. step .. " repeats back to back")
+			prev = idx
 		end
 	end
 end })

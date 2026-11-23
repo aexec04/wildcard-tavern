@@ -53,6 +53,7 @@ local GuiService = game:GetService("GuiService")
 return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
+	local MapTips = require(Engine:WaitForChild("MapTooltips"))
 	local CardBacks = require(Engine:WaitForChild("CardBacks"))
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local Achievements = require(Engine:WaitForChild("Achievements"))
@@ -130,6 +131,7 @@ return function(deps)
 		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
 		RegionTiles = require(Engine:WaitForChild("RegionTiles")),
 		MapSeams = require(Engine:WaitForChild("MapSeams")),
+		MapTips = MapTips,
 		PropRules = require(Engine:WaitForChild("MapPropRules")),
 		TweenService = TweenService, calm = calm, parentFrame = frame, addTooltip = deps.addTooltip,
 	})
@@ -527,9 +529,9 @@ return function(deps)
 		nodeHover.bind(button, function()
 			local fogState = revealStateOf(index)
 			if fogState ~= nil and fogState ~= "revealed" then
-				return { title = "???", biome = "Night " .. tostring(data.night), line = "Something stirs in the fog." }
+				return { title = "???", biome = "Night " .. tostring(data.night), line = MapTips.FOG_NODE }
 			end
-			return { title = info.name, biome = isEndless and "Endless Nights" or ("Night " .. tostring(data.night)), line = "Tap for details and rewards." }
+			return { title = info.name, biome = isEndless and "Endless Nights" or ("Night " .. tostring(data.night)), line = MapTips.NODE_LINE }
 		end, { noGlow = true })
 
 		-- Endless: slowly rotating portal (20 s per turn).

@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Rules = require(Engine:WaitForChild("DailyStrip"))
 local Style = require(Engine:WaitForChild("TavernStyle"))
+local TextFit = require(Engine:WaitForChild("TextFit"))
 local Kit = require(script.Parent.TavernKit)
 
 local M = {}
@@ -41,6 +42,10 @@ local function label(parent, name, size, x, y, w, h, text, align)
 	t.TextStrokeColor3 = color("outline")
 	t.TextXAlignment = align or Enum.TextXAlignment.Left
 	t.TextTruncate = Enum.TextTruncate.AtEnd
+	t.TextScaled = true -- shrinks to fit the column (12 px at the smallest) instead of running past the plate
+	local cap = Instance.new("UITextSizeConstraint")
+	cap.MaxTextSize, cap.MinTextSize = size, 12
+	cap.Parent = t
 	t.Text = text
 	t.Active = false
 	t.ZIndex = 43 -- above the plate (ZIndex 40): under ZIndexBehavior.Global a lower child draws UNDER its parent, which hid every word
@@ -70,7 +75,8 @@ local function build(root)
 	f.ZIndex = 40
 	f.Visible = false
 	pcall(function() Kit.painted(f, "wh_target") end) -- the ornate gold framed plate of the table (Target and Tips), flat look if it does not load; , flat look if it does not load
-	label(f, "Streak", 15, 30, 0, 150, Rules.HEIGHT, "")
+	local streakLabel = label(f, "Streak", 15, 30, 0, 150, Rules.HEIGHT, "")
+	streakLabel.TextWrapped = true -- a long streak line takes two lines in the narrow column
 	label(f, "Goal", 15, 168, 2, 200, 24, "")
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -141,7 +147,7 @@ function M.update(state)
 	local goalX, goalW = cols.goalX, cols.goalW -- 30 px in from the carved gold end, 12 px clear of the chest plate
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
-	strip.Goal.Text = v.goalText
+	strip.Goal.Text = TextFit.clip(v.goalText, goalW, 12) -- never wider than the column even at the 12 px floor
 	strip.Track.Position = UDim2.fromOffset(goalX, 30)
 	strip.Track.Size = UDim2.fromOffset(goalW, 8)
 	strip.Track.Fill.Size = UDim2.fromScale(math.clamp(v.progress / v.goal, 0, 1), 1)
