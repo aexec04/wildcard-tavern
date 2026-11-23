@@ -15168,6 +15168,20 @@ table.insert(tests, { name = "Pack opening stays on the Counter table: transluce
 	expectTrue(t:find("ResolvePackRemote:FireServer", 1, true) ~= nil, "ResolvePack is still fired")
 end })
 
+table.insert(tests, { name = "Pack Confirm and Skip Pack use the same plain plate (no Set plate art with a baked book)", fn = function()
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not f then return end
+	local t = f:read("*a"); f:close()
+	local a = t:find("local function packPlate", 1, true)
+	local b = a and t:find("packConfirmButton = packPlate", a, true)
+	expectTrue(a ~= nil and b ~= nil, "both pack buttons come from one packPlate builder")
+	local body = t:sub(a, b)
+	expectTrue(body:find('SetAttribute("FlatFace", true)', 1, true) ~= nil, "packPlate sets FlatFace so SetSkin draws no plate art")
+	expectTrue(t:find('packSkipButton = packPlate("PackSkip"', 1, true) ~= nil, "Skip Pack uses the same builder")
+	local s = io.open("src/Client/SetSkin.lua", "r"); local skin = s:read("*a"); s:close()
+	expectTrue(skin:find('GetAttribute("FlatFace")', 1, true) ~= nil, "SetSkin honours FlatFace")
+end })
+
 table.insert(tests, { name = "Shop polish: picked badge is a drawn check (no OK glyph), table plate is wooden, empty tooltips stay hidden", fn = function()
 	local function read(path)
 		local f = io and io.open and io.open(path, "r")

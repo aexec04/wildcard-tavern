@@ -732,6 +732,7 @@ return function(deps)
 			b.AutoButtonColor = true
 			b.ZIndex = PANEL_ZINDEX + 1
 			b.Parent = shopPackPanel
+			b:SetAttribute("FlatFace", true) -- Confirm and Skip Pack share one plain plate: a Set button plate (Golden Gala) has a baked book on its left end
 			polishButton(b, 8)
 			local st = Instance.new("UIStroke")
 			st.Color = Color3.fromRGB(150, 110, 52)
