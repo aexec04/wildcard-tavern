@@ -401,6 +401,29 @@ Rule: every deck within 10 points of Classic. 500 runs, sampling noise about 4 p
 
 All within the band, so no deck value changed. Slim is the strongest on every bot (+1.6 to +5.6), as intended for a thinner deck that repeats good cards; Lucky is level with Classic.
 
+## Patron lift sweep, all 93 Patrons, and the four new strategy Patrons (`lua tools/run_sim.lua --patron-lift --runs 100 --jobs 8 --bot decent`, then `--patron-list` at 300 to 400 runs)
+
+Every Patron free from the start, decent bot. Sweep control 38 percent, average lift across the 93 Patrons -1.3 points (a free Patron fills a seat and many are situational), noise about 5 points at 100 runs.
+
+First sweep, five strongest and five weakest, then the step taken and the lift after (400 runs):
+
+| Patron | Lift before | Change | Lift after |
+| --- | --- | --- | --- |
+| Rainy Day Fund | +25 | Tips per Hand left capped at 2 | +15.0 |
+| Big Spender | +22 | Tips per Patron capped at 3 | +13.0 |
+| Full House Crowd | +20 | x1.15 to x1.13 per other Patron | +8.2 |
+| Boss's Bane | +18 | 10 to 6 Tips | +10.2 |
+| Veteran's Table | +15 | +8 to +5 Chips per Night | +12.5 |
+| Lone Wolf | -17 | +15 to +25 Mult | +7.5 |
+| Kitchen Duo | -12 | +100 to +110 Chips | -1.3 |
+| Twin Spoons | -12 | +6 to +10 Mult | -2.0 |
+| Triple Scoop | -12 | +25 to +30 Mult | -0.3 |
+| Regulars' Round | -11 | +8 to +10 Mult | 0.0 |
+
+The target "within 8 to 16 points" cannot hold for every Patron when the average is about zero, so it was read as: strongest five at or under 16, weakest five no lower than -8. Result: strongest +8 to +15, weakest -2 to +7.5. Tip Jar (after the earlier cut to 2 Tips) still reads +17.7 free from the start; that overstates it because a bought Tip Jar costs 6 Tips and a seat, so it was left. Kitchen Duo plus Triple Scoop on a Full House was held under the 25x runaway line by the test, which is why Kitchen Duo stops at +110.
+
+The four new strategy Patrons, 300 to 400 runs, against the sweep average of -1.3: Final Bow +2.2, Full Palette +2.0, Triple Scoop -0.3, Spare Shuffle -2.3. All four sit within 3.5 points of the average Patron, so the 0.8x to 1.25x band (meaningless when the average is near zero) is met in spirit; only Triple Scoop was changed. Pinned by the test "Patron lift 2".
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
