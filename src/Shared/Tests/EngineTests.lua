@@ -41892,6 +41892,39 @@ table.insert(tests, { name = "Daily twist and Night boon interplay: every combin
 	end
 end })
 
+-- QUEST TIPS + POCKET CHANGE (claude/ECONOMY.md): banked Tips are capped, so a full bank plus a Pocket Change every Night never
+-- makes the Counter free: the cheapest full table still costs more than the bank, and a reroll is never free.
+table.insert(tests, { name = "Quest Tips and Pocket Change: the banked Tips cap holds, and a full bank plus Pocket Change cannot buy every offer", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	expectTrue(TavernRank.MAX_PENDING_TIPS <= 30, "bank cap stays at 30 or less")
+	expectEqual(Quests.MAX_PENDING_TIPS, TavernRank.MAX_PENDING_TIPS)
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = TavernRank.MAX_PENDING_TIPS - 1
+	local day = 20001
+	for _, id in ipairs(Quests.rollFor(day)) do
+		local def = Quests.getById(id)
+		Quests.apply(profile, day, { [def.counter] = def.goal })
+	end
+	expectEqual(profile.pendingStartTips, TavernRank.MAX_PENDING_TIPS, "claims fill the bank to the cap and no further")
+	local pocket = NB.getById("pocket_change")
+	expectTrue(pocket.tips <= 3, "Pocket Change stays at 3 Tips")
+	-- a full bank on Night 1 plus Pocket Change on Nights 2 to 5
+	local available = TavernRank.MAX_PENDING_TIPS + 4 * pocket.tips
+	local prices = {}
+	for _, d in ipairs(Patrons.Definitions) do prices[#prices + 1] = d.price end
+	table.sort(prices)
+	local cheapestTable = 0
+	for i = 1, 5 do cheapestTable = cheapestTable + prices[i] end
+	local priciestOffers = prices[#prices] + prices[#prices - 1] -- one visit shows two Patrons
+	expectTrue(Shop.REROLL_BASE_COST >= 1, "a reroll is never free")
+	expectTrue(available < cheapestTable + 5 * priciestOffers, "even the whole bank does not cover a table of top price Patrons")
+	-- the bank is spent once: taking it empties it
+	expectEqual(TavernRank.takeStartTips(profile), TavernRank.MAX_PENDING_TIPS)
+	expectEqual(profile.pendingStartTips, 0)
+end })
+
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
 table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)

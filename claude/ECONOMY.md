@@ -366,6 +366,20 @@ Rule: no Patron may lift the win rate more than 12 points alone. Control (no fre
 
 Others sampled (Vip Table +10, House Favorite +7, Small Plate +4, the rest within 2) are under the line. Sampling noise on 150 runs is about 4 points. A full 93 Patron lift sweep takes over 10 minutes, so only the suspects were re-run; use `--patron-list` to check others. Pinned by the test "Patron lift".
 
+## Quest Tips and Pocket Change against the shop (`lua tools/run_sim.lua --shop-econ --runs 100 --jobs 2 --start-tips 30 --boon pocket_change`)
+
+Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon (+3 Tips) on every Night.
+
+| Visit | Avg Tips, baseline | Avg Tips, full bank + Pocket Change | Patrons, baseline | Patrons, full bank + Pocket Change |
+| --- | --- | --- | --- | --- |
+| N1 R1 | 4.0 | 39.0 | 0.0 | 0.0 |
+| N1 R3 | 10.7 | 12.5 | 1.0 | 3.5 |
+| N2 R1 | 7.0 | 11.8 | 2.1 | 4.3 |
+| N3 R1 | 7.0 | 13.1 | 4.4 | 5.1 |
+| N5 R1 | 9.0 | 12.3 | 5.1 | 5.3 |
+
+The bank fills the table about one Night sooner, then the spend rate settles at 9 to 13 Tips on hand, only 3 to 5 above baseline. Rerolls (5 Tips, +2 each) and packs still compete for those Tips, so the Counter is never free before Night 6. No value changed. Pinned by the test "Quest Tips and Pocket Change" (bank cap 30, Pocket Change 3 Tips, a reroll is never free).
+
 ## Synergy audit
 
 See `claude/synergy-audit.md` (`lua tools/synergy_audit.lua`). 20 Patrons had only the "flat" tag and so no hint or Bond partner; each now carries a real tag (scaling, rulebender, pairs, flush, straight, ranks). Side effect: Bonds give a small bonus when both ends trigger, so these 20 can now bond. Not re-simmed beyond the lift runs above; re-check if the win rate drifts.
