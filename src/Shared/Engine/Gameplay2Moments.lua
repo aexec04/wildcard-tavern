@@ -254,6 +254,29 @@ function M.plateLine(name, rule)
 	return tostring(name or "Boss") .. ": " .. r
 end
 
+-- Tap the rule chip: one kind line (60 characters or less) saying what the rule does.
+M.TAP_MAX, M.TAP_HIT, M.TAP_TIP_H, M.TAP_CHAR_W = 60, 44, 24, 7.2
+function M.tapLine(rule)
+	local r = tostring(rule or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	if r == "" then return "No special rule this round." end
+	if #r > M.TAP_MAX then
+		r = r:sub(1, M.TAP_MAX - 3):gsub("%s+%S*$", ""):gsub("[%p%s]+$", "") .. "..."
+	end
+	return r
+end
+-- hit: a 44 px tall tap target centred on the chip, kept on screen.
+-- tip: the line plate, just under the hit target (above it when there is no room below), kept on screen.
+function M.tapRects(chipRect, w, h, text)
+	local hw = math.max(M.TAP_HIT, chipRect.w)
+	local hx = math.max(0, math.min(w - hw, chipRect.x))
+	local hy = math.max(0, math.min(h - M.TAP_HIT, chipRect.y + chipRect.h / 2 - M.TAP_HIT / 2))
+	local tw = math.min(w - 8, math.ceil(#tostring(text) * M.TAP_CHAR_W) + 16)
+	local tx = math.max(4, math.min(w - tw - 4, hx))
+	local ty = hy + M.TAP_HIT + 2
+	if ty + M.TAP_TIP_H > h then ty = hy - M.TAP_TIP_H - 2 end
+	return { hit = { x = hx, y = hy, w = hw, h = M.TAP_HIT }, tip = { x = tx, y = ty, w = tw, h = M.TAP_TIP_H } }
+end
+
 function M.bossGlow(calm)
 	-- a light red wash: over the reference felt (60, 85, 45) 0.84 turned it brown olive (74, 77, 47); at 0.94 the felt stays green
 	return { color = { 150, 38, 30 }, transparency = calm and 0.97 or 0.96 } -- the boss backdrop (table_boss_ref) is already red lit with a green felt at about 70 percent, so the wash stays thin

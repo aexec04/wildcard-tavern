@@ -333,6 +333,7 @@ function M.boss(layer, rects, state, w, h)
 		if lift0 then lift0.Visible = false end
 		if banner then banner.Visible = false end
 		if rulePlate then rulePlate.Visible = false end
+		for _, n in ipairs({ "BossRuleHit", "BossRuleTip" }) do local o = layer:FindFirstChild(n); if o then o.Visible = false end end
 		return
 	end
 	local bdef = state.bossModifier and state.bossModifier.id and BossRounds.getById(state.bossModifier.id)
@@ -345,6 +346,7 @@ function M.boss(layer, rects, state, w, h)
 	local nameSlot = layer:FindFirstChild("RoundName")
 	if not pr or rule == "" or (nameSlot and nameSlot:GetAttribute("RuleInScroll") == true) then -- the scroll carries the rule: one rule element only
 		if rulePlate then rulePlate.Visible = false end
+		for _, n in ipairs({ "BossRuleHit", "BossRuleTip" }) do local o = layer:FindFirstChild(n); if o then o.Visible = false end end
 	else
 		if not rulePlate then
 			rulePlate = Instance.new("TextLabel")
@@ -385,6 +387,26 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.TextPad.PaddingLeft = UDim.new(0, parts.textX)
 		rulePlate.BossIcon.Text = Rules.bossIcon(bdef and bdef.rules)
 		rulePlate.BossIcon.TextSize = math.max(12, math.min(16, side - 6))
+		do -- tap the chip: a 44 px hit target shows one kind line of the rule, tap again to close; static, so Calm is the same
+			local tr = Rules.tapRects(pr, w, h, Rules.tapLine(rule))
+			local hit = layer:FindFirstChild("BossRuleHit")
+			local tip = layer:FindFirstChild("BossRuleTip")
+			if not hit then
+				hit = Instance.new("TextButton"); hit.Name = "BossRuleHit"; hit.Text = ""; hit.BackgroundTransparency = 1
+				hit.AutoButtonColor = false; hit.BorderSizePixel = 0; hit.ZIndex = 8; hit.Parent = layer
+				tip = Instance.new("TextLabel"); tip.Name = "BossRuleTip"; tip.Visible = false; tip.Active = false
+				tip.BorderSizePixel = 0; tip.BackgroundColor3 = Color3.fromRGB(30, 22, 18); tip.BackgroundTransparency = 0.05
+				tip.Font = Enum.Font[Style.FONTS.ui]; tip.TextSize = 14; tip.TextColor3 = color("cream")
+				tip.TextTransparency = 0; tip.TextStrokeTransparency = 1; tip.ZIndex = 9
+				local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 6); tc.Parent = tip
+				tip.Parent = layer
+				hit.Activated:Connect(function() tip.Visible = not tip.Visible end)
+			end
+			hit.Visible = true
+			hit.Position = UDim2.fromOffset(tr.hit.x, tr.hit.y); hit.Size = UDim2.fromOffset(tr.hit.w, tr.hit.h)
+			tip.Position = UDim2.fromOffset(tr.tip.x, tr.tip.y); tip.Size = UDim2.fromOffset(tr.tip.w, tr.tip.h)
+			tip.Text = Rules.tapLine(rule)
+		end
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 			pcall(function() require(script.Parent.BossGlyph).apply(rulePlate.BossIcon, bdef and bdef.id, tintSet.edge) end) -- drawn icon for the Nights 7 to 12 rules, letter icon for the rest
 		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])

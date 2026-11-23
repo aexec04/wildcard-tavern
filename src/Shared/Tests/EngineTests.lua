@@ -5006,6 +5006,30 @@ table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values
 	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
 end })
 
+table.insert(tests, { name = "Boss rule chip tap: one kind line of 60 characters or less, 44 px hit target, tip on screen at four sizes", fn = function()
+	local GM = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local long = "Deals you one fewer card every hand you play after the first this round and a very long tail of words"
+	for _, rule in ipairs({ "", "Mult reduced by 20 percent.", long }) do
+		local line = GM.tapLine(rule)
+		expectTrue(#line > 0 and #line <= 60, "tap line is 1 to 60 characters: " .. line)
+		expectTrue(not line:find("\226\128\148"), "no em dash")
+	end
+	expectEqual(GM.tapLine("Mult reduced by 20 percent."), "Mult reduced by 20 percent.")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local chip = GM.ruleChip(r, w, h, "One at a Time", long)
+		if chip then
+			local tr = GM.tapRects(chip.rect, w, h, GM.tapLine(long))
+			local tag = w .. "x" .. h
+			expectTrue(tr.hit.h >= 44 and tr.hit.w >= 44, "hit target is 44 px or more at " .. tag)
+			expectTrue(tr.hit.x >= 0 and tr.hit.y >= 0 and tr.hit.x + tr.hit.w <= w and tr.hit.y + tr.hit.h <= h, "hit target on screen at " .. tag)
+			expectTrue(tr.tip.x >= 0 and tr.tip.y >= 0 and tr.tip.x + tr.tip.w <= w and tr.tip.y + tr.tip.h <= h, "tip on screen at " .. tag)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Fast scoring: default off, saves and loads, halves the tally and never slows a faster pace", fn = function()
 	local profile = PlayerProfile.new()
 	expectEqual(profile.settings.fastScoring, false)
