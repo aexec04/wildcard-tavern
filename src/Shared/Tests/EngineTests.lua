@@ -12235,6 +12235,75 @@ table.insert(tests, { name = "Reward card: rule text ends above the Choose plate
 	end
 end })
 
+table.insert(tests, { name = "DebugJump: every admin jump key parses, junk is refused, and each puts the real run on its screen", fn = function()
+	local DJ = require(script.Parent.Parent.Engine.DebugJump)
+	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local Engine = script.Parent.Parent.Engine
+	local Recipes = require(Engine.Recipes)
+	local deps = {
+		RunState = RunState, RunChoice = require(Engine.RunChoice), Patrons = Patrons, Recipes = Recipes,
+		Tags = require(Engine.Tags), BossRounds = require(Engine.BossRounds),
+		openShop = function(session) session.shopOpened = true end,
+	}
+	local boss = require(Engine.BossRounds).Modifiers and require(Engine.BossRounds).Modifiers[1] or nil
+	local bossId = boss and boss.id or "lights_out"
+	local keys = { "night:1", "night:12", "boon", "reward", "shop:30", "tips:99", "recipes:" .. Recipes.HouseRecipes[1].id, "patrons:" .. Patrons.Definitions[1].id .. "," .. Patrons.Definitions[2].id,
+		"sellpatron", "tag:" .. require(Engine.Tags).Definitions[1].id, "victory", "endrun", "endrun:win", "boss3:" .. bossId }
+	for _, key in ipairs(keys) do
+		local op = DJ.parse(key)
+		expectTrue(op ~= nil, key .. " parses")
+		local t = Rules.parse(key)
+		expectTrue(t ~= nil and (t.kind == "jump" or key == "boon"), key .. " reaches the client as a jump")
+		local state = RunState.new(nil, function(n) return 1 end)
+		local session = { state = state, phase = "playing" }
+		local ok, msg = DJ.apply(session, op, deps)
+		expectTrue(ok, key .. " applies: " .. tostring(msg))
+		expectTrue(state.usedDebug == true, key .. " marks the run as debug (never reaches a leaderboard)")
+	end
+	for _, bad in ipairs({ "", "night:0", "night:13", "boss1:x", "boss13:x", "recipes:", "recipes:a!b", "tips:-1", "patrons:", "shop:x", "Rm -rf", string.rep("a", 500) }) do
+		expectTrue(DJ.parse(bad) == nil, "junk refused: " .. bad:sub(1, 20))
+	end
+	expectTrue(DJ.parse(nil) == nil and DJ.parse(12) == nil and DJ.parse({}) == nil, "non strings are refused")
+	-- screens
+	local function run(key)
+		local state = RunState.new(nil, function(n) return 1 end)
+		local session = { state = state, phase = "playing" }
+		DJ.apply(session, DJ.parse(key), deps)
+		return session, state
+	end
+	local s, st = run("night:5")
+	expectTrue(st.night == 5 and st.round == 1 and s.phase == "playing" and st.targetScore == RunState.targetForRound(st, 1), "night:5 sets the Night, round 1 and its real target")
+	s, st = run("boss4:" .. bossId)
+	expectTrue(st.night == 4 and st.round == st.config.roundsPerNight and st.isBossRound and st.bossModifier and st.bossModifier.id == bossId, "bossN starts the boss round with that boss")
+	expectTrue(DJ.parse("boss4:no_such_boss") == nil, "an unknown boss is refused")
+	s, st = run("boon")
+	expectTrue(s.phase == "roundSelect" and s.choice and s.choice.kind == "boon" and st.night >= 2, "boon opens the Night boon pick")
+	s, st = run("reward")
+	expectTrue(s.phase == "roundSelect" and s.choice and s.choice.kind == "reward", "reward opens the choose a Patron reward")
+	s, st = run("shop:25")
+	expectTrue(s.phase == "shop" and st.tips == 25 and s.shopOpened, "shop:25 is a real Counter visit with 25 Tips")
+	s, st = run("recipes:" .. Recipes.HouseRecipes[1].id)
+	expectEqual(#st.houseRecipeInventory, 1)
+	s, st = run("victory")
+	expectTrue(st.wonRun and st.night == st.config.nightCap and s.phase == "shop", "victory is a won run at the last Night")
+	s, st = run("endrun:win")
+	expectTrue(s.phase == "gameover" and st.wonRun and st.runOver, "endrun:win is a won Run Over")
+	s, st = run("endrun")
+	expectTrue(s.phase == "gameover" and not st.wonRun and st.runOver, "endrun is a lost Run Over")
+	s, st = run("sellpatron")
+	expectTrue(s.phase == "shop" and #st.ownedPatrons >= 1, "sellpatron seats a Patron on the Counter")
+	expectTrue(select(1, DJ.apply({}, DJ.parse("tips:5"), deps)) == false and select(1, DJ.apply(nil, DJ.parse("tips:5"), deps)) == false, "no run: nothing happens")
+	-- the server handler returns outside Studio before touching anything
+	if io and io.open then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			local at = src:find("Rem.DebugJump.OnServerEvent", 1, true)
+			expectTrue(at ~= nil and src:sub(at, at + 200):find("if not RunService:IsStudio() then return end", 1, true) ~= nil, "DebugJump refuses outside Studio")
+		end
+	end
+end })
+
 table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local state = RunState.new(nil, function(n) return 1 end)
@@ -51534,7 +51603,7 @@ table.insert(tests, { name = "Leaderboard integrity: a run that used any Debug r
 					marked = marked + 1
 				end
 			end
-			expectEqual(marked, 4, "all four run-changing Debug remotes mark the run")
+			expectEqual(marked, 5, "all five run-changing Debug remotes mark the run")
 		end
 	end
 end })

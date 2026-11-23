@@ -3112,6 +3112,24 @@ Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto night:<n>, bossN:<id>, reward, shop:<tips>, recipes:<ids>, victory, endrun ... (Engine/DebugJump) on the live run.
+Rem.DebugJump.OnServerEvent:Connect(function(player, key)
+	if not RunService:IsStudio() then return end
+	if not RateLimit.allow(player.UserId, "Rem.DebugJump", os.clock()) then return end
+	local session = sessions[player]
+	if not session or type(key) ~= "string" then return end
+	local DebugJump = require(Engine.DebugJump)
+	local op, why = DebugJump.parse(key)
+	if not op then warn("[DebugGoto server] " .. tostring(why)) return end
+	session.state.usedDebug = true -- a run that touched a Debug remote never reaches a leaderboard (Leaderboards.acceptEntry)
+	local ok, msg = DebugJump.apply(session, op, {
+		RunState = RunState, RunChoice = RunChoice, Patrons = require(Engine.Patrons), Recipes = require(Engine.Recipes),
+		Tags = require(Engine.Tags), BossRounds = require(Engine.BossRounds), openShop = openShop,
+	})
+	print("[DebugGoto server] " .. key .. (ok and " ok: " or " refused: ") .. tostring(msg))
+	pushState(player)
+end)
+
 -- Studio only: DebugGoto equip:<setId> really equips the set (no ownership check) so the equipped path can be checked on the table.
 Rem.DebugEquipSet.OnServerEvent:Connect(function(player, setId)
 	if not RunService:IsStudio() then return end

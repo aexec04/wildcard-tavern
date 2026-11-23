@@ -54,6 +54,7 @@ Rem.DebugSetTag = newRemote("DebugSetTag") -- STUDIO ONLY (ignored elsewhere): (
 Rem.DebugSetMod = newRemote("DebugSetMod") -- STUDIO ONLY (ignored elsewhere): (player, modId, report) makes the open blessing draft offer modId (report=true prints the applied numbers instead), for DebugGoto round1:mod=<id>
 Rem.DebugEquipSet = newRemote("DebugEquipSet") -- STUDIO ONLY (ignored elsewhere): (player, setId) equips that Card Set without the ownership check, for DebugGoto equip:<setId>
 Rem.DebugSetTarget =newRemote("DebugSetTarget") -- STUDIO ONLY (ignored elsewhere): (player, n) sets the current round target, for DebugGoto playhand:keep
+Rem.DebugJump = newRemote("DebugJump") -- STUDIO ONLY (ignored elsewhere): (player, key string) puts a real screen on the live run, see Engine/DebugJump
 Rem.SetSetting = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 Rem.MarkTutorialSeen = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 Rem.BuyRecipe = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use

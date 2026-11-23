@@ -232,6 +232,11 @@ function DebugGotoRules.parseCore(value)
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
 	end
+	-- real run jumps (night:<n>, bossN:<id>, reward, shop:<tips>, recipes:<ids>, victory, endrun ...): Engine/DebugJump, Studio-only server remote
+	do
+		local op = require(script.Parent.DebugJump).parse(text)
+		if op then return { kind = "jump", key = text, op = op.op } end
+	end
 	if text == "drawer:closed" or text == "drawer:open" then
 		return { kind = "drawer", closed = text == "drawer:closed" }
 	end
