@@ -21,7 +21,7 @@ local ui
 
 -- Card geometry (tested): the reward plate is 104 wide at 12 px from the right edge; the bar and text stop 12 px before it.
 QuestsPanel.CARD_H, QuestsPanel.REWARD_W, QuestsPanel.REWARD_RIGHT, QuestsPanel.BAR_X = 96, 104, 12, 86
-QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12
+QuestsPanel.BAR_RIGHT = QuestsPanel.BAR_X + QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12 -- the words start at BAR_X, so this keeps them 12 px left of the reward plate
 QuestsPanel.PANEL_H = 416
 
 -- "5h 20m", "42m", "less than a minute"
@@ -85,11 +85,11 @@ local function buildCard(parent, row, order, roundCorner)
 	end
 
 	label(card, {
-		Name = "Name", Size = UDim2.new(1, -200, 0, 24), Position = UDim2.fromOffset(86, 8), Text = row.name, TextSize = 18, TextColor3 = skin and skin.ink or INK,
+		Name = "Name", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 24), Position = UDim2.fromOffset(86, 8), Text = row.name, TextSize = QuestRules.fitSize(row.name, 18), TextColor3 = skin and skin.ink or INK,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	label(card, {
-		Name = "Desc", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 22), Position = UDim2.fromOffset(86, 30), Text = row.desc, TextSize = 15, TextColor3 = skin and skin.sub or INK,
+		Name = "Desc", Size = UDim2.new(1, -QuestsPanel.BAR_RIGHT, 0, 22), Position = UDim2.fromOffset(86, 30), Text = row.desc, TextSize = QuestRules.fitSize(row.desc, 15), TextColor3 = skin and skin.sub or INK,
 		Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
 	})
 	local track = Instance.new("Frame")

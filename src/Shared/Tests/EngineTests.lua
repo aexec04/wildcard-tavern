@@ -31077,6 +31077,74 @@ table.insert(tests, { name = "Menu Daily strip shares no x range with Deal Me In
 	end
 end })
 
+table.insert(tests, { name = "Daily strip: the Client sizes the Chest word and Goal line with TextFit (no TextScaled), and the worst timer fits 24 px inside the plate at four sizes", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local strip = D.menuRect(sz[1], sz[2])
+		if strip then
+			local c = D.chestRect(strip)
+			local inner = c.w - 2 * D.CHEST_PAD
+			local word = "Next in 19h 38m"
+			local size = F.bestSize(word, inner, c.h, 12, 16)
+			expectTrue(size ~= nil, sz[1] .. "x" .. sz[2] .. " the timer word has a size that fits")
+			expectTrue(F.width(word, size) <= inner, sz[1] .. "x" .. sz[2] .. " the timer is at least 24 px narrower than the chest plate")
+			local cols = D.columns(strip)
+			local goal = "Win 3 rounds today (2 of 3)"
+			expectTrue(#F.clip(goal, cols.goalW, 12) <= #goal, "the Goal line is clipped to its column")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/DailyStrip.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectFalse(t:find("TextScaled = true", 1, true) ~= nil, "no TextScaled = true left in DailyStrip")
+		expectTrue(t:find("TextFit.bestSize(v.chestText", 1, true) ~= nil, "Chest size comes from TextFit.bestSize")
+		expectTrue(t:find("TextFit.bestSize(v.goalText", 1, true) ~= nil, "Goal size comes from TextFit.bestSize")
+	end
+end })
+
+table.insert(tests, { name = "Collection text fit: tab labels, rarity words, page word and count lines keep 12 px clear of their plate at four sizes, and the Client applies CollectionTextFit", fn = function()
+	local C = require(script.Parent.Parent.Engine.CollectionTextFit)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Book = require(script.Parent.Parent.Engine.CollectionBook)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local SL = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local words = {}
+	for _, id in ipairs(Book.RarityOrder) do words[#words + 1] = Book.Rarities[id].name end
+	for _, sz in ipairs({ { 1700, 900 }, { 1100, 640 }, { 900, 520 }, { 700, 400 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local P = RL.panel(sz[1], sz[2], 24, nil, "section")
+		for _, tab in ipairs(Book.Tabs) do
+			local w = C.tabWidth(tab.name, 14)
+			expectTrue(F.width(tab.name, 14) + 2 * F.SIDE <= w, tag .. " tab " .. tab.name .. " has 12 px each side")
+		end
+		local size = C.chipSize(words, P.filter.w - 2 * F.SIDE)
+		expectTrue(size >= 12 and size <= 15, tag .. " rarity word size in range")
+		local total = C.CHIP_GAP * (#words - 1)
+		for _, w in ipairs(words) do total = total + C.SWATCH + F.width(w, size) end
+		expectTrue(total <= P.filter.w - 2 * F.SIDE or size == 12, tag .. " the five rarity words fit one row of the filter plate")
+		for _, pages in ipairs({ 2, 9, 12 }) do
+			local pg = SL.pager(P.pager and P.pager.w or RL.PAGER_W)
+			local text = SL.pageText(pages, pages)
+			local s = C.plateSize(text, pg.label.w, pg.label.h)
+			expectTrue(F.width(text, s) + 2 * F.SIDE <= pg.label.w, tag .. " " .. text .. " fits the page plate with 12 px each side")
+		end
+		local found = require(script.Parent.Parent.Engine.CollectionCards).foundText(1234, 5678)
+		local line = RL.ownedText(1234, 5678)
+		expectTrue(F.width(line, C.linesSize({ line, found }, 428)) <= 428, tag .. " count lines fit the info plate")
+	end
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("CollectionTextFit", 1, true) ~= nil and t:find(".tabWidth(", 1, true) ~= nil and t:find(".chipSize(", 1, true) ~= nil and t:find(".linesSize(", 1, true) ~= nil, "Collection applies the fit to tabs, rarity words and count lines")
+	end
+	local g = io and io.open and io.open("src/Client/CollectionSection.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find(".plateSize(", 1, true) ~= nil, "the page plate applies the fit")
+	end
+end })
+
 table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
@@ -35913,6 +35981,136 @@ table.insert(tests, { name = "Boss intro: the plate stands below the Patron row 
 	expectTrue(read("src/Client/Gameplay2.lua"):find("deps.actionFrame.ClipsDescendants = false", 1, true), "the Discard frame is never clipped")
 end })
 
+table.insert(tests, { name = "Menu banners: Soon, Rank and Next goal lines wrap inside 12 px of the note edge, event names take two lines at most at 1920x957, 1506x751, 1309x751, and the Client applies it", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuNoteText)
+	local R = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Live = require(script.Parent.Parent.Engine.LiveEvents)
+	expectEqual(M.wrapWidth(12, 276), 276, "a label already 12 px from the edge keeps its width")
+	expectEqual(M.wrapWidth(12, 278), 276, "a label 10 px from the edge loses 2 px")
+	expectTrue(M.NOTE_W - (12 + M.wrapWidth(12, 278)) >= F.SIDE, "the margin is at least 12 px")
+	expectEqual(M.soonLine({ name = "Harvest Week" }), "Soon: Harvest Week", "the Soon line")
+	local names = { "Harvest Week", "Moonlit Marathon With A Very Long Festival Name Indeed" }
+	for _, ev in ipairs(Live.Definitions or Live.EVENTS or {}) do names[#names + 1] = ev.name end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 } }) do
+		local l, t, r, b = R.corkRect(sz[1], sz[2])
+		local scale = R.noteSlots(r - l, b - t, {}).scale
+		local want = math.ceil(R.MIN_TEXT / scale)
+		local w = M.wrapWidth(12, 276)
+		for _, name in ipairs(names) do
+			local line = M.soonLine({ name = name })
+			expectTrue(#line <= M.LINE_CHARS * 2, sz[1] .. " " .. name .. " is cut to two lines of text")
+			if #name <= 30 then expectTrue(M.lineCount(line, want, w) <= 3, sz[1] .. " " .. name .. " takes at most 3 estimated lines at " .. want .. " px") end
+		end
+		local rank = M.rankLines({ rank = 30, into = 1234, need = 5678, nextReward = { kind = "tips", amount = 300 } })
+		for _, text in ipairs({ rank.main, rank.reward }) do
+			local size = M.oneLineSize(text, w, want)
+			expectTrue(size >= 12 and (F.width(text, size) <= w or size == 12), sz[1] .. " one line size keeps " .. text .. " off the edge")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/MenuBoard.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("NoteText.wrapWidth", 1, true) ~= nil and t:find("NoteText.lineCount", 1, true) ~= nil and t:find("NoteText.oneLineSize", 1, true) ~= nil, "MenuBoard applies the fit")
+	end
+	local g = io and io.open and io.open("src/Client/NewsPanel.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("NoteText.soonLine(soon)", 1, true) ~= nil, "the Soon banner is cut to two lines")
+	end
+end })
+
+table.insert(tests, { name = "Tome popups: every Tome page root (Collection, Card Sets, Badges, Legend, Flair, Ledger) has a 44 px Close X inside its panel, registers with PanelTabs and OverlayManager, and Escape closes it", fn = function()
+	local Groups = require(script.Parent.Parent.Engine.PanelGroups)
+	local X = require(script.Parent.Parent.Engine.CloseXRules)
+	local D = require(script.Parent.Parent.Engine.PopupDismissRules)
+	local FILES = {
+		collection = "src/Client/Collection.lua", cosmeticSets = "src/Client/CosmeticSetsPanel.lua", badges = "src/Client/BadgesPanel.lua",
+		legend = "src/Client/LegendPanel.lua", flair = "src/Client/FlairPanel.lua", stats = "src/Client/StatsPanel.lua",
+	}
+	local tome
+	for _, g in ipairs(Groups.GROUPS) do if g.id == "tome" then tome = g end end
+	expectTrue(tome ~= nil, "the Tome group exists")
+	for _, page in ipairs(tome.pages) do
+		expectTrue(FILES[page.id] ~= nil, "Tome page " .. page.id .. " is listed here, so a new page cannot skip the Close X test")
+	end
+	expectEqual(D.action("dismiss", "escape"), "close", "Escape closes a dismiss popup")
+	expectEqual(D.action("dismiss", "outside"), "close", "a click on the dark area closes it")
+	expectTrue(X.HIT >= 44, "the Close X hit area is 44 px or more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		expectTrue(X.fits(sz[1] - 40, sz[2] - 40, "topRight"), sz[1] .. "x" .. sz[2] .. " the 44 px Close X sits inside a panel")
+	end
+	if io and io.open then
+		for id, path in pairs(FILES) do
+			local f = io.open(path, "r")
+			if f then
+				local t = f:read("*a"); f:close()
+				expectTrue(t:find('PanelTabs).attach(backdrop, "' .. id .. '"', 1, true) ~= nil, id .. " registers its backdrop with PanelTabs (PopupDismiss: Escape and outside click)")
+				expectTrue(t:find('OverlayManager.register("' .. id .. '"', 1, true) ~= nil or id == "collection" or id == "cosmeticSets" or id == "badges", id .. " registers its close function")
+				expectTrue(t:find("CloseX", 1, true) ~= nil, id .. " uses the shared Close X")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Season popup: every tier and premium reward name fits its tile in two lines with TextFit, locked premium rows say Premium only in words, and the Client applies it", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local checked = 0
+	for _, season in ipairs(ST.Seasons) do
+		for tier = 1, ST.TIERS do
+			for _, reward in ipairs({ ST.rewardFor(season, tier), ST.premiumRewardFor(season, tier) }) do
+				local name = ST.shortText(reward, nil)
+				local size = ST.nameSize(name)
+				local inner = ST.NAME_W - 2 * ST.NAME_CLEAR
+				expectTrue(size >= 12 and size <= ST.NAME_SIZE, season.id .. " tier " .. tier .. " size in range")
+				expectTrue(F.lines(name, size, inner) <= ST.NAME_LINES, season.id .. " tier " .. tier .. " '" .. tostring(name) .. "' fits two lines at " .. size .. " px")
+				expectTrue(F.lines(name, size, inner) * (size + 2) <= ST.NAME_H, season.id .. " tier " .. tier .. " fits the name box height")
+				checked = checked + 1
+			end
+		end
+	end
+	expectTrue(checked >= 20, "every tier of every season was checked (" .. checked .. ")")
+	if io and io.open then
+		local f = io.open("src/Client/SeasonPanel.lua", "r")
+		if f then
+			local t = f:read("*a"); f:close()
+			expectTrue(t:find("SeasonTrack.nameSize(row.short", 1, true) ~= nil and t:find("SeasonTrack.nameSize(prem.short", 1, true) ~= nil, "the Client sizes tier and premium names with SeasonTrack.nameSize")
+			expectTrue(t:find('Text = "Premium only"', 1, true) ~= nil, "a locked premium row says Premium only in words, not only a lock icon")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Quests popup: every quest name and line fits its row at 12 px or more with 12 px clear of the reward plate, progress reads N of M, claimed rows say Claimed, and the Client applies the fit", fn = function()
+	local Q = require(script.Parent.Parent.Engine.Quests)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	expectEqual(Q.TEXT_W, 306, "520 wide card, words from 86, 12 px before the plate")
+	-- the words end 12 px left of the reward plate at four panel sizes (the panel is a fixed 560 wide, the list 40 less)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local cardW = math.min(560, sz[1]) - 40
+		local textRight = Q.TEXT_X + (cardW - (Q.TEXT_X + Q.REWARD_W + Q.REWARD_RIGHT + Q.TEXT_GAP) - 0)
+		local rewardLeft = cardW - Q.REWARD_RIGHT - Q.REWARD_W
+		expectTrue(rewardLeft - textRight >= Q.TEXT_GAP - 0.01, sz[1] .. "x" .. sz[2] .. " words end 12 px before the reward plate")
+	end
+	for _, def in ipairs(Q.Definitions) do
+		local ns, ds = Q.fitSize(def.name, 18), Q.fitSize(def.desc, 15)
+		expectTrue(ns >= 12 and ds >= 12, def.id .. " sizes are 12 px or more")
+		expectTrue(F.width(def.name, ns) <= Q.TEXT_W, def.id .. " name fits its row")
+		expectTrue(F.width(def.desc, ds) <= Q.TEXT_W, def.id .. " line fits its row at " .. ds .. " px")
+		expectTrue(#def.desc <= 60, def.id .. " line is short")
+	end
+	if io and io.open then
+		local f = io.open("src/Client/QuestsPanel.lua", "r")
+		if f then
+			local t = f:read("*a"); f:close()
+			expectTrue(t:find("QuestRules.fitSize(row.desc, 15)", 1, true) ~= nil and t:find("QuestRules.fitSize(row.name, 18)", 1, true) ~= nil, "the Client sizes the quest name and line with Quests.fitSize")
+			expectTrue(t:find('Text = "Claimed"', 1, true) ~= nil, "claimed rows read Claimed in words")
+			expectTrue(t:find("QuestRules.progressText(row)", 1, true) ~= nil, "progress is drawn from QuestRules.progressText")
+		end
+	end
+	expectTrue(Q.progressText({ progress = 2, goal = 8, done = false }):find("2 of 8", 1, true) ~= nil, "progress reads N of M")
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
@@ -39385,7 +39583,7 @@ table.insert(tests, { name = "Season, Quests and Daily Rewards: ten 128 px tiles
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local t = f:read("a"); f:close(); return t end
 	local q = read("src/Client/QuestsPanel.lua")
-	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
+	expectTrue(q:find("QuestsPanel.BAR_RIGHT = QuestsPanel.BAR_X + QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12", 1, true) ~= nil, "bar stops 12 px before the reward plate")
 	expectTrue(q:find("TextSize = 14, TextColor3 = skin and skin.sub or INK, TextXAlignment = Enum.TextXAlignment.Right", 1, true) ~= nil, "progress text is 14 px, right aligned above the bar")
 	expectTrue(q:find("well.BackgroundColor3 = GREEN", 1, true) ~= nil, "done check sits on a green disc")
 	local d = read("src/Client/DailyRewardsPanel.lua")
@@ -46867,7 +47065,7 @@ table.insert(tests, { name = "Season tier rewards audit: all 30 tiers of both se
 	local f = io and io.open and io.open("src/Client/SeasonPanel.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
-		expectTrue(src:find("TextSize = SeasonTrack.NAME_SIZE", 1, true) ~= nil, "tile and premium names use the 16 px size")
+		expectTrue(src:find("TextSize = SeasonTrack.nameSize(", 1, true) ~= nil, "tile and premium names use the TextFit size (16 px when it fits, 12 at the least)")
 		expectTrue(not src:find("TextSize = 14", 1, true), "no 14 px text is left on the Season panel")
 	end
 end })

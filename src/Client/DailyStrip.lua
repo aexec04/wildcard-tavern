@@ -42,10 +42,7 @@ local function label(parent, name, size, x, y, w, h, text, align)
 	t.TextStrokeColor3 = color("outline")
 	t.TextXAlignment = align or Enum.TextXAlignment.Left
 	t.TextTruncate = Enum.TextTruncate.AtEnd
-	t.TextScaled = true -- shrinks to fit the column (12 px at the smallest) instead of running past the plate
-	local cap = Instance.new("UITextSizeConstraint")
-	cap.MaxTextSize, cap.MinTextSize = size, 12
-	cap.Parent = t
+	t.TextScaled = false -- the size is set from TextFit in update(), never scaled to fill the label
 	t.Text = text
 	t.Active = false
 	t.ZIndex = 43 -- above the plate (ZIndex 40): under ZIndexBehavior.Global a lower child draws UNDER its parent, which hid every word
@@ -144,10 +141,13 @@ function M.update(state)
 	strip.Streak.Text = v.streakText
 	local cols = Rules.columns(r)
 	strip.Streak.Size = UDim2.fromOffset(cols.streak.w, r.h)
+	strip.Streak.TextSize = TextFit.bestSize(v.streakText, cols.streak.w, r.h, 12, 15) or 12
 	local goalX, goalW = cols.goalX, cols.goalW -- 30 px in from the carved gold end, 12 px clear of the chest plate
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
-	strip.Goal.Text = TextFit.clip(v.goalText, goalW, 12) -- never wider than the column even at the 12 px floor
+	local goalSize = TextFit.bestSize(v.goalText, goalW, 24, 12, 15)
+	strip.Goal.TextSize = goalSize or 12
+	strip.Goal.Text = goalSize and v.goalText or TextFit.clip(v.goalText, goalW, 12) -- the whole line, or one ellipsis only when it cannot fit at 12 px
 	strip.Track.Position = UDim2.fromOffset(goalX, 30)
 	strip.Track.Size = UDim2.fromOffset(goalW, 8)
 	strip.Track.Fill.Size = UDim2.fromScale(math.clamp(v.progress / v.goal, 0, 1), 1)
@@ -155,19 +155,26 @@ function M.update(state)
 	local chest = strip.Chest
 	Kit.skin(chest, v.chestText, v.chest == "ready" and "primary" or "secondary")
 	pcall(Kit.paintedButton, chest, v.chest == "ready" and "primary" or "secondary") -- lit ornate button, flat look if the picture does not load
-	-- the word is cream on the plate (never a set accent), inset CHEST_PAD from both plate edges, and shrinks to fit rather than touching them
+	-- the word is cream on the plate (never a set accent), inset CHEST_PAD from both plate edges. TextScaled is off: the size comes
+	-- from TextFit.bestSize over the inner width, so the word never touches the plate edge (TextScaled filled the whole label).
+	local innerW = cr.w - 2 * Rules.CHEST_PAD
+	local chestSize = TextFit.bestSize(v.chestText, innerW, cr.h, 12, 16) or 12
 	chest.TextColor3 = color("cream")
-	chest.TextScaled = true
+	chest.TextScaled = false
+	chest.TextSize = chestSize
 	local shade = chest:FindFirstChild("Shade") -- a UIGradient on a text button tints its word too: the dark ramp made the cream timer read red on red
 	if shade and shade:IsA("UIGradient") then shade.Enabled = false end
 	local label = chest:FindFirstChild("KitLabel")
 	if label then
 		label.TextColor3 = color("cream")
-		label.TextScaled = true
+		label.TextScaled = false
+		label.TextSize = chestSize
+		label.TextStrokeTransparency = 0.4
+		label.TextStrokeColor3 = color("outline")
 		local pad = label:FindFirstChildOfClass("UIPadding")
 		if pad then pad.PaddingLeft, pad.PaddingRight = UDim.new(0, Rules.CHEST_PAD), UDim.new(0, Rules.CHEST_PAD) end
 		local cap = label:FindFirstChildOfClass("UITextSizeConstraint")
-		if cap then cap.MaxTextSize, cap.MinTextSize = 16, 14 end
+		if cap then cap:Destroy() end
 		label.TextWrapped = false -- the timer stays on one line
 	end
 	chest.Position = UDim2.fromOffset(cr.x, cr.y)

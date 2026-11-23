@@ -16,6 +16,7 @@ local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitF
 local Layout = require(Engine:WaitForChild("MenuLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local RoomLayout = require(Engine:WaitForChild("MenuRoomLayout"))
+local NoteText = require(Engine:WaitForChild("MenuNoteText"))
 
 local MenuBoard = {}
 
@@ -276,8 +277,11 @@ function MenuBoard.build(parent)
 						local w = d.Size.X.Offset
 						if d.Size.X.Scale ~= 0 then w = d.Size.X.Scale * NOTE_W + w end
 						local lines = 1
-						local tall = textHeight(d, want, math.max(20, w))
+						local wrapW = NoteText.wrapWidth(d.Position.X.Offset, w) -- 12 px clear of the note edge (TextFit.SIDE)
+						if d.Size.X.Scale == 0 and wrapW < w then d.Size = UDim2.new(0, wrapW, d.Size.Y.Scale, d.Size.Y.Offset) end
+						local tall = textHeight(d, want, math.max(20, wrapW))
 						if tall then lines = math.max(1, math.min(3, math.round(tall / (want + 2)))) end
+						lines = math.max(lines, math.min(3, NoteText.lineCount(d.Text, want, math.max(20, wrapW)))) -- the TextFit estimate never lets a line run to the edge
 						d.TextWrapped = lines > 1
 						local lineH = want + 2
 						if d.Size.Y.Scale == 0 and lines > 1 then
@@ -289,6 +293,9 @@ function MenuBoard.build(parent)
 						end
 					else
 						d.TextWrapped = false
+						if d.Size.Y.Scale == 0 and d.Size.X.Scale == 0 and d.Size.X.Offset > 0 then -- a one line word shrinks (12 px at the least) rather than touch the plate edge
+							d.TextSize = NoteText.oneLineSize(d.Text, NoteText.wrapWidth(d.Position.X.Offset, d.Size.X.Offset), want)
+						end
 						if d.Size.Y.Scale == 0 and d.Size.Y.Offset > 0 and d.Size.Y.Offset < want + 4 then
 							if d.Name == "Reward" then rewardGrow = (want + 4) - d.Size.Y.Offset end -- the last line grows the plate so it never hangs below the frame
 							d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, want + 4)
@@ -300,7 +307,7 @@ function MenuBoard.build(parent)
 			if tx and tm and tx:IsA("TextLabel") and tm:IsA("TextLabel") and tm.Text ~= "" then
 				-- a left label and a right label never share a line: stack them, both left aligned, each wrapped to the full width
 				local x0 = tx.Position.X.Offset
-				local w = NOTE_W - x0 - 10
+				local w = NoteText.wrapWidth(x0, NOTE_W - x0 - 10)
 				local function lines(l)
 					local tall = textHeight(l, l.TextSize, w)
 					return tall and math.max(1, math.min(3, math.round(tall / (l.TextSize + 2)))) or 1

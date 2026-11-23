@@ -72,7 +72,7 @@ M.TABS = { y = 80, h = 26 } -- the quiet row of small tab plates
 M.AREA_TOP = 94 -- (the old top of the section area; a section now starts under the progress line, see panel)
 M.STRIP_H = 28 -- the slim strip along the bottom of a section: tab plates on the left, the page arrows and plate on the right
 M.STRIP_GAP = 6
-M.PAGER_W = 184 -- two 36 px arrows, the 104 px page plate and their gaps (CollectionSectionLayout.pager)
+M.PAGER_W = 200 -- two 36 px arrows, the 120 px page plate and their gaps (CollectionSectionLayout.pager)
 M.FOOTER = 58 -- the Close row at the bottom of the panel
 M.FILTER_MAX_W = 620
 M.FILTER_PAD = 4 -- room above and below the chips inside the wooden plate

@@ -31,7 +31,7 @@ function CollectionScene.build(opts)
 	-- the modules the real files reach through ReplicatedStorage.Shared.Engine
 	local map = {}
 	for _, name in ipairs({ "CollectionBook", "ContentArt", "CollectionSceneLayout", "CollectionRoomLayout", "CollectionFurnitureLayout",
-		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve", "CollectionPreload", "CollectionTileCache", "CollectionLoadJob", "PanelLayout", "CollectionCards", "ConceptTPatronArt", "LockedHints" }) do
+		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve", "CollectionPreload", "CollectionTileCache", "CollectionLoadJob", "PanelLayout", "CollectionCards", "CollectionTextFit", "TextFit", "ConceptTPatronArt", "LockedHints" }) do
 		map[name] = require(Engine[name])
 	end
 	local engineFolder = FakeGui.folder(map)

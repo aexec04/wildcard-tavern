@@ -33,6 +33,18 @@ local LiveEvents = require(script.Parent.LiveEvents) -- a double XP weekend also
 local Quests = {}
 
 Quests.PER_DAY = 3
+
+-- Quest card text box (Client/QuestsPanel): the card is 520 wide, the words start 86 px in and stop 12 px before the 104 px reward plate
+-- that sits 12 px from the right edge. fitSize gives the largest size (12 at the least) at which one line fits that width.
+Quests.CARD_W, Quests.TEXT_X, Quests.REWARD_W, Quests.REWARD_RIGHT, Quests.TEXT_GAP = 520, 86, 104, 12, 12
+Quests.TEXT_W = Quests.CARD_W - Quests.TEXT_X - (Quests.REWARD_W + Quests.REWARD_RIGHT + Quests.TEXT_GAP)
+function Quests.fitSize(text, maxSize, w)
+	local TextFit = require(script.Parent.TextFit)
+	for s = maxSize, 12, -1 do
+		if TextFit.width(text, s) <= (w or Quests.TEXT_W) then return s end
+	end
+	return 12
+end
 Quests.MAX_PENDING_TIPS = TavernRank.MAX_PENDING_TIPS
 
 Quests.Definitions = {

@@ -330,7 +330,7 @@ function SeasonPanel.init(deps)
 			pcall(ArtIcon.apply, well, category, key, glyph, { cornerRadius = 8, zIndex = 46, dim = prem.locked })
 		end
 		if prem.locked then glyph.TextTransparency = 0.35 end -- dimmed, never black
-		label(box, { Size = UDim2.new(1, -4, 0, 36), Position = UDim2.fromOffset(2, 58), TextSize = SeasonTrack.NAME_SIZE, TextWrapped = true, Font = Enum.Font.GothamMedium,
+		label(box, { Size = UDim2.new(1, -4, 0, 36), Position = UDim2.fromOffset(2, 58), TextSize = SeasonTrack.nameSize(prem.short), TextWrapped = true, Font = Enum.Font.GothamMedium,
 			Text = SeasonTrack.premiumLabelShown(prevRow and prevRow.premium and prevRow.premium.short, prem.short) and prem.short or "" })
 		if prem.claimed then
 			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
@@ -425,7 +425,7 @@ function SeasonPanel.init(deps)
 			glyph.TextTransparency = 0.35 -- dimmed, never black
 		end
 		label(t, { -- the reward's own name, 16 px, two lines at most (SeasonTrack.NAME_*); the icon above says what kind it is
-			Size = UDim2.fromOffset(SeasonTrack.NAME_W, 38), Position = UDim2.fromOffset(3, 112), TextSize = SeasonTrack.NAME_SIZE, TextWrapped = true,
+			Size = UDim2.fromOffset(SeasonTrack.NAME_W, 38), Position = UDim2.fromOffset(3, 112), TextSize = SeasonTrack.nameSize(row.short or row.text or ""), TextWrapped = true,
 			Font = Enum.Font.GothamMedium, Text = row.short or row.text or "",
 		})
 		if row.claimed then
