@@ -51883,6 +51883,84 @@ table.insert(tests, { name = "Shop rules: slot counts, Patron cap and sell price
 	expectEqual(saver.lastInterest, 8, "Savings Account raises the cap to 8")
 end })
 
+-- DAILY RUN AUDIT: one fixed seed for everyone, the same shop and boss, and one board entry per player per day.
+table.insert(tests, { name = "Daily run: two players on one date see the same route, twist, deals, shops and bosses; another date differs; the board takes one best entry per day", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local DailyModifiers = require(script.Parent.Parent.Engine.DailyModifiers)
+	local stamp = 1788134400 -- a fixed UTC day
+	local function startDaily(ts)
+		-- built the way Server startNewSession builds a Daily: seed from the UTC date, fixed route, the day's twist, standard deck
+		local key = SeededRng.dailyDateKey(ts)
+		return RunState.new({
+			deckVariantId = "standard", difficultyId = "standard",
+			dailyModifierId = DailyModifiers.forDate(key).id,
+			worldPlan = WorldMap.routeFromSeed("daily:" .. key),
+		}, SeededRng.new(SeededRng.dailySeed(ts))), key
+	end
+	local function walk(ts, noise)
+		math.randomseed(noise) -- the global generator must make no difference to a seeded board
+		local state = startDaily(ts)
+		state.tips = 30
+		local out = { "twist=" .. tostring(state.dailyModifier and state.dailyModifier.id) }
+		for _, stop in ipairs(state.worldPlan or {}) do out[#out + 1] = tostring(type(stop) == "table" and (stop.kind or stop.id or "?") or stop) end
+		for _ = 1, 24 do
+			if state.runOver then break end
+			local cards = {}
+			for _, c in ipairs(state.hand) do cards[#cards + 1] = c.rank .. c.suit:sub(1, 1) end
+			out[#out + 1] = "N" .. state.night .. "R" .. state.round .. ":" .. table.concat(cards, "") .. ":" .. tostring(state.targetScore)
+				.. ":" .. (state.bossModifier and state.bossModifier.id or "-")
+			state.targetScore = 1
+			for _ = 1, 4 do
+				if state.roundOver or state.runOver then break end
+				RunState.playHand(state, { 1 })
+			end
+			if state.roundOver and not state.runOver then
+				local o = Shop.rollOffers(state)
+				local ids = {}
+				for _, p in ipairs(o.patrons) do ids[#ids + 1] = p.id end
+				for _, k in ipairs(o.packs) do ids[#ids + 1] = k.id end
+				ids[#ids + 1] = o.voucher and o.voucher.id or "none"
+				out[#out + 1] = "shop:" .. table.concat(ids, ",")
+				RunState.advanceToNextRound(state)
+			end
+		end
+		return table.concat(out, "|")
+	end
+	local a = walk(stamp, 1)
+	expectTrue(#a > 200, "the walk covers deals, shops and bosses")
+	expectTrue(a:find("shop:", 1, true) ~= nil, "shops were seen")
+	expectEqual(a, walk(stamp, 99999), "two players on one date see the identical run")
+	expectEqual(a, walk(stamp + 3600 * 5, 7), "later the same UTC day it is still the same run")
+	expectTrue(a ~= walk(stamp + 86400, 1), "the next date is a different run")
+
+	-- the same date key and twist for everyone, whichever time zone they are in
+	local _, k1 = startDaily(stamp)
+	local _, k2 = startDaily(stamp + 7200)
+	expectEqual(k1, k2, "one date key for the whole UTC day")
+	expectEqual(DailyModifiers.forDate(k1).id, DailyModifiers.forDate(k2).id, "one twist for the whole day")
+
+	-- one board row per player per day: the store is named by the date, a write keeps the best, a worse or equal run changes nothing
+	local day1 = Leaderboards.storeName("daily", "Standard", SeededRng.dailyDateKey(stamp))
+	expectEqual(day1, "DailyChallenge_Standard_v" .. SeededRng.VERSION .. "_" .. k1, "the day's own store")
+	expectTrue(day1 ~= Leaderboards.storeName("daily", "Standard", SeededRng.dailyDateKey(stamp + 86400)), "tomorrow is a new store")
+	local row = Leaderboards.keepBest(nil, 5000)
+	expectEqual(row, 5000, "the first entry is kept")
+	expectEqual(Leaderboards.keepBest(row, 3000), 5000, "a worse second run never lowers it")
+	expectEqual(Leaderboards.keepBest(row, 5000), 5000, "an equal one changes nothing")
+	expectEqual(Leaderboards.keepBest(row, 7000), 7000, "a better one replaces it, still one row")
+	expectEqual(Leaderboards.keepBest("junk", 10), 10, "a corrupt old row is replaced, not copied")
+
+	-- the server fixes the day at the start of the run, never lets a client name a day or send a score, and skips Debug runs
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("dailyDateKey = isDaily and seedLabel", 1, true) ~= nil, "the run keeps the day it started on")
+		expectTrue(src:find("startNewSession(player, nil, nil, SeededRng.new(seed), \"daily\", SeededRng.dailyDateKey())", 1, true) ~= nil, "the Daily seed and date come from the server clock, with no client argument")
+		expectTrue(src:find("pending.dateKey == session.dailyDateKey and pending.depth >= depth", 1, true) ~= nil, "a run that does not beat its queued entry adds nothing")
+		expectTrue(src:find("Rem.StartDailyChallenge.OnServerEvent:Connect(function(player)", 1, true) ~= nil, "starting the Daily takes no client argument")
+	end
+end })
+
 return tests
 
 
