@@ -271,8 +271,8 @@ function M.update(layer, state, rects, viewW, viewH)
 	place(bar, tp.bar)
 	local cur, total = Rules.health(state.targetScore, state.roundScore)
 	bar.Num.TextSize = math.max(11, math.min(16, tp.bar.h - 3))
-	bar.Num.Text = "" -- the Target plate already says the score and the target: no second '143 / 143' on the bar
-	bar.Num.Visible = false
+	bar.Num.Text = Rules.healthText(cur, total) -- the bar is never empty: it always carries its numbers
+	bar.Num.Visible = true
 	local want = Rules.fraction(cur, total)
 	if calm() or lastFill == nil then
 		bar.Fill.Size = UDim2.fromScale(want, 1)
@@ -283,6 +283,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	if tp.night then
 		night.Visible = true
 		place(night, tp.night)
+		night.Position = night.Position + UDim2.fromOffset(0, 3) -- breathing room under the bar
 		night.TextSize = math.max(11, math.min(14, tp.night.h - 2))
 		night.Text = string.format("Night %d, Round %d", math.floor(state.night or 1), math.floor(state.round or 1))
 	else

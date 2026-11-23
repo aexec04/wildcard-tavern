@@ -46839,13 +46839,14 @@ table.insert(tests, { name = "Boss round HUD: the boss name and rule are said on
 	local fx = read("src/Client/BossCardFX.lua")
 	expectTrue(fx:find("nm.Visible = false", 1, true) ~= nil, "top plate name hidden")
 	expectTrue(fx:find("seatCard.Title.Visible = false", 1, true) ~= nil, "Boss seat shows portrait and tag only")
-	expectTrue(fx:find("bar.Num.Visible = false", 1, true) ~= nil and fx:find("Rules.healthText(cur, total)", 1, true) == nil, "no second progress number on the bar")
+	expectTrue(fx:find("bar.Num.Visible = true", 1, true) ~= nil and fx:find("bar.Num.Text = Rules.healthText(cur, total)", 1, true) ~= nil, "the boss bar always carries its health numbers, never empty")
 	expectTrue(fx:find("card.Title.Text = name", 1, true) ~= nil and fx:find("card.Rule.Text = rule", 1, true) ~= nil, "the Boss card keeps the name and the rule")
 	expectTrue(read("src/Client/PlayBoardHud.lua"):find("rule.Visible = not isBoss", 1, true) ~= nil, "the sidebar rule plate steps aside on a boss round")
 	expectTrue(read("src/Client/Gameplay2.lua"):find("ST.progressLine(lastState.roundScore", 1, true) ~= nil, "the one target and progress is on the Target plate")
 end })
 
 return tests
+
 
 
 
