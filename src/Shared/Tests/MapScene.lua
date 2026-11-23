@@ -55,7 +55,7 @@ function MapScene.build(opts)
 		stubs = { MapHover = hoverStub, RoadLock = { keys = function() return 0 end, isLocked = function() return false end, pick = function() end }, ClientSettings = { get = function() return false end } },
 	})
 	local mods = {}
-	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules", "MapRouteRules" }) do
+	for _, name in ipairs({ "RegionTiles", "MapSeams", "MapPropRules", "WorldMap", "WorldMapLayout", "Discoveries", "MapNodeRules", "MapRouteRules", "MapTooltips" }) do
 		mods[name] = require(Engine[name])
 	end
 	local JourneyMap = require(Engine.JourneyMap)
@@ -95,7 +95,7 @@ function MapScene.build(opts)
 	end
 	local scene = { gui = gui, plate = plate, scroll = scroll, canvas = canvas, env = env, state = state, z = z }
 	scene.scenery = load("JourneyMapScenery", {
-		canvas = canvas, roundCorner = noop, ContentArt = ContentArt, RegionTiles = mods.RegionTiles, MapSeams = mods.MapSeams,
+		canvas = canvas, roundCorner = noop, ContentArt = ContentArt, RegionTiles = mods.RegionTiles, MapSeams = mods.MapSeams, MapTips = mods.MapTooltips,
 		PropRules = PropRules, TweenService = state.services.TweenService, calm = function() return false end,
 		parentFrame = plate, addTooltip = noop,
 	})

@@ -79,16 +79,9 @@ return function(deps)
 	local HORIZON_Y = 0.5 -- every painting is anchored on the same vertical fraction so horizons line up
 	local PARCHMENT_BASE = Color3.fromRGB(176, 170, 120) -- muted sand-green, so a gap never reads as a cream block
 
-	-- Hover card text for each doodle: what it is and what to expect there. Hidden (fogged) landmarks only say "???".
-	local DECOR_INFO = {
-		signpost = { "Old Signpost", "Arrows point the way to the tavern." },
-		pine_tree = { "Tall Pine", "A quiet spot to rest. Nothing is hidden here." },
-		mushroom_ring = { "Mushroom Ring", "A fairy ring. Tavern folk say it brings luck." },
-		windmill = { "Windmill", "Its sails turn all day for the tavern's flour." },
-		lantern_post = { "Lantern Post", "Lit every evening for travellers." },
-		cottage = { "Little Cottage", "A cosy stop with a warm window." },
-		bridge = { "Stone Bridge", "Cross it to keep following the road." },
-	}
+	-- Hover card text for each doodle lives in Engine/MapTooltips (what it is and what to expect there). Fogged landmarks only say "???".
+	local Tips = deps.MapTips -- Engine/MapTooltips
+	local DECOR_INFO = Tips.DECOR
 	local hover = deps.TweenService and require(script.Parent.MapHover).new({
 		canvas = canvas, TweenService = deps.TweenService, calm = deps.calm,
 	}) or nil
@@ -101,9 +94,9 @@ return function(deps)
 		hover.bind(img, function()
 			local hidden = fogEdge ~= nil and img.Position.X.Offset > fogEdge
 			if hidden then
-				return { title = "???", biome = "???", line = "Something is hidden in the fog." }
+				return { title = "???", biome = "???", line = Tips.FOG_DECOR }
 			end
-			local info = DECOR_INFO[key] or { key:gsub("_", " "), "A landmark on the road." }
+			local info = DECOR_INFO[key] or { (key:gsub("_", " ")), Tips.DECOR_FALLBACK }
 			return { title = info[1], biome = REGIONS[regionIndex].name or "", line = info[2] }
 		end, { pin = true })
 	end

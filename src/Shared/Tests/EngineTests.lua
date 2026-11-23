@@ -46923,4 +46923,27 @@ table.insert(tests, { name = "Round Select Select plate: the hover grow keeps it
 	expectTrue(math.abs(P.centre(r, 0, 1, P.HOVER_SCALE).x - P.centre(r, 0, 1, 1).x) > 4, "a left anchor would have moved the centre")
 end })
 
+table.insert(tests, { name = "Tavern Map tooltips: every card line is one kind sentence of 60 characters or less, wraps in 3 lines, and the card stays inside the canvas at four sizes", fn = function()
+	local T = require(script.Parent.Parent.Engine.MapTooltips)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local lines = T.allLines()
+	expectTrue(#lines >= 12, "every fixed and doodle line is listed (" .. #lines .. ")")
+	for _, l in ipairs(lines) do
+		expectTrue(#l <= T.LINE_MAX, "tooltip line is 60 characters or less: " .. l)
+		expectFalse(l:find("%-%-") ~= nil or l:find("\226\128\148") ~= nil, "no dashes: " .. l)
+		expectTrue(F.lines(l, T.BODY_SIZE, T.BODY_W) * (T.BODY_SIZE + 2) <= T.BODY_H, "line wraps inside the body box: " .. l)
+	end
+	for key, info in pairs(T.DECOR) do
+		expectTrue(#info[1] > 0 and #info[1] <= 24, "doodle " .. key .. " has a short title")
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, t in ipairs({ { 0, 0 }, { W, 0 }, { W / 2, H / 2 }, { 0, H - 40 }, { W, H - 40 }, { W / 2, 10 } }) do
+			local r = T.place(t[1], t[2], 40, W, H)
+			local tag = W .. "x" .. H .. " target " .. t[1] .. "," .. t[2]
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H, tag .. " card inside the canvas")
+		end
+	end
+end })
+
 return tests
