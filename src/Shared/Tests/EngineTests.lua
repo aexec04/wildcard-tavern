@@ -35774,6 +35774,39 @@ table.insert(tests, { name = "Quests popup: every quest name and line fits its r
 	expectTrue(Q.progressText({ progress = 2, goal = 8, done = false }):find("2 of 8", 1, true) ~= nil, "progress reads N of M")
 end })
 
+table.insert(tests, { name = "Run Over and Victory: facts lines and Run Summary rows are never wider than their plate minus 24 px at four sizes, and the Client applies the fit", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local cols = RL.columns(sz[1])
+		local leftW = cols and cols.leftW or RL.LEFT_W
+		local plateW = leftW + 2 * RL.PLATE_PAD
+		expectTrue(RL.factWidth(leftW) <= plateW - 24, tag .. " the facts label is at most the plate minus 24 px")
+		expectTrue(RL.factInset() + RL.PLATE_PAD >= F.SIDE, tag .. " the facts start 12 px inside the plate")
+		expectTrue(RL.estimateLines("Seed 123456789 (tap to copy it for a friend)", RL.factWidth(leftW), 16) >= 1, tag .. " a fact line is measured")
+		local s = math.min(sz[1] / Look.DESIGN_W, sz[2] / Look.DESIGN_H)
+		local L = Look.layout(sz[1], sz[2], "run")
+		local size = Look.fontSize(Look.rowSize(5), s)
+		local rows = Look.summaryRows({ score = 1234567, night = 12, cap = 15, hands = 31, tipsTotal = 4500, bestNight = 12, boons = 6, deckSize = 52, marked = 3 }, { name = "Straight Flush", score = 80 })
+		for _, row in ipairs(rows) do
+			local fit = Look.fitRow(row, size, L.summary.w)
+			expectTrue(F.width(fit.label, size) + F.width(fit.value, size) <= L.summary.w - 24 - Look.ROW_GAP + 0.01, tag .. " " .. row.label .. " fits its card minus 24 px")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/VictoryScreen.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("Look.fitRow(row", 1, true) ~= nil, "VictoryScreen draws the fitted rows")
+	end
+	local g = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("RunOverLayout.factWidth(width)", 1, true) ~= nil and t:find("RunOverLayout.factInset()", 1, true) ~= nil, "GameOver draws the facts inset and narrowed")
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })

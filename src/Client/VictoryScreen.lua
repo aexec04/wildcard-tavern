@@ -237,8 +237,11 @@ function M.show(screenGui, lines)
 	for i, row in ipairs(rows) do
 		local y = 46 * s + (i - 1) * rowH
 		local rowFont = Look.rowSize(#rows)
-		text(sm, "Row" .. i, row.label, Look.fontSize(rowFont, s), INK, Enum.Font.GothamMedium, zc + 1, 14 * s, y, L.summary.w * 0.55, rowH, Enum.TextXAlignment.Left)
-		text(sm, "Val" .. i, row.value, Look.fontSize(rowFont, s), INK, Enum.Font.GothamBold, zc + 1, L.summary.w * 0.5, y, L.summary.w * 0.5 - 14 * s, rowH, Enum.TextXAlignment.Right)
+		local rowSize = Look.fontSize(rowFont, s)
+		local fitted = Look.fitRow(row, rowSize, L.summary.w) -- label and value never wider than the card minus 24 px (TextFit)
+		local rowLabel = text(sm, "Row" .. i, fitted.label, rowSize, INK, Enum.Font.GothamMedium, zc + 1, 12, y, L.summary.w - 24, rowH, Enum.TextXAlignment.Left)
+		local rowValue = text(sm, "Val" .. i, fitted.value, rowSize, INK, Enum.Font.GothamBold, zc + 1, 12, y, L.summary.w - 24, rowH, Enum.TextXAlignment.Right)
+		rowLabel.TextWrapped, rowValue.TextWrapped = false, false
 		if i < #rows then frame(sm, "Rule" .. i, { x = 14 * s, y = y + rowH - 1, w = L.summary.w - 28 * s, h = 1 }, zc + 1, PARCH_EDGE) end
 	end
 	local function close()

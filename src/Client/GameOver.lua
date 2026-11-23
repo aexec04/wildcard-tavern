@@ -405,7 +405,7 @@ return function(deps)
 		local y = 0
 		for _, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
-			y = y + RunOverLayout.estimateLines(line.text, width, size) * (size + 3) + LINE_PAD
+			y = y + RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size) * (size + 3) + LINE_PAD
 		end
 		return y
 	end
@@ -415,10 +415,10 @@ return function(deps)
 		local y = 0
 		for i, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
-			local n = RunOverLayout.estimateLines(line.text, width, size)
+			local n = RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size)
 			local h = n * (size + 3) + LINE_PAD
-			local factLabel = label(factsF, {
-				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(width, h),
+			local factLabel = label(factsF, { -- inset so the words keep 12 px clear of the dark plate edge (TextFit.SIDE)
+				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(RunOverLayout.factInset(), y), Size = UDim2.fromOffset(RunOverLayout.factWidth(width), h),
 				TextSize = size, Font = line.props.Font or Enum.Font.Merriweather, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
 			})
 			if i > 1 and ClientSettings.get("reduceShake") ~= true then -- the tally reads one line at a time (a static list in Calm mode)

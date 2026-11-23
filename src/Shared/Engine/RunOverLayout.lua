@@ -61,14 +61,23 @@ function RunOverLayout.buttonWidth(text, textW)
 	return math.max(RunOverLayout.MIN_BTN_W, math.ceil(math.max(est, textW and textW(text) or 0)) + 2 * RunOverLayout.CAP_PAD)
 end
 
--- a rough wrapped-line count: average glyph width 0.55 of the size
+-- The facts words sit inside the dark plate that extends PLATE_PAD past the facts column, and keep TextFit.SIDE (12 px) clear of the plate
+-- edge on both sides: the label starts factInset in and is factWidth wide, so no line is wider than the plate minus 24 px.
+function RunOverLayout.factInset()
+	return math.max(0, require(script.Parent.TextFit).SIDE - RunOverLayout.PLATE_PAD)
+end
+function RunOverLayout.factWidth(width)
+	return width - 2 * RunOverLayout.factInset()
+end
+
+-- a rough wrapped-line count: average glyph width 0.55 of the size (and the TextFit estimate when it needs more lines)
 function RunOverLayout.estimateLines(text, width, size)
 	text = tostring(text or "")
 	if text == "" then return 0 end
 	local per = math.max(1, math.floor(width / ((size or 16) * 0.6)))
 	local lines = 0
 	for part in (text .. "\n"):gmatch("(.-)\n") do
-		lines = lines + math.max(1, math.ceil(#part / per))
+		lines = lines + math.max(1, math.ceil(#part / per), require(script.Parent.TextFit).lines(part, size or 16, width))
 	end
 	return lines
 end
