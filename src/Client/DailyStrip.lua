@@ -145,9 +145,11 @@ function M.update(state)
 	local goalX, goalW = cols.goalX, cols.goalW -- 30 px in from the carved gold end, 12 px clear of the chest plate
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
-	local goalSize = TextFit.bestSize(v.goalText, goalW, 24, 12, 15)
-	strip.Goal.TextSize = goalSize or 12
-	strip.Goal.Text = goalSize and v.goalText or TextFit.clip(v.goalText, goalW, 12) -- the whole line, or one ellipsis only when it cannot fit at 12 px
+	-- a short word at 14 px or more: "Goals 1/3", else only the count "1/3" when the column is too narrow; never an ellipsis
+	local goalWord, goalSize = v.goalShort, TextFit.bestSize(v.goalShort, goalW, 24, 14, 15)
+	if not goalSize and v.goalCount ~= "" then goalWord, goalSize = v.goalCount, TextFit.bestSize(v.goalCount, goalW, 24, 14, 15) end
+	strip.Goal.TextSize = goalSize or 14
+	strip.Goal.Text = goalSize and goalWord or TextFit.clip(goalWord, goalW, 14)
 	strip.Track.Position = UDim2.fromOffset(goalX, 30)
 	strip.Track.Size = UDim2.fromOffset(goalW, 8)
 	strip.Track.Fill.Size = UDim2.fromScale(math.clamp(v.progress / v.goal, 0, 1), 1)

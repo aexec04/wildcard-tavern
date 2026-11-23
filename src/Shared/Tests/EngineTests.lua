@@ -30962,7 +30962,7 @@ table.insert(tests, { name = "Daily strip: the Client sizes the Chest word and G
 		local t = f:read("*a"); f:close()
 		expectFalse(t:find("TextScaled = true", 1, true) ~= nil, "no TextScaled = true left in DailyStrip")
 		expectTrue(t:find("TextFit.bestSize(v.chestText", 1, true) ~= nil, "Chest size comes from TextFit.bestSize")
-		expectTrue(t:find("TextFit.bestSize(v.goalText", 1, true) ~= nil, "Goal size comes from TextFit.bestSize")
+		expectTrue(t:find("TextFit.bestSize(v.goalShort", 1, true) ~= nil, "Goal size comes from TextFit.bestSize")
 	end
 end })
 
@@ -37129,6 +37129,26 @@ table.insert(tests, { name = "Menu Rank plate: 70 px tall, 16 px lines, 8 px bar
 	expectTrue(r:find("track.Position = UDim2.fromOffset(66, 32)", 1, true) and r:find("0, 8)\n\ttrack.Position", 1, true), "XP bar 8 px at y 32")
 	expectTrue(r:find("reward.Position = UDim2.fromOffset(66, 44)", 1, true) and r:find("reward.TextSize = 16", 1, true) and r:find("text.TextSize = 16", 1, true), "16 px lines")
 	expectTrue(b:find("rewardGrow", 1, true) ~= nil and b:find("math.max(0, extra) + rewardGrow", 1, true) ~= nil, "board adds the grown Reward line to the plate height")
+end })
+
+table.insert(tests, { name = "Daily strip Goal word is short, 14 px or more and never an ellipsis at menu widths", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local qs = { quests = { { done = true }, { done = false, desc = "Play a long quest line here", progress = 0, goal = 1 }, { done = false, desc = "x", progress = 0, goal = 2 } } }
+	local v = D.view(nil, qs)
+	expectEqual(v.goalShort, "Goals 1/3", "short word counts done quests")
+	expectEqual(v.goalCount, "1/3", "count only")
+	expectEqual(D.view(nil, { quests = {} }).goalShort, "Goals soon", "no quests yet")
+	for _, W in ipairs({ 1920, 1506, 1309 }) do
+		local strip = D.menuRect(W, math.floor(W * 0.5))
+		if strip then
+			local c = D.columns(strip)
+			local word = F.bestSize(v.goalShort, c.goalW, 24, 14, 15) and v.goalShort or v.goalCount
+			local size = F.bestSize(word, c.goalW, 24, 14, 15)
+			expectTrue(size ~= nil and size >= 14, W .. " the Goal word fits at 14 px or more (" .. word .. ", column " .. c.goalW .. ")")
+			expectTrue(F.width(word, size) <= c.goalW, W .. " the word is not clipped")
+		end
+	end
 end })
 
 table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next line never overlap the XP line and end 8 px inside the frame", fn = function()
