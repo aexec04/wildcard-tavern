@@ -228,6 +228,7 @@ function M.update(layer, state, rects, viewW, viewH)
 		seatCard.Visible = true
 		place(seatCard, seat)
 		seatCard.Title.Text = name
+		seatCard.Title.Visible = false -- portrait and BOSS tag only: the name is on the Boss card
 		seatCard.Title.TextScaled = false -- shrink to fit: 6 px side padding, never under 12 px
 		do
 			local tw, ts = math.max(10, seat.w - 12), math.max(12, math.min(18, math.floor(seat.h * 0.1)))
@@ -266,10 +267,12 @@ function M.update(layer, state, rects, viewW, viewH)
 	if tp.plate then place(top.Plate, tp.plate); top.Plate.Visible = true else top.Plate.Visible = false end
 	place(nm, tp.name); nm.Size = UDim2.fromOffset(tp.name.w, tp.name.h)
 	nm.TextSize = math.max(11, math.min(26, tp.name.h - 2)); nm.Text = name
+	nm.Visible = false -- the name is said once, on the Boss card (left); the top plate keeps only the red meter and the Night line
 	place(bar, tp.bar)
 	local cur, total = Rules.health(state.targetScore, state.roundScore)
 	bar.Num.TextSize = math.max(11, math.min(16, tp.bar.h - 3))
-	bar.Num.Text = Rules.healthText(cur, total)
+	bar.Num.Text = "" -- the Target plate already says the score and the target: no second '143 / 143' on the bar
+	bar.Num.Visible = false
 	local want = Rules.fraction(cur, total)
 	if calm() or lastFill == nil then
 		bar.Fill.Size = UDim2.fromScale(want, 1)

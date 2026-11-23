@@ -295,6 +295,7 @@ local function run(root, st)
 			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
 			nameL.Text, lineL.Text = first, second
 			local isBoss = src:GetAttribute("Boss") == true or first:find("👑", 1, true) ~= nil
+			rule.Visible = not isBoss -- the Boss card at the left (BossCardFX) owns the boss name and rule: one boss plate, no repeat here
 			local band = rule:FindFirstChild("BossBand")
 			if not band then
 				band = Instance.new("Frame")
