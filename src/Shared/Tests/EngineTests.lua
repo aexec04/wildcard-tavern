@@ -12209,6 +12209,101 @@ table.insert(tests, { name = "Patron pick card: one name, the cut card portrait 
 	expectEqual(n, 2)
 end })
 
+table.insert(tests, { name = "Reward card: rule text ends above the Choose plate and shrinks to fit, ring shows the face only", fn = function()
+	local Fit = require(script.Parent.Parent.Engine.ChoiceRuleFit)
+	local DP = require(script.Parent.Parent.Engine.DraftPortrait)
+	local CARD_H, W = 300, 230 - 24
+	for _, btnH in ipairs({ 44, 56, 70 }) do
+		for _, top in ipairs({ 140, 162 }) do
+			local h = Fit.boxHeight(CARD_H, btnH, top)
+			expectTrue(top + h + Fit.PLATE_GAP <= CARD_H - (btnH + Fit.BOTTOM_MARGIN), "rule box ends above the Choose plate at btn " .. btnH)
+			for _, def in ipairs(Patrons.Definitions) do
+				local size = Fit.textSize(h, W, { def.description or def.text or "", "(up to +20)." }, 4)
+				expectTrue(size >= 12 and size <= 16, def.id .. " rule size in range")
+			end
+		end
+	end
+	expectEqual(Fit.textSize(200, W, { "Short." }, 4), 16)
+	expectTrue(Fit.textSize(40, W, { string.rep("word ", 30) }, 4) == 12, "a long text takes the smallest size")
+	for _, def in ipairs(Patrons.Definitions) do
+		local spec = DP.spec(def.id)
+		if spec and spec.rect then
+			local f = DP.faceRect(spec.rect)
+			expectTrue(f.x == spec.rect.x and f.y == spec.rect.y and f.w == spec.rect.w and f.h <= spec.rect.h, def.id .. " face stays at the window top")
+			expectTrue(math.abs(f.w / f.h - 1.5) < 0.01 or f.h == spec.rect.h, def.id .. " face has the ring shape")
+		end
+	end
+end })
+
+table.insert(tests, { name = "DebugJump: every admin jump key parses, junk is refused, and each puts the real run on its screen", fn = function()
+	local DJ = require(script.Parent.Parent.Engine.DebugJump)
+	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local Engine = script.Parent.Parent.Engine
+	local Recipes = require(Engine.Recipes)
+	local deps = {
+		RunState = RunState, RunChoice = require(Engine.RunChoice), Patrons = Patrons, Recipes = Recipes,
+		Tags = require(Engine.Tags), BossRounds = require(Engine.BossRounds),
+		openShop = function(session) session.shopOpened = true end,
+	}
+	local boss = require(Engine.BossRounds).Modifiers and require(Engine.BossRounds).Modifiers[1] or nil
+	local bossId = boss and boss.id or "lights_out"
+	local keys = { "night:1", "night:12", "boon", "reward", "shop:30", "tips:99", "recipes:" .. Recipes.HouseRecipes[1].id, "patrons:" .. Patrons.Definitions[1].id .. "," .. Patrons.Definitions[2].id,
+		"sellpatron", "tag:" .. require(Engine.Tags).Definitions[1].id, "victory", "endrun", "endrun:win", "boss3:" .. bossId }
+	for _, key in ipairs(keys) do
+		local op = DJ.parse(key)
+		expectTrue(op ~= nil, key .. " parses")
+		local t = Rules.parse(key)
+		expectTrue(t ~= nil and (t.kind == "jump" or key == "boon"), key .. " reaches the client as a jump")
+		local state = RunState.new(nil, function(n) return 1 end)
+		local session = { state = state, phase = "playing" }
+		local ok, msg = DJ.apply(session, op, deps)
+		expectTrue(ok, key .. " applies: " .. tostring(msg))
+		expectTrue(state.usedDebug == true, key .. " marks the run as debug (never reaches a leaderboard)")
+	end
+	for _, bad in ipairs({ "", "night:0", "night:13", "boss1:x", "boss13:x", "recipes:", "recipes:a!b", "tips:-1", "patrons:", "shop:x", "Rm -rf", string.rep("a", 500) }) do
+		expectTrue(DJ.parse(bad) == nil, "junk refused: " .. bad:sub(1, 20))
+	end
+	expectTrue(DJ.parse(nil) == nil and DJ.parse(12) == nil and DJ.parse({}) == nil, "non strings are refused")
+	-- screens
+	local function run(key)
+		local state = RunState.new(nil, function(n) return 1 end)
+		local session = { state = state, phase = "playing" }
+		DJ.apply(session, DJ.parse(key), deps)
+		return session, state
+	end
+	local s, st = run("night:5")
+	expectTrue(st.night == 5 and st.round == 1 and s.phase == "playing" and st.targetScore == RunState.targetForRound(st, 1), "night:5 sets the Night, round 1 and its real target")
+	s, st = run("boss4:" .. bossId)
+	expectTrue(st.night == 4 and st.round == st.config.roundsPerNight and st.isBossRound and st.bossModifier and st.bossModifier.id == bossId, "bossN starts the boss round with that boss")
+	expectTrue(DJ.parse("boss4:no_such_boss") == nil, "an unknown boss is refused")
+	s, st = run("boon")
+	expectTrue(s.phase == "roundSelect" and s.choice and s.choice.kind == "boon" and st.night >= 2, "boon opens the Night boon pick")
+	s, st = run("reward")
+	expectTrue(s.phase == "roundSelect" and s.choice and s.choice.kind == "reward", "reward opens the choose a Patron reward")
+	s, st = run("shop:25")
+	expectTrue(s.phase == "shop" and st.tips == 25 and s.shopOpened, "shop:25 is a real Counter visit with 25 Tips")
+	s, st = run("recipes:" .. Recipes.HouseRecipes[1].id)
+	expectEqual(#st.houseRecipeInventory, 1)
+	s, st = run("victory")
+	expectTrue(st.wonRun and st.night == st.config.nightCap and s.phase == "shop", "victory is a won run at the last Night")
+	s, st = run("endrun:win")
+	expectTrue(s.phase == "gameover" and st.wonRun and st.runOver, "endrun:win is a won Run Over")
+	s, st = run("endrun")
+	expectTrue(s.phase == "gameover" and not st.wonRun and st.runOver, "endrun is a lost Run Over")
+	s, st = run("sellpatron")
+	expectTrue(s.phase == "shop" and #st.ownedPatrons >= 1, "sellpatron seats a Patron on the Counter")
+	expectTrue(select(1, DJ.apply({}, DJ.parse("tips:5"), deps)) == false and select(1, DJ.apply(nil, DJ.parse("tips:5"), deps)) == false, "no run: nothing happens")
+	-- the server handler returns outside Studio before touching anything
+	if io and io.open then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			local at = src:find("Rem.DebugJump.OnServerEvent", 1, true)
+			expectTrue(at ~= nil and src:sub(at, at + 200):find("if not RunService:IsStudio() then return end", 1, true) ~= nil, "DebugJump refuses outside Studio")
+		end
+	end
+end })
+
 table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local state = RunState.new(nil, function(n) return 1 end)
@@ -19393,7 +19488,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), ChoiceRuleFit = require(Engine.ChoiceRuleFit), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
@@ -25726,7 +25821,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), ChoiceRuleFit = require(Engine.ChoiceRuleFit), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
@@ -51568,7 +51663,7 @@ table.insert(tests, { name = "Leaderboard integrity: a run that used any Debug r
 					marked = marked + 1
 				end
 			end
-			expectEqual(marked, 4, "all four run-changing Debug remotes mark the run")
+			expectEqual(marked, 5, "all five run-changing Debug remotes mark the run")
 		end
 	end
 end })

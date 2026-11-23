@@ -27,6 +27,8 @@
 	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
 	  loading, loading:<0..100>         the launch loading screen frozen at 60 percent (or that percent), for screenshots
+	  night:<1..12>, bossN:<bossId> (N 2..12), boon, reward, shop:<tips>, tips:<n>, recipes:<id,id>, patrons:<id,id>, sellpatron, tag:<id>,
+	  victory, endrun, endrun:win       real screens on the live run (round1 first), see Engine/DebugJump; prints "[DebugGoto] <key> ok"
 	  patrons:<0..8>                    after round1 is up: seats n different Patrons on the live run (Studio-only server remote), HUD rebuilds
 	  playhand:keep                     first sets the round target to 5000 (Studio-only server remote), then plays, so the round stays open and the beats can be watched
 	  playhand                          plays the first 5 hand cards through the real PlayHand remote, so the Patron beats run once
@@ -253,6 +255,19 @@ function DebugGoto.init(deps)
 				UI.show(Players.LocalPlayer.PlayerGui, { shared = ReplicatedStorage:WaitForChild("Shared"), frozen = target.percent / 100 })
 			end)
 			if okL then print("[DebugGoto] loading " .. target.percent .. " ok (set DebugGoto to menu to clear)") else warn("[DebugGoto] loading failed: " .. tostring(errL)) end
+			return
+		end
+		if target.kind == "jump" or (target.kind == "boon" and not target.setId) then
+			-- a real screen on the live run (Engine/DebugJump): the server does the work, the table re-renders from the pushed state
+			local state = DebugGoto.getState and DebugGoto.getState()
+			if not state or state.night == nil then warn("[DebugGoto] " .. tostring(value) .. " needs a live run: round1 first") return end
+			OverlayManager.closeAllExcept("")
+			hideMenu()
+			if deps and deps.root then deps.root.Visible = true end
+			hideTutorialOverlay()
+			local key = target.key or "boon"
+			local okJ, errJ = pcall(function() remotes:WaitForChild("DebugJump"):FireServer(key) end)
+			if okJ then print("[DebugGoto] " .. key .. " ok") else warn("[DebugGoto] " .. key .. " failed: " .. tostring(errJ)) end
 			return
 		end
 		if target.kind == "patrons" then

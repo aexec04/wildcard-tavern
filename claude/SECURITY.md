@@ -44,6 +44,7 @@ Every remote the client can fire is rate limited per player (`Engine/RateLimit`,
 | DebugSetTag | Studio only | returns outside Studio | STUDIO ONLY (ignored elsewhere): (player, tagId) makes that Tag the current round's skip Tag, for DebugGoto round1:tag=<id> |
 | DebugSetMod | Studio only | returns outside Studio | STUDIO ONLY (ignored elsewhere): (player, modId, report) makes the open blessing draft offer modId (report=true prints the applied numbers instead), for DebugGoto round1:mod=<id> |
 | DebugSetTarget | Studio only | returns outside Studio | (player, n) sets the current round target, for DebugGoto playhand:keep |
+| DebugJump | Studio only | returns outside Studio | (player, key string) puts a real screen on the live run (night, bossN, reward, shop, recipes, victory, endrun ...), Engine/DebugJump |
 | DebugEquipSet | Studio only | returns outside Studio | STUDIO ONLY (ignored elsewhere): (player, setId) equips that Card Set without the ownership check, for DebugGoto equip:<setId> |
 | SetSetting | client to server | `Rem.SetSetting` bucket | (player, key string, value) -- see PlayerProfile.SETTING_SPECS |
 | MarkTutorialSeen | client to server | `Rem.MarkTutorialSeen` bucket | TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped |

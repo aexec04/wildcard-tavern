@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
+local ChoiceRuleFit = require(Engine:WaitForChild("ChoiceRuleFit"))
 local DraftPortrait = require(Engine:WaitForChild("DraftPortrait")) -- what the Patron rings draw (cut card portrait window)
 local ClientSettings = require(script.Parent.ClientSettings)
 local ModalStage = require(script.Parent.ModalStage)
@@ -312,14 +313,19 @@ local function buildCard(choice, option, order)
 	-- the rule text sits in one block centred in the gap between the name and the Choose plate: dark ink, 16 px, the plus line in green ink
 	-- and the minus line in dark red ink (4.5:1 or better on the paper)
 	local ruleTop = rarity and 162 or 140
+	local BoonPickLook = require(Engine:WaitForChild("BoonPickLook"))
+	local btnH = BoonPickLook.buttonHeight(ui.baseScale or 1) -- 44 px on screen at every window size
+	local ruleH = ChoiceRuleFit.boxHeight(CARD_H, btnH, ruleTop)
+	local ruleSize = ChoiceRuleFit.textSize(ruleH, 230 - 24, { option.line1, option.line2 }, 4)
 	local ruleBox = Instance.new("Frame")
 	ruleBox.Name = "Rule"
 	ruleBox.BackgroundTransparency = 1
 	ruleBox.BorderSizePixel = 0
 	ruleBox.Active = false
 	ruleBox.Position = UDim2.fromOffset(12, ruleTop)
-	ruleBox.Size = UDim2.new(1, -24, 0, 242 - ruleTop)
+	ruleBox.Size = UDim2.new(1, -24, 0, ruleH)
 	ruleBox.ZIndex = 63
+	ruleBox.ClipsDescendants = true
 	ruleBox.Parent = card
 	local ruleList = Instance.new("UIListLayout")
 	ruleList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -330,7 +336,7 @@ local function buildCard(choice, option, order)
 	local function ruleLine(name, order, text, color)
 		if text == nil or text == "" then return end
 		label(ruleBox, {
-			Name = name, LayoutOrder = order, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = text, TextSize = 16,
+			Name = name, LayoutOrder = order, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = text, TextSize = ruleSize,
 			Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = color,
 		})
 	end
@@ -339,8 +345,6 @@ local function buildCard(choice, option, order)
 
 	local button = Instance.new("TextButton")
 	button.Name = "Pick"
-	local BoonPickLook = require(Engine:WaitForChild("BoonPickLook"))
-	local btnH = BoonPickLook.buttonHeight(ui.baseScale or 1) -- 44 px on screen at every window size
 	button.Size = UDim2.new(1, -40, 0, btnH)
 	button.Position = UDim2.new(0, 20, 1, -(btnH + 10))
 	button.Font = Enum.Font.GothamBold
