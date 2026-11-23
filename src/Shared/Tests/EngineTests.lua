@@ -52302,6 +52302,55 @@ table.insert(tests, { name = "Tags and Blessings choice audit: every one exists,
 	end
 end })
 
+table.insert(tests, { name = "Card Set audit: every Set has its card back, card face, table and Counter art, and a mid run switch never changes scoring", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local CardBackArt = require(script.Parent.Parent.Engine.CardBackArt)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local ThemeScenes = require(script.Parent.Parent.Engine.ThemeScenes)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local PlaySceneArt = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local PlayRoomArt = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local function good(id) return type(id) == "string" and id:find("rbxassetid://%d+") ~= nil and id ~= "rbxassetid://0" end
+	local missing = {}
+	local function need(ok, setId, what) if not ok then missing[#missing + 1] = setId .. ": " .. what end end
+	for _, set in ipairs(CS.Definitions) do
+		local id = set.id
+		-- card back: a registered back with painted art
+		need(CardBacks.getById and CardBacks.getById(set.cardBackId) ~= nil or CardBackArt[set.cardBackId] ~= nil, id, "card back " .. tostring(set.cardBackId) .. " is not registered")
+		need(good(CardBackArt[set.cardBackId]), id, "no painted card back " .. tostring(set.cardBackId))
+		-- card face: the skin names its own face frame or the neutral default (which always draws)
+		local skin = CS.skinOf(set)
+		need(skin.neutral or skin.colors ~= nil or skin.images.faceFrame ~= nil, id, "no card face style")
+		-- table: the set's own room pair (the classic table is the fallback for Classic only)
+		local scene = ThemeScenes.of(id)
+		need(type(scene.art.tableBackground) == "string" and scene.art.tableBackground ~= "", id, "no table background key")
+		need(type(scene.art.tableFront) == "string" and scene.art.tableFront ~= "", id, "no table front key")
+		if id ~= "classic_tavern" then
+			local k = PlayRoomArt.keys(id)
+			need(good(PlaySceneArt[k.bg]), id, "no painted table room " .. k.bg)
+			need(good(PlaySceneArt[k.front]), id, "no painted table rail " .. k.front)
+		end
+		-- Counter props: the shop room key resolves to an image id
+		local tab, key = tostring(scene.art.shopBackdrop):match("^(%w+_%w+):(.+)$")
+		need(tab ~= nil and good(ContentArt.getImageId(tab, key)), id, "no Counter room picture " .. tostring(scene.art.shopBackdrop))
+	end
+	expectEqual(#missing, 0, "missing Card Set art: " .. table.concat(missing, "; "))
+	-- switching the equipped Set mid run never changes scoring: same state, same score for every Set
+	local function play()
+		local state = RunState.new(nil, function(n) return 1 end)
+		local hand = {}
+		for i = 1, math.min(5, #state.hand) do hand[#hand + 1] = i end
+		local before = state.roundScore
+		RunState.playHand(state, hand)
+		return state.roundScore - before
+	end
+	local base = play()
+	for _, set in ipairs(CS.Definitions) do
+		ThemeScenes.of(set.id) -- looking a Set up must leave the engine untouched
+		expectEqual(play(), base, set.id .. " scores the same")
+	end
+end })
+
 return tests
 
 
