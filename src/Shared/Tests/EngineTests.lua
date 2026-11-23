@@ -31524,6 +31524,35 @@ table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, 
 	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
 end })
 
+table.insert(tests, { name = "Layers: every purchase and quit confirm sits in the confirm band above every page (Store, Tome, Card Sets, Season, Settings)", fn = function()
+	local Layers = require(script.Parent.Parent.Engine.Layers)
+	expectTrue(Layers.confirm > Layers.PAGE_TOP and Layers.PAGE_TOP > Layers.tooltip, "the confirm band is above the pages and the tooltip")
+	if not (io and io.open) then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local cd = read("ConfirmDialog")
+	if cd then
+		expectTrue(cd:find("Engine\"):WaitForChild(\"Layers\")).confirm", 1, true) ~= nil, "ConfirmDialog reads Layers.confirm")
+		expectTrue(cd:find("ZIndex = 35", 1, true) == nil and cd:find("ZIndex = 36", 1, true) == nil, "ConfirmDialog keeps no page-level ZIndex")
+	end
+	for _, name in ipairs({ "QuitConfirm", "ReplayConfirm" }) do
+		local s = read(name)
+		if s then expectTrue(s:find("ZIndex = " .. Layers.confirm, 1, true) ~= nil, name .. " sits at the confirm band") end
+	end
+	for _, name in ipairs({ "StorePanel", "Shop", "CosmeticSetsPanel", "CardSetsRoom", "FlairDressingRoom", "FlairPanel", "SeasonPanel", "Settings", "Collection", "QuestsPanel", "DailyRewardsPanel", "PanelTabs" }) do
+		local s = read(name)
+		if s then
+			for z in s:gmatch("ZIndex = (%d+)") do
+				expectTrue(tonumber(z) < Layers.confirm, name .. " has a ZIndex under the confirm band: " .. z)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Card Sets label: Equipped only for a set the server confirms (effective and unlocked); a set the player cannot use says what unlocks it", fn = function()
 	local SP = require(script.Parent.Parent.Engine.SetPreview)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
