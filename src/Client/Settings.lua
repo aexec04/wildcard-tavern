@@ -288,7 +288,7 @@ return function(deps)
 		pcall(function() require(script.Parent.HudTheme).onSkin(function() if button.Parent then refresh() end end) end) -- an equipped set shows at once
 	end
 
-	local OFF_ON = { { false, "Off" }, { true, "On" } }
+	local OFF_ON = SettingsLayout.OFF_ON
 
 	-- ===== Accessibility (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
 	makeHeader("Accessibility")
@@ -304,7 +304,7 @@ return function(deps)
 	makeChoiceRow("reduceMotion", "Reduce Motion", S("settings.reduceMotion.hint"), OFF_ON)
 	makeChoiceRow("reduceFlashing", "Reduce Flashing", S("settings.reduceFlashing.hint"), OFF_ON)
 	makeChoiceRow("reduceShake", "Reduce Screen Shake", S("settings.reduceShake.hint"), OFF_ON)
-	makeChoiceRow("largerText", "Text Size", S("settings.largerText.hint"), { { false, "Normal" }, { true, "Large" } })
+	makeChoiceRow("largerText", "Text Size", S("settings.largerText.hint"), SettingsLayout.SIZE_WORDS) -- the words Normal and Large, never colour alone
 	makeChoiceRow("colorblindSuits", "Colorblind Suits", S("settings.colorblindSuits.hint"), OFF_ON)
 
 	-- Sound and Music live only under the speaker icon (GearMenu), never repeated here (Engine/SettingsLayout, tested)

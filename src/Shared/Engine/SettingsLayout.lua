@@ -108,6 +108,11 @@ function M.contrast(a, b)
 	return (la + 0.05) / (lb + 0.05)
 end
 
+-- The word on a toggle's button, so it never depends on colour alone: On or Off for Calm Mode and Larger Text (and every other switch).
+M.OFF_ON = { { false, "Off" }, { true, "On" } }
+M.SIZE_WORDS = { { false, "Normal" }, { true, "Large" } } -- Text Size (the largerText flag): the word names the state too
+function M.word(on) return on and "On" or "Off" end
+
 function M.calmValue(vals)
 	return vals.reduceMotion == true and vals.reduceFlashing == true and vals.reduceShake == true
 end

@@ -31225,7 +31225,8 @@ table.insert(tests, { name = "Accessibility: Text Size is Normal or Large on the
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('makeChoiceRow("largerText", "Text Size"', 1, true) ~= nil, "Settings row is named Text Size")
-		expectTrue(src:find('{ true, "Large" }', 1, true) ~= nil, "Settings row offers Large")
+		expectTrue(src:find("SettingsLayout.SIZE_WORDS", 1, true) ~= nil, "Settings row offers Normal and Large from SettingsLayout.SIZE_WORDS")
+		expectEqual(require(script.Parent.Parent.Engine.SettingsLayout).SIZE_WORDS[2][2], "Large", "the words are Normal and Large")
 	end
 end })
 table.insert(tests, { name = "Accessibility: every suit differs by glyph shape, corner letter and ink, and key text reads at 4.5:1 on card paper", fn = function()
@@ -46943,6 +46944,27 @@ table.insert(tests, { name = "Tavern Map tooltips: every card line is one kind s
 			local tag = W .. "x" .. H .. " target " .. t[1] .. "," .. t[2]
 			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H, tag .. " card inside the canvas")
 		end
+	end
+end })
+
+table.insert(tests, { name = "Settings: Calm Mode and Larger Text show the word On or Off as well as the colour, and both words read on their fill", fn = function()
+	local L = require(script.Parent.Parent.Engine.SettingsLayout)
+	expectEqual(L.word(true), "On", "on word")
+	expectEqual(L.word(false), "Off", "off word")
+	expectEqual(#L.OFF_ON, 2, "two states")
+	expectEqual(L.OFF_ON[1][1], false, "first state is off")
+	expectEqual(L.OFF_ON[1][2], "Off", "off string")
+	expectEqual(L.OFF_ON[2][2], "On", "on string")
+	expectEqual(L.SIZE_WORDS[1][2], "Normal", "text size off word")
+	expectEqual(L.SIZE_WORDS[2][2], "Large", "text size on word")
+	expectTrue(L.contrast(L.SWITCH.onFill, L.SWITCH.onText) >= 4.5, "On word readable on its fill")
+	expectTrue(L.contrast(L.SWITCH.offFill, L.SWITCH.offText) >= 4.5, "Off word readable on its fill")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("local OFF_ON = SettingsLayout.OFF_ON", 1, true) ~= nil, "the toggles take their words from SettingsLayout.OFF_ON")
+		expectTrue(src:find('makeChoiceRow("calmMode", "Calm Mode", S("settings.calm.hint"), OFF_ON', 1, true) ~= nil, "Calm Mode shows On or Off")
+		expectTrue(src:find('"Text Size", S("settings.largerText.hint"), SettingsLayout.SIZE_WORDS', 1, true) ~= nil, "Text Size shows Normal or Large")
 	end
 end })
 
