@@ -615,7 +615,18 @@ function BossRounds.pick(rng, night, used, finalNight)
 		return out
 	end
 	local eligible = gather(true)
-	if #eligible == 0 then eligible = gather(false) end
+	if #eligible == 0 then
+		-- every eligible boss was faced: reuse the pool, but never the boss just faced (no back to back repeat)
+		eligible = gather(false)
+		local last = used and used[#used]
+		if last and #eligible > 1 then
+			local rest = {}
+			for _, def in ipairs(eligible) do
+				if def.id ~= last then table.insert(rest, def) end
+			end
+			eligible = rest
+		end
+	end
 	if #eligible == 0 then
 		-- Defensive only -- every tier-1 modifier has minNight = 1, so this
 		-- can't actually happen for any night >= 1. Falls back to the full

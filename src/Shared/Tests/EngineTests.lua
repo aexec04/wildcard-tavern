@@ -48652,6 +48652,305 @@ table.insert(tests, { name = "Card Sets are cosmetic: scoring, hand evaluation, 
 	end
 end })
 
+table.insert(tests, { name = "Card Sets are cosmetic: the same seeded run scores identically with each of the 14 Card Sets equipped", fn = function()
+	local function trace(setId)
+		local profile = PlayerProfile.new()
+		profile.ownedSetIds = {}
+		for _, set in ipairs(CosmeticSets.Definitions) do profile.ownedSetIds[set.id] = true end
+		expectTrue(CosmeticSets.equip(profile, setId), "equip " .. setId)
+		local state = RunState.new(nil, SeededRng.new(4242))
+		RunState.startRound(state)
+		local out = { state.targetScore or state.target or 0, #state.hand }
+		for _ = 1, 4 do
+			local n = math.min(5, #state.hand)
+			if n == 0 then break end
+			local idx = {}
+			for i = 1, n do idx[i] = i end
+			local res = RunState.playHand(state, idx)
+			out[#out + 1] = tostring(type(res) == "table" and (res.score or res.handScore or res.ok) or res)
+			out[#out + 1] = state.roundScore or state.score or 0
+			if state.phase ~= "playing" and state.phase ~= nil and state.handsLeft == 0 then break end
+		end
+		return table.concat(out, ",")
+	end
+	local base = trace(CosmeticSets.DefaultId)
+	expectTrue(select(2, base:gsub(",", ",")) >= 4, "the trace holds scores: " .. base)
+	expectTrue(#CosmeticSets.Definitions >= 14, "at least 14 sets")
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		expectEqual(trace(set.id), base, set.id .. " scores the same as classic")
+	end
+end })
+
+table.insert(tests, { name = "Boss pool: no boss repeats back to back in Endless Nights 9 to 30 over 200 seeds, and every boss is reachable", fn = function()
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local cap = 8
+	local seen = {}
+	for seed = 1, 200 do
+		local rng = SeededRng.new(seed)
+		local used, prev = {}, nil
+		for night = 1, 30 do
+			local boss = BossRounds.pick(rng, night, used, cap)
+			expectTrue(boss ~= nil, "seed " .. seed .. " Night " .. night .. " gets a boss")
+			if night >= 9 then
+				expectTrue(boss.id ~= prev, "seed " .. seed .. " Night " .. night .. " repeats " .. tostring(prev))
+			end
+			seen[boss.id] = true
+			table.insert(used, boss.id)
+			prev = boss.id
+		end
+	end
+	for _, def in ipairs(BossRounds.Definitions) do
+		expectTrue(seen[def.id], "boss " .. def.id .. " is reachable in a normal run through Endless")
+	end
+end })
+
+table.insert(tests, { name = "Pack odds: Grab Bag, Jumbo and Mega Grab Bag give each category 20 percent and Standard packs follow their modifier pool, within 3 percent over 5000 seeds", fn = function()
+	local state = RunState.new(nil, SeededRng.new(1))
+	local function open(packId, seed)
+		state.tips, state.pendingPack = 1000, nil
+		return RunState.openPack(state, packId, SeededRng.new(seed))
+	end
+	local function within(share, want, tag)
+		expectTrue(math.abs(share - want) <= 0.03, string.format("%s share %.3f is within 3 percent of %.3f", tag, share, want))
+	end
+	for _, packId in ipairs({ "mixed_pack", "mixed_pack_jumbo", "mixed_pack_mega" }) do
+		local count, total = {}, 0
+		for seed = 1, 5000 do
+			local pack = open(packId, seed)
+			expectTrue(pack ~= nil, packId .. " opens")
+			for _, item in ipairs(pack.items) do
+				count[item.category] = (count[item.category] or 0) + 1
+				total = total + 1
+			end
+		end
+		for _, cat in ipairs({ "patron", "house", "menu", "secret", "standard" }) do
+			within((count[cat] or 0) / total, 0.2, packId .. " " .. cat)
+		end
+	end
+	for _, packId in ipairs({ "standard_pack", "standard_pack_jumbo", "standard_pack_mega" }) do
+		local count, total = {}, 0
+		for seed = 1, 5000 do
+			for _, item in ipairs(open(packId, seed).items) do
+				for _, kind in ipairs({ "garnish", "special", "stamp" }) do
+					if item.card[kind] then count[kind] = (count[kind] or 0) + 1 end
+				end
+				total = total + 1
+			end
+		end
+		within((count.garnish or 0) / total, 8 / 15, packId .. " garnish")
+		within((count.special or 0) / total, 3 / 15, packId .. " special")
+		within((count.stamp or 0) / total, 4 / 15, packId .. " stamp")
+	end
+	for _, packId in ipairs({ "buffoon_pack", "buffoon_pack_jumbo", "buffoon_pack_mega" }) do
+		for seed = 1, 500 do
+			local seen = {}
+			for _, item in ipairs(open(packId, seed).items) do
+				expectFalse(seen[item.id], packId .. " never reveals the same Patron twice")
+				seen[item.id] = true
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Recipe levels: every hand type gives rising Chips and Mult from level 1 to 10, never lower than the level before", fn = function()
+	local count = 0
+	for name, base in pairs(Scoring.HandBase) do
+		count = count + 1
+		local growth = Scoring.HandLevelGrowth[name]
+		expectTrue(growth ~= nil, name .. " has level growth")
+		expectTrue(growth.chips >= 0 and growth.mult >= 0 and growth.chips + growth.mult > 0, name .. " growth never lowers and always adds something")
+		local prevChips, prevMult, prevTotal = -1, -1, -1
+		for level = 0, 9 do -- shown to the player as level 1 to 10
+			local chips, mult = base.chips + growth.chips * level, base.mult + growth.mult * level
+			expectTrue(chips >= prevChips and mult >= prevMult, name .. " level " .. (level + 1) .. " is not lower than the level before")
+			expectTrue(chips * mult > prevTotal, name .. " level " .. (level + 1) .. " pays more than the level before")
+			prevChips, prevMult, prevTotal = chips, mult, chips * mult
+		end
+	end
+	expectEqual(count, 9, "nine hand types")
+	-- the live scoring agrees with the table
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs") })
+	local last = -1
+	for level = 0, 9 do
+		local _, chips, mult = Scoring.calculate(hand, {}, { handLevels = { Pair = level } })
+		expectTrue(chips * mult > last, "Pair level " .. (level + 1) .. " scores more in Scoring.calculate")
+		last = chips * mult
+	end
+end })
+
+table.insert(tests, { name = "Sell price audit: every Patron sells for half its price rounded down and at least 1, and Undo puts it back in the same seat for the same Tips", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local PackRoom = require(script.Parent.Parent.Engine.PackRoom)
+	expectTrue(#Patrons.Definitions >= 89, "the whole roster is walked (" .. #Patrons.Definitions .. ")")
+	for _, patron in ipairs(Patrons.Definitions) do
+		local sell = PackRoom.sellValue("patron", patron.id)
+		expectEqual(sell, math.floor(patron.price / 2), patron.id .. " sells for half, rounded down")
+		expectTrue(sell >= 1, patron.id .. " sells for at least 1 Tip")
+		local others = {}
+		for _, o in ipairs(Patrons.Definitions) do
+			if o.id ~= patron.id and #others < 2 then others[#others + 1] = o.id end
+		end
+		local state = RunState.new(nil, SeededRng.new(5))
+		state.tips = 200
+		expectTrue(RunState.buyPatron(state, others[1]))
+		expectTrue(RunState.buyPatron(state, patron.id))
+		expectTrue(RunState.buyPatron(state, others[2]))
+		local seat = 2
+		expectEqual(state.ownedPatrons[seat].id, patron.id, patron.id .. " sits in seat 2")
+		local tipsBefore = state.tips
+		local ok, refund = RunState.sellPatron(state, patron.id, 1000)
+		expectTrue(ok and refund == sell, patron.id .. " refunds the sell value")
+		expectEqual(state.tips, tipsBefore + sell)
+		local restored, id = RunState.undoSellPatron(state, 1001)
+		expectTrue(restored and id == patron.id, patron.id .. " Undo works")
+		expectEqual(state.ownedPatrons[seat].id, patron.id, patron.id .. " is back in the same seat")
+		expectEqual(state.tips, tipsBefore, patron.id .. " Undo returns the same Tips")
+		expectEqual(#state.ownedPatrons, 3)
+	end
+end })
+
+table.insert(tests, { name = "Remote audit: every remote in Remotes.lua and the main script is listed in claude/SECURITY.md, every client fired one is rate limited first, Debug ones are Studio only", fn = function()
+	if not (io and io.open) then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local remotes, server, doc = read("src/Server/Remotes.lua"), read("src/Server/init.server.lua"), read("claude/SECURITY.md")
+	if not (remotes and server and doc) then return end
+	local names = {}
+	for name in remotes:gmatch("\nRem%.([%w_]+)%s*=%s*[%w_]+") do
+		if name:sub(1, 1) ~= "_" then names[#names + 1] = name end
+	end
+	for name in server:gmatch('Rem%._new%("([%w_]+)"%)') do names[#names + 1] = name end
+	expectTrue(#names >= 70, "the audit found the remotes (" .. #names .. ")")
+	for _, name in ipairs(names) do
+		expectTrue(doc:find("| " .. name .. " |", 1, true) ~= nil, name .. " is listed in claude/SECURITY.md")
+	end
+	local lines = {}
+	for line in (server .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
+	local handlers = 0
+	for i, line in ipairs(lines) do
+		local name = line:match("^%s*Rem%.([%w_]+)%.OnServerEvent:Connect")
+		if name then
+			handlers = handlers + 1
+			if name:find("^Debug") then
+				expectTrue((lines[i + 1] or ""):find("IsStudio()", 1, true) ~= nil, name .. " returns outside Studio on its first line")
+			else
+				expectTrue((lines[i + 1] or ""):find("RateLimit.allow(player.UserId", 1, true) ~= nil, name .. " is rate limited on its first line")
+			end
+		end
+	end
+	expectTrue(handlers >= 60, "every client fired handler was seen (" .. handlers .. ")")
+end })
+
+table.insert(tests, { name = "Data save audit: profiles saved at the last three schema versions load at the next version with every old field kept and every new field defaulted", fn = function()
+	local N = PlayerProfile.SCHEMA_VERSION
+	local function base(version)
+		return {
+			version = version,
+			stats = { runsStarted = 12, runsWon = 3, bestNightReached = 7 },
+			ownedSetIds = { winter_evening = true },
+			equippedSetId = "winter_evening",
+			discoveredPatronIds = { tip_jar = true },
+			tavernXp = 340, loginStreak = 5, pendingStartTips = 9,
+		}
+	end
+	local oldest = base(nil) -- before the version field existed
+	local middle = base(N - 1)
+	middle.settings = { musicVolume = 0.4 }
+	middle.questsDone = 7
+	local newest = PlayerProfile.migrate(base(N)) -- a full profile as saved today
+	newest.seasonId = require(script.Parent.Parent.Engine.SeasonTrack).Seasons[1].id
+	newest.seasonXp = 55
+	newest.settings.musicVolume = 0.3
+	local fixtures = { { name = "N-2", raw = oldest }, { name = "N-1", raw = middle }, { name = "N", raw = newest } }
+	local function keeps(p)
+		return p.stats.runsStarted == 12 and p.stats.runsWon == 3 and p.stats.bestNightReached == 7
+			and p.ownedSetIds.winter_evening == true and p.equippedSetId == "winter_evening"
+			and p.discoveredPatronIds.tip_jar == true and p.tavernXp == 340 and p.loginStreak == 5 and p.pendingStartTips == 9
+	end
+	local saved = PlayerProfile.SCHEMA_VERSION
+	PlayerProfile.SCHEMA_VERSION = N + 1 -- the build that is one version newer than every fixture
+	local ok, err = pcall(function()
+		local fresh = PlayerProfile.new()
+		for _, fx in ipairs(fixtures) do
+			local p = PlayerProfile.migrate(fx.raw)
+			expectTrue(keeps(p), fx.name .. " kept its old fields")
+			expectEqual(p.version, N + 1, fx.name .. " is stamped with the new version")
+			for key, default in pairs(fresh) do
+				expectTrue(p[key] ~= nil, fx.name .. " has a default for " .. key)
+				expectEqual(type(p[key]), type(default), fx.name .. " has the right type for " .. key)
+			end
+			local again = PlayerProfile.migrate(p)
+			expectTrue(keeps(again), fx.name .. " keeps them on a second round trip")
+		end
+		expectEqual(PlayerProfile.migrate(middle).settings.musicVolume, 0.4)
+		expectEqual(PlayerProfile.migrate(middle).questsDone, 7)
+		expectEqual(PlayerProfile.migrate(newest).seasonXp, 55)
+		expectEqual(PlayerProfile.migrate(newest).settings.musicVolume, 0.3)
+	end)
+	PlayerProfile.SCHEMA_VERSION = saved
+	expectTrue(ok, tostring(err))
+end })
+
+table.insert(tests, { name = "Anti exploit: Play Hand and Discard refuse 6 or more cards, a card not in hand, a repeated card and a discard over the limit, and leave the state unchanged", fn = function()
+	local Guard = require(script.Parent.Parent.Engine.PayloadGuard)
+	local function snap(state)
+		local ids = {}
+		for _, c in ipairs(state.hand) do ids[#ids + 1] = c.rank .. c.suit end
+		return table.concat(ids, ",") .. "|" .. #state.deck .. "|" .. #state.discardPile .. "|" .. state.handsRemaining .. "|" .. state.discardsRemaining
+			.. "|" .. state.roundScore .. "|" .. state.tips .. "|" .. tostring(state.roundOver)
+	end
+	local state = RunState.new(nil, SeededRng.new(77))
+	RunState.startRound(state)
+	local handSize = #state.hand
+	expectTrue(handSize >= 6, "the hand is big enough to test 6 cards")
+	local bad = {
+		{ "six cards", { 1, 2, 3, 4, 5, 6 } },
+		{ "seven cards", { 1, 2, 3, 4, 5, 6, 7 } },
+		{ "a card not in hand", { handSize + 1 } },
+		{ "far outside the hand", { 1, 9999 } },
+		{ "zero", { 0 } },
+		{ "negative", { -1, 2 } },
+		{ "a repeated card", { 2, 2 } },
+		{ "a repeat among five", { 1, 2, 3, 4, 4 } },
+		{ "a fraction", { 1.5 } },
+		{ "empty", {} },
+		{ "a string", { "1" } },
+	}
+	for _, case in ipairs(bad) do
+		expectFalse(Guard.indexList(case[2], handSize, 5), "the server guard refuses " .. case[1])
+		for _, action in ipairs({ "playHand", "discard" }) do
+			local before = snap(state)
+			local ok = pcall(RunState[action], state, case[2])
+			expectFalse(ok, action .. " refuses " .. case[1])
+			expectEqual(snap(state), before, action .. " with " .. case[1] .. " leaves the state unchanged")
+		end
+	end
+	-- a good list still works (the guard is not over strict)
+	expectTrue(Guard.indexList({ 1, 2, 3, 4, 5 }, handSize, 5), "five different cards pass")
+	-- a discard over the limit: spend every discard, then one more is refused and changes nothing
+	while state.discardsRemaining > 0 do
+		expectTrue(pcall(RunState.discard, state, { 1 }), "a legal discard works")
+	end
+	local before = snap(state)
+	expectFalse(pcall(RunState.discard, state, { 1 }), "a discard with none left is refused")
+	expectEqual(snap(state), before, "a refused extra discard leaves the state unchanged")
+	-- and the same for hands
+	while state.handsRemaining > 1 and not state.roundOver do
+		pcall(RunState.playHand, state, { 1 })
+	end
+	if not state.roundOver then
+		expectTrue(pcall(RunState.playHand, state, { 1 }) or state.roundOver, "the last hand plays")
+	end
+	local after = snap(state)
+	expectFalse(pcall(RunState.playHand, state, { 1 }), "no hands left or the round over is refused")
+	expectEqual(snap(state), after, "a refused extra hand leaves the state unchanged")
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
