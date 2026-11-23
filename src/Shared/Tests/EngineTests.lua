@@ -48483,6 +48483,29 @@ table.insert(tests, { name = "Card Sets are cosmetic: the same seeded run scores
 	end
 end })
 
+table.insert(tests, { name = "Boss pool: no boss repeats back to back in Endless Nights 9 to 30 over 200 seeds, and every boss is reachable", fn = function()
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local cap = 8
+	local seen = {}
+	for seed = 1, 200 do
+		local rng = SeededRng.new(seed)
+		local used, prev = {}, nil
+		for night = 1, 30 do
+			local boss = BossRounds.pick(rng, night, used, cap)
+			expectTrue(boss ~= nil, "seed " .. seed .. " Night " .. night .. " gets a boss")
+			if night >= 9 then
+				expectTrue(boss.id ~= prev, "seed " .. seed .. " Night " .. night .. " repeats " .. tostring(prev))
+			end
+			seen[boss.id] = true
+			table.insert(used, boss.id)
+			prev = boss.id
+		end
+	end
+	for _, def in ipairs(BossRounds.Definitions) do
+		expectTrue(seen[def.id], "boss " .. def.id .. " is reachable in a normal run through Endless")
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
