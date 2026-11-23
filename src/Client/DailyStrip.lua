@@ -72,13 +72,13 @@ local function build(root)
 	f.ZIndex = 40
 	f.Visible = false
 	pcall(function() Kit.painted(f, "wh_target") end) -- the ornate gold framed plate of the table (Target and Tips), flat look if it does not load; , flat look if it does not load
-	local streakLabel = label(f, "Streak", 15, 30, 0, 150, Rules.HEIGHT, "")
+	local streakLabel = label(f, "Streak", Rules.LABEL_MAX, Rules.START_X, 0, 150, Rules.HEIGHT, "")
 	streakLabel.TextWrapped = false -- one line, on the same row as the Goals label
-	label(f, "Goal", 15, 168, 2, 200, 24, "")
+	label(f, "Goal", Rules.LABEL_MAX, 168, 2, 200, 24, "")
 	local track = Instance.new("Frame")
 	track.Name = "Track"
 	track.BorderSizePixel = 0
-	track.BackgroundColor3 = color("plateDark")
+	track.BackgroundColor3 = Color3.fromRGB(Rules.TRACK_RGB[1], Rules.TRACK_RGB[2], Rules.TRACK_RGB[3]) -- lighter than the plate so the bar reads
 	track.Active = false
 	track.ZIndex = 43
 	track.Parent = f
@@ -143,10 +143,10 @@ function M.update(state)
 	strip.Streak.Position = UDim2.fromOffset(cols.streak.x, 2) -- same row and height as the Goals label, so both sit on one baseline
 	strip.Streak.Size = UDim2.fromOffset(cols.streak.w, 24)
 	local streakWord = v.streakText
-	local streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, 12, 15)
+	local streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, Rules.LABEL_MIN, Rules.LABEL_MAX)
 	if not streakSize then -- one line only: the shorter "N days" when the full line does not fit the column
 		streakWord = v.streakShort
-		streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, 12, 15) or 12
+		streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, Rules.LABEL_MIN, Rules.LABEL_MAX) or Rules.LABEL_MIN
 	end
 	strip.Streak.TextSize = streakSize
 	strip.Streak.Text = streakWord
@@ -154,12 +154,12 @@ function M.update(state)
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
 	-- a short word at 14 px or more: "Goals 1/3", else only the count "1/3" when the column is too narrow; never an ellipsis
-	local goalWord, goalSize = v.goalShort, TextFit.bestSize(v.goalShort, goalW, 24, 14, 15)
-	if not goalSize and v.goalCount ~= "" then goalWord, goalSize = v.goalCount, TextFit.bestSize(v.goalCount, goalW, 24, 14, 15) end
-	strip.Goal.TextSize = goalSize or 14
-	strip.Goal.Text = goalSize and goalWord or TextFit.clip(goalWord, goalW, 14)
-	strip.Track.Position = UDim2.fromOffset(goalX, 30)
-	strip.Track.Size = UDim2.fromOffset(goalW, 8)
+	local goalWord, goalSize = v.goalShort, TextFit.bestSize(v.goalShort, goalW, 24, Rules.LABEL_MIN, Rules.LABEL_MAX)
+	if not goalSize and v.goalCount ~= "" then goalWord, goalSize = v.goalCount, TextFit.bestSize(v.goalCount, goalW, 24, Rules.LABEL_MIN, Rules.LABEL_MAX) end
+	strip.Goal.TextSize = goalSize or Rules.LABEL_MIN
+	strip.Goal.Text = goalSize and goalWord or TextFit.clip(goalWord, goalW, Rules.LABEL_MIN)
+	strip.Track.Position = UDim2.fromOffset(goalX, Rules.TRACK_Y)
+	strip.Track.Size = UDim2.fromOffset(goalW, Rules.TRACK_H)
 	strip.Track.Fill.Size = UDim2.fromScale(math.clamp(v.progress / v.goal, 0, 1), 1)
 
 	local chest = strip.Chest

@@ -33615,7 +33615,7 @@ table.insert(tests, { name = "Menu polish: the daily strip wears the table's gol
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local d = read("src/Client/DailyStrip.lua")
 	assert(d:find('Kit.painted(f, "wh_target")', 1, true), "same painted family as Target and Tips")
-	assert(d:find('label(f, "Streak", 15, 30,', 1, true), "streak word 30 px in from the frame")
+	assert(d:find('label(f, "Streak", Rules.LABEL_MAX, Rules.START_X,', 1, true), "streak word starts at START_X, 30 px carved end plus 14 px padding")
 	local t = read("src/Client/MenuLifeFX.lua")
 	assert(t:find("PaddingLeft = UDim.new(0, 28)", 1, true) and t:find("PaddingRight = UDim.new(0, 28)", 1, true), "tip text padded 28 px both sides")
 	local S = require(script.Parent.Parent.Engine.TavernStyle)
@@ -50060,6 +50060,28 @@ table.insert(tests, { name = "Tutorial popups: the Patron Power panel never cove
 		local words = 0
 		for _ in step.text:gmatch("%S+") do words = words + 1 end
 		expectTrue(words <= TS.MAX_WORDS, "tutorial step " .. step.id .. " caption is " .. words .. " words, at most " .. TS.MAX_WORDS)
+	end
+end })
+
+table.insert(tests, { name = "Daily strip labels: Streak and Goals words are 14 to 16 px with 14 px inside the carved end, the progress track is 6 px and 3 to 1 against the plate, and the words still fit", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	expectTrue(D.LABEL_MIN >= 14 and D.LABEL_MAX == 16, "labels run 14 to 16 px")
+	expectTrue(D.START_X - D.EDGE_X >= 12, "words start at least 12 px inside the carved end (" .. D.START_X - D.EDGE_X .. ")")
+	expectEqual(D.TRACK_H, 6, "track is 6 px tall")
+	expectTrue(D.TRACK_Y + D.TRACK_H <= D.HEIGHT, "track sits inside the strip")
+	expectTrue(S.contrast(D.TRACK_RGB, D.PLATE_RGB) >= 3, "track against the plate " .. S.contrast(D.TRACK_RGB, D.PLATE_RGB))
+	for _, W in ipairs({ 1920, 1506, 1309 }) do
+		local strip = D.menuRect(W, 751)
+		local c = D.columns(strip)
+		local v = D.view({ streak = 12 }, { quests = { { done = true }, { done = false, desc = "x", progress = 0, goal = 2 } } })
+		local word = F.bestSize(v.streakText, c.streak.w, 24, D.LABEL_MIN, D.LABEL_MAX) and v.streakText or v.streakShort
+		local size = F.bestSize(word, c.streak.w, 24, D.LABEL_MIN, D.LABEL_MAX)
+		expectTrue(size ~= nil and size >= 14 and F.width(word, size) <= c.streak.w, W .. " the Streak word fits one line at 14 px or more (" .. word .. ")")
+		local gw = F.bestSize(v.goalShort, c.goalW, 24, D.LABEL_MIN, D.LABEL_MAX) and v.goalShort or v.goalCount
+		local gs = F.bestSize(gw, c.goalW, 24, D.LABEL_MIN, D.LABEL_MAX)
+		expectTrue(gs ~= nil and gs >= 14, W .. " the Goals word fits at 14 px or more (" .. gw .. ")")
 	end
 end })
 
