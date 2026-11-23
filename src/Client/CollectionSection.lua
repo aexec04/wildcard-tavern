@@ -169,14 +169,10 @@ function CollectionSection.new(opts)
 		end
 		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) })
 	end
-	local PATRON_INSET = 0.06 -- of the frame, per side, so the art never touches the gilded edge
 	local function portraitSlot(tabId, slot, item, info, z)
 		local standing = tabId == "bosses"
 		local well = { x = slot.x, y = slot.y, w = slot.w, h = slot.h }
-		if not standing then
-			local ix, iy = math.floor(slot.w * PATRON_INSET), math.floor(slot.h * PATRON_INSET)
-			well = { x = slot.x + ix, y = slot.y + iy, w = slot.w - 2 * ix, h = slot.h - 2 * iy }
-		end
+		if not standing then well = Layout.portraitWell(slot) end -- a 5:7 card at the slot's full height, not a small card in a square
 		local holder = make("Frame", frame, { Name = "Portrait", BackgroundTransparency = standing and 1 or 0, BorderSizePixel = 0, ZIndex = z })
 		holder.BackgroundColor3 = info.found and Color3.fromRGB(46, 36, 26) or Color3.fromRGB(44, 35, 28)
 		rect(holder, well)
@@ -189,6 +185,15 @@ function CollectionSection.new(opts)
 			Size = UDim2.fromScale(1, 1), ZIndex = z + ZSTEP,
 			ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(96, 90, 84),
 		}) or nil
+		if art and not standing and tabId == "patrons" then -- the cut card's portrait window fills the 5:7 well (same crop as the Patron pick)
+			local ok, spec = pcall(function() return require(Engine:WaitForChild("DraftPortrait")).spec(item.id) end)
+			if ok and spec and spec.kind == "card" and spec.rect then
+				art.Image = spec.image
+				art.ScaleType = Enum.ScaleType.Crop
+				art.ImageRectOffset = Vector2.new(spec.rect.x, spec.rect.y)
+				art.ImageRectSize = Vector2.new(spec.rect.w, spec.rect.h)
+			end
+		end
 		if art then require(script.Parent.ArtFade).apply(art) end
 		if art and standing then corner(art, 8) end
 		if not art then

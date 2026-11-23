@@ -460,31 +460,6 @@ function Hotspots.build(opts)
 		end
 	end
 
-	local allButton = Instance.new("TextButton")
-	allButton.Name = "AllActionsButton"
-	allButton.AnchorPoint = Vector2.new(1, 1)
-	allButton.Position = UDim2.new(1, -16, 1, -16)
-	allButton.Size = UDim2.fromOffset(220, 56)
-	allButton.AutoButtonColor = false
-	allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22) -- a dark wood plate with a brass edge like Deal Me In (cream on it is over 10:1)
-	allButton.BackgroundTransparency = 0
-	allButton.Font = Enum.Font.GothamBold
-	allButton.TextSize = 20
-	allButton.TextColor3 = Color3.fromRGB(250, 235, 200)
-	allButton.TextTransparency = 0
-	allButton.TextStrokeTransparency = 1
-	allButton.Text = "All actions"
-	allButton.ZIndex = Z_LIST
-	allButton.Parent = menuFrame
-	do
-		round(allButton, UDim.new(0, 7))
-		local s = Instance.new("UIStroke")
-		s.Color = BRASS
-		s.Thickness = 2
-		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- the default (Contextual) strokes the button's TEXT too, which crushed the letters
-		s.Parent = allButton
-	end
-	pcall(function() require(script.Parent.TavernKit).paintedButton(allButton, "secondary") end) -- ornate dark wood button like Run Over and the Counter, flat look if it does not load
 	local function toggleList()
 		if state.listOpen then
 			closeAll()
@@ -496,7 +471,6 @@ function Hotspots.build(opts)
 		catcher.Visible = true
 		fillList()
 	end
-	allButton.MouseButton1Click:Connect(toggleList)
 
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if input.KeyCode == Enum.KeyCode.Escape and (state.openScroll or state.listOpen) and menuFrame.Visible then
@@ -980,7 +954,6 @@ function Hotspots.build(opts)
 		result._applied = true
 		state.phone = phone
 		layer.Visible = not phone
-		allButton.Visible = not phone
 		catcher.Visible = false
 		for _, sc in pairs(scrolls) do sc.frame.Visible = false end
 		state.openScroll = nil

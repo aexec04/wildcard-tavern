@@ -115,6 +115,23 @@ function M.pageItems(items, tabId, page)
 	return out
 end
 
+-- The Patron portrait is a 5:7 card but the painted frame slot is nearly square (about 181 x 145). The portrait well is therefore a 5:7
+-- rectangle at the full height of the slot (minus PORTRAIT_INSET per side so it never touches the gilded edge), centred sideways, and the
+-- art fills it (cut card window, Crop) instead of sitting small inside a square. Returns a rect relative to the same space as `slot`.
+M.PORTRAIT_RATIO = 5 / 7 -- width over height
+M.PORTRAIT_INSET = 0.06 -- of the slot height, per side
+function M.portraitWell(slot)
+	local pad = math.floor(slot.h * M.PORTRAIT_INSET)
+	local h = slot.h - 2 * pad
+	local w = math.floor(h * M.PORTRAIT_RATIO)
+	if w > slot.w - 2 * pad then -- a very narrow slot: width limits instead
+		w = slot.w - 2 * pad
+		h = math.floor(w / M.PORTRAIT_RATIO)
+		pad = math.floor((slot.h - h) / 2)
+	end
+	return { x = slot.x + math.floor((slot.w - w) / 2), y = slot.y + pad, w = w, h = h }
+end
+
 -- how many slots of a page hold no entry (only the last page); the client covers them so no blank hook or tag shows
 function M.unusedCount(n, tabId, page)
 	local shown = #M.pageItems((function() local t = {} for i = 1, n do t[i] = i end return t end)(), tabId, page)

@@ -5317,7 +5317,7 @@ table.insert(tests, { name = "Strings: every id has safe English text (no em das
 		expectTrue(not text:lower():find("balatro", 1, true), id .. " has no banned word")
 		expectEqual(Strings.get(id), text, id .. " resolves")
 	end
-	expectTrue(n >= 16, "the moved Settings lines are present")
+	expectTrue(n >= 14, "the moved Settings lines are present")
 	expectEqual(Strings.get("no.such.id"), "no.such.id", "unknown id echoes")
 	if io and io.open then
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
@@ -14133,7 +14133,7 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
 	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
 	expectTrue(hot:find("if Layout.world then object.Visible = false end", 1, true) ~= nil, "the Deal Me In block has no cut-off dark medallion on the map")
-	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid dark wood plate")
+	expectTrue(hot:find("AllActionsButton", 1, true) == nil, "the All actions button is gone (the Notice Board opens the list)")
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
 	expectTrue(LL.contrast({ 250, 235, 200 }, { 58, 38, 22 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
@@ -16072,7 +16072,7 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectTrue(R.hidesBoard({ "CollectionBackdrop" }), "a panel backdrop hides the board")
 	expectTrue(not R.hidesBoard({ "Menu", "DeckTrackerBackdrop" }), "skipped and non-popup frames do not")
-	expectTrue(R.hidesWithPanel("AllActionsButton") and R.hidesWithPanel("Hotspot_jukebox"), "All actions and hotspots hide under a panel")
+	expectTrue(R.hidesWithPanel("Hotspot_jukebox") and not R.hidesWithPanel("AllActionsButton"), "hotspots hide under a panel, the removed All actions button is not special")
 	expectTrue(not R.hidesWithPanel("Rows") and not R.hidesWithPanel(nil), "other names stay")
 	local f = io and io.open and io.open("src/Client/BadgeWall.lua", "r")
 	if f then
@@ -18058,9 +18058,7 @@ table.insert(tests, { name = "Notice Board: every note rect sits inside the cork
 	local f = io and io.open and io.open("src/Client/MenuHotspots.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	local a = src:find('allButton.Name = "AllActionsButton"', 1, true)
-	local seg = src:sub(a, a + 1800)
-	expectTrue(seg:find("ApplyStrokeMode.Border", 1, true) ~= nil, "the brass edge strokes the border, not the letters")
+	expectTrue(src:find('"AllActionsButton"', 1, true) == nil, "no All actions button is built any more")
 end })
 
 tests[#tests + 1] = ({ name = "Kit plates sit under their labels and text strokes use Border mode", fn = function()
@@ -31001,9 +30999,8 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 		if strip then
 			shown = shown + 1
 			local sign = { x = w / 2 - 170, y = 0, w = 340, h = h } -- the whole column, any height
-			local all = { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 }
-			assert(not hit(strip, sign) and not hit(strip, all), "strip clear of sign column and All actions at " .. w)
-			assert(strip.x - (w / 2 + 170) >= 16 and all.x - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(not hit(strip, sign), "strip clear of sign column at " .. w)
+			assert(strip.x - (w / 2 + 170) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
 			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
 			local tip = L.tipRect(w, h)
 			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
@@ -31026,7 +31023,7 @@ table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear
 		local plate = box(ML.plateRect(play, w, h))
 		expectTrue(sign.h >= 44 and sign.w >= 44, "Play sign is a 44 px target at " .. w .. "x" .. h)
 		expectTrue(plate.y + plate.h <= h, "Play plate on screen at " .. w .. "x" .. h)
-		local others = { { "All actions", { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 } } }
+		local others = {}
 		local strip, tip = D.menuRect(w, h), L.tipRect(w, h)
 		if strip then others[#others + 1] = { "Daily strip", strip } end
 		if tip then others[#others + 1] = { "Tip plate", tip } end
@@ -31397,7 +31394,7 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	local src = f:read("*a")
 	f:close()
 	local display = src:find('makeHeader("Accessibility")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
-	local gameplay = src:find('makeHeader("Sound")', 1, true)
+	local gameplay = src:find('makeHeader("Display")', 1, true)
 	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
 	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
 	assert(display and gameplay and calm and shake, "headers and rows exist")
@@ -31686,6 +31683,35 @@ table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, 
 	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
 end })
 
+table.insert(tests, { name = "Layers: every purchase and quit confirm sits in the confirm band above every page (Store, Tome, Card Sets, Season, Settings)", fn = function()
+	local Layers = require(script.Parent.Parent.Engine.Layers)
+	expectTrue(Layers.confirm > Layers.PAGE_TOP and Layers.PAGE_TOP > Layers.tooltip, "the confirm band is above the pages and the tooltip")
+	if not (io and io.open) then return end
+	local function read(name)
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local cd = read("ConfirmDialog")
+	if cd then
+		expectTrue(cd:find("Engine\"):WaitForChild(\"Layers\")).confirm", 1, true) ~= nil, "ConfirmDialog reads Layers.confirm")
+		expectTrue(cd:find("ZIndex = 35", 1, true) == nil and cd:find("ZIndex = 36", 1, true) == nil, "ConfirmDialog keeps no page-level ZIndex")
+	end
+	for _, name in ipairs({ "QuitConfirm", "ReplayConfirm" }) do
+		local s = read(name)
+		if s then expectTrue(s:find("ZIndex = " .. Layers.confirm, 1, true) ~= nil, name .. " sits at the confirm band") end
+	end
+	for _, name in ipairs({ "StorePanel", "Shop", "CosmeticSetsPanel", "CardSetsRoom", "FlairDressingRoom", "FlairPanel", "SeasonPanel", "Settings", "Collection", "QuestsPanel", "DailyRewardsPanel", "PanelTabs" }) do
+		local s = read(name)
+		if s then
+			for z in s:gmatch("ZIndex = (%d+)") do
+				expectTrue(tonumber(z) < Layers.confirm, name .. " has a ZIndex under the confirm band: " .. z)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Card Sets label: Equipped only for a set the server confirms (effective and unlocked); a set the player cannot use says what unlocks it", fn = function()
 	local SP = require(script.Parent.Parent.Engine.SetPreview)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
@@ -31779,9 +31805,10 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 		expectTrue(not seen[id], id .. " appears once")
 		seen[id] = true
 	end
-	for _, id in ipairs({ "largerText", "volume", "replayTutorial" }) do
+	for _, id in ipairs({ "largerText", "replayTutorial" }) do
 		expectTrue(seen[id], id .. " has a row")
 	end
+	expectTrue(not seen.volume, "Sound and Music have no Settings row, they live under the speaker icon")
 	local sw = SL.SWITCH
 	expectTrue(sw.h >= 44 and sw.w >= 44, "switch is a 44 px touch target")
 	expectTrue(SL.contrast(sw.onText, sw.onFill) >= 4.5, "On text contrast")
@@ -35461,12 +35488,13 @@ table.insert(tests, { name = "ScreenCheck.menuCheck flags a 0x0, missing or hidd
 	for i, p in ipairs(good) do bad[i] = { label = p.label, w = p.w, h = p.h, visible = true } end
 	bad[1].w, bad[1].h = 0, 0
 	bad[3].visible = false
-	bad[5].h = 0
+	bad[4].h = 0 -- Tip bar
 	local _, w2 = SC.menuCheck(bad)
 	assert(#w2 == 3 and w2[1]:find("WARN Title is blank", 1, true), "0x0 title, hidden New Run and 0 tall tip bar are flagged")
 	local labels = {}
 	for _, s in ipairs(SC.MENU_PIECES) do labels[s.label] = true end
-	for _, l in ipairs({ "Title", "Deal Me In", "New Run", "All actions", "Tip bar", "Notice Board" }) do assert(labels[l], l .. " is checked") end
+	for _, l in ipairs({ "Title", "Deal Me In", "New Run", "Tip bar", "Notice Board" }) do assert(labels[l], l .. " is checked") end
+		assert(not labels["All actions"], "the removed All actions button is not checked")
 	if io then
 		local f = assert(io.open("src/Client/ScreenCheck.lua", "r")); local c = f:read("a"); f:close()
 		assert(c:find("[MenuCheck]", 1, true), "the client prints [MenuCheck]")
@@ -35576,7 +35604,6 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
 		{ "src/Client/DailyStrip.lua", 'painted(f, "wh_target")' },
 		{ "src/Client/GameOver.lua", 'painted(factsPlate, "wood_plate")' },
-		{ "src/Client/MenuHotspots.lua", 'paintedButton(allButton, "secondary")' },
 	}
 	expectEqual(require(script.Parent.Parent.Engine.TavernStyle).buttonPiece("secondary", 168, 42), "wh_btn_dark", "the 168 x 42 All actions button wears the whole dark wood picture")
 	for _, w in ipairs(want) do
@@ -43772,15 +43799,16 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
-table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display and Account, every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
+table.insert(tests, { name = "Settings sections: Accessibility, Display, Gameplay and Account (no speaker controls), every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	local titles = {}
 	for i, s in ipairs(SL.SECTIONS) do titles[i] = s.title end
-	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Gameplay,Account", "five groups")
+	expectEqual(table.concat(titles, ","), "Accessibility,Display,Gameplay,Account", "four groups, Sound and Music only under the speaker icon")
+	for _, id in ipairs(SL.rowOrder()) do expectFalse(id:lower():find("volume") or id:lower():find("music") or id:lower():find("sound") or id:lower():find("mute"), "no Settings row repeats a speaker control: " .. id) end
 	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
 	local seen, n = {}, 0
 	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
-	expectEqual(n, 16, "every Settings row is listed")
+	expectEqual(n, 15, "every Settings row is listed")
 	for _, sec in ipairs(SL.SECTIONS) do expectTrue(#sec.rows >= 1, sec.title .. " has rows") end
 	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
 	expectEqual(SL.HEADER_SIZE, 16, "section headers are 16 px")
@@ -43794,7 +43822,7 @@ table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display a
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
 		local src = f:read("*a"); f:close()
 		local last = 0
-		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Gameplay", "Account", "About" }) do
+		for _, name in ipairs({ "Accessibility", "Display", "Gameplay", "Account", "About" }) do
 			local at = src:find('makeHeader("' .. name .. '")', 1, true)
 			expectTrue(at ~= nil and at > last, name .. " header is built in order")
 			last = at or last
@@ -46491,11 +46519,11 @@ table.insert(tests, { name = "Settings audit: every saved option has a Settings 
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	local rows = {}
 	for _, id in ipairs(SL.rowOrder()) do rows[id] = true end
-	local ownedElsewhere = { musicVolume = "volume", sfxVolume = "volume", muted = "volume", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
+	local ownedElsewhere = { musicVolume = "the speaker icon", sfxVolume = "the speaker icon", muted = "the speaker icon", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
 	local keys = 0
 	for key, spec in pairs(PP.SETTING_SPECS) do
 		keys = keys + 1
-		expectTrue(rows[key] or ownedElsewhere[key] ~= nil and (rows[ownedElsewhere[key]] or ownedElsewhere[key] ~= "volume"), key .. " has a Settings row or an owner screen")
+		expectTrue(rows[key] or ownedElsewhere[key] ~= nil, key .. " has a Settings row or an owner screen")
 		-- a non default valid value saves and survives a rejoin (profile saved, then loaded again)
 		local value
 		if spec.kind == "boolean" then value = not spec.default
@@ -47246,6 +47274,24 @@ table.insert(tests, { name = "Hand selection feel: picked cards lift 24 px, sort
 	expectTrue(hub:find("if selected[index] then\n\t\tselected[index] = nil", 1, true) ~= nil, "a second click unpicks")
 	expectTrue(hub:find("HandSelection", 1, true) ~= nil and hub:find("refreshHandSort = function()", 1, true) ~= nil, "the sort path restores the picks")
 	expectTrue(hub:find("HoverGlowFX).attach(card, { hit = button, strokeOnly = true", 1, true) ~= nil, "hand cards use the shared hover outline")
+end })
+
+table.insert(tests, { name = "Collection Patron wall: the portrait well is a 5:7 card at the slot's full height, inside the slot, at four sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local p = L.place("patrons", sz[1], sz[2] - 120, 1)
+		expectTrue(p and #p.slots == 12, "12 patron slots at " .. sz[1])
+		for i, s in ipairs(p.slots) do
+			local w = L.portraitWell(s)
+			local tag = sz[1] .. " slot " .. i
+			expectTrue(math.abs(w.w / w.h - 5 / 7) < 0.03, tag .. " well ratio is 5:7 (" .. w.w .. "x" .. w.h .. ")")
+			expectTrue(w.x >= s.x and w.y >= s.y and w.x + w.w <= s.x + s.w and w.y + w.h <= s.y + s.h, tag .. " well inside the slot")
+			expectTrue(w.h >= s.h * 0.85, tag .. " card uses at least 85 percent of the slot height")
+			expectTrue(math.abs((w.x + w.w / 2) - (s.x + s.w / 2)) <= 1, tag .. " well centred")
+		end
+	end
+	local narrow = L.portraitWell({ x = 0, y = 0, w = 60, h = 145 })
+	expectTrue(narrow.w <= 60 and math.abs(narrow.w / narrow.h - 5 / 7) < 0.05, "a narrow slot is limited by width and keeps 5:7")
 end })
 
 return tests
