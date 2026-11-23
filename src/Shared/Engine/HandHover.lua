@@ -1,26 +1,23 @@
 --[[
 	Engine/HandHover.lua
-	Which hand cards need repainting when the hover moves. Hover used to repaint every card (each with its own
-	tweens) on both MouseLeave and MouseEnter, which stuttered on a big hand. Only the cards within `falloff`
-	slots of the old or the new hovered card change look, so only those are returned. Pure.
+	Which hand cards need repainting when the hover moves. A hover only ever changes the hovered card (lift, plain
+	outline): no neighbour lifts or slides, picked or not, so only the card losing and the card gaining the hover
+	are returned. Pure.
 ]]
 local M = {}
 
--- positions: { [cardIndex] = visualSlot }; from/to: card index or nil. Returns a sorted list of card indices.
+-- positions: { [cardIndex] = visualSlot } (kept for callers); from/to: card index or nil. Returns a sorted list.
 function M.affected(positions, from, to, falloff)
-	falloff = falloff or 2
-	local out, seen = {}, {}
-	local function add(center)
-		local c = center and positions[center]
-		if not c then return end
-		for index, pos in pairs(positions) do
-			if not seen[index] and math.abs(pos - c) < falloff then seen[index] = true; out[#out + 1] = index end
-		end
-		if not seen[center] then seen[center] = true; out[#out + 1] = center end
-	end
-	add(from); add(to)
+	local out = {}
+	if from ~= nil and positions[from] then out[#out + 1] = from end
+	if to ~= nil and to ~= from and positions[to] then out[#out + 1] = to end
 	table.sort(out)
 	return out
+end
+
+-- Offsets a card other than the hovered one gets from the hover: always none.
+function M.neighbourOffset(positions, hovered, index)
+	return 0, 0
 end
 
 return M

@@ -1550,26 +1550,8 @@ local function refreshCardVisual(index, usePop)
 	local isSelected = selected[index] == true
 	local isHovering = hoveredIndex == index
 
-	-- Fan falloff: neighbors near the hovered card lift a little too,
-	-- fading out with distance. Distance 0 (the hovered card itself) is
-	-- handled by isHovering above.
-	--
-	-- LAYOUT FEATURE 4 (Sort Hand): "neighbor" has to mean visually adjacent
-	-- on screen, not adjacent server-side hand index -- those two only match
-	-- when the hand is unsorted. Compare cardVisualPosition (left-to-right
-	-- display slot), not index/hoveredIndex directly.
+	-- A hover only changes the hovered card: no neighbour lift or slide (Engine/HandHover.neighbourOffset is always 0).
 	local fanLift, spreadX = 0, 0
-	if hoveredIndex ~= nil and not isHovering then
-		local myPosition = cardVisualPosition[index]
-		local hoveredPosition = cardVisualPosition[hoveredIndex]
-		local distance = (myPosition and hoveredPosition) and math.abs(myPosition - hoveredPosition) or math.huge
-		if distance < HOVER_FALLOFF_DISTANCE then
-			fanLift = (1 - (distance / HOVER_FALLOFF_DISTANCE)) * (HOVER_LIFT * 0.4)
-		end
-		if distance == 1 then -- Gameplay v2: the two neighbours slide 6 px away from the hovered card
-			spreadX = (myPosition > hoveredPosition and 1 or -1) * require(game:GetService("ReplicatedStorage").Shared.Engine.FeelTuning).NEIGHBOUR_SPREAD
-		end
-	end
 
 	local targetScale
 	if isSelected and isHovering then

@@ -34703,11 +34703,19 @@ table.insert(tests, { name = "Card hover is smooth: moving the hover repaints on
 	local H = require(script.Parent.Parent.Engine.HandHover)
 	local pos = {}
 	for i = 1, 9 do pos[i] = i end
-	expectEqual(table.concat(H.affected(pos, nil, 5, 2), ","), "4,5,6", "first hover paints the card and its neighbours")
-	expectEqual(table.concat(H.affected(pos, 5, 6, 2), ","), "4,5,6,7", "moving across one card paints four, not nine")
-	expectEqual(table.concat(H.affected(pos, 5, nil, 2), ","), "4,5,6", "leaving paints the old neighbourhood")
-	expectEqual(#H.affected(pos, 1, 9, 2), 4, "far apart cards paint two small groups")
+	expectEqual(table.concat(H.affected(pos, nil, 5, 2), ","), "5", "first hover paints only that card")
+	expectEqual(table.concat(H.affected(pos, 5, 6, 2), ","), "5,6", "moving across one card paints just the two")
+	expectEqual(table.concat(H.affected(pos, 5, nil, 2), ","), "5", "leaving paints only the old card")
+	expectEqual(#H.affected(pos, 1, 9, 2), 2, "far apart cards paint two cards")
 	expectEqual(#H.affected(pos, nil, nil, 2), 0, "no hover, nothing to paint")
+	for hovered = 1, 9 do
+		for index = 1, 9 do
+			if index ~= hovered then
+				local dx, dy = H.neighbourOffset(pos, hovered, index)
+				expectEqual(dx + dy, 0, "hovering card " .. hovered .. " leaves card " .. index .. " exactly where it was")
+			end
+		end
+	end
 	if io and io.open then
 		local f = io.open("src/Client/init.client.lua", "r"); local src = f:read("a"); f:close()
 		local a = src:find("button.MouseEnter:Connect(function()\n\t\t\tif require(script.ModalStage).blocks(button)", 1, true)
