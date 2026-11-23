@@ -38909,6 +38909,42 @@ table.insert(tests, { name = "Tutorial skip and replay words: Skip says what it 
 	expectEqual(holds, 1, "Skip opens exactly one confirm")
 end })
 
+table.insert(tests, { name = "Ambient bed per Card Set: no set is louder than the music default, every set follows Mute and the Sound slider, a louder override is clamped", fn = function()
+	local A = require(script.Parent.Parent.Engine.Ambience)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(A.MUSIC_DEFAULT, PP.SETTING_SPECS.musicVolume.default)
+	local sets = 0
+	for _, def in ipairs(CS.Definitions) do
+		sets = sets + 1
+		local bed = A.setBed(def.id, S.Ambience.tavern)
+		expectTrue(bed.volume > 0 and bed.volume <= A.MAX_BED and bed.volume < A.MUSIC_DEFAULT, def.id .. " bed is quieter than the music default")
+		expectEqual(bed.id, S.Ambience.tavern.id) -- today every set shares the tavern bed
+		for _, slider in ipairs({ 0, 0.25, 0.5, 1 }) do
+			for _, scoring in ipairs({ false, true }) do
+				local v = A.volume(false, slider, scoring, true)
+				expectTrue(v <= bed.volume + 1e-9 and v <= A.MUSIC_DEFAULT, def.id .. " never louder than its bed")
+				expectTrue(not scoring or v <= A.DUCKED * slider + 1e-9, "ducked while a hand scores")
+			end
+		end
+		expectEqual(A.volume(true, 1, false, true), 0) -- Mute: silent for every set
+		expectEqual(A.volume(false, 0, false, true), 0) -- slider at zero: silent
+		expectEqual(A.volume(false, 1, false, false), 0) -- window hidden: silent
+	end
+	expectTrue(sets >= 14, "all " .. sets .. " Card Sets were checked")
+	-- a set that asks for a loud loop is clamped; junk volume falls back to the base
+	A.SetBeds.__loud = { id = "rbxassetid://1", volume = 5 }
+	expectTrue(A.setBed("__loud").volume <= A.MAX_BED, "a loud override is clamped")
+	A.SetBeds.__loud = { id = "rbxassetid://1", volume = "x" }
+	expectEqual(A.setBed("__loud").volume, A.BASE)
+	A.SetBeds.__loud = nil
+	for name, bed in pairs(S.Ambience) do expectTrue(bed.volume <= A.MAX_BED, name .. " bed is within the cap") end
+	if not io then return end
+	local f = assert(io.open("src/Client/AmbienceFX.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("Ambience.volume(muted, ClientSettings.get(\"sfxVolume\")", 1, true) ~= nil, "the loop follows Mute and the Sound slider")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb

@@ -9,6 +9,19 @@ local M = {}
 M.BASE = 0.12
 M.DUCKED = 0.06
 
+-- Per Card Set beds. Every set shares the quiet tavern bed today; a set may add its own loop here as { id, volume }. Whatever a set
+-- asks for is clamped under the music default (PlayerProfile musicVolume 0.35) and under MAX_BED, so no set bed can drown the music.
+M.MUSIC_DEFAULT = 0.35
+M.MAX_BED = 0.2
+M.SetBeds = {}
+
+function M.setBed(setId, tavernBed)
+	local bed = M.SetBeds[setId] or tavernBed or { id = "", volume = M.BASE }
+	local v = tonumber(bed.volume) or M.BASE
+	v = math.max(0, math.min(v, M.MAX_BED, M.MUSIC_DEFAULT))
+	return { id = bed.id or "", volume = v }
+end
+
 -- Volume for the bed, 0 when it should not be heard.
 function M.volume(muted, sfxVolume, scoring, focused)
 	if muted or focused == false then return 0 end
