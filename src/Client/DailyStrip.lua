@@ -73,7 +73,7 @@ local function build(root)
 	f.Visible = false
 	pcall(function() Kit.painted(f, "wh_target") end) -- the ornate gold framed plate of the table (Target and Tips), flat look if it does not load; , flat look if it does not load
 	local streakLabel = label(f, "Streak", 15, 30, 0, 150, Rules.HEIGHT, "")
-	streakLabel.TextWrapped = true -- a long streak line takes two lines in the narrow column
+	streakLabel.TextWrapped = false -- one line, on the same row as the Goals label
 	label(f, "Goal", 15, 168, 2, 200, 24, "")
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -140,8 +140,16 @@ function M.update(state)
 	local cr = Rules.chestRect(r)
 	strip.Streak.Text = v.streakText
 	local cols = Rules.columns(r)
-	strip.Streak.Size = UDim2.fromOffset(cols.streak.w, r.h)
-	strip.Streak.TextSize = TextFit.bestSize(v.streakText, cols.streak.w, r.h, 12, 15) or 12
+	strip.Streak.Position = UDim2.fromOffset(cols.streak.x, 2) -- same row and height as the Goals label, so both sit on one baseline
+	strip.Streak.Size = UDim2.fromOffset(cols.streak.w, 24)
+	local streakWord = v.streakText
+	local streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, 12, 15)
+	if not streakSize then -- one line only: the shorter "N days" when the full line does not fit the column
+		streakWord = v.streakShort
+		streakSize = TextFit.bestSize(streakWord, cols.streak.w, 24, 12, 15) or 12
+	end
+	strip.Streak.TextSize = streakSize
+	strip.Streak.Text = streakWord
 	local goalX, goalW = cols.goalX, cols.goalW -- 30 px in from the carved gold end, 12 px clear of the chest plate
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)

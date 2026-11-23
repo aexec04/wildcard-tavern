@@ -36062,7 +36062,7 @@ table.insert(tests, { name = "Daily strip: shows on the Night map and Run Over o
 	-- old save: nothing at all
 	local old = D.view(nil, nil)
 	expectEqual(old.chest, "none", "no login view, no chest")
-	expectEqual(old.streakText, "Streak: starts today", "safe default")
+	expectEqual(old.streakText, "Streak: 0 days", "safe default")
 	-- real rules: day 1 check in, chest ready, claim once, opened, same day claim refused
 	local profile = {}
 	local day = 20000
@@ -37080,6 +37080,27 @@ table.insert(tests, { name = "Round hint strip: right of the Score plate at the 
 	local r = L.rects(1506, 751) -- the live GUI: the strip must stand at the stage top, not above the hand
 	local s = RH.strip(r, 1506, 751, {})
 	expectTrue(s ~= nil and s.plate.y == r.stage.y, "1506 x 751: the strip stands level with the stage top")
+end })
+
+table.insert(tests, { name = "Round hint: the round X keeps 8 px clear of Got it and stays on screen (strip and plate, five sizes)", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local checked = 0
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, spot in ipairs({ RH.strip(r, sz[1], sz[2], {}), RH.place(r, sz[1], sz[2], {}) }) do
+			local x, b = RH.closeXSpot(spot, sz[1], sz[2]), spot.button
+			local tag = sz[1] .. "x" .. sz[2] .. " " .. spot.kind
+			expectTrue(not x.clamped, "a clear spot exists at " .. tag)
+			expectTrue(x.rect.w >= 44 and x.rect.h >= 44, "X hit rect is 44 px at " .. tag)
+			expectTrue(x.rect.x >= 0 and x.rect.y >= 0 and x.rect.x + x.rect.w <= sz[1] and x.rect.y + x.rect.h <= sz[2], "X on screen at " .. tag)
+			local gapX = math.max(b.x - (x.rect.x + x.rect.w), x.rect.x - (b.x + b.w))
+			local gapY = math.max(b.y - (x.rect.y + x.rect.h), x.rect.y - (b.y + b.h))
+			expectTrue(math.max(gapX, gapY) >= 8, "X is 8 px clear of Got it at " .. tag)
+			checked = checked + 1
+		end
+	end
+	expectTrue(checked >= 5, "the X rule ran on real spots")
 end })
 
 table.insert(tests, { name = "Scoring row: the played band ends above the Hands and Discards pills, the Flair has no side plates and the caption carries Chips x Mult (five sizes)", fn = function()
@@ -50087,10 +50108,11 @@ table.insert(tests, { name = "Menu text fit: Tip pill, Daily strip Streak, Goal 
 		local strip = D.menuRect(W, H)
 		if strip then
 			local c = D.columns(strip)
-			local Rules_H = 2 * 14 + 4 -- two lines at the smallest size, inside the 48 px strip
-			local words = { "Streak: 100 days", "Streak: starts today" }
+			local Rules_H = 24 -- one line, the same row as the Goals label
+			local words = { "Streak: 100 days", "Streak: 0 days" }
 			for _, w in ipairs(words) do
-				expectTrue(F.bestSize(w, c.streak.w, Rules_H, 12, 15) ~= nil, tag .. " Streak line fits the column in two lines: " .. w)
+				local short = w:gsub("^Streak: ", "")
+				expectTrue(F.bestSize(w, c.streak.w, Rules_H, 12, 15) ~= nil or F.bestSize(short, c.streak.w, Rules_H, 12, 15) ~= nil, tag .. " Streak line (or its short form) fits the column on one line: " .. w)
 			end
 			expectTrue(F.width(F.clip("Goals done", c.goalW, 12), 12) <= c.goalW, tag .. " Goals done is clipped to the Goal column")
 			for _, q in ipairs(Quests.Definitions) do

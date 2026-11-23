@@ -185,6 +185,11 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	button.Visible = true
 	button.Size = UDim2.fromOffset(spot.button.w, spot.button.h)
 	button.Position = UDim2.fromOffset(spot.button.x, spot.button.y)
+	local cx = plate:FindFirstChild("CloseX")
+	if cx then -- the round X keeps 8 px clear of Got it (Engine/RoundHints.closeXSpot)
+		local xs = Rules.closeXSpot(spot, viewW, viewH)
+		cx.Position = UDim2.new(1, -xs.inset, 0, xs.top)
+	end
 	if game:GetService("RunService"):IsStudio() and M.lastKey ~= viewW .. "x" .. viewH .. spot.kind then
 		M.lastKey = viewW .. "x" .. viewH .. spot.kind
 		task.defer(function() print(("[HintLive] RoundHint abs=%d,%d size=%d,%d"):format(math.floor(plate.AbsolutePosition.X), math.floor(plate.AbsolutePosition.Y), math.floor(plate.AbsoluteSize.X), math.floor(plate.AbsoluteSize.Y))) end)

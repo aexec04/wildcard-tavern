@@ -44,7 +44,8 @@ function M.view(login, quests)
 	quests = type(quests) == "table" and quests or {}
 	local streak = math.max(0, math.floor(tonumber(login.streak) or 0))
 	local out = { streak = streak }
-	out.streakText = streak >= 1 and ("Streak: " .. plural(streak, "day")) or "Streak: starts today"
+	out.streakText = streak >= 1 and ("Streak: " .. plural(streak, "day")) or "Streak: 0 days"
+	out.streakShort = plural(streak, "day") -- the narrow column falls back to this when "Streak: N days" does not fit on one line
 
 	-- Goal: the first unfinished quest, else all done, else nothing to show.
 	local goal

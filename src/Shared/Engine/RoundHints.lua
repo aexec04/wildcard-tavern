@@ -221,6 +221,25 @@ function M.strip(r, viewW, viewH, avoid)
 	return nil
 end
 
+-- Where the round X sits on the plate, as { inset, top } for CloseX.attach (hit rect right edge = plate.w - inset): its 44 px hit
+-- rect must stay on screen and at least X_CLEAR px clear of the Got it button, never over Play Hand (the caller passes it in avoid). The first
+-- spot that fits wins: above the top right corner, beside the right edge, beside the left edge, then the old corner spot.
+M.X_HIT, M.X_CLEAR = 44, 8
+function M.closeXSpot(spot, viewW, viewH)
+	local p, b, h, c = spot.plate, spot.button, M.X_HIT, M.X_CLEAR
+	local function rectOf(inset, top) return { x = p.x + p.w - inset - h, y = p.y + top, w = h, h = h } end
+	local function clear(r)
+		if r.x < 0 or r.y < 0 or r.x + r.w > viewW or r.y + r.h > viewH then return false end
+		return not (r.x < b.x + b.w + c and b.x < r.x + r.w + c and r.y < b.y + b.h + c and b.y < r.y + r.h + c)
+	end
+	local cands = { { -10, -h }, { -(h + c), 0 }, { p.w + c, 0 }, { -10, -16 } }
+	for _, k in ipairs(cands) do
+		if clear(rectOf(k[1], k[2])) then return { inset = k[1], top = k[2], rect = rectOf(k[1], k[2]) } end
+	end
+	local k = cands[1]
+	return { inset = k[1], top = k[2], rect = rectOf(k[1], k[2]), clamped = true }
+end
+
 function M.place(r, viewW, viewH, avoid)
 	local strip = M.strip(r, viewW, viewH, avoid)
 	if strip then return strip end
