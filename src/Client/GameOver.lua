@@ -45,7 +45,7 @@ local WOOD = Color3.fromRGB(70, 50, 34)
 local GREEN = Color3.fromRGB(60, 110, 70)
 local BRASS = Color3.fromRGB(196, 150, 60)
 
-local FACT_SIZE = 17
+local FACT_SIZE = 16 -- one body size; section titles are gold 18
 local LINE_PAD = 6
 
 -- text colours by tone: light on the dark wood panel, dark ink on the painted scroll's paper (4.5:1 or better on the paper)
@@ -60,8 +60,11 @@ return function(deps)
 	local playSfx, SOUND_IDS = deps.playSfx, deps.SOUND_IDS
 
 	-- dim: the full-screen dark dim (hides the table so no cards peek out) and click sink; one Visible flag shows and hides all.
-	local dim = Instance.new("Frame")
+	local dim = Instance.new("ScrollingFrame") -- a short window (a phone on its side) scrolls the panel at a readable size instead of shrinking its text
 	dim.Name = "GameOver"
+	dim.ScrollBarThickness = 6
+	dim.ScrollingDirection = Enum.ScrollingDirection.Y
+	dim.CanvasSize = UDim2.fromOffset(0, 0)
 	dim.Size = UDim2.fromScale(1, 1)
 	dim.BackgroundColor3 = Color3.fromRGB(10, 8, 6)
 	dim.BackgroundTransparency = 0.25 -- a dark scrim: the play screen behind is only a faint shape
@@ -353,7 +356,7 @@ return function(deps)
 			if okB and bestLine then add(bestLine, { tone = "soft" }) end
 		end
 		if summary then
-			add("Road taken", { tone = "gold" })
+			add("Road taken", { TextSize = 18, tone = "gold" })
 			local names = {}
 			for _, stop in ipairs(summary.route or {}) do names[#names + 1] = stop.name or stop.id end
 			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" })
@@ -401,7 +404,7 @@ return function(deps)
 	local mode = "plain" -- "plain" (dark wood panel) or "scroll" (painted paper): decides the text colours
 
 	local function measureFacts(width)
-		local y = 0
+		local y = RunOverLayout.TOP_PAD
 		for _, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
 			y = y + RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size) * (size + 3) + LINE_PAD
@@ -411,7 +414,7 @@ return function(deps)
 
 	local function buildFacts(width)
 		clearFacts()
-		local y = 0
+		local y = RunOverLayout.TOP_PAD
 		for i, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
 			local n = RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size)
@@ -625,10 +628,21 @@ return function(deps)
 			applyMode("plain")
 			local cols = RunOverLayout.columns(sw)
 			factsH = buildFacts(cols.leftW)
-			r = RunOverLayout.computeTouch(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6, boons = boonN,
-				bigPrimary = true, pills = true, cardSeats = true, textW = textW })
+			local spec = { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6, boons = boonN,
+				bigPrimary = true, pills = true, cardSeats = true, textW = textW }
+			r = RunOverLayout.computeTouch(sw, sh, spec)
+			local scrolls = false
+			if r.scale < RunOverLayout.MIN_READ_SCALE then -- too short to shrink: keep the text readable and let the player scroll
+				local tall = RunOverLayout.computeTouch(sw, 100000, spec)
+				if tall.scale >= RunOverLayout.MIN_READ_SCALE then r, scrolls = tall, true end
+			end
 			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			fit.Scale = r.scale
+			panel.AnchorPoint = Vector2.new(0.5, scrolls and 0 or 0.5)
+			panel.Position = scrolls and UDim2.new(0.5, 0, 0, 8) or UDim2.fromScale(0.5, 0.5)
+			dim.CanvasSize = UDim2.fromOffset(0, scrolls and math.ceil(r.panel.h * r.scale) + 16 or 0)
+			dim.ScrollingEnabled = scrolls
+			dim.ScrollBarImageTransparency = scrolls and 0.3 or 1
 			content.Position = UDim2.fromOffset(0, 0)
 			content.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			contentScale.Scale = 1
@@ -765,7 +779,7 @@ return function(deps)
 				else
 					scrollPicture.ImageTransparency = 0
 				end
-			else
+			elseif ClientSettings.get("reduceShake") ~= true then -- Calm mode: the panel simply appears at its fitted scale
 				fit.Scale = target * 0.85
 				TweenService:Create(fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
 			end

@@ -45,6 +45,7 @@ return function(deps)
 	-- The plate art is a wide wooden frame stretched to this box; its parchment is the middle 72 x 54 percent
 	-- (measured from the art: x 0.139 to 0.863, y 0.242 to 0.780). Everything must sit inside it.
 	local PLATE_W, PLATE_H = 560, 520
+	local COMPACT_BELOW, COMPACT_H = 560, 320 -- windows shorter than this use the dark plate, 320 px tall
 	local PARCH = { x = 0.139, w = 0.724, y = 0.242, h = 0.538, inset = 12 }
 
 	local backdrop = Instance.new("Frame")
@@ -95,7 +96,7 @@ return function(deps)
 	flow.Padding = UDim.new(0, 8)
 	flow.Parent = content
 	local order = 0
-	local function nextOrder() order += 1 return order end
+	local function nextOrder() order = order + 1 return order end
 
 	local inkLabels = {} -- { label, paintedColor, darkColor }
 	local function label(props, paintedColor)
@@ -188,8 +189,12 @@ return function(deps)
 	local function dress()
 		local setId = HudTheme.setId()
 		local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
-		local painted = kitId ~= nil
-		panel.Image = kitId or ""
+		-- a short window (a phone on its side) cannot hold the 520 px painted plate: it gets the compact dark plate instead, 14 px text kept
+		local win = deps.screenGui.AbsoluteSize
+		local compact = win.Y > 0 and win.Y < COMPACT_BELOW
+		local painted = kitId ~= nil and not compact
+		panel.Size = compact and UDim2.fromOffset(math.min(PLATE_W, math.max(300, win.X - 16)), math.min(COMPACT_H, win.Y - 16)) or UDim2.fromOffset(PLATE_W, PLATE_H)
+		panel.Image = painted and kitId or ""
 		panel.BackgroundTransparency = painted and 1 or 0
 		panelStroke.Enabled = not painted
 		panelCorner.CornerRadius = UDim.new(0, painted and 0 or 14)
@@ -212,6 +217,9 @@ return function(deps)
 		if backdrop.Visible then dress() end
 	end)
 	HudTheme.onSkin(dress)
+	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if backdrop.Visible then dress() end
+	end)
 
 	local function proceed()
 		if not backdrop.Visible then return end -- one press only: the click, Activated and the pointer check can all arrive

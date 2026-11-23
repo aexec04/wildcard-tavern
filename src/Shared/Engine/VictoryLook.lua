@@ -13,6 +13,7 @@
 local M = {}
 
 M.MIN_TEXT = 16
+M.MIN_TAP = 44 -- every button is at least this tall on screen
 M.DESIGN_W, M.DESIGN_H = 1280, 720
 
 -- opaque area of each picture (x0, y0, x1, y1 as fractions), measured from the generated PNGs
@@ -64,12 +65,26 @@ function M.layout(w, h, mode)
 	out.hero.y = math.max(out.hero.y, h - out.hero.h)
 	out.heroGlow, out.chestGlow = M.glow(out.hero), M.glow(out.chest)
 	out.title = { x = out.banner.x + round(out.banner.w * 0.2), y = out.banner.y + round(out.banner.h * 0.18), w = round(out.banner.w * 0.6), h = round(out.banner.h * 0.64) }
-	if mode == "pick" then
+	-- a button is never under 44 px, and a short window says it in fewer words so the text fits its plate
+	out.compact = s < 0.75
+	local minH = M.MIN_TAP
+	if out.button.h < minH then out.button.y, out.button.h = out.button.y - math.floor((minH - out.button.h) / 2), minH end
+	if mode == "pick" and (230 * s < 205) then -- too short for the portrait cards: art steps aside, three plain cards share the width
+		out.compactCards = true
+		local gap = 12
+		local cw = math.min(220, math.floor((w - 48) / 3))
+		local x0 = math.floor((w - (3 * cw + 2 * gap)) / 2)
+		local y0 = out.subtitle.y + out.subtitle.h + 6
+		local ch = math.max(M.MIN_TAP * 2 + 10, out.button.y - 8 - y0)
+		out.cards = {}
+		for i = 1, 3 do out.cards[i] = { x = x0 + (i - 1) * (cw + gap), y = y0, w = cw, h = ch } end
+	elseif mode == "pick" then
 		out.cards = { R(305, 280, 210, 230), R(535, 280, 210, 230), R(765, 280, 210, 230) }
 	else
 		out.rewards = R(304, 280, 336, 230)
 		out.summary = R(660, 280, 320, 230)
 		out.invite = R(315, 550, 180, 86) -- Invite a friend, left of Continue
+		if out.invite.h < minH then out.invite.y, out.invite.h = out.invite.y - math.floor((minH - out.invite.h) / 2), minH end
 		out.share = R(320, 670, 640, 44) -- plain text share line under the next step line (ends at 714 of 720)
 	end
 	return out
@@ -165,10 +180,12 @@ function M.shareLine(summary, best)
 end
 
 M.INVITE_TEXT = "Invite a friend"
+M.INVITE_SHORT = "Invite"
 
 M.NEXT_SIZE = 16
 M.NEXT_RUN = "Next: Endless Mode starts at the next Night."
 M.CONTINUE_TEXT = "Continue to Endless"
+M.CONTINUE_SHORT = "Endless"
 M.CONTINUE_SIZE = 22
 M.SUBTITLE_RUN = "The Tavern celebrates your triumph!"
 M.SUBTITLE_PICK = "A thank you from the tavern."

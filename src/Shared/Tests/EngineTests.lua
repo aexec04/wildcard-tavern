@@ -36786,6 +36786,26 @@ table.insert(tests, { name = "Run Over and Victory: facts lines and Run Summary 
 	end
 end })
 
+table.insert(tests, { name = "Run Over facts plate: every label starts 30 px inside the plate (12 px minimum), 12 px top, one 16 px body size, gold 18 px titles", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	for _, sz in ipairs({ 1920, 1280, 1024, 800 }) do
+		local cols = RL.columns(sz)
+		local leftW = cols and cols.leftW or RL.LEFT_W
+		local fromPlate = RL.factInset() + RL.PLATE_PAD -- label left edge minus plate left edge
+		expectTrue(fromPlate >= 12, sz .. " label is 12 px or more inside the plate")
+		expectTrue(fromPlate >= RL.BORDER_W + RL.SIDE_PAD, sz .. " label clears the wood border by 16 px")
+		expectTrue(fromPlate + RL.factWidth(leftW) <= leftW + 2 * RL.PLATE_PAD - 16, sz .. " right side keeps 16 px too")
+	end
+	expectTrue(RL.TOP_PAD >= 12, "12 px top padding")
+	local g = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("local FACT_SIZE = 16", 1, true) ~= nil, "body size is 16")
+		expectTrue(t:find('add("Road taken", { TextSize = 18, tone = "gold" })', 1, true) ~= nil, "section title is gold 18")
+		expectTrue(t:find("local y = RunOverLayout.TOP_PAD", 1, true) ~= nil, "facts start below the top padding")
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
@@ -39919,6 +39939,7 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 				apart(L.invite, L.share, "invite and share line at " .. w)
 			end
 			local list = { L.banner, L.subtitle, L.hero, L.chest, L.button }
+			if L.compactCards then list = { L.banner, L.subtitle, L.button } end -- the keeper and the chest are not drawn on a short pick screen
 			if mode == "run" then list[#list + 1] = L.rewards; list[#list + 1] = L.summary else for _, c in ipairs(L.cards) do list[#list + 1] = c end end
 			for i, r in ipairs(list) do
 				inside(r, w, h, mode .. " plate " .. i .. " at " .. w)
@@ -53555,7 +53576,152 @@ table.insert(tests, { name = "First run tutorial: every step caption fits in two
 	expectTrue(src:find("Steps.placeCaption(", 1, true) ~= nil and src:find("Steps.ribbonSize(", 1, true) ~= nil, "the walkthrough places the caption with the shared rules")
 end })
 
+-- the REAL Run Over screen read back from its live instances (colours, sizes, plates), loss, win and Endless, at 1280x720 and 800x360
+local function buildGameOver(FakeGui, E, calm)
+	local map = {}
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine" }) do map[n] = require(E[n]) end
+	local stubs = {
+		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
+		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },
+		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function(k) return calm == true and k == "reduceShake" end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	local GameOver = FakeGui.load("src/Client/GameOver.lua", env)
+	local root = FakeGui.new("Frame")
+	local function noop() end
+	local P = GameOver({ root = root, polishPanel = noop, polishButton = noop, addSoftShadow = noop, tweenTo = noop, playSfx = noop, SOUND_IDS = {},
+		playClick = noop, saveBadge = noop, makeSeed = function() return "ABC234" end })
+	return P, root
+end
+
+table.insert(tests, { name = "Run Over live readability: loss, win and Endless at 1280x720 and 800x360 have 14 px text, 4.5 to 1 body and 3 to 1 headings on the real plates, 44 px buttons, nothing off screen", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local E = script.Parent.Parent.Engine
+	local P, root = buildGameOver(FakeGui, E, true) -- Calm mode: no pop-in, so the scale read back is the fitted one
+	local summary = { night = 5, round = 3, won = false, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" }, { name = "Harbor" } },
+		patrons = { { id = "a", name = "Ada", icon = "A" }, { id = "b", name = "Bo", icon = "B" }, { id = "c", name = "Cy", icon = "C" } },
+		blessing = { name = "Generous House" }, rarity = "common", badgeSaved = false }
+	local states = {
+		loss = { phase = "gameover", night = 5, round = 3, roundScore = 604, targetScore = 3174, tips = 12, continueOffer = "free", runSummary = summary, nextUnlock = { label = "Fast Hands at 3 wins" } },
+		win = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary },
+		endless = { phase = "gameover", night = 12, round = 2, roundScore = 9000, targetScore = 30000, tips = 7, endless = true, runSummary = summary },
+	}
+	local found = {}
+	for _, name in ipairs({ "loss", "win", "endless" }) do
+		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+			root.AbsoluteSize = { X = size[1], Y = size[2] }
+			P.gameOverFrame.Visible = true -- the screen is up (the table refresh normally shows it)
+			P.refreshGameOver(states[name], nil)
+			FakeGui.layout(root, size[1], size[2])
+			local res = Audit.audit(P.gameOverFrame, size[1], size[2])
+			expectTrue(res.seen >= 6 and res.buttons >= 3, name .. " " .. size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
+			for _, f in ipairs(res) do found[#found + 1] = name .. " " .. size[1] .. "x" .. size[2] .. " " .. f end
+		end
+	end
+	-- negative control: the audit does flag a 10 px grey label on a pale plate and a 30 px button
+	local ctl = FakeGui.new("Frame"); ctl.AbsoluteSize = { X = 300, Y = 100 }
+	local pl = FakeGui.new("Frame"); pl.BackgroundColor3 = Color3.fromRGB(240, 240, 240); pl.BackgroundTransparency = 0; pl.Parent = ctl
+	local lb = FakeGui.new("TextLabel"); lb.Text = "tiny"; lb.TextSize = 10; lb.TextColor3 = Color3.fromRGB(200, 200, 200); lb.TextTransparency = 0; lb.Parent = pl
+	local bt = FakeGui.new("TextButton"); bt.Text = "ok"; bt.TextSize = 16; bt.TextColor3 = Color3.fromRGB(0, 0, 0); bt.BackgroundColor3 = Color3.fromRGB(255, 255, 255); bt.BackgroundTransparency = 0; bt.Parent = ctl
+	FakeGui.layout(ctl, 300, 100)
+	lb.AbsoluteSize, bt.AbsoluteSize = { X = 80, Y = 20 }, { X = 80, Y = 30 }
+	expectTrue(#Audit.audit(ctl, 300, 100) >= 3, "the audit flags small text, weak contrast and a 30 px button")
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "Run Over has " .. #found .. " readability findings")
+end })
+
+
+table.insert(tests, { name = "Victory screen live readability: Run complete and the Patron reward pick at 1280x720 and 800x360 have 14 px text, readable ink on parchment, 44 px buttons, nothing off screen", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "VictoryLook", "VictorySceneArt", "TavernStyle" }) do map[n] = require(E[n]) end
+	local stubs = { ClientSettings = { get = function(k) return k == "reduceShake" end }, PatronPlaque = { apply = function() return nil end },
+		TavernKit = { plateSetId = function() return nil end, painted = function() end } }
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	local Victory = FakeGui.load("src/Client/VictoryScreen.lua", env)
+	local summary = { night = 8, round = 3, handsPlayed = 31, bestHand = { name = "Full House", score = 604 }, tipsEarned = 40, xpEarned = 120, patrons = { { id = "a", name = "Ada" } } }
+	local choice = { title = "Pick a Patron", skip = true, options = {
+		{ id = "a", name = "Ada", icon = "A", line1 = "+4 Mult on pairs", line2 = "" }, { id = "b", name = "Bo", icon = "B", line1 = "+20 Chips", line2 = "Once a hand" },
+		{ id = "c", name = "Cy", icon = "C", line1 = "x1.5 Mult", line2 = "On the last hand" } } }
+	local found = {}
+	local function painted(l) return l.TextStrokeTransparency ~= nil and l.TextStrokeTransparency <= 0.5 end -- big title text on the painted room carries a dark stroke
+	for _, mode in ipairs({ "run", "pick" }) do
+		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+			local gui = FakeGui.new("ScreenGui")
+			gui.AbsoluteSize = { X = size[1], Y = size[2] }
+			Victory.hide()
+			if mode == "run" then Victory.show(gui, { summary = summary }) else Victory.showPick(gui, choice, function() end, function() end) end
+			FakeGui.layout(gui, size[1], size[2])
+			local res = Audit.audit(gui, size[1], size[2], { paintedOk = painted })
+			expectTrue(res.seen >= 4 and res.buttons >= 1, mode .. " " .. size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
+			for _, f in ipairs(res) do found[#found + 1] = mode .. " " .. size[1] .. "x" .. size[2] .. " " .. f end
+		end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "the Victory screens have " .. #found .. " readability findings")
+end })
+
+table.insert(tests, { name = "Night victory plate live readability: 1280x720 and 800x360 keep 14 px text, readable colours, a 44 px button, and the plate inside the window", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "HudKit", "ResultButtonHit" }) do map[n] = require(E[n]) end
+	local stubs = {
+		ParticleBurst = function() return { burst = function() end } end,
+		ClientSettings = { get = function() return true end },
+		HudTheme = { setId = function() return nil end, onSkin = function() end },
+		PopupDismiss = { attach = function() end }, Cue = { play = function() end }, ResultGuard = { hold = function() end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	state.services.UserInputService = { InputBegan = FakeGui.signal() }
+	state.services.GuiService = {}
+	local NightVictory = FakeGui.load("src/Client/NightVictory.lua", env)
+	local found = {}
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = size[1], Y = size[2] }
+		local noop = function() end
+		NightVictory({ screenGui = gui, addSoftShadow = noop, roundCorner = noop, playClickSfx = noop, tweenTo = noop, getLatestState = function() return nil end,
+			StateUpdatedRemote = { OnClientEvent = FakeGui.signal() }, getBestHand = function() return nil end })
+		local backdrop = gui:FindFirstChild("NightVictoryBackdrop")
+		backdrop.Visible = true
+		FakeGui.layout(gui, size[1], size[2])
+		local plate = backdrop:FindFirstChild("Plate")
+		expectTrue(plate.Size.X.Offset <= size[1] and plate.Size.Y.Offset <= size[2], "the plate fits " .. size[1] .. "x" .. size[2] .. " (" .. plate.Size.X.Offset .. "x" .. plate.Size.Y.Offset .. ")")
+		local res = Audit.audit(backdrop, size[1], size[2])
+		expectTrue(res.seen >= 6 and res.buttons >= 1, size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
+		for _, f in ipairs(res) do found[#found + 1] = size[1] .. "x" .. size[2] .. " " .. f end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "the Night victory plate has " .. #found .. " readability findings")
+end })
+
+table.insert(tests, { name = "VictoryLook compact pick: short windows drop the art, keep three cards inside the screen above a 44 px button, roomy windows keep the portrait cards", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	for _, sz in ipairs({ { 800, 360 }, { 844, 390 }, { 1024, 576 } }) do
+		local L = Look.layout(sz[1], sz[2], "pick")
+		expectTrue(L.compactCards == true, sz[1] .. "x" .. sz[2] .. " uses the compact cards")
+		for i, c in ipairs(L.cards) do
+			expectTrue(c.x >= 0 and c.x + c.w <= sz[1] and c.y >= L.subtitle.y + L.subtitle.h and c.y + c.h <= L.button.y, "card " .. i .. " sits between the subtitle and the button at " .. sz[1])
+			expectTrue(c.h >= Look.MIN_TAP * 2, "card " .. i .. " has room for text and a 44 px Choose button at " .. sz[1])
+		end
+		expectTrue(L.button.h >= 44, "the Skip plate is 44 px or more at " .. sz[1])
+	end
+	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 } }) do expectFalse(Look.layout(sz[1], sz[2], "pick").compactCards, sz[1] .. " keeps the portrait cards") end
+end })
+
 return tests
+
 
 
 
