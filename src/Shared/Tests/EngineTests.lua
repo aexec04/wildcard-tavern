@@ -30890,6 +30890,32 @@ table.insert(tests, { name = "Menu Daily strip shares no x range with Deal Me In
 	end
 end })
 
+table.insert(tests, { name = "Daily strip: the Client sizes the Chest word and Goal line with TextFit (no TextScaled), and the worst timer fits 24 px inside the plate at four sizes", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local strip = D.menuRect(sz[1], sz[2])
+		if strip then
+			local c = D.chestRect(strip)
+			local inner = c.w - 2 * D.CHEST_PAD
+			local word = "Next in 19h 38m"
+			local size = F.bestSize(word, inner, c.h, 12, 16)
+			expectTrue(size ~= nil, sz[1] .. "x" .. sz[2] .. " the timer word has a size that fits")
+			expectTrue(F.width(word, size) <= inner, sz[1] .. "x" .. sz[2] .. " the timer is at least 24 px narrower than the chest plate")
+			local cols = D.columns(strip)
+			local goal = "Win 3 rounds today (2 of 3)"
+			expectTrue(#F.clip(goal, cols.goalW, 12) <= #goal, "the Goal line is clipped to its column")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/DailyStrip.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectFalse(t:find("TextScaled = true", 1, true) ~= nil, "no TextScaled = true left in DailyStrip")
+		expectTrue(t:find("TextFit.bestSize(v.chestText", 1, true) ~= nil, "Chest size comes from TextFit.bestSize")
+		expectTrue(t:find("TextFit.bestSize(v.goalText", 1, true) ~= nil, "Goal size comes from TextFit.bestSize")
+	end
+end })
+
 table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
