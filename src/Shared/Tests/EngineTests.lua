@@ -51100,6 +51100,103 @@ table.insert(tests, { name = "Mobile and touch rules: every gameplay control is 
 	end
 end })
 
+table.insert(tests, { name = "Calm mode and accessibility effects: Calm removes flashing, shake, big particles and the Legendary banner pop without touching any score or timing rule, Larger Text never clips a plate at four sizes, every colour cue also has a word or shape", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local A, SL, FX = require(Engine.Accessibility), require(Engine.SettingsLayout), require(Engine.FlashFX)
+	local L, RC, BR, Moments = require(Engine.Gameplay2Layout), require(Engine.RarityCues), require(Engine.BossRounds), require(Engine.Gameplay2Moments)
+
+	-- Calm mode is any of its three switches, and the Calm switch turns all three on
+	local writes = SL.calmWrites(true)
+	expectTrue(writes.reduceMotion == true and writes.reduceFlashing == true and writes.reduceShake == true, "the Calm switch sets all three")
+	for _, key in ipairs({ "reduceMotion", "reduceFlashing", "reduceShake" }) do
+		expectTrue(A.calm({ [key] = true }), key .. " is Calm")
+		for _, burst in ipairs({ 10, 14, 20, 60 }) do
+			expectTrue(A.particleCount({ [key] = true }, burst) <= A.CALM_PARTICLE_MAX, key .. " caps a burst of " .. burst .. " (no big particles)")
+		end
+	end
+	expectEqual(A.particleCount({}, 14), 14, "without Calm a burst is untouched")
+	expectEqual(A.particleCount({ reduceFlashing = true }, 20), 8, "Reduce Flashing still keeps 40 percent")
+	expectEqual(A.particleCount({ reduceShake = true }, 3), 3, "a small burst stays as it is")
+	expectEqual(A.particleCount({ reduceShake = true, performanceMode = true }, 14), 0, "Performance mode still wins")
+	-- flashing: the Legendary, Wildcard and Showdown flashes become a still glow, no motes and no sweep
+	for _, kind in ipairs({ "legendary", "wildcard", "showdown" }) do
+		local still, moving = FX.spec(kind, true), FX.spec(kind, false)
+		expectFalse(still.motion, kind .. " has no moving motes or sweep in Calm mode")
+		expectEqual(still.layers[1].fadeIn, 0, kind .. " has no pulsing fade in Calm mode")
+		expectTrue(moving.motion, kind .. " keeps its motion otherwise")
+	end
+	-- score and timing rules never read the comfort settings: the server and the scoring engine do not know them
+	local function scan(path, words)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return end
+		local src = f:read("*a"); f:close()
+		for _, w in ipairs(words) do
+			expectTrue(src:find(w, 1, true) == nil, path .. " never reads " .. w)
+		end
+	end
+	local words = { "reduceShake", "reduceMotion", "reduceFlashing", "largerText", "Accessibility" }
+	for _, path in ipairs({ "src/Server/init.server.lua", "src/Shared/Engine/Scoring.lua", "src/Shared/Engine/RunState.lua", "src/Shared/Engine/HandEvaluator.lua", "src/Shared/Engine/Shop.lua", "src/Shared/Engine/RunModifiers.lua" }) do
+		scan(path, words)
+	end
+	-- the Legendary banner and its shake are gated in the client
+	local f = io and io.open and io.open("src/Client/ScorePopup.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('legendaryBannerScale.Scale = ClientSettings.get("reduceShake") == true and 1 or 0.4', 1, true) ~= nil, "Calm mode: the banner does not start small")
+		expectTrue(src:find('if ClientSettings.get("reduceShake") ~= true then -- Calm mode: no pop', 1, true) ~= nil, "Calm mode: no banner pop tween")
+	end
+	local vh = io and io.open and io.open("src/Client/VisualHelpers.lua", "r")
+	if vh then
+		local src = vh:read("*a"); vh:close()
+		local at = src:find("local function screenShake", 1, true)
+		expectTrue(at ~= nil and src:find('get("reduceShake")', at, true) ~= nil and src:find('get("reduceShake")', at, true) - at < 400, "screenShake returns at once in Calm mode")
+	end
+	local pb = io and io.open and io.open("src/Client/ParticleBurst.lua", "r")
+	if pb then
+		local src = pb:read("*a"); pb:close()
+		expectTrue(src:find("particleCount(count)", 1, true) ~= nil, "every burst goes through the Calm particle cap")
+	end
+
+	-- Larger Text: a label grows 15 percent but never past its own box, on every plate row at four sizes
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 600 }, { 1280, 720 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		local plates = { { "play", r.play }, { "discard", r.discard } }
+		for i, sl in ipairs(r.slots) do
+			plates[#plates + 1] = { "seat label " .. i, sl.label }
+			plates[#plates + 1] = { "seat pill " .. i, sl.pill }
+		end
+		for _, p in ipairs(plates) do
+			for _, base in ipairs({ 12, 14, 16, 20 }) do
+				local big = A.scaledTextSize(base, A.TEXT_SCALE, p[2].h)
+				expectTrue(big >= base, tag .. " " .. p[1] .. " never shrinks below " .. base)
+				expectTrue(big == base or big <= math.floor(p[2].h * 0.9), tag .. " " .. p[1] .. " Large text " .. big .. " fits a " .. p[2].h .. " px plate")
+				expectTrue(big <= math.floor(base * A.TEXT_SCALE + 0.5), tag .. " " .. p[1] .. " grows at most 15 percent")
+			end
+		end
+	end
+	expectEqual(A.textScale({ largerText = true }), 1.15, "Large is 15 percent")
+	expectEqual(A.textScale({}), 1, "Normal is untouched")
+
+	-- colour is never the only cue: rarity has a word and a shape, suits a glyph and letter, every boss rule a letter or drawn icon
+	local shapes = {}
+	for _, tier in ipairs(RC.order) do
+		expectTrue(type(RC.WORD[tier]) == "string" and #RC.WORD[tier] > 0, tier .. " has its word")
+		local sh = RC.shape(tier)
+		expectTrue(sh ~= nil and not shapes[sh.name], tier .. " has its own shape")
+		if sh then shapes[sh.name] = true end
+	end
+	for suit, m in pairs(A.SuitMarks) do
+		expectTrue(#m.glyph > 0 and #m.letter == 1, suit .. " has a glyph and a corner letter")
+	end
+	for _, boss in ipairs(BR.Definitions) do
+		expectTrue(type(boss.description) == "string" and #boss.description > 0, boss.id .. " says its rule in words")
+		local first = boss.rules and boss.rules[1]
+		expectTrue(first ~= nil and Moments.ICONS[first] ~= nil, boss.id .. " rule " .. tostring(first) .. " has a letter icon")
+	end
+end })
+
 return tests
 
 

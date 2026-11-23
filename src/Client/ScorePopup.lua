@@ -1314,7 +1314,7 @@ return function(deps)
 			if legendary then
 				legendaryBanner.TextTransparency = 1
 				legendaryBanner.TextStrokeTransparency = 1
-				legendaryBannerScale.Scale = 0.4
+				legendaryBannerScale.Scale = ClientSettings.get("reduceShake") == true and 1 or 0.4 -- Calm mode: the banner just fades in, no pop
 
 				-- HARD SAFETY NET, same pattern as the ghosts' own
 				-- GHOST_HARD_TIMEOUT below: no matter what else goes wrong
@@ -1339,12 +1339,14 @@ return function(deps)
 				activeFlash = FlashFX.play(root, "legendary", centerOf(scorePopup), { zIndex = 33, banner = legendaryBanner })
 
 				tweenTo(legendaryBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
-				tweenTo(legendaryBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-				task.delay(pace(0.22), function()
-					if scorePopupToken == myToken then
-						tweenTo(legendaryBannerScale, { Scale = 1 }, pace(0.14), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-					end
-				end)
+				if ClientSettings.get("reduceShake") ~= true then -- Calm mode: no pop
+					tweenTo(legendaryBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					task.delay(pace(0.22), function()
+						if scorePopupToken == myToken then
+							tweenTo(legendaryBannerScale, { Scale = 1 }, pace(0.14), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+						end
+					end)
+				end
 
 				task.wait(pace(LEGENDARY_FREEZE_HOLD))
 				if scorePopupToken ~= myToken then

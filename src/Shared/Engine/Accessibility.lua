@@ -15,6 +15,7 @@ local Accessibility = {}
 
 Accessibility.TEXT_SCALE = 1.15
 Accessibility.PARTICLE_SCALE = 0.4 -- particle counts under Reduce Flashing
+Accessibility.CALM_PARTICLE_MAX = 8 -- the biggest burst Calm mode allows
 Accessibility.HOLD_MIN, Accessibility.HOLD_MAX, Accessibility.HOLD_DEFAULT = 0.5, 3, 1.5
 Accessibility.HoldChoices = { 0.5, 1, 1.5, 2, 3 }
 
@@ -57,7 +58,10 @@ function Accessibility.particleCount(settings, count)
 	count = math.max(0, math.floor(tonumber(count) or 0))
 	if on(settings, "performanceMode") then return 0 end -- Performance mode: no particles at all
 	if on(settings, "reduceFlashing") then
-		return math.floor(count * Accessibility.PARTICLE_SCALE)
+		count = math.floor(count * Accessibility.PARTICLE_SCALE)
+	end
+	if Accessibility.calm(settings) then
+		count = math.min(count, Accessibility.CALM_PARTICLE_MAX) -- Calm mode: no big bursts, whichever of its three switches is on
 	end
 	return count
 end
