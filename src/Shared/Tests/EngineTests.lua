@@ -574,6 +574,48 @@ table.insert(tests, { name = "RunState.sellPatron fails gracefully for a patron 
 	expectEqual(refund, 0)
 end })
 
+table.insert(tests, { name = "Boss Night flow Night 1 to 8: boss fits the Night, never repeats, last round is unskippable, skips pay once and never change the boss", fn = function()
+	local tipJarIndex
+	for i, tag in ipairs(Tags.Definitions) do if tag.id == "tip_jar" then tipJarIndex = i end end
+	local rng = function(n) return math.min(tipJarIndex, n) end
+	local state = RunState.new(nil, rng)
+	local perNight = state.config.roundsPerNight
+	local cap = state.config.nightCap
+	local seen = {}
+	for night = 1, 8 do
+		state.night, state.round = night, 1
+		state.tips = 0
+		RunState.startRound(state)
+		local boss = state.nightBossModifier
+		expectTrue(boss ~= nil, "Night " .. night .. " has a boss revealed at round 1")
+		expectTrue((boss.minNight or 1) <= night, "Night " .. night .. " boss is not from a harder tier")
+		if night >= cap then
+			expectTrue((boss.minNight or 1) >= BossRounds.FINAL_MIN_NIGHT, "the final Night faces the hardest tier")
+		end
+		expectFalse(seen[boss.id] and night <= 4, "no repeat of a boss early in the run: " .. boss.id)
+		seen[boss.id] = true
+		expectTrue(state.bossModifier == nil, "round 1 is never the boss round")
+		-- skip every skippable round once: each pays its Tag once and the boss stays the same
+		for r = 1, perNight - 1 do
+			expectTrue(RunState.canSkipRound(state), "round " .. r .. " skippable")
+			local before, roundBefore = state.tips, state.round
+			local _, result = RunState.skipRound(state)
+			if result.kind == "tips" then
+				expectEqual(state.tips, before + result.amount, "skip pays the Tag amount exactly once")
+				expectTrue(result.amount < state.config.tipsPerRoundWin, "skip pays less than winning")
+			end
+			expectEqual(state.round, roundBefore + 1)
+			expectEqual(state.nightBossModifier.id, boss.id, "skipping never rerolls the boss")
+		end
+		expectEqual(state.round, perNight)
+		expectTrue(state.isBossRound, "last round is the boss round")
+		expectEqual(state.bossModifier.id, boss.id, "the revealed boss is the one faced")
+		expectTrue(state.currentRoundSkipTag == nil, "no skip Tag on the boss round")
+		expectFalse(RunState.canSkipRound(state), "boss round cannot be skipped")
+		expectFalse(pcall(RunState.skipRound, state), "skipRound refuses on the boss round")
+	end
+end })
+
 table.insert(tests, { name = "Sell audit: refund once, count text matches, the effect stops, and selling or undoing mid round is refused by the server", fn = function()
 	expectFalse(RunState.phaseAllowsPatronSell("playing"), "no selling while a round is played")
 	for _, phase in ipairs({ "shop", "roundSelect", "gameover" }) do
