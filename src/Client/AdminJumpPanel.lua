@@ -22,8 +22,18 @@ function AdminJumpPanel.init(gui, getState)
 	if not Keys.shouldBuild(RunService:IsStudio()) then return nil end
 	local player = Players.LocalPlayer
 	local ids = {}
-	pcall(function() ids.boss = require(Engine.BossRounds).Definitions[1].id end)
-	pcall(function() ids.recipe = require(Engine.Recipes).HouseRecipes[1].id end)
+	pcall(function()
+		ids.bosses = {}
+		for _, b in ipairs(require(Engine.BossRounds).Definitions) do ids.bosses[#ids.bosses + 1] = { id = b.id, name = b.name } end
+	end)
+	pcall(function()
+		ids.recipes = {}
+		for _, r in ipairs(require(Engine.Recipes).HouseRecipes) do ids.recipes[#ids.recipes + 1] = r.id end
+	end)
+	pcall(function()
+		ids.tags = {}
+		for _, t in ipairs(require(Engine.Tags).Definitions) do ids.tags[#ids.tags + 1] = t.id end
+	end)
 
 	local PANEL_W, TAB_W = 190, 44
 	local root = Instance.new("Frame")
@@ -100,6 +110,24 @@ function AdminJumpPanel.init(gui, getState)
 	end
 
 	for i, entry in ipairs(Keys.list(ids)) do
+		if entry.heading then -- a plain 24 px group label, not a button
+			local h = Instance.new("TextLabel")
+			h.Name = "Heading_" .. entry.label
+			h.LayoutOrder = i
+			h.Size = UDim2.new(1, -10, 0, Keys.HEADING_HEIGHT)
+			h.BackgroundTransparency = 1
+			h.Font = Enum.Font.GothamBold
+			h.TextSize = 16
+			h.TextColor3 = Color3.fromRGB(240, 200, 110)
+			h.TextTransparency = 0
+			h.TextStrokeTransparency = 1
+			h.TextXAlignment = Enum.TextXAlignment.Left
+			h.Text = entry.label
+			h.ZIndex = Z
+			h.Active = false
+			h.Parent = scroll
+			continue
+		end
 		local b = Instance.new("TextButton")
 		b.Name = "Jump_" .. entry.value
 		b.LayoutOrder = i

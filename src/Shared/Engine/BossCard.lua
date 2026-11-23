@@ -13,6 +13,7 @@
 ]]
 
 local PatronPowerPanel = require(script.Parent.PatronPowerPanel)
+local BossRuleFit = require(script.Parent.BossRuleFit)
 
 local M = {}
 
@@ -74,8 +75,12 @@ end
 M.PANEL_Y = 0.193
 M.PANEL_H = 0.199
 M.PORTRAIT = 120
+M.MAX_W, M.MAX_H = 380, 150 -- the plate never grows past this
+M.RULE_MIN, M.RULE_MAX, M.RULE_LINES = 14, 17, 2 -- rule words: 14 px or more, at most two lines
+M.PORTRAIT_MIN = 64
+M.STACK_PORTRAIT = 48
 
-function M.cardRect(r, viewW, viewH)
+function M.rawCardRect(r, viewW, viewH)
 	local spot = PatronPowerPanel.place(r, viewW, viewH, {})
 	local pl = spot and spot.plate
 	if not pl then return nil end
@@ -102,6 +107,12 @@ function M.cardRect(r, viewW, viewH)
 	return { x = x, y = pl.y, w = w, h = pl.h }
 end
 
+function M.cardRect(r, viewW, viewH)
+	local c = M.rawCardRect(r, viewW, viewH)
+	if not c then return nil end
+	return { x = c.x, y = c.y, w = math.min(c.w, M.MAX_W), h = math.min(c.h, M.MAX_H) }
+end
+
 -- How far the Boss card's glow rings may reach past each edge, and how far a Patron card's halo may: both stop GLOW_CLEAR px short of the
 -- next card (the halo of two neighbours shares the gap), so a glow never washes over a neighbouring seat or its badges.
 M.GLOW_CLEAR = 6
@@ -113,15 +124,43 @@ end
 function M.bossReach(gap) return math.max(0, math.min(30, math.floor((tonumber(gap) or 0) - M.GLOW_CLEAR))) end
 function M.haloReach(gap, want) return math.max(0, math.min(want or 24, math.floor(((tonumber(gap) or 0) - M.GLOW_CLEAR) / 2))) end
 
-function M.cardParts(rect)
+-- ruleText (optional): the portrait shrinks (never below PORTRAIT_MIN) until the rule fits RULE_LINES lines at RULE_MIN px or more.
+-- parts.ruleSize is the text size to use, parts.ruleLines the estimated line count.
+function M.cardParts(rect, ruleText)
 	local pad = 8
 	local side = math.max(24, math.min(M.PORTRAIT, rect.h - 2 * pad))
-	local portrait = { x = pad, y = pad, w = side, h = side }
-	local tx = portrait.x + side + pad
-	local tw = math.max(20, rect.w - tx - pad)
-	local th = M.TITLE_H
-	-- the boss name stands on one line above the rule text; the rule gets the rest
-	return { portrait = portrait, title = { x = tx, y = pad, w = tw, h = th }, text = { x = tx, y = pad + th + 2, w = tw, h = math.max(10, rect.h - 2 * pad - th - 2) } }
+	local function build(sd)
+		local portrait = { x = pad, y = pad, w = sd, h = sd }
+		local tx = portrait.x + sd + pad
+		local tw = math.max(20, rect.w - tx - pad)
+		local th = M.TITLE_H
+		local text = { x = tx, y = pad + th + 2, w = tw, h = math.max(10, rect.h - 2 * pad - th - 2) }
+		local size = math.max(M.RULE_MIN, math.min(M.RULE_MAX, math.floor(text.h * 0.2)))
+		-- the boss name stands on one line above the rule text; the rule gets the rest
+		return { portrait = portrait, title = { x = tx, y = pad, w = tw, h = th }, text = text, ruleSize = size,
+			ruleLines = ruleText and BossRuleFit.lines(ruleText, size, tw) or nil }
+	end
+	local parts = build(side)
+	if ruleText then
+		while parts.ruleLines > M.RULE_LINES and side > M.PORTRAIT_MIN do
+			side = math.max(M.PORTRAIT_MIN, side - 8)
+			parts = build(side)
+		end
+		if parts.ruleLines > M.RULE_LINES then
+			-- still long: stack it. Small portrait and the name on one row, the rule below at the full plate width at the 14 px floor
+			local ps = math.min(M.STACK_PORTRAIT, math.max(24, rect.h - 2 * pad))
+			local tw = math.max(20, rect.w - 2 * pad)
+			local ty = pad + ps + 4
+			parts = {
+				portrait = { x = pad, y = pad, w = ps, h = ps },
+				title = { x = pad + ps + pad, y = pad + math.floor((ps - M.TITLE_H) / 2), w = math.max(20, rect.w - ps - 3 * pad), h = M.TITLE_H },
+				text = { x = pad, y = ty, w = tw, h = math.max(10, rect.h - ty - pad) },
+				ruleSize = M.RULE_MIN, stacked = true,
+			}
+			parts.ruleLines = BossRuleFit.lines(ruleText, M.RULE_MIN, tw)
+		end
+	end
+	return parts
 end
 
 function M.plateRect(r)

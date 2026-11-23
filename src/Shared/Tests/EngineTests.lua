@@ -38589,6 +38589,33 @@ table.insert(tests, { name = "Boss round overlap pass: Boss card, top plate, spe
 		end
 	end
 end })
+table.insert(tests, { name = "Boss rule plate: every boss line is plain, two lines at 14 px or more, plate under 380x150 and inside clear space at four sizes", fn = function()
+	local B = require(script.Parent.Parent.Engine.BossCard)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local Fit = require(script.Parent.Parent.Engine.BossRuleFit)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	expectTrue(#BR.Definitions >= 12, "at least 12 bosses")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local c = B.cardRect(r, w, h)
+		if c then
+			expectTrue(c.w <= 380 and c.h <= 150, "plate under 380x150 at " .. w .. "x" .. h)
+			for _, s in ipairs(r.slots) do expectTrue(not hit(c, s.card), "plate clear of the Patron slots at " .. w .. "x" .. h) end
+			expectTrue(not hit(c, r.hand), "plate clear of the hand at " .. w .. "x" .. h)
+			for _, boss in ipairs(BR.Definitions) do
+				local d = boss.description
+				expectTrue(type(d) == "string" and #d >= 10 and #d <= 60, boss.id .. " has a plain rule line of 60 characters or less")
+				local parts = B.cardParts(c, d)
+				expectTrue(parts.ruleSize >= 14, boss.id .. " rule text 14 px or more at " .. w .. "x" .. h)
+				expectTrue(parts.ruleLines <= 2, boss.id .. " rule fits two lines at " .. w .. "x" .. h .. " (" .. tostring(parts.ruleLines) .. ") cw=" .. c.w .. " tw=" .. parts.text.w .. " ch=" .. c.h .. " sz=" .. parts.ruleSize)
+				expectTrue(parts.ruleLines * parts.ruleSize * Fit.LINE_FACTOR <= parts.text.h, boss.id .. " rule height fits the plate at " .. w .. "x" .. h)
+				expectTrue(parts.text.x + parts.text.w <= c.w and parts.text.y + parts.text.h <= c.h, boss.id .. " rule inside the plate at " .. w .. "x" .. h)
+			end
+		end
+	end
+end })
 table.insert(tests, { name = "Boss round card: health is max(0, Target - Score), card and health rows clear of the table at four sizes", fn = function()
 	local B = require(script.Parent.Parent.Engine.BossCard)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
@@ -38622,7 +38649,7 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 		end
 	end
 	local big = B.cardRect(L.rects(1920, 957), 1920, 957)
-	expectTrue(big and big.h >= 180 and B.cardParts(big).portrait.w == 120, "1920x957: a 190 px panel with a 120 px portrait")
+	expectTrue(big and big.h == 150 and big.w <= 380 and B.cardParts(big).portrait.w == 120, "1920x957: the panel is capped at 150 px tall with a 120 px portrait")
 	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
 	do local r0 = L.rects(1920, 957); local pr = B.plateRect(r0)
 	expectTrue(pr ~= nil and pr.y == r0.target.y and pr.h == r0.target.h, "the boss plate has the Target plate's top and height at 1920x957") end
@@ -53264,29 +53291,58 @@ table.insert(tests, { name = "DebugGoto server remotes: every Debug remote handl
 	assert(count >= 6, "found the Debug remotes (" .. count .. ")")
 end })
 
-table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates", fn = function()
+table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates, grouped headings, every JUMPS.md key has a button", fn = function()
 	local Keys = require(script.Parent.Parent.Engine.AdminJumpKeys)
 	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local Engine = script.Parent.Parent.Engine
 	expectTrue(Keys.shouldBuild(true) == true, "builds in Studio")
 	expectTrue(Keys.shouldBuild(false) == false and Keys.shouldBuild(nil) == false and Keys.shouldBuild("yes") == false, "never builds outside Studio")
-	expectTrue(Keys.ROW_HEIGHT >= 44, "44 px rows")
-	local ids = { recipe = require(Engine.Recipes).HouseRecipes[1].id, boss = require(Engine.BossRounds).Definitions[1].id }
+	expectTrue(Keys.ROW_HEIGHT >= 44 and Keys.HEADING_HEIGHT == 24, "44 px rows, 24 px headings")
+	local bosses, recipes, tags = {}, {}, {}
+	for _, b in ipairs(require(Engine.BossRounds).Definitions) do bosses[#bosses + 1] = { id = b.id, name = b.name } end
+	for _, r in ipairs(require(Engine.Recipes).HouseRecipes) do recipes[#recipes + 1] = r.id end
+	for _, t in ipairs(require(Engine.Tags).Definitions) do tags[#tags + 1] = t.id end
+	local ids = { bosses = bosses, recipes = recipes, tags = tags }
 	local list = Keys.list(ids)
-	local seen = {}
-	for _, e in ipairs(list) do
-		expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
-		expectTrue(not seen[e.value], "no duplicate key " .. e.value)
-		seen[e.value] = true
-		expectTrue(type(e.label) == "string" and #e.label > 0, "label for " .. e.value)
+	local seen, headings, buttons = {}, {}, 0
+	for i, e in ipairs(list) do
+		expectTrue(type(e.label) == "string" and #e.label > 0, "label on row " .. i)
+		if e.heading then
+			headings[e.label] = true
+			expectTrue(e.value == nil, "heading " .. e.label .. " has no key, so it is not clickable")
+		else
+			buttons = buttons + 1
+			expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
+			expectTrue(not seen[e.value], "no duplicate key " .. e.value)
+			seen[e.value] = true
+		end
 	end
-	for _, want in ipairs({ "night:1", "night:12", "boon", "reward", "victory", "sellpatron", "patrons:5", "shop:20", "endrun", "endrun:win", "boss2:" .. ids.boss, "boss12:" .. ids.boss, "store", "map" }) do
+	local firstSeven = {}
+	for i = 1, 7 do firstSeven[i] = list[i].value end
+	expectEqual(table.concat(firstSeven, " "), "round1 night:2 boon reward victory recipes:" .. recipes[1] .. " boss2:" .. bosses[1].id, "the most used keys come first")
+	for _, h in ipairs({ "Screens", "Nights", "Run", "Recipes", "Patrons", "Tags", "Bosses" }) do expectTrue(headings[h], "group heading " .. h) end
+	for _, b in ipairs(bosses) do expectTrue(seen["boss3:" .. b.id], "a button for boss " .. b.id) end
+	for _, t in ipairs(tags) do expectTrue(seen["tag:" .. t], "a button for Tag " .. t) end
+	for _, want in ipairs({ "night:1", "night:12", "boss1", "patrons:1", "patrons:5", "endrun:win", "shop:20", "store", "map", "menu", "sellpatron" }) do
 		expectTrue(seen[want], "listed: " .. want)
+	end
+	expectTrue(#bosses >= 12 and buttons >= 12 + #bosses, "one button per real boss")
+	if io then
+		local jf = assert(io.open("claude/JUMPS.md", "r")); local jt = jf:read("a"); jf:close()
+		local n = 0
+		for key in jt:gmatch("`([^`]+)`") do
+			if not key:find("<", 1, true) then -- per-id keys (boss3:<id>, tag:<id>) are covered by the registry loops above
+				n = n + 1
+				expectTrue(seen[key], "claude/JUMPS.md key has a panel button: " .. key)
+			end
+		end
+		expectTrue(n >= 20, "JUMPS.md lists the keys")
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/AdminJumpPanel.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("Keys.shouldBuild(RunService:IsStudio())", 1, true) ~= nil, "panel checks the Studio guard before building")
 	expectTrue(src:find("Keys.ROW_HEIGHT", 1, true) ~= nil and src:find("Keys.list(ids)", 1, true) ~= nil, "buttons come from the one key table")
+	expectTrue(src:find("entry.heading", 1, true) ~= nil and src:find('Instance.new("TextLabel")', 1, true) ~= nil, "headings are labels, not buttons")
 	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
 	local g = assert(io.open("src/Client/DebugGoto.lua", "r")); local dg = g:read("a"); g:close()
 	local guard, build = dg:find("if not RunService:IsStudio() then return end", 1, true), dg:find("AdminJumpPanel", 1, true)
