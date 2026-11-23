@@ -41953,6 +41953,21 @@ table.insert(tests, { name = "Shop prices and Tips income: a Night's base pay co
 	expectTrue(Marks.PRICE <= 3, "a Mark stays at 3 Tips or less")
 end })
 
+-- HAND LEVEL VALUE (claude/ECONOMY.md): a Pair raised to level 5 is worth about one level 1 Flush, not several times more, so
+-- leveling the common hand never makes every other hand pointless (best bots play no hand type over 31 percent of the time).
+table.insert(tests, { name = "Hand level value: a level 5 Pair scores within 1.5x of a level 1 Flush, and a level 5 hand beats its level 1 version at least 4x", fn = function()
+	local function score(name, level)
+		local b, g = Scoring.HandBase[name], Scoring.HandLevelGrowth[name]
+		return (b.chips + g.chips * level) * (b.mult + g.mult * level)
+	end
+	expectTrue(score("Pair", 5) <= score("Flush", 1) * 1.5, "level 5 Pair against level 1 Flush: " .. score("Pair", 5) .. " vs " .. score("Flush", 1))
+	expectTrue(score("Pair", 5) >= score("Flush", 1) * 0.8, "and not far under it")
+	for _, name in ipairs({ "Pair", "Two Pair", "Flush", "Straight" }) do
+		expectTrue(score(name, 5) >= score(name, 1) * 4, name .. " level 5 is worth the Recipes spent")
+		expectTrue(score(name, 5) < score("Straight Flush", 5), name .. " never passes a Straight Flush at the same level")
+	end
+end })
+
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
 table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)

@@ -483,6 +483,18 @@ Real Daily seeds (SeededRng.dailySeed) and the twist of each day (DailyModifiers
 
 Night boons are free picks, so the next thing that costs Tips is a Mark (3 Tips) and a reroll (5 Tips, +2 each). Plain pay is 4 Tips a round win and 8 on the Boss round, 16 Tips a Night before interest; the average Patron costs 6.4 Tips. 16 covers 6.4 + 3 + 5 = 14.4 with 1.6 to spare, and the sim agrees: Tips on hand are 7 to 9 at a Night's first visit and 11.7 to 12.4 at its last (table above). No price changed. Pinned by the test "Shop prices and Tips income".
 
+## Hand level (Recipe) value: does one hand dominate? (`lua tools/run_sim.lua --runs 300 --jobs 8 --bot builder|decent|greedy`, "hands played" line)
+
+Share of all hands played, 300 runs each. Rule: no hand type over 45 percent for the best bot.
+
+| Bot | Top hand | Second | Third |
+| --- | --- | --- | --- |
+| builder | Two Pair 28.1 | Pair 28.0 | High Card 17.8 |
+| decent | Two Pair 27.6 | Pair 27.1 | High Card 18.4 |
+| greedy | Pair 30.8 | Two Pair 24.2 | High Card 23.6 |
+
+Score at level 5 against level 1 (chips x mult): Pair 595 against Flush 520, Two Pair 840, Straight 420 at level 1. A Pair raised to level 5 is worth 1.14 level 1 Flushes, so the common hand does not run away from the rare ones and leveling a Flush or Straight is still worth a Recipe. No number changed. Pinned by the test "Hand level value".
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
