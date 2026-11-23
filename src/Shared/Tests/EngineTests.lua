@@ -41940,6 +41940,19 @@ table.insert(tests, { name = "Quest Tips and Pocket Change: the banked Tips cap 
 	expectEqual(profile.pendingStartTips, 0)
 end })
 
+-- SHOP PRICES vs INCOME (claude/ECONOMY.md): the plain Tips a Night pays cover a typical Patron, a Mark and one reroll.
+table.insert(tests, { name = "Shop prices and Tips income: a Night's base pay covers the average Patron, a Mark and a first reroll", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local sum, count = 0, 0
+	for _, d in ipairs(Patrons.Definitions) do sum = sum + d.price; count = count + 1 end
+	local averagePrice = sum / count
+	local perRound = RunState.DefaultConfig.tipsPerRoundWin
+	local nightPay = perRound * 4 -- two plain rounds at 1x and the Boss round at 2x
+	expectTrue(averagePrice >= 5 and averagePrice <= 7.5, "average Patron price stays 5 to 7.5: " .. averagePrice)
+	expectTrue(nightPay >= averagePrice + Marks.PRICE + Shop.REROLL_BASE_COST, "base Night pay " .. nightPay .. " covers a Patron, a Mark and a reroll")
+	expectTrue(Marks.PRICE <= 3, "a Mark stays at 3 Tips or less")
+end })
+
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
 table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)

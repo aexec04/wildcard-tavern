@@ -479,6 +479,10 @@ Flags found: no Night under 20 percent. Nights 1 to 5 over 90 for both bots and 
 
 Real Daily seeds (SeededRng.dailySeed) and the twist of each day (DailyModifiers.forDate) for 2026-01-01 to 2026-04-10, the builder bot, 4 tries per seed with different bot choices on the same board. Win rate over all seeds 39.8 percent. 18 of 100 seeds had no win in 4 tries, but none is unwinnable: every seed's best try reached at least Night 7. Worst seed: 2026-02-15 (twist Big Recipe Box), 0 of 4 won, best Night 7, mean Night 6.5. Next worst: 2026-03-24 (Penny Pincher), 2026-02-12 (Short Hands), 2026-01-29 (Extra Seat). No change needed.
 
+## Shop prices against Tips income, Nights 1 to 8 (can a player who buys one Patron a Night still afford the next add-on?)
+
+Night boons are free picks, so the next thing that costs Tips is a Mark (3 Tips) and a reroll (5 Tips, +2 each). Plain pay is 4 Tips a round win and 8 on the Boss round, 16 Tips a Night before interest; the average Patron costs 6.4 Tips. 16 covers 6.4 + 3 + 5 = 14.4 with 1.6 to spare, and the sim agrees: Tips on hand are 7 to 9 at a Night's first visit and 11.7 to 12.4 at its last (table above). No price changed. Pinned by the test "Shop prices and Tips income".
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
