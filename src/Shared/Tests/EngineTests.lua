@@ -53846,19 +53846,32 @@ table.insert(tests, { name = "Card Sets room live readability: Card Sets and Car
 	expectEqual(#found, 0, "the Card Sets room has " .. #found .. " readability findings")
 end })
 
+table.insert(tests, { name = "Table HUD sizes: at 1280x720, 1920x1080 and 800x360 the bar, Patron seats, stage, hand, buttons, counters and tray never overlap, stay on screen, and the controls are 44 px", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 800, 360 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h .. " "
+		local r = L.rects(w, h)
+		expectTrue(L.fits(w, h), tag .. "uses the v2 table")
+		local bad = L.overlaps(r)
+		expectEqual(#bad, 0, tag .. "overlapping rects: " .. table.concat(bad, ","))
+		local ok, name = L.onScreen(r, w, h)
+		expectTrue(ok, tag .. "off screen: " .. tostring(name))
+		for _, k in ipairs({ "play", "discard", "sortRank", "sortSuit" }) do
+			expectTrue(r[k].h >= 44 and r[k].w >= 44, tag .. k .. " is at least 44 px")
+			expectTrue(not hit(r[k], r.hand), tag .. "the hand fan never covers " .. k)
+		end
+		expectTrue(r.playCount.h >= 22 and r.discardCount.h >= 22, tag .. "count pills hold 12 px text")
+		expectTrue(r.stage.y + r.stage.h <= r.hand.y, tag .. "the score stage ends above the hand")
+		expectTrue(r.slots[1].card.y > r.bar.y + r.bar.h, tag .. "the Patron seats start under the bar")
+		for _, k in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayHeading" }) do
+			if r[k] then
+				expectTrue(not hit(r[k], r.hand), tag .. k .. " clears the hand")
+				for i = 1, L.SEATS do expectTrue(not hit(r[k], r.slots[i].card), tag .. k .. " clears Patron seat " .. i) end
+			end
+		end
+	end
+end })
+
 return tests
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
