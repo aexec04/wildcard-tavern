@@ -157,6 +157,13 @@ function Methods.FindFirstChildOfClass(inst, class)
 	return nil
 end
 
+function Methods.FindFirstChildWhichIsA(inst, class)
+	for _, kid in ipairs(rawget(inst, "_kids")) do
+		if Methods.IsA(kid, class) then return kid end
+	end
+	return nil
+end
+
 function Methods.IsA(inst, class)
 	local own = rawget(inst, "_class")
 	return own == class or class == "Instance" or (class == "GuiObject" and GUI[own] == true)
