@@ -46302,4 +46302,36 @@ table.insert(tests, { name = "Counter price chips: every price tag sits inside i
 	end
 end })
 
+table.insert(tests, { name = "Collection Back plate and tab strip: Back is a 44 px plate on screen and never overlaps a tab, the pager, the first row or the filter at four sizes, room and section", fn = function()
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, mode in ipairs({ "section", "room" }) do
+			for _, legendH in ipairs({ 24, 60 }) do
+				local P = RL.panel(W, H, legendH, nil, mode)
+				local tag = W .. "x" .. H .. " " .. mode .. " legend " .. legendH
+				local back = P.close
+				expectTrue(back.h == 44 and back.w >= 44, tag .. " Back plate is 44 px tall (" .. back.w .. "x" .. back.h .. ")")
+				expectTrue(back.x >= 0 and back.y >= 0 and back.x + back.w <= W and back.y + back.h <= H, tag .. " Back plate on screen")
+				expectFalse(hit(back, P.area), tag .. " Back plate clear of the first row area")
+				expectFalse(hit(back, P.bar), tag .. " Back plate clear of the progress bar")
+				if mode == "section" then
+					expectTrue(P.tabs.x >= 0 and P.tabs.x + P.tabs.w <= W and P.tabs.y >= 0 and P.tabs.y + P.tabs.h <= H, tag .. " tab strip on screen")
+					expectFalse(hit(back, P.tabs), tag .. " Back plate clear of the tab strip")
+					expectFalse(hit(back, P.filter), tag .. " Back plate clear of the filter plate")
+					expectFalse(hit(P.tabs, P.area), tag .. " tab strip clear of the first row area")
+					expectFalse(hit(P.tabs, P.filter), tag .. " tab strip clear of the filter plate")
+					if P.pager then
+						expectFalse(hit(P.pager, P.tabs), tag .. " pager clear of the tab strip")
+						expectFalse(hit(back, P.pager), tag .. " Back plate clear of the pager")
+						expectTrue(P.pager.x + P.pager.w <= W, tag .. " pager on screen")
+					end
+				end
+				expectTrue(P.area.y >= P.bar.y + P.bar.h - 1 or mode == "room", tag .. " first row starts under the progress bar")
+			end
+		end
+	end
+end })
+
 return tests
