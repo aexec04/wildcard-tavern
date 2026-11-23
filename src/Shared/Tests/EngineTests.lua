@@ -31447,6 +31447,40 @@ table.insert(tests, { name = "Collection header: no Next unlock line, the bar is
 	end
 end })
 
+table.insert(tests, { name = "Card Sets room: every pick previews at once, the button matches the state, the Studio unlock switch is Studio only", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SetPreview)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local gala = CS.getById("golden_gala")
+	expectTrue(gala ~= nil, "golden_gala exists")
+	local p = SP.plan(gala, { owned = false, equipped = false, passConfigured = true }, CS.unlockText(gala))
+	expectTrue(p.title == "Previewing " .. gala.name and p.kind == "pass" and p.action == "Get it" and p.showButton, "pass set with a real id offers Get it and says Previewing")
+	expectTrue(p.line ~= "" and p.buttonH >= 44, "a locked set shows one unlock line and a 44 px button")
+	p = SP.plan(gala, { owned = false, equipped = false, passConfigured = false }, CS.unlockText(gala))
+	expectTrue(p.kind == "info" and not p.showButton and p.line ~= "", "pass set without a real id shows a kind line, not a dead button")
+	p = SP.plan(gala, { owned = true, equipped = false }, "")
+	expectTrue(p.kind == "equip" and p.action == "Equip" and p.title == gala.name, "owned set offers Equip")
+	p = SP.plan(gala, { owned = true, equipped = true }, "")
+	expectTrue(p.kind == "equipped" and p.action == "Equipped", "equipped set says Equipped")
+	for _, set in ipairs(CS.Definitions) do
+		for _, st in ipairs({ { owned = false }, { owned = true }, { owned = true, equipped = true }, { owned = false, passConfigured = true } }) do
+			local plan = SP.plan(set, st, CS.unlockText(set))
+			expectTrue(plan.title ~= "" and plan.kind ~= nil and (plan.showButton == (plan.action ~= nil)), set.id .. " always answers a pick")
+			if not st.owned then expectTrue(plan.line ~= "", set.id .. " locked shows how to get it") end
+		end
+		if set.unlock.kind == "tips" then
+			expectTrue(SP.plan(set, { owned = false }, "x").kind == "buy", set.id .. " Tips set offers Buy")
+		end
+	end
+	expectTrue(SP.studioUnlockOn(true, true) == true and SP.studioUnlockOn(false, true) == false and SP.studioUnlockOn(true, nil) == false, "switch needs Studio and the attribute")
+	local profile = { ownedSetIds = {}, stats = { runsWon = 0 }, equippedSetId = nil }
+	CS.setStudioUnlock(false, true)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == false and CS.studioUnlockAll == false, "a live server ignores the switch")
+	CS.setStudioUnlock(true, true)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == true and next(profile.ownedSetIds) == nil, "Studio switch unlocks without writing the profile")
+	CS.setStudioUnlock(true, false)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == false, "switch off locks again")
+end })
+
 table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
 	local TH = require(script.Parent.Parent.Engine.TomeHeader)
 	expectTrue(TH.PAD >= 16 and TH.SIDE >= 16, "padding and border clearance are at least 16 px")

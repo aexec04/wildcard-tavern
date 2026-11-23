@@ -404,11 +404,21 @@ function CosmeticSets.getById(id)
 	return nil
 end
 
+-- Studio only "unlock all sets" switch (workspace attribute StudioUnlockSets, set by the server). A live server always passes isStudio false,
+-- so it can never turn on. It only changes what isUnlocked answers; nothing is written to a profile.
+CosmeticSets.studioUnlockAll = false
+function CosmeticSets.setStudioUnlock(isStudio, attribute)
+	CosmeticSets.studioUnlockAll = isStudio == true and attribute == true
+end
+
 -- ownedPassIds: optional set { [passId] = true } of Game Passes the player owns.
 function CosmeticSets.isUnlocked(profile, setId, ownedPassIds)
 	local set = CosmeticSets.getById(setId)
 	if not set then
 		return false
+	end
+	if CosmeticSets.studioUnlockAll == true then
+		return true
 	end
 	local unlock = set.unlock
 	-- A set granted as a reward (Journey) sits in ownedSetIds, whatever

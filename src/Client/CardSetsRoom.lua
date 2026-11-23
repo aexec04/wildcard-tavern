@@ -136,6 +136,8 @@ function CardSetsRoom.new(ctx)
 	local PlayRoomArt = require(Engine:WaitForChild("PlayRoomArt"))
 	local ThemeScenes = require(Engine:WaitForChild("ThemeScenes"))
 	local SetProgress = require(Engine:WaitForChild("SetProgress"))
+	local SetPreview = require(Engine:WaitForChild("SetPreview"))
+	local GamePasses = require(Engine:WaitForChild("GamePasses"))
 	local roomImages = {}
 	do -- the set's own table room picture (the same art ThemeScenes and the play table use); classic falls back to the reference tavern
 		local okA, PlaySceneArt = pcall(require, Engine:WaitForChild("PlaySceneArt"))
@@ -269,14 +271,18 @@ function CardSetsRoom.new(ctx)
 			d.equipped = cosmetics.equippedSetId == set.id
 			d.name = set.name
 			d.desc = set.description or ""
-			if d.equipped then d.action = "Equipped"
-			elseif d.owned then d.action = "Equip"; d.run = function() ctx.actions.equipSet(set.id) end
-			elseif set.unlock.kind == "tips" then d.action = string.format("Buy (%d)", math.floor(set.unlock.price)); d.run = function() ctx.actions.buySet(set.id) end
-			else d.action = "Locked" end
-			d.tip = set.name .. ": " .. d.desc .. (d.owned and "" or ("\n" .. ctx.CosmeticSets.unlockText(set)))
+			local passDef = set.unlock.kind == "gamepass" and GamePasses.getById(set.unlock.passId) or nil
+			local plan = SetPreview.plan(set, { owned = d.owned, equipped = d.equipped, passConfigured = passDef ~= nil and (passDef.gamePassId or 0) > 0 }, ctx.CosmeticSets.unlockText(set))
+			d.plan, d.action, d.title = plan, plan.action, plan.title
+			if plan.kind == "equip" then d.run = function() ctx.actions.equipSet(set.id) end
+			elseif plan.kind == "buy" then d.run = function() ctx.actions.buySet(set.id) end
+			elseif plan.kind == "pass" then
+				d.run = function() pcall(function() game:GetService("MarketplaceService"):PromptGamePassPurchase(game:GetService("Players").LocalPlayer, passDef.gamePassId) end) end
+			end
+			d.tip = set.name .. ": " .. d.desc .. (d.owned and "" or ("\n" .. plan.line))
 			d.piecesOwned, d.piecesTotal = SetProgress.count(set, cosmetics, ctx.CardBacks)
 			d.tip = d.tip .. "\n" .. SetProgress.line(d.piecesOwned, d.piecesTotal)
-			if not d.owned then d.desc = ctx.CosmeticSets.unlockText(set) end
+			if not d.owned then d.desc = plan.line end
 		else
 			local back = entry.back
 			local backsUnlocked = {}
@@ -305,7 +311,7 @@ function CardSetsRoom.new(ctx)
 		local plate = solid(frame, Color3.fromRGB(34, 22, 14), rel(hp.plate), z + 1, 6)
 		local acc = entry.set and ctx.CosmeticSets.accentOf(entry.set) or { 214, 172, 88 }
 		stroke(plate, rgb(acc), 1.5)
-		ctx.label(plate, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, Text = d.name, ZIndex = z + 2 })
+		ctx.label(plate, { Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = d.title and not d.owned and 16 or 18, TextColor3 = CREAM, Text = d.title or d.name, ZIndex = z + 2 })
 		local tb = rel(hp.table)
 		local owned = d.owned
 		local sceneSet = entry.set or ctx.CosmeticSets.getById(ctx.getState() and ctx.getState().cosmetics and ctx.getState().cosmetics.equippedSetId or ctx.CosmeticSets.DefaultId) or ctx.CosmeticSets.Definitions[1]
@@ -358,6 +364,7 @@ function CardSetsRoom.new(ctx)
 				TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.desc, ZIndex = z + 2 })
 		end
 		local locked = d.run == nil
+		if d.plan and not d.plan.showButton then return end -- nothing a player can do yet: the unlock line above is the answer, no dead button
 		local btn = plateButton(layer, hp.button, d.action, { solid = locked and Color3.fromRGB(34, 22, 14) or GOLD, onClick = d.run })
 		btn.Name = "HeroAction"
 		btn.TextSize = 17
