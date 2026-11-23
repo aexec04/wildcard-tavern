@@ -46002,4 +46002,22 @@ table.insert(tests, { name = "Leaderboard row plates: rank, name and stats never
 	expectTrue(checked >= 13, "every themed Card Set checked: " .. checked)
 end })
 
+table.insert(tests, { name = "Collection Patron wall: the portrait well is a 5:7 card at the slot's full height, inside the slot, at four sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local p = L.place("patrons", sz[1], sz[2] - 120, 1)
+		expectTrue(p and #p.slots == 12, "12 patron slots at " .. sz[1])
+		for i, s in ipairs(p.slots) do
+			local w = L.portraitWell(s)
+			local tag = sz[1] .. " slot " .. i
+			expectTrue(math.abs(w.w / w.h - 5 / 7) < 0.03, tag .. " well ratio is 5:7 (" .. w.w .. "x" .. w.h .. ")")
+			expectTrue(w.x >= s.x and w.y >= s.y and w.x + w.w <= s.x + s.w and w.y + w.h <= s.y + s.h, tag .. " well inside the slot")
+			expectTrue(w.h >= s.h * 0.85, tag .. " card uses at least 85 percent of the slot height")
+			expectTrue(math.abs((w.x + w.w / 2) - (s.x + s.w / 2)) <= 1, tag .. " well centred")
+		end
+	end
+	local narrow = L.portraitWell({ x = 0, y = 0, w = 60, h = 145 })
+	expectTrue(narrow.w <= 60 and math.abs(narrow.w / narrow.h - 5 / 7) < 0.05, "a narrow slot is limited by width and keeps 5:7")
+end })
+
 return tests
