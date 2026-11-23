@@ -50944,6 +50944,61 @@ table.insert(tests, { name = "Packs audit: a pick that does not fit is never los
 	expectEqual(#state.ownedPatrons, RunState.patronSlotLimit(state))
 end })
 
+-- PACKS AUDIT 2: the published price, reveal and pick counts per pack, pick counts enforced, and the full table message.
+table.insert(tests, { name = "Packs audit: price, reveal and pick counts pinned for every pack; wrong pick counts refused; a full table says Make room first", fn = function()
+	local pinned = {
+		buffoon_pack = { 6, 3, 1 }, house_pack = { 4, 3, 1 }, menu_pack = { 4, 3, 1 }, secret_pack = { 7, 3, 1 }, standard_pack = { 4, 3, 1 },
+		buffoon_pack_jumbo = { 9, 5, 1 }, house_pack_jumbo = { 8, 5, 1 }, menu_pack_jumbo = { 8, 5, 1 }, secret_pack_jumbo = { 10, 5, 1 }, standard_pack_jumbo = { 8, 5, 1 },
+		buffoon_pack_mega = { 12, 5, 2 }, house_pack_mega = { 11, 5, 2 }, menu_pack_mega = { 11, 5, 2 }, secret_pack_mega = { 13, 5, 2 }, standard_pack_mega = { 11, 5, 2 },
+		mixed_pack = { 7, 3, 1 }, mixed_pack_jumbo = { 10, 5, 1 }, mixed_pack_mega = { 13, 5, 2 },
+	}
+	local seen = 0
+	for _, def in ipairs(Packs.Definitions) do
+		local want = pinned[def.id]
+		expectTrue(want ~= nil, def.id .. " is in the pinned table")
+		if want then
+			seen = seen + 1
+			expectEqual(def.price, want[1], def.id .. " price")
+			expectEqual(def.revealCount, want[2], def.id .. " reveal count")
+			expectEqual(def.pickCount, want[3], def.id .. " pick count")
+			-- the description names the same numbers the engine uses
+			expectTrue(def.description:find("Reveals " .. want[2], 1, true) ~= nil, def.id .. " text names its reveal count")
+			expectTrue(def.description:find("pick " .. want[3], 1, true) ~= nil, def.id .. " text names its pick count")
+		end
+	end
+	expectEqual(seen, 18, "all 18 packs are pinned")
+	-- a bigger size never costs less than the normal size of the same family
+	for fam in pairs({ buffoon_pack = true, house_pack = true, menu_pack = true, secret_pack = true, standard_pack = true, mixed_pack = true }) do
+		expectTrue(Packs.getById(fam .. "_jumbo").price > Packs.getById(fam).price, fam .. " Jumbo costs more than normal")
+		expectTrue(Packs.getById(fam .. "_mega").price > Packs.getById(fam .. "_jumbo").price, fam .. " Mega costs more than Jumbo")
+	end
+	-- picking too many or too few items is refused and the pack stays open with Tips unchanged
+	local state = RunState.new(nil, SeededRng.new(3))
+	state.tips = 100
+	local reveal = RunState.openPack(state, "buffoon_pack_mega", SeededRng.new(3))
+	local tipsAfterBuy = state.tips
+	local a, b, c = reveal.items[1].id, reveal.items[2].id, reveal.items[3].id
+	expectFalse((RunState.resolvePack(state, { a })), "Mega needs two picks, one is refused")
+	expectFalse((RunState.resolvePack(state, { a, b, c })), "three picks are refused")
+	expectFalse((RunState.resolvePack(state, { a, a })), "the same item twice is refused")
+	expectTrue(state.pendingPack ~= nil and state.tips == tipsAfterBuy and #state.ownedPatrons == 0, "pack open, nothing granted, no charge")
+	expectTrue((RunState.resolvePack(state, { a, b })), "exactly two picks resolve")
+	expectEqual(#state.ownedPatrons, 2, "both Patrons joined")
+	-- a full table gives one clear message
+	local full = RunState.new(nil, SeededRng.new(8))
+	full.tips = 100
+	local r2 = RunState.openPack(full, "buffoon_pack", SeededRng.new(8))
+	local pick = r2.items[1].id
+	local n = 0
+	for _, p in ipairs(Patrons.Definitions) do
+		if p.id ~= pick and n < RunState.patronSlotLimit(full) then table.insert(full.ownedPatrons, p); n = n + 1 end
+	end
+	local ok, msg = RunState.resolvePack(full, { pick })
+	expectFalse(ok, "full table blocks a Patron pick")
+	expectEqual(msg, "Make room first", "the message is clear")
+	expectTrue(full.pendingPack ~= nil, "the pack stays open")
+end })
+
 -- ===== Leaderboard and Daily integrity audit =====
 
 table.insert(tests, { name = "Leaderboard integrity: no remote lets a client send a score, every board write reads the server's own run state", fn = function()
