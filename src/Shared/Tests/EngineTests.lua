@@ -53786,6 +53786,69 @@ table.insert(tests, { name = "Choice screens live readability: first Patron pick
 	expectEqual(#found, 0, "the choice screens have " .. #found .. " readability findings")
 end })
 
+table.insert(tests, { name = "Collection live readability: the gallery room at 1280x720 and 800x360 has 14 px text, readable ink, 44 px buttons, nothing off screen", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local CollectionScene = require(script.Parent.CollectionScene)
+	local found = {}
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local s = CollectionScene.build({ calm = true })
+		s.open()
+		s.resize(size[1], size[2])
+		FakeGui.layout(s.gui, size[1], size[2])
+		local res = Audit.audit(s.panel, size[1], size[2])
+		expectTrue(res.seen >= 3, "Collection " .. size[1] .. ": the audit read " .. tostring(res.seen) .. " labels")
+		for _, f in ipairs(res) do found[#found + 1] = "gallery " .. size[1] .. "x" .. size[2] .. " " .. f end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "Collection has " .. #found .. " readability findings")
+end })
+
+table.insert(tests, { name = "Card Sets room live readability: Card Sets and Card Backs tabs at 1280x720 and 800x360 have 14 px text, readable ink, 44 px buttons, nothing off screen", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local Engine = script.Parent.Parent.Engine
+	local lazy = function() return setmetatable({}, { __index = function() return function() return nil end end }) end
+	local stubs = { ClientSettings = { get = function() return false end }, PanelFullScreen = { fit = function(_, w, h) return w, h end, setRect = function(panel, size) panel.Size = size end }, Tooltip = { new = function() return { attach = function() end } end },
+		TavernKit = lazy(), NewRibbon = { attach = function() end }, SetSkin = lazy() }
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	local map = setmetatable({}, { __index = function(_, n) local ok, m = pcall(function() return require(Engine[n]) end) if ok then return m end return nil end })
+	st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	local CardSetsRoom = FakeGui.load("src/Client/CardSetsRoom.lua", env)
+	local CosmeticSets, CardBacks = require(Engine.CosmeticSets), require(Engine.CardBacks)
+	local found = {}
+	for _, tab in ipairs({ "sets", "backs" }) do
+		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+			local gui, panel = FakeGui.new("ScreenGui"), FakeGui.new("Frame")
+			panel.Parent = gui
+			gui.AbsoluteSize = { X = size[1], Y = size[2] }
+			panel.Size = env.UDim2.fromOffset(size[1], size[2]); panel.AbsolutePosition = { X = 0, Y = 0 }; panel.AbsoluteSize = { X = size[1], Y = size[2] }
+			local room = CardSetsRoom.new({ panel = panel, screenGui = gui, roundCorner = function() end, playClickSfx = function() end,
+				label = function() return FakeGui.new("TextLabel") end, isOpen = function() return true end, hide = {},
+				CosmeticSets = CosmeticSets, CardBacks = CardBacks, CardBackView = { thumb = function(parent) local f = FakeGui.new("Frame"); f.Parent = parent; return f end }, SetSkin = stubs.SetSkin,
+				getState = function() return { cosmetics = { equippedSetId = "classic_tavern", unlockedSetIds = { "classic_tavern" } } } end,
+				actions = { equipSet = function() end, buySet = function() end, equipBack = function() end, preview = function() end }, backHint = function() return "Win a run" end })
+			local ok, err = pcall(function() room.layout(); room.paint() end)
+			if not ok then error("CardSetsRoom on the fake Roblox: " .. tostring(err), 0) end
+			if tab == "backs" and room.on then
+				local function find(node) for _, k in ipairs(node:GetChildren()) do if k.ClassName == "TextButton" and k.Text == "Card Backs" then return k end local r = find(k) if r then return r end end end
+				local b = find(panel)
+				expectTrue(b ~= nil, "the Card Backs tab button exists")
+				if b then b.MouseButton1Click:Fire() end
+			end
+			panel.AbsolutePosition = { X = 0, Y = 0 }
+			FakeGui.layout(gui, size[1], size[2])
+			local res = Audit.audit(panel, size[1], size[2])
+			expectTrue(room.on == false or res.seen >= 5, tab .. " " .. size[1] .. ": the audit read " .. tostring(res.seen) .. " labels")
+			for _, f in ipairs(res) do found[#found + 1] = tab .. " " .. size[1] .. "x" .. size[2] .. " " .. f end
+		end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "the Card Sets room has " .. #found .. " readability findings")
+end })
+
 return tests
 
 
