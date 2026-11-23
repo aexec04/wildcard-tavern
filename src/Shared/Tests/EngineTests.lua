@@ -46468,6 +46468,56 @@ table.insert(tests, { name = "Boss rules: Frozen Hand, Quiet Tavern and Short Ta
 	expectEqual(full - frozen, 9, "the first card's 9 Chips are gone")
 end })
 
+table.insert(tests, { name = "Boss rules Frozen Hand, Quiet Tavern, Short Table: each applies exactly once in the boss round, is gone the next round, and the card text matches the rule", fn = function()
+	local function chipsPatron(id, chips, mult) return { id = id, name = id, effect = function() return { chips = chips, mult = mult } end } end
+	local a, b = Card.new(9, "Hearts"), Card.new(9, "Spades")
+	local pair = { name = "Pair", scoringCards = { a, b } }
+	-- plays one Pair in the round the boss rule is live (or the following round when `afterBoss`), returns the round score
+	local function play(ruleId, patrons, afterBoss)
+		local state = RunState.new(nil, SeededRng.new(3))
+		state.bossRoundsEnabled = true
+		state.night, state.round = 7, state.config.roundsPerNight - 1
+		state.nightBossModifier = ruleId and BossRounds.getById(ruleId) or nil
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		if ruleId then expectEqual(state.bossModifier and state.bossModifier.id, ruleId, ruleId .. " is live in the boss round") end
+		if afterBoss then
+			state.roundOver = true
+			RunState.advanceToNextRound(state)
+			expectEqual(state.bossModifier, nil, ruleId .. " clears with the next round")
+		end
+		state.ownedPatrons = patrons or {}
+		state.hand = { Card.new(9, "Hearts"), Card.new(9, "Spades"), Card.new(2, "Clubs"), Card.new(3, "Diamonds"), Card.new(4, "Clubs"), Card.new(6, "Spades"), Card.new(7, "Clubs"), Card.new(8, "Diamonds") }
+		state.targetScore = 1e9
+		RunState.playHand(state, { 1, 2 })
+		return state.roundScore
+	end
+	local function direct(patrons, ctx)
+		ctx.allPlayedCards = { a, b }
+		local score = Scoring.calculate(pair, patrons, ctx)
+		return score
+	end
+	local c = { chipsPatron("c1", 40, 2) }
+	-- Frozen Hand: the first card's chips go once; the next round plays at full score
+	local base = play(nil, c)
+	expectEqual(play("frozen_hand", c), direct(c, { firstCardOut = true }) , "Frozen Hand removes the first card once")
+	expectTrue(play("frozen_hand", c) < base, "Frozen Hand scores less than no rule")
+	expectEqual(play("frozen_hand", c, true), base, "the next round scores in full")
+	-- Quiet Tavern: Patron Chips halve once (not quartered)
+	expectEqual(play("quiet_tavern", c), direct(c, { patronChipsFactor = 0.5 }), "Quiet Tavern halves Patron Chips once")
+	expectTrue(play("quiet_tavern", c) < base, "Quiet Tavern scores less than no rule")
+	expectEqual(play("quiet_tavern", c, true), base, "the next round scores in full")
+	-- Short Table: only the last seated Patron sits out
+	local two = { chipsPatron("p1", 40, 2), chipsPatron("p2", 30, 5) }
+	expectEqual(play("short_table", two), direct({ two[1] }, {}), "Short Table sits out only the last Patron")
+	expectEqual(play("short_table", two, true), direct(two, {}), "the next round seats everyone")
+	-- the card text names the rule the engine applies
+	local f, q, s = BossRounds.getById("frozen_hand"), BossRounds.getById("quiet_tavern"), BossRounds.getById("short_table")
+	expectTrue(f.firstCardOut == true and f.description:lower():find("first card") ~= nil, "Frozen Hand text says the first card")
+	expectTrue(q.patronChipsFactor == 0.5 and q.description:lower():find("half") ~= nil and q.description:find("Chips") ~= nil, "Quiet Tavern text says half Chips")
+	expectTrue(s.patronsSitOut == 1 and s.description:lower():find("last") ~= nil and s.description:lower():find("sits out") ~= nil, "Short Table text says the last Patron sits out")
+end })
+
 -- ===== Tavern Map event nodes =====
 table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
 	local ME = require(script.Parent.Parent.Engine.MapEvents)
