@@ -204,7 +204,13 @@ function DebugJump.apply(session, op, deps)
 	elseif which == "endrun" then
 		state.runOver, state.roundOver = true, true
 		state.wonRun = op.win == true
-		if op.win then state.night = math.max(state.night or 1, state.config.nightCap) end
+		if op.win then
+			state.night = math.max(state.night or 1, state.config.nightCap)
+			-- a real winning score for the final round, so the Run Over line reads "Final score: 5.2K / 4K", never 0 / target
+			local target = math.max(1, math.floor(tonumber(state.targetScore) or 1))
+			state.targetScore = target
+			state.roundScore = math.max(math.floor(tonumber(state.roundScore) or 0), math.ceil(target * 1.3))
+		end
 		session.phase = "gameover"
 		session.choice = nil
 		return true, op.win and "endrun win" or "endrun"

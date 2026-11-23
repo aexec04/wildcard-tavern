@@ -24744,13 +24744,37 @@ table.insert(tests, { name = "Run Over: the painted scroll turns the gold rim an
 	expectTrue(vh:find("inner.Visible = not off and", 1, true) ~= nil and vh:find("piece.Visible = not off and", 1, true) ~= nil, "both the InnerRim and the corner pieces are gated")
 end })
 
+-- a FakeGui stand-in for Client/TavernKit: pill() is a Frame with a Word label, the painted calls are recorded
+RUN_OVER_FX = { bursts = {} }
+RUN_OVER_KIT_STUB = (function()
+	local FG = nil
+	local kit = { paintedCalls = {} }
+	function kit.pill(parent, text)
+		FG = FG or require(script.Parent.FakeGui)
+		local f = FG.new("Frame")
+		f.Name = "TavernPill"
+		local w = FG.new("TextLabel")
+		w.Name = "Word"
+		w.Text = text or ""
+		w.Parent = f
+		f.Parent = parent
+		return f
+	end
+	function kit.icon() return nil end
+	function kit.paintedButton(b, kind) kit.paintedCalls[#kit.paintedCalls + 1] = { b = b, kind = kind } return nil end
+	function kit.setPlateButton() return false end
+	function kit.painted() return nil end
+	return kit
+end)()
+
 table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named frames, every action present, no Continue, fits 1280x720 and a phone", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine", "RunOverWin", "Celebration" }) do map[n] = require(E[n]) end
 	local stubs = {
+		TavernKit = RUN_OVER_KIT_STUB, ConfettiFX = { burst = function() return 0 end }, CelebrationFX = { countUp = function() end, titleIn = function() end, defeatWash = function() end },
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
 		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
@@ -53652,8 +53676,11 @@ end })
 -- the REAL Run Over screen read back from its live instances (colours, sizes, plates), loss, win and Endless, at 1280x720 and 800x360
 local function buildGameOver(FakeGui, E, calm)
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "ScoreText", "WinCard", "ImageSpace", "ContentArt", "Gameplay2Moments", "RunOverBoons", "BestLine", "RunOverWin", "Celebration" }) do map[n] = require(E[n]) end
+	RUN_OVER_FX.bursts = {}
 	local stubs = {
+		TavernKit = RUN_OVER_KIT_STUB, ConfettiFX = { burst = function(_, big) table.insert(RUN_OVER_FX.bursts, big == true) return 1 end },
+		CelebrationFX = { countUp = function() end, titleIn = function() end, defeatWash = function() end },
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
 		RunOverBoonStrip = { new = function() return { setTone = function() end, show = function() end } end },
 		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function(k) return calm == true and k == "reduceShake" end },
@@ -53704,6 +53731,100 @@ table.insert(tests, { name = "Run Over live readability: loss, win and Endless a
 	expectTrue(#Audit.audit(ctl, 300, 100) >= 3, "the audit flags small text, weak contrast and a 30 px button")
 	if #found > 0 then print(table.concat(found, "\n")) end
 	expectEqual(#found, 0, "Run Over has " .. #found .. " readability findings")
+end })
+
+
+table.insert(tests, { name = "RunOverWin: headline, champion, record, unlock pills and the Tips count-up", fn = function()
+	local W = require(script.Parent.Parent.Engine.RunOverWin)
+	expectEqual(W.headline({ wonRun = true, night = 8, nightCap = 8 }), "Tavern Champion", "a full clear is the Tavern Champion")
+	expectEqual(W.headline({ wonRun = true, night = 5, nightCap = 8 }), "You beat Night 5", "an earlier win names its Night")
+	expectEqual(W.headline({ wonRun = false, night = 5, nightCap = 8 }), nil, "a loss has no win banner")
+	expectEqual(W.headline(nil), nil, "no state, no banner")
+	expectTrue(W.confettiBig({ wonRun = true, night = 8, nightCap = 8 }) and not W.confettiBig({ wonRun = true, night = 3, nightCap = 8 }), "the big burst is for a full clear only")
+	expectTrue(W.isNewRecord({ wonRun = true, night = 8, profileStats = { bestNightReached = 8 } }), "reaching the best Night is a record")
+	expectFalse(W.isNewRecord({ wonRun = true, night = 4, profileStats = { bestNightReached = 8 } }), "a lower Night is not")
+	expectFalse(W.isNewRecord({ wonRun = false, night = 9, profileStats = { bestNightReached = 8 } }), "a loss never shows New record")
+	local pills = W.unlockPills({ "Gold Cup", "Lucky Seven", "Night Owl", "Fourth", "Fifth" })
+	expectEqual(#pills, 3, "three pills at most")
+	expectTrue(pills[3]:find("+2 more", 1, true) ~= nil, "the rest fold into the last pill")
+	for _, p in ipairs(pills) do expectTrue(#p <= W.PILL_MAX_CHARS + 12, "a pill is short") end
+	expectEqual(#W.unlockPills({}), 0, "no unlocks, no pills")
+	expectEqual(#W.unlockPills("x"), 0, "bad input is empty")
+	expectEqual(W.tipsSteps({ tips = 40 }, true), nil, "Calm mode shows the end state at once")
+	local plan = W.tipsSteps({ tips = 40 }, false)
+	expectTrue(plan ~= nil and plan.values[#plan.values] == 40, "the count-up ends on the real Tips")
+end })
+
+table.insert(tests, { name = "Run Over redesign: no Stretch picture, painted buttons re-dressed at real size, win banner and pills, big confetti only on a full clear, none on a loss, 44 px buttons at 1280x720 and 800x360", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local f = assert(io.open("src/Client/GameOver.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("ScaleType.Stretch", 1, true) == nil, "GameOver draws no Stretch picture")
+	expectTrue(src:find("scrollPicture.ScaleType = Enum.ScaleType.Fit", 1, true) ~= nil, "the scroll picture keeps its aspect ratio")
+	expectTrue(src:find("ConfettiFX", 1, true) ~= nil and src:find("RunOverWin.confettiBig", 1, true) ~= nil, "the win uses ConfettiFX, bigger on a full clear")
+	local summary = { night = 8, round = 3, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" } },
+		patrons = { { id = "a", name = "Ada", icon = "A" } }, rarity = "common", badgeSaved = false }
+	local function run(calm)
+		local P, root = buildGameOver(FakeGui, E, calm)
+		return P, root
+	end
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local P, root = run(false)
+		root.AbsoluteSize = { X = size[1], Y = size[2] }
+		P.gameOverFrame.Visible = true
+		local panel = P.gameOverFrame:FindFirstChild("RunOverPanel")
+		-- a full clear: Tavern Champion, big burst, real final score (not 0), 44 px buttons
+		local win = { phase = "gameover", night = 8, nightCap = 8, round = 3, wonRun = true, roundScore = 5200, targetScore = 4000, tips = 40, runSummary = summary,
+			profileStats = { bestNightReached = 8 } }
+		P.refreshGameOver(win, nil)
+		local banner = panel:FindFirstChild("WinBanner", true)
+		expectTrue(banner ~= nil and banner.Visible and banner:FindFirstChild("Word").Text == "Tavern Champion", "a full clear shows the Tavern Champion ribbon at " .. size[1])
+		expectEqual(#RUN_OVER_FX.bursts, 1, "one burst on a win")
+		expectTrue(RUN_OVER_FX.bursts[1] == true, "the full clear burst is the big one")
+		local facts = {}
+		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do facts[#facts + 1] = c.Text or "" end
+		local all = table.concat(facts, "\n")
+		expectTrue(all:find("Final score: 5.2K / 4K", 1, true) ~= nil or all:find("Final score: 5,200 / 4,000", 1, true) ~= nil, "the win shows its real final score")
+		expectTrue(all:find("New record!", 1, true) ~= nil, "a new best Night is highlighted")
+		for _, nm in ipairs({ "PlayAgain", "BackToTavern", "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge" }) do
+			local b = panel:FindFirstChild(nm, true)
+			expectTrue(b.Size.Y.Offset >= 44, nm .. " is 44 px or taller at " .. size[1])
+		end
+		local sizes = {}
+		for _, nm in ipairs({ "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge" }) do
+			local b = panel:FindFirstChild(nm, true)
+			sizes[#sizes + 1] = b.Size.X.Offset .. "x" .. b.Size.Y.Offset
+		end
+		expectTrue(sizes[1] == sizes[2] and sizes[2] == sizes[3] and sizes[3] == sizes[4], "the secondary buttons are one size")
+		-- every button was dressed through the painted kit (nine-sliced) after it had its real size
+		local seen = {}
+		for _, c in ipairs(RUN_OVER_KIT_STUB.paintedCalls) do
+			if c.b.Size and c.b.Size.Y then seen[c.b.Name] = c.b.Size.Y.Offset end
+		end
+		for _, nm in ipairs({ "PlayAgain", "BackToTavern", "ShareResult" }) do expectTrue((seen[nm] or 0) >= 44, nm .. " is painted at its real size") end
+		-- an earlier win: the Night banner and a plain burst
+		P.refreshGameOver({ phase = "gameover", night = 4, nightCap = 8, round = 2, wonRun = true, roundScore = 900, targetScore = 800, tips = 5, runSummary = summary }, nil)
+		expectTrue(panel:FindFirstChild("WinBanner", true):FindFirstChild("Word").Text == "You beat Night 4", "an earlier win names its Night")
+		expectTrue(RUN_OVER_FX.bursts[#RUN_OVER_FX.bursts] == false, "a smaller win gets the plain burst")
+		-- a loss: no banner, no confetti
+		local before = #RUN_OVER_FX.bursts
+		P.refreshGameOver({ phase = "gameover", night = 5, round = 3, roundScore = 604, targetScore = 3174, tips = 12, runSummary = summary }, nil)
+		expectFalse(panel:FindFirstChild("WinBanner", true).Visible, "a loss has no ribbon")
+		expectEqual(#RUN_OVER_FX.bursts, before, "a loss draws no confetti")
+	end
+	-- Calm mode: ConfettiFX itself draws nothing (Confetti.count 0), so the end state is shown at once
+	expectEqual(require(E.Confetti).count(true, false, true), 0, "Calm mode has no confetti pieces")
+end })
+
+table.insert(tests, { name = "DebugJump endrun:win passes a real winning score, never 0", fn = function()
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Shared/Engine/DebugJump.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("math.ceil(target * 1.3)", 1, true) ~= nil, "the win jump sets roundScore above the target")
 end })
 
 
