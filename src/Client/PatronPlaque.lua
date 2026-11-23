@@ -174,8 +174,11 @@ function PatronPlaque.apply(frame, patronId, opts)
 	local category = opts.category or "patrons"
 	local map = ART_MAPS[category]
 	local artId = map and map[patronId]
-	local cutCard = category == "patrons" and not opts.portrait and CARD_ART["ctp_" .. patronId] or nil
-	if type(cutCard) == "string" and cutCard ~= "" then artId = cutCard else cutCard = nil end
+	local cutCard = nil
+	if category == "patrons" then -- one picture per Patron on every screen (Engine/PatronImage: the cut card, else the portrait)
+		artId = require(Engine:WaitForChild("PatronImage")).get(patronId, opts.portrait == true)
+		if artId and artId == CARD_ART["ctp_" .. patronId] then cutCard = artId end
+	end
 	if type(artId) ~= "string" or artId == "" or artId == "rbxassetid://0" then return nil end
 
 	local art = Instance.new("ImageLabel")

@@ -47078,6 +47078,44 @@ table.insert(tests, { name = "Layers: the Studio overlay audit script and its us
 	expectTrue(d ~= nil and d:find("overlay_audit", 1, true) ~= nil, "the UI rules note says to run the audit")
 end })
 
+table.insert(tests, { name = "Patron art: every Patron resolves to one picture on every surface (cut card first), through Engine/PatronImage", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local PI = require(script.Parent.Parent.Engine.PatronImage)
+	local CA = require(script.Parent.Parent.Engine.ContentArt)
+	local Cards = require(script.Parent.Parent.Engine.ConceptTPatronArt)
+	local Portraits = require(script.Parent.Parent.Engine.PatronArt)
+	local withCard, portraitOnly, none = 0, 0, {}
+	for _, def in ipairs(Patrons.Definitions) do
+		local id = def.id
+		local one = PI.get(id)
+		expectEqual(CA.getImageId("patrons", id), one, "Collection and every ContentArt lookup agree for " .. id)
+		local urls = CA.collectUrls({ { "patrons", id } })
+		expectEqual(urls[1], one, "preload warms the shown picture for " .. id)
+		if Cards["ctp_" .. id] then
+			withCard = withCard + 1
+			expectEqual(one, Cards["ctp_" .. id], "the table card picture is the one shown for " .. id)
+		elseif Portraits[id] then
+			portraitOnly = portraitOnly + 1
+			expectEqual(one, Portraits[id], "no cut card yet, the portrait is the one picture for " .. id)
+		else
+			none[#none + 1] = id
+		end
+	end
+	expectTrue(withCard > 0, "some Patrons have a cut card")
+	expectEqual(#none, 0, "every Patron has a picture, missing: " .. table.concat(none, ", "))
+	expectEqual(PI.get("no_such_patron"), nil, "an unknown id has no picture")
+	if print then print(string.format("[PatronImage] %d cut cards, %d portrait only: %s", withCard, portraitOnly, table.concat(PI.missingCard(), " "))) end
+	if not io then return end
+	for _, name in ipairs({ "PatronPlaque", "PatronTipFX", "Collection", "ShopCards", "ChoicePanel", "PatronRow", "GameOver" }) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local src = f:read("a"); f:close()
+			expectTrue(src:find('Engine:WaitForChild("PatronArt")', 1, true) == nil or name == "PatronPlaque", name .. " has no second Patron picture registry")
+			expectTrue(src:find('CutCards["ctp_"', 1, true) == nil, name .. " does not look up cut cards on its own")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Counter declutter: one summary plate, three offers, one Next Round, no two pieces overlap at four sizes, Rank and Suit are table only", fn = function()
 	local S = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local SS = require(script.Parent.Parent.Engine.ShopSummary)

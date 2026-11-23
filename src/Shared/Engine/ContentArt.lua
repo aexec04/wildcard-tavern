@@ -79,6 +79,7 @@ ContentArt.bosses      = ContentArt.boss_rounds
 ContentArt.housePasses = ContentArt.house_passes
 
 function ContentArt.getImageId(tab, id)
+	if tab == "patrons" then return require(Engine:WaitForChild("PatronImage")).get(id) end -- one picture per Patron on every screen
 	local t = ContentArt[tab]
 	if not t then return nil end
 	local v = t[id]
@@ -119,7 +120,10 @@ function ContentArt.collectUrls(items)
 	end
 	for _, item in ipairs(items) do
 		local map = ContentArt[item[1]]
-		if type(map) == "table" then
+		if item[1] == "patrons" then -- the picture a Patron shows is its cut card when it has one (Engine/PatronImage)
+			local PI = require(Engine:WaitForChild("PatronImage"))
+			if item[2] then add(PI.get(item[2])) else for _, pid in ipairs(PI.ids()) do add(PI.get(pid)) end end
+		elseif type(map) == "table" then
 			if item[2] then
 				add(map[item[2]])
 			else

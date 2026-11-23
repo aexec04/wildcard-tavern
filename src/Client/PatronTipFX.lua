@@ -16,7 +16,7 @@ local PatronTips = require(Engine:WaitForChild("PatronTips"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local Tip = require(Engine:WaitForChild("Gameplay2Tip"))
-local CutCards = require(Engine:WaitForChild("ConceptTPatronArt"))
+local PatronImage = require(Engine:WaitForChild("PatronImage")) -- the one picture per Patron
 
 local M = {}
 
@@ -155,7 +155,7 @@ function render(root, cards, index, info, calm, v2)
 		pic.BorderSizePixel = 0
 		pic.Active = false
 		pic.ScaleType = Enum.ScaleType.Fit
-		pic.Image = CutCards["ctp_" .. info.id] or ""
+		pic.Image = PatronImage.get(info.id) or ""
 		pic.Size = UDim2.fromOffset(portrait.w, portrait.h)
 		pic.Position = UDim2.fromOffset(pad, pad)
 		pic.ZIndex = Z + 1
