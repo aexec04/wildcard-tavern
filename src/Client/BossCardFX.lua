@@ -202,14 +202,14 @@ function M.update(layer, state, rects, viewW, viewH)
 	if spot then
 		card.Visible = true
 		place(card, spot)
-		local parts = Rules.cardParts(spot)
+		local parts = Rules.cardParts(spot, rule)
 		place(card.Portrait, parts.portrait)
 		-- the card names the boss on one line above its rule (the header plate keeps its own large name)
 		card.Title.Visible = true; card.Title.Text = name
 		card.Title.Position = UDim2.fromOffset(parts.title.x, parts.title.y); card.Title.Size = UDim2.fromOffset(parts.title.w, parts.title.h)
 		card.Title.TextSize = math.max(13, math.min(19, parts.title.h - 4)); card.Title.TextWrapped = false
 		card.Rule.Position = UDim2.fromOffset(parts.text.x, parts.text.y); card.Rule.Size = UDim2.fromOffset(parts.text.w, parts.text.h)
-		card.Rule.TextSize = math.max(12, math.min(17, math.floor(parts.text.h * 0.2)))
+		card.Rule.TextSize = parts.ruleSize
 		card.Rule.Text = rule
 		if lastBossId ~= (boss and boss.id) then
 			lastBossId = boss and boss.id

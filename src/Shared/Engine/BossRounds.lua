@@ -93,7 +93,7 @@ BossRounds.Definitions = {
 	{
 		id = "thin_soup",
 		name = "Thin Soup",
-		description = "Chips from played hands are reduced by 20% this round.",
+		description = "Played hands score 20% fewer Chips.",
 		flavorText = "The pot was watered down. The chips feel it.",
 		minNight = 1,
 		chipsMultiplier = 0.8,

@@ -38529,6 +38529,33 @@ table.insert(tests, { name = "Boss round overlap pass: Boss card, top plate, spe
 		end
 	end
 end })
+table.insert(tests, { name = "Boss rule plate: every boss line is plain, two lines at 14 px or more, plate under 380x150 and inside clear space at four sizes", fn = function()
+	local B = require(script.Parent.Parent.Engine.BossCard)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local Fit = require(script.Parent.Parent.Engine.BossRuleFit)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	expectTrue(#BR.Definitions >= 12, "at least 12 bosses")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local c = B.cardRect(r, w, h)
+		if c then
+			expectTrue(c.w <= 380 and c.h <= 150, "plate under 380x150 at " .. w .. "x" .. h)
+			for _, s in ipairs(r.slots) do expectTrue(not hit(c, s.card), "plate clear of the Patron slots at " .. w .. "x" .. h) end
+			expectTrue(not hit(c, r.hand), "plate clear of the hand at " .. w .. "x" .. h)
+			for _, boss in ipairs(BR.Definitions) do
+				local d = boss.description
+				expectTrue(type(d) == "string" and #d >= 10 and #d <= 60, boss.id .. " has a plain rule line of 60 characters or less")
+				local parts = B.cardParts(c, d)
+				expectTrue(parts.ruleSize >= 14, boss.id .. " rule text 14 px or more at " .. w .. "x" .. h)
+				expectTrue(parts.ruleLines <= 2, boss.id .. " rule fits two lines at " .. w .. "x" .. h .. " (" .. tostring(parts.ruleLines) .. ") cw=" .. c.w .. " tw=" .. parts.text.w .. " ch=" .. c.h .. " sz=" .. parts.ruleSize)
+				expectTrue(parts.ruleLines * parts.ruleSize * Fit.LINE_FACTOR <= parts.text.h, boss.id .. " rule height fits the plate at " .. w .. "x" .. h)
+				expectTrue(parts.text.x + parts.text.w <= c.w and parts.text.y + parts.text.h <= c.h, boss.id .. " rule inside the plate at " .. w .. "x" .. h)
+			end
+		end
+	end
+end })
 table.insert(tests, { name = "Boss round card: health is max(0, Target - Score), card and health rows clear of the table at four sizes", fn = function()
 	local B = require(script.Parent.Parent.Engine.BossCard)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
@@ -38562,7 +38589,7 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 		end
 	end
 	local big = B.cardRect(L.rects(1920, 957), 1920, 957)
-	expectTrue(big and big.h >= 180 and B.cardParts(big).portrait.w == 120, "1920x957: a 190 px panel with a 120 px portrait")
+	expectTrue(big and big.h == 150 and big.w <= 380 and B.cardParts(big).portrait.w == 120, "1920x957: the panel is capped at 150 px tall with a 120 px portrait")
 	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
 	do local r0 = L.rects(1920, 957); local pr = B.plateRect(r0)
 	expectTrue(pr ~= nil and pr.y == r0.target.y and pr.h == r0.target.h, "the boss plate has the Target plate's top and height at 1920x957") end
