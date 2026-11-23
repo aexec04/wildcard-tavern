@@ -48698,6 +48698,61 @@ table.insert(tests, { name = "Data save audit: profiles saved at the last three 
 	expectTrue(ok, tostring(err))
 end })
 
+table.insert(tests, { name = "Anti exploit: Play Hand and Discard refuse 6 or more cards, a card not in hand, a repeated card and a discard over the limit, and leave the state unchanged", fn = function()
+	local Guard = require(script.Parent.Parent.Engine.PayloadGuard)
+	local function snap(state)
+		local ids = {}
+		for _, c in ipairs(state.hand) do ids[#ids + 1] = c.rank .. c.suit end
+		return table.concat(ids, ",") .. "|" .. #state.deck .. "|" .. #state.discardPile .. "|" .. state.handsRemaining .. "|" .. state.discardsRemaining
+			.. "|" .. state.roundScore .. "|" .. state.tips .. "|" .. tostring(state.roundOver)
+	end
+	local state = RunState.new(nil, SeededRng.new(77))
+	RunState.startRound(state)
+	local handSize = #state.hand
+	expectTrue(handSize >= 6, "the hand is big enough to test 6 cards")
+	local bad = {
+		{ "six cards", { 1, 2, 3, 4, 5, 6 } },
+		{ "seven cards", { 1, 2, 3, 4, 5, 6, 7 } },
+		{ "a card not in hand", { handSize + 1 } },
+		{ "far outside the hand", { 1, 9999 } },
+		{ "zero", { 0 } },
+		{ "negative", { -1, 2 } },
+		{ "a repeated card", { 2, 2 } },
+		{ "a repeat among five", { 1, 2, 3, 4, 4 } },
+		{ "a fraction", { 1.5 } },
+		{ "empty", {} },
+		{ "a string", { "1" } },
+	}
+	for _, case in ipairs(bad) do
+		expectFalse(Guard.indexList(case[2], handSize, 5), "the server guard refuses " .. case[1])
+		for _, action in ipairs({ "playHand", "discard" }) do
+			local before = snap(state)
+			local ok = pcall(RunState[action], state, case[2])
+			expectFalse(ok, action .. " refuses " .. case[1])
+			expectEqual(snap(state), before, action .. " with " .. case[1] .. " leaves the state unchanged")
+		end
+	end
+	-- a good list still works (the guard is not over strict)
+	expectTrue(Guard.indexList({ 1, 2, 3, 4, 5 }, handSize, 5), "five different cards pass")
+	-- a discard over the limit: spend every discard, then one more is refused and changes nothing
+	while state.discardsRemaining > 0 do
+		expectTrue(pcall(RunState.discard, state, { 1 }), "a legal discard works")
+	end
+	local before = snap(state)
+	expectFalse(pcall(RunState.discard, state, { 1 }), "a discard with none left is refused")
+	expectEqual(snap(state), before, "a refused extra discard leaves the state unchanged")
+	-- and the same for hands
+	while state.handsRemaining > 1 and not state.roundOver do
+		pcall(RunState.playHand, state, { 1 })
+	end
+	if not state.roundOver then
+		expectTrue(pcall(RunState.playHand, state, { 1 }) or state.roundOver, "the last hand plays")
+	end
+	local after = snap(state)
+	expectFalse(pcall(RunState.playHand, state, { 1 }), "no hands left or the round over is refused")
+	expectEqual(snap(state), after, "a refused extra hand leaves the state unchanged")
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do

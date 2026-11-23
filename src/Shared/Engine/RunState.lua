@@ -749,6 +749,9 @@ end
 
 local function removeIndicesFromHand(state, indices)
 	-- indices: array of 1-based positions into state.hand, must be unique.
+	-- Defence in depth (the server checks the same shape first): a repeat, a card not in the hand or a fraction is refused and
+	-- transact() puts the state back, so a bad list can never play fewer cards than it counts.
+	assert(require(script.Parent.PayloadGuard).indexList(indices, #state.hand, 5), "Pick 1 to 5 different cards from your hand")
 	local indexSet = {}
 	for _, i in ipairs(indices) do
 		indexSet[i] = true
