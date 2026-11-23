@@ -34,6 +34,7 @@ local WinCardRules = require(Engine:WaitForChild("WinCard"))
 local Moments = require(Engine:WaitForChild("Gameplay2Moments"))
 local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local RunOverWin = require(Engine:WaitForChild("RunOverWin"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local CREAM = Color3.fromRGB(250, 240, 220)
@@ -41,7 +42,7 @@ local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
 local SOFT = Color3.fromRGB(235, 222, 195)
 local INK = Color3.fromRGB(60, 40, 22)
 local PARCHMENT = Color3.fromRGB(222, 198, 150)
-local WOOD = Color3.fromRGB(70, 50, 34)
+local WOOD = Color3.fromRGB(46, 32, 20) -- the one wood plate colour: panel, facts plate, Patron plate and secondary buttons
 local GREEN = Color3.fromRGB(60, 110, 70)
 local BRASS = Color3.fromRGB(196, 150, 60)
 
@@ -90,7 +91,7 @@ return function(deps)
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.Size = UDim2.fromOffset(760, 460)
-	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	panel.BackgroundColor3 = WOOD
 	panel.Active = true
 	panel.Parent = dim
 	polishPanel(panel, 16, "wood")
@@ -120,7 +121,7 @@ return function(deps)
 	scrollPicture.BackgroundTransparency = 1
 	scrollPicture.BorderSizePixel = 0
 	scrollPicture.Active = false
-	scrollPicture.ScaleType = Enum.ScaleType.Stretch
+	scrollPicture.ScaleType = Enum.ScaleType.Fit -- keeps the picture's own proportions, centred (the panel is sized to them)
 	scrollPicture.ZIndex = 21
 	scrollPicture.Visible = false
 	scrollPicture.Parent = panel
@@ -199,9 +200,20 @@ return function(deps)
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
 	})
 	polishPanel(revivedBadge, 13)
+	-- the win ribbon: a gold pill with the Night reached ("Tavern Champion" after a full clear), only on a win
+	local winBanner = require(script.Parent.TavernKit).pill(titleF, "", "gold")
+	winBanner.Name = "WinBanner"
+	winBanner.Visible = false
+	winBanner.ZIndex = 23
+	winBanner.Size = UDim2.fromOffset(260, 30)
+	local bannerWord = winBanner:FindFirstChild("Word")
+	bannerWord.TextSize = 18
+	bannerWord.ZIndex = 24
+	bannerWord.TextStrokeTransparency = 1
+	pcall(function() require(script.Parent.TavernKit).icon(bannerWord, "crown", 0.12) end) -- the medal, drawn from the existing icon set
 	local factsPlate = frame("FactsPlate") -- solid dark wood behind the facts column, so no painted lantern or candle sits under the text
 	factsPlate.BackgroundTransparency = 0.08
-	factsPlate.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	factsPlate.BackgroundColor3 = WOOD
 	do
 		local pc = Instance.new("UICorner")
 		pc.CornerRadius = UDim.new(0, 10)
@@ -218,7 +230,7 @@ return function(deps)
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	local patronsF = frame("Patrons")
 	patronsF.BackgroundTransparency = 0.15
-	patronsF.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	patronsF.BackgroundColor3 = WOOD
 	local pk = Instance.new("UICorner")
 	pk.CornerRadius = UDim.new(0, 10)
 	pk.Parent = patronsF
@@ -350,10 +362,11 @@ return function(deps)
 			local ST = require(Engine:WaitForChild("ScoreText"))
 			add("Final score: " .. ST.short(state.roundScore) .. " / " .. ST.short(state.targetScore))
 		end
-		add(string.format("Tips banked: %d", math.floor(state.tips or 0)))
+		add(string.format("Tips banked: %d", math.floor(state.tips or 0)), { countTips = math.floor(state.tips or 0) })
 		do -- best Night and best hand so far, from profile stats
 			local okB, bestLine = pcall(function() return require(Engine:WaitForChild("BestLine")).recordLine(state.profileStats) end)
-			if okB and bestLine then add(bestLine, { tone = "soft" }) end
+			if okB and bestLine and isWin and RunOverWin.isNewRecord(state) then add("New record! " .. bestLine, { tone = "gold", TextSize = 18 })
+			elseif okB and bestLine then add(bestLine, { tone = "soft" }) end
 		end
 		if summary then
 			add("Road taken", { TextSize = 18, tone = "gold" })
@@ -368,7 +381,13 @@ return function(deps)
 				local names = require(script.Parent.UnlockToast).namesOf(state.unlockNotice and state.unlockNotice.items)
 				return require(Engine:WaitForChild("ProgressionFeel")).unlockLine(names)
 			end)
-			if okU and line then add(line, { tone = "gold" }) end
+			local names = nil
+			pcall(function() names = require(script.Parent.UnlockToast).namesOf(state.unlockNotice and state.unlockNotice.items) end)
+			local pills = RunOverWin.unlockPills(names)
+			if #pills > 0 then
+				add("New unlocks", { tone = "gold", TextSize = 16 })
+				add("", { pills = pills, fixedH = #pills * 34 + LINE_PAD })
+			elseif okU and line then add(line, { tone = "gold" }) end
 		end
 		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
 		do -- one kind line about the next Starting Deck to open (nothing when every deck is open)
@@ -407,7 +426,11 @@ return function(deps)
 		local y = RunOverLayout.TOP_PAD
 		for _, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
-			y = y + RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size) * (size + 3) + LINE_PAD
+			if line.props.fixedH then
+				y = y + line.props.fixedH
+			else
+				y = y + RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size) * (size + 3) + LINE_PAD
+			end
 		end
 		return y
 	end
@@ -419,11 +442,30 @@ return function(deps)
 			local size = line.props.TextSize or FACT_SIZE
 			local n = RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size)
 			local h = n * (size + 3) + LINE_PAD
+			if line.props.fixedH then
+				h = line.props.fixedH
+				for k, name in ipairs(line.props.pills) do -- one gold pill per new unlock
+					local pill = require(script.Parent.TavernKit).pill(factsF, name, "gold")
+					pill.Name = "UnlockPill" .. k
+					pill.Position = UDim2.fromOffset(RunOverLayout.factInset(), y + (k - 1) * 34)
+					pill.Size = UDim2.fromOffset(RunOverLayout.factWidth(width), 30)
+					local word = pill:FindFirstChild("Word")
+					word.TextSize = 16
+					word.TextStrokeTransparency = 1
+					word.ZIndex = 24
+					pill.ZIndex = 23
+				end
+			else
 			local factLabel = label(factsF, { -- inset so the words keep 12 px clear of the dark plate edge (TextFit.SIDE)
 				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(RunOverLayout.factInset(), y), Size = UDim2.fromOffset(RunOverLayout.factWidth(width), h),
 				TextSize = size, Font = line.props.Font or Enum.Font.Merriweather, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
 			})
-			if i > 1 and ClientSettings.get("reduceShake") ~= true then -- the tally reads one line at a time (a static list in Calm mode)
+			if line.props.countTips and current.animate and ClientSettings.get("reduceShake") ~= true then -- Tips count up (the end state at once in Calm mode)
+				pcall(function()
+					require(script.Parent.CelebrationFX).countUp(factLabel, line.props.countTips, function(v) return string.format("Tips banked: %d", math.floor(v)) end)
+				end)
+			end
+			if i > 1 and current.animate and ClientSettings.get("reduceShake") ~= true then -- the tally reads one line at a time (a static list in Calm mode)
 				factLabel.TextTransparency = 1
 				task.delay(0.18 * (i - 1), function()
 					if factLabel.Parent then factLabel.TextTransparency = 0 end
@@ -439,6 +481,7 @@ return function(deps)
 				tap.ZIndex = 20
 				tap.Parent = factsF
 				tap.MouseButton1Click:Connect(function() click() showBox(line.props.copy) end)
+			end
 			end
 			y = y + h
 		end
@@ -648,6 +691,22 @@ return function(deps)
 			contentScale.Scale = 1
 		end
 		place(titleF, r.title)
+		do -- a win: the gold ribbon on top (the Night reached), the line under it; a loss keeps the one title line
+			local win = current.isWin == true
+			winBanner.Visible = win
+			if win then
+				bannerWord.Text =RunOverWin.headline(current.state) or "You won"
+				winBanner.Size = UDim2.fromOffset(math.min(300, math.max(180, r.title.w - 130)), 30)
+				winBanner.Position = UDim2.fromOffset(0, 0)
+				titleLabel.TextSize = 22
+				titleLabel.Position = UDim2.fromOffset(0, 32)
+				titleLabel.Size = UDim2.new(1, -150, 0, math.max(24, r.title.h - 32))
+			else
+				titleLabel.TextSize = 26
+				titleLabel.Position = UDim2.fromOffset(0, 0)
+				titleLabel.Size = UDim2.new(1, -150, 1, 0)
+			end
+		end
 		place(factsF, r.facts)
 		do -- the dark plate stands PLATE_PAD past the text on every side, only on the painted scroll (the plain panel is already dark)
 			local pad = RunOverLayout.PLATE_PAD
@@ -674,6 +733,13 @@ return function(deps)
 			local c = r.more[i]
 			b.Position = UDim2.fromOffset(math.floor(c.x - mx + 0.5), math.floor(c.y - my + 0.5))
 			b.Size = UDim2.fromOffset(math.floor(c.w + 0.5), math.floor(c.h + 0.5))
+		end
+		-- every button is dressed again at its real size: the painted plate is nine-sliced (SliceCenter) for that size, so ornaments never stretch
+		for _, b in ipairs(primaryList) do
+			pcall(function() require(script.Parent.TavernKit).paintedButton(b, b == playAgainButton and "primary" or "secondary") end)
+		end
+		for _, b in ipairs(moreList) do
+			pcall(function() require(script.Parent.TavernKit).paintedButton(b, "secondary") end)
 		end
 		-- the equipped Card Set's own plates on every Run Over button (primary green for Play Again, dark for the rest); classic keeps the painted kit plates
 		for _, b in ipairs(primaryList) do
@@ -732,7 +798,7 @@ return function(deps)
 		playAgainButton.Text = isWin and "Play Again" or "Try Again" -- a calm retry after a loss
 		pcall(function() require(script.Parent.TavernScreens).skin(dim, "runover") end)
 		if isWin then
-			titleLabel.Text = "Last call, but what a night! You beat the tavern."
+			titleLabel.Text = "Last call, but what a night! You beat the tavern!"
 		else
 			titleLabel.Text = string.format("Last call! You made it to Night %d, Round %d.", state.night, state.round)
 		end
@@ -755,11 +821,13 @@ return function(deps)
 
 		local key = string.format("%s-%s-%s-%s-%s", tostring(state.night), tostring(state.round), tostring(isWin), tostring(isRevived), summary and "s" or "n")
 		local fresh = key ~= lastKey
+		current.animate = fresh -- the rows reveal one after another and Tips count up only the first time a result shows
 		if fresh then
 			shareBox.Visible, shareHint.Visible = false, false
 			shareButton.Visible, challengeButton.Visible, inviteButton.Visible = true, true, true
 		end
 		local ok, err = pcall(layoutNow)
+		current.animate = false
 		if not ok then warn("[RunOver] layout failed: " .. tostring(err)) end
 		if fresh then
 			lastKey = key
@@ -791,8 +859,8 @@ return function(deps)
 				local fx = require(script.Parent.CelebrationFX)
 				if clearWash then clearWash(); clearWash = nil end
 				if isWin then
-					fx.winConfetti(root.Parent)
 					fx.titleIn(titleLabel)
+					require(script.Parent.ConfettiFX).burst(root.Parent, RunOverWin.confettiBig(state), RunOverLayout.Z_LIFT + 80) -- bigger after a full clear; nothing in Calm mode
 				else
 					clearWash = fx.defeatWash(dim)
 				end
