@@ -585,6 +585,17 @@ function CosmeticSets.backdropStyleOf(set)
 	return out
 end
 
+-- Screens that already carry a painted room and painted cards (Round Select, the Counter): the set draws NO colour over them, no
+-- tint on the image, no flat overlay and no vignette (a Golden Gala wash turned both screens orange). Only drawn decoration stays
+-- (bunting, particles). Every other host gets the full style.
+CosmeticSets.NO_TINT_HOSTS = { RoundSelect = true, ShopBackgroundArt = true }
+function CosmeticSets.hostStyleOf(set, hostName)
+	local style = CosmeticSets.backdropStyleOf(set)
+	if not style or not CosmeticSets.NO_TINT_HOSTS[hostName] then return style end
+	style.tint, style.overlay, style.vignette = nil, nil, nil
+	return style
+end
+
 -- Card face treatment: explicit `face`, else derived from the backdrop style (tint -> paper,
 -- overlay colour -> border, vignette colour darkened -> pip), else neutral.
 function CosmeticSets.faceStyleOf(set)

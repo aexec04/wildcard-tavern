@@ -363,7 +363,7 @@ return function(deps)
 		goldTint.Name = "ClearedTint"
 		goldTint.Size = UDim2.fromScale(1, 1)
 		goldTint.BackgroundColor3 = Color3.fromRGB(230, 184, 70)
-		goldTint.BackgroundTransparency = 0.78
+		goldTint.BackgroundTransparency = 0.9 -- a light dim on cleared cards, not orange
 		goldTint.BorderSizePixel = 0
 		goldTint.Active = false
 		goldTint.Visible = false

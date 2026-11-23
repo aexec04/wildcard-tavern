@@ -252,7 +252,7 @@ function M.apply(state)
 			controllers[host.name] = entry
 		end
 		if entry and entry.styledSetId ~= set.id then
-			local ok = pcall(entry.controller.setStyle, CosmeticSets.backdropStyleOf(set))
+			local ok = pcall(entry.controller.setStyle, CosmeticSets.hostStyleOf(set, host.name)) -- Round Select and the Counter get no tint, overlay or vignette
 			if not host.noAmbient then pcall(entry.controller.setAmbient, set.id) end -- living backdrop: butterflies, clouds, snow ...
 			entry.styledSetId = set.id -- even on failure: don't retry every render
 			if not ok then

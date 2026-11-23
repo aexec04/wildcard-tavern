@@ -39658,6 +39658,37 @@ table.insert(tests, { name = "VictoryLook: each glow is centred on its own art, 
 	expectEqual(Look.IMAGE_PX, 1024, "generated pictures are 1024 px wide")
 end })
 
+table.insert(tests, { name = "Round Select and the Counter get no set tint, overlay or vignette for any Card Set, and the white default colour is restored", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	for _, id in ipairs(TS.ORDER) do
+		local set = CS.getById(id)
+		if set then
+			for _, host in ipairs({ "RoundSelect", "ShopBackgroundArt" }) do
+				local st = CS.hostStyleOf(set, host)
+				expectTrue(st == nil or (st.overlay == nil and st.tint == nil and st.vignette == nil), id .. " " .. host .. " has no tint, overlay or vignette")
+				expectTrue(st == nil or CS.validateStyle(st), id .. " " .. host .. " style stays valid")
+			end
+			local table_ = CS.hostStyleOf(set, "GameBackgroundArt")
+			local plain = CS.backdropStyleOf(set)
+			expectEqual(table_ and table_.overlay ~= nil, plain and plain.overlay ~= nil, id .. " the table host keeps the full style")
+		end
+	end
+	local gala = CS.getById("golden_gala")
+	expectTrue(gala and CS.backdropStyleOf(gala) ~= nil, "golden gala has a style on the table")
+	expectTrue(CS.NO_TINT_HOSTS.RoundSelect and CS.NO_TINT_HOSTS.ShopBackgroundArt, "both hosts are listed")
+	local f = io and io.open("src/Client/RoundSelect.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("goldTint.BackgroundTransparency = 0.9", 1, true) ~= nil, "cleared tint is a light 0.9")
+	end
+	local v = io and io.open("src/Client/CosmeticSetsView.lua", "r")
+	if v then
+		local src = v:read("*a"); v:close()
+		expectTrue(src:find("hostStyleOf(set, host.name)", 1, true) ~= nil, "the view styles each host through hostStyleOf")
+	end
+end })
+
 table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every slot falls back to classic, wash styles are valid and carry no layout", fn = function()
 	local E = script.Parent.Parent.Engine
 	local TS = require(E.ThemeScenes)
