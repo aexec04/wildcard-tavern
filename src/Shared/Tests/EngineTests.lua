@@ -41968,6 +41968,32 @@ table.insert(tests, { name = "Hand level value: a level 5 Pair scores within 1.5
 	end
 end })
 
+-- FIRST RUN BEGINNER (claude/ECONOMY.md, tools/_probe_beginner.lua): welcome ease plus the guided starter Patron, a player who just plays the
+-- first five cards, never discards and never shops still clears Night 1 and Night 2 at least 70 percent of the time.
+table.insert(tests, { name = "New player first run: a beginner who plays the first five cards clears Night 1 and Night 2 at least 70 percent of the time", fn = function()
+	local Guided = require(script.Parent.Parent.Engine.GuidedHand)
+	local seeds, clears = 40, { 0, 0 }
+	for seed = 1, seeds do
+		local state = RunState.new({ welcomeEase = true }, SeededRng.new(seed))
+		Guided.apply(state)
+		local ok = true
+		while ok and state.night <= 2 do
+			local guard = 0
+			while not state.roundOver and not state.runOver and guard < 12 do
+				guard = guard + 1
+				local pick = {}
+				for i = 1, math.min(5, #state.hand) do pick[i] = i end
+				RunState.playHand(state, pick)
+			end
+			if state.runOver or not (state.roundScore >= state.targetScore) then ok = false break end
+			if state.round == 3 then clears[state.night] = clears[state.night] + 1 end
+			RunState.advanceToNextRound(state)
+		end
+	end
+	expectTrue(clears[1] >= seeds * 0.7, "Night 1 clears: " .. clears[1] .. " of " .. seeds)
+	expectTrue(clears[2] >= seeds * 0.7, "Night 2 clears: " .. clears[2] .. " of " .. seeds)
+end })
+
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
 table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)
