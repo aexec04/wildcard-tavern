@@ -1727,6 +1727,12 @@ function RunState.sellPatron(state, patronId, now)
 	return false, 0
 end
 
+-- Selling (and undoing a sale) changes the table, so it is refused while a round is being played; the Counter and the pick
+-- screens are fine. The server checks this with its own session phase.
+function RunState.phaseAllowsPatronSell(phase)
+	return phase ~= "playing"
+end
+
 -- Put the last sold Patron back at its seat for the Tips it paid out. Fails when there is no sale, the window passed, the Tips
 -- were already spent or every seat filled up. Returns true, patronId or false.
 function RunState.undoSellPatron(state, now)

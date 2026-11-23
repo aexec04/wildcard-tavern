@@ -574,6 +574,43 @@ table.insert(tests, { name = "RunState.sellPatron fails gracefully for a patron 
 	expectEqual(refund, 0)
 end })
 
+table.insert(tests, { name = "Sell audit: refund once, count text matches, the effect stops, and selling or undoing mid round is refused by the server", fn = function()
+	expectFalse(RunState.phaseAllowsPatronSell("playing"), "no selling while a round is played")
+	for _, phase in ipairs({ "shop", "roundSelect", "gameover" }) do
+		expectTrue(RunState.phaseAllowsPatronSell(phase), phase .. " allows selling")
+	end
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 20
+	RunState.buyPatron(state, "the_regular")
+	expectEqual(#state.ownedPatrons, 1)
+	local before = state.tips
+	local ok, refund = RunState.sellPatron(state, "the_regular")
+	expectTrue(ok)
+	expectEqual(state.tips, before + refund, "Tips change once by the refund")
+	expectEqual(#state.ownedPatrons, 0, "the table count drops by one")
+	local ok2, refund2 = RunState.sellPatron(state, "the_regular")
+	expectFalse(ok2, "a second sale of the same Patron is refused")
+	expectEqual(refund2, 0)
+	expectEqual(state.tips, before + refund, "no second payout")
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local _, _, multWith = Scoring.calculate(hand, { Patrons.getById("the_regular") }, {})
+	local _, _, multSold = Scoring.calculate(hand, state.ownedPatrons, {})
+	expectEqual(multWith, 6, "owned: the Patron adds its Mult")
+	expectEqual(multSold, 2, "sold: the same hand scores the plain Mult")
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end -- Studio has no io
+	local server = f:read("*a")
+	f:close()
+	local s = server:find('Rem.SellPatron.OnServerEvent', 1, true)
+	expectTrue(s ~= nil and server:sub(s, s + 700):find("phaseAllowsPatronSell(session.phase)", 1, true) ~= nil, "SellPatron checks the phase")
+	local u = server:find('Rem.UndoSellPatron.OnServerEvent', 1, true)
+	expectTrue(u ~= nil and server:sub(u, u + 400):find("phaseAllowsPatronSell(session.phase)", 1, true) ~= nil, "UndoSellPatron checks the phase")
+	local g = io.open("src/Client/Shop.lua", "r")
+	local shop = g:read("*a")
+	g:close()
+	expectTrue(shop:find('"Your table: %d/%d Patrons%s"', 1, true) ~= nil, "table count text format")
+end })
+
 table.insert(tests, { name = "RunState.movePatron swaps neighbours, stops at both ends, ignores unknown ids and bad dirs", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 1000
