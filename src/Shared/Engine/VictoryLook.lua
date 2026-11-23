@@ -101,6 +101,27 @@ function M.summaryRows(summary, best)
 	return rows
 end
 
+-- One Run Summary row fitted to its card: the label at the left, the value at the right, 8 px apart and 12 px (TextFit.SIDE) clear of the
+-- card edges, so the pair is never wider than the card minus 24 px. A long label takes its short form, then a very long value is cut.
+M.SHORT_LABELS = {
+	["Final Round Score"] = { "Final Score", "Score" }, ["Night Reached"] = { "Night" }, ["Hands Played"] = { "Hands" },
+	["Tips Earned"] = { "Tips" }, ["Boons Picked"] = { "Boons" }, ["Your Deck"] = { "Deck" }, ["Best Night"] = { "Best" },
+}
+M.ROW_GAP = 8
+function M.fitRow(row, size, cardW)
+	local TextFit = require(script.Parent.TextFit)
+	local avail = cardW - 2 * TextFit.SIDE - M.ROW_GAP
+	local value = tostring(row.value)
+	local label = tostring(row.label)
+	local choices = { label }
+	for _, short in ipairs(M.SHORT_LABELS[label] or {}) do choices[#choices + 1] = short end
+	for _, l in ipairs(choices) do
+		if TextFit.width(l, size) + TextFit.width(value, size) <= avail then return { label = l, value = value } end
+	end
+	local l = choices[#choices]
+	return { label = l, value = TextFit.clip(value, math.max(0, avail - TextFit.width(l, size)), size) }
+end
+
 -- How many rows fit the Run Summary card at this screen size at the 16 px minimum (the rows start 48 design px down, each needs
 -- 1.15 x the text size). The five plain rows always stay; the celebration rows (Best Night, Boons Picked, Your Deck) are dropped
 -- from the end when the card is too short, so small screens never overlap text.

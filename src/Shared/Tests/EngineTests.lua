@@ -29208,6 +29208,36 @@ table.insert(tests, { name = "First session polish: one sign per blessing line, 
 	expectTrue(scene:find("tween(edge, { Transparency = 1 }, 0.35)", 1, true) ~= nil, "the speech plate's outline fades with it")
 	expectTrue(scene:find('shopFrame:FindFirstChild("PackPanel")', 1, true) ~= nil, "no speech plate over the pack screen")
 end })
+table.insert(tests, { name = "Notice Board: news, Rank and Next goal never overlap and the Rank outranks the news (real heights)", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local RP = require(script.Parent.Parent.Engine.RankPlateLayout)
+	local rankH = RP.rows(24).h
+	for _, size in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local l, t, r, b = RL.corkRect(size[1], size[2])
+		for _, newsH in ipairs({ 86, 109, 140 }) do
+			for _, goalH in ipairs({ 70, 110, 134 }) do
+				local heights = { newsH, math.max(rankH, RL.minNoteH("RankBar")), math.max(goalH, RL.minNoteH("NextGoalBanner")) }
+				local fitted = RL.noteSlots(r - l, b - t, heights, 3, 2)
+				expectTrue(fitted.show[3] == true, size[1] .. ": the Next goal stays")
+				expectTrue(fitted.show[2] == true or not fitted.show[1], size[1] .. ": the news never stays when the Rank is dropped")
+				local prevBottom
+				for _, rect in ipairs(fitted.rects) do
+					if prevBottom then expectTrue(rect.y >= prevBottom - 0.001, size[1] .. ": no two notes overlap") end
+					prevBottom = rect.y + rect.h
+					expectTrue(rect.y + rect.h <= (b - t) + 0.001, size[1] .. ": inside the cork")
+				end
+			end
+		end
+	end
+	-- a goal that needs room drops the news before the Rank
+	local l, t, r, b = RL.corkRect(1506, 751)
+	local cw, ch = r - l, b - t
+	local sc = math.min(1, (cw - 2 * RL.CORK_MARGIN - 10) / RL.NOTE_W)
+	local availU = (ch - 2 * RL.CORK_MARGIN - 10) / sc
+	local goal = math.floor(availU - RL.NOTE_TOP_TIGHT - 88 - RL.NOTE_GAP_TIGHT - 100)
+	local f = RL.noteSlots(cw, ch, { 100, 88, goal }, 3, 2)
+	expectTrue(f.show[3] and f.show[2] and not f.show[1], "the news makes room, the Rank stays")
+end })
 table.insert(tests, { name = "Notice Board: notes move closer before one is dropped, and the Next goal note is never the one that goes", fn = function()
 	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
 	expectTrue(RL.NOTE_GAP_TIGHT < RL.NOTE_GAP and RL.NOTE_TOP_TIGHT < RL.NOTE_TOP, "a tighter spacing exists")
@@ -36109,6 +36139,39 @@ table.insert(tests, { name = "Quests popup: every quest name and line fits its r
 		end
 	end
 	expectTrue(Q.progressText({ progress = 2, goal = 8, done = false }):find("2 of 8", 1, true) ~= nil, "progress reads N of M")
+end })
+
+table.insert(tests, { name = "Run Over and Victory: facts lines and Run Summary rows are never wider than their plate minus 24 px at four sizes, and the Client applies the fit", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local cols = RL.columns(sz[1])
+		local leftW = cols and cols.leftW or RL.LEFT_W
+		local plateW = leftW + 2 * RL.PLATE_PAD
+		expectTrue(RL.factWidth(leftW) <= plateW - 24, tag .. " the facts label is at most the plate minus 24 px")
+		expectTrue(RL.factInset() + RL.PLATE_PAD >= F.SIDE, tag .. " the facts start 12 px inside the plate")
+		expectTrue(RL.estimateLines("Seed 123456789 (tap to copy it for a friend)", RL.factWidth(leftW), 16) >= 1, tag .. " a fact line is measured")
+		local s = math.min(sz[1] / Look.DESIGN_W, sz[2] / Look.DESIGN_H)
+		local L = Look.layout(sz[1], sz[2], "run")
+		local size = Look.fontSize(Look.rowSize(5), s)
+		local rows = Look.summaryRows({ score = 1234567, night = 12, cap = 15, hands = 31, tipsTotal = 4500, bestNight = 12, boons = 6, deckSize = 52, marked = 3 }, { name = "Straight Flush", score = 80 })
+		for _, row in ipairs(rows) do
+			local fit = Look.fitRow(row, size, L.summary.w)
+			expectTrue(F.width(fit.label, size) + F.width(fit.value, size) <= L.summary.w - 24 - Look.ROW_GAP + 0.01, tag .. " " .. row.label .. " fits its card minus 24 px")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/VictoryScreen.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("Look.fitRow(row", 1, true) ~= nil, "VictoryScreen draws the fitted rows")
+	end
+	local g = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("RunOverLayout.factWidth(width)", 1, true) ~= nil and t:find("RunOverLayout.factInset()", 1, true) ~= nil, "GameOver draws the facts inset and narrowed")
+	end
 end })
 
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
