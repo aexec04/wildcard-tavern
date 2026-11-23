@@ -47511,8 +47511,8 @@ end })
 table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the confirm band is on top, full-screen pages are a known set", fn = function()
 	local Layers = require(script.Parent.Parent.Engine.Layers)
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
-	expectTrue(Layers.tooltip < Layers.PAGE_TOP, "tooltips sit below the page ceiling")
-	expectTrue(Layers.PAGE_TOP < Layers.confirm, "the confirm band is above every page")
+	expectTrue(Layers.effect < Layers.screen, "effects and tooltips sit below the screen band")
+	expectTrue(Layers.popup < Layers.confirm, "the confirm band is above every page")
 	local n = 0
 	for id, on in pairs(PL.FULL_SCREEN) do
 		expectTrue(on == true and type(id) == "string", "full-screen id " .. tostring(id))
@@ -47530,7 +47530,7 @@ table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the conf
 			local text = h:read("*a"); h:close()
 			for name, z in text:gmatch("(%w+Backdrop)%.ZIndex%s*=%s*(%d+)") do
 				z = tonumber(z)
-				expectTrue(z < Layers.PAGE_TOP, file .. " " .. name .. " is below the page ceiling (" .. z .. ")")
+				expectTrue(z < Layers.confirm, file .. " " .. name .. " is below the confirm band (" .. z .. ")")
 				seen[file] = z
 			end
 		end
