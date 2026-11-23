@@ -46579,6 +46579,66 @@ table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text 
 	expectFalse(pcall(RunState.skipRound, played), "so it never pays a Tag")
 end })
 
+table.insert(tests, { name = "Scoring order: for 30 fixed hands, Chips and Mult add in the documented order, Patron Mult adds before the x Mult, and the preview number is the number the play pays", fn = function()
+	local HandPreview = require(script.Parent.Parent.Engine.HandPreview)
+	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
+	local suits = { "Hearts", "Spades", "Diamonds", "Clubs" }
+	local stubs = {
+		{ id = "s_chips", name = "Chips Stub", effect = function() return { chips = 20 } end },
+		{ id = "s_mult", name = "Mult Stub", effect = function() return { mult = 4 } end },
+		{ id = "s_x", name = "X Stub", effect = function() return { multMultiplier = 1.5 } end },
+	}
+	local shapes = { -- 30 fixed hands: ranks and a suit pattern (S = one suit, M = mixed)
+		{ { 14 }, "M" }, { { 9, 9 }, "M" }, { { 5, 5, 8, 8 }, "M" }, { { 7, 7, 7 }, "M" }, { { 4, 5, 6, 7, 8 }, "M" },
+		{ { 2, 5, 9, 11, 13 }, "S" }, { { 6, 6, 6, 3, 3 }, "M" }, { { 10, 10, 10, 10 }, "M" }, { { 5, 6, 7, 8, 9 }, "S" }, { { 12 }, "M" },
+		{ { 3, 3 }, "M" }, { { 8, 8, 2, 2 }, "M" }, { { 11, 11, 11 }, "M" }, { { 9, 10, 11, 12, 13 }, "M" }, { { 3, 6, 8, 10, 12 }, "S" },
+		{ { 4, 4, 4, 9, 9 }, "M" }, { { 13, 13, 13, 13 }, "M" }, { { 2, 3, 4, 5, 6 }, "S" }, { { 7 }, "M" }, { { 14, 14 }, "M" },
+		{ { 6, 6, 9, 9 }, "M" }, { { 12, 12, 12 }, "M" }, { { 5, 7, 8, 9, 10 }, "M" }, { { 2, 4, 6, 8, 13 }, "S" }, { { 8, 8, 8, 5, 5 }, "M" },
+		{ { 9, 9, 9, 9 }, "M" }, { { 10, 11, 12, 13, 14 }, "S" }, { { 4 }, "M" }, { { 11, 11 }, "M" }, { { 3, 3, 5, 5 }, "M" },
+	}
+	local seenNames = {}
+	for n, shape in ipairs(shapes) do
+		local cards = {}
+		for i, rank in ipairs(shape[1]) do cards[i] = Card.new(rank, shape[2] == "S" and "Hearts" or suits[(i - 1) % 4 + 1]) end
+		local result = HandEvaluator.evaluate(cards)
+		seenNames[result.name] = true
+		local level = n % 4
+		local levels = { [result.name] = level }
+		local base, growth = Scoring.HandBase[result.name], Scoring.HandLevelGrowth[result.name]
+		local chips, mult = base.chips + growth.chips * level, base.mult + growth.mult * level
+		for _, c in ipairs(result.scoringCards) do chips = chips + Card.chipValue(c) end
+		-- the documented order, no Patrons: Score = Chips * Mult
+		local score, c1, m1 = Scoring.calculate(result, {}, { handLevels = levels })
+		expectEqual(c1, chips, "hand " .. n .. " Chips")
+		expectEqual(m1, mult, "hand " .. n .. " Mult")
+		expectEqual(score, chips * mult, "hand " .. n .. " score")
+		-- with Patrons: flat Chips and Mult first, then the x Mult on the whole Mult
+		local score2, c2, m2 = Scoring.calculate(result, stubs, { handLevels = levels })
+		expectEqual(c2, chips + 20, "hand " .. n .. " Patron Chips add")
+		expectTrue(math.abs(m2 - (mult + 4) * 1.5) < 1e-9, "hand " .. n .. " flat Mult adds before the x Mult")
+		expectTrue(math.abs(score2 - (chips + 20) * (mult + 4) * 1.5) < 1e-6, "hand " .. n .. " score with Patrons")
+		-- the preview before playing is what the play pays
+		local state = RunState.new(nil, SeededRng.new(n))
+		state.handLevels = levels
+		state.targetScore = 1e9
+		local hand = {}
+		for i, c in ipairs(cards) do hand[i] = c end
+		for i = 1, 3 do hand[#hand + 1] = Card.new(2, suits[(i % 4) + 1]) end
+		state.hand = hand
+		local idx = {}
+		for i = 1, #cards do idx[i] = i end
+		local preview = HandPreview.compute(state, idx)
+		expectEqual(preview.name, result.name, "hand " .. n .. " preview names the hand")
+		expectEqual(preview.chips, chips, "hand " .. n .. " preview Chips")
+		expectEqual(preview.mult, mult, "hand " .. n .. " preview Mult")
+		RunState.playHand(state, idx)
+		expectEqual(state.roundScore, preview.score, "hand " .. n .. " the play pays the previewed " .. tostring(preview.score))
+	end
+	local count = 0
+	for _ in pairs(seenNames) do count = count + 1 end
+	expectTrue(count >= 4, "the 30 hands cover several hand types, got " .. count)
+end })
+
 -- ===== Tavern Map event nodes =====
 table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
 	local ME = require(script.Parent.Parent.Engine.MapEvents)
@@ -49493,7 +49553,7 @@ table.insert(tests, { name = "Pick lift: every pick settles at the full 24 px, t
 	expectEqual(HL.cardLift(true, false, HL.pickLift(24), 10), 24, "picked, not hovered: 24")
 	expectEqual(HL.cardLift(true, true, HL.pickLift(24), 10), 34, "picked and hovered adds the hover lift")
 	expectEqual(HL.plan({ { picked = true, y = 7, fanY = 7, liftY = 24, age = 1 } }, 24)[1], -17, "a settled pick resting flat is lifted to the full 24")
-	local f = io.open("src/Client/Gameplay2.lua", "r")
+	local f = io and io.open and io.open("src/Client/Gameplay2.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(not src:find("L.capLift(lift, restTop", 1, true), "the client no longer cuts the pick lift per card")
