@@ -37,4 +37,19 @@ function CardFit.scale(vpY, rowW, rowH, cardH, cardW, maxFit)
 	return math.max(0.6, math.min(maxFit, h / cardH))
 end
 
+-- Card rects (centred row) for a row of rowW x rowH at the given scale: { {x,y,w,h} x3 }.
+-- Gap is the on-screen padding, the same value the live UIListLayout uses.
+function CardFit.rects(rowW, rowH, scale, cardW, cardH)
+	local w, h = cardW * scale, cardH * scale
+	local gap = CardFit.padding(scale, cardW)
+	local total = w * CardFit.COUNT + gap * (CardFit.COUNT - 1)
+	local x0 = (rowW - total) / 2
+	local y0 = (rowH - h) / 2
+	local out = {}
+	for i = 1, CardFit.COUNT do
+		out[i] = { x = x0 + (i - 1) * (w + gap), y = y0, w = w, h = h }
+	end
+	return out, gap
+end
+
 return CardFit

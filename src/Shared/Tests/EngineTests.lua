@@ -8375,6 +8375,23 @@ table.insert(tests, { name = "CardFit: Round Select cards fill big screens, fit 
 	end
 end })
 
+table.insert(tests, { name = "CardFit: Round Select cards have equal gaps, never touch, and fit the row at four sizes", fn = function()
+	local CardFit = require(script.Parent.Parent.Engine.CardFit)
+	for _, vp in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local rowW, rowH = vp[1] - 40, vp[2] - 60
+		local sc = CardFit.scale(vp[2], rowW, rowH, 620, 340, 1.25)
+		local r, gap = CardFit.rects(rowW, rowH, sc, 340, 620)
+		expectEqual(#r, 3, "three cards")
+		for i = 1, 2 do
+			local g = r[i + 1].x - (r[i].x + r[i].w)
+			expectTrue(math.abs(g - gap) < 0.001, "equal gap " .. vp[1])
+			expectTrue(g >= 28, "gap at least 28 at " .. vp[1])
+		end
+		expectTrue(r[1].x >= 0 and r[3].x + r[3].w <= rowW + 0.001, "fits row width " .. vp[1])
+		expectTrue(r[1].y >= 0 and r[1].y + r[1].h <= rowH + 0.001, "fits row height " .. vp[1])
+	end
+end })
+
 table.insert(tests, { name = "CardFit: card row gap stays at least 28px on screen for scales 0.5 to 1.2, under both layout models", fn = function()
 	local CardFit = require(script.Parent.Parent.Engine.CardFit)
 	local cardW = 340
