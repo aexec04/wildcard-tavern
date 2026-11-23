@@ -1,9 +1,10 @@
 --[[
 	Client/Settings.lua
-	The "⚙" corner button's panel (wood variant), in three sections:
-		Display  -- Animation speed (Normal/Fast), Reduce screen shake,
-		            Colorblind suits
-		Gameplay -- Confirm before discard
+	The "⚙" corner button's panel (wood variant), in sections:
+		Accessibility -- Calm mode, Reduce motion, Text size, Colorblind suits
+		Sound    -- Volume
+		Display  -- Animation speed (Normal/Fast), Performance mode
+		Gameplay -- Round hints, Confirm before discard, Hold to confirm
 		Account  -- How to Play, Leaderboards, Main Menu, Restart Run (danger button, in a run only)
 	Music/SFX volume and mute are in the volume popup (Client/VolumePanel.lua).
 	Toggle values live in Client/ClientSettings.lua (saved to the profile).
@@ -128,7 +129,7 @@ return function(deps)
 		label.LayoutOrder = order()
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.Merriweather
-		label.TextSize = 18
+		label.TextSize = SettingsLayout.HEADER_SIZE
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextYAlignment = Enum.TextYAlignment.Bottom
 		label.TextColor3 = HEADER
@@ -367,6 +368,9 @@ return function(deps)
 		{ "fast", "Fast" },
 	})
 	makeChoiceRow("performanceMode", "Performance Mode", S("settings.performanceMode.hint"), OFF_ON)
+
+	-- ===== Gameplay =====
+	makeHeader("Gameplay")
 	makeChoiceRow("roundHints", "Round Hints", S("settings.roundHints.hint"), { { false, "Off" }, { true, "On" } })
 	makeChoiceRow("confirmDiscard", "Confirm Before Discard", S("settings.confirmDiscard.hint"), OFF_ON)
 	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", S("settings.holdConfirm.hint"), {

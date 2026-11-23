@@ -14,12 +14,13 @@
 
 local M = {}
 
--- Four groups. Accessibility leads so Calm mode stays the first row (two taps from the table); the Account group ends with the Codes box,
+-- Five groups. Accessibility leads so Calm mode stays the first row (two taps from the table); the Account group ends with the Codes box,
 -- the Account plates and Restart Run (built by Client/Settings.lua, not listed as rows here).
 M.SECTIONS = {
 	{ id = "accessibility", title = "Accessibility", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
 	{ id = "sound", title = "Sound", rows = { "volume" } },
-	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode", "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
+	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode" } },
+	{ id = "gameplay", title = "Gameplay", rows = { "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
 	{ id = "account", title = "Account", rows = { "allowSpectators", "replayTutorial", "replayHints" } },
 }
 
@@ -32,6 +33,7 @@ function M.rowOrder()
 end
 
 M.MIN_TOUCH = 44
+M.HEADER_SIZE = 16 -- one 16 px serif header per section
 -- The Codes row: the title, a 44 px box with a Redeem plate beside it, then one message line. One list row, so it never overlaps the next one.
 M.CODES = { rowH = 100, titleH = 22, boxY = 26, boxH = 44, redeemW = 120, msgY = 74, msgH = 22, msgSize = 14, minLen = 3 }
 M.CODES_SHORT = "A code has at least 3 letters."
