@@ -43836,12 +43836,39 @@ table.insert(tests, { name = "Repeated runs: 200 runs in one process each start 
 		end
 		pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
 	end
-	-- The first batch warms lazy caches (one time growth, GC noise). A real leak grows again in the second batch, so only that growth is bounded.
+	-- The first batch warms lazy caches (one time growth). A real leak grows again in the second batch, so only that growth is bounded.
+	-- Roblox does not allow collectgarbage("collect"), so the KB reading there is GC pacing noise that depends on how much earlier tests
+	-- left on the heap. The KB bound is only asserted when a forced collect really frees memory; the structural walk below always runs.
+	local function reachable()
+		local seen, n = {}, 0
+		local function walk(t, depth)
+			if seen[t] or depth > 4 then return end
+			seen[t] = true
+			for k, v in pairs(t) do
+				n = n + 1
+				if type(k) == "table" then walk(k, depth + 1) end
+				if type(v) == "table" then walk(v, depth + 1) end
+			end
+		end
+		for _, m in ipairs({ RunState, Shop, Patrons, BossRounds, DeckVariants, Packs, Tags, Recipes, SeededRng }) do
+			if type(m) == "table" then walk(m, 0) end
+		end
+		return n
+	end
 	batch(1)
+	local nodesBase = reachable()
 	local base = collectgarbage("count")
 	batch(201)
 	local grown = collectgarbage("count") - base
-	expectTrue(grown < 4096, "a second 200 runs left " .. math.floor(grown) .. " KB behind")
+	expectEqual(reachable(), nodesBase, "a second 200 runs add nothing to the tables the Engine modules keep")
+	local probe = collectgarbage("count")
+	do local junk = {} for i = 1, 20000 do junk[i] = { i } end junk = nil end
+	local filled = collectgarbage("count")
+	pcall(collectgarbage, "collect")
+	local collectWorks = collectgarbage("count") < filled - 200 and filled > probe
+	if collectWorks then
+		expectTrue(grown < 4096, "a second 200 runs left " .. math.floor(grown) .. " KB behind")
+	end
 	local after = defSizes()
 	for i = 1, #before do expectEqual(after[i], before[i], "shared definition table " .. i .. " never grows") end
 end })
