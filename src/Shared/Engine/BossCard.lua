@@ -8,7 +8,7 @@
 	BossCard.cardRect(r, viewW, viewH) -> rect | nil      the left Boss card: the same rect as the Patron Power panel (nil = nothing fits)
 	BossCard.cardParts(rect) -> { portrait, title, text } portrait square at the left, name line and rule text at the right (card-local px)
 	BossCard.plateRect(r) -> rect | nil                   the taller boss plate over the scroll (nil when the room is short)
-	BossCard.topParts(r) -> { plate|nil, name, bar, night|nil }  rows inside the plate (or the scroll): name large, red bar under it, small Night line
+	BossCard.topParts(r) -> { plate|nil, name|nil, bar, night|nil }  rows inside the plate (or the scroll): name large, red bar under it, small Night line
 	BossCard.glow(calm) -> { pulse, stroke, softStroke }  pulse seconds (nil when calm), stroke widths
 ]]
 
@@ -117,35 +117,38 @@ function M.cardParts(rect)
 end
 
 function M.plateRect(r)
-	-- the boss plate: up to PLATE_H tall, from just above the scroll down to PLATE_AIR px clear of the first Patron seat; nil when there is no extra room
+	-- the boss plate: exactly the Target plate's top and height (the Round scroll's rect), so the pair reads as one row; the Night line hangs under it.
+	-- nil when there is no Patron row to keep clear of (then the scroll itself carries the bar).
 	local R = r.round
 	local seatTop = math.huge
 	for _, s in ipairs(r.slots or {}) do
 		if s.card then seatTop = math.min(seatTop, s.card.y) end
 	end
-	local y = math.max(2, R.y - 4)
-	local h = seatTop < math.huge and math.min(M.PLATE_H, seatTop - M.PLATE_AIR - y) or R.h
-	if h <= R.h + 8 then return nil end
-	return { x = R.x, y = y, w = R.w, h = h }
+	if seatTop == math.huge or R.h < 24 then return nil end
+	return { x = R.x, y = R.y, w = R.w, h = R.h }
+end
+
+-- the small "Night 1, Round 3" line: just under the plate, never closer than PLATE_AIR to the first Patron seat; nil when the gap is too short
+function M.nightRect(r, plate)
+	local seatTop = math.huge
+	for _, s in ipairs(r.slots or {}) do
+		if s.card then seatTop = math.min(seatTop, s.card.y) end
+	end
+	local y = plate.y + plate.h + 2
+	local h = math.min(18, (seatTop < math.huge and seatTop - M.PLATE_AIR or y + 18) - y)
+	if h < 13 then return nil end
+	return { x = plate.x, y = y, w = plate.w, h = h }
 end
 
 function M.topParts(r)
 	local R = r.round
 	local plate = M.plateRect(r)
-	if plate and plate.h >= M.NIGHT_MIN_H then
-		local pad = 4
-		local avail = plate.h - 2 * pad
-		local nameH = math.min(30, math.floor(avail * 0.38)) -- 26 px words in a 30 px row on the tallest plate
-		local barH = math.min(22, math.floor(avail * 0.30))
-		local nightH = math.min(18, avail - nameH - barH - 4)
-		local used = nameH + barH + nightH + 4
-		local y0 = plate.y + pad + math.floor((avail - used) / 2)
-		local x, w = plate.x + pad, plate.w - 2 * pad
+	if plate then
+		local pad = 3
 		return {
 			plate = plate,
-			name = { x = x, y = y0, w = w, h = nameH },
-			bar = { x = x, y = y0 + nameH + 2, w = w, h = barH },
-			night = { x = x, y = y0 + nameH + barH + 4, w = w, h = nightH },
+			bar = { x = plate.x + pad, y = plate.y + pad, w = plate.w - 2 * pad, h = plate.h - 2 * pad },
+			night = M.nightRect(r, plate),
 		}
 	end
 	local pad = R.h >= 40 and 4 or 2

@@ -265,8 +265,8 @@ function M.update(layer, state, rects, viewW, viewH)
 	top.Position = UDim2.fromOffset(0, 0); top.Size = UDim2.fromOffset(viewW, viewH)
 	local nm, bar, night = top.Title, top.Bar, top.Night
 	if tp.plate then place(top.Plate, tp.plate); top.Plate.Visible = true else top.Plate.Visible = false end
-	place(nm, tp.name); nm.Size = UDim2.fromOffset(tp.name.w, tp.name.h)
-	nm.TextSize = math.max(11, math.min(26, tp.name.h - 2)); nm.Text = name
+	if tp.name then place(nm, tp.name); nm.Size = UDim2.fromOffset(tp.name.w, tp.name.h); nm.TextSize = math.max(11, math.min(26, tp.name.h - 2)) end
+	nm.Text = name
 	nm.Visible = false -- the name is said once, on the Boss card (left); the top plate keeps only the red meter and the Night line
 	place(bar, tp.bar)
 	local cur, total = Rules.health(state.targetScore, state.roundScore)

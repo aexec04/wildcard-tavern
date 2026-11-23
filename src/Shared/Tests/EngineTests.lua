@@ -37719,28 +37719,29 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	local big = B.cardRect(L.rects(1920, 957), 1920, 957)
 	expectTrue(big and big.h >= 180 and B.cardParts(big).portrait.w == 120, "1920x957: a 190 px panel with a 120 px portrait")
 	expectTrue(B.glow(true).pulse == nil, "no pulse in Calm mode")
-	expectTrue(B.plateRect(L.rects(1920, 957)) ~= nil and B.plateRect(L.rects(1920, 957)).h >= 90, "the plate is about 96 px tall at 1920x957")
+	do local r0 = L.rects(1920, 957); local pr = B.plateRect(r0)
+	expectTrue(pr ~= nil and pr.y == r0.target.y and pr.h == r0.target.h, "the boss plate has the Target plate's top and height at 1920x957") end
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local w, h = sz[1], sz[2]
 		local r = L.rects(w, h)
 		local tp = B.topParts(r)
 		local R = tp.plate or r.round
 		for k, p in pairs(tp) do
+			if k ~= "night" or not tp.plate then -- with the plate, the Night line hangs under it (checked below)
 			expectTrue(p.x >= R.x and p.y >= R.y and p.x + p.w <= R.x + R.w and p.y + p.h <= R.y + R.h, k .. " row inside the boss plate at " .. w .. "x" .. h)
 			expectTrue(p.h >= 8, k .. " row tall enough at " .. w .. "x" .. h)
+			end
 		end
 		if tp.plate then
-			expectTrue(tp.plate.h <= 96, "plate at most 96 px at " .. w)
+			expectTrue(tp.plate.y == r.target.y and tp.plate.h == r.target.h, "boss plate shares the Target plate's top and height at " .. w)
 			for _, s in ipairs(r.slots) do
 					expectTrue(not hit(tp.plate, s.card) and not hit(tp.plate, s.label), "plate clear of the Patron row at " .. w .. "x" .. h)
 					expectTrue(s.card.y - (tp.plate.y + tp.plate.h) >= 8, "at least 8 px of air between the plate and the Patron row at " .. w .. "x" .. h)
 				end
 			for _, k in ipairs({ "target", "tips", "gear" }) do if r[k] then expectTrue(not hit(tp.plate, r[k]), "plate clear of " .. k .. " at " .. w .. "x" .. h) end end
-			if tp.plate.h >= 90 then
-				expectTrue(tp.name.h >= 26 and tp.bar.h == 22 and tp.night and tp.night.h >= 14, "26 px name, 22 px bar and 14 px Night line fit at " .. w)
-			end
+			if tp.night then expectTrue(tp.night.y >= tp.plate.y + tp.plate.h and tp.night.y + tp.night.h + 8 <= r.slots[1].card.y, "Night line hangs under the plate, above the Patron row at " .. w .. "x" .. h) end
 		end
-		expectTrue(not hit(tp.name, tp.bar), "name and bar do not overlap at " .. w)
+		expectTrue(tp.name == nil or not hit(tp.name, tp.bar), "name and bar do not overlap at " .. w)
 		for _, k in ipairs({ "target", "tips" }) do expectTrue(not hit(tp.bar, r[k]), "bar clear of " .. k .. " at " .. w) end
 		local c = B.cardRect(r, w, h)
 		if c then
@@ -37820,13 +37821,12 @@ table.insert(tests, { name = "Boss round at 1024x768 and 1366x768: name, health 
 		local p = tp.plate
 		if w >= 1024 and h >= 720 then expectTrue(p ~= nil, "the roomy boss plate is used at " .. tag) end
 		if p then
-		for _, k in ipairs({ "name", "bar", "night" }) do
-			local t = tp[k]
-			expectTrue(t.x >= p.x and t.y >= p.y and t.x + t.w <= p.x + p.w and t.y + t.h <= p.y + p.h, k .. " is inside the boss plate at " .. tag)
-			expectTrue(inside(t, w, h), k .. " is on screen at " .. tag)
-		end
-		expectTrue(tp.name.y + tp.name.h <= tp.bar.y and tp.bar.y + tp.bar.h <= tp.night.y, "name, bar, Night do not overlap at " .. tag)
-		expectTrue(tp.bar.h >= 14 and tp.night.h >= 13 and tp.name.h >= 13, "the bar text has room for 11 px words at " .. tag)
+		local t = tp.bar
+		expectTrue(t.x >= p.x and t.y >= p.y and t.x + t.w <= p.x + p.w and t.y + t.h <= p.y + p.h, "bar is inside the boss plate at " .. tag)
+		expectTrue(inside(t, w, h), "bar is on screen at " .. tag)
+		expectTrue(p.y == r.target.y and p.h == r.target.h, "boss plate and Target share top and height at " .. tag)
+		if tp.night then expectTrue(tp.night.y >= p.y + p.h and tp.night.h >= 13 and inside(tp.night, w, h), "Night line under the plate, on screen, 13 px or taller at " .. tag) end
+		expectTrue(tp.bar.h >= 14, "the bar text has room for 11 px words at " .. tag)
 		expectTrue(p.y + p.h + 8 <= r.slots[1].card.y, "the boss plate stays 8 px above the Patron seats at " .. tag)
 		for k, v in pairs(seats) do expectTrue(not hit(p, v), "the boss plate does not touch " .. k .. " at " .. tag) end
 		end
