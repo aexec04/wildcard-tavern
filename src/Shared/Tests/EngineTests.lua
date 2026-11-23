@@ -50676,6 +50676,64 @@ table.insert(tests, { name = "Share and Challenge text carries only a seed and t
 	expectFalse(plain:find("987654", 1, true) ~= nil, "the ordinary share line has no score")
 end })
 
+-- ===== Endless rules audit: carry over and best Night saved once =====
+
+table.insert(tests, { name = "Endless audit: Tips, Patrons, deck and Recipes carry over from Night 8 into Night 9, the Night counter climbs and targets rise", fn = function()
+	local s = RunState.new(nil, SeededRng.new(21))
+	s.night = s.config.nightCap
+	s.round = s.config.roundsPerNight
+	s.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	s.targetScore = 0
+	table.insert(s.ownedPatrons, Patrons.Definitions[1])
+	table.insert(s.ownedPatrons, Patrons.Definitions[2])
+	table.insert(s.menuRecipeInventory, "no_such_recipe_kept")
+	local r = RunState.playHand(s, { 1 })
+	expectTrue(r.roundWon and s.wonRun, "Night 8 boss win is the Victory")
+	local tips, deckSize = s.tips, #s.hand + #s.deck + #s.discardPile
+	RunState.advanceToNextRound(s)
+	expectEqual(s.night, s.config.nightCap + 1, "Endless is Night 9")
+	expectEqual(s.round, 1)
+	expectEqual(s.tips, tips, "Tips carry over")
+	expectEqual(#s.ownedPatrons, 2, "Patrons carry over")
+	expectEqual(s.ownedPatrons[1].id, Patrons.Definitions[1].id)
+	expectEqual(s.menuRecipeInventory[1], "no_such_recipe_kept", "Recipes carry over")
+	expectEqual(#s.hand + #s.deck + #s.discardPile, deckSize, "the deck carries over")
+	expectTrue(s.wonRun, "the win is kept")
+	expectEqual(s.runOver, false)
+	local before = RunState.nightBaseScoreFor(s.config.nightCap)
+	for n = s.config.nightCap + 1, s.config.nightCap + 12 do
+		local nowBase = RunState.nightBaseScoreFor(n)
+		expectTrue(nowBase > before, "Night " .. n .. " asks more than the Night before")
+		before = nowBase
+	end
+end })
+
+table.insert(tests, { name = "Endless audit: the best Night is saved once per stake, only when it rises, and only for a counted Endless run", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 1, 9), "first Endless Night is recorded")
+	expectFalse(PlayerProfile.recordEndlessBest(profile, 1, 9), "the same Night again changes nothing")
+	expectFalse(PlayerProfile.recordEndlessBest(profile, 1, 8), "a lower Night changes nothing")
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 1, 10), "a higher Night replaces it")
+	expectEqual(profile.endlessBestByStake["1"], 10)
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 2, 9), "another stake keeps its own best")
+	expectEqual(profile.endlessBestByStake["1"], 10)
+	expectFalse(PlayerProfile.recordEndlessBest(profile, 1, 0 / 0))
+	expectFalse(PlayerProfile.recordEndlessBest(profile, 1, 501))
+	expectFalse(PlayerProfile.recordEndlessBest(profile, "1", 12))
+	expectEqual(profile.endlessBestByStake["1"], 10, "bad input never changes the best")
+	if io then
+		local g = io.open("src/Server/init.server.lua", "r")
+		if g then
+			local server = g:read("*a")
+			g:close()
+			expectTrue(server:find("if countsForRecords and session.state.endlessRulesEnabled and session.state.night > session.state.config.nightCap", 1, true) ~= nil)
+		end
+	end
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.endlessBestByStake["1"], 10)
+	expectEqual(loaded.endlessBestByStake["2"], 9)
+end })
+
 return tests
 
 
