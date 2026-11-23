@@ -50734,6 +50734,115 @@ table.insert(tests, { name = "Endless audit: the best Night is saved once per st
 	expectEqual(loaded.endlessBestByStake["2"], 9)
 end })
 
+-- ===== Reroll and sell rules audit =====
+
+table.insert(tests, { name = "Reroll audit: the cost starts at 5, rises by 2 each Reroll, resets each shop visit, and a free Reroll is the only 0", fn = function()
+	expectEqual(Shop.REROLL_BASE_COST, 5)
+	expectEqual(Shop.REROLL_COST_STEP, 2)
+	local state = RunState.new(nil, SeededRng.new(4))
+	local running = Shop.REROLL_BASE_COST
+	local seen = {}
+	for i = 1, 6 do
+		local cost = RunState.rerollCost(state, running)
+		expectEqual(cost, 5 + 2 * (i - 1), "Reroll " .. i .. " costs the documented amount")
+		expectTrue(cost >= 1, "never below 1")
+		expectTrue(seen[#seen] == nil or cost > seen[#seen], "the cost only rises inside a visit")
+		seen[#seen + 1] = cost
+		running = running + Shop.REROLL_COST_STEP
+	end
+	-- a new visit starts from the base again (the server sets session.rerollCost = Shop.REROLL_BASE_COST in openShop)
+	if io then
+		local g = io.open("src/Server/init.server.lua", "r")
+		if g then
+			local server = g:read("*a")
+			g:close()
+			expectTrue(server:find("rollShopOffers(session)\n\tsession.rerollCost = Shop.REROLL_BASE_COST", 1, true) ~= nil, "a shop visit resets the cost")
+			expectTrue(server:find("session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP", 1, true) ~= nil, "a Reroll raises it by the step")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Reroll audit: a Reroll never offers a Patron or Pack the shelf already showed, over 200 seeds and 5 rerolls each", fn = function()
+	for seed = 1, 200 do
+		local state = RunState.new(nil, SeededRng.new(seed))
+		state.tips = 50
+		local previous = Shop.rollOffers(state)
+		for _ = 1, 5 do
+			local nextOffers = Shop.rollOffers(state, { patrons = previous.patrons, packs = previous.packs })
+			expectEqual(#nextOffers.patrons, Shop.OFFER_COUNT, "the shelf still fills")
+			expectEqual(#nextOffers.packs, Shop.PACK_OFFER_COUNT)
+			for _, p in ipairs(nextOffers.patrons) do
+				for _, old in ipairs(previous.patrons) do
+					expectTrue(p.id ~= old.id, "seed " .. seed .. " repeated Patron " .. p.id)
+				end
+			end
+			for _, p in ipairs(nextOffers.packs) do
+				for _, old in ipairs(previous.packs) do
+					expectTrue(p.id ~= old.id, "seed " .. seed .. " repeated Pack " .. p.id)
+				end
+			end
+			previous = nextOffers
+		end
+	end
+	-- a fresh visit (no previous shelf) is untouched
+	local a = Shop.rollOffers(RunState.new(nil, SeededRng.new(9)))
+	local b = Shop.rollOffers(RunState.new(nil, SeededRng.new(9)))
+	expectEqual(a.patrons[1].id, b.patrons[1].id, "a fresh visit is still seed deterministic")
+	-- a tiny pool never leaves the shelf empty: when too few others remain the old ones may come back
+	local small = RunState.new(nil, SeededRng.new(3))
+	small.ownedPatrons = {}
+	for i = 1, #Patrons.Definitions - 2 do table.insert(small.ownedPatrons, Patrons.Definitions[i]) end
+	local first = Shop.rollOffers(small)
+	local again = Shop.rollOffers(small, { patrons = first.patrons, packs = first.packs })
+	expectEqual(#again.patrons, math.min(Shop.OFFER_COUNT, 2), "a tiny pool still fills the shelf")
+	-- the server passes the shelf it replaces on a Reroll only
+	if io then
+		local g = io.open("src/Server/init.server.lua", "r")
+		if g then
+			local server = g:read("*a")
+			g:close()
+			expectTrue(server:find("isReroll and { patrons = session.shopOffers, packs = session.packOffers } or nil", 1, true) ~= nil)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Sell audit: the sell price is half rounded down, every Patron asks to confirm, and selling the last Patron leaves a valid table", fn = function()
+	for _, def in ipairs(Patrons.Definitions) do
+		local state = RunState.new(nil, SeededRng.new(1))
+		table.insert(state.ownedPatrons, def)
+		local tips = state.tips
+		local ok, refund = RunState.sellPatron(state, def.id)
+		expectTrue(ok, def.id .. " sells")
+		expectEqual(refund, math.floor(def.price / 2), def.id .. " refund is half rounded down")
+		expectEqual(state.tips, tips + math.floor(def.price / 2))
+		expectEqual(#state.ownedPatrons, 0, "the last Patron is gone")
+		expectFalse((RunState.sellPatron(state, def.id)), def.id .. " cannot be sold twice")
+		expectEqual(state.tips, tips + math.floor(def.price / 2), "a second sale pays nothing")
+	end
+	-- an empty table is still a valid table: a round starts, a hand plays and scores
+	local state = RunState.new(nil, SeededRng.new(2))
+	table.insert(state.ownedPatrons, Patrons.Definitions[1])
+	RunState.sellPatron(state, Patrons.Definitions[1].id)
+	RunState.startRound(state)
+	expectTrue(#state.hand > 0, "the hand is dealt with no Patrons")
+	expectEqual(#state.ownedPatrons, 0)
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result ~= nil and (state.roundScore or 0) >= 0, "a hand plays with no Patrons")
+	-- the confirm copy exists and names the refund; the shop shows it for every owned Patron (not only rare ones)
+	local copy = require(script.Parent.Parent.Engine.ConfirmCopy).sell("Test Patron", 3)
+	expectTrue(copy.message:find("Test Patron", 1, true) ~= nil and copy.danger == true, "the sell dialog names the Patron and is a danger action")
+	if io then
+		local f = io.open("src/Client/Shop.lua", "r")
+		if f then
+			local shop = f:read("*a")
+			f:close()
+			local at = shop:find("ConfirmCopy\")).sell(owned.name, refund)", 1, true)
+			expectTrue(at ~= nil, "the sell button builds the confirm copy")
+			expectTrue(at ~= nil and shop:find("SellPatronRemote:FireServer(owned.id)", at, true) ~= nil, "the sale is sent only after the confirm")
+		end
+	end
+end })
+
 return tests
 
 

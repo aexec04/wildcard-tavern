@@ -30,7 +30,33 @@ Shop.VOUCHER_CHANCE = 0.35
 Shop.REROLL_BASE_COST = 5
 Shop.REROLL_COST_STEP = 2
 
-local function rollPatronOffers(state)
+-- A reroll never shows an item the last roll already showed: `avoid` is a set of ids to leave out. It is only applied while
+-- enough other items remain, so a small pool still fills the shelf. No `avoid` leaves every draw exactly as it was.
+local function withoutAvoided(list, avoid, needed)
+	if not avoid then
+		return list
+	end
+	local kept = {}
+	for _, entry in ipairs(list) do
+		if not avoid[entry.id] then
+			kept[#kept + 1] = entry
+		end
+	end
+	if #kept >= needed then
+		return kept
+	end
+	return list
+end
+
+local function idSet(list)
+	local set = {}
+	for _, entry in ipairs(list or {}) do
+		set[entry.id] = true
+	end
+	return set
+end
+
+local function rollPatronOffers(state, avoid)
 	local rng = state.rng or math.random
 
 	local available = {}
@@ -48,6 +74,7 @@ local function rollPatronOffers(state)
 		end
 	end
 
+	available = withoutAvoided(available, avoid, Shop.OFFER_COUNT)
 	local offers = {}
 	for _ = 1, math.min(Shop.OFFER_COUNT, #available) do
 		local i = rng(#available)
@@ -75,13 +102,14 @@ local function rollPatronOffers(state)
 	return offers
 end
 
-local function rollPackOffers(state)
+local function rollPackOffers(state, avoid)
 	local rng = state.rng or math.random
 
 	local pool = {}
 	for _, pack in ipairs(Packs.Definitions) do
 		table.insert(pool, pack)
 	end
+	pool = withoutAvoided(pool, avoid, Shop.PACK_OFFER_COUNT)
 	local offers = {}
 	for _ = 1, math.min(Shop.PACK_OFFER_COUNT, #pool) do
 		local i = rng(#pool)
@@ -120,9 +148,10 @@ end
 
 -- Rolls one full set of offers. Used for a fresh shop visit and for a reroll
 -- alike; tracking the climbing reroll cost is the caller's job.
-function Shop.rollOffers(state)
-	local patrons = rollPatronOffers(state)
-	local packs = rollPackOffers(state)
+-- `previous` (a reroll only) = the offers on the shelf now, { patrons = {...}, packs = {...} }: none of them comes back.
+function Shop.rollOffers(state, previous)
+	local patrons = rollPatronOffers(state, previous and idSet(previous.patrons) or nil)
+	local packs = rollPackOffers(state, previous and idSet(previous.packs) or nil)
 	local voucher = rollVoucherOffer(state)
 	-- rolled last, so the other offers of a seeded board stay exactly as they were
 	return { patrons = patrons, packs = packs, voucher = voucher, mark = Marks.rollOffer(state) }

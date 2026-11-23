@@ -446,7 +446,7 @@ local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 -- Offer generation itself lives in Shared/Engine/Shop.lua (pure, so the
 -- headless simulator rolls offers through the same code).
 local function rollShopOffers(session, isReroll)
-	local offers = Shop.rollOffers(session.state)
+	local offers = Shop.rollOffers(session.state, isReroll and { patrons = session.shopOffers, packs = session.packOffers } or nil) -- a Reroll never repeats the shelf it replaces
 	if session.isTutorial then
 		TutorialScript.shopFor(session.state, offers, session.rerollCost or Shop.REROLL_BASE_COST, not isReroll) -- scripted, affordable; a Reroll adds no Tips
 	end
