@@ -20,6 +20,7 @@ M.MIN_TOUCH = 44
 M.HEIGHT = 48
 M.MAX_W = 620
 M.MARGIN = 12
+M.CHEST_PAD, M.CHEST_MIN_W, M.CHEST_MAX_W = 12, 126, 160 -- the chest word stays 12 px inside the plate edge
 
 function M.visible(phase)
 	return phase == "roundSelect" -- Run Over hides it: the faded strip showed through under the panel
@@ -117,7 +118,8 @@ function M.menuRect(w, h)
 end
 
 function M.chestRect(strip)
-	local cw = math.max(M.MIN_TOUCH, math.min(150, math.floor(strip.w * 0.28)))
+	-- wide enough for "Next in 20h 39m" with CHEST_PAD clear on each side of the word
+	local cw = math.max(M.MIN_TOUCH, math.min(M.CHEST_MAX_W, math.max(M.CHEST_MIN_W, math.floor(strip.w * 0.3))))
 	local ch = math.max(M.MIN_TOUCH, strip.h - 4)
 	return { x = strip.w - cw - 2, y = math.floor((strip.h - ch) / 2), w = cw, h = ch }
 end

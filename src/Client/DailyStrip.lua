@@ -149,6 +149,18 @@ function M.update(state)
 	local chest = strip.Chest
 	Kit.skin(chest, v.chestText, v.chest == "ready" and "primary" or "secondary")
 	pcall(Kit.paintedButton, chest, v.chest == "ready" and "primary" or "secondary") -- lit ornate button, flat look if the picture does not load
+	-- the word is cream on the plate (never a set accent), inset CHEST_PAD from both plate edges, and shrinks to fit rather than touching them
+	chest.TextColor3 = color("cream")
+	chest.TextScaled = true
+	local label = chest:FindFirstChild("KitLabel")
+	if label then
+		label.TextColor3 = color("cream")
+		label.TextScaled = true
+		local pad = label:FindFirstChildOfClass("UIPadding")
+		if pad then pad.PaddingLeft, pad.PaddingRight = UDim.new(0, Rules.CHEST_PAD), UDim.new(0, Rules.CHEST_PAD) end
+		local cap = label:FindFirstChildOfClass("UITextSizeConstraint")
+		if cap then cap.MaxTextSize, cap.MinTextSize = 16, 12 end
+	end
 	chest.Position = UDim2.fromOffset(cr.x, cr.y)
 	chest.Size = UDim2.fromOffset(cr.w, cr.h)
 	chest.Active = v.chest == "ready"
