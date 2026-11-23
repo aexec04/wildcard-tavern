@@ -722,7 +722,7 @@ return function(deps)
 			local b = Instance.new("TextButton")
 			b.Name = name
 			b.AnchorPoint = Vector2.new(0.5, 0)
-			b.Size = UDim2.fromOffset(150, 40)
+			b.Size = UDim2.fromOffset(150, 44) -- 44 px touch target
 			b.Position = UDim2.new(0.5, x, 1, -56)
 			b.Font = Enum.Font.GothamBold
 			b.TextSize = 16
@@ -740,9 +740,9 @@ return function(deps)
 			st.Parent = b
 			return b
 		end
-		packConfirmButton = packPlate("PackConfirm", "Confirm", -82, Color3.fromRGB(110, 72, 34))
-		packSkipButton = packPlate("PackSkip", "Skip Pack", 102, Color3.fromRGB(70, 52, 40))
-		packSkipButton.Size = UDim2.fromOffset(200, 40) -- room for "Skip Pack (+12 Tips)"
+		packConfirmButton = packPlate("PackConfirm", "Confirm", -104, Color3.fromRGB(110, 72, 34)) -- the pair spans -179..180 around the centre, so it fits a 390 px phone
+		packSkipButton = packPlate("PackSkip", "Skip Pack", 80, Color3.fromRGB(70, 52, 40))
+		packSkipButton.Size = UDim2.fromOffset(200, 44) -- room for "Skip Pack (+12 Tips)"
 		packMakeRoom = require(script.Parent.PackMakeRoom).new({ parent = shopPackPanel, z = PANEL_ZINDEX + 12, playClick = playClickSfx, polishButton = polishButton })
 	end -- do (Shop overlay)
 

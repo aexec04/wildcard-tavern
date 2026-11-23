@@ -52351,6 +52351,64 @@ table.insert(tests, { name = "Card Set audit: every Set has its card back, card 
 	end
 end })
 
+table.insert(tests, { name = "Mobile and tablet audit: HUD, Counter and pack plates at 1024x768, 812x375 and 390x844 keep 44 px targets, no overlapping buttons and stay on screen", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local SL = require(Engine.ShopSceneLayout)
+	local L = require(Engine.Gameplay2Layout)
+	local Touch = require(Engine.Gameplay2Touch)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function onScreen(r, w, h) return r.x >= 0 and r.y >= 0 and r.x + r.w <= w + 1 and r.y + r.h <= h + 1 end
+	for _, sz in ipairs({ { 1024, 768 }, { 812, 375 }, { 390, 844 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		-- the table HUD (a portrait phone keeps the older play screen, which the layout says by not fitting)
+		if L.fits(w, h) then
+			expectEqual(#Touch.table(w, h), 0, "table touch problems at " .. tag .. ": " .. table.concat(Touch.table(w, h), "; "))
+			local r = L.rects(w, h)
+			local buttons = { "gear", "play", "discard", "sortRank", "sortSuit" }
+			for i, a in ipairs(buttons) do
+				expectTrue(onScreen(r[a], w, h), a .. " is on screen at " .. tag)
+				expectTrue(r[a].h >= 44, a .. " is 44 px tall at " .. tag)
+				for j = i + 1, #buttons do expectFalse(hit(r[a], r[buttons[j]]), a .. " and " .. buttons[j] .. " do not overlap at " .. tag) end
+			end
+		else
+			expectTrue(h > w, tag .. " is only left out of the v2 table because it is a portrait phone")
+		end
+		-- the Counter (the real room layout)
+		local c = SL.rects(w, h, { offers = 3, packs = 2, room = true })
+		for _, name in ipairs({ "tabs", "leave" }) do
+			expectTrue(c[name].h >= 44, "Counter " .. name .. " is 44 px tall at " .. tag)
+			expectTrue(onScreen(c[name], w, h), "Counter " .. name .. " is on screen at " .. tag)
+		end
+		expectFalse(hit(c.tabs, c.leave), "tabs and Next Round do not overlap at " .. tag)
+		for i, o in ipairs(c.offers) do
+			expectTrue(onScreen(o, w, h), "offer " .. i .. " is on screen at " .. tag)
+			expectFalse(hit(o, c.leave), "offer " .. i .. " is clear of Next Round at " .. tag)
+		end
+		for i, o in ipairs(c.packs) do
+			expectTrue(onScreen(o, w, h), "pack " .. i .. " is on screen at " .. tag)
+			expectFalse(hit(o, c.leave), "pack " .. i .. " is clear of Next Round at " .. tag)
+		end
+		local plate = SL.rerollPlate(c)
+		if plate then
+			expectTrue(plate.h >= 44 and onScreen(plate, w, h), "Reroll is 44 px and on screen at " .. tag)
+			expectFalse(hit(plate, c.leave), "Reroll is clear of Next Round at " .. tag)
+		end
+		-- the pack panel plates: Confirm and Skip Pack are 44 px tall, beside each other, inside the panel (screen minus 20 px)
+		local confirm = { x = w / 2 - 104 - 75, w = 150 }
+		local skip = { x = w / 2 + 80 - 100, w = 200 }
+		expectTrue(confirm.x >= 10 and skip.x + skip.w <= w - 10, "the pack plates fit the panel at " .. tag)
+		expectTrue(confirm.x + confirm.w <= skip.x, "Confirm and Skip Pack do not overlap at " .. tag)
+	end
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("b.Size = UDim2.fromOffset(150, 44)", 1, true) ~= nil, "Confirm plate is 44 px tall")
+		expectTrue(t:find("packSkipButton.Size = UDim2.fromOffset(200, 44)", 1, true) ~= nil, "Skip Pack plate is 44 px tall")
+		expectTrue(t:find('"Confirm", -104', 1, true) ~= nil and t:find('"Skip Pack", 80', 1, true) ~= nil, "the plate offsets match the audited ones")
+	end
+end })
+
 return tests
 
 
