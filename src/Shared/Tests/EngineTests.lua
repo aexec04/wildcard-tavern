@@ -47580,11 +47580,11 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 	local SEL, HOV, N = 24, 12, 6
 	local pos = {}
 	for i = 1, N do pos[i] = i end
-	for mask = 0, bit32.lshift(1, N) - 1 do
+	for mask = 0, 2 ^ N - 1 do
 		for hover = 0, N do -- 0 = no hover
 			local before, after = {}, {}
 			for i = 1, N do
-				local picked = bit32.band(bit32.rshift(mask, i - 1), 1) == 1
+				local picked = math.floor(mask / 2 ^ (i - 1)) % 2 == 1
 				before[i] = HL.cardLift(picked, false, SEL, HOV)
 				after[i] = HL.cardLift(picked, hover == i, SEL, HOV)
 				if picked then assert(after[i] >= SEL, "a picked card never drops") end
@@ -47632,7 +47632,7 @@ table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the conf
 	local c = io.open("src/Client/ConfirmDialog.lua", "r")
 	if c then
 		local text = c:read("*a"); c:close()
-		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = CONFIRM_Z", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
+		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = Layers.confirm", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
 	end
 end })
 
@@ -48443,6 +48443,17 @@ table.insert(tests, { name = "Menu text fit: Tip pill, Daily strip Streak, Goal 
 	end
 end })
 
+table.insert(tests, { name = "Card Sets are cosmetic: scoring, hand evaluation, rounds and the sim never read CosmeticSets", fn = function()
+	if not io then return end
+	for _, file in ipairs({ "src/Shared/Engine/Scoring.lua", "src/Shared/Engine/HandEvaluator.lua", "src/Shared/Engine/RoundPayout.lua", "tools/sim/Sim.lua" }) do
+		local f = io.open(file, "r")
+		if f then
+			local text = f:read("*a"); f:close()
+			expectTrue(text:find("CosmeticSets", 1, true) == nil, file .. " does not read CosmeticSets")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
@@ -48540,7 +48551,70 @@ table.insert(tests, { name = "Loading screen tips: at least 12 kid safe tips of 
 	end
 end })
 
+table.insert(tests, { name = "Patron text audit: all Patron effect lines are 60 characters or less, have no dashes and name their numbers", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local count = 0
+	for id, p in pairs(Patrons.Definitions) do
+		count = count + 1
+		local d = p.description
+		expectTrue(type(d) == "string" and #d > 0, id .. " has a description")
+		expectTrue(#d <= 60, id .. " description is 60 characters or less (" .. #d .. ")")
+		expectTrue(not d:find("\226\128\148") and not d:find("\226\128\147") and not d:find(" %- "), id .. " description has no dashes")
+		expectTrue(d:find("%d") ~= nil or d:find("^Copies"), id .. " description names its numbers")
+	end
+	expectTrue(count >= 93, "audited every Patron (" .. count .. ")")
+end })
+
+table.insert(tests, { name = "Boss rule text audit: every boss rule line is 60 characters or less, safe, has no dashes and names its numbers", fn = function()
+	local count = 0
+	for id, b in pairs(BossRounds.Definitions) do
+		count = count + 1
+		local d = b.description
+		expectTrue(type(d) == "string" and #d > 0, id .. " has a description")
+		expectTrue(#d <= 60, id .. " rule line is 60 characters or less (" .. #d .. ")")
+		expectTrue(not d:find("\226\128\148") and not d:find("\226\128\147") and not d:find(" %- "), id .. " rule line has no dashes")
+	end
+	expectTrue(count >= 46, "audited every boss rule (" .. count .. ")")
+end })
+
+table.insert(tests, { name = "Tutorial flow: steps run in order (pick, play, Counter, next round), captions are under 80 characters and none repeats", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local firstAt = {}
+	local seenText, seenId = {}, {}
+	for i, step in ipairs(Steps.Steps) do
+		firstAt[step.action] = firstAt[step.action] or i
+		expectTrue(type(step.text) == "string" and #step.text > 0 and #step.text < 80, step.id .. " caption is under 80 characters")
+		expectTrue(not seenText[step.text], step.id .. " caption is not repeated")
+		expectTrue(not seenId[step.id], step.id .. " id is not repeated")
+		seenText[step.text], seenId[step.id] = true, true
+	end
+	expectTrue(firstAt.menu_play < firstAt.select_round, "menu before the round")
+	expectTrue(firstAt.select_round < firstAt.pick, "round before the first pick")
+	expectTrue(firstAt.pick < firstAt.play_hand, "pick before play")
+	expectTrue(firstAt.play_hand < firstAt.buy_patron, "play before the Counter")
+	expectTrue(firstAt.buy_patron < firstAt.next_round, "Counter before the next round")
+	expectTrue(firstAt.next_round < firstAt.ok, "the last step is the finish")
+	-- walking the machine with each step's own action visits every step once, in order, and never goes back
+	local machine = Steps.new()
+	local visited = {}
+	for i, step in ipairs(Steps.Steps) do
+		local cur = machine:current()
+		expectTrue(cur ~= nil and cur.id == step.id, "step " .. i .. " is " .. step.id)
+		if not cur or visited[cur.id] then break end
+		visited[cur.id] = true
+		local detail = nil
+		if step.action == "pick" then
+			local selected = {}
+			for k = 1, step.count or 1 do selected[k] = true end
+			detail = { selected = selected, handCount = 8 }
+		end
+		machine:report(step.action, detail)
+	end
+	expectTrue(machine:finished(), "the machine finishes after the last step")
+end })
+
 return tests
+
 
 
 

@@ -552,3 +552,19 @@ The bank fills the table about one Night sooner, then the spend rate settles at 
 ## Synergy audit
 
 See `claude/synergy-audit.md` (`lua tools/synergy_audit.lua`). 20 Patrons had only the "flat" tag and so no hint or Bond partner; each now carries a real tag (scaling, rulebender, pairs, flush, straight, ranks). Side effect: Bonds give a small bonus when both ends trigger, so these 20 can now bond. Not re-simmed beyond the lift runs above; re-check if the win rate drifts.
+
+## Tips sources and sinks per Night, and the unspent check
+
+Sources (per Night of 3 rounds, standard difficulty): round win 4 Tips on each of rounds 1 and 2, a Boss Round pays double (8), so 16 flat per Night (Tip Stand adds 1 per round, Bedtime Bonus doubles one win). Interest pays 1 per 5 Tips held at each round win, capped at 5 per round (8 with Savings Account, 10 with Nest Egg), so 15 more at most per Night for someone sitting on 25 or more Tips. Patron `onRoundWin` Tips, Pocket Change and quest rewards are small one off adds. Selling a Patron refunds half its price rounded down.
+
+Sinks: Patrons 4 and up, packs 4 to 9 (Jumbo 8 to 9), marks, hand level upgrades, and rerolls at 5 then +2 each (5, 7, 9, ...) which resets every visit. Rerolls have no cap, so a shop is never out of things to buy.
+
+| Night | Flat income | Interest at most | Avg Tips on arrival (sim, decent bot) | Unspent by a perfect shopper | Flag |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 16 | 0 to 5 (starts at 0 Tips) | 4.0 to 10.1 | under 5 | none |
+| 2 | 16 | 15 | 7.5 to 10.8 | under 5 | none |
+| 3 | 16 | 15 | 8.0 to 11.9 | under 5 | none |
+| 4 to 8 | 16 | 15 | 8.6 to 12.0 | under 5 | none |
+| 9 to 12 (Endless) | 16 | 15 | 9.7 to 10.9 | under 5 | none |
+
+Reading: a perfect shopper spends down to the point where the next reroll is unaffordable, so what is left is always under the reroll price (5 on the first reroll of a visit). The only way to pass 40 Tips is to hoard on purpose for interest, and interest tops out at 15 Tips a Night, so a hoard of 40 would take about 3 Nights of buying nothing. Even the bot, which spends little in the late Nights, averages 12.0 or less on arrival. No Night is flagged and no number changed. This is read from the code constants plus the earlier sim tables, not a new sim run. Sources: `Engine/RunState.lua` (round win reward and interest), `Engine/Shop.lua` (rerolls, packs).
