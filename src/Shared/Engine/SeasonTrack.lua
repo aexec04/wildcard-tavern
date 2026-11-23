@@ -367,6 +367,13 @@ end
 
 -- Tile text rules (Client/SeasonPanel): reward names are 16 px, in a box 122 px wide and 38 px tall (two lines).
 SeasonTrack.NAME_SIZE, SeasonTrack.NAME_W, SeasonTrack.NAME_LINES = 16, 122, 2
+-- The size a reward name takes inside its 122 px box: the largest 12..16 at which Engine/TextFit says two lines fit with 4 px clear each
+-- side (the tile is 128 wide), 12 when none does (the box then clips at the second line rather than touch the tile edge).
+SeasonTrack.NAME_H, SeasonTrack.NAME_CLEAR = 38, 4
+function SeasonTrack.nameSize(text)
+	local TextFit = require(script.Parent.TextFit)
+	return TextFit.bestSize(tostring(text or ""), SeasonTrack.NAME_W - 2 * SeasonTrack.NAME_CLEAR, SeasonTrack.NAME_H, 12, SeasonTrack.NAME_SIZE) or 12
+end
 -- How many lines `text` needs at that size, wrapping at spaces, with a cautious 0.56 em average glyph width (GothamMedium is narrower).
 function SeasonTrack.nameLines(text, size, width)
 	size, width = size or SeasonTrack.NAME_SIZE, width or SeasonTrack.NAME_W

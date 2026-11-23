@@ -35716,6 +35716,34 @@ table.insert(tests, { name = "Tome popups: every Tome page root (Collection, Car
 	end
 end })
 
+table.insert(tests, { name = "Season popup: every tier and premium reward name fits its tile in two lines with TextFit, locked premium rows say Premium only in words, and the Client applies it", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local checked = 0
+	for _, season in ipairs(ST.Seasons) do
+		for tier = 1, ST.TIERS do
+			for _, reward in ipairs({ ST.rewardFor(season, tier), ST.premiumRewardFor(season, tier) }) do
+				local name = ST.shortText(reward, nil)
+				local size = ST.nameSize(name)
+				local inner = ST.NAME_W - 2 * ST.NAME_CLEAR
+				expectTrue(size >= 12 and size <= ST.NAME_SIZE, season.id .. " tier " .. tier .. " size in range")
+				expectTrue(F.lines(name, size, inner) <= ST.NAME_LINES, season.id .. " tier " .. tier .. " '" .. tostring(name) .. "' fits two lines at " .. size .. " px")
+				expectTrue(F.lines(name, size, inner) * (size + 2) <= ST.NAME_H, season.id .. " tier " .. tier .. " fits the name box height")
+				checked = checked + 1
+			end
+		end
+	end
+	expectTrue(checked >= 20, "every tier of every season was checked (" .. checked .. ")")
+	if io and io.open then
+		local f = io.open("src/Client/SeasonPanel.lua", "r")
+		if f then
+			local t = f:read("*a"); f:close()
+			expectTrue(t:find("SeasonTrack.nameSize(row.short", 1, true) ~= nil and t:find("SeasonTrack.nameSize(prem.short", 1, true) ~= nil, "the Client sizes tier and premium names with SeasonTrack.nameSize")
+			expectTrue(t:find('Text = "Premium only"', 1, true) ~= nil, "a locked premium row says Premium only in words, not only a lock icon")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
@@ -46047,7 +46075,7 @@ table.insert(tests, { name = "Season tier rewards audit: all 30 tiers of both se
 	local f = io and io.open and io.open("src/Client/SeasonPanel.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
-		expectTrue(src:find("TextSize = SeasonTrack.NAME_SIZE", 1, true) ~= nil, "tile and premium names use the 16 px size")
+		expectTrue(src:find("TextSize = SeasonTrack.nameSize(", 1, true) ~= nil, "tile and premium names use the TextFit size (16 px when it fits, 12 at the least)")
 		expectTrue(not src:find("TextSize = 14", 1, true), "no 14 px text is left on the Season panel")
 	end
 end })
