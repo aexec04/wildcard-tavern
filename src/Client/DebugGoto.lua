@@ -9,6 +9,15 @@
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
 	player, so it only warns. scale:<w>x<h> shrinks GameUI to that viewport, scale:off restores it. Parsing is in Engine/DebugGotoRules.lua.
 	Screens that are hard to reach (each goes through round1 first, then shows a changed copy of the real state):
+	  Admin jumps (Studio only, each prints "[DebugGoto] <key> ok"; list in Rules.ADMIN_KEYS):
+	  freshsave                         resets the profile to a brand new one (server remote), then the menu
+	  daily, daily:done, weekly         the Daily Rewards panel, the Daily leaderboard, the leaderboard (weekly)
+	  seed                              the fixed seed run (same as round1)
+	  store, store:<tab>, season        the Store and Season panels (the tab is noted, panels open on their first tab)
+	  collection, collection:<tab>      the Tome Collection page
+	  cardset:<id>                      the table with that Card Set previewed
+	  settings, share                   Settings; the win Run Over screen that holds the Invite and Share lines
+	  tavernmap:night=<n>               the Tavern Map (same as map:night=n)
 	  haggle, haggle:good, haggle:bad   the Counter with a Wandering Stranger on offer (bad: the long curse picks the second scroll)
 	  map, map:night=N                  opens the real Tavern Map overlay (the night part is only parsed)
 	  road                              Choose your road with three sample stops
@@ -341,6 +350,14 @@ function DebugGoto.init(deps)
 				if target.sub then
 					warn("[DebugGoto] sub-tab " .. target.sub .. " cannot be clicked from script; panel opened on its first tab")
 				end
+			elseif target.kind == "freshsave" then
+				OverlayManager.closeAllExcept("")
+				remotes:WaitForChild("DebugFreshSave"):FireServer()
+				showMenu()
+			elseif target.kind == "opener" then
+				OverlayManager.closeAllExcept("")
+				showMenu()
+				if not OverlayManager.open(target.opener) then error("no opener for " .. target.opener) end
 			elseif target.kind == "map" then
 				-- the real Tavern Map: Client/Journey registers its opener (the corner button's path) on this module
 				OverlayManager.closeAllExcept("")
