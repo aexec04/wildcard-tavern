@@ -41848,6 +41848,50 @@ table.insert(tests, { name = "Tutorial time: Menu to the first cleared round tak
 	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
 end })
 
+-- DAILY TWIST x NIGHT BOON: every twist with every boon (and none) plays a round with two strong Patrons; the score stays finite,
+-- never negative, whole, and a boon never adds more than its own share on top of the same twist (no double counting).
+table.insert(tests, { name = "Daily twist and Night boon interplay: every combination scores a finite, non-negative round and boons never double count", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local function play(twistId, boonId)
+		local state = RunState.new({ dailyModifierId = twistId }, SeededRng.new(11))
+		table.insert(state.ownedPatrons, Patrons.getById("the_regular"))
+		table.insert(state.ownedPatrons, Patrons.getById("vip_table"))
+		state.night, state.round = 2, 1
+		RunState.startRound(state)
+		if boonId then
+			local ok = NB.apply(state, boonId)
+			expectTrue(ok, "boon " .. boonId .. " applies on top of " .. twistId)
+		end
+		local guard = 0
+		while not state.roundOver and state.handsRemaining > 0 and guard < 20 do
+			guard = guard + 1
+			local pick = {}
+			for i = 1, math.min(5, #state.hand) do pick[i] = i end
+			RunState.playHand(state, pick)
+		end
+		return state
+	end
+	for _, twist in ipairs(DM.Definitions) do
+		local base = play(twist.id, nil)
+		for _, boon in ipairs(NB.Definitions) do
+			local state = play(twist.id, boon.id)
+			local tag = twist.id .. " + " .. boon.id
+			expectTrue(state.roundScore == state.roundScore and state.roundScore < math.huge, tag .. ": score is finite")
+			expectTrue(state.roundScore >= 0, tag .. ": score is not negative") -- fractions are fine: Patron multipliers already make them
+			expectTrue((state.tips or 0) >= 0 and (state.tips or 0) == math.floor(state.tips or 0), tag .. ": Tips whole and not negative")
+			expectTrue(state.handsRemaining >= 0 and state.discardsRemaining >= 0, tag .. ": no negative hands or discards")
+			if boon.scorePct == nil and boon.firstHandPct == nil and boon.hands == nil and boon.handSize == nil and boon.roundOneHands == nil then
+				-- no scoring or hand count change: the same deal must score the same
+				expectEqual(state.roundScore, base.roundScore, tag .. ": a non scoring boon leaves the score alone")
+			end
+			if boon.scorePct or boon.firstHandPct then
+				expectTrue(state.roundScore <= base.roundScore * 1.6 + 1, tag .. ": a percent boon adds at most its own share")
+			end
+		end
+	end
+end })
+
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
 table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)
