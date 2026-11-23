@@ -47427,5 +47427,32 @@ table.insert(tests, { name = "Hand name plate: sits under the Round plate and Ni
 	assert(P.namePlate({ round = { x = 0, y = 0, w = 400, h = 70 }, slots = { { card = { y = 80 } } } }) == nil, "no room: dropped, never overlapping")
 end })
 
+table.insert(tests, { name = "Hand hover: with any cards picked, hovering any other card lifts only that card and never drops a picked one", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLift)
+	local HH = require(script.Parent.Parent.Engine.HandHover)
+	local SEL, HOV, N = 24, 12, 6
+	local pos = {}
+	for i = 1, N do pos[i] = i end
+	for mask = 0, (1 << N) - 1 do
+		for hover = 0, N do -- 0 = no hover
+			local before, after = {}, {}
+			for i = 1, N do
+				local picked = (mask >> (i - 1)) & 1 == 1
+				before[i] = HL.cardLift(picked, false, SEL, HOV)
+				after[i] = HL.cardLift(picked, hover == i, SEL, HOV)
+				if picked then assert(after[i] >= SEL, "a picked card never drops") end
+				if hover ~= i then assert(after[i] == before[i], "a card that is not hovered keeps its lift") end
+			end
+			if hover > 0 then
+				assert(after[hover] == before[hover] + HOV, "the hovered card lifts by the hover lift")
+				for from = 0, N do -- the repaint list for a hover move holds only the two cards involved
+					local list = HH.affected(pos, from > 0 and from or nil, hover, 2)
+					for _, i in ipairs(list) do assert(i == from or i == hover) end
+				end
+			end
+		end
+	end
+end })
+
 return tests
 

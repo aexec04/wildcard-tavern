@@ -1567,7 +1567,7 @@ local function refreshCardVisual(index, usePop)
 	local selLift = SELECTED_LIFT
 	if isSelected then local ok, v = pcall(function() local s = button.Parent; return require(script.Gameplay2).selectedLift(SELECTED_LIFT, s.AbsolutePosition.Y + s.AbsoluteSize.Y / 2 + (s:GetAttribute("FanY") or 0) - button.AbsoluteSize.Y / (2 * (scaleObject.Scale > 0 and scaleObject.Scale or 1))) end); if ok and v then selLift = v end end -- capped per card: top stays 10 px under the "N of Target" line
 	do local edge = button:FindFirstChild("PickEdge"); if edge then edge.Visible = isSelected; if isSelected then pcall(function() local es = edge:FindFirstChildOfClass("UIStroke"); local ink = require(script.SetInk).get(); if es then es.Color = ink and ink.accent or Color3.fromRGB(240, 200, 90) end end) end end end -- gold 3 px edge above the neighbours (see build)
-	local lift = (isSelected and selLift or 0) + (isHovering and HOVER_LIFT or fanLift)
+	local lift = require(ReplicatedStorage.Shared.Engine.HandLift).cardLift(isSelected, isHovering, selLift, HOVER_LIFT) + fanLift -- a hover on another card never drops a picked one
 
 	VisualHelpersModule.tweenTo(button, {
 		Position = UDim2.new(0.5, (button.Parent:GetAttribute("FanX") or 0) + spreadX, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),

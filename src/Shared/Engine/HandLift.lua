@@ -6,6 +6,12 @@ function M.landY(fanY, liftY)
 	return (fanY or 0) - math.max(0, liftY or 0)
 end
 
+-- The lift one card shows: a pick lifts it by selLift, a hover adds hoverLift on the hovered card only. Hovering another card never
+-- changes this card, so a picked card never drops.
+function M.cardLift(picked, hovered, selLift, hoverLift)
+	return (picked and (selLift or 0) or 0) + (hovered and (hoverLift or 0) or 0)
+end
+
 -- offsets for a hand: picked cards lift, others do not
 function M.offsets(selectedByIndex, count, lift)
 	local out = {}
