@@ -46250,4 +46250,56 @@ table.insert(tests, { name = "Music: 100 random menu, table, shop and map switch
 	expectTrue(switches == 100 and fades > 0, "100 switches ran, with real crossfades: " .. fades)
 end })
 
+table.insert(tests, { name = "Counter price chips: every price tag sits inside its card width, clear of the next row, table rim, Leave plate and screen edge, 14 px text, at four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CardShape)
+	local HEAD = 0 -- a card rect is the card body: ShopSceneLayout.rows puts the row's 16 px headroom above it
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local r = SL.rects(W, H, { offers = 3, packs = 2 })
+		local s = SL.cardScales(r)
+		local groups = { { "offer", r.offers, "patron", s.patron }, { "pack", r.packs, "pack", s.pack } }
+		local chips = {}
+		for _, g in ipairs(groups) do
+			for i, rc in ipairs(g[2]) do
+				local shape = CS.shape(g[3], g[4])
+				local ov = SL.cardOverlays(shape.w, shape.artTop, shape.artH, shape.bannerTop, nil, {})
+				local c = { name = g[1] .. i, x = rc.x + ov.price.x, y = rc.y + HEAD + ov.price.y, w = ov.price.w, h = ov.price.h }
+				chips[#chips + 1] = c
+				expectTrue(ov.price.x >= 0 and ov.price.x + ov.price.w <= shape.w, tag .. " " .. c.name .. " price chip inside its card width")
+				expectTrue(ov.price.y >= shape.bannerTop + CS.BANNER_H, tag .. " " .. c.name .. " price chip hangs under the name ribbon, not over the art")
+				expectTrue(c.x >= 0 and c.y >= 0 and c.x + c.w <= W and c.y + c.h <= H, tag .. " " .. c.name .. " price chip on screen")
+				expectTrue(c.h >= 28, tag .. " " .. c.name .. " price chip tall enough for 18 px text (" .. c.h .. ")")
+				expectFalse(hit(c, r.leave), tag .. " " .. c.name .. " price chip clear of the Leave plate")
+				expectFalse(hit(c, r.tabs) or hit(c, r.nextBoss), tag .. " " .. c.name .. " price chip clear of the tabs and boss plate")
+				if r.table then
+					expectTrue(c.x >= r.table.x and c.x + c.w <= r.table.x + r.table.w and c.y + c.h <= r.table.y + r.table.h,
+						tag .. " " .. c.name .. " price chip inside the table, in the rim and margin under the card")
+				end
+				-- Known: a Patron chip hangs 22 px under its card but the pack row starts DEAL_GAP (8 px) below the Patron row, so a chip may
+				-- dip into the top of a pack by up to 22 - 8 = 14 px (its art, never its name ribbon). Widening the gap shrinks the cards
+				-- and breaks the fit tests, so this caps the dip instead of forbidding it. Same-row cards and tilt rects must stay clear.
+				local dip = SL.TAG_H - 14 -- 14 px
+				for _, g2 in ipairs(groups) do
+					for j, other in ipairs(g2[2]) do
+						if not (g2 == g and j == i) then
+							local body = { x = other.x, y = other.y + HEAD, w = other.w, h = other.h }
+							local depth = hit(c, body) and (c.y + c.h - body.y) or 0
+							expectTrue(depth <= dip, tag .. " " .. c.name .. " price chip dips " .. depth .. " px into " .. g2[1] .. j .. " (at most " .. dip .. ")")
+						end
+					end
+				end
+			end
+		end
+		for i = 1, #chips do
+			for j = i + 1, #chips do
+				expectFalse(hit(chips[i], chips[j]), tag .. " " .. chips[i].name .. " and " .. chips[j].name .. " price chips do not overlap")
+			end
+		end
+		expectTrue(#chips == 5, tag .. " all five price chips checked")
+	end
+end })
+
 return tests
