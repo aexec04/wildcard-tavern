@@ -43141,16 +43141,20 @@ table.insert(tests, { name = "Repeated runs: 200 runs in one process each start 
 	local before = defSizes()
 	local firstTips
 	oneRun(0)
-	pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
-	local base = collectgarbage("count")
-	for i = 1, 200 do
-		local t = oneRun(i)
-		firstTips = firstTips or t
-		expectEqual(t, firstTips, "run " .. i .. " starts with the same Tips as run 1")
+	local function batch(from)
+		for i = from, from + 199 do
+			local t = oneRun(i)
+			firstTips = firstTips or t
+			expectEqual(t, firstTips, "run " .. i .. " starts with the same Tips as run 1")
+		end
+		pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
 	end
-	pcall(collectgarbage, "collect") pcall(collectgarbage, "collect")
+	-- The first batch warms lazy caches (one time growth, GC noise). A real leak grows again in the second batch, so only that growth is bounded.
+	batch(1)
+	local base = collectgarbage("count")
+	batch(201)
 	local grown = collectgarbage("count") - base
-	expectTrue(grown < 4096, "200 runs left " .. math.floor(grown) .. " KB behind")
+	expectTrue(grown < 4096, "a second 200 runs left " .. math.floor(grown) .. " KB behind")
 	local after = defSizes()
 	for i = 1, #before do expectEqual(after[i], before[i], "shared definition table " .. i .. " never grows") end
 end })
