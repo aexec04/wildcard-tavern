@@ -596,6 +596,26 @@ function M.install(deps)
 		else
 			previewPill.Visible = false
 		end
+		pcall(function() -- one short line above the strip naming each active mark and boon bonus (Engine/PreviewBonuses), static in Calm
+			local bonusLabel = layer:FindFirstChild("PreviewBonus")
+			if not bonusLabel then
+				bonusLabel = Instance.new("TextLabel")
+				bonusLabel.Name = "PreviewBonus"; bonusLabel.BackgroundTransparency = 1; bonusLabel.Font = Enum.Font.GothamBold
+				bonusLabel.TextSize = 14; bonusLabel.TextColor3 = Color3.fromRGB(242, 207, 114) -- gold on the dark table, 4.5:1 or better
+				bonusLabel.TextStrokeColor3 = Color3.fromRGB(20, 12, 6); bonusLabel.ZIndex = Z_UI + 2; bonusLabel.Visible = false
+				bonusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+				bonusLabel.Parent = layer
+			end
+			local br = previewPill.Visible and self.previewBonus and require(Engine:WaitForChild("PreviewBonuses")).rect(r.stage, self.previewBonus, live.plate) or nil
+			if br then
+				place(bonusLabel, br)
+				bonusLabel.Text = self.previewBonus
+				bonusLabel.TextTransparency = 0; bonusLabel.TextStrokeTransparency = 0.5
+				bonusLabel.Visible = true
+			else
+				bonusLabel.Visible = false
+			end
+		end)
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
@@ -1036,11 +1056,13 @@ function M.flair(preview)
 end
 
 -- the hub passes its live hand preview (Engine/HandPreview) whenever the selection changes, nil when nothing is selected
-function M.setPreview(preview, handLevels)
+function M.setPreview(preview, handLevels, bonusText)
 	if not current then return end
 	local lv = preview and PreviewRules.levelOf(handLevels, preview.name)
 	local text = preview and PreviewRules.line(preview, lv) or nil
-	if current.previewText == text then return end
+	local bonus = preview and bonusText or nil
+	if current.previewText == text and current.previewBonus == bonus then return end
+	current.previewBonus = bonus
 	current.previewText = text
 	current.previewRich = preview and PreviewRules.rich(preview, lv) or nil
 	if current.isActive() then pcall(current.refresh) end

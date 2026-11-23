@@ -45787,6 +45787,25 @@ table.insert(tests, { name = "SkipPlate: the plate names the Tag and one kind li
 	expectTrue(c:find("SkipPlate.text(state.currentRoundSkipTag)", 1, true) and c:find("SkipPlate.needsConfirm", 1, true), "the client draws the plate text and the rare confirm")
 end })
 
+table.insert(tests, { name = "PreviewBonuses: one short line names marks and the Night boon, 60 characters or less, nil when nothing applies", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PreviewBonuses)
+	local state = boonRun(2)
+	state.nightBoon = nil
+	state.hand = { { rank = 5, suit = "Hearts", mark = "gilded" }, { rank = 6, suit = "Hearts", mark = "gilded" }, { rank = 7, suit = "Hearts", mark = "lucky" }, { rank = 8, suit = "Hearts" } }
+	expectTrue(PB.line(state, {}) == nil, "no selection")
+	expectTrue(PB.line(state, { 4 }) == nil, "plain card")
+	expectEqual(PB.line(state, { 1, 2, 3, 4 }), "Gilded x2, Lucky")
+	expectEqual(PB.line(state, { 1, 1 }), "Gilded", "duplicate index counted once")
+	state.nightBoon = { id = "warm_welcome", night = state.night }
+	local line = PB.line(state, { 1, 3 })
+	expectTrue(line ~= nil and line:find("Warm Welcome +10%", 1, true) ~= nil and #line <= 60, "boon named: " .. tostring(line))
+	expectTrue(PB.line(state, {}) ~= nil and PB.line(state, {}):find("Warm Welcome", 1, true) ~= nil, "boon alone still shows")
+	expectTrue(PB.line(nil, { 1 }) == nil and PB.line({}, { 1 }) == nil, "junk view")
+	local rect = PB.rect({ x = 0, y = 0, w = 800, h = 450 }, line, { y = 100, h = 60 })
+	expectTrue(rect ~= nil and rect.h == 20 and rect.y == 162 and rect.x >= 0 and rect.x + rect.w <= 800, "strip under the plate")
+	expectTrue(PB.rect({ x = 0, y = 0, w = 800, h = 450 }, line, { y = 400, h = 40 }) == nil, "no room, no strip")
+end })
+
 return tests
 
 
