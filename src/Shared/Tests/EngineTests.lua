@@ -53384,7 +53384,8 @@ table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key pars
 		expectTrue(seen[want], "documented key has a button: " .. want)
 	end
 	for _, bad in ipairs({ "daily", "daily:done", "weekly", "seed", "freshsave", "settings", "share" }) do
-		expectTrue(Rules.parse(bad) == nil and not seen[bad], "key that does not parse has no button: " .. bad)
+		-- admin keys now parse (DebugGotoRules.ADMIN_KEYS); a key with a button must be one that parses
+		expectTrue(Rules.parse(bad) ~= nil or not seen[bad], "a key that does not parse has no button: " .. bad)
 	end
 	for _, b in ipairs(bosses) do expectTrue(seen["boss3:" .. b.id], "a button for boss " .. b.id) end
 	for _, t in ipairs(tags) do expectTrue(seen["tag:" .. t], "a button for Tag " .. t) end
