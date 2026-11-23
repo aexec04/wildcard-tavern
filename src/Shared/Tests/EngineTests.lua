@@ -49621,6 +49621,124 @@ table.insert(tests, { name = "Pick lift: every pick settles at the full 24 px, t
 	end
 end })
 
+table.insert(tests, { name = "Save and progression audit: a simulated rejoin keeps Tips, Rank XP, sets, daily streak, achievements and settings, a failed save is retried and never wipes the profile, two quick saves never lose the later one", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local Achievements = require(script.Parent.Parent.Engine.Achievements)
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local function copy(v)
+		if type(v) ~= "table" then return v end
+		local out = {}
+		for k, x in pairs(v) do out[k] = copy(x) end
+		return out
+	end
+	-- a store that keeps a private copy, like a real DataStore, and can fail a set number of calls
+	local function fake(initial, failTimes)
+		local f = { value = copy(initial), failTimes = failTimes or 0, writes = 0 }
+		function f:UpdateAsync(_, fn)
+			if self.failTimes > 0 then
+				self.failTimes = self.failTimes - 1
+				error("DataStore request failed")
+			end
+			local new = fn(copy(self.value))
+			if new ~= nil then
+				self.value = copy(new)
+				self.writes = self.writes + 1
+			end
+		end
+		return f
+	end
+	local waits = 0
+	local function wait() waits = waits + 1 end
+	local t = 5000
+	local function now() return t end
+
+	-- a profile with progress in every area the task names
+	local p = PlayerProfile.new()
+	p.pendingStartTips = 23
+	TavernRank.addXp(p, 650)
+	p.ownedSetIds.winter_evening = true
+	p.ownedSetIds.golden_gala = true
+	p.equippedSetId = "winter_evening"
+	LoginStreak.checkIn(p, 20800)
+	LoginStreak.checkIn(p, 20801)
+	for i = 1, 8 do PlayerProfile.recordRunStarted(p); PlayerProfile.recordNightReached(p, i) end
+	PlayerProfile.recordRunWon(p)
+	p.settings.musicVolume = 0.3
+	p.settings.performanceMode = true
+	local unlockedId
+	for _, def in ipairs(Achievements.Definitions) do
+		if Achievements.isUnlocked(p, def.id) then unlockedId = def.id break end
+	end
+	if unlockedId then p.equippedTitleId = unlockedId end
+	local unlockedBefore = #Achievements.unlockedFor(p)
+
+	-- save, leave, rejoin on another server
+	local store = fake(nil)
+	expectEqual(SaveLock.save(store, "k", p, "A", now, true, SaveLock.SAVE_RETRY_DELAYS, wait), "ok")
+	local status, stored = SaveLock.load(store, "k", "B", now, SaveLock.RETRY_DELAYS, wait)
+	expectEqual(status, "ok")
+	local r = PlayerProfile.migrate(stored)
+	expectEqual(r.pendingStartTips, p.pendingStartTips, "Tips kept")
+	expectEqual(r.tavernXp, p.tavernXp, "Rank XP kept")
+	expectTrue(r.tavernXp > 0, "the fixture has Rank XP")
+	expectTrue(r.ownedSetIds.winter_evening and r.ownedSetIds.golden_gala, "unlocked Card Sets kept")
+	expectEqual(r.equippedSetId, "winter_evening", "equipped set kept")
+	expectEqual(r.loginStreak, p.loginStreak, "daily streak kept")
+	expectEqual(r.lastLoginDay, p.lastLoginDay, "last check in day kept")
+	expectEqual(r.bestLoginStreak, p.bestLoginStreak, "best streak kept")
+	expectEqual(#Achievements.unlockedFor(r), unlockedBefore, "the same achievements are unlocked")
+	expectEqual(r.equippedTitleId, p.equippedTitleId, "worn title kept")
+	expectEqual(r.settings.musicVolume, 0.3, "settings kept")
+	expectEqual(r.settings.performanceMode, true, "settings kept")
+	expectEqual(r.stats.bestNightReached, 8, "best Night kept")
+	-- the rejoin does not hand out a second check in
+	expectTrue(not LoginStreak.checkIn(r, 20801), "no second daily claim after a rejoin")
+
+	-- a failed save is retried with backoff and lands
+	local flaky = fake({ pendingStartTips = 1 }, 1)
+	waits = 0
+	expectEqual(SaveLock.save(flaky, "k", p, "A", now, false, SaveLock.SAVE_RETRY_DELAYS, wait), "ok")
+	expectEqual(waits, 1, "one backoff wait")
+	expectEqual(flaky.value.pendingStartTips, p.pendingStartTips)
+
+	-- a save that fails every time reports an error and leaves the stored profile exactly as it was
+	local good = fake(p)
+	local goodBefore = copy(good.value)
+	local dead = fake(p, 99)
+	expectEqual(SaveLock.save(dead, "k", PlayerProfile.new(), "A", now, false, SaveLock.SAVE_RETRY_DELAYS, wait), "error")
+	expectEqual(dead.writes, 0)
+	expectEqual(dead.value.pendingStartTips, p.pendingStartTips,"a failed save never wipes the stored profile")
+	expectEqual(good.value.pendingStartTips, goodBefore.pendingStartTips)
+	-- a stored value that is not a table is never replaced by a blank profile
+	local junk = fake("garbage")
+	expectEqual(SaveLock.save(junk, "k", PlayerProfile.new(), "A", now, false, {}, wait), "locked")
+	expectEqual(junk.value, "garbage")
+	-- a profile that cannot be read at load is not overwritten by the later save of a blank one
+	local unreadable = fake(p, 99)
+	expectEqual((SaveLock.load(unreadable, "k", "A", now, SaveLock.RETRY_DELAYS, wait)), "error")
+	expectEqual(unreadable.writes, 0)
+
+	-- two quick saves: the later one is what the store keeps
+	local quick = fake(nil)
+	local first = copy(p)
+	first.pendingStartTips = 30
+	local second = copy(p)
+	second.pendingStartTips = 41
+	expectEqual(SaveLock.save(quick, "k", first, "A", now, false, {}, wait), "ok")
+	expectEqual(SaveLock.save(quick, "k", second, "A", now, false, {}, wait), "ok")
+	expectEqual(quick.value.pendingStartTips, 41, "the later save wins")
+	-- and the timer throttle skips a too early timer save but never a final or forced one
+	expectEqual(SaveLock.mayWrite(t, t + 1, false, false), false)
+	expectTrue(SaveLock.mayWrite(t, t + 1, true, false), "the leave save always runs")
+	expectTrue(SaveLock.mayWrite(t, t + 1, false, true), "a store receipt save always runs")
+	-- a second server cannot overwrite while the first holds a live lease
+	local held = fake(nil)
+	expectEqual(SaveLock.save(held, "k", first, "A", now, false, {}, wait), "ok")
+	expectEqual(SaveLock.save(held, "k", second, "B", now, false, {}, wait), "locked")
+	expectEqual(held.value.pendingStartTips, 30, "a foreign server's save is refused")
+end })
+
 return tests
 
 
