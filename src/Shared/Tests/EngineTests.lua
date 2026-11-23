@@ -51739,6 +51739,150 @@ table.insert(tests, { name = "Recipes, Tags and Blessings: hand levels 0 to 5 sc
 	expectEqual(Strangers.field(plain, "scorePct"), 0, "no Blessing, no bonus")
 end })
 
+-- SHOP RULES AUDIT: slot counts, the Patron cap and sell price, pack contents and costs, Haggle and interest on Tips.
+table.insert(tests, { name = "Shop rules: slot counts, Patron cap and sell price, pack costs and picks, Haggle effects, interest on Tips", fn = function()
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	local function shopState(seed, tips)
+		local s = RunState.new(nil, SeededRng.new(seed))
+		s.bossRoundsEnabled = false
+		s.tips = tips or 0
+		return s
+	end
+
+	-- slot counts: 2 Patron offers, 2 Pack offers, at most one Voucher, over 60 seeded shops; no duplicates, nothing owned
+	local vouchers = 0
+	for seed = 1, 60 do
+		local s = shopState(seed, 10)
+		RunState.buyPatron(s, Patrons.Definitions[1].id)
+		local offers = Shop.rollOffers(s)
+		expectEqual(#offers.patrons, Shop.OFFER_COUNT, "seed " .. seed .. " shows 2 Patrons")
+		expectEqual(#offers.packs, Shop.PACK_OFFER_COUNT, "seed " .. seed .. " shows 2 Packs")
+		expectTrue(offers.patrons[1].id ~= offers.patrons[2].id and offers.packs[1].id ~= offers.packs[2].id, "no repeats on one shelf")
+		for _, p in ipairs(offers.patrons) do
+			expectTrue(p.id ~= Patrons.Definitions[1].id, "an owned Patron is never offered")
+		end
+		if offers.voucher then
+			vouchers = vouchers + 1
+			expectFalse(s.housePasses[offers.voucher.id] == true, "a Voucher is one you do not own")
+		end
+	end
+	expectTrue(vouchers > 0 and vouchers < 60, "a Voucher shows up sometimes, never every visit")
+
+	-- Patron cap: the table seats exactly patronSlotLimit, a full table refuses and keeps the Tips
+	local s = shopState(2, 500)
+	local limit = RunState.patronSlotLimit(s)
+	expectEqual(limit, 5, "five Patron seats")
+	local bought = 0
+	for _, p in ipairs(Patrons.Definitions) do
+		if p.price and not p.legendary and bought < limit then
+			local before = s.tips
+			local ok = RunState.buyPatron(s, p.id)
+			if ok then
+				bought = bought + 1
+				expectEqual(s.tips, before - RunState.patronPrice(s, p), p.id .. " charged its price once")
+			end
+		end
+	end
+	expectEqual(#s.ownedPatrons, limit, "the table fills to its limit")
+	local tipsFull = s.tips
+	local extra
+	for _, p in ipairs(Patrons.Definitions) do
+		local owned = false
+		for _, o in ipairs(s.ownedPatrons) do if o.id == p.id then owned = true end end
+		if not owned then extra = p break end
+	end
+	local ok, msg = RunState.buyPatron(s, extra.id)
+	expectFalse(ok, "a sixth Patron is refused")
+	expectTrue(type(msg) == "string" and msg:find("full") ~= nil, "the refusal says the table is full")
+	expectEqual(s.tips, tipsFull, "a refused buy keeps every Tip")
+	expectFalse(RunState.buyPatron(s, s.ownedPatrons[1].id), "a second copy is refused")
+	expectEqual(s.tips, tipsFull, "and keeps every Tip too")
+	-- selling pays half rounded down, and frees the seat
+	local sold = s.ownedPatrons[1]
+	local ok2, refund = RunState.sellPatron(s, sold.id)
+	expectTrue(ok2 and refund == math.floor(sold.price / 2) and s.tips == tipsFull + refund, "sell pays half the price, rounded down")
+	expectEqual(#s.ownedPatrons, limit - 1, "a seat is free again")
+	expectFalse(RunState.sellPatron(s, sold.id), "the same Patron cannot be sold twice")
+	expectTrue(RunState.buyPatron(s, extra.id), "the freed seat can be bought into")
+
+	-- prices: Regulars' Discount, Sale Day and Haggle stack before a 1 Tip floor
+	local pricey = shopState(3, 100)
+	local patron = Patrons.Definitions[1]
+	local base = RunState.patronPrice(pricey, patron)
+	expectEqual(base, patron.price, "no discounts, the listed price")
+	pricey.housePasses.regulars_discount = true
+	expectEqual(RunState.patronPrice(pricey, patron), math.max(1, patron.price - 2), "Regulars' Discount is 2 off")
+	pricey.nextShopDiscount = 3
+	expectEqual(RunState.patronPrice(pricey, patron), math.max(1, patron.price - 5), "plus Sale Day is 5 off together")
+	pricey.nextShopDiscount = 500
+	expectEqual(RunState.patronPrice(pricey, patron), 1, "never below 1 Tip, never free")
+	local pack = Packs.Definitions[1]
+	local plainPack = shopState(3, 100)
+	expectEqual(RunState.packPrice(plainPack, pack), pack.price, "a pack costs its listed price")
+	plainPack.housePasses.wholesale_pricing = true
+	expectEqual(RunState.packPrice(plainPack, pack), math.max(1, pack.price - 2), "Wholesale Pricing is 2 off")
+
+	-- Haggle: one per visit, a hit is 1 off, a miss 1 more, never below 1, refused on ranked boards and in the tutorial
+	local h = shopState(4, 100)
+	local item = Patrons.Definitions[2]
+	expectTrue(Haggle.start(h, {}, "shop", 0, "patron", item.id), "a haggle can start in the shop")
+	expectFalse(Haggle.start(h, {}, "shop", 0, "patron", item.id), "only one at a time")
+	local inZone = (Haggle.CENTER / Haggle.SPEED) -- the needle sits dead centre at this time
+	local okStop, res = Haggle.stop(h, inZone)
+	expectTrue(okStop and res.hit and res.delta == -1, "a stop in the green zone hits")
+	expectEqual(RunState.patronPrice(h, item), math.max(1, item.price - 1), "a hit is 1 Tip off that item only")
+	expectEqual(RunState.patronPrice(h, Patrons.Definitions[3]), Patrons.Definitions[3].price, "other items keep their price")
+	expectFalse(Haggle.start(h, {}, "shop", 5, "patron", item.id), "a second haggle the same visit is refused")
+	Haggle.reset(h)
+	expectTrue(Haggle.start(h, {}, "shop", 0, "pack", pack.id), "a new visit allows one haggle again")
+	local _, miss = Haggle.stop(h, 0) -- needle at the edge, outside the zone
+	expectTrue(not miss.hit and miss.delta == 1, "a miss costs 1 more")
+	expectEqual(RunState.packPrice(h, pack), pack.price + 1, "the penalty is capped at plus 1")
+	expectFalse(Haggle.start(shopState(5), { ranked = true }, "shop", 0, "patron", item.id), "ranked boards refuse a haggle")
+	expectFalse(Haggle.start(shopState(5), { tutorial = true }, "shop", 0, "patron", item.id), "the tutorial refuses a haggle")
+	local floorState = shopState(6, 100)
+	local cheapest = Patrons.Definitions[1]
+	for _, p in ipairs(Patrons.Definitions) do if p.price < cheapest.price then cheapest = p end end
+	floorState.nextShopDiscount = 99
+	floorState.haggle = { used = true, kind = "patron", id = cheapest.id, delta = -1 }
+	expectEqual(RunState.patronPrice(floorState, cheapest), 1, "a hit on a cheap item never goes below 1")
+
+	-- packs: every pack charges once, reveals its count, picks its count, and Skip refunds half once
+	for _, def in ipairs(Packs.Definitions) do
+		local ps = shopState(7, 100)
+		local price = RunState.packPrice(ps, def)
+		local pending, why = RunState.openPack(ps, def.id)
+		expectTrue(pending ~= nil, def.id .. " opens: " .. tostring(why))
+		expectEqual(ps.tips, 100 - price, def.id .. " charged once")
+		expectTrue(#pending.items >= 1 and #pending.items <= def.revealCount, def.id .. " reveals at most " .. def.revealCount)
+		expectEqual(pending.pickCount, math.min(def.pickCount, #pending.items), def.id .. " lets you pick " .. def.pickCount)
+		for _, it in ipairs(pending.items) do
+			expectTrue(type(it.id) == "string" and #it.id > 0, def.id .. " reveals real ids")
+		end
+		local skipped = RunState.resolvePack(ps, {})
+		expectTrue(skipped and ps.pendingPack == nil, def.id .. " Skip closes the pack")
+		expectEqual(ps.tips, 100 - price + Packs.skipRefund(price), def.id .. " Skip refunds half once")
+		expectEqual(select(1, RunState.resolvePack(ps, {})), false, def.id .. " a closed pack cannot be resolved twice")
+	end
+	local poor = shopState(8, 1)
+	local none, poorWhy = RunState.openPack(poor, "buffoon_pack")
+	expectTrue(none == nil and poor.tips == 1 and poorWhy ~= nil, "a pack you cannot afford is refused and keeps your Tips")
+
+	-- interest: 1 Tip per 5 held, capped at 5 (8 with Savings Account), paid once on a round win
+	for _, c in ipairs({ { 0, 0 }, { 4, 0 }, { 5, 1 }, { 9, 1 }, { 24, 4 }, { 25, 5 }, { 80, 5 } }) do
+		local r = shopState(9, c[1])
+		r.targetScore = 1
+		RunState.playHand(r, { 1, 2 })
+		expectTrue(r.roundOver, "round won with " .. c[1] .. " Tips")
+		expectEqual(r.lastInterest, c[2], c[1] .. " Tips pay " .. c[2] .. " interest")
+	end
+	local saver = shopState(9, 80)
+	saver.housePasses.savings_account = true
+	saver.targetScore = 1
+	RunState.playHand(saver, { 1, 2 })
+	expectEqual(saver.lastInterest, 8, "Savings Account raises the cap to 8")
+end })
+
 return tests
 
 
