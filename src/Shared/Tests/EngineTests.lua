@@ -31012,6 +31012,25 @@ table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column
 	assert(M.tipRect(600, 800) == nil and M.tipRect(1920, 400) == nil)
 end })
 
+table.insert(tests, { name = "Daily strip chest: wide enough for the Next timer word with 12 px clear each side, cream, inside the strip", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, s in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 } }) do
+		local strip = D.menuRect(s[1], s[2])
+		if strip then
+			local c = D.chestRect(strip)
+			assert(c.w >= 126 and c.w <= 160 and c.h >= 44, "chest size at " .. s[1])
+			assert(c.x >= 0 and c.x + c.w <= strip.w and c.y >= 0 and c.y + c.h <= strip.h, "chest inside strip at " .. s[1])
+			assert(c.w - 2 * D.CHEST_PAD >= 100, "word room at " .. s[1])
+		end
+	end
+	assert(D.CHEST_PAD == 12)
+	local src = io and io.open and io.open("src/Client/DailyStrip.lua", "r")
+	if src then
+		local t = src:read("*a"); src:close()
+		assert(t:find('chest.TextColor3 = color("cream")', 1, true) and t:find("Rules.CHEST_PAD", 1, true), "client insets the word and sets cream")
+	end
+end })
+
 table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me In column and All actions never overlap and keep 16 px between neighbours", fn = function()
 	local D = require(script.Parent.Parent.Engine.DailyStrip)
 	local L = require(script.Parent.Parent.Engine.MenuLife)
