@@ -26,18 +26,22 @@ M.PAD = 8
 M.MUSIC_DEFAULT = 0.35
 M.SLIDE = 0.15
 
+-- The gear dropdown: map, settings, help and quit. Sound and Music live under the speaker icon, Tome under the book icon.
 M.ROWS = {
-	{ id = "sound", kind = "toggle", label = "Sound" },
-	{ id = "music", kind = "toggle", label = "Music" },
-	{ id = "tracks", kind = "action", label = "Music tracks" },
 	{ id = "map", kind = "action", label = "Tavern Map" },
-	{ id = "tome", kind = "action", label = "Tome" },
 	{ id = "settings", kind = "action", label = "Settings" },
 	{ id = "howTo", kind = "action", label = "How to play" },
 	{ id = "quit", kind = "action", label = "Quit to Tavern" },
 }
 
--- The Tome dropdown (the round book icon after the gear, and the gear menu's Tome row): the same pages and wording as the Menu's Tome
+-- The speaker dropdown: the Sound and Music switches and the track picker
+M.SOUND_ROWS = {
+	{ id = "sound", kind = "toggle", label = "Sound" },
+	{ id = "music", kind = "toggle", label = "Music" },
+	{ id = "tracks", kind = "action", label = "Music tracks" },
+}
+
+-- The Tome dropdown (the round book icon after the gear; the gear menu has no Tome row): the same pages and wording as the Menu's Tome
 -- (MenuLayout "tome" actions). `overlay` is the OverlayManager opener id.
 M.TOME_ROWS = {
 	{ id = "collection", label = "Collection", overlay = "collection" },
@@ -116,6 +120,10 @@ end
 function M.tomeMenuRect(w, h) return M.menuRect(w, h, M.quickRects(w, h).tome, M.TOME_ROWS) end
 function M.tomeRowRects(menu) return M.rowRects(menu, M.TOME_ROWS) end
 
+-- the Sound dropdown hangs under the speaker icon, left edges level, always on screen
+function M.soundMenuRect(w, h) return M.menuRect(w, h, M.quickRects(w, h).speaker, M.SOUND_ROWS) end
+function M.soundRowRects(menu) return M.rowRects(menu, M.SOUND_ROWS) end
+
 function M.rowRects(menu, rows)
 	local out = {}
 	for i, row in ipairs(rows or M.ROWS) do
@@ -143,11 +151,13 @@ function M.view(settings)
 	for id, label in pairs({ calm = "Calm mode", reduceMotion = "Reduce motion", hints = "Hints" }) do
 		out[id] = { label = label, on = on[id], state = on[id] and "On" or "Off" }
 	end
-	for _, row in ipairs(M.ROWS) do
-		if row.kind == "toggle" then
-			out[row.id] = { label = row.label, on = on[row.id], state = on[row.id] and "On" or "Off" }
-		else
-			out[row.id] = { label = row.label }
+	for _, list in ipairs({ M.SOUND_ROWS, M.ROWS }) do
+		for _, row in ipairs(list) do
+			if row.kind == "toggle" then
+				out[row.id] = { label = row.label, on = on[row.id], state = on[row.id] and "On" or "Off" }
+			else
+				out[row.id] = { label = row.label }
+			end
 		end
 	end
 	return out

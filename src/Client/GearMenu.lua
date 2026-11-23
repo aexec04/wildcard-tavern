@@ -117,14 +117,34 @@ function M.install(deps)
 	scroll.CanvasSize = UDim2.fromOffset(0, G.contentHeight())
 	scroll.Parent = menu
 
+	-- the Sound dropdown under the speaker: Sound, Music, Music tracks
+	local soundCatcher = catcher:Clone()
+	soundCatcher.Name = "SoundCatcher"
+	soundCatcher.Visible = false
+	soundCatcher.Parent = host
+	local soundMenu = menu:Clone()
+	soundMenu.Name = "SoundMenu"
+	soundMenu.Visible = false
+	for _, ch in ipairs(soundMenu:GetChildren()) do if ch:IsA("ScrollingFrame") then ch:Destroy() end end
+	soundMenu.Parent = host
+	local soundScroll = scroll:Clone()
+	soundScroll.Name = "Rows"
+	for _, ch in ipairs(soundScroll:GetChildren()) do ch:Destroy() end
+	soundScroll.CanvasSize = UDim2.fromOffset(0, G.contentHeight(G.SOUND_ROWS))
+	soundScroll.Parent = soundMenu
+
 	local rows = {}
+	local allDefs = {}
+	for _, def in ipairs(G.SOUND_ROWS) do allDefs[#allDefs + 1] = { def = def, parent = soundScroll, sound = true } end
+	for _, def in ipairs(G.ROWS) do allDefs[#allDefs + 1] = { def = def, parent = scroll } end
 	if game:GetService("RunService"):IsStudio() then
 		local names = {}
 		for _, def in ipairs(G.ROWS) do names[#names + 1] = def.label end
 		print("[GearMenu] rows: " .. table.concat(names, ", "))
 	end
-	for _, def in ipairs(G.ROWS) do
-		local b = Kit.secondaryButton(scroll, def.label)
+	for _, entry in ipairs(allDefs) do
+		local def = entry.def
+		local b = Kit.secondaryButton(entry.parent, def.label)
 		b.Name = "Row_" .. def.id
 		b.ZIndex = Z + 2
 		pcall(Kit.paintedButton, b, "secondary") -- same ornate dark plate as every other screen (flat brown if the picture does not load)
@@ -155,7 +175,7 @@ function M.install(deps)
 			word.Parent = pill
 			pill.Parent = b
 		end
-		rows[def.id] = { button = b, label = label, pill = pill, def = def }
+		rows[def.id] = { button = b, label = label, pill = pill, def = def, sound = entry.sound }
 	end
 
 	-- the Tome dropdown: Collection, Card Sets, Flair, Legend, Tavern Ledger (same wording as the Menu's Tome), opened by the book icon or the Tome row
@@ -206,6 +226,7 @@ function M.install(deps)
 
 	local isOpen = false
 	local tomeOpen = false
+	local soundOpen = false
 	local size = Vector2.new(1280, 720)
 
 	local function paintSpeaker() -- the speaker shows the master Sound state: dimmed with a slash across it while sound is off
@@ -259,6 +280,17 @@ function M.install(deps)
 			r.button.Size = UDim2.fromOffset(rr.w - (tr.scroll and 6 or 0), rr.h)
 			pcall(Kit.setPlateButton, r.button, "secondary") -- the set's own dark plate; classic keeps the painted secondary plate
 		end
+		local sr = G.soundMenuRect(size.X, size.Y)
+		soundMenu.Position = UDim2.fromOffset(sr.x, sr.y)
+		soundMenu.Size = UDim2.fromOffset(sr.w, sr.h)
+		soundScroll.ScrollingEnabled = sr.scroll
+		soundScroll.CanvasSize = UDim2.fromOffset(0, sr.contentH)
+		for _, rr in ipairs(G.soundRowRects(sr)) do
+			local r = rows[rr.id]
+			r.button.Position = UDim2.fromOffset(rr.x, rr.y)
+			r.button.Size = UDim2.fromOffset(rr.w - (sr.scroll and 6 or 0), rr.h)
+			pcall(Kit.setPlateButton, r.button, "secondary")
+		end
 		local mr = G.menuRect(size.X, size.Y)
 		menu.Position = UDim2.fromOffset(mr.x, mr.y)
 		menu.Size = UDim2.fromOffset(mr.w, mr.h)
@@ -295,6 +327,15 @@ function M.install(deps)
 	end
 	M.setOpen = setOpen
 
+	local function setSoundOpen(open)
+		if open == soundOpen then return end
+		soundOpen = open
+		soundCatcher.Visible = open
+		if open then layout(); paint() end
+		soundMenu.Visible = open
+	end
+	M.setSoundOpen = setSoundOpen
+
 	local function setTomeOpen(open)
 		if open == tomeOpen then return end
 		tomeOpen = open
@@ -307,6 +348,7 @@ function M.install(deps)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		OverlayManager.closeAllExcept("tome-menu")
 		setOpen(false)
+		setSoundOpen(false)
 		setTomeOpen(not tomeOpen)
 	end
 	quick.tome.MouseButton1Click:Connect(openTome)
@@ -326,6 +368,7 @@ function M.install(deps)
 	quick.pause.MouseButton1Click:Connect(function() -- the ONE settings button: the round gear top left opens the dropdown (its Settings row opens the full screen)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
 		OverlayManager.closeAllExcept("gear-menu")
+		setSoundOpen(false)
 		setOpen(not isOpen)
 	end)
 	catcher.MouseButton1Click:Connect(function() setOpen(false) end)
@@ -333,11 +376,17 @@ function M.install(deps)
 	-- Escape and the click outside both go through PopupDismiss (the one place that handles Escape); the catcher is the dark area
 	pcall(function() require(script.Parent.PopupDismiss).attach(catcher, { id = "gear-menu", panel = menu, close = function() setOpen(false) end, button = false }) end)
 
+	-- the speaker opens the Sound dropdown (Sound, Music, Music tracks); one menu at a time
 	quick.speaker.MouseButton1Click:Connect(function()
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
-		for k, val in pairs(G.writes("sound", settingsNow())) do ClientSettings.set(k, val) end
-		if isOpen then paint() end
+		OverlayManager.closeAllExcept("sound-menu")
+		setOpen(false)
+		setTomeOpen(false)
+		setSoundOpen(not soundOpen)
 	end)
+	soundCatcher.MouseButton1Click:Connect(function() setSoundOpen(false) end)
+	OverlayManager.register("sound-menu", function() setSoundOpen(false) end)
+	pcall(function() require(script.Parent.PopupDismiss).attach(soundCatcher, { id = "sound-menu", panel = soundMenu, close = function() setSoundOpen(false) end, button = false }) end)
 
 	local function act(id)
 		pcall(function() require(script.Parent.Cue).play("button_click") end)
@@ -347,19 +396,17 @@ function M.install(deps)
 			return
 		end
 		setOpen(false)
+		setSoundOpen(false)
 		if id == "settings" then OverlayManager.open("settings")
 		elseif id == "tracks" then OverlayManager.open("music")
 		elseif id == "howTo" then OverlayManager.open("howToPlay")
 		elseif id == "map" then OverlayManager.open("journey")
-		elseif id == "collection" then
-			OverlayManager.open("collection")
-			if game:GetService("RunService"):IsStudio() then print("[Collection] opened from gear") end
 		elseif id == "quit" then OverlayManager.open("quitToTavern") end
 	end
 	for id, r in pairs(rows) do
 		r.button.MouseButton1Click:Connect(function() act(id) end)
 	end
-	ClientSettings.onChanged(function() if isOpen then pcall(paint) else pcall(paintSpeaker) end end)
+	ClientSettings.onChanged(function() if isOpen or soundOpen then pcall(paint) else pcall(paintSpeaker) end end)
 	pcall(paintSpeaker)
 
 	-- shown on the table, the Counter and the Night map only; a popup above it hides it (and closes the menu)
@@ -381,6 +428,8 @@ function M.install(deps)
 			local want = visibleNow()
 			if quick.pause.Visible ~= want then for _, b in pairs(quick) do b.Visible = want end end
 			if not want and isOpen then setOpen(false) end
+				if not want and soundOpen then setSoundOpen(false) end
+				if not want and tomeOpen then setTomeOpen(false) end
 			if want then
 				local abs = host.AbsoluteSize
 				if abs ~= size then layout() end

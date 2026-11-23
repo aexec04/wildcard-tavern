@@ -31755,7 +31755,10 @@ table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggle
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local ids = {}
 	for _, r in ipairs(G.ROWS) do ids[#ids + 1] = r.id end
-	expectEqual(table.concat(ids, ","), "sound,music,tracks,map,tome,settings,howTo,quit", "gear rows")
+	expectEqual(table.concat(ids, ","), "map,settings,howTo,quit", "gear rows: no Sound, Music or Tome rows")
+	local sids = {}
+	for _, r in ipairs(G.SOUND_ROWS) do sids[#sids + 1] = r.id end
+	expectEqual(table.concat(sids, ","), "sound,music,tracks", "speaker dropdown rows")
 	local H = require(script.Parent.Parent.Engine.HoverIntent)
 	local c = H.new(0.15, 0.2)
 	c:enter(0); expectTrue(not c:poll(0.1), "not before 0.15 s")
@@ -31778,7 +31781,7 @@ table.insert(tests, { name = "Gear menu: the Tome row replaces the lone Collecti
 	local G, L, ML = require(E.GearMenu), require(E.Gameplay2Layout), require(E.MenuLayout)
 	local tome, coll
 	for _, r in ipairs(G.ROWS) do if r.id == "tome" then tome = r end if r.id == "collection" then coll = r end end
-	assert(tome and tome.kind == "action" and tome.label == "Tome" and coll == nil, "gear menu lists Tome instead of Collection")
+	assert(tome == nil and coll == nil, "the gear menu has no Tome or Collection row: the book icon owns them")
 	assert(require(E.FeatureFlags).enabled("TOME_COLLECTION"), "flag on")
 	local want = { "Collection", "Card Sets", "Flair", "Legend", "Tavern Ledger" }
 	assert(#G.TOME_ROWS == 5, "five rows")
@@ -33044,6 +33047,7 @@ table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu
 		end
 	end
 	local ids = {}
+	for _, row in ipairs(G.SOUND_ROWS) do ids[row.id] = row.kind end
 	for _, row in ipairs(G.ROWS) do ids[row.id] = row.kind end
 	expectTrue(ids.sound == "toggle" and ids.music == "toggle" and ids.calm == nil and ids.reduceMotion == nil and ids.hints == nil, "two toggles, comfort toggles live in Settings")
 	expectTrue(ids.settings == "action" and ids.howTo == "action" and ids.quit == "action", "three actions")
@@ -33149,7 +33153,7 @@ table.insert(tests, { name = "Gear menu quick buttons: speaker and the one gear 
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/GearMenu.lua", "r")); local c = f:read("a"); f:close()
-	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("ct_hud_gear", 1, true) and c:find('G.writes("sound"', 1, true), "speaker toggles Sound, the second button is a gear")
+	expectTrue(c:find("pk_w_icon_speaker", 1, true) and c:find("ct_hud_gear", 1, true) and c:find("quick.speaker.MouseButton1Click", 1, true) and c:find("setSoundOpen(not soundOpen)", 1, true), "the speaker opens the Sound dropdown, the second button is a gear")
 	expectTrue(not c:find("GearButton", 1, true) and c:find("quick.pause.MouseButton1Click", 1, true) and c:find("setOpen(not isOpen)", 1, true), "no top right gear: the round gear opens the dropdown")
 end })
 
@@ -34503,6 +34507,38 @@ table.insert(tests, { name = "Confirm popups sit above every HUD layer (ZIndex a
 		state.round = 4 -- mid run, then lost or quit
 		state = RunState.new(nil, function(n) return n end)
 		expectEqual(state.round, 1, "fresh run " .. i .. " starts at round 1")
+	end
+end })
+
+table.insert(tests, { name = "Speaker dropdown holds Sound, Music and Music tracks, the gear has no duplicates, every gear and Tome row has a registered opener, the speaker menu fits at six sizes", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local q, m = G.quickRects(w, h), G.soundMenuRect(w, h)
+		expectTrue(m.x >= 0 and m.x + m.w <= w and m.y >= q.speaker.y + q.speaker.h and m.y + m.h <= h, "speaker menu on screen under the icon " .. w)
+		expectTrue(not hit(q.speaker, m), "speaker menu clear of its icon " .. w)
+		for _, rr in ipairs(G.soundRowRects(m)) do expectTrue(rr.h >= 44 and rr.x + rr.w <= m.w, rr.id .. " row 44 px inside the speaker menu " .. w) end
+	end
+	local seen = {}
+	for _, r in ipairs(G.SOUND_ROWS) do seen[r.id] = true end
+	for _, r in ipairs(G.ROWS) do expectTrue(not seen[r.id], r.id .. " is in only one dropdown"); seen[r.id] = true end
+	for _, r in ipairs(G.TOME_ROWS) do expectTrue(not seen[r.id], r.id .. " is in only one dropdown") end
+	if not (io and io.open) then return end
+	local function read(p) local f = io.open(p, "r"); local t = f:read("a"); f:close(); return t end
+	local client = read("src/Client/GearMenu.lua")
+	expectTrue(client:find('id == "settings"', 1, true) and client:find('id == "tracks"', 1, true) and client:find('id == "howTo"', 1, true) and client:find('id == "map"', 1, true) and client:find('id == "quit"', 1, true), "every gear and speaker action row has a handler")
+	local all = ""
+	for _, f in ipairs({ "Collection", "CosmeticSetsPanel", "FlairPanel", "LegendPanel", "StatsPanel", "MusicPanel", "Journey", "HowToPlay", "Settings", "QuitConfirm" }) do
+		local ok, t = pcall(read, "src/Client/" .. f .. ".lua")
+		if ok then all = all .. t end
+	end
+	local openers = { "collection", "cosmeticSets", "flair", "legend", "stats", "music", "journey", "howToPlay", "settings", "quitToTavern" }
+	for _, id in ipairs(openers) do expectTrue(all:find('registerOpener("' .. id .. '"', 1, true) ~= nil, "opener " .. id .. " is registered") end
+	for _, r in ipairs(G.TOME_ROWS) do
+		local found = false
+		for _, id in ipairs(openers) do if id == r.overlay then found = true end end
+		expectTrue(found, "Tome row " .. r.id .. " opens a registered opener")
 	end
 end })
 
@@ -38196,7 +38232,7 @@ end })
 table.insert(tests, { name = "Boss round: the unplayed hand hides and returns whether or not the v2 table reports active; the Tavern Map is in the gear menu and Settings", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local row
-	for i, r in ipairs(G.ROWS) do if r.id == "map" then row = r; expectTrue(G.ROWS[i - 1].id == "tracks", "Tavern Map sits right after Music tracks") end end
+	for i, r in ipairs(G.ROWS) do if r.id == "map" then row = r end end
 	expectTrue(row ~= nil and row.kind == "action" and row.label == "Tavern Map", "gear menu has a Tavern Map action row")
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
 		local m = G.menuRect(sz[1], sz[2])
