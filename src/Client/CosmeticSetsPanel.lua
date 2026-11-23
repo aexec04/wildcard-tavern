@@ -84,7 +84,9 @@ return function(deps)
 		TextSize = 15, TextColor3 = SOFT_CREAM, TextTruncate = Enum.TextTruncate.AtEnd,
 		Text = "Sets theme the table. Backs can be picked on their own. Looks only.",
 	})
-	pcall(function() require(script.Parent.TomeHeaderPlate).attach(panel, "cosmeticSets", headTitle, headSub) end)
+	-- No title or info line on this page (the tabs name it): hide the labels, draw no plates.
+	headTitle.Visible = false
+	headSub.Visible = false
 
 	-- Preview mode (local only: never sends a remote, never touches saved ids).
 	-- Preview closes this panel, applies the set/back to the live table, and shows a
