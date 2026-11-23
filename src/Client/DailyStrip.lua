@@ -159,7 +159,8 @@ function M.update(state)
 		local pad = label:FindFirstChildOfClass("UIPadding")
 		if pad then pad.PaddingLeft, pad.PaddingRight = UDim.new(0, Rules.CHEST_PAD), UDim.new(0, Rules.CHEST_PAD) end
 		local cap = label:FindFirstChildOfClass("UITextSizeConstraint")
-		if cap then cap.MaxTextSize, cap.MinTextSize = 16, 12 end
+		if cap then cap.MaxTextSize, cap.MinTextSize = 16, 14 end
+		label.TextWrapped = false -- the timer stays on one line
 	end
 	chest.Position = UDim2.fromOffset(cr.x, cr.y)
 	chest.Size = UDim2.fromOffset(cr.w, cr.h)

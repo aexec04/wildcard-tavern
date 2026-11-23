@@ -16,11 +16,11 @@ MenuRoomLayout.SCENE_KEY = "menu_scene_a" -- in the menu_scene art category (Men
 MenuRoomLayout.pic = {
 	play        = { l = 0.254, t = 0.576, r = 0.755, b = 0.977 },  -- the card table and chairs; the deck is the primary button
 	tome        = { l = 0.007, t = 0.50,  r = 0.20,  b = 0.84 },   -- lectern and open book
-	questscroll = { l = 0.342, t = 0.19,  r = 0.404, b = 0.37 },   -- hanging scroll
+	questscroll = { l = 0.342, t = 0.205, r = 0.404, b = 0.37 },   -- hanging scroll (top trimmed from 0.19 so the hit area clears the wordmark)
 	maptable    = { l = 0.612, t = 0.24,  r = 0.723, b = 0.43 },   -- wall map
 	coinjar     = { l = 0.279, t = 0.36,  r = 0.352, b = 0.49 },   -- jar on the counter
 	rulebook    = { l = 0.55,  t = 0.478, r = 0.641, b = 0.523 },  -- small book on the counter (grown to a 44 px touch target)
-	jukebox     = { l = 0.80,  t = 0.40,  r = 0.983, b = 0.82 },   -- top trimmed from 0.37 so it clears the board by 8 percent or less
+	jukebox     = { l = 0.80,  t = 0.40,  r = 0.983, b = 0.80 },   -- top trimmed from 0.37 so it clears the board by 8 percent or less; bottom from 0.82 so the Daily strip clears it
 	noticeboard = { l = 0.775, t = 0.137, r = 0.97,  b = 0.41 },   -- cork board on the right wall: opens the All actions list
 }
 -- The cork surface itself (inside the wooden frame of noticeboard): the Notice Board notes are laid out inside it.

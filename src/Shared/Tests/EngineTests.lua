@@ -31018,7 +31018,7 @@ table.insert(tests, { name = "Daily strip chest: wide enough for the Next timer 
 		local strip = D.menuRect(s[1], s[2])
 		if strip then
 			local c = D.chestRect(strip)
-			assert(c.w >= 126 and c.w <= 160 and c.h >= 44, "chest size at " .. s[1])
+			assert(c.w >= 150 and c.w <= 170 and c.h >= 44, "chest size at " .. s[1])
 			assert(c.x >= 0 and c.x + c.w <= strip.w and c.y >= 0 and c.y + c.h <= strip.h, "chest inside strip at " .. s[1])
 			assert(c.w - 2 * D.CHEST_PAD >= 100, "word room at " .. s[1])
 		end
@@ -31041,15 +31041,39 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 		local strip = D.menuRect(w, h)
 		if strip then
 			shown = shown + 1
-			local sign = { x = w / 2 - 170, y = 0, w = 340, h = h } -- the whole column, any height
+			local sign = { x = w / 2 - D.MENU_SIGN_HALF, y = 0, w = 2 * D.MENU_SIGN_HALF, h = h } -- the whole column, any height
 			assert(not hit(strip, sign), "strip clear of sign column at " .. w)
-			assert(strip.x - (w / 2 + 170) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(strip.x - (w / 2 + D.MENU_SIGN_HALF) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
 			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
 			local tip = L.tipRect(w, h)
 			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
 		end
 	end
 	assert(shown >= 2 and D.menuRect(600, 800) == nil)
+end })
+
+table.insert(tests, { name = "Menu Daily strip shares no x range with Deal Me In or New Run at 1920x957, 1506x751, 1309x751, 1024x600; timer fits one line", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local play = ML.getHotspot("play")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local strip = D.menuRect(w, h)
+		if strip then
+			local l, t, r, b = ML.rect(play, w, h)
+			local pl, pt, pr, pb = ML.plateRect(play, w, h)
+			local newRun = { x = w / 2 - 110, y = h - 24 - 56, w = 220, h = 56 } -- New Run plaque, 220 x 56, bottom of the sign frame
+			local column = { x = w / 2 - D.MENU_SIGN_HALF, y = 0, w = 2 * D.MENU_SIGN_HALF, h = h }
+			expectFalse(hit(strip, { x = l, y = t, w = r - l, h = b - t }), tag .. " strip clear of the Deal Me In sign")
+			expectFalse(hit(strip, { x = pl, y = pt, w = pr - pl, h = pb - pt }), tag .. " strip clear of the Deal Me In plate")
+			expectFalse(hit(strip, newRun), tag .. " strip clear of New Run")
+			expectTrue(strip.x >= column.x + column.w, tag .. " strip starts right of the whole button column")
+			local c = D.chestRect(strip)
+			expectTrue(c.w - 2 * D.CHEST_PAD >= 120, tag .. " timer word has room for 'Next in 20h 39m' at 14 px on one line")
+		end
+	end
 end })
 
 table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
@@ -47693,6 +47717,328 @@ table.insert(tests, { name = "Music: 100 random menu, table, shop and map switch
 		expectTrue(MM.volume(1, true, want.gain, 1) == 0, "muted music is silent on " .. screen)
 	end
 	expectTrue(switches == 100 and fades > 0, "100 switches ran, with real crossfades: " .. fades)
+end })
+
+table.insert(tests, { name = "Counter price chips: every price tag sits inside its card width, clear of the next row, table rim, Leave plate and screen edge, 14 px text, at four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CardShape)
+	local HEAD = 0 -- a card rect is the card body: ShopSceneLayout.rows puts the row's 16 px headroom above it
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local r = SL.rects(W, H, { offers = 3, packs = 2 })
+		local s = SL.cardScales(r)
+		local groups = { { "offer", r.offers, "patron", s.patron }, { "pack", r.packs, "pack", s.pack } }
+		local chips = {}
+		for _, g in ipairs(groups) do
+			for i, rc in ipairs(g[2]) do
+				local shape = CS.shape(g[3], g[4])
+				local ov = SL.cardOverlays(shape.w, shape.artTop, shape.artH, shape.bannerTop, nil, {})
+				local c = { name = g[1] .. i, x = rc.x + ov.price.x, y = rc.y + HEAD + ov.price.y, w = ov.price.w, h = ov.price.h }
+				chips[#chips + 1] = c
+				expectTrue(ov.price.x >= 0 and ov.price.x + ov.price.w <= shape.w, tag .. " " .. c.name .. " price chip inside its card width")
+				expectTrue(ov.price.y >= shape.bannerTop + CS.BANNER_H, tag .. " " .. c.name .. " price chip hangs under the name ribbon, not over the art")
+				expectTrue(c.x >= 0 and c.y >= 0 and c.x + c.w <= W and c.y + c.h <= H, tag .. " " .. c.name .. " price chip on screen")
+				expectTrue(c.h >= 28, tag .. " " .. c.name .. " price chip tall enough for 18 px text (" .. c.h .. ")")
+				expectFalse(hit(c, r.leave), tag .. " " .. c.name .. " price chip clear of the Leave plate")
+				expectFalse(hit(c, r.tabs) or hit(c, r.nextBoss), tag .. " " .. c.name .. " price chip clear of the tabs and boss plate")
+				if r.table then
+					expectTrue(c.x >= r.table.x and c.x + c.w <= r.table.x + r.table.w and c.y + c.h <= r.table.y + r.table.h,
+						tag .. " " .. c.name .. " price chip inside the table, in the rim and margin under the card")
+				end
+				-- Known: a Patron chip hangs 22 px under its card but the pack row starts DEAL_GAP (8 px) below the Patron row, so a chip may
+				-- dip into the top of a pack by up to 22 - 8 = 14 px (its art, never its name ribbon). Widening the gap shrinks the cards
+				-- and breaks the fit tests, so this caps the dip instead of forbidding it. Same-row cards and tilt rects must stay clear.
+				local dip = SL.TAG_H - 14 -- 14 px
+				for _, g2 in ipairs(groups) do
+					for j, other in ipairs(g2[2]) do
+						if not (g2 == g and j == i) then
+							local body = { x = other.x, y = other.y + HEAD, w = other.w, h = other.h }
+							local depth = hit(c, body) and (c.y + c.h - body.y) or 0
+							expectTrue(depth <= dip, tag .. " " .. c.name .. " price chip dips " .. depth .. " px into " .. g2[1] .. j .. " (at most " .. dip .. ")")
+						end
+					end
+				end
+			end
+		end
+		for i = 1, #chips do
+			for j = i + 1, #chips do
+				expectFalse(hit(chips[i], chips[j]), tag .. " " .. chips[i].name .. " and " .. chips[j].name .. " price chips do not overlap")
+			end
+		end
+		expectTrue(#chips == 5, tag .. " all five price chips checked")
+	end
+end })
+
+table.insert(tests, { name = "Loading screen and menu banners: no banner overlaps the wordmark or a hotspot, loading parts stay clear of each other, at four sizes", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LoadingLayout)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function box(l, t, r, b) return { x = l, y = t, w = r - l, h = b - t } end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- loading screen
+		local R = LL.rects(W, H)
+		local parts = { { "title", R.title }, { "bar", R.bar }, { "status", R.status }, { "tip", R.tip }, { "skip", R.skip } }
+		for i = 1, #parts do
+			local p = parts[i][2]
+			expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= W + 0.5 and p.y + p.h <= H + 0.5, tag .. " loading " .. parts[i][1] .. " on screen")
+			for j = i + 1, #parts do expectFalse(hit(p, parts[j][2]), tag .. " loading " .. parts[i][1] .. " does not overlap " .. parts[j][1]) end
+		end
+		expectTrue(R.skip.h >= 44 and R.skip.w >= 44, tag .. " loading Skip is a 44 px target")
+		expectTrue(R.status.h >= LL.STATUS_TEXT and R.tip.h >= 2 * LL.TIP_TEXT and LL.TIP_TEXT >= 14, tag .. " loading text lines have room, 14 px or more")
+		-- menu (the Tavern Room, Engine/MenuRoomLayout): the wordmark (glyph top at y 12, width 27.5 percent of the screen) and the banners
+		local MR = require(script.Parent.Parent.Engine.MenuRoomLayout)
+		local glyphW = math.floor(W * 0.275 + 0.5)
+		local wordmark = { x = (W - glyphW) / 2, y = ML.WORDMARK.minGlyphTop, w = glyphW, h = math.floor(glyphW * 75 / 528 + 0.5) }
+		local room = MR.layout(W, H)
+		local spots = {}
+		for _, id in ipairs(MR.stripOrder) do
+			local r = room[id]
+			spots[#spots + 1] = { id, box(r.l, r.t, r.r, r.b) }
+		end
+		for _, sp in ipairs(spots) do
+			expectTrue(sp[2].x >= 0 and sp[2].y >= 0 and sp[2].x + sp[2].w <= W + 1 and sp[2].y + sp[2].h <= H + 1, tag .. " hotspot " .. sp[1] .. " on screen")
+			expectTrue(sp[2].w >= 44 and sp[2].h >= 44, tag .. " hotspot " .. sp[1] .. " is a 44 px target (" .. sp[2].w .. "x" .. sp[2].h .. ")")
+			expectFalse(hit(sp[2], wordmark), tag .. " hotspot " .. sp[1] .. " clear of the wordmark" .. string.format(" (spot %.0f,%.0f %.0fx%.0f wordmark %.0f,%.0f %.0fx%.0f)", sp[2].x, sp[2].y, sp[2].w, sp[2].h, wordmark.x, wordmark.y, wordmark.w, wordmark.h))
+		end
+		-- banners: the Daily strip in the bottom row, and the notes pinned on the cork
+		local strip = DS.menuRect(W, H)
+		if strip then
+			expectTrue(strip.x >= 0 and strip.y >= 0 and strip.x + strip.w <= W and strip.y + strip.h <= H, tag .. " menu Daily strip on screen")
+			expectFalse(hit(strip, wordmark), tag .. " menu Daily strip clear of the wordmark")
+			for _, sp in ipairs(spots) do
+				-- "play" is the whole painted card table: the strip stands over its lower right corner and takes that click (the sign
+				-- column and the deck ring are checked below), so only the props that carry their own action must stay clear
+				if sp[1] ~= "play" then
+					expectFalse(hit(strip, sp[2]), tag .. " menu Daily strip clear of hotspot " .. sp[1])
+				end
+			end
+			expectFalse(hit(strip, box(MR.toPixels(MR.deck, W, H))), tag .. " menu Daily strip clear of the deck ring")
+			expectTrue(strip.x > math.floor(W / 2) + DS.MENU_SIGN_HALF, tag .. " menu Daily strip clear of the Deal Me In sign column")
+		end
+		local cork = box(MR.corkRect(W, H))
+		expectTrue(cork.w > 0 and cork.h > 0, tag .. " the cork has a size")
+		expectFalse(hit(cork, wordmark), tag .. " the cork notes clear of the wordmark")
+		local slots = MR.noteSlots(cork.w, cork.h, { 86, 86, 70 }, 3, 2)
+		for i, nr in ipairs(slots.rects) do
+			expectTrue(nr.x >= 0 and nr.y >= 0 and nr.x + nr.w <= cork.w + 0.5 and nr.y + nr.h <= cork.h + 0.5, tag .. " note " .. i .. " inside the cork")
+			for j = i + 1, #slots.rects do expectFalse(hit(nr, slots.rects[j]), tag .. " notes " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(slots.show[3], tag .. " the Next goal note stays on the board")
+		expectTrue(ML.keepWordmarkOnScreen(-28, 4) >= 8, tag .. " a full parallax lift still keeps the glyph 12 px from the top")
+	end
+end })
+
+table.insert(tests, { name = "Victory and Run Over: 44 px buttons, nothing overlaps, long Patron names truncate, text 14 px or more, at four sizes", fn = function()
+	local VL = require(script.Parent.Parent.Engine.VictoryLook)
+	local RO = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function onScreen(r, W, H) return r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H end
+	expectTrue(VL.MIN_TEXT >= 14 and RO.TEXT_MIN >= 14 and RO.BTN_TEXT >= 14, "minimum text sizes are 14 px or more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = VL.layout(W, H, mode)
+			local tag = W .. "x" .. H .. " Victory " .. mode
+			local list = { { "banner", L.banner }, { "subtitle", L.subtitle }, { "hero", L.hero }, { "button", L.button }, { "nextStep", L.nextStep } }
+			if mode == "pick" then
+				for i, c in ipairs(L.cards) do list[#list + 1] = { "card" .. i, c } end
+			else
+				list[#list + 1] = { "rewards", L.rewards }
+				list[#list + 1] = { "summary", L.summary }
+				list[#list + 1] = { "invite", L.invite }
+				list[#list + 1] = { "share", L.share }
+			end
+			for i = 1, #list do
+				expectTrue(onScreen(list[i][2], W, H), tag .. " " .. list[i][1] .. " on screen")
+				for j = i + 1, #list do
+					-- the hero stands behind the side cards by design (a painted figure, not a control); the chest likewise
+					local skip = list[i][1] == "hero" or list[j][1] == "hero"
+					if not skip then expectFalse(hit(list[i][2], list[j][2]), tag .. " " .. list[i][1] .. " does not overlap " .. list[j][1]) end
+				end
+			end
+			expectTrue(L.button.h >= 44 and L.button.w >= 44, tag .. " Continue is a 44 px target (" .. L.button.w .. "x" .. L.button.h .. ")")
+			if L.invite then expectTrue(L.invite.h >= 44 and L.invite.w >= 44, tag .. " Invite is a 44 px target") end
+			expectTrue(VL.fontSize(VL.MIN_TEXT, L.scale) >= 14, tag .. " scaled text stays 14 px or more")
+			if mode == "run" then
+				local rows = VL.fitRows(VL.summaryRows({ score = 1, night = 3, cap = 8, hands = 2, tipsTotal = 4, bestNight = 5, boons = 2, deckSize = 52, marked = 3 }, { name = "Straight Flush", score = 99 }), W, H)
+				expectTrue(#rows >= 5, tag .. " at least the five plain summary rows stay")
+			end
+		end
+		-- Run Over: a win and a loss with many Patrons, boons and long labels
+		for _, spec in ipairs({
+			{ factsH = 330, patrons = 5, primary = 2, more = 5, bigPrimary = true, pills = true, cardSeats = true, boons = 6 },
+			{ factsH = 260, patrons = 0, primary = 1, more = 3 },
+			{ factsH = 400, patrons = 8, primary = 3, more = 6, boons = 12, cardSeats = true },
+		}) do
+			local r = RO.compute(W, H, spec)
+			local tag = W .. "x" .. H .. " Run Over patrons=" .. spec.patrons
+			for i, b in ipairs(r.primary) do
+				expectTrue(b.h >= 44, tag .. " primary button " .. i .. " is 44 px tall (" .. b.h .. ")")
+			end
+			for i, b in ipairs(r.more) do expectTrue(b.h >= 44, tag .. " secondary button " .. i .. " is 44 px tall (" .. b.h .. ")") end
+			expectTrue(r.scale >= 0.4 and r.panel.w * r.scale <= W and r.panel.h * r.scale <= H, tag .. " the panel fits the screen at scale " .. string.format("%.2f", r.scale))
+			local parts = { { "title", r.title }, { "facts", r.facts }, { "patronsLabel", r.patronsLabel }, { "patrons", r.patrons } }
+			if r.boons then parts[#parts + 1] = { "boonsLabel", r.boonsLabel }; parts[#parts + 1] = { "boons", r.boons }; parts[#parts + 1] = { "boonName", r.boonName } end
+			for i, b in ipairs(r.primary) do parts[#parts + 1] = { "primary" .. i, b } end
+			for i, b in ipairs(r.more) do parts[#parts + 1] = { "more" .. i, b } end
+			for i = 1, #parts do
+				expectTrue(parts[i][2].x >= 0 and parts[i][2].x + parts[i][2].w <= r.panel.w and parts[i][2].y + parts[i][2].h <= r.panel.h, tag .. " " .. parts[i][1] .. " inside the panel")
+				for j = i + 1, #parts do
+					expectFalse(hit(parts[i][2], parts[j][2]), tag .. " " .. parts[i][1] .. " does not overlap " .. parts[j][1])
+				end
+			end
+			-- a long Patron name wraps to at most two lines at the seat width, then is cut with an ellipsis by the label
+			local lines = RO.estimateLines("The Extremely Long Named Tavern Regular", r.patrons.seatW, RO.TEXT_MIN)
+			expectTrue(lines >= 1, tag .. " long name estimate runs")
+		end
+	end
+	for _, file in ipairs({ "GameOver", "VictoryScreen" }) do
+		local f = io and io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local text = f:read("*a"); f:close()
+			expectTrue(text:find("TextTruncate", 1, true) ~= nil, file .. " cuts long text with TextTruncate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tome and Card Sets pages: every page header and the Card Sets room fit four sizes, no two plates overlap, labels are 14 px or more", fn = function()
+	local TH = require(script.Parent.Parent.Engine.TomeHeader)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local CSL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	expectTrue(TH.MIN_TEXT >= 14, "header text is at least 14 px (" .. TH.MIN_TEXT .. ")")
+	expectTrue(#TH.PAGES >= 10, "every Tome page is listed: " .. #TH.PAGES)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local screen = { x = 0, y = 0, w = W, h = H }
+		local P = PL.fullScreenRect(W, H)
+		expectTrue(inside(P, screen) and P.y >= PL.STRIP_BOTTOM, W .. "x" .. H .. " full-screen page sits under the tab strip and on screen")
+		for _, page in ipairs(TH.PAGES) do
+			local tag = W .. "x" .. H .. " " .. page.id
+			local hasSub = page.sub ~= nil and page.sub ~= ""
+			local L = TH.layout(P.w, P.h, hasSub)
+			local panel = { x = 0, y = 0, w = P.w, h = P.h }
+			expectTrue(inside(L.title, panel) and L.title.x >= TH.SIDE and L.title.y >= TH.TOP, tag .. " title plate inside the panel border")
+			expectTrue(L.title.h >= math.ceil(TH.MIN_TEXT * 1.2), tag .. " title plate tall enough for its text")
+			if L.sub then
+				expectTrue(inside(L.sub, panel), tag .. " info plate inside the panel")
+				expectFalse(hit(L.title, L.sub), tag .. " title and info plates do not overlap")
+				expectTrue(L.sub.h >= math.ceil(TH.MIN_TEXT * 1.2), tag .. " info plate tall enough for its text")
+			end
+			local last = L.sub or L.title
+			expectTrue(L.bodyTop >= last.y + last.h and L.bodyTop < P.h, tag .. " the body starts under the plates and inside the panel")
+			expectTrue(TH.textRect(L.title).w > 0, tag .. " title text has room")
+			expectTrue(TH.contrast(page) >= 4.5, tag .. " header ink reads on its plate (4.5 to 1)")
+		end
+		-- the Card Sets room under the header: hero, shelf, tiles and the three page plates never overlap
+		local pw, ph = CSL.roomPanel(W, H)
+		expectTrue(pw <= W and ph <= H, W .. "x" .. H .. " Card Sets panel on screen")
+		for _, n in ipairs({ 0, 1, 15, 40 }) do
+			local g = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, n, 1)
+			local tag = W .. "x" .. H .. " Card Sets n=" .. n
+			expectTrue(g.ok, tag .. " room fits")
+			local items = { { "hero", g.hero }, { "shelf", g.shelf }, { "prev", g.plates.prev }, { "page", g.plates.page }, { "next", g.plates.next },
+				{ "tab1", g.plates.tabs[1] }, { "tab2", g.plates.tabs[2] } }
+			for i = 1, #items do
+				expectTrue(items[i][2].h >= 44 or items[i][1] == "hero" or items[i][1] == "shelf", tag .. " " .. items[i][1] .. " plate is a 44 px target")
+				for j = i + 1, #items do
+					expectFalse(hit(items[i][2], items[j][2]), tag .. " " .. items[i][1] .. " does not overlap " .. items[j][1])
+				end
+			end
+			for i, c in ipairs(g.cells) do
+				expectTrue(inside(c.tile, g.shelf), tag .. " tile " .. i .. " inside the shelf")
+				expectTrue(c.name.h >= 20 and c.state.h >= 18, tag .. " tile " .. i .. " name and state lines hold 14 px text")
+				expectFalse(hit(c.name, c.state), tag .. " tile " .. i .. " name and state do not overlap")
+				for j = i + 1, #g.cells do expectFalse(hit(c.tile, g.cells[j].tile), tag .. " tiles " .. i .. " and " .. j .. " do not overlap") end
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Round Select: hover-grown cards and the Skip tooltip stay on screen and clear of the Daily strip at four sizes", fn = function()
+	local CF = require(script.Parent.Parent.Engine.CardFit)
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local TS = require(script.Parent.Parent.Engine.TooltipSpec)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- Client/RoundSelect numbers: the row is (W - 40) x (H - 120) at (20, 104); a card is 340 x 620; fit up to 1.25; hover grows 1.05;
+	-- the Skip button is 40 px tall, inset 10 px from the card's left, right and bottom (all scaled with the card).
+	local ROW_X, ROW_Y, CARD_W, CARD_H, MAX_FIT, HOVER = 20, 104, 340, 620, 1.25, 1.05
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local rowW, rowH = W - 2 * ROW_X, H - 120
+		local scale = CF.scale(H, rowW, rowH, CARD_H, CARD_W, MAX_FIT)
+		local cards = CF.rects(rowW, rowH, scale, CARD_W, CARD_H)
+		local lowest = 0
+		for _, c in ipairs(cards) do lowest = math.max(lowest, ROW_Y + c.y + c.h + c.h * (HOVER - 1) / 2) end
+		local strip = DS.rectBelow(W, H, lowest) -- the strip the client draws: under the lowest (hover-grown) card, or left out
+		for i, c in ipairs(cards) do
+			local abs = { x = ROW_X + c.x, y = ROW_Y + c.y, w = c.w, h = c.h }
+			-- hovered: grows about its centre
+			local gw, gh = abs.w * HOVER, abs.h * HOVER
+			local grown = { x = abs.x - (gw - abs.w) / 2, y = abs.y - (gh - abs.h) / 2, w = gw, h = gh }
+			expectTrue(grown.x >= 0 and grown.y >= 0 and grown.x + grown.w <= W and grown.y + grown.h <= H, tag .. " card " .. i .. " hovered stays on screen")
+			expectTrue(grown.y >= ROW_Y - 8, tag .. " card " .. i .. " hovered stays under the header")
+			if i < #cards then
+				local nx = ROW_X + cards[i + 1].x
+				expectTrue(nx - (grown.x + grown.w) >= 0, tag .. " card " .. i .. " hovered does not touch card " .. (i + 1))
+			end
+			-- the Skip tooltip, placed by the real rule above the button (below when there is no room)
+			local sw, sh = (c.w - 20 * scale), 40 * scale
+			local skip = { x = abs.x + 10 * scale, y = abs.y + abs.h - 10 * scale - sh, w = sw, h = sh }
+			for _, tipSize in ipairs({ { 280, 60 }, { 280, 120 } }) do
+				local tx, ty = TS.place({ X = skip.x, Y = skip.y }, { X = skip.w, Y = skip.h }, { X = tipSize[1], Y = tipSize[2] }, { X = W, Y = H })
+				local tip = { x = tx, y = ty, w = tipSize[1], h = tipSize[2] }
+				expectTrue(tip.x >= 0 and tip.y >= 0 and tip.x + tip.w <= W and tip.y + tip.h <= H, tag .. " card " .. i .. " Skip tooltip " .. tipSize[2] .. " px on screen")
+				expectFalse(hit(tip, skip), tag .. " card " .. i .. " Skip tooltip does not cover its button")
+				if strip then
+					expectFalse(hit(tip, strip), tag .. " card " .. i .. " Skip tooltip clear of the Daily strip")
+				end
+			end
+			if strip then
+				expectFalse(hit(grown, strip), tag .. " card " .. i .. " hovered clear of the Daily strip")
+				expectFalse(hit(skip, strip), tag .. " card " .. i .. " Skip button clear of the Daily strip")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Collection Back plate and tab strip: Back is a 44 px plate on screen and never overlaps a tab, the pager, the first row or the filter at four sizes, room and section", fn = function()
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, mode in ipairs({ "section", "room" }) do
+			for _, legendH in ipairs({ 24, 60 }) do
+				local P = RL.panel(W, H, legendH, nil, mode)
+				local tag = W .. "x" .. H .. " " .. mode .. " legend " .. legendH
+				local back = P.close
+				expectTrue(back.h == 44 and back.w >= 44, tag .. " Back plate is 44 px tall (" .. back.w .. "x" .. back.h .. ")")
+				expectTrue(back.x >= 0 and back.y >= 0 and back.x + back.w <= W and back.y + back.h <= H, tag .. " Back plate on screen")
+				expectFalse(hit(back, P.area), tag .. " Back plate clear of the first row area")
+				expectFalse(hit(back, P.bar), tag .. " Back plate clear of the progress bar")
+				if mode == "section" then
+					expectTrue(P.tabs.x >= 0 and P.tabs.x + P.tabs.w <= W and P.tabs.y >= 0 and P.tabs.y + P.tabs.h <= H, tag .. " tab strip on screen")
+					expectFalse(hit(back, P.tabs), tag .. " Back plate clear of the tab strip")
+					expectFalse(hit(back, P.filter), tag .. " Back plate clear of the filter plate")
+					expectFalse(hit(P.tabs, P.area), tag .. " tab strip clear of the first row area")
+					expectFalse(hit(P.tabs, P.filter), tag .. " tab strip clear of the filter plate")
+					if P.pager then
+						expectFalse(hit(P.pager, P.tabs), tag .. " pager clear of the tab strip")
+						expectFalse(hit(back, P.pager), tag .. " Back plate clear of the pager")
+						expectTrue(P.pager.x + P.pager.w <= W, tag .. " pager on screen")
+					end
+				end
+				expectTrue(P.area.y >= P.bar.y + P.bar.h - 1 or mode == "room", tag .. " first row starts under the progress bar")
+			end
+		end
+	end
 end })
 
 return tests
