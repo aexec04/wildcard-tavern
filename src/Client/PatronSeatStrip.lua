@@ -72,13 +72,15 @@ function M.build(parent, layoutOrder, owned, zoneW, onMove)
 		label.Position = UDim2.fromOffset(size.btn + 2, 0)
 		label.Size = UDim2.fromOffset(size.groupW - size.btn * 2 - 4, size.h)
 		label.Font = Enum.Font.GothamBold
-		label.TextSize = 15
+		local labelW = size.groupW - size.btn * 2 - 4
+		local fit = Seats.nameFit(p.name, labelW) -- the name stays on one line (TextFit)
+		label.TextSize = fit.size
 		label.TextColor3 = ink and ink.accent or CREAM
 		label.TextTransparency = 0
 		label.TextStrokeColor3 = OUTLINE
 		label.TextStrokeTransparency = 0.2
-		label.TextWrapped = true
-		label.Text = Seats.orderText(i, n) .. "\n" .. tostring(p.name or "")
+		label.TextWrapped = false
+		label.Text = Seats.orderText(i, n) .. "\n" .. fit.text
 		label.Parent = group
 		pcall(function() -- the equipped Card Set's panel fill and cream ink (7:1); classic keeps the dark plate
 			require(script.Parent.PopupSkin).dark(label, nil, { { label, CREAM } }, { plate = Color3.fromRGB(40, 30, 22) })
