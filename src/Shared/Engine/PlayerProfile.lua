@@ -193,6 +193,7 @@ function PlayerProfile.new()
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
 		seasonRewardIds = {}, -- [Seasons id] = true
 		seenNewIds = {}, -- ["kind:id"] = true: unlocks already looked at, so no New ribbon (Engine/NewItems.lua)
+		whatsNewSeen = require(script.Parent.WhatsNew).VERSION, -- the What's new plate version already dismissed; a new profile has nothing to catch up on
 		seasonId = nil, -- Tavern Season track (Engine/SeasonTrack.lua): the season the next two fields belong to
 		seasonXp = 0,
 		seasonClaimed = {}, -- [tier] = true
@@ -564,6 +565,7 @@ function PlayerProfile.migrate(raw)
 	end
 
 	JourneyMap.regrantRewards(profile)
+	profile.whatsNewSeen = require(script.Parent.WhatsNew).cleanSaved(raw.whatsNewSeen) -- an older save has none: it sees the plate once
 	if raw.seenNewIds == nil then
 		require(script.Parent.NewItems).seed(profile) -- an older save: what it already owns is not New
 	end

@@ -958,6 +958,7 @@ local function serializeState(session, player)
 		lastInterest = state.lastInterest, -- the interest paid at the last round win (hint "first_interest")
 		season = profiles[player] and require(Engine.SeasonTrack).view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
+		whatsNew = profiles[player] and require(Engine.WhatsNew).view(profiles[player]) or nil, -- the one What's new plate, until dismissed
 		dailyTheme = LiveEvents.dailyLabel(LoginStreak.dayNumber(os.time())), -- text beside the Daily date only
 		store = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio()) or nil,
 		storePrompt = storePrompts[player], -- seq: open the Store on the Starter Pack once
@@ -2710,6 +2711,17 @@ Rem.MarkSeenNew.OnServerEvent:Connect(function(player, keys)
 	local profile = profiles[player]
 	if not profile then return end
 	if require(Engine.NewItems).markSeen(profile, keys) > 0 then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
+-- WHAT'S NEW: the client sends nothing; the profile moves to the current plate version.
+Rem.DismissWhatsNew.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.DismissWhatsNew", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile then return end
+	if require(Engine.WhatsNew).dismiss(profile) then
 		profileDirty[player] = true
 		pushState(player)
 	end

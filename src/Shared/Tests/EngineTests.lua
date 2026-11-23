@@ -38797,6 +38797,53 @@ table.insert(tests, { name = "Purchase copy honesty: every pass, product and bun
 	expectEqual(#Store.audit(), 0)
 end })
 
+table.insert(tests, { name = "What's new plate: once per update, new profiles skip it, old saves see it once, junk is safe, fits four sizes with a 44 px dismiss", fn = function()
+	local WN = require(script.Parent.Parent.Engine.WhatsNew)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(#WN.Entries, 3)
+	for i, line in ipairs(WN.Entries) do
+		expectTrue(#line <= WN.MAX_LINE, "line " .. i .. " is 60 characters or less")
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "line " .. i .. " is plain text")
+	end
+	-- a brand new profile has nothing to catch up on; an older save without the field sees the plate once
+	expectEqual(WN.view(PlayerProfile.new()), nil)
+	local old = PlayerProfile.migrate({})
+	expectTrue(WN.view(old) ~= nil, "an old save sees the plate")
+	expectEqual(#WN.view(old).lines, 3)
+	expectTrue(WN.dismiss(old), "dismiss moves to the current version")
+	expectEqual(WN.view(old), nil)
+	expectEqual(WN.dismiss(old), false) -- a second dismiss changes nothing (no extra save)
+	-- it survives a save and load
+	expectEqual(PlayerProfile.migrate(old).whatsNewSeen, WN.VERSION)
+	expectEqual(WN.view(PlayerProfile.migrate(old)), nil)
+	-- raising the version shows it again, junk never errors or changes the profile
+	for _, junk in ipairs({ "x", -4, 0/0, math.huge, {}, true, 99 }) do
+		expectTrue(WN.cleanSaved(junk) >= 0 and WN.cleanSaved(junk) <= WN.VERSION, "cleanSaved stays in range")
+	end
+	expectEqual(WN.view(nil), nil)
+	expectEqual(WN.dismiss("junk"), false)
+	-- layout: inside the screen, lines inside the plate and clear of each other, dismiss plate 44 px
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 957 } }) do
+		local r = WN.layout(sz[1], sz[2])
+		local p = r.plate
+		expectTrue(p.x >= 0 and p.y >= 0 and p.x + p.w <= sz[1] and p.y + p.h <= sz[2], "plate on screen at " .. sz[1] .. "x" .. sz[2])
+		local function inside(a) return a.x >= p.x and a.y >= p.y and a.x + a.w <= p.x + p.w and a.y + a.h <= p.y + p.h end
+		expectTrue(inside(r.title) and inside(r.button), "title and button inside the plate")
+		local prevBottom = r.title.y + r.title.h
+		for i, l in ipairs(r.lines) do
+			expectTrue(inside(l) and l.y >= prevBottom, "line " .. i .. " inside and below the one above")
+			prevBottom = l.y + l.h
+		end
+		expectTrue(r.button.y >= prevBottom, "button below the last line")
+		expectTrue(r.button.h >= 44 and r.button.w >= 44, "Got it is 44 px or more")
+	end
+	if not io then return end
+	local f = assert(io.open("src/Server/init.server.lua", "r")); local srv = f:read("a"); f:close()
+	expectTrue(srv:find('RateLimit.allow(player.UserId, "Rem.DismissWhatsNew"', 1, true) ~= nil, "the dismiss remote is rate limited")
+	f = assert(io.open("src/Client/WhatsNewPlate.lua", "r")); local cli = f:read("a"); f:close()
+	expectTrue(not cli:find("TweenService", 1, true), "no tween, Calm mode is static")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
