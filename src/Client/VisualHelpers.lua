@@ -718,7 +718,11 @@ return function(deps)
 	-- overlay) get the same "pop" for free instead of a hard instant cut.
 	local function popIn(backdrop, content, opts)
 		opts = opts or {}
-		local duration = opts.duration or 0.22
+		local fullScreen = content:GetAttribute("FullScreenPanel") == true
+		-- one motion style for every popup and page (Engine/PopMotion): fade plus a small slide and settle in 0.15 s, static in Calm mode
+		local plan = require(game:GetService("ReplicatedStorage").Shared.Engine.PopMotion).plan(
+			require(script.Parent.ClientSettings).get("reduceShake") == true, fullScreen)
+		local duration = plan.duration
 		local targetTransparency = opts.backdropTransparency
 		if targetTransparency == nil then
 			targetTransparency = backdrop.BackgroundTransparency
@@ -736,15 +740,35 @@ return function(deps)
 		if backdrop:GetAttribute("PopActive") == nil then backdrop:SetAttribute("PopActive", backdrop.Active) end
 		backdrop.Active = backdrop:GetAttribute("PopActive") == true
 		backdrop.Visible = true
+		if not plan.animate then -- Calm mode: static, the popup is simply there
+			backdrop.BackgroundTransparency = targetTransparency
+			scale.Scale = 1
+			return
+		end
 		backdrop.BackgroundTransparency = 1
-		-- a full screen page (PanelFullScreen) never scales: its layout and the painted scene measure the panel's AbsoluteSize,
+		-- a full screen page (PanelFullScreen) never scales or slides: its layout and the painted scene measure the panel's AbsoluteSize,
 		-- and an 85 percent pop left them laid out at the transient size (a dark band at the bottom)
-		local fullScreen = content:GetAttribute("FullScreenPanel") == true
-		scale.Scale = fullScreen and 1 or (opts.fromScale or 0.85)
+		scale.Scale = plan.fromScale
 
 		tweenTo(backdrop, { BackgroundTransparency = targetTransparency }, duration)
 		if not fullScreen then
-			tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			-- slides up from slide px below its home, then settles exactly on it. The slide moves the AnchorPoint, never the Position, so
+			-- the strip nudge of PanelTabs and every page that writes its own Position stay untouched.
+			local h = content:IsA("GuiObject") and content.AbsoluteSize.Y or 0
+			if plan.slide > 0 and h > plan.slide then
+				local home = content:GetAttribute("PopHome")
+				if typeof(home) ~= "Vector2" then home = content.AnchorPoint end -- a slide cut short keeps the first, true anchor
+				content:SetAttribute("PopHome", home)
+				content.AnchorPoint = Vector2.new(home.X, home.Y - plan.slide / h)
+				local slideTween = tweenTo(content, { AnchorPoint = home }, duration)
+				slideTween.Completed:Connect(function(state)
+					if state == Enum.PlaybackState.Completed and content:GetAttribute("PopHome") == home then
+						content.AnchorPoint = home
+						content:SetAttribute("PopHome", nil)
+					end
+				end)
+			end
 		end
 	end
 
@@ -755,10 +779,12 @@ return function(deps)
 	-- actually finished disappearing, not the instant a button was clicked.
 	local function popOut(backdrop, content, opts, onHidden)
 		opts = opts or {}
-		local duration = opts.duration or 0.15
+		local plan = require(game:GetService("ReplicatedStorage").Shared.Engine.PopMotion).plan(
+			require(script.Parent.ClientSettings).get("reduceShake") == true, content:GetAttribute("FullScreenPanel") == true)
+		local duration = plan.animate and plan.duration or 0.01 -- Calm mode: no fade or shrink, the popup is gone at once
 		local scale = content:FindFirstChildOfClass("UIScale")
-		if scale and content:GetAttribute("FullScreenPanel") ~= true then
-			tweenTo(scale, { Scale = opts.toScale or 0.9 }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		if scale and plan.animate and content:GetAttribute("FullScreenPanel") ~= true then
+			tweenTo(scale, { Scale = plan.outScale }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		end
 		local seq = (backdrop:GetAttribute("PopSeq") or 0) + 1
 		backdrop:SetAttribute("PopSeq", seq)

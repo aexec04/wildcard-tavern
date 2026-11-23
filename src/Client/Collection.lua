@@ -348,9 +348,44 @@ return function(deps)
 			TextXAlignment = align, Text = "",
 		})
 	end
-	local overallText = barLine(0, Enum.TextXAlignment.Left, 0.3)
-	local overallNext = barLine(0, Enum.TextXAlignment.Right, 0.7)
-	local overallUnlock = barLine(0.5, Enum.TextXAlignment.Left, 1)
+	-- At rest the gold bar carries no text. Hovering or tapping it (a 44 px target) shows one small plate: Owned N of M, then the next milestone.
+	local overallText = { Text = "" } -- the two plate lines, filled by refresh
+	local overallNext = { Text = "" }
+	local infoPlate = Instance.new("Frame")
+	infoPlate.Name = "OverallInfo"
+	infoPlate.AnchorPoint = Vector2.new(0, 0)
+	infoPlate.Position = UDim2.new(0, 0, 1, 6)
+	infoPlate.Size = UDim2.new(0, 460, 0, 2 * (RoomLayout.BAR_TEXT + 3) + 14)
+	infoPlate.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
+	infoPlate.ZIndex = 60
+	infoPlate.Visible = false
+	infoPlate.Parent = overallBar
+	roundCorner(infoPlate, 6)
+	local infoStroke = Instance.new("UIStroke")
+	infoStroke.Color = Color3.fromRGB(190, 146, 64)
+	infoStroke.Thickness = 2
+	infoStroke.Parent = infoPlate
+	local infoLabel = label(infoPlate, {
+		Size = UDim2.new(1, -2 * BAR_PAD, 1, -8), Position = UDim2.fromOffset(BAR_PAD, 4),
+		Font = Enum.Font.GothamBold, TextSize = RoomLayout.BAR_TEXT, ZIndex = 61, TextWrapped = true,
+		TextColor3 = Color3.fromRGB(245, 232, 200), TextTransparency = 0, TextStrokeTransparency = 1,
+		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+	})
+	do
+		local hit = Instance.new("TextButton") -- 44 px tall target centred on the bar (works for touch: tap toggles)
+		hit.Name = "OverallHit"
+		hit.AnchorPoint = Vector2.new(0, 0.5)
+		hit.Position = UDim2.new(0, 0, 0.5, 0)
+		hit.Size = UDim2.new(1, 0, 0, math.max(44, RoomLayout.BAR.h))
+		hit.BackgroundTransparency = 1
+		hit.Text = ""
+		hit.AutoButtonColor = false
+		hit.ZIndex = 24
+		hit.Parent = overallBar
+		hit.MouseEnter:Connect(function() infoPlate.Visible = true end)
+		hit.MouseLeave:Connect(function() infoPlate.Visible = false end)
+		hit.MouseButton1Click:Connect(function() infoPlate.Visible = not infoPlate.Visible end)
+	end
 	-- the equipped Card Set dresses the progress plaque, the filter plate and the tiles: fill, edge and ink at 7:1 (CosmeticSets.popupStyleOf); classic unchanged
 	local function setDark() -- { fill, edge, ink } of the equipped set, or nil for classic
 		local d
@@ -365,7 +400,7 @@ return function(deps)
 	pcall(function()
 		local PS = require(script.Parent.PopupSkin)
 		local cream = Color3.fromRGB(245, 232, 200)
-		PS.dark(overallBar, plaque, { { overallText, cream }, { overallNext, cream }, { overallUnlock, cream } },
+		PS.dark(overallBar, plaque, { { infoLabel, cream } },
 			{ plate = Color3.fromRGB(35, 26, 18), edge = Color3.fromRGB(190, 146, 64) })
 	end)
 
@@ -1227,18 +1262,18 @@ return function(deps)
 			nextText = "Every milestone claimed!"
 		end
 		if Gallery.chestApi then Gallery.chestApi.setNext(nextMilestone and ("Next at " .. nextMilestone.percent .. "%") or "All claimed") end
-		-- Next unlock (moved here from the main menu strip)
-		local pick = view.state and view.state.nextUnlock
-		overallUnlock.Text = (pick and pick.label) and ("Next unlock: " .. pick.label) or "Keep playing to find more Patrons and sets"
 		overallNext.Text = nextText
 		overallText.Text = RoomLayout.ownedText(completion.found, completion.total)
-		do -- on a section page the plain count of that page: "Patrons: 23 of 81 found"
+		local lines = { overallText.Text, overallNext.Text }
+		do -- on a section page the plain count of that page ("Patrons: 23 of 81 found") is the third line of the hover plate
 			local counts = mode == "section" and CollectionBook.tabCounts(view.sets)[activeTabId]
 			local tab = counts and CollectionBook.getTab(activeTabId)
 			if tab then
-				overallText.Text = overallText.Text .. "   " .. tab.name .. ": " .. require(Engine:WaitForChild("CollectionCards")).foundText(counts.found, counts.total)
+				table.insert(lines, tab.name .. ": " .. require(Engine:WaitForChild("CollectionCards")).foundText(counts.found, counts.total))
 			end
 		end
+		infoLabel.Text = table.concat(lines, "\n")
+		infoPlate.Size = UDim2.new(0, 460, 0, #lines * (RoomLayout.BAR_TEXT + 3) + 14)
 
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.
 		for _, tab in ipairs(CollectionBook.Tabs) do

@@ -31582,6 +31582,87 @@ table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every grou
 	end
 end })
 
+table.insert(tests, { name = "Collection header: no Next unlock line, the bar is plain with a 44 px hover plate; Back returns to the origin of the visit", fn = function()
+	local PO = require(script.Parent.Parent.Engine.PanelOrigin)
+	for _, screen in ipairs({ "table", "menu", "map" }) do
+		local st = PO.new()
+		PO.opened(st, screen)
+		for _, hop in ipairs({ "tome tab", "collection", "quests", "collection" }) do PO.opened(st, "menu") end -- tab hops never change the origin
+		local t = PO.backTarget(st)
+		expectTrue(t.close and t.screen == screen, "Back returns to the " .. screen .. " every time")
+		expectTrue(PO.backTarget(st).screen == screen, "a second Back asks the same place")
+		PO.closed(st)
+		PO.opened(st, "map")
+		expectTrue(PO.backTarget(st).screen == "map", "a new visit records its own origin after " .. screen)
+	end
+	expectTrue(PO.backTarget(PO.new()).screen == "menu", "no visit falls back to the Menu")
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("Next unlock", 1, true) == nil and src:find("overallUnlock", 1, true) == nil, "Collection shows no Next unlock line")
+	expectTrue(src:find("math.max(44, RoomLayout.BAR.h)", 1, true) ~= nil, "hover and tap target is at least 44 px")
+	expectTrue(src:find("MouseButton1Click:Connect(function() infoPlate.Visible", 1, true) ~= nil, "tap toggles the plate")
+	local tabs = io.open("src/Client/PanelTabs.lua", "r")
+	if tabs then
+		local ts = tabs:read("*a"); tabs:close()
+		expectTrue(ts:find("previous", 1, true) == nil, "PanelTabs keeps no history of pages")
+	end
+end })
+
+table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, full screen pages fade only, Calm mode is static", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PopMotion)
+	local normal = PM.plan(false, false)
+	expectTrue(normal.animate and normal.duration == 0.15 and normal.slide > 0 and normal.fromScale < 1 and normal.fade, "a popup fades, slides and settles in 0.15 s")
+	local page = PM.plan(false, true)
+	expectTrue(page.animate and page.slide == 0 and page.fromScale == 1 and page.outScale == 1 and page.duration == 0.15, "a full screen page only fades")
+	for _, fs in ipairs({ false, true }) do
+		local calm = PM.plan(true, fs)
+		expectTrue(not calm.animate and calm.duration == 0 and calm.slide == 0 and calm.fromScale == 1 and not calm.fade, "Calm mode is static")
+	end
+	local f = io and io.open and io.open("src/Client/VisualHelpers.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local a = src:find("local function popIn(", 1, true)
+	local b = src:find("local function popOut(", 1, true)
+	local slice = a and b and src:sub(a, b + 1800) or ""
+	expectTrue(slice:find("PopMotion", 1, true) ~= nil and slice:find("opts.fromScale", 1, true) == nil and slice:find("opts.duration", 1, true) == nil, "popIn and popOut take their motion from PopMotion only")
+	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
+end })
+
+table.insert(tests, { name = "Card Sets room: every pick previews at once, the button matches the state, the Studio unlock switch is Studio only", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SetPreview)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local gala = CS.getById("golden_gala")
+	expectTrue(gala ~= nil, "golden_gala exists")
+	local p = SP.plan(gala, { owned = false, equipped = false, passConfigured = true }, CS.unlockText(gala))
+	expectTrue(p.title == "Previewing " .. gala.name and p.kind == "pass" and p.action == "Get it" and p.showButton, "pass set with a real id offers Get it and says Previewing")
+	expectTrue(p.line ~= "" and p.buttonH >= 44, "a locked set shows one unlock line and a 44 px button")
+	p = SP.plan(gala, { owned = false, equipped = false, passConfigured = false }, CS.unlockText(gala))
+	expectTrue(p.kind == "info" and not p.showButton and p.line ~= "", "pass set without a real id shows a kind line, not a dead button")
+	p = SP.plan(gala, { owned = true, equipped = false }, "")
+	expectTrue(p.kind == "equip" and p.action == "Equip" and p.title == gala.name, "owned set offers Equip")
+	p = SP.plan(gala, { owned = true, equipped = true }, "")
+	expectTrue(p.kind == "equipped" and p.action == "Equipped", "equipped set says Equipped")
+	for _, set in ipairs(CS.Definitions) do
+		for _, st in ipairs({ { owned = false }, { owned = true }, { owned = true, equipped = true }, { owned = false, passConfigured = true } }) do
+			local plan = SP.plan(set, st, CS.unlockText(set))
+			expectTrue(plan.title ~= "" and plan.kind ~= nil and (plan.showButton == (plan.action ~= nil)), set.id .. " always answers a pick")
+			if not st.owned then expectTrue(plan.line ~= "", set.id .. " locked shows how to get it") end
+		end
+		if set.unlock.kind == "tips" then
+			expectTrue(SP.plan(set, { owned = false }, "x").kind == "buy", set.id .. " Tips set offers Buy")
+		end
+	end
+	expectTrue(SP.studioUnlockOn(true, true) == true and SP.studioUnlockOn(false, true) == false and SP.studioUnlockOn(true, nil) == false, "switch needs Studio and the attribute")
+	local profile = { ownedSetIds = {}, stats = { runsWon = 0 }, equippedSetId = nil }
+	CS.setStudioUnlock(false, true)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == false and CS.studioUnlockAll == false, "a live server ignores the switch")
+	CS.setStudioUnlock(true, true)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == true and next(profile.ownedSetIds) == nil, "Studio switch unlocks without writing the profile")
+	CS.setStudioUnlock(true, false)
+	expectTrue(CS.isUnlocked(profile, "golden_gala", {}) == false, "switch off locks again")
+end })
+
 table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
 	local TH = require(script.Parent.Parent.Engine.TomeHeader)
 	expectTrue(TH.PAD >= 16 and TH.SIDE >= 16, "padding and border clearance are at least 16 px")

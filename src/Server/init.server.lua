@@ -2776,6 +2776,16 @@ Rem.BuyCosmeticSet.OnServerEvent:Connect(function(player, setId)
 	end
 end)
 
+do -- Studio only: workspace attribute StudioUnlockSets = true unlocks every Card Set for testing (never saved, never on a live server)
+	local isStudio = game:GetService("RunService"):IsStudio()
+	local function sync()
+		CosmeticSets.setStudioUnlock(isStudio, workspace:GetAttribute("StudioUnlockSets"))
+		if isStudio then for _, p in ipairs(game:GetService("Players"):GetPlayers()) do pcall(pushState, p) end end
+	end
+	if isStudio then workspace:GetAttributeChangedSignal("StudioUnlockSets"):Connect(sync) end
+	sync()
+end
+
 Rem.EquipCosmeticSet.OnServerEvent:Connect(function(player, setId)
 	if not RateLimit.allow(player.UserId, "Rem.EquipCosmeticSet", os.clock()) then return end
 	local profile = profiles[player]
