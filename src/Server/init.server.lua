@@ -2316,8 +2316,20 @@ Rem.SellPatron.OnServerEvent:Connect(function(player, patronId)
 	end
 
 	local tipsBefore = session.state.tips or 0
-	RunState.sellPatron(session.state, patronId)
+	RunState.sellPatron(session.state, patronId, os.clock())
 	LaunchLog.earned(player, "selling", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
+	pushState(player)
+end)
+
+-- Undo within 5 seconds of a sale: the server checks its own clock, the Tips and a free seat (RunState.undoSellPatron)
+Rem.UndoSellPatron.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.UndoSellPatron", os.clock()) then return end
+	local session = sessions[player]
+	if not session then return end
+	local tipsBefore = session.state.tips or 0
+	if RunState.undoSellPatron(session.state, os.clock()) then
+		LaunchLog.earned(player, "selling", (session.state.tips or 0) - tipsBefore, session.state.tips or 0)
+	end
 	pushState(player)
 end)
 

@@ -45806,6 +45806,54 @@ table.insert(tests, { name = "PreviewBonuses: one short line names marks and the
 	expectTrue(PB.rect({ x = 0, y = 0, w = 800, h = 450 }, line, { y = 400, h = 40 }) == nil, "no room, no strip")
 end })
 
+table.insert(tests, { name = "SellUndo: sell then Undo within 5 seconds restores the Patron, seat and Tips; late, spent, full or repeated Undo fails", fn = function()
+	local SU = require(script.Parent.Parent.Engine.SellUndo)
+	expectEqual(SU.line(3), "Sold for +3 Tips")
+	expectTrue(#SU.line(99999) <= 40 and #SU.button(5) <= 12, "short texts")
+	expectEqual(SU.remaining({ at = 10 }, 12), 3)
+	expectEqual(SU.remaining(nil, 12), 0)
+	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local r = SU.layout(size[1], size[2])
+		expectTrue(r.h >= 44 and r.x >= 0 and r.x + r.w <= size[1] and r.y >= 0 and r.y + r.h <= size[2], "plate on screen at " .. size[1])
+	end
+	local function freshRun()
+		local state = RunState.new(nil, function(n) return 1 end)
+		state.tips = 100
+		local a, b = Patrons.Definitions[1], Patrons.Definitions[2]
+		state.ownedPatrons = { { id = a.id, name = a.name, price = a.price }, { id = b.id, name = b.name, price = b.price } }
+		return state, a, b
+	end
+	local state, a = freshRun()
+	local ok, refund = RunState.sellPatron(state, a.id, 100)
+	expectTrue(ok and #state.ownedPatrons == 1 and state.tips == 100 + refund, "sold")
+	local restored, id = RunState.undoSellPatron(state, 103)
+	expectTrue(restored and id == a.id and #state.ownedPatrons == 2 and state.ownedPatrons[1].id == a.id, "back in its seat")
+	expectEqual(state.tips, 100)
+	expectEqual(state.patronsSold, 0)
+	expectTrue(not RunState.undoSellPatron(state, 103), "a second Undo fails")
+	state = freshRun()
+	RunState.sellPatron(state, state.ownedPatrons[1].id, 100)
+	expectTrue(not RunState.undoSellPatron(state, 107), "after the window")
+	state = freshRun()
+	RunState.sellPatron(state, state.ownedPatrons[1].id, 100)
+	state.tips = 0
+	expectTrue(not RunState.undoSellPatron(state, 101), "Tips already spent")
+	state = freshRun()
+	RunState.sellPatron(state, state.ownedPatrons[1].id, 100)
+	expectTrue(not RunState.undoSellPatron(state, 90), "a clock that ran backwards")
+	state = freshRun()
+	RunState.sellPatron(state, state.ownedPatrons[1].id)
+	expectTrue(not RunState.undoSellPatron(state, 101), "a sale without a stamp is final")
+	expectTrue(not RunState.undoSellPatron({ tips = 5, ownedPatrons = {}, patronsSold = 0 }, 1), "no sale")
+	if io then
+		local function read(p) local f = assert(io.open(p, "r")); local s = f:read("*a"); f:close(); return s end
+		expectTrue(read("src/Shared/Engine/PreviewGuard.lua"):find("Rem.UndoSellPatron", 1, true), "blocked while previewing")
+		expectTrue(read("src/Server/init.server.lua"):find("RunState.undoSellPatron(session.state, os.clock())", 1, true), "the server validates with its own clock")
+		local plate = read("src/Client/SellUndoPlate.lua")
+		expectTrue(not plate:find("TweenService", 1, true), "no tween, so Calm is static")
+	end
+end })
+
 return tests
 
 

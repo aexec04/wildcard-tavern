@@ -744,6 +744,7 @@ Shop = require(script.Shop)({
 	BuyPatronRemote = BuyPatronRemote,
 	SellPatronRemote = SellPatronRemote,
 	MovePatronRemote = remotes:WaitForChild("MovePatron"),
+	UndoSellPatronRemote = remotes:WaitForChild("UndoSellPatron"),
 	UseRecipeRemote = UseRecipeRemote,
 	RerollShopRemote = RerollShopRemote,
 	BuyPackRemote = BuyPackRemote,

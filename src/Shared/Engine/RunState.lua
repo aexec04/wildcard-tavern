@@ -9,6 +9,7 @@
 	whatever result info is useful to the caller (server script / tests).
 ]]
 
+local SellUndo = require(script.Parent.SellUndo) -- the 5 second Undo after selling a Patron
 local Deck = require(script.Parent.Deck)
 local Card = require(script.Parent.Card)
 local HandEvaluator = require(script.Parent.HandEvaluator)
@@ -1700,17 +1701,35 @@ end
 -- any time -- like theme purchases, this doesn't need to be gated to the
 -- shop phase; it's tidying up your table, not a purchasing decision made
 -- under shop-visit constraints. Returns true/false, refundAmount.
-function RunState.sellPatron(state, patronId)
+function RunState.sellPatron(state, patronId, now)
 	for i, patron in ipairs(state.ownedPatrons) do
 		if patron.id == patronId then
 			table.remove(state.ownedPatrons, i)
 			local refund = math.floor(patron.price / 2)
 			state.tips = state.tips + refund
 			state.patronsSold = state.patronsSold + 1
+			-- remembered for the 5 second Undo (Engine/SellUndo); `now` is the server clock, nil keeps the sale final
+			state.lastSale = now and { patron = patron, index = i, refund = refund, at = now } or nil
 			return true, refund
 		end
 	end
 	return false, 0
+end
+
+-- Put the last sold Patron back at its seat for the Tips it paid out. Fails when there is no sale, the window passed, the Tips
+-- were already spent or every seat filled up. Returns true, patronId or false.
+function RunState.undoSellPatron(state, now)
+	local sale = state.lastSale
+	state.lastSale = nil
+	if not SellUndo.valid(sale, now) then return false end
+	if state.tips < sale.refund or #state.ownedPatrons >= RunState.patronSlotLimit(state) then return false end
+	for _, owned in ipairs(state.ownedPatrons) do
+		if owned.id == sale.patron.id then return false end
+	end
+	state.tips = state.tips - sale.refund
+	state.patronsSold = math.max(0, state.patronsSold - 1)
+	table.insert(state.ownedPatrons, math.min(sale.index, #state.ownedPatrons + 1), sale.patron)
+	return true, sale.patron.id
 end
 
 -- Recipes are used from the shop or at the table while a round is being played (the consumables tray); selling one is free of

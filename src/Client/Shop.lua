@@ -1783,6 +1783,12 @@ return function(deps)
 						showConfirmDialog(copy.message, function()
 							require(script.Parent.Cue).play("shop_sell")
 							SellPatronRemote:FireServer(owned.id)
+							if deps.UndoSellPatronRemote then
+								pcall(function() -- 5 second Undo plate (Engine/SellUndo), the server re-checks the window
+									require(script.Parent.SellUndoPlate).show(shopMyPatronsListFrame:FindFirstAncestorOfClass("ScreenGui"), refund,
+										function() deps.UndoSellPatronRemote:FireServer() end)
+								end)
+							end
 						end, copy)
 						return false
 					end,
