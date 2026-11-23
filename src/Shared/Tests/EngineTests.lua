@@ -8392,6 +8392,28 @@ table.insert(tests, { name = "CardFit: Round Select cards have equal gaps, never
 	end
 end })
 
+table.insert(tests, { name = "CardSetsSceneLayout.tilePreview: all 15 sets share one layout, own accent plate, ink at 4.5:1", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local keys, fills = nil, {}
+	expectEqual(#TS.ORDER, 15, "15 sets")
+	for _, id in ipairs(TS.ORDER) do
+		local p = L.tilePreview(id)
+		expectEqual(p.setId, id, "set id " .. id)
+		expectTrue(p.ratio >= 4.5, "ink contrast " .. id .. " " .. p.ratio)
+		expectTrue(p.keeperBehind ~= nil, "keeper " .. id)
+		local names = {}
+		for k in pairs(p) do names[#names + 1] = k end
+		table.sort(names)
+		local joined = table.concat(names, ",")
+		keys = keys or joined
+		expectEqual(joined, keys, "same keys " .. id)
+		local f = table.concat(p.plateFill, ",")
+		expectTrue(fills[f] == nil, "plate accent differs for " .. id .. " vs " .. tostring(fills[f]))
+		fills[f] = id
+	end
+end })
+
 table.insert(tests, { name = "CardFit: card row gap stays at least 28px on screen for scales 0.5 to 1.2, under both layout models", fn = function()
 	local CardFit = require(script.Parent.Parent.Engine.CardFit)
 	local cardW = 340
