@@ -18,6 +18,11 @@ Look at every picture once before uploading. Roblox moderates by image, so if on
 | thumb_3.png | Thumbnail 3 (wizard, knight and cat at the table) |
 | thumb_4.png | Thumbnail 4 (friendly ogre boss) |
 | thumb_5.png | Thumbnail 5 (ice tavern) |
+| thumb_6.png | Thumbnail 6 (Journey Map: branching road, shop and event stops) |
+| thumb_7.png | Thumbnail 7 (Shop and builds: merchant, Patrons, Recipes) |
+| thumb_8.png | Thumbnail 8 (Scoring: a hand with chips and mult) |
+
+See INVENTORY.md for size, product and status of every file.
 
 ## Game pass icons (512x512)
 Creator Hub, Monetization, Passes, pick the pass, then Icon.
