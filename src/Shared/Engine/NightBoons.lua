@@ -11,6 +11,7 @@
 		bossHands, bossDiscards     added to the Boss round of the Night only
 		scorePct                    percent added to every hand's Mult
 		firstHandPct                percent added to the first hand of each round
+		skipBoss                    hands and handSize do not apply on the Boss round (sim: +1 Hand all Night lifted wins over 15 points)
 		tips                        Tips now
 		freeReroll                  the next shop Reroll costs nothing
 		patronOff, packOff          Tips off Patron and Pack prices (never below 1)
@@ -24,16 +25,16 @@ NightBoons.LAST_NIGHT = 12
 NightBoons.OFFERS = 3
 
 NightBoons.Definitions = {
-	{ id = "extra_hand", name = "Spare Hand", icon = "✋", text = "+1 Hand this Night", hands = 1 },
+	{ id = "extra_hand", name = "Spare Hand", icon = "✋", text = "+1 Hand before the Boss round", hands = 1, skipBoss = true },
 	{ id = "extra_discard", name = "Spare Discard", icon = "🔄", text = "+1 Discard this Night", discards = 1 },
-	{ id = "wider_grip", name = "Wider Grip", icon = "🤲", text = "+1 card in hand this Night", handSize = 1 },
-	{ id = "opening_flourish", name = "Opening Flourish", icon = "🎩", text = "First hand of each round scores x1.5", firstHandPct = 50 },
+	{ id = "wider_grip", name = "Wider Grip", icon = "🤲", text = "+1 card in hand, 1 less Discard", handSize = 1, discards = -1 },
+	{ id = "opening_flourish", name = "Opening Flourish", icon = "🎩", text = "First hand of each round scores x1.4", firstHandPct = 40 },
 	{ id = "warm_welcome", name = "Warm Welcome", icon = "🔥", text = "Every hand scores 10% more this Night", scorePct = 10 },
-	{ id = "pocket_change", name = "Pocket Change", icon = "🪙", text = "+3 Tips now", tips = 3 },
+	{ id = "pocket_change", name = "Pocket Change", icon = "🪙", text = "+1 Tip now", tips = 1 },
 	{ id = "free_reroll", name = "Free Reroll", icon = "🎲", text = "Your next shop Reroll is free", freeReroll = true },
-	{ id = "patron_discount", name = "Friendly Prices", icon = "🏷️", text = "Patrons cost 2 less this Night", patronOff = 2 },
+	{ id = "patron_discount", name = "Friendly Prices", icon = "🏷️", text = "Patrons cost 1 less this Night", patronOff = 1 },
 	{ id = "pack_discount", name = "Pack Deal", icon = "🎁", text = "Packs cost 1 less this Night", packOff = 1 },
-	{ id = "boss_hand", name = "Boss Ready", icon = "🛡️", text = "+1 Hand on this Night's Boss round", bossHands = 1 },
+	{ id = "boss_hand", name = "Boss Ready", icon = "🛡️", text = "+1 Hand, 2 less Discards on the Boss round", bossHands = 1, bossDiscards = -2 },
 	{ id = "boss_discard", name = "Boss Prep", icon = "🧰", text = "+1 Discard on this Night's Boss round", bossDiscards = 1 },
 	{ id = "steady_pace", name = "Steady Pace", icon = "🐢", text = "+1 Hand and +1 Discard on the first round", roundOneHands = 1, roundOneDiscards = 1 },
 }
@@ -68,6 +69,7 @@ function NightBoons.field(state, key)
 	if key == "hands" and state.round == 1 then value = value + (def.roundOneHands or 0) end
 	if key == "discards" and state.round == 1 then value = value + (def.roundOneDiscards or 0) end
 	if (key == "bossHands" or key == "bossDiscards") and not state.isBossRound then return 0 end
+	if def.skipBoss and state.isBossRound and (key == "hands" or key == "handSize") then return 0 end -- Spare Hand, Wider Grip: the rounds before the Boss
 	return value
 end
 
