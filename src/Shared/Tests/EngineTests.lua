@@ -50352,6 +50352,175 @@ table.insert(tests, { name = "Deck and hand audit: every deck is complete each r
 	expectEqual(kings, 8, "Lucky Deck has two Kings of each suit")
 end })
 
+-- ===== Packs audit: choices, picks, charge, skip, owned and locked items, closed packs =====
+
+table.insert(tests, { name = "Packs audit: every pack reveals its documented choices, takes exactly its picks, charges once and grants once", fn = function()
+	local expected = { normal = { 3, 1 }, jumbo = { 5, 1 }, mega = { 5, 2 } }
+	local seen = {}
+	for _, pack in ipairs(Packs.Definitions) do
+		local label = pack.id
+		local want = expected[pack.size]
+		expectTrue(want ~= nil, label .. " has a known size")
+		expectEqual(pack.revealCount, want[1], label .. " documented choices")
+		expectEqual(pack.pickCount, want[2], label .. " documented picks")
+		seen[pack.category] = true
+		local state = RunState.new(nil, SeededRng.new(11))
+		state.tips = 100
+		local price = RunState.packPrice(state, pack)
+		local reveal = RunState.openPack(state, pack.id, SeededRng.new(5))
+		expectTrue(reveal ~= nil, label .. " opens")
+		expectEqual(#reveal.items, pack.revealCount, label .. " reveals the documented count")
+		expectEqual(reveal.pickCount, pack.pickCount, label .. " lets you pick the documented count")
+		expectEqual(state.tips, 100 - price, label .. " charged once on open")
+		-- too many or too few picks are refused and the pack stays open, nothing charged or granted
+		local ids = {}
+		for _, item in ipairs(reveal.items) do ids[#ids + 1] = item.id end
+		local tooMany = {}
+		for i = 1, pack.pickCount + 1 do tooMany[i] = ids[i] end
+		expectFalse((RunState.resolvePack(state, tooMany)), label .. " refuses one pick too many")
+		if pack.pickCount > 1 then
+			expectFalse((RunState.resolvePack(state, { ids[1] })), label .. " refuses too few picks")
+		end
+		expectTrue(state.pendingPack ~= nil, label .. " stays open after a bad pick")
+		expectEqual(state.tips, 100 - price, label .. " bad pick costs nothing more")
+		-- a second pack cannot be opened over an open one by the server rule (callers check pendingPack); the picks resolve once
+		local picks = {}
+		for i = 1, pack.pickCount do picks[i] = ids[i] end
+		local ok = RunState.resolvePack(state, picks)
+		expectTrue(ok, label .. " resolves with its documented picks")
+		expectTrue(state.pendingPack == nil, label .. " closes after resolving")
+		expectEqual(state.tips, 100 - price, label .. " no extra charge and no refund on a pick")
+		expectEqual(state.packsBought, 1, label .. " counts as one purchase")
+		local again, msg = RunState.resolvePack(state, picks)
+		expectFalse(again, label .. " a second resolve is refused (" .. tostring(msg) .. ")")
+		expectEqual(state.tips, 100 - price, label .. " a second resolve changes no Tips")
+	end
+	for _, cat in ipairs({ "patron", "house", "menu", "secret", "standard", "mixed" }) do
+		expectTrue(seen[cat], "a pack exists for " .. cat)
+	end
+end })
+
+table.insert(tests, { name = "Packs audit: a resolved pack grants each pick exactly once and a closed pack grants nothing", fn = function()
+	local state = RunState.new(nil, SeededRng.new(3))
+	state.tips = 100
+	local reveal = RunState.openPack(state, "buffoon_pack_mega", SeededRng.new(9))
+	local a, b = reveal.items[1].id, reveal.items[2].id
+	expectEqual(#state.ownedPatrons, 0, "nothing is granted by revealing")
+	expectTrue((RunState.resolvePack(state, { a, b })))
+	expectEqual(#state.ownedPatrons, 2, "both picks join")
+	expectTrue(state.ownedPatrons[1].id ~= state.ownedPatrons[2].id, "no duplicate")
+	RunState.resolvePack(state, { a, b })
+	RunState.resolvePack(state, {})
+	expectEqual(#state.ownedPatrons, 2, "resolving a closed pack never duplicates")
+	-- a picked id listed twice is refused (a pack never reveals the same Patron twice)
+	local s2 = RunState.new(nil, SeededRng.new(3))
+	s2.tips = 100
+	local r2 = RunState.openPack(s2, "buffoon_pack_mega", SeededRng.new(9))
+	expectFalse((RunState.resolvePack(s2, { r2.items[1].id, r2.items[1].id })), "the same item twice is refused")
+	expectEqual(#s2.ownedPatrons, 0)
+	-- an open pack stays on the state (a leaver or reconnect can still resolve it) and keeps its items
+	expectTrue(s2.pendingPack ~= nil and #s2.pendingPack.items == 5)
+end })
+
+table.insert(tests, { name = "Packs audit: Skip refunds half rounded down once and never more than paid", fn = function()
+	for _, pack in ipairs(Packs.Definitions) do
+		local state = RunState.new(nil, SeededRng.new(2))
+		state.tips = 100
+		local price = RunState.packPrice(state, pack)
+		RunState.openPack(state, pack.id, SeededRng.new(4))
+		local ok, _, refund = RunState.resolvePack(state, {})
+		expectTrue(ok, pack.id .. " skips")
+		expectEqual(refund, math.max(1, math.floor(price / 2)), pack.id .. " refund is half rounded down")
+		expectTrue(refund <= price, pack.id .. " never refunds more than paid")
+		expectEqual(state.tips, 100 - price + refund, pack.id .. " Tips after skip")
+		local ok2 = RunState.resolvePack(state, {})
+		expectFalse(ok2, pack.id .. " a second skip is refused")
+		expectEqual(state.tips, 100 - price + refund, pack.id .. " no double refund")
+		expectEqual(#state.ownedPatrons + #state.houseRecipeInventory + #state.menuRecipeInventory + #state.secretRecipeInventory, 0, pack.id .. " skip grants nothing")
+	end
+	expectEqual(Packs.skipRefund(0), 0)
+	expectEqual(Packs.skipRefund(1), 0)
+	expectEqual(Packs.skipRefund(7), 3)
+end })
+
+table.insert(tests, { name = "Packs audit: a pack refused for lack of Tips charges nothing and opens nothing", fn = function()
+	local state = RunState.new(nil, SeededRng.new(2))
+	state.tips = 3
+	local reveal, err = RunState.openPack(state, "buffoon_pack_mega", SeededRng.new(1))
+	expectTrue(reveal == nil and err ~= nil)
+	expectEqual(state.tips, 3)
+	expectTrue(state.pendingPack == nil)
+	expectTrue((RunState.openPack(state, "no_such_pack")) == nil)
+end })
+
+table.insert(tests, { name = "Packs audit: Patron and Grab Bag packs never offer an owned or locked Patron, and never repeat one", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	-- owned: a full row (all seats taken) never shows those Patrons again
+	local state = RunState.new(nil, SeededRng.new(8))
+	state.tips = 1000
+	local owned = {}
+	for i = 1, RunState.patronSlotLimit(state) do
+		table.insert(state.ownedPatrons, Patrons.Definitions[i])
+		owned[Patrons.Definitions[i].id] = true
+	end
+	for _, packId in ipairs({ "buffoon_pack", "buffoon_pack_jumbo", "buffoon_pack_mega", "mixed_pack", "mixed_pack_jumbo", "mixed_pack_mega" }) do
+		for seed = 1, 25 do
+			local s = RunState.new(nil, SeededRng.new(8))
+			s.tips = 1000
+			for i = 1, RunState.patronSlotLimit(s) do table.insert(s.ownedPatrons, Patrons.Definitions[i]) end
+			local reveal = RunState.openPack(s, packId, SeededRng.new(seed))
+			local seenIds = {}
+			for _, item in ipairs(reveal.items) do
+				if item.category == "patron" then
+					expectFalse(owned[item.id] == true, packId .. " offered an owned Patron " .. item.id)
+					expectFalse(seenIds[item.id], packId .. " repeated Patron " .. item.id)
+					seenIds[item.id] = true
+				end
+			end
+		end
+	end
+	-- locked: with nothing unlocked, no gated Patron or Recipe shows up
+	for _, packId in ipairs({ "buffoon_pack_mega", "house_pack_mega", "secret_pack_mega", "mixed_pack_mega" }) do
+		for seed = 1, 25 do
+			local s = RunState.new({ unlockedContent = {} }, SeededRng.new(seed))
+			s.tips = 1000
+			local reveal = RunState.openPack(s, packId, SeededRng.new(seed))
+			for _, item in ipairs(reveal.items) do
+				local kind = item.category == "patron" and "patron" or ((item.category == "house" or item.category == "secret") and "recipe" or nil)
+				if kind then
+					expectFalse(Unlocks.Rules[kind][item.id] ~= nil, packId .. " offered locked " .. kind .. " " .. item.id)
+				end
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Packs audit: a pick that does not fit is never lost; the pack stays open until room is made", fn = function()
+	local state = RunState.new(nil, SeededRng.new(6))
+	state.tips = 100
+	local reveal = RunState.openPack(state, "buffoon_pack", SeededRng.new(6))
+	local pick = reveal.items[1].id
+	local before = {}
+	local count = 0
+	for _, p in ipairs(Patrons.Definitions) do
+		if p.id ~= pick and count < RunState.patronSlotLimit(state) then
+			table.insert(state.ownedPatrons, p)
+			before[#before + 1] = p.id
+			count = count + 1
+		end
+	end
+	local ok = RunState.resolvePack(state, { pick })
+	expectFalse(ok, "a full row needs Make room")
+	expectTrue(state.pendingPack ~= nil, "the pack is still open")
+	expectEqual(#state.ownedPatrons, RunState.patronSlotLimit(state), "nothing left or joined")
+	local ok2 = RunState.resolvePack(state, { pick }, { before[1] })
+	expectTrue(ok2, "making room resolves")
+	local found = false
+	for _, p in ipairs(state.ownedPatrons) do if p.id == pick then found = true end end
+	expectTrue(found, "the pick joined")
+	expectEqual(#state.ownedPatrons, RunState.patronSlotLimit(state))
+end })
+
 return tests
 
 
