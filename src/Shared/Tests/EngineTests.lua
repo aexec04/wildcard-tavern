@@ -52697,7 +52697,41 @@ table.insert(tests, { name = "Settings and Share audit: every toggle saves throu
 	expectTrue(Share.challengeLine(summary, "ABC123"):find("ABC123", 1, true) ~= nil, "the challenge line carries the seed code")
 end })
 
+table.insert(tests, { name = "Gameplay2 top row at 1920x957, 1280x720, 1024x600 and 800x450: Target, boss plate, Round plate, hand name plate and Patron row never overlap and stay on screen", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, BC, P = require(Eng.Gameplay2Layout), require(Eng.BossCard), require(Eng.Gameplay2Preview)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, w, h) return a.x >= 0 and a.y >= 0 and a.x + a.w <= w and a.y + a.h <= h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		local row = { target = r.target, round = r.round }
+		local plate = BC.plateRect(r)
+		if plate then row.bossPlate = plate end
+		local name = P.namePlate(r)
+		if name then row.handName = name end
+		local night = plate and BC.nightRect(r, plate)
+		if night then row.night = night end
+		for i, s in ipairs(r.slots) do row["seat" .. i] = s.card end
+		local names = {}
+		for k in pairs(row) do names[#names + 1] = k end
+		table.sort(names)
+		for _, k in ipairs(names) do expectTrue(inside(row[k], w, h), k .. " stays on screen at " .. tag) end
+		for i = 1, #names do
+			for j = i + 1, #names do
+				local a, b = names[i], names[j]
+				local pair = a .. "|" .. b
+				-- the boss plate takes the Round plate's rect, and the hand name plate takes the Night line's place (BossCardFX drops the line while it shows)
+				local same = pair == "bossPlate|round" or pair == "round|bossPlate" or pair == "handName|night" or pair == "night|handName"
+				if not same then expectTrue(not hit(row[a], row[b]), a .. " and " .. b .. " overlap at " .. tag) end
+			end
+		end
+	end
+end })
+
 return tests
+
 
 
 
