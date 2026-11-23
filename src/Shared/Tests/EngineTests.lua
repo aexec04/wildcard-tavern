@@ -22695,6 +22695,38 @@ table.insert(tests, { name = "DebugGoto key weekly: opens the leaderboard", fn =
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local t = R.parse("weekly")
 	assert(t.kind == "opener" and t.opener == "dailyLeaderboard", "weekly opener")
+	assert(t.arg == "weekly", "weekly opens the Weekly tab")
+	assert(R.parse("daily:done").arg == nil, "daily:done keeps the default tab")
+end })
+table.insert(tests, { name = "Leaderboard plate tab row: 8 px under the border, no tab touches the close X, labels fit, selected tab marked, weekly jump selects Weekly", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	for _, v in ipairs({ { 800, 360 }, { 1280, 720 }, { 1920, 957 } }) do
+		local tag = v[1] .. "x" .. v[2]
+		local L, T = LT.layout(v[1], v[2]), LT.tabRects(v[1], v[2])
+		local names = { "daily", "weekly", "endless", "global", "standard", "revived" }
+		for i, a in ipairs(names) do
+			local r = T[a]
+			expectTrue(r.y >= 8 and r.h >= 44, a .. " tab 8 px clear, 44 px tall " .. tag)
+			expectTrue(r.x + r.w <= L.closeX.x - 4 or r.x >= L.closeX.x + L.closeX.w, a .. " clears the close X " .. tag)
+			expectTrue(r.x + r.w <= L.panel.w - LT.CLOSE_X_RESERVE, a .. " leaves 56 px at the right " .. tag)
+			-- emoji 1.2 em + label at 0.62 em per glyph, 14 px bold, 8 px padding each side
+			local need = math.ceil((a == "standard" and 0 or 14 * 1.2 + 14 * 0.3) + #LT.TAB_LABELS[a] * 14 * 0.6) + 16
+			expectTrue(need <= r.w, a .. " label fits (" .. need .. " of " .. r.w .. ") " .. tag)
+			for j = i + 1, #names do
+				local b = T[names[j]]
+				expectTrue(a == names[j] or r.x + r.w <= b.x or b.x + b.w <= r.x, a .. " and " .. names[j] .. " overlap " .. tag)
+			end
+		end
+		expectTrue(T.revived.x + T.revived.w + LT.CLOSE_X_RESERVE == L.panel.w, "Revived ends 56 px before the right edge " .. tag)
+		expectTrue(LT.TITLE_Y >= LT.TAB_TOP + LT.TAB_H + 4, "title sits under the tab row " .. tag)
+		expectTrue(L.panel.h >= LT.MIN_PANEL_H and L.scroll.h >= 3 * LT.ROW_H, "rows still fit " .. tag)
+	end
+	expectTrue(LT.EMPTY_TEXT >= 16, "empty line is 16 px or more")
+	if not io then return end
+	local h = assert(io.open("src/Client/DailyLeaderboard.lua", "r")); local src = h:read("*a"); h:close()
+	expectTrue(src:find("SelectedUnderline", 1, true) ~= nil and src:find("underline(weeklyTabButton, activeBoard == \"weekly\")", 1, true) ~= nil, "selected tab gets an underline")
+	expectTrue(src:find("ACTIVE_TAB = Color3.fromRGB(150, 108, 44)", 1, true) ~= nil, "selected fill is brighter than the idle fill")
+	expectTrue(src:find("board == \"weekly\"", 1, true) ~= nil, "the opener takes the weekly board")
 end })
 table.insert(tests, { name = "DebugGoto key seed: starts the fixed seed run with a valid 6 char code", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
