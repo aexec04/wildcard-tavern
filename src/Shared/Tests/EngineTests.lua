@@ -48438,6 +48438,42 @@ table.insert(tests, { name = "Boss rule text audit: every boss rule line is 60 c
 	expectTrue(count >= 46, "audited every boss rule (" .. count .. ")")
 end })
 
+table.insert(tests, { name = "Tutorial flow: steps run in order (pick, play, Counter, next round), captions are under 80 characters and none repeats", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local firstAt = {}
+	local seenText, seenId = {}, {}
+	for i, step in ipairs(Steps.Steps) do
+		firstAt[step.action] = firstAt[step.action] or i
+		expectTrue(type(step.text) == "string" and #step.text > 0 and #step.text < 80, step.id .. " caption is under 80 characters")
+		expectTrue(not seenText[step.text], step.id .. " caption is not repeated")
+		expectTrue(not seenId[step.id], step.id .. " id is not repeated")
+		seenText[step.text], seenId[step.id] = true, true
+	end
+	expectTrue(firstAt.menu_play < firstAt.select_round, "menu before the round")
+	expectTrue(firstAt.select_round < firstAt.pick, "round before the first pick")
+	expectTrue(firstAt.pick < firstAt.play_hand, "pick before play")
+	expectTrue(firstAt.play_hand < firstAt.buy_patron, "play before the Counter")
+	expectTrue(firstAt.buy_patron < firstAt.next_round, "Counter before the next round")
+	expectTrue(firstAt.next_round < firstAt.ok, "the last step is the finish")
+	-- walking the machine with each step's own action visits every step once, in order, and never goes back
+	local machine = Steps.new()
+	local visited = {}
+	for i, step in ipairs(Steps.Steps) do
+		local cur = machine:current()
+		expectTrue(cur ~= nil and cur.id == step.id, "step " .. i .. " is " .. step.id)
+		if not cur or visited[cur.id] then break end
+		visited[cur.id] = true
+		local detail = nil
+		if step.action == "pick" then
+			local selected = {}
+			for k = 1, step.count or 1 do selected[k] = true end
+			detail = { selected = selected, handCount = 8 }
+		end
+		machine:report(step.action, detail)
+	end
+	expectTrue(machine:finished(), "the machine finishes after the last step")
+end })
+
 return tests
 
 
