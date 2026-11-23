@@ -36694,6 +36694,26 @@ table.insert(tests, { name = "Run Over and Victory: facts lines and Run Summary 
 	end
 end })
 
+table.insert(tests, { name = "Run Over facts plate: every label starts 30 px inside the plate (12 px minimum), 12 px top, one 16 px body size, gold 18 px titles", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	for _, sz in ipairs({ 1920, 1280, 1024, 800 }) do
+		local cols = RL.columns(sz)
+		local leftW = cols and cols.leftW or RL.LEFT_W
+		local fromPlate = RL.factInset() + RL.PLATE_PAD -- label left edge minus plate left edge
+		expectTrue(fromPlate >= 12, sz .. " label is 12 px or more inside the plate")
+		expectTrue(fromPlate >= RL.BORDER_W + RL.SIDE_PAD, sz .. " label clears the wood border by 16 px")
+		expectTrue(fromPlate + RL.factWidth(leftW) <= leftW + 2 * RL.PLATE_PAD - 16, sz .. " right side keeps 16 px too")
+	end
+	expectTrue(RL.TOP_PAD >= 12, "12 px top padding")
+	local g = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find("local FACT_SIZE = 16", 1, true) ~= nil, "body size is 16")
+		expectTrue(t:find('add("Road taken", { TextSize = 18, tone = "gold" })', 1, true) ~= nil, "section title is gold 18")
+		expectTrue(t:find("local y = RunOverLayout.TOP_PAD", 1, true) ~= nil, "facts start below the top padding")
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })

@@ -45,7 +45,7 @@ local WOOD = Color3.fromRGB(70, 50, 34)
 local GREEN = Color3.fromRGB(60, 110, 70)
 local BRASS = Color3.fromRGB(196, 150, 60)
 
-local FACT_SIZE = 17
+local FACT_SIZE = 16 -- one body size; section titles are gold 18
 local LINE_PAD = 6
 
 -- text colours by tone: light on the dark wood panel, dark ink on the painted scroll's paper (4.5:1 or better on the paper)
@@ -356,7 +356,7 @@ return function(deps)
 			if okB and bestLine then add(bestLine, { tone = "soft" }) end
 		end
 		if summary then
-			add("Road taken", { tone = "gold" })
+			add("Road taken", { TextSize = 18, tone = "gold" })
 			local names = {}
 			for _, stop in ipairs(summary.route or {}) do names[#names + 1] = stop.name or stop.id end
 			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" })
@@ -404,7 +404,7 @@ return function(deps)
 	local mode = "plain" -- "plain" (dark wood panel) or "scroll" (painted paper): decides the text colours
 
 	local function measureFacts(width)
-		local y = 0
+		local y = RunOverLayout.TOP_PAD
 		for _, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
 			y = y + RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size) * (size + 3) + LINE_PAD
@@ -414,7 +414,7 @@ return function(deps)
 
 	local function buildFacts(width)
 		clearFacts()
-		local y = 0
+		local y = RunOverLayout.TOP_PAD
 		for i, line in ipairs(current.lines) do
 			local size = line.props.TextSize or FACT_SIZE
 			local n = RunOverLayout.estimateLines(line.text, RunOverLayout.factWidth(width), size)

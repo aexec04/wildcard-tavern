@@ -64,8 +64,11 @@ end
 
 -- The facts words sit inside the dark plate that extends PLATE_PAD past the facts column, and keep TextFit.SIDE (12 px) clear of the plate
 -- edge on both sides: the label starts factInset in and is factWidth wide, so no line is wider than the plate minus 24 px.
+RunOverLayout.BORDER_W = 14 -- the painted wood border of the facts plate is 10 to 14 px thick, inside PLATE_PAD
+RunOverLayout.SIDE_PAD = 16 -- clear space between that border and the words, left and right
+RunOverLayout.TOP_PAD = 12 -- clear space above the first line
 function RunOverLayout.factInset()
-	return math.max(0, require(script.Parent.TextFit).SIDE - RunOverLayout.PLATE_PAD)
+	return math.max(require(script.Parent.TextFit).SIDE, RunOverLayout.BORDER_W + RunOverLayout.SIDE_PAD) - RunOverLayout.PLATE_PAD
 end
 function RunOverLayout.factWidth(width)
 	return width - 2 * RunOverLayout.factInset()
