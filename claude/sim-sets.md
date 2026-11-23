@@ -1,5 +1,7 @@
 # Balance sim across the 14 Card Sets
 
+Same seed, every set: a test (`Card Sets are cosmetic: the same seeded run scores identically ...`) equips each of the 14 sets in turn, plays the same seeded round and checks the hand scores and round score match classic exactly. They do.
+
 Card Sets are cosmetic. The engine, the scoring and the sim never read `CosmeticSets` (a test pins this), so all 14 sets give the same Night clear rates. One run stands for every set.
 
 Regenerate with `lua tools/sim_sets.lua 150 1` (150 seeded runs per bot, default deck, standard difficulty). Each cell is the share of runs that reached the Night and cleared it, with runs reaching it in brackets.

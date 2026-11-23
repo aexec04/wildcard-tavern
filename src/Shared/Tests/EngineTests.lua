@@ -48454,6 +48454,35 @@ table.insert(tests, { name = "Card Sets are cosmetic: scoring, hand evaluation, 
 	end
 end })
 
+table.insert(tests, { name = "Card Sets are cosmetic: the same seeded run scores identically with each of the 14 Card Sets equipped", fn = function()
+	local function trace(setId)
+		local profile = PlayerProfile.new()
+		profile.ownedSetIds = {}
+		for _, set in ipairs(CosmeticSets.Definitions) do profile.ownedSetIds[set.id] = true end
+		expectTrue(CosmeticSets.equip(profile, setId), "equip " .. setId)
+		local state = RunState.new(nil, SeededRng.new(4242))
+		RunState.startRound(state)
+		local out = { state.targetScore or state.target or 0, #state.hand }
+		for _ = 1, 4 do
+			local n = math.min(5, #state.hand)
+			if n == 0 then break end
+			local idx = {}
+			for i = 1, n do idx[i] = i end
+			local res = RunState.playHand(state, idx)
+			out[#out + 1] = tostring(type(res) == "table" and (res.score or res.handScore or res.ok) or res)
+			out[#out + 1] = state.roundScore or state.score or 0
+			if state.phase ~= "playing" and state.phase ~= nil and state.handsLeft == 0 then break end
+		end
+		return table.concat(out, ",")
+	end
+	local base = trace(CosmeticSets.DefaultId)
+	expectTrue(select(2, base:gsub(",", ",")) >= 4, "the trace holds scores: " .. base)
+	expectTrue(#CosmeticSets.Definitions >= 14, "at least 14 sets")
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		expectEqual(trace(set.id), base, set.id .. " scores the same as classic")
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
