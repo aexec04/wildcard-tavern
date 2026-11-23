@@ -256,11 +256,11 @@ Patrons.Definitions = {
 	},
 	{
 		id = "repeat_customer", name = "Repeat Customer", icon = "🔁", price = 7,
-		description = "x3 Mult if you already played this hand type this round.",
+		description = "x2.5 Mult if you already played this hand type this round.",
 		flavorText = "Found a favorite and is never changing it.",
 		effect = function(_handResult, context)
 			if context.alreadyPlayedThisHandTypeThisRound then
-				return { multMultiplier = 3 }
+				return { multMultiplier = 2.5 }
 			end
 			return nil
 		end,
@@ -290,11 +290,11 @@ Patrons.Definitions = {
 	-- ===== ECONOMY =====
 	{
 		id = "tip_jar", name = "Tip Jar", icon = "🫙", price = 6,
-		description = "Earn 4 Tips at the end of each round you win.",
+		description = "Earn 2 Tips at the end of each round you win.",
 		flavorText = "Rattles a little happier after every good night.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
-			state.tips = state.tips + 4
+			state.tips = state.tips + 2
 		end,
 	},
 	{
@@ -1061,29 +1061,29 @@ local depthPatrons = {
 	},
 	{
 		id = "rising_dough", name = "Rising Dough", icon = "🥖", price = 6,
-		description = "+1 Mult for every round cleared this run (up to +12).",
+		description = "+1 Mult for every round cleared this run (up to +10).",
 		flavorText = "Gets bigger the longer you wait.",
 		effect = function(handResult, context)
-			local bonus = math.min(12, context.roundsCleared or 0)
+			local bonus = math.min(10, context.roundsCleared or 0)
 			return bonus > 0 and { mult = bonus } or nil
 		end,
 	},
 	{
 		id = "stack_of_plates", name = "Stack of Plates", icon = "🥞", price = 6,
-		description = "+2 Chips for every hand played this run (up to +100).",
+		description = "+2 Chips for every hand played this run (up to +50).",
 		flavorText = "One more plate on the pile each time.",
 		effect = function(handResult, context)
-			local bonus = math.min(100, 2 * (context.handsPlayedTotal or 0))
+			local bonus = math.min(50, 2 * (context.handsPlayedTotal or 0))
 			return bonus > 0 and { chips = bonus } or nil
 		end,
 	},
 	{
 		id = "bread_starter", name = "Bread Starter", icon = "🫓", price = 8,
-		description = "x0.02 more Mult for every hand played this run (up to x2).",
+		description = "x0.02 more Mult for every hand played this run (up to x1.6).",
 		flavorText = "Fed every night since the first.",
 		effect = function(handResult, context)
 			local hands = context.handsPlayedTotal or 0
-			return hands > 0 and { multMultiplier = 1 + math.min(1, 0.02 * hands) } or nil
+			return hands > 0 and { multMultiplier = 1 + math.min(0.6, 0.02 * hands) } or nil
 		end,
 	},
 	{
@@ -1248,20 +1248,20 @@ end
 -- flush (suits), pairs (pairs, trips, quads, full house), straight, economy (Tips, rerolls), scaling (grows over the run),
 -- rulebender (changes discards, hands or hand size), ranks (specific ranks or face cards), flat (steady bonuses).
 local PATRON_TAGS = {
-	the_regular = { "flat" }, lucky_dice = { "pairs" }, suit_yourself = { "flush" }, curtain_call = { "flat" }, the_bard = { "flat" },
+	the_regular = { "scaling" }, lucky_dice = { "pairs" }, suit_yourself = { "flush" }, curtain_call = { "scaling" }, the_bard = { "scaling" },
 	regulars_round = { "pairs" }, threes_company = { "pairs" }, all_hands_in = { "pairs" }, straight_shooter = { "straight" },
-	all_matching = { "flush" }, small_plate = { "flat" }, big_portions = { "pairs" }, tab_regulars = { "economy" },
-	house_favorite = { "ranks" }, repeat_customer = { "flat" }, the_understudy = { "flat" }, second_opinion = { "flat" },
+	all_matching = { "flush" }, small_plate = { "pairs" }, big_portions = { "pairs" }, tab_regulars = { "economy" },
+	house_favorite = { "ranks" }, repeat_customer = { "scaling" }, the_understudy = { "rulebender" }, second_opinion = { "rulebender" },
 	tip_jar = { "economy" }, penny_pincher = { "economy" }, sparkling_service = { "flush" }, rowdy_bunch = { "flush" },
 	sharp_dressed = { "flush" }, double_down = { "pairs" }, house_special = { "pairs" }, ace_of_the_house = { "ranks" },
-	vip_table = { "ranks" }, early_bird = { "flat" }, discard_special = { "flat" }, the_apprentice = { "flat" },
+	vip_table = { "ranks" }, early_bird = { "scaling" }, discard_special = { "rulebender" }, the_apprentice = { "rulebender" },
 	big_spender = { "economy" }, nest_egg = { "economy" }, jack_of_all_trades = { "ranks" }, queens_gambit = { "ranks" },
-	spare_change = { "economy" }, full_house_crowd = { "scaling" }, fair_share = { "flat" }, efficient_service = { "flat" },
-	perfect_ten = { "ranks" }, night_owl = { "scaling" }, steady_hand = { "flat" }, rainy_day_fund = { "economy" },
+	spare_change = { "economy" }, full_house_crowd = { "scaling" }, fair_share = { "flush" }, efficient_service = { "rulebender" },
+	perfect_ten = { "ranks" }, night_owl = { "scaling" }, steady_hand = { "straight" }, rainy_day_fund = { "economy" },
 	boss_bane = { "economy" }, slow_cooker = { "scaling" }, house_tab = { "scaling" }, regulars_chair = { "scaling" },
 	cobweb_shelf = { "scaling" }, tasting_menu = { "scaling" }, estate_sale = { "scaling" }, pair_bonds = { "scaling", "pairs" },
-	veterans_table = { "scaling" }, meadow_bee = { "ranks" }, ferry_captain = { "flat" }, summit_guide = { "ranks" },
-	sand_merchant = { "economy", "flush" }, marsh_gardener = { "flush" }, lantern_lighter = { "flat" }, lighthouse_keeper = { "flat" },
+	veterans_table = { "scaling" }, meadow_bee = { "ranks" }, ferry_captain = { "pairs" }, summit_guide = { "ranks" },
+	sand_merchant = { "economy", "flush" }, marsh_gardener = { "flush" }, lantern_lighter = { "rulebender" }, lighthouse_keeper = { "rulebender" },
 	flush_fan = { "flush" }, suit_sampler = { "flush" }, warm_hearth = { "flush" }, color_matcher = { "flush" },
 	full_suit_feast = { "flush" }, twin_spoons = { "pairs" }, triple_treat = { "pairs" }, foursome_table = { "pairs" },
 	kitchen_duo = { "pairs" }, pair_parade = { "pairs" }, stair_climber = { "straight" }, long_road = { "straight" },
@@ -1269,8 +1269,8 @@ local PATRON_TAGS = {
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
 	duke_goldleaf = { "marks" }, clover_queen = { "marks" }, jolly_jester = { "marks" }, boon_keeper = { "scaling" },
-	lone_wolf = { "flat" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "flat" },
-	full_palette = { "flush" }, triple_scoop = { "pairs" }, spare_shuffle = { "flat" }, final_bow = { "flat" },
+	lone_wolf = { "ranks" }, even_keel = { "ranks" }, odd_duck = { "ranks" }, good_company = { "scaling" },
+	full_palette = { "flush" }, triple_scoop = { "pairs" }, spare_shuffle = { "rulebender" }, final_bow = { "scaling" },
 }
 -- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
 local PATRON_COUNTERS = {

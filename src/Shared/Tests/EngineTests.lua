@@ -3540,7 +3540,9 @@ end })
 
 table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER owned Patron", fn = function()
 	local crowd = Patrons.getById("full_house_crowd")
-	local theRegular = Patrons.getById("the_regular")
+	local theRegular = {}
+	for k, v in pairs(Patrons.getById("the_regular")) do theRegular[k] = v end
+	theRegular.tags = { "flat" } -- a copy with no bond tag, so only the +4 Mult counts
 	local luckyDice = Patrons.getById("lucky_dice")
 	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
 	local _, _, multAlone = Scoring.calculate(hand, { crowd }, {})
@@ -10706,7 +10708,7 @@ table.insert(tests, { name = "Synergy: every Patron has 1 to 3 valid tags, owned
 	expectEqual(#fan, 1); expectEqual(fan[1].tag, "flush"); expectEqual(fan[1].reason, "Fits the hand you play most.")
 	local pairPatron = Synergy.tagsFor({ id = "pair_bonds" }, ctx)
 	expectEqual(#pairPatron, 2); expectEqual(pairPatron[1].tag, "scaling", "owned tag, listed after dominant and economy")
-	expectEqual(#Synergy.tagsFor(Patrons.getById("the_regular"), ctx), 0, "a flat Patron shows nothing")
+	expectEqual(#Synergy.tagsFor({ id = "the_regular", tags = { "flat" } }, ctx), 0, "a flat Patron shows nothing")
 	local fresh = Synergy.context({}, {})
 	local jar = Synergy.tagsFor(Patrons.getById("tip_jar"), fresh)
 	expectEqual(#jar, 1); expectEqual(jar[1].tag, "economy"); expectEqual(jar[1].reason, "You have no Tips Patron yet.")
@@ -13548,7 +13550,7 @@ table.insert(tests, { name = "Bonds: detection, no bond for one Patron, once per
 	expectEqual(1, #Bonds.find({ a, b }))
 	expectEqual("Twin Pact", Bonds.find({ a, b })[1].name)
 	expectEqual(3, #Bonds.find({ a, b, c })) -- three pairs of Patrons
-	expectEqual(0, #Bonds.find({ a, Patrons.getById("the_regular") })) -- "flat" never bonds
+	expectEqual(0, #Bonds.find({ a, Patrons.getById("suit_yourself") })) -- no shared tag, no bond
 	expectEqual("pairs", Bonds.formedIds({ a, b, c })[1])
 	expectEqual(1, #Bonds.formedIds({ a, b, c }))
 	for _, def in ipairs(Bonds.Definitions) do
@@ -32590,7 +32592,8 @@ table.insert(tests, { name = "Gameplay v2 synergy hints: a gold thread joins nei
 	assert(links[1].a == 1 and links[1].b == 2 and links[1].tag == "pairs" and links[1].word ~= "")
 	assert(links[2].a == 3 and links[2].b == 4 and links[2].tag == "flush")
 	assert(#S.links({ "lucky_dice", "suit_yourself" }) == 0, "different themes do not link")
-	assert(#S.links({ "the_regular", "curtain_call" }) == 0, "the flat tag never counts")
+	assert(#S.links({ "the_regular", "lucky_dice" }) == 0, "no shared tag, no link")
+	assert(#S.links({ "the_regular", "curtain_call" }) == 1, "two scaling Patrons link")
 	assert(#S.links({ "lucky_dice", nil, "regulars_round" }) == 0 and #S.links({}) == 0 and #S.links({ "lucky_dice" }) == 0, "only neighbours, gaps and single seats give nothing")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local r = L.rects(sz[1], sz[2])
@@ -42531,6 +42534,117 @@ table.insert(tests, { name = "Tutorial time: Menu to the first cleared round tak
 	local idle = 0
 	for _, w in ipairs(F.IDLE) do expectTrue(w.seconds <= F.MAX_IDLE, w.id); idle = idle + w.seconds end
 	expectTrue(toClear + idle <= 120, "steps plus waits stay inside the two minute launch goal: " .. (toClear + idle))
+end })
+
+-- DAILY TWIST x NIGHT BOON: every twist with every boon (and none) plays a round with two strong Patrons; the score stays finite,
+-- never negative, whole, and a boon never adds more than its own share on top of the same twist (no double counting).
+table.insert(tests, { name = "Daily twist and Night boon interplay: every combination scores a finite, non-negative round and boons never double count", fn = function()
+	local DM = require(script.Parent.Parent.Engine.DailyModifiers)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	local function play(twistId, boonId)
+		local state = RunState.new({ dailyModifierId = twistId }, SeededRng.new(11))
+		table.insert(state.ownedPatrons, Patrons.getById("the_regular"))
+		table.insert(state.ownedPatrons, Patrons.getById("vip_table"))
+		state.night, state.round = 2, 1
+		RunState.startRound(state)
+		if boonId then
+			local ok = NB.apply(state, boonId)
+			expectTrue(ok, "boon " .. boonId .. " applies on top of " .. twistId)
+		end
+		local guard = 0
+		while not state.roundOver and state.handsRemaining > 0 and guard < 20 do
+			guard = guard + 1
+			local pick = {}
+			for i = 1, math.min(5, #state.hand) do pick[i] = i end
+			RunState.playHand(state, pick)
+		end
+		return state
+	end
+	for _, twist in ipairs(DM.Definitions) do
+		local base = play(twist.id, nil)
+		for _, boon in ipairs(NB.Definitions) do
+			local state = play(twist.id, boon.id)
+			local tag = twist.id .. " + " .. boon.id
+			expectTrue(state.roundScore == state.roundScore and state.roundScore < math.huge, tag .. ": score is finite")
+			expectTrue(state.roundScore >= 0, tag .. ": score is not negative") -- fractions are fine: Patron multipliers already make them
+			expectTrue((state.tips or 0) >= 0 and (state.tips or 0) == math.floor(state.tips or 0), tag .. ": Tips whole and not negative")
+			expectTrue(state.handsRemaining >= 0 and state.discardsRemaining >= 0, tag .. ": no negative hands or discards")
+			if boon.scorePct == nil and boon.firstHandPct == nil and boon.hands == nil and boon.handSize == nil and boon.roundOneHands == nil then
+				-- no scoring or hand count change: the same deal must score the same
+				expectEqual(state.roundScore, base.roundScore, tag .. ": a non scoring boon leaves the score alone")
+			end
+			if boon.scorePct or boon.firstHandPct then
+				expectTrue(state.roundScore <= base.roundScore * 1.6 + 1, tag .. ": a percent boon adds at most its own share")
+			end
+		end
+	end
+end })
+
+-- QUEST TIPS + POCKET CHANGE (claude/ECONOMY.md): banked Tips are capped, so a full bank plus a Pocket Change every Night never
+-- makes the Counter free: the cheapest full table still costs more than the bank, and a reroll is never free.
+table.insert(tests, { name = "Quest Tips and Pocket Change: the banked Tips cap holds, and a full bank plus Pocket Change cannot buy every offer", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local NB = require(script.Parent.Parent.Engine.NightBoons)
+	expectTrue(TavernRank.MAX_PENDING_TIPS <= 30, "bank cap stays at 30 or less")
+	expectEqual(Quests.MAX_PENDING_TIPS, TavernRank.MAX_PENDING_TIPS)
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = TavernRank.MAX_PENDING_TIPS - 1
+	local day = 20001
+	for _, id in ipairs(Quests.rollFor(day)) do
+		local def = Quests.getById(id)
+		Quests.apply(profile, day, { [def.counter] = def.goal })
+	end
+	expectEqual(profile.pendingStartTips, TavernRank.MAX_PENDING_TIPS, "claims fill the bank to the cap and no further")
+	local pocket = NB.getById("pocket_change")
+	expectTrue(pocket.tips <= 3, "Pocket Change stays at 3 Tips")
+	-- a full bank on Night 1 plus Pocket Change on Nights 2 to 5
+	local available = TavernRank.MAX_PENDING_TIPS + 4 * pocket.tips
+	local prices = {}
+	for _, d in ipairs(Patrons.Definitions) do prices[#prices + 1] = d.price end
+	table.sort(prices)
+	local cheapestTable = 0
+	for i = 1, 5 do cheapestTable = cheapestTable + prices[i] end
+	local priciestOffers = prices[#prices] + prices[#prices - 1] -- one visit shows two Patrons
+	expectTrue(Shop.REROLL_BASE_COST >= 1, "a reroll is never free")
+	expectTrue(available < cheapestTable + 5 * priciestOffers, "even the whole bank does not cover a table of top price Patrons")
+	-- the bank is spent once: taking it empties it
+	expectEqual(TavernRank.takeStartTips(profile), TavernRank.MAX_PENDING_TIPS)
+	expectEqual(profile.pendingStartTips, 0)
+end })
+
+-- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.
+table.insert(tests, { name = "Patron synergy audit: every Patron has at least one partner that fires a hint", fn = function()
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local counts = {}
+	for _, d in ipairs(P.Definitions) do
+		for _, t in ipairs(d.tags or {}) do
+			if t ~= "flat" then counts[t] = (counts[t] or 0) + 1 end
+		end
+	end
+	for _, d in ipairs(P.Definitions) do
+		local partner = false
+		for _, t in ipairs(d.tags or {}) do
+			if t ~= "flat" and counts[t] >= 2 then partner = true end
+		end
+		expectTrue(partner, d.id .. " has no partner Patron that shares a tag")
+	end
+end })
+
+-- DOMINANT PATRONS: the lift sim showed Tip Jar, Bread Starter and Stack of Plates far above the rest; each was cut one small step.
+table.insert(tests, { name = "Patron lift: Tip Jar pays 2 Tips, Bread Starter tops out at x1.6, Stack of Plates at +50 Chips, Rising Dough at +10, Repeat Customer x2.5", fn = function()
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local function get(id) for _, p in ipairs(P.Definitions or P) do if p.id == id then return p end end end
+	local jar = get("tip_jar")
+	local st = { tips = 0 }
+	jar.onRoundWin(st)
+	expectEqual(st.tips, 2, "Tip Jar pays 2 Tips per round win")
+	local bread = get("bread_starter").effect({}, { handsPlayedTotal = 100 })
+	expectEqual(bread.multMultiplier, 1.6, "Bread Starter cap")
+	local plates = get("stack_of_plates").effect({}, { handsPlayedTotal = 100 })
+	expectEqual(plates.chips, 50, "Stack of Plates cap")
+	expectEqual(get("rising_dough").effect({}, { roundsCleared = 40 }).mult, 10, "Rising Dough cap")
+	expectEqual(get("repeat_customer").effect({}, { alreadyPlayedThisHandTypeThisRound = true }).multMultiplier, 2.5, "Repeat Customer")
 end })
 
 -- PERFORMANCE BUDGET: a source count of the tween call sites in the files that run on a hand play and on a shop open (the fake
