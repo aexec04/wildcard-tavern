@@ -14,7 +14,9 @@ M.BUTTON_H = 44
 function M.plan(set, state, unlockText)
 	local out = { title = state.owned and set.name or ("Previewing " .. set.name), line = unlockText or "", buttonH = M.BUTTON_H }
 	local unlock = set.unlock or {}
-	if state.equipped then
+	-- "Equipped" is only ever said for a set the server confirmed as both in effect and unlocked (state.equipped comes from the server's
+	-- effective set id); a set the player cannot use shows what unlocks it instead.
+	if state.equipped and state.owned then
 		out.kind, out.action = "equipped", "Equipped"
 	elseif state.owned then
 		out.kind, out.action = "equip", "Equip"

@@ -31524,6 +31524,26 @@ table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, 
 	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
 end })
 
+table.insert(tests, { name = "Card Sets label: Equipped only for a set the server confirms (effective and unlocked); a set the player cannot use says what unlocks it", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SetPreview)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local gala = CS.getById("golden_gala")
+	local profile = { ownedSetIds = {}, stats = { runsWon = 0 }, equippedSetId = "golden_gala", unlockedCardBackIds = {} }
+	CS.setStudioUnlock(false, true)
+	expectEqual(CS.effectiveId(profile, {}), CS.DefaultId, "a raw equipped pass set without the pass is not in effect")
+	local confirmed = CS.effectiveId(profile, {})
+	local owned = CS.isUnlocked(profile, "golden_gala", {})
+	local p = SP.plan(gala, { owned = owned, equipped = confirmed == "golden_gala" }, CS.unlockText(gala))
+	expectTrue(p.kind ~= "equipped" and p.action ~= "Equipped", "the label does not say Equipped for an unconfirmed set")
+	p = SP.plan(gala, { owned = false, equipped = true, passConfigured = true }, CS.unlockText(gala)) -- even a stale equipped flag
+	expectTrue(p.kind == "pass" and p.line ~= "", "a stale equipped flag on a locked set still shows how to get it")
+	expectEqual(CS.effectiveId(profile, { [gala.unlock.passId] = true }), "golden_gala", "with the pass the set is in effect")
+	CS.setStudioUnlock(true, true)
+	expectEqual(CS.effectiveId(profile, {}), "golden_gala", "the Studio unlock switch makes every set usable")
+	CS.setStudioUnlock(false, nil)
+	expectEqual(CS.effectiveId(profile, {}), CS.DefaultId, "and the switch is off again by default")
+end })
+
 table.insert(tests, { name = "Card Sets room: every pick previews at once, the button matches the state, the Studio unlock switch is Studio only", fn = function()
 	local SP = require(script.Parent.Parent.Engine.SetPreview)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
