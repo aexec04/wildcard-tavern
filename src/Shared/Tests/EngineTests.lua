@@ -44059,59 +44059,28 @@ table.insert(tests, { name = "Table dress: empty Patron seats lean firmly toward
 	assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic seat unchanged")
 end })
 
-table.insert(tests, { name = "Table dress: pile, banners and seat faces wear each set's colours, classic stays white, every set differs from classic", fn = function()
+table.insert(tests, { name = "Table dress: the pile and the wall banners stay exactly Classic for every set (white tint, shared picture), only seat faces lean toward the set", fn = function()
 	local TD = require(script.Parent.Parent.Engine.TableDress)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	assert(TD.partOf("DeckBook") == "deck" and TD.partOf("WallBannerLeft") == "banner" and TD.partOf("WallBannerRight") == "banner" and TD.partOf("SeatFacePicture") == "seat", "names map to parts")
 	assert(TD.partOf("Nope") == nil, "unknown name")
+	assert(TD.backImage == nil and TD.BACK_PARTS == nil, "no per set card back swap on the pile or banners")
 	for part in pairs(TD.PARTS) do
-		local w = TD.tintFor("classic_tavern", part)
-		assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic untouched for " .. part)
-		assert(TD.tintFor("no_such_set", part)[1] == 255, "unknown set untouched")
+		assert(TD.tintFor("classic_tavern", part)[1] == 255 and TD.tintFor("no_such_set", part)[1] == 255, "classic and unknown untouched for " .. part)
 		for _, set in ipairs(CS.Definitions) do
-			if set.id ~= CS.DefaultId then
-				local c = TD.tintFor(set.id, part)
-				assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " " .. part .. " leans off white")
+			local c = TD.tintFor(set.id, part)
+			if part == "seat" then
+				if set.id ~= CS.DefaultId then assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " seat leans off white") end
+			else
+				assert(c[1] == 255 and c[2] == 255 and c[3] == 255, set.id .. " " .. part .. " stays Classic white")
 			end
-		end
-	end
-	local a, b = TD.tintFor("golden_gala", "deck"), TD.tintFor("festival_night", "deck")
-	assert(a[1] ~= b[1] or a[2] ~= b[2] or a[3] ~= b[3], "two sets give two pile colours")
-end })
-
-table.insert(tests, { name = "Table dress: the pile and the banners draw each set's own painted card back, four sets give four different pictures, classic keeps the crown", fn = function()
-	local TD = require(script.Parent.Parent.Engine.TableDress)
-	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
-	local seen, n = {}, 0
-	for _, id in ipairs({ "festival_night", "winter_evening", "harbor_lights", "golden_gala" }) do
-		local img = TD.backImage(id)
-		assert(img and img:find("rbxassetid://", 1, true), id .. " has a painted back")
-		assert(not seen[img], id .. " differs from the others")
-		seen[img], n = true, n + 1
-	end
-	assert(n == 4, "four pictures")
-	assert(TD.backImage("classic_tavern") == nil and TD.backImage(nil) == nil and TD.backImage("no_such_set") == nil, "classic and unknown keep the shared picture")
-	local painted = 0
-	for _, set in ipairs(CS.Definitions) do if TD.backImage(set.id) then painted = painted + 1 end end
-	assert(painted >= 12, "most sets have a painted back")
-	assert(TD.BACK_PARTS.deck and TD.BACK_PARTS.banner and not TD.BACK_PARTS.seat, "pile and banners swap pictures, seats keep their face and tint")
-	local ok = pcall(function() return Instance.new("ImageLabel") end)
-	if ok then -- real instances where Instance exists (Studio): apply the same rule the client uses and read the picture back
-		local root = Instance.new("Frame")
-		local pile = Instance.new("ImageLabel"); pile.Name = "DeckBook"; pile.Image = "rbxassetid://1"; pile.Parent = root
-		local last = nil
-		for _, id in ipairs({ "festival_night", "golden_gala", "classic_tavern" }) do
-			local back = TD.backImage(id)
-			pile.Image = back or "rbxassetid://1"
-			assert(pile.Image ~= last, id .. " changes the pile picture")
-			last = pile.Image
 		end
 	end
 	if not io then return end
 	local f = io.open("src/Client/TableDress.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	assert(src:find("Pure.backImage(setId)", 1, true) and src:find("ClassicImage", 1, true), "client swaps and restores the picture")
+	assert(not src:find("backImage", 1, true) and not src:find("ClassicImage", 1, true), "client never swaps the pile or banner picture")
 end })
 
 table.insert(tests, { name = "Table dress live: real ImageLabels change colour after a set switch (runs where Instance exists, else checks the wiring)", fn = function()
@@ -44127,9 +44096,9 @@ table.insert(tests, { name = "Table dress live: real ImageLabels change colour a
 				local t = TD.tintFor(setId, TD.partOf(l.Name))
 				l.ImageColor3 = Color3.fromRGB(t[1], t[2], t[3])
 			end
-			local t = TD.tintFor(setId, "deck")
-			local got = root.DeckBook.ImageColor3
-			assert(math.floor(got.R * 255 + 0.5) == t[1] and math.floor(got.B * 255 + 0.5) == t[3], setId .. " pile colour read back from the real instance")
+			local t = TD.tintFor(setId, "seat")
+			local got = root.SeatFacePicture.ImageColor3
+			assert(math.floor(got.R * 255 + 0.5) == t[1] and math.floor(got.B * 255 + 0.5) == t[3], setId .. " seat colour read back from the real instance")
 		end
 	end
 	local function read(path) local f = io and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
