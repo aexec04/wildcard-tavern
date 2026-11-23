@@ -278,25 +278,6 @@ function ShopStage.new(deps)
 			haggle.Text = ""
 			-- ShopHaggle writes the state word ("Haggle" / "Haggled") into this attribute; a relayout must not reset it
 			bindHover(haggle, tag(haggle, "HaggleTag", haggle:GetAttribute("Label") or "Haggle", w, -TAG_H), propGlow("Haggle", l))
-			-- Haggle stands in the Reroll row: same 44 px plate, same top, 10 px right of Reroll (placed from the Reroll row's real position)
-			local rerollPlate = Layout.rerollPlate(r)
-			local rrow = last and last.rerollRow
-			if rerollPlate and rrow then
-				local ht = haggle:FindFirstChild("HaggleTag")
-				if ht then
-					ht.AnchorPoint = Vector2.new(0, 0)
-					ht.Position = UDim2.fromOffset(0, 0)
-					ht.Size = UDim2.fromOffset(rerollPlate.w, rerollPlate.h)
-					ht.TextSize = 18
-				end
-				haggle.Size = UDim2.fromOffset(rerollPlate.w, rerollPlate.h)
-				task.defer(function()
-					pcall(function()
-						local a, b = rrow.AbsolutePosition, shopFrame.AbsolutePosition
-						haggle.Position = UDim2.fromOffset(a.X - b.X + rerollPlate.w + 10, a.Y - b.Y)
-					end)
-				end)
-			end
 		end
 		local chip = shopFrame:FindFirstChild("BossScoutChip", true)
 		if chip and chip.Parent == shopFrame then

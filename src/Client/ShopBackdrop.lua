@@ -371,6 +371,7 @@ function ShopBackdrop.new(deps)
 		for name, img in pairs(props) do
 			if r.props[name] then
 				place(img, r.props[name])
+				img.ScaleType = Enum.ScaleType.Fit -- the crop of the props sheet keeps its own shape: Stretch squashed the book into a wide slab
 				img.Visible = true
 			else
 				img.Visible = false
