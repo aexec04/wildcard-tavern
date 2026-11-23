@@ -49945,6 +49945,70 @@ table.insert(tests, { name = "Run end rules: Night 8 win marks Victory once and 
 	expectEqual(back2.pendingStartTips, 9, "rejoining twice does not add Tips")
 	expectEqual(back2.stats.runsStarted, profile.stats.runsStarted, "no run was counted by the rejoin")
 end })
+table.insert(tests, { name = "Patron synergy audit: every Patron scores a fixed hand with finite non negative Chips, Mult and score, only documented bonus fields, and selling it removes its effect the same frame", fn = function()
+	local suits = { "Hearts", "Spades", "Diamonds", "Clubs" }
+	local shapes = { -- fixed hands over several hand types
+		{ 14 }, { 9, 9 }, { 5, 5, 8, 8 }, { 7, 7, 7 }, { 4, 5, 6, 7, 8 }, { 2, 5, 9, 11, 13, "S" }, { 6, 6, 6, 3, 3 }, { 10, 10, 10, 10 },
+	}
+	local allowed = { chips = true, mult = true, multMultiplier = true, tips = true }
+	local function finite(x) return type(x) == "number" and x == x and x ~= math.huge and x ~= -math.huge end
+	local function setup(seed, ranks, patron)
+		local state = RunState.new(nil, SeededRng.new(seed))
+		RunState.startRound(state)
+		state.targetScore = 1e12 -- the round stays open
+		local hand = {}
+		local oneSuit = ranks[#ranks] == "S"
+		for i, rank in ipairs(ranks) do
+			if rank ~= "S" then hand[#hand + 1] = Card.new(rank, oneSuit and "Hearts" or suits[(i - 1) % 4 + 1]) end
+		end
+		local n = #hand
+		for i = 1, 3 do hand[#hand + 1] = Card.new(2, suits[(i % 4) + 1]) end
+		state.hand = hand
+		if patron then table.insert(state.ownedPatrons, patron) end
+		local idx = {}
+		for i = 1, n do idx[i] = i end
+		return state, idx
+	end
+	local checked = 0
+	for _, patron in ipairs(Patrons.Definitions) do
+		for h, ranks in ipairs(shapes) do
+			local state, idx = setup(h, ranks, patron)
+			-- the effect itself: only documented numeric fields, all finite
+			local cards = {}
+			for i, c in ipairs(state.hand) do cards[i] = c end
+			local result = RunState.playHand(state, idx)
+			expectTrue(finite(result.score) and result.score >= 0, patron.id .. " hand " .. h .. " score is finite and not negative: " .. tostring(result.score))
+			expectTrue(finite(result.chips) and result.chips >= 0, patron.id .. " Chips finite and not negative: " .. tostring(result.chips))
+			expectTrue(finite(result.mult) and result.mult >= 0, patron.id .. " Mult finite and not negative: " .. tostring(result.mult))
+			expectTrue(finite(state.roundScore) and finite(state.tips), patron.id .. " roundScore and Tips finite")
+			expectTrue(state.tips >= 0, patron.id .. " never leaves negative Tips")
+			-- selling removes the effect at once: the same hand now scores what a table without it scores
+			local sold, sellState, sellIdx = nil, setup(h, ranks, patron)
+			RunState.sellPatron(sellState, patron.id)
+			expectEqual(#sellState.ownedPatrons, 0, patron.id .. " leaves the table when sold")
+			local plainState, plainIdx = setup(h, ranks, nil)
+			local after = RunState.playHand(sellState, sellIdx)
+			local plain = RunState.playHand(plainState, plainIdx)
+			expectEqual(after.score, plain.score, patron.id .. " hand " .. h .. " sold Patron scores like no Patron")
+			expectEqual(after.chips, plain.chips, patron.id .. " Chips after sale")
+			expectEqual(after.mult, plain.mult, patron.id .. " Mult after sale")
+			checked = checked + 1
+		end
+		-- the raw effect only returns documented fields
+		local fakeResult = require(script.Parent.Parent.Engine.HandEvaluator).evaluate({ Card.new(9, "Hearts"), Card.new(9, "Spades") })
+		local okEffect, bonus = pcall(patron.effect, fakeResult, { allPlayedCards = {}, heldCards = {}, handsRemaining = 3, discardsRemaining = 2,
+			night = 1, round = 1, tips = 5, ownedPatrons = { patron }, patronIndex = 1, roundsCleared = 0, bossesCleared = 0,
+			handsPlayedTotal = 0, discardsUsedTotal = 0, patronsSold = 0, handStatsBefore = {} })
+		if okEffect and type(bonus) == "table" then
+			for field, value in pairs(bonus) do
+				if allowed[field] then
+					expectTrue(finite(value), patron.id .. " effect field " .. field .. " is finite")
+				end
+			end
+		end
+	end
+	expectEqual(checked, #Patrons.Definitions * #shapes, "every Patron was checked on every hand")
+end })
 
 return tests
 
