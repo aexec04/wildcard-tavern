@@ -7564,7 +7564,7 @@ table.insert(tests, { name = "Tutorial: the step table covers the guided hands i
 	local src = f:read("*a")
 	f:close()
 	expectTrue(src:find("replay = replay", 1, true) ~= nil, "replay is exported")
-	expectTrue(src:find("Hold to Skip", 1, true) ~= nil, "skipping needs a hold")
+	expectTrue(src:find("holdText = TutorialStart.SKIP_HOLD", 1, true) ~= nil and require(script.Parent.Parent.Engine.TutorialStart).SKIP_HOLD == "Hold to Skip", "skipping needs a hold")
 	expectTrue(src:find("Active = true", 1, true) ~= nil or src:find("f.Active = true", 1, true) ~= nil, "the dim frames block clicks")
 	expectFalse(src:find("Keep these cards", 1, true) ~= nil, "no old optional-choice buttons")
 end })
@@ -38884,6 +38884,29 @@ table.insert(tests, { name = "Invite and spectate states: every state has one ki
 	expectTrue(srv:find('reason = require(Engine.InviteStates).spectateLine(reason)', 1, true) ~= nil, "the server sends the kind line, not the engine reason")
 	f = assert(io.open("src/Client/InvitePrompt.lua", "r")); local cli = f:read("a"); f:close()
 	expectTrue(cli:find("GameInvitePromptClosed", 1, true) ~= nil and cli:find('"declined"', 1, true) ~= nil and cli:find('"sent"', 1, true) ~= nil, "sent and declined are both shown")
+end })
+
+table.insert(tests, { name = "Tutorial skip and replay words: Skip says what it does, one hold confirms, the dialog names where to replay, the Settings rows say what they do", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialStart)
+	local Strings = require(script.Parent.Parent.Engine.Strings)
+	for _, w in ipairs({ TS.SKIP_TEXT, TS.SKIP_TITLE, TS.SKIP_MESSAGE, TS.SKIP_HOLD, Strings["settings.hints.blurb"], Strings["settings.tutorial.blurb"] }) do
+		expectTrue(#w <= 70, "one short line: " .. w)
+		expectTrue(not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. w)
+	end
+	expectEqual(TS.SKIP_TEXT, "Skip tutorial")
+	expectTrue(TS.SKIP_MESSAGE:find("Settings", 1, true) ~= nil, "the dialog says where Replay Tutorial lives")
+	expectTrue(TS.SKIP_HOLD:find("Hold", 1, true) ~= nil, "one hold confirms, no second dialog")
+	-- the button is wide enough for its words at 16 px (about 9 px a letter) on every size, and still 44 px tall
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 } }) do
+		local L = TS.skipLayout(v[1], v[2])
+		expectTrue(L.width * L.scale >= #TS.SKIP_TEXT * 8, "Skip tutorial fits its plate at " .. v[1] .. "x" .. v[2])
+		expectTrue(L.height >= 44 and L.right + L.width * L.scale <= v[1] / 2, "44 px tall and on screen")
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/TutorialWalkthrough.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("TutorialStart.SKIP_TEXT", 1, true) ~= nil and src:find("TutorialStart.SKIP_MESSAGE", 1, true) ~= nil, "the walkthrough uses the shared words")
+	local _, holds = src:gsub("restart.ask%(", "")
+	expectEqual(holds, 1, "Skip opens exactly one confirm")
 end })
 
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()

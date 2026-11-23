@@ -170,7 +170,7 @@ return function(deps)
 	skipButton.Name = "TutorialSkip"
 	skipButton.AnchorPoint = Vector2.new(1, 0)
 	skipButton.Position = UDim2.new(1, -24, 0, 84)
-	skipButton.Size = UDim2.fromOffset(92, 44)
+	skipButton.Size = UDim2.fromOffset(TutorialStart.skipLayout(1280, 720).width, 44)
 	-- ghost button in the tavern style: mostly see-through dark wood, brass border, cream text
 	skipButton.BackgroundColor3 = Color3.fromRGB(52, 36, 22)
 	skipButton.BackgroundTransparency = 0.35
@@ -180,7 +180,7 @@ return function(deps)
 	skipButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 	skipButton.TextTransparency = 0
 	skipButton.TextStrokeTransparency = 0.6
-	skipButton.Text = "Skip"
+	skipButton.Text = TutorialStart.SKIP_TEXT
 	skipButton.ZIndex = Z + 4
 	skipButton.Visible = false
 	skipButton.Parent = gui
@@ -669,9 +669,9 @@ return function(deps)
 		setChrome(false)
 		ribbon.Visible = false
 		restart.ask({
-			title = "Skip the tutorial?",
-			message = "You can replay it any time from the main menu.",
-			holdText = "Hold to Skip",
+			title = TutorialStart.SKIP_TITLE,
+			message = TutorialStart.SKIP_MESSAGE,
+			holdText = TutorialStart.SKIP_HOLD,
 			onConfirm = function() complete(true) end,
 			onClose = function() if active then show() end end,
 		})
