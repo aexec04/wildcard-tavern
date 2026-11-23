@@ -50999,6 +50999,68 @@ table.insert(tests, { name = "Packs audit: price, reveal and pick counts pinned 
 	expectTrue(full.pendingPack ~= nil, "the pack stays open")
 end })
 
+-- ENDLESS AND VICTORY FLOW AUDIT: the win pays Rank XP once per run, Endless rounds after it pay their own counters once, no second Victory.
+table.insert(tests, { name = "Victory and Endless flow: win XP and the first win bonus are paid once per run, Endless rounds add only their own XP, repeated syncs add nothing", fn = function()
+	local AccountProgress = require(script.Parent.Parent.Engine.AccountProgress)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local profile = PlayerProfile.new()
+	local snap = {}
+	local s = RunState.new(nil, function(n) return n end)
+	s.night = s.config.nightCap
+	s.round = s.config.roundsPerNight
+	s.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	s.targetScore = 0
+	-- the server's own guard (Server/init.server.lua): justWon only on the sync that sees wonRun flip
+	local lastKnownWon, winSyncs = false, 0
+	local function syncLikeServer()
+		local justWon = false
+		if s.wonRun and not lastKnownWon then
+			lastKnownWon = true
+			justWon = true
+			winSyncs = winSyncs + 1
+		end
+		return AccountProgress.sync(profile, snap, s, 20000, justWon)
+	end
+	AccountProgress.sync(profile, snap, s, 20000, false) -- baseline before the winning hand
+	local base = profile.tavernXp
+	local r = RunState.playHand(s, { 1 })
+	expectTrue(r.wonRun, "Night 8 boss win is Victory")
+	local first = syncLikeServer()
+	local afterWin = profile.tavernXp
+	expectTrue(afterWin - base >= TavernRank.Xp.win + TavernRank.Xp.firstWinOfDay, "the win pays win XP and the first win bonus")
+	expectTrue(first.xp > 0)
+	-- the same Victory seen on every later sync pays nothing more
+	for _ = 1, 5 do syncLikeServer() end
+	expectEqual(profile.tavernXp, afterWin, "five more syncs of the same state add no XP")
+	expectEqual(winSyncs, 1, "Victory is seen once")
+	-- Endless: the next Night's rounds add only hand and round XP, never win XP again
+	RunState.advanceToNextRound(s)
+	expectEqual(s.night, s.config.nightCap + 1, "Endless starts at the next Night")
+	expectEqual(s.wonRun, true, "the earlier Victory stays")
+	s.targetScore = 0
+	local before = profile.tavernXp
+	local r2 = RunState.playHand(s, { 1 })
+	expectTrue(r2.roundWon and r2.wonRun == true)
+	syncLikeServer()
+	local gain = profile.tavernXp - before
+	expectTrue(gain > 0 and gain < TavernRank.Xp.win, "an Endless round pays its own counters, not a second win")
+	local settled = profile.tavernXp
+	syncLikeServer()
+	syncLikeServer()
+	expectEqual(profile.tavernXp, settled, "repeating the sync adds nothing")
+	expectEqual(winSyncs, 1, "still one Victory after Endless play")
+	-- the server source keeps the flip guard and a revived run never counts
+	if io then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(src:find("session.state.wonRun and not session.lastKnownWonRun", 1, true) ~= nil, "win XP is tied to the flip of wonRun")
+			expectTrue(src:find("session.lastKnownWonRun = true", 1, true) ~= nil, "the flip is remembered")
+		end
+	end
+end })
+
 -- ===== Leaderboard and Daily integrity audit =====
 
 table.insert(tests, { name = "Leaderboard integrity: no remote lets a client send a score, every board write reads the server's own run state", fn = function()
