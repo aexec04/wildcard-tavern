@@ -406,6 +406,15 @@ function M.boss(layer, rects, state, w, h)
 			hit.Position = UDim2.fromOffset(tr.hit.x, tr.hit.y); hit.Size = UDim2.fromOffset(tr.hit.w, tr.hit.h)
 			tip.Position = UDim2.fromOffset(tr.tip.x, tr.tip.y); tip.Size = UDim2.fromOffset(tr.tip.w, tr.tip.h)
 			tip.Text = Rules.tapLine(rule)
+			local gui = layer:FindFirstAncestorOfClass("ScreenGui")
+			local key = Rules.introKey(state)
+			if Rules.introShouldShow(layer:GetAttribute("RuleIntroShown"), key, gui and gui:GetAttribute("PopupsOpen"), layer:FindFirstChild("BossIntro") ~= nil) then
+				layer:SetAttribute("RuleIntroShown", key) -- once per boss round
+				tip.Visible = true
+				task.delay(Rules.INTRO_HOLD, function()
+					if tip.Parent and layer:GetAttribute("RuleIntroShown") == key then tip.Visible = false end
+				end)
+			end
 		end
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 			pcall(function() require(script.Parent.BossGlyph).apply(rulePlate.BossIcon, bdef and bdef.id, tintSet.edge) end) -- drawn icon for the Nights 7 to 12 rules, letter icon for the rest

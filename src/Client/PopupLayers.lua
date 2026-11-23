@@ -40,6 +40,7 @@ function PopupLayers.install(screenGui)
 		if conn then conn:Disconnect() conn = nil end
 	end
 	local function refresh()
+		screenGui:SetAttribute("PopupsOpen", openCount) -- read by the boss rule chip so its first-moment line never opens over a popup
 		if openCount > 0 then
 			if not conn then
 				for _, d in ipairs(screenGui:GetDescendants()) do hide(d) end

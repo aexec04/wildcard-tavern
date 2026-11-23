@@ -277,6 +277,20 @@ function M.tapRects(chipRect, w, h, text)
 	return { hit = { x = hx, y = hy, w = hw, h = M.TAP_HIT }, tip = { x = tx, y = ty, w = tw, h = M.TAP_TIP_H } }
 end
 
+-- The first moment of a boss round: the rule chip shows its line once (static, so Calm is the same) for INTRO_HOLD seconds.
+-- Never while a popup is open or the intro cinematic is up; the round is marked shown only once the line really appears.
+M.INTRO_HOLD = 4
+function M.introKey(state)
+	local id = state and state.bossModifier and state.bossModifier.id
+	if not id then return nil end
+	return tostring(id) .. ":" .. tostring(state.night or 0) .. ":" .. tostring(state.round or 0)
+end
+function M.introShouldShow(shownKey, key, popupsOpen, introUp)
+	if not key or shownKey == key then return false end
+	if (tonumber(popupsOpen) or 0) > 0 or introUp then return false end
+	return true
+end
+
 function M.bossGlow(calm)
 	-- a light red wash: over the reference felt (60, 85, 45) 0.84 turned it brown olive (74, 77, 47); at 0.94 the felt stays green
 	return { color = { 150, 38, 30 }, transparency = calm and 0.97 or 0.96 } -- the boss backdrop (table_boss_ref) is already red lit with a green felt at about 70 percent, so the wash stays thin

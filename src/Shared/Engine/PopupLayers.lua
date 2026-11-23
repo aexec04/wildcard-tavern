@@ -17,6 +17,7 @@ PopupLayers.NAMES = {
 	BossCard = true, BossSeatCard = true, BossHealth = true, BossPresencePlate = true, BossBanner = true,
 	BossScoutBanner = true, BossEnrageBanner = true, BossBubble = true, BossAttackBand = true,
 	TargetBox = true, TipsPill = true, GearMenu = true, SortToggle = true,
+	BossRuleHit = true, BossRuleTip = true, -- the rule chip tap target and its line
 }
 
 function PopupLayers.shouldHide(name)
