@@ -573,6 +573,9 @@ function ShopCards.new(deps)
 		end
 
 		local over, pinned, shown, busy = 0, false, false, false
+		local function liftPiece(inst) local p = inst.Position; return { inst = inst, rest = p, up = UDim2.fromOffset(p.X.Offset, p.Y.Offset - LIFT) } end
+		local liftPieces = { liftPiece(shadow), liftPiece(contact), liftPiece(body) }
+		card.liftPieces = liftPieces
 		local function show(on)
 			if shown == on then
 				return
@@ -585,13 +588,17 @@ function ShopCards.new(deps)
 			if hoverFx then hoverFx.setHover(on) end
 			if on then
 				if not still then
-					tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }, 0.14)
+					for _, piece in ipairs(liftPieces) do -- shadow, contact shadow and body rise together: one solid card
+						tween(piece.inst, { Position = piece.up }, 0.14)
+					end
 					tween(tilt, { Rotation = 0 }, 0.14) -- turn straight (the wrapper: a direct child of the row would ignore it)
 				end
 				tween(shadow, { BackgroundTransparency = 0.5 }, 0.14)
 			else
 				if not still then
-					tween(body, { Position = UDim2.fromOffset(0, HEAD) }, 0.16)
+					for _, piece in ipairs(liftPieces) do
+						tween(piece.inst, { Position = piece.rest }, 0.16)
+					end
 					tween(tilt, { Rotation = slot:GetAttribute("Tilt") or 0 }, 0.16) -- back to its own angle
 				end
 				tween(shadow, { BackgroundTransparency = 0.7 }, 0.16)
@@ -684,7 +691,9 @@ function ShopCards.new(deps)
 					task.spawn(function()
 						for _, dx in ipairs(plan.offsets) do
 							if not body.Parent then return end
-							tween(body, { Position = UDim2.fromOffset(dx, HEAD - LIFT) }, plan.step)
+							for _, piece in ipairs(liftPieces) do -- the whole card shakes, shadows included
+								tween(piece.inst, { Position = UDim2.fromOffset(piece.up.X.Offset + dx, piece.up.Y.Offset) }, plan.step)
+							end
 							task.wait(plan.step)
 						end
 					end)

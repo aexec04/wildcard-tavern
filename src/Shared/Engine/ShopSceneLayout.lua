@@ -606,8 +606,8 @@ function ShopSceneLayout.cardOverlays(W, artTop, artH, bannerTop, badgeW, chipWi
 		out.chips[i] = { x = 12, y = y, w = math.min(cw, maxW), h = 24 }
 		y = y + 28
 	end
-	-- the price plate hangs from the card under the name ribbon, never over the art (it reaches 22 px past the body, inside the table margin)
-	out.price = { x = math.floor((W - ShopSceneLayout.TAG_W) / 2), y = bannerTop + require(script.Parent.CardShape).BANNER_H + 2,
+	-- the price plate hangs from the card under the name ribbon, never over the art (inside the body's price strip, 4 px margin)
+	out.price = { x = math.floor((W - ShopSceneLayout.TAG_W) / 2), y = bannerTop + require(script.Parent.CardShape).BANNER_H + require(script.Parent.CardShape).PRICE_GAP,
 		w = ShopSceneLayout.TAG_W, h = ShopSceneLayout.TAG_H }
 	return out
 end
@@ -628,7 +628,7 @@ ShopSceneLayout.SCALE_MIN, ShopSceneLayout.SCALE_MAX = 0.35, 1.35
 function ShopSceneLayout.cardScales(r)
 	local function fit(rc, baseW, baseArt)
 		if not rc then return nil end
-		local s = math.min(rc.w / baseW, (rc.h - 36) / baseArt)
+		local s = math.min(rc.w / baseW, (rc.h - 64) / baseArt) -- card h = art + 64 (ribbon 40 + price strip 36 - 12)
 		return clamp(s, ShopSceneLayout.SCALE_MIN, ShopSceneLayout.SCALE_MAX)
 	end
 	local patron = fit(r.offers[1], 220, 250) or 1

@@ -9212,7 +9212,7 @@ table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with
 		local small, big = CardShape.shape(kind, 0.7), CardShape.shape(kind, 1.35)
 		expectTrue(big.w > small.w and big.h > small.h, kind .. " grows with the scale")
 		-- no text strip: the card ends just under the ribbon
-		expectEqual(big.h, big.bannerTop + CardShape.BANNER_H + 8)
+		expectEqual(big.h, big.bannerTop + CardShape.BANNER_H + (kind == "owned" and 8 or CardShape.PRICE_STRIP))
 		expectTrue(big.drawerTop + CardShape.BUTTON_H <= big.bannerTop, kind .. ": the Buy drawer sits above the ribbon, adding no height")
 		-- art is the star: it takes at least 70% of the card height
 		expectTrue(big.artH / big.h >= 0.7, kind .. " art fills most of the card")
@@ -9222,9 +9222,29 @@ table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with
 	expectTrue(CardShape.fitsRow(5, row1080, CardShape.shape("patron", CardShape.scaleFor(1920, 1080)), 16, 14), "five big cards fit at 1080p")
 	-- the Counter (patron row + pack row + header + buttons) fits the screen height at 720p and 1080p
 	for _, vp in ipairs({ { 1280, 720 }, { 1920, 1080 } }) do
-		local sc = CardShape.scaleFor(vp[1], vp[2])
+		local sc = CardShape.fitScale(vp[1], vp[2] - 140, vp[1], vp[2], 5) -- the Counter fits its rows with fitScale
 		local rows = CardShape.shape("patron", sc).h + CardShape.shape("pack", sc).h + 2 * 40
 		expectTrue(rows < vp[2] - 140, "both rows fit above the buttons at " .. vp[2] .. "p (" .. rows .. ")")
+	end
+end })
+
+table.insert(tests, { name = "Counter cards are one solid unit: the price pill sits inside the body with a 4 px margin and hover lifts shadow, contact shadow and body by the same offset", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CardShape)
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, kind in ipairs({ "patron", "voucher", "pack" }) do
+		for _, sc in ipairs({ 0.6, 0.7, 1, 1.35 }) do
+			local sh = CS.shape(kind, sc)
+			local ov = SL.cardOverlays(sh.w, sh.artTop, sh.artH, sh.bannerTop, 0, {})
+			expectTrue(ov.price.y + ov.price.h <= sh.h, kind .. " " .. sc .. ": PriceTag bottom " .. (ov.price.y + ov.price.h) .. " <= Body bottom " .. sh.h)
+			expectEqual(sh.h - (ov.price.y + ov.price.h), 4, kind .. " price pill keeps a 4 px bottom margin")
+			expectEqual(ov.price.y - (sh.bannerTop + CS.BANNER_H), 4, kind .. " price pill sits 4 px under the name plate")
+		end
+	end
+	local f = io and io.open("src/Client/ShopCards.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("liftPieces = { liftPiece(shadow), liftPiece(contact), liftPiece(body) }", 1, true) ~= nil, "hover moves shadow, contact shadow and body together")
+		expectTrue(src:find("tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }", 1, true) == nil, "body is never lifted alone")
 	end
 end })
 

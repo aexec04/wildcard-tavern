@@ -16,6 +16,8 @@ local CardShape = {}
 
 CardShape.BANNER_H = 40
 CardShape.BUTTON_H = 36
+CardShape.PRICE_STRIP = 36 -- a priced card ends in a strip that holds the 28 px price pill with 4 px margins, so nothing hangs outside the card
+CardShape.PRICE_GAP = 4
 CardShape.MIN_SCALE = 0.7
 CardShape.MAX_SCALE = 1.35
 
@@ -36,7 +38,7 @@ end
 -- 252 + 460 * s is the stacked height at scale s (strip 44 + labels 48 + 4 gaps of 8 = 124; rows add 64 each
 -- on top of the art heights 250 and 210).
 CardShape.FIT_MIN = 0.6
-CardShape.FIT_FIXED_H = 252
+CardShape.FIT_FIXED_H = 308 -- 252 + 2 rows x 28 px price strip
 CardShape.FIT_PER_SCALE_H = 460
 function CardShape.fitScale(availW, availH, vpX, vpY, widestRow)
 	local s = CardShape.scaleFor(vpX, vpY)
@@ -88,9 +90,10 @@ function CardShape.shape(kind, scale, noAction)
 	local artH = math.floor(b.artH * scale)
 	local artTop = 6
 	local bannerTop = artTop + artH - 18
+	local tail = (kind == "owned") and 8 or CardShape.PRICE_STRIP
 	return {
 		w = w, artH = artH, artTop = artTop, bannerTop = bannerTop,
-		h = bannerTop + CardShape.BANNER_H + 8,
+		h = bannerTop + CardShape.BANNER_H + tail,
 		-- the Buy drawer sits over the bottom of the art, just above the ribbon
 		drawerTop = bannerTop - CardShape.BUTTON_H - 8,
 	}
