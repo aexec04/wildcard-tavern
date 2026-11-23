@@ -30834,6 +30834,30 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 	assert(shown >= 2 and D.menuRect(600, 800) == nil)
 end })
 
+table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local L = require(script.Parent.Parent.Engine.MenuLife)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function box(l, t, r, b) return { x = l, y = t, w = r - l, h = b - t } end
+	local play = ML.getHotspot("play")
+	expectTrue(play ~= nil, "the play hotspot exists")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local sign = box(ML.rect(play, w, h))
+		local plate = box(ML.plateRect(play, w, h))
+		expectTrue(sign.h >= 44 and sign.w >= 44, "Play sign is a 44 px target at " .. w .. "x" .. h)
+		expectTrue(plate.y + plate.h <= h, "Play plate on screen at " .. w .. "x" .. h)
+		local others = { { "All actions", { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 } } }
+		local strip, tip = D.menuRect(w, h), L.tipRect(w, h)
+		if strip then others[#others + 1] = { "Daily strip", strip } end
+		if tip then others[#others + 1] = { "Tip plate", tip } end
+		for _, o in ipairs(others) do
+			expectFalse(hit(sign, o[2]) or hit(plate, o[2]), "Play and its plate clear of " .. o[1] .. " at " .. w .. "x" .. h)
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 44 px tall and clear of each other at desktop, tablet, compact and phone sizes", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 784, 600 }, { 800, 450 }, { 604, 390 }, { 360, 640 } }
