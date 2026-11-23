@@ -29,7 +29,6 @@ M.MENU_PIECES = {
 	{ label = "Title", names = { "WordmarkImage", "MenuTitle" } },
 	{ label = "Deal Me In", text = "deal me in" },
 	{ label = "New Run", text = "new run" },
-	{ label = "All actions", names = { "AllActionsButton" } },
 	{ label = "Tip bar", names = { "MenuTip" } },
 	{ label = "Notice Board", names = { "NoticeBoard" } },
 }

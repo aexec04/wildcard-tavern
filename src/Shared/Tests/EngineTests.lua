@@ -13991,7 +13991,7 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
 	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
 	expectTrue(hot:find("if Layout.world then object.Visible = false end", 1, true) ~= nil, "the Deal Me In block has no cut-off dark medallion on the map")
-	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid dark wood plate")
+	expectTrue(hot:find("AllActionsButton", 1, true) == nil, "the All actions button is gone (the Notice Board opens the list)")
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
 	expectTrue(LL.contrast({ 250, 235, 200 }, { 58, 38, 22 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
@@ -15930,7 +15930,7 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectTrue(R.hidesBoard({ "CollectionBackdrop" }), "a panel backdrop hides the board")
 	expectTrue(not R.hidesBoard({ "Menu", "DeckTrackerBackdrop" }), "skipped and non-popup frames do not")
-	expectTrue(R.hidesWithPanel("AllActionsButton") and R.hidesWithPanel("Hotspot_jukebox"), "All actions and hotspots hide under a panel")
+	expectTrue(R.hidesWithPanel("Hotspot_jukebox") and not R.hidesWithPanel("AllActionsButton"), "hotspots hide under a panel, the removed All actions button is not special")
 	expectTrue(not R.hidesWithPanel("Rows") and not R.hidesWithPanel(nil), "other names stay")
 	local f = io and io.open and io.open("src/Client/BadgeWall.lua", "r")
 	if f then
@@ -17897,9 +17897,7 @@ table.insert(tests, { name = "Notice Board: every note rect sits inside the cork
 	local f = io and io.open and io.open("src/Client/MenuHotspots.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	local a = src:find('allButton.Name = "AllActionsButton"', 1, true)
-	local seg = src:sub(a, a + 1800)
-	expectTrue(seg:find("ApplyStrokeMode.Border", 1, true) ~= nil, "the brass edge strokes the border, not the letters")
+	expectTrue(src:find('"AllActionsButton"', 1, true) == nil, "no All actions button is built any more")
 end })
 
 tests[#tests + 1] = ({ name = "Kit plates sit under their labels and text strokes use Border mode", fn = function()
@@ -30839,9 +30837,8 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 		if strip then
 			shown = shown + 1
 			local sign = { x = w / 2 - 170, y = 0, w = 340, h = h } -- the whole column, any height
-			local all = { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 }
-			assert(not hit(strip, sign) and not hit(strip, all), "strip clear of sign column and All actions at " .. w)
-			assert(strip.x - (w / 2 + 170) >= 16 and all.x - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(not hit(strip, sign), "strip clear of sign column at " .. w)
+			assert(strip.x - (w / 2 + 170) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
 			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
 			local tip = L.tipRect(w, h)
 			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
@@ -30864,7 +30861,7 @@ table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear
 		local plate = box(ML.plateRect(play, w, h))
 		expectTrue(sign.h >= 44 and sign.w >= 44, "Play sign is a 44 px target at " .. w .. "x" .. h)
 		expectTrue(plate.y + plate.h <= h, "Play plate on screen at " .. w .. "x" .. h)
-		local others = { { "All actions", { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 } } }
+		local others = {}
 		local strip, tip = D.menuRect(w, h), L.tipRect(w, h)
 		if strip then others[#others + 1] = { "Daily strip", strip } end
 		if tip then others[#others + 1] = { "Tip plate", tip } end
@@ -35178,12 +35175,13 @@ table.insert(tests, { name = "ScreenCheck.menuCheck flags a 0x0, missing or hidd
 	for i, p in ipairs(good) do bad[i] = { label = p.label, w = p.w, h = p.h, visible = true } end
 	bad[1].w, bad[1].h = 0, 0
 	bad[3].visible = false
-	bad[5].h = 0
+	bad[4].h = 0 -- Tip bar
 	local _, w2 = SC.menuCheck(bad)
 	assert(#w2 == 3 and w2[1]:find("WARN Title is blank", 1, true), "0x0 title, hidden New Run and 0 tall tip bar are flagged")
 	local labels = {}
 	for _, s in ipairs(SC.MENU_PIECES) do labels[s.label] = true end
-	for _, l in ipairs({ "Title", "Deal Me In", "New Run", "All actions", "Tip bar", "Notice Board" }) do assert(labels[l], l .. " is checked") end
+	for _, l in ipairs({ "Title", "Deal Me In", "New Run", "Tip bar", "Notice Board" }) do assert(labels[l], l .. " is checked") end
+		assert(not labels["All actions"], "the removed All actions button is not checked")
 	if io then
 		local f = assert(io.open("src/Client/ScreenCheck.lua", "r")); local c = f:read("a"); f:close()
 		assert(c:find("[MenuCheck]", 1, true), "the client prints [MenuCheck]")
@@ -35293,7 +35291,6 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
 		{ "src/Client/DailyStrip.lua", 'painted(f, "wh_target")' },
 		{ "src/Client/GameOver.lua", 'painted(factsPlate, "wood_plate")' },
-		{ "src/Client/MenuHotspots.lua", 'paintedButton(allButton, "secondary")' },
 	}
 	expectEqual(require(script.Parent.Parent.Engine.TavernStyle).buttonPiece("secondary", 168, 42), "wh_btn_dark", "the 168 x 42 All actions button wears the whole dark wood picture")
 	for _, w in ipairs(want) do
