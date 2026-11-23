@@ -183,6 +183,44 @@ function Leaderboards.topRows(rows, limit)
 	return out
 end
 
+-- ===== Entry guard (Daily, Weekly, Endless) =====
+-- Every board entry is built by the server from its own run state; this is the last check before it is queued.
+-- Refused: a run that used any Debug remote (state.usedDebug), and numbers that are not whole sane values.
+Leaderboards.MAX_DEPTH = 5000 -- Daily/Weekly depth ceiling ((night - 1) * rounds + round - 1; Endless is capped at MAX_ENDLESS_NIGHT)
+Leaderboards.MAX_TIPS = 999999 -- Daily/Weekly tiebreak ceiling (the server clamps to this before it asks)
+
+-- Returns true, or false and a short reason (the server logs the reason, the entry is dropped).
+function Leaderboards.acceptEntry(state, depth, tips, maxTips)
+	if type(state) ~= "table" then
+		return false, "no run"
+	end
+	if state.usedDebug then
+		return false, "debug remote used"
+	end
+	if type(depth) ~= "number" or type(tips) ~= "number" or depth ~= depth or tips ~= tips then
+		return false, "not a number"
+	end
+	if depth < 0 or tips < 0 or depth ~= math.floor(depth) or tips ~= math.floor(tips) then
+		return false, "negative or fractional"
+	end
+	if depth > Leaderboards.MAX_DEPTH then
+		return false, "depth above the sane maximum"
+	end
+	if tips > (maxTips or Leaderboards.MAX_TIPS) then
+		return false, "score above the sane maximum"
+	end
+	return true
+end
+
+-- What a board row holds after a write: the higher of the stored value and the new one (so one row per player per
+-- period, and a worse later run, or a second server, never lowers it). Used as the UpdateAsync callback.
+function Leaderboards.keepBest(old, new)
+	if type(old) == "number" and old == old and old >= new then
+		return old
+	end
+	return new
+end
+
 -- Normalises a scope string from a client: anything unknown means the global board.
 function Leaderboards.normalizeScope(scope)
 	if scope == Leaderboards.FRIENDS then

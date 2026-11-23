@@ -50521,6 +50521,161 @@ table.insert(tests, { name = "Packs audit: a pick that does not fit is never los
 	expectEqual(#state.ownedPatrons, RunState.patronSlotLimit(state))
 end })
 
+-- ===== Leaderboard and Daily integrity audit =====
+
+table.insert(tests, { name = "Leaderboard integrity: no remote lets a client send a score, every board write reads the server's own run state", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/Remotes.lua", "r")
+	local g = io.open("src/Server/init.server.lua", "r")
+	if not (f and g) then return end
+	local remotes, server = f:read("*a"), g:read("*a")
+	f:close()
+	g:close()
+	-- the only leaderboard remotes are reads (Get...) and the broadcast ticker; nothing named Submit or Post a score
+	for name in remotes:gmatch('newRemote%("([%w_]+)"%)') do
+		expectFalse(name:lower():find("submit") ~= nil and name:lower():find("score") ~= nil, name .. " must not be a score submit remote")
+	end
+	expectFalse(remotes:find("SubmitScore", 1, true) ~= nil or remotes:find("PostScore", 1, true) ~= nil, "no score submit remote exists")
+	-- the Get handlers take (player, board, scope): no number from the client is ever written
+	for _, name in ipairs({ "GetDailyLeaderboard", "GetWeeklyLeaderboard", "GetEndlessLeaderboard" }) do
+		expectTrue(server:find("Rem._lb." .. name .. " = function(player, board, scope)", 1, true) ~= nil, name .. " takes only a board and a scope")
+	end
+	-- every board write goes through the keep-best update, never a bare SetAsync of a client value
+	expectFalse(server:find("store:SetAsync(tostring(player.UserId)", 1, true) ~= nil, "board rows are written with UpdateAsync keepBest")
+	expectTrue(server:find("Leaderboards.keepBest(old, combinedScore)", 1, true) ~= nil)
+	-- the pending entries are built from session.state only
+	expectTrue(server:find("local depth = computeDailyDepth(session.state)", 1, true) ~= nil)
+	expectTrue(server:find("Leaderboards.endlessEntry(session.state", 1, true) ~= nil)
+	-- the entry guard runs before anything is queued
+	expectTrue(server:find("Leaderboards.acceptEntry(session.state, depth", 1, true) ~= nil, "Daily and Weekly entries pass the guard")
+end })
+
+table.insert(tests, { name = "Leaderboard integrity: a run that used any Debug remote never submits (Daily, Weekly, Endless)", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local clean = RunState.new(nil, SeededRng.new(1))
+	expectTrue((Leaderboards.acceptEntry(clean, 5, 100)), "a clean run is accepted")
+	clean.usedDebug = true
+	local ok, why = Leaderboards.acceptEntry(clean, 5, 100)
+	expectFalse(ok)
+	expectEqual(why, "debug remote used")
+	-- Endless: a won run past the cap qualifies on its own but the server drops it when tainted (source check)
+	if io then
+		local g = io.open("src/Server/init.server.lua", "r")
+		if g then
+			local server = g:read("*a")
+			g:close()
+			expectTrue(server:find('if session.state.usedDebug then\n\t\twarn("[Leaderboard] endless entry dropped', 1, true) ~= nil, "Endless drops a Debug run")
+			-- every Debug remote that changes the run marks it
+			local marked = 0
+			for name, body in server:gmatch("Rem%.(Debug%w+)%.OnServerEvent:Connect%(function%([^\n]*%)\n(.-)\nend%)") do
+				if name ~= "DebugEquipSet" then -- profile only, never a run
+					expectTrue(body:find("usedDebug = true", 1, true) ~= nil, name .. " marks the run")
+					marked = marked + 1
+				end
+			end
+			expectEqual(marked, 4, "all four run-changing Debug remotes mark the run")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Leaderboard integrity: scores above the sane maximum, negative, fractional or not a number are refused with a reason", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local state = RunState.new(nil, SeededRng.new(1))
+	local cases = {
+		{ Leaderboards.MAX_DEPTH + 1, 10, "depth above the sane maximum" },
+		{ 5, Leaderboards.MAX_TIPS + 1, "score above the sane maximum" },
+		{ -1, 10, "negative or fractional" },
+		{ 5, -3, "negative or fractional" },
+		{ 5, 2.5, "negative or fractional" },
+		{ 0 / 0, 10, "not a number" },
+		{ 5, 0 / 0, "not a number" },
+		{ "5", 10, "not a number" },
+		{ 5, nil, "not a number" },
+	}
+	for i, c in ipairs(cases) do
+		local ok, why = Leaderboards.acceptEntry(state, c[1], c[2])
+		expectFalse(ok, "case " .. i .. " refused")
+		expectEqual(why, c[3], "case " .. i .. " reason")
+	end
+	expectTrue((Leaderboards.acceptEntry(state, Leaderboards.MAX_DEPTH, Leaderboards.MAX_TIPS)), "the maximum itself is allowed")
+	expectTrue((Leaderboards.acceptEntry(state, 0, 0)))
+	expectFalse((Leaderboards.acceptEntry(nil, 1, 1)), "no run, no entry")
+	-- a custom tips cap is honoured (the server passes its own)
+	expectFalse((Leaderboards.acceptEntry(state, 1, 51, 50)))
+	expectTrue((Leaderboards.acceptEntry(state, 1, 50, 50)))
+	-- Endless entries are clamped the same way
+	local wonRun = RunState.new(nil, SeededRng.new(1))
+	wonRun.wonRun = true
+	wonRun.night = Leaderboards.MAX_ENDLESS_NIGHT + 1
+	wonRun.totalScore = 10
+	expectTrue(Leaderboards.endlessEntry(wonRun, {}) == nil, "a Night above the Endless ceiling is never written")
+	wonRun.night = 9
+	wonRun.totalScore = 1e30
+	local night, score = Leaderboards.endlessEntry(wonRun, {})
+	expectEqual(night, 9)
+	expectEqual(score, Leaderboards.SCORE_MULTIPLIER - 1, "an absurd score is clamped below the Night digits")
+end })
+
+table.insert(tests, { name = "Daily integrity: one row per player per day, a later or worse run never lowers it, and Daily/Weekly/Seed runs never reach the Endless board", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	-- keepBest is the write rule for every board row (one UserId key per period store)
+	expectEqual(Leaderboards.keepBest(nil, 50), 50)
+	expectEqual(Leaderboards.keepBest(80, 50), 80, "a worse run keeps the stored best")
+	expectEqual(Leaderboards.keepBest(50, 50), 50)
+	expectEqual(Leaderboards.keepBest(50, 80), 80, "a better run replaces it")
+	expectEqual(Leaderboards.keepBest("junk", 7), 7, "a corrupt stored value is replaced")
+	-- the board store name carries the day, so a new day is a new row; the same day is the same row
+	local a = Leaderboards.storeName("daily", Leaderboards.STANDARD, "2026-11-23")
+	local b = Leaderboards.storeName("daily", Leaderboards.STANDARD, "2026-11-23")
+	local c = Leaderboards.storeName("daily", Leaderboards.STANDARD, "2026-11-24")
+	expectEqual(a, b)
+	expectTrue(a ~= c)
+	-- improves(): the pending entry only ever moves up
+	local pending = { depth = 5, tips = 10 }
+	expectFalse(Leaderboards.improves(pending, 5, 10))
+	expectFalse(Leaderboards.improves(pending, 4, 999))
+	expectTrue(Leaderboards.improves(pending, 6, 0))
+	expectTrue(Leaderboards.improves(pending, 5, 11))
+	-- challenge runs never count for Endless
+	local won = RunState.new(nil, SeededRng.new(1))
+	won.wonRun = true
+	won.night = 9
+	won.totalScore = 100
+	expectTrue(Leaderboards.endlessEntry(won, {}) ~= nil, "a normal won run past the cap qualifies")
+	for _, flag in ipairs({ "isDaily", "isWeekly", "isSeeded", "isTutorial" }) do
+		expectTrue(Leaderboards.endlessEntry(won, { [flag] = true }) == nil, flag .. " never reaches Endless")
+	end
+	-- the server queues Daily progress only for a Daily session and keeps one pending slot per board and day
+	if io then
+		local g = io.open("src/Server/init.server.lua", "r")
+		if g then
+			local server = g:read("*a")
+			g:close()
+			expectTrue(server:find("if not session or not session.isDaily then", 1, true) ~= nil)
+			expectTrue(server:find("pending.dateKey == session.dailyDateKey and pending.depth >= depth", 1, true) ~= nil, "same day, no better: nothing new queued")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Share and Challenge text carries only a seed and the Night, never a score", fn = function()
+	local ShareResult = require(script.Parent.Parent.Engine.ShareResult)
+	local SeedDisplay = require(script.Parent.Parent.Engine.SeedDisplay)
+	local summary = { night = 4, won = false, bestHand = { name = "Flush", score = 987654 } }
+	local challenge = ShareResult.challengeLine(summary, "ABC123")
+	expectTrue(challenge:find("ABC123", 1, true) ~= nil, "the challenge carries the seed")
+	expectFalse(challenge:find("987654", 1, true) ~= nil, "the challenge never carries the score")
+	for digits in challenge:gmatch("%d+") do
+		expectTrue(digits == "4" or digits == "123" or digits == "3", "only the Night and the seed digits appear (" .. digits .. ")")
+	end
+	local state = RunState.new(nil, SeededRng.new(1))
+	state.totalScore = 987654
+	state.seedCode = "ABC123"
+	local text = SeedDisplay.shareText(state)
+	expectTrue(text == nil or text:find("987654", 1, true) == nil, "the seed share text has no score")
+	local plain = ShareResult.line(summary, nil)
+	expectFalse(plain:find("987654", 1, true) ~= nil, "the ordinary share line has no score")
+end })
+
 return tests
 
 

@@ -315,7 +315,8 @@ local function flushBoardScores(player, pendingTable, dirtyTable, getStore, peri
 			local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
 			local store = getStore(pending[periodField], board)
 			local ok, err = pcall(function()
-				store:SetAsync(tostring(player.UserId), combinedScore)
+				-- one row per player per period: a later or worse run never lowers the stored best (Leaderboards.keepBest)
+				store:UpdateAsync(tostring(player.UserId), function(old) return Leaderboards.keepBest(old, combinedScore) end)
 			end)
 			if ok then
 				if dirtyTable[player] and pendingTable[player] and pendingTable[player][board] == pending then
@@ -1423,6 +1424,11 @@ local function trackDailyProgress(player)
 
 	local board = Leaderboards.boardFor(session.state)
 	local depth = computeDailyDepth(session.state)
+	local okEntry, whyNot = Leaderboards.acceptEntry(session.state, depth, math.max(0, math.floor(session.state.tips)), DAILY_TIPS_CAP)
+	if not okEntry then
+		warn("[Leaderboard] daily entry dropped for " .. player.Name .. ": " .. tostring(whyNot))
+		return
+	end
 	dailyPending[player] = dailyPending[player] or {}
 	local pending = dailyPending[player][board]
 	if pending and pending.dateKey == session.dailyDateKey and pending.depth >= depth then
@@ -1452,6 +1458,10 @@ local function trackEndlessProgress(player)
 	if not night then
 		return
 	end
+	if session.state.usedDebug then
+		warn("[Leaderboard] endless entry dropped for " .. player.Name .. ": debug remote used")
+		return
+	end
 	local board = Leaderboards.boardFor(session.state)
 	endlessPending[player] = endlessPending[player] or {}
 	if not Leaderboards.improves(endlessPending[player][board], night, score) then
@@ -1470,6 +1480,11 @@ local function trackWeeklyProgress(player)
 
 	local board = Leaderboards.boardFor(session.state)
 	local depth = computeDailyDepth(session.state) -- same depth formula, not Daily-specific despite the name
+	local okEntry, whyNot = Leaderboards.acceptEntry(session.state, depth, math.max(0, math.floor(session.state.tips)), DAILY_TIPS_CAP)
+	if not okEntry then
+		warn("[Leaderboard] weekly entry dropped for " .. player.Name .. ": " .. tostring(whyNot))
+		return
+	end
 	weeklyPending[player] = weeklyPending[player] or {}
 	local pending = weeklyPending[player][board]
 	if pending and pending.weekKey == session.weeklyDateKey and pending.depth >= depth then
@@ -3036,6 +3051,7 @@ Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
 	if not RunService:IsStudio() then return end
 	local session = sessions[player]
 	if not session or type(n) ~= "number" then return end
+	session.state.usedDebug = true -- a run that touched a Debug remote never reaches a leaderboard (Leaderboards.acceptEntry)
 	n = math.max(0, math.min(8, math.floor(n)))
 	local state = session.state
 	local Patrons = require(Engine.Patrons)
@@ -3054,6 +3070,7 @@ Rem.DebugSetTag.OnServerEvent:Connect(function(player, tagId)
 	if not RunService:IsStudio() then return end
 	local session = sessions[player]
 	if not session or type(tagId) ~= "string" then return end
+	session.state.usedDebug = true -- a run that touched a Debug remote never reaches a leaderboard (Leaderboards.acceptEntry)
 	local tag = require(Engine.Tags).getById(tagId)
 	if not tag then return end
 	session.state.currentRoundSkipTag = tag
@@ -3066,6 +3083,7 @@ Rem.DebugSetMod.OnServerEvent:Connect(function(player, modId, report)
 	if not RunService:IsStudio() then return end
 	local session = sessions[player]
 	if not session or type(modId) ~= "string" then return end
+	session.state.usedDebug = true -- a run that touched a Debug remote never reaches a leaderboard (Leaderboards.acceptEntry)
 	if report == true then
 		local st = session.state
 		print("[DebugGoto server] mod=" .. tostring(st.runModifierId) .. " wanted=" .. modId .. " hands=" .. tostring(st.handsRemaining)
@@ -3082,6 +3100,7 @@ Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	if not RunService:IsStudio() then return end
 	local session = sessions[player]
 	if not session or type(n) ~= "number" or n ~= n then return end
+	session.state.usedDebug = true -- a run that touched a Debug remote never reaches a leaderboard (Leaderboards.acceptEntry)
 	session.state.targetScore = math.max(1, math.min(1e9, math.floor(n)))
 	pushState(player)
 end)
