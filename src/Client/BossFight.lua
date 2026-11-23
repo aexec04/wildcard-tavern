@@ -206,6 +206,18 @@ local function build(deps)
 		host:SetAttribute("HomeOk", home ~= nil)
 	end
 	host.ClipsDescendants = true
+	-- layout() only runs on a resize or a boss start, and Gameplay2 can turn visible after it: the old top plate and medallion then
+	-- stayed on screen over the Target plate (seen in a real run). Re-apply the hide rule a few times a second while the host shows.
+	task.spawn(function()
+		while host.Parent do
+			task.wait(0.2)
+			if host.Visible and legacyHeaderHidden() then
+				local pl2, med2 = host:FindFirstChild("NamePlate"), host:FindFirstChild("BossMedallion")
+				if pl2 and pl2.Visible then pl2.Visible = false end
+				if med2 and med2.Visible then med2.Visible = false end
+			end
+		end
+	end)
 
 	-- backdrop holder (what shakes / scales / tilts): fills the play area
 	local lastBossStageLog = nil
