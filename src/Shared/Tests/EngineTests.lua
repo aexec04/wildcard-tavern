@@ -46968,4 +46968,20 @@ table.insert(tests, { name = "Settings: Calm Mode and Larger Text show the word 
 	end
 end })
 
+table.insert(tests, { name = "Collection Patron wall: every locked Patron shows a kind unlock hint of 40 characters or less, no dashes, never a raw id", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local LH = require(script.Parent.Parent.Engine.LockedHints)
+	local n = 0
+	for _, p in ipairs(Patrons.Definitions) do
+		n = n + 1
+		local hint = LH.forCollection("patrons", LH.forContent("patron", p.id), nil)
+		expectTrue(type(hint) == "string" and #hint > 0, p.id .. " has a hint")
+		expectTrue(#hint <= 40, p.id .. " hint is 40 characters or less (" .. #hint .. "): " .. hint)
+		expectFalse(hint:find("-", 1, true) ~= nil or hint:find("\226\128", 1, true) ~= nil, p.id .. " hint has no dash: " .. hint)
+		expectFalse(hint:find(p.id, 1, true) ~= nil, p.id .. " hint never shows the raw id")
+		expectFalse(hint:find("_", 1, true) ~= nil, p.id .. " hint has no underscore id")
+	end
+	expectTrue(n >= 90, "all Patrons were checked (" .. n .. ")")
+end })
+
 return tests
