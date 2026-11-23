@@ -46149,4 +46149,45 @@ table.insert(tests, { name = "Collection tabs: every tab pages 0 and 200 entries
 	end
 end })
 
+table.insert(tests, { name = "Settings rows: every row id is unique, labels are 40 characters or less, controls are 44 px and the text fits at four sizes with Larger Text on", fn = function()
+	local SLY = require(script.Parent.Parent.Engine.SettingsLayout)
+	local Acc = require(script.Parent.Parent.Engine.Accessibility)
+	local ids, seen = SLY.rowOrder(), {}
+	for _, id in ipairs(ids) do
+		expectFalse(seen[id], "row id is unique: " .. id)
+		seen[id] = true
+	end
+	expectTrue(SLY.SWITCH.h >= 44 and SLY.SWITCH.w >= 44, "the On/Off switch is a 44 px target")
+	expectTrue(SLY.PANEL.rowH >= 44 and SLY.PANEL.replayH >= 44 and SLY.ACCOUNT.plateH >= 44, "row, replay and account plates are 44 px or more")
+	expectTrue(SLY.CODES.boxH >= 44, "the Codes box is 44 px")
+	expectTrue(SLY.SWITCH.w <= SLY.PANEL.textGutter, "the switch fits in the gutter beside the label text")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	local labels = {}
+	if f then
+		local text = f:read("*a"); f:close()
+		for id, label in text:gmatch('makeChoiceRow%("(%w+)",%s*"([^"]+)"') do
+			labels[id] = label
+			expectTrue(#label <= 40, id .. " label is 40 characters or less: " .. label)
+		end
+		local n = 0
+		for _ in pairs(labels) do n = n + 1 end
+		expectTrue(n >= 11, "found the Settings row labels: " .. n)
+		for _, id in ipairs(ids) do
+			if id ~= "replayTutorial" and id ~= "replayHints" then expectTrue(labels[id] ~= nil, "row " .. id .. " has a label in Settings.lua") end
+		end
+	end
+	local scale = Acc.TEXT_SCALE
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local R = SLY.panelRects(sz[1], sz[2])
+		local tag = sz[1] .. "x" .. sz[2]
+		expectTrue(R.panel.x >= 0 and R.panel.y >= 0 and R.panel.x + R.panel.w <= sz[1] and R.panel.y + R.panel.h <= sz[2], tag .. " panel on screen")
+		expectTrue(R.scroll.w >= SLY.SWITCH.w + 100, tag .. " scroll is wide enough for a label and a switch")
+		for id, label in pairs(labels) do
+			-- 16 px serif, about 0.6 em per character, Larger Text 15 percent bigger; a longer label wraps to a second line in the 62 px row
+			local oneLine = #label * 16 * 0.6 * scale
+			expectTrue(oneLine <= R.textW * 2, tag .. " " .. id .. " fits in two lines (" .. math.floor(oneLine) .. " of " .. R.textW * 2 .. ")")
+		end
+	end
+end })
+
 return tests
