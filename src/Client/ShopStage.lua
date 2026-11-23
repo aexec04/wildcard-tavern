@@ -336,6 +336,11 @@ function ShopStage.new(deps)
 				row.ScrollBarThickness = 0
 			end
 		end
+		-- the gold price plate hangs under each card: a ScrollingFrame clips, so the rows are taller than their cards by the overhang
+		-- (cards sit at the top of the row, so nothing moves) and the plate is no longer cut flat at the card's foot
+		local CHIP_HANG = 30
+		if rows.patron then rows.patron = { x = rows.patron.x, y = rows.patron.y, w = rows.patron.w, h = rows.patron.h + CHIP_HANG } end
+		if rows.pack then rows.pack = { x = rows.pack.x, y = rows.pack.y, w = rows.pack.w, h = rows.pack.h + CHIP_HANG } end
 		if parts.patronRow and rows.patron then place(parts.patronRow, rows.patron) end
 		if parts.packRow and rows.pack then place(parts.packRow, rows.pack) end
 		if parts.emptyScene and rows.patron then

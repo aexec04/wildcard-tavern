@@ -35661,12 +35661,11 @@ table.insert(tests, { name = "Boss round: the scroll is the one rule element, th
 	end
 end })
 
-table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll and Haggle, the Run Over buttons and the daily strip, each behind pcall so a missing picture keeps the flat look", fn = function()
+table.insert(tests, { name = "Painted frames reach the Counter summary and Reroll (Haggle is the ledger book, no plate), the Run Over buttons and the daily strip, each behind pcall so a missing picture keeps the flat look", fn = function()
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local want = {
 		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "orn_target")' },
-		{ "src/Client/ShopHaggle.lua", 'paintedButton(haggleButton, "secondary")' },
 		{ "src/Client/Shop.lua", 'paintedButton(rerollButton, "secondary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
@@ -36100,7 +36099,7 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	local function read(p) local f = io.open(p, "rb"); if not f then return "" end local t = f:read("*a"); f:close(); return t end
 	for file, needle in pairs({ ["src/Client/RoundSelect.lua"] = 'paintedButton(selectButton, "primary")', ["src/Client/GameOver.lua"] = 'paintedButton(b, "primary")',
 		["src/Client/Shop.lua"] = 'paintedButton(rerollButton, "secondary")', ["src/Client/GearMenu.lua"] = 'Kit.paintedButton, b, "secondary"',
-		["src/Client/TavernScreens.lua"] = 'paintedButton(b, "primary")', ["src/Client/ShopHaggle.lua"] = 'paintedButton(haggleButton, "secondary")' }) do
+		["src/Client/TavernScreens.lua"] = 'paintedButton(b, "primary")' }) do
 		expectTrue(read(file):find(needle, 1, true) ~= nil, file .. " wears the ornate button family")
 	end
 	for _, file in ipairs({ "src/Client/RoundSelect.lua", "src/Client/GameOver.lua", "src/Client/Shop.lua" }) do
@@ -48403,6 +48402,7 @@ table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, tim
 end })
 
 return tests
+
 
 
 
