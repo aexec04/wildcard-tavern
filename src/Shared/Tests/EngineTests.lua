@@ -34887,6 +34887,26 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 	end
 end })
 
+table.insert(tests, { name = "Night clear reward chain: every normal Night 2 to 12 opens a boon then a Patron reward, fixed boards get none", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	for night = 2, 12 do
+		local state = RunState.new({}, function(n) return math.random(n) end)
+		state.night = night
+		state.round = 1
+		local first = RunChoice.boonDraft(state, true) or RunChoice.afterBoon(state, true)
+		expectTrue(first ~= nil, "a choice opens Night " .. night)
+		if first.kind == "boon" then
+			expectTrue(NightBoons.offeredAt(night), "boon only on boon Nights")
+			local ok, _, nextChoice = RunChoice.pick(state, first, first.options[1].id)
+			expectTrue(ok and nextChoice ~= nil and nextChoice.kind == "reward", "the Patron reward follows the boon at Night " .. night)
+		else
+			expectEqual(first.kind, "reward", "the reward opens the Night when no boon is offered")
+		end
+		expectEqual(RunChoice.boonDraft(state, false) or RunChoice.afterBoon(state, false), nil, "tutorial, Daily, Weekly and Seed get nothing")
+	end
+end })
+
 table.insert(tests, { name = "Night clear Patron reward: 3 unowned Patrons, rarer with the Night, Skip, full table, fixed boards and picks", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
