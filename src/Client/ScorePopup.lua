@@ -198,7 +198,7 @@ return function(deps)
 	-- it feel deliberate -- the one line that matters needs to actually
 	-- hold long enough to read on its own, not just relative to a longer
 	-- sequence. Bumped again to 1.3s.
-	local ENTRY_STAGGER = 1.0 -- seconds between entries -- long enough to actually read each line
+	local ENTRY_STAGGER = 0.9 -- seconds each scoring line stays up (Engine/ScorePopupRules.HOLD, tested)
 	local ANTICIPATION_PAUSE = 0.5
 	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween

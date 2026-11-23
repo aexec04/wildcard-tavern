@@ -23595,7 +23595,7 @@ table.insert(tests, { name = "Counter: Next boss strip is the ornate gold plate 
 	end
 end })
 
-table.insert(tests, { name = "Hand: five picks in sequence each keep the full 28 px lift and a 2 px gold stroke at five sizes", fn = function()
+table.insert(tests, { name = "Hand: five picks in sequence each keep the full 24 px lift and a 2 px gold stroke at five sizes", fn = function()
 	local G = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local FT = require(script.Parent.Parent.Engine.FeelTuning)
 	local HL = require(script.Parent.Parent.Engine.HandLift)
@@ -23605,12 +23605,12 @@ table.insert(tests, { name = "Hand: five picks in sequence each keep the full 28
 		local cards = {}
 		for i = 1, 5 do
 			local lift = G.selectedLift(r, FT.SELECTED_LIFT) -- what the hub stores in LiftY on each pick
-			expectEqual(lift, 28, "full lift at " .. sz[1] .. "x" .. sz[2])
+			expectEqual(lift, 24, "full lift at " .. sz[1] .. "x" .. sz[2])
 			cards[i] = { picked = true, y = -lift, fanY = 0, liftY = lift, age = 1 }
 		end
 		for k, y in pairs(HL.plan(cards, 24)) do expectTrue(y == nil, "settled pick untouched " .. k) end
 		cards[2].y = -14
-		expectEqual(HL.plan(cards, 24)[2], -28, "a card pulled down to 14 is restored to 28")
+		expectEqual(HL.plan(cards, 24)[2], -24, "a card pulled down to 14 is restored to 24")
 	end
 	local e = CL.edge(true, false)
 	expectEqual(e.thickness, 3, "picked stroke is 3 px")
@@ -30305,10 +30305,10 @@ table.insert(tests, { name = "RoadSkin: road card text plate is dark and at leas
 	expectTrue(road:find("PARCHMENT", 1, true) == nil, "no parchment card left")
 	expectTrue(read("src/Client/ShopCards.lua"):find("plateButton", 1, true) ~= nil and read("src/Client/Shop.lua"):find("plateButton(nextRoundButton)", 1, true) ~= nil, "Counter Buy and Next Round wear the plate")
 end })
-table.insert(tests, { name = "FeelTuning: hover 10, select 28, neighbours 6, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
+table.insert(tests, { name = "FeelTuning: hover 10, select 24, neighbours 6, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
 	local F = require(script.Parent.Parent.Engine.FeelTuning)
 	expectEqual(F.HOVER_LIFT, 10, "hover lift")
-	expectEqual(F.SELECTED_LIFT, 28, "selected lift")
+	expectEqual(F.SELECTED_LIFT, 24, "selected lift")
 	expectEqual(F.NEIGHBOUR_SPREAD, 6, "neighbour spread")
 	local A = require(script.Parent.Parent.Engine.AnimPass)
 	local s = A.nameSlam(false, false)
@@ -30317,7 +30317,7 @@ table.insert(tests, { name = "FeelTuning: hover 10, select 28, neighbours 6, 0.0
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
 	local hub = read("src/Client/init.client.lua")
-	expectTrue(hub:find("local HOVER_LIFT = 10", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 28", 1, true) ~= nil, "hub lifts follow FeelTuning")
+	expectTrue(hub:find("local HOVER_LIFT = 10", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 24", 1, true) ~= nil, "hub lifts follow FeelTuning")
 	expectTrue(hub:find("}, 0.08) -- Engine/FeelTuning", 1, true) ~= nil, "hub ease follows FeelTuning")
 	expectTrue(read("src/Client/ScorePopup.lua"):find('play("score_total")', 1, true) ~= nil, "score_total is wired")
 end })
@@ -32408,7 +32408,7 @@ table.insert(tests, { name = "Gameplay v2 feel: hover 10, select 28, neighbours 
 	local T = require(script.Parent.Parent.Engine.FeelTuning)
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
-	assert(T.HOVER_LIFT == 10 and T.SELECTED_LIFT == 28 and T.NEIGHBOUR_SPREAD == 6)
+	assert(T.HOVER_LIFT == 10 and T.SELECTED_LIFT == 24 and T.NEIGHBOUR_SPREAD == 6)
 	for n = 1, 8 do
 		local lastDelay, lastDur = PM.dealTiming(n, n)
 		assert(lastDelay + lastDur <= 0.6 + 1e-9, "the last of " .. n .. " cards lands by 0.6 s")
@@ -47061,6 +47061,54 @@ table.insert(tests, { name = "Layers: the Studio overlay audit script and its us
 	end
 	local d = layersRead("claude/skills/wildcard-tavern-ui-integration-rules.md")
 	expectTrue(d ~= nil and d:find("overlay_audit", 1, true) ~= nil, "the UI rules note says to run the audit")
+end })
+
+table.insert(tests, { name = "Scoring popup: lines stay 0.9 s, never over the Patron row or Target plate at four sizes, numbers over a million are short", fn = function()
+	local R = require(script.Parent.Parent.Engine.ScorePopupRules)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local ST = require(script.Parent.Parent.Engine.ScoreText)
+	expectEqual(R.HOLD, 0.9, "each scoring line stays 0.9 s")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local z = R.zones(r, L.scoringRows(r, 26))
+		for ai, a in ipairs(z.allowed) do
+			for bi, b in ipairs(z.avoid) do
+				expectTrue(R.clear(a, b), string.format("popup zone %d clear of Patron row or Target piece %d at %dx%d", ai, bi, sz[1], sz[2]))
+			end
+		end
+	end
+	expectEqual(ST.tally(999999), "999,999", "below a million shows every digit")
+	expectEqual(ST.tally(1234567), "1.2M", "a million and over is short")
+	expectEqual(ST.tally(2500000000), "2.5B", "billions stay short")
+	if not io then return end
+	local f = io.open("src/Client/ScorePopup.lua", "r")
+	if not f then return end
+	local src = f:read("a"); f:close()
+	expectTrue(src:find("local ENTRY_STAGGER = 0.9", 1, true) ~= nil, "the hub line hold follows ScorePopupRules.HOLD")
+end })
+
+table.insert(tests, { name = "Hand selection feel: picked cards lift 24 px, sort keeps the picks, a second click unpicks, hover outline is the shared one, Calm is static", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSelection)
+	local F = require(script.Parent.Parent.Engine.FeelTuning)
+	local SP = require(script.Parent.Parent.Engine.Gameplay2ScorePlate)
+	local HG = require(script.Parent.Parent.Engine.HoverGlow)
+	expectEqual(F.SELECTED_LIFT, 24, "picked cards lift 24 px")
+	expectEqual(SP.PICK_LIFT, F.SELECTED_LIFT, "the Score plate clears exactly the pick lift")
+	local r = HS.restore({ [2] = true, [5] = true, [9] = true, [0] = true }, 8)
+	expectTrue(r[2] and r[5] and not r[9] and not r[0], "a sort keeps the picked cards that still exist and drops the rest")
+	local n = 0
+	for _ in pairs(HS.restore(nil, 8)) do n = n + 1 end
+	expectEqual(n, 0, "nothing picked stays nothing picked")
+	local calm = HG.plan(true, true)
+	expectEqual(calm.scale, 1, "Calm: no grow")
+	expectEqual(calm.seconds, 0, "Calm: no tween")
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local hub = f:read("a"); f:close()
+	expectTrue(hub:find("if selected[index] then\n\t\tselected[index] = nil", 1, true) ~= nil, "a second click unpicks")
+	expectTrue(hub:find("HandSelection", 1, true) ~= nil and hub:find("refreshHandSort = function()", 1, true) ~= nil, "the sort path restores the picks")
+	expectTrue(hub:find("HoverGlowFX).attach(card, { hit = button, strokeOnly = true", 1, true) ~= nil, "hand cards use the shared hover outline")
 end })
 
 return tests
