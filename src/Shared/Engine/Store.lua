@@ -256,7 +256,7 @@ function Store.priceLine(row, cache)
 	if row.owned then
 		return "Owned"
 	elseif row.listOnly then
-		return "Offered when a run ends"
+		return "After a lost run"
 	elseif row.studioFree then
 		return "Free in Studio"
 	elseif row.comingSoon then

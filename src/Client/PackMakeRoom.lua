@@ -253,7 +253,7 @@ function PackMakeRoom.new(deps)
 	local subtitle = label(sheet, { Name = "Subtitle", Size = UDim2.new(1, -40, 0, SUB_H), Position = UDim2.fromOffset(20, 12 + TITLE_H), Text = "",
 		TextSize = 16, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = z + 2 })
 
-	local joinHead = label(sheet, { Name = "JoinHead", Size = UDim2.fromOffset(JOIN_W, 20), Position = UDim2.fromOffset(PAD, 0), Text = "Joins your table",
+	local joinHead = label(sheet, { Name = "JoinHead", Size = UDim2.fromOffset(JOIN_W + 16, 20), Position = UDim2.fromOffset(PAD, 0), Text = "Joins your table",
 		TextSize = 15, TextColor3 = GREEN_INK, TextWrapped = false, ZIndex = z + 2 })
 	local joinHolder = Instance.new("Frame")
 	joinHolder.Name = "Joins"
@@ -423,9 +423,24 @@ function PackMakeRoom.new(deps)
 		summary.Position = UDim2.fromOffset(20, top + 22 + bodyH + 8)
 		backButton.Position = UDim2.new(0.5, -96, 1, -16)
 		confirmButton.Position = UDim2.new(0.5, 96, 1, -16)
+		-- On a short window (phone or small tablet) the panel stands in the middle over the dimmed pick screen: the 112 px under it and the
+		-- 280 px of cards above it are given up, so it keeps a readable size instead of shrinking to 0.6 and running off the top.
+		local short = hostH > 0 and hostH < 560
+		local below, above = short and 12 or 112, short and 12 or (hostH < 900 and 72 or 280)
+		panel.Position = UDim2.new(0.5, 0, 1, -below)
 		local scale = 1
 		if hostW > 0 and hostH > 0 then
-			scale = math.max(0.6, math.min(1, (hostW - 24) / W, (hostH - 112 - 280) / H))
+			scale = math.max(0.4, math.min(1, (hostW - 24) / W, (hostH - below - above) / H))
+			-- plates stay 44 px on screen: grow them in panel pixels by 1 / scale, and the panel by the same, then fit once more
+			local bh = math.min(90, math.ceil(BUTTON_H / scale))
+			if bh > BUTTON_H then
+				H = H + (bh - BUTTON_H)
+				panel.Size = UDim2.fromOffset(W, H)
+				scale = math.max(0.4, math.min(1, (hostW - 24) / W, (hostH - below - above) / H))
+				bh = math.min(90, math.ceil(BUTTON_H / scale))
+			end
+			backButton.Size = UDim2.fromOffset(170, bh)
+			confirmButton.Size = UDim2.fromOffset(170, bh)
 		end
 		fit.Scale = scale
 		panel:SetAttribute("PanelW", W)
