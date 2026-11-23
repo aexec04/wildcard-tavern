@@ -172,8 +172,14 @@ function MenuRoomLayout.noteSlots(corkW, corkH, heights, keep, rank)
 		end
 	end
 	if keep and heights[keep] and not best.show[keep] then
-		local skip = {}
+		-- notes above the goal come off nearest first, but the Rank note is the last of them to go (it outranks the news)
+		local order = {}
 		for i = keep - 1, 1, -1 do
+			if i ~= rank then order[#order + 1] = i end
+		end
+		if rank and rank < keep then order[#order + 1] = rank end
+		local skip = {}
+		for _, i in ipairs(order) do
 			skip[i] = true
 			local try = fill(MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT, skip)
 			if try.show[keep] then

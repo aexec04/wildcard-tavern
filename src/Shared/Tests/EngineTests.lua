@@ -29021,6 +29021,36 @@ table.insert(tests, { name = "First session polish: one sign per blessing line, 
 	expectTrue(scene:find("tween(edge, { Transparency = 1 }, 0.35)", 1, true) ~= nil, "the speech plate's outline fades with it")
 	expectTrue(scene:find('shopFrame:FindFirstChild("PackPanel")', 1, true) ~= nil, "no speech plate over the pack screen")
 end })
+table.insert(tests, { name = "Notice Board: news, Rank and Next goal never overlap and the Rank outranks the news (real heights)", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local RP = require(script.Parent.Parent.Engine.RankPlateLayout)
+	local rankH = RP.rows(24).h
+	for _, size in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local l, t, r, b = RL.corkRect(size[1], size[2])
+		for _, newsH in ipairs({ 86, 109, 140 }) do
+			for _, goalH in ipairs({ 70, 110, 134 }) do
+				local heights = { newsH, math.max(rankH, RL.minNoteH("RankBar")), math.max(goalH, RL.minNoteH("NextGoalBanner")) }
+				local fitted = RL.noteSlots(r - l, b - t, heights, 3, 2)
+				expectTrue(fitted.show[3] == true, size[1] .. ": the Next goal stays")
+				expectTrue(fitted.show[2] == true or not fitted.show[1], size[1] .. ": the news never stays when the Rank is dropped")
+				local prevBottom
+				for _, rect in ipairs(fitted.rects) do
+					if prevBottom then expectTrue(rect.y >= prevBottom - 0.001, size[1] .. ": no two notes overlap") end
+					prevBottom = rect.y + rect.h
+					expectTrue(rect.y + rect.h <= (b - t) + 0.001, size[1] .. ": inside the cork")
+				end
+			end
+		end
+	end
+	-- a goal that needs room drops the news before the Rank
+	local l, t, r, b = RL.corkRect(1506, 751)
+	local cw, ch = r - l, b - t
+	local sc = math.min(1, (cw - 2 * RL.CORK_MARGIN - 10) / RL.NOTE_W)
+	local availU = (ch - 2 * RL.CORK_MARGIN - 10) / sc
+	local goal = math.floor(availU - RL.NOTE_TOP_TIGHT - 88 - RL.NOTE_GAP_TIGHT - 100)
+	local f = RL.noteSlots(cw, ch, { 100, 88, goal }, 3, 2)
+	expectTrue(f.show[3] and f.show[2] and not f.show[1], "the news makes room, the Rank stays")
+end })
 table.insert(tests, { name = "Notice Board: notes move closer before one is dropped, and the Next goal note is never the one that goes", fn = function()
 	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
 	expectTrue(RL.NOTE_GAP_TIGHT < RL.NOTE_GAP and RL.NOTE_TOP_TIGHT < RL.NOTE_TOP, "a tighter spacing exists")

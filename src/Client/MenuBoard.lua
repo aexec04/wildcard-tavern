@@ -353,6 +353,10 @@ function MenuBoard.build(parent)
 			local note = slot:FindFirstChildWhichIsA("GuiObject")
 			if note and note:GetAttribute("KeepOnBoard") == true then keep = i end
 		end
+		local rankAt = nil -- the Rank note outranks the news when the cork is crowded
+		for i, slot in ipairs(visibleSlots) do
+			if slot.Name == "Slot_RankBar" then rankAt = i end
+		end
 		local fitted = RoomLayout.noteSlots(r - l, b - t, heights, keep, rankAt)
 		scale.Scale = fitted.scale
 		layout.Padding = UDim.new(0, fitted.gap) -- (the rule moves the notes closer before it drops one)
