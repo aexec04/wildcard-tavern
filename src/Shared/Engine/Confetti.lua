@@ -42,7 +42,7 @@ function M.pieces(n, seed)
 			vx = (rnd() - 0.5) * 360,
 			vy = -(220 + 260 * rnd()),
 			spin = (rnd() - 0.5) * 540,
-			size = 6 + math.floor(rnd() * 6),
+			size = 10 + math.floor(rnd() * 6),
 			color = { c[1], c[2], c[3] },
 			delay = rnd() * 0.25,
 		}

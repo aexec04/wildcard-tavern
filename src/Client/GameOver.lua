@@ -228,6 +228,16 @@ return function(deps)
 	local factsF = frame("Facts")
 	local patronsLabel = label(content, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	patronsLabel.TextYAlignment = Enum.TextYAlignment.Center
+	do -- on the painted scroll the heading stands on its own dark plate, so gold never sits on the orange glow
+		local hc = Instance.new("UICorner")
+		hc.CornerRadius = UDim.new(0, 8)
+		hc.Parent = patronsLabel
+		local hp = Instance.new("UIPadding")
+		hp.PaddingLeft = UDim.new(0, 10)
+		hp.PaddingRight = UDim.new(0, 10)
+		hp.Parent = patronsLabel
+	end
 	local patronsF = frame("Patrons")
 	patronsF.BackgroundTransparency = 0.15
 	patronsF.BackgroundColor3 = WOOD
@@ -494,7 +504,9 @@ return function(deps)
 		mode = newMode
 		local t = TONES[mode]
 		titleLabel.TextColor3 = t.text
-		patronsLabel.TextColor3 = t.gold
+		patronsLabel.TextColor3 = mode == "scroll" and GOLD_TEXT or t.gold
+		patronsLabel.BackgroundColor3 = WOOD
+		patronsLabel.BackgroundTransparency = mode == "scroll" and 0.08 or 1
 		boonStrip.setTone(t)
 		noPatrons.TextColor3 = t.text
 		shareHint.TextColor3 = t.text

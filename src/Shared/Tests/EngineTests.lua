@@ -53746,7 +53746,10 @@ table.insert(tests, { name = "RunOverWin: headline, champion, record, unlock pil
 	expectFalse(W.isNewRecord({ wonRun = false, night = 9, profileStats = { bestNightReached = 8 } }), "a loss never shows New record")
 	local pills = W.unlockPills({ "Gold Cup", "Lucky Seven", "Night Owl", "Fourth", "Fifth" })
 	expectEqual(#pills, 3, "three pills at most")
-	expectTrue(pills[3]:find("+2 more", 1, true) ~= nil, "the rest fold into the last pill")
+	expectEqual(pills[3], "+3 more unlocks", "the rest close the list as one '+N more unlocks' pill, no name plus a count")
+	expectEqual(pills[1], "Gold Cup", "the first names stay whole")
+	expectEqual(#W.unlockPills({ "A", "B", "C" }), 3, "exactly three unlocks show as three named pills")
+	expectEqual(W.unlockPills({ "A", "B", "C" })[3], "C", "no more pill when everything fits")
 	for _, p in ipairs(pills) do expectTrue(#p <= W.PILL_MAX_CHARS + 12, "a pill is short") end
 	expectEqual(#W.unlockPills({}), 0, "no unlocks, no pills")
 	expectEqual(#W.unlockPills("x"), 0, "bad input is empty")
@@ -54560,6 +54563,28 @@ table.insert(tests, { name = "Counter shop: blessing chip is cream on its dark p
 		expectTrue(shop:find("tabButton.Size = UDim2.new(0, 170, 1, 0)", 1, true) ~= nil, "shop tab plates are 170 wide")
 		expectTrue(shop:find("tabButton.TextSize = 16", 1, true) ~= nil, "shop tab text is 16 px")
 	end
+end })
+
+table.insert(tests, { name = "Run Over win second pass: Patrons heading on a dark plate, facts plate behind the left column, confetti pieces at least 10 px, gold text 4.5:1 on the plate", fn = function()
+	local Confetti = require(script.Parent.Parent.Engine.Confetti)
+	for _, big in ipairs({ 40, 120 }) do
+		for _, piece in ipairs(Confetti.pieces(big, 7)) do expectTrue(piece.size >= 10, "a confetti piece is at least 10 px, not a speck") end
+	end
+	local function lum(c)
+		local function ch(v) v = v / 255 return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+	end
+	local gold, wood = { 255, 214, 130 }, { 46, 32, 20 }
+	local ratio = (lum(gold) + 0.05) / (lum(wood) + 0.05)
+	expectTrue(ratio >= 4.5, "gold heading on the dark plate is 4.5:1 or better")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/GameOver.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('patronsLabel.BackgroundTransparency = mode == "scroll" and 0.08 or 1', 1, true) ~= nil, "the Patrons heading has its dark plate on the scroll")
+	expectTrue(src:find('patronsLabel.TextColor3 = mode == "scroll" and GOLD_TEXT', 1, true) ~= nil, "the heading is bright gold on that plate, never dark gold on the glow")
+	expectTrue(src:find('local factsPlate = frame("FactsPlate")', 1, true) ~= nil and src:find("factsPlate.Visible = mode == \"scroll\"", 1, true) ~= nil, "the facts plate stands behind the left column on the scroll")
+	expectTrue(src:find("Road taken", 1, true) ~= nil and src:find("tone = \"gold\"", 1, true) ~= nil and src:find("TONES.plain[line.props.tone", 1, true) ~= nil, "facts headings use the bright gold tone on the plate")
 end })
 
 return tests

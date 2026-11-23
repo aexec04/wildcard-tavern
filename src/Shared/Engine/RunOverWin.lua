@@ -5,7 +5,7 @@
 	RunOverWin.headline(state)       "Tavern Champion" when the run cleared every Night, else "You beat Night N"; nil for a loss
 	RunOverWin.isChampion(state)     true when a win reached the Night cap
 	RunOverWin.isNewRecord(state)    true when a win's Night equals or passes the best Night on the profile
-	RunOverWin.unlockPills(names)    up to 3 short pill words from the new unlock names ("and N more" folds into the last pill)
+	RunOverWin.unlockPills(names)    up to 3 short pill words from the new unlock names (a "+N more unlocks" pill closes the list when there are more than fit)
 	RunOverWin.confettiBig(state)    true for a full clear (a bigger burst)
 	RunOverWin.tipsSteps(state, calm)  the Tips count-up plan (Engine/Celebration.countSteps), nil in Calm mode
 ]]
@@ -43,19 +43,20 @@ end
 
 function M.unlockPills(names)
 	if type(names) ~= "table" then return {} end
-	local out = {}
-	for i, name in ipairs(names) do
+	local clean = {}
+	for _, name in ipairs(names) do
 		if type(name) == "string" and name ~= "" then
-			if #out >= M.MAX_PILLS then break end
-			out[#out + 1] = #name > M.PILL_MAX_CHARS and name:sub(1, M.PILL_MAX_CHARS) or name
+			clean[#clean + 1] = #name > M.PILL_MAX_CHARS and name:sub(1, M.PILL_MAX_CHARS) or name
 		end
 	end
-	local extra = #names - #out
-	if extra > 0 and #out > 0 then
-		local last = out[#out]
-		if #last > M.PILL_MAX_CHARS - 12 then last = last:sub(1, M.PILL_MAX_CHARS - 12) end
-		out[#out] = string.format("%s +%d more", last, extra)
+	local out = {}
+	if #clean <= M.MAX_PILLS then
+		for i, name in ipairs(clean) do out[i] = name end
+		return out
 	end
+	-- more than fit: name the first ones and close with one "+N more unlocks" pill (never a name plus a count)
+	for i = 1, M.MAX_PILLS - 1 do out[i] = clean[i] end
+	out[#out + 1] = string.format("+%d more unlocks", #clean - (M.MAX_PILLS - 1))
 	return out
 end
 
