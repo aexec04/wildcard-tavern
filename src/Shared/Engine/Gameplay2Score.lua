@@ -16,6 +16,8 @@ local M = {}
 
 M.TABLE = { stepDur = 0.07, maxSteps = 12, slamFrom = 1.0, slamPeak = 1.25, slamUp = 0.15, slamSettle = 0.2, burst = 10, hold = 1.0 }
 
+M.MAX_TOTAL = 2.5 -- seconds: count, slam and hold together, at normal speed
+
 function M.pitch(i, n)
 	if (n or 1) <= 1 then return 1.0 end
 	i = math.max(1, math.min(i or 1, n))
@@ -42,6 +44,7 @@ function M.plan(oldScore, newScore, opts)
 	local slam = { from = T.slamFrom, peak = math.max(T.slamPeak, fl.peak), up = T.slamUp * k, settle = T.slamSettle * k }
 	local hold = (T.hold + fl.extraHold) * k
 	local burst = opts.target and math.max(T.burst, fl.burst) or T.burst
+	hold = math.max(0, math.min(hold, M.MAX_TOTAL * k - (n * stepDur + slam.up + slam.settle))) -- a big flourish never stretches a tally past MAX_TOTAL (halved on Fast)
 	return { steps = steps, stepDur = stepDur, slam = slam, burst = burst, hold = hold, final = newScore, level = fl.level,
 		total = n * stepDur + slam.up + slam.settle + hold }
 end

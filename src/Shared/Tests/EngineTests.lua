@@ -52754,6 +52754,33 @@ table.insert(tests, { name = "Hand preview: for every poker hand the name plate 
 	end
 end })
 
+table.insert(tests, { name = "Scoring tally: the count rises in order to chips x mult for 50 random hands and a tally never takes over 2.5 seconds", fn = function()
+	local G2 = require(script.Parent.Parent.Engine.Gameplay2Score)
+	local seed = 12345
+	local function rnd(n) seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n + 1 end
+	local suits = { "Hearts", "Clubs", "Spades", "Diamonds" }
+	for i = 1, 50 do
+		local cards = {}
+		for _ = 1, rnd(5) do table.insert(cards, C(rnd(13) + 1, suits[rnd(4)])) end
+		local hand = HandEvaluator.evaluate(cards)
+		local score, chips, mult = Scoring.calculate(hand, {}, { rng = function() return 2 end })
+		expectEqual(score, chips * mult, "hand " .. i .. " score is chips x mult")
+		local old = rnd(500) - 1
+		for _, target in ipairs({ 0, score + old, math.max(1, math.floor((score + old) / 3)) }) do
+			local plan = G2.plan(old, old + score, { target = target > 0 and target or nil })
+			expectTrue(plan ~= nil, "hand " .. i .. " has a tally")
+			expectEqual(plan.final, old + score, "hand " .. i .. " tally ends on the new score")
+			expectEqual(plan.steps[#plan.steps], old + score, "hand " .. i .. " last step is the new score")
+			local prev = old
+			for k, v in ipairs(plan.steps) do
+				expectTrue(v >= prev, "hand " .. i .. " step " .. k .. " counts up in order")
+				prev = v
+			end
+			expectTrue(plan.total <= G2.MAX_TOTAL + 1e-9, "hand " .. i .. " tally takes " .. plan.total .. " s")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")
