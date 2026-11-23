@@ -52236,6 +52236,72 @@ table.insert(tests, { name = "Daily run: two players on one date see the same ro
 	end
 end })
 
+table.insert(tests, { name = "Tags and Blessings choice audit: every one exists, reads as it acts, is offered once, and applies once", fn = function()
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local function clean(text, what)
+		expectTrue(type(text) == "string" and #text > 0, what .. " has text")
+		expectTrue(not text:lower():find("balatro", 1, true) and not text:find("\226\128\148"), what .. " has no banned word or em dash")
+	end
+	-- Tags: three, unique ids, short line fits the Skip plate, and each acts as it says exactly once
+	expectEqual(#Tags.Definitions, 3)
+	local tagIds = {}
+	for _, tag in ipairs(Tags.Definitions) do
+		expectTrue(not tagIds[tag.id], "unique tag " .. tag.id)
+		tagIds[tag.id] = true
+		clean(tag.name, tag.id); clean(tag.description, tag.id); clean(tag.short, tag.id)
+		expectTrue(#tag.short <= 40, tag.id .. " short line fits 40 characters")
+		expectEqual(Tags.getById(tag.id), tag)
+		local state = RunState.new(nil, function(n) return 1 end)
+		local tipsBefore, owned = state.tips, #state.ownedPatrons
+		local result = tag.apply(state, { rng = function(n) return 1 end, patronSlotLimit = RunState.patronSlotLimit(state) })
+		if tag.id == "tip_jar" then
+			expectEqual(result.kind, "tips"); expectEqual(state.tips, tipsBefore + result.amount)
+		elseif tag.id == "on_the_house" then
+			expectEqual(result.kind, "patron"); expectEqual(#state.ownedPatrons, owned + 1); expectEqual(state.tips, tipsBefore)
+		elseif tag.id == "sale_day" then
+			expectEqual(result.kind, "discount"); expectEqual(state.nextShopDiscount, 3)
+			expectTrue(tag.description:find("3 Tips", 1, true) ~= nil, "text names the 3 Tips it gives")
+		end
+	end
+	-- a skip offers the Tag that was shown and pays only once
+	local state = RunState.new(nil, function(n) return 1 end)
+	local shown = state.currentRoundSkipTag
+	expectTrue(shown ~= nil and tagIds[shown.id], "round 1 shows a real Tag")
+	local tag = RunState.skipRound(state)
+	expectEqual(tag.id, shown.id)
+	-- Blessings: unique ids, each has both lines, a draft offers three different ones, and the pick applies once
+	local ids = {}
+	for _, def in ipairs(RunModifiers.Definitions) do
+		expectTrue(not ids[def.id], "unique blessing " .. def.id)
+		ids[def.id] = true
+		clean(def.name, def.id); clean(def.blessing, def.id); clean(def.curse, def.id)
+		expectEqual(RunModifiers.getById(def.id), def)
+	end
+	for seed = 1, 40 do
+		local rng = function(n) return ((seed * 7919 + n * 31) % n) + 1 end
+		local run = RunState.new(nil, rng)
+		local choice = RunChoice.startDraft(run, true)
+		local _, _, modChoice = RunChoice.pick(run, choice, choice.options[1].id)
+		local seen = {}
+		for _, o in ipairs(modChoice.options) do
+			expectTrue(not seen[o.id], "no blessing twice in one offer")
+			seen[o.id] = true
+			expectTrue(ids[o.id], o.id .. " is a real blessing")
+		end
+		local pick = modChoice.options[1].id
+		local hands, discards, slots = run.config.handsPerRound, run.config.discardsPerRound, run.config.patronSlotLimit
+		expectTrue(RunChoice.pick(run, modChoice, pick))
+		local h2, d2, s2 = run.config.handsPerRound, run.config.discardsPerRound, run.config.patronSlotLimit
+		-- a second pick of any blessing is refused and changes nothing
+		local ok = RunChoice.pick(run, modChoice, modChoice.options[2].id)
+		expectFalse(ok, "a second blessing is refused")
+		expectEqual(run.runModifierId, pick)
+		expectEqual(run.config.handsPerRound, h2); expectEqual(run.config.discardsPerRound, d2); expectEqual(run.config.patronSlotLimit, s2)
+	end
+end })
+
 return tests
 
 

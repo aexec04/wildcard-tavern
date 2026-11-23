@@ -245,6 +245,9 @@ function RunChoice.pick(state, choice, optionId)
 		local ok, message = RunState.grantPatron(state, optionId)
 		return ok, message, nil
 	elseif choice.kind == "modifier" then
+		if state.runModifierId then
+			return false, "You already chose a blessing." -- one blessing a run, a second pick never stacks
+		end
 		local ok, message = RunModifiers.apply(state, optionId)
 		return ok, message, nil
 	elseif choice.kind == "boon" then
