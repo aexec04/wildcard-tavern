@@ -241,8 +241,9 @@ function M.install(deps)
 		bar.BackgroundTransparency = 1
 		for _, c in ipairs(bar:GetChildren()) do if c:IsA("UIStroke") then c.Enabled = false end end
 		Kit.painted(target, "wh_target"); Kit.painted(tips, "wh_target")
-		Kit.painted(deckPill, "wh_count")
-		for _, p in ipairs({ handsPill, discardsPill }) do -- plain dark rounded pill, 1 px gold line, cream text (the concept), no ornate frame
+		pcall(Kit.paintedButton, deckPill, "secondary") -- the deck count wears the equipped Card Set like Play Hand and Discard (Style.hudPlate)
+		for _, p in ipairs({ handsPill, discardsPill }) do -- the Card Set's dark plate (Style.hudPlate), cream text; the flat dark pill shows only if the picture does not load
+			pcall(Kit.paintedButton, p, "secondary")
 			p.BackgroundColor3 = Color3.fromRGB(38, 24, 14)
 			local ps = p:FindFirstChildOfClass("UIStroke")
 			if ps then ps.Thickness = 1; ps.Color = Color3.fromRGB(214, 168, 76) end
@@ -292,6 +293,7 @@ function M.install(deps)
 					painted[nm] = true
 					pcall(function()
 						if not b:FindFirstChildOfClass("UICorner") then local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 8); uc.Parent = b end
+						Kit.paintedButton(b, "secondary") -- the equipped Card Set's dark plate under the glyph, same as Discard
 						local ic = Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2)
 						local ink = Color3.fromRGB(240, 196, 92) -- gold glyph on the dark wood
 						if ic and ic:IsA("ImageLabel") then -- the painted icon sits on a dark disc: keep its box (the layout moves it) and draw a bare dark glyph in it

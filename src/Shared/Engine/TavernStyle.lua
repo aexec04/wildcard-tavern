@@ -245,6 +245,14 @@ M.SET_PLATES = {
 	riverside_evening = { wh_btn_dark = "river_wh_btn_dark", wh_btn_green = "river_wh_btn_green" },
 	summit_camp = { wh_btn_dark = "summit_wh_btn_dark", wh_btn_green = "summit_wh_btn_green" },
 }
+-- The table HUD plates (Play Hand, Discard, Rank, Suit, Hands, Discards, deck count) all wear the equipped Card Set the way Play Hand and
+-- Discard do. Play Hand is the green family, every other plate the dark one; both resolve through buttonPiece, so a set's own plate wins and a
+-- set without one keeps the classic picture (the client tints it with setTint).
+M.HUD_PLATE_SLOTS = { "play", "discard", "rank", "suit", "hands", "discards", "deck" }
+function M.hudPlate(slot, w, h, setId)
+	return M.buttonPiece(slot == "play" and "primary" or "secondary", w, h, setId)
+end
+
 -- The plate a result screen button (Victory Continue, Skip) wears: the equipped Card Set's own plate when it has one, nil for classic or a set
 -- without plates (the screen keeps its own purple plate then). Primary is the green family, secondary the dark one.
 function M.resultPlate(kind, w, h, setId)

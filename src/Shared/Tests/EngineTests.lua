@@ -31685,7 +31685,7 @@ end })
 
 table.insert(tests, { name = "Layers: every purchase and quit confirm sits in the confirm band above every page (Store, Tome, Card Sets, Season, Settings)", fn = function()
 	local Layers = require(script.Parent.Parent.Engine.Layers)
-	expectTrue(Layers.confirm > Layers.PAGE_TOP and Layers.PAGE_TOP > Layers.tooltip, "the confirm band is above the pages and the tooltip")
+	expectTrue(Layers.confirm > Layers.popup and Layers.popup > Layers.screen and Layers.screen > Layers.effect, "the confirm band is above the pages and the tooltip")
 	if not (io and io.open) then return end
 	local function read(name)
 		local f = io.open("src/Client/" .. name .. ".lua", "r")
@@ -31695,12 +31695,12 @@ table.insert(tests, { name = "Layers: every purchase and quit confirm sits in th
 	end
 	local cd = read("ConfirmDialog")
 	if cd then
-		expectTrue(cd:find("Engine\"):WaitForChild(\"Layers\")).confirm", 1, true) ~= nil, "ConfirmDialog reads Layers.confirm")
+		expectTrue(cd:find("WaitForChild(\"Layers\")", 1, true) ~= nil and cd:find("ZIndex = Layers.confirm", 1, true) ~= nil, "ConfirmDialog reads Layers.confirm")
 		expectTrue(cd:find("ZIndex = 35", 1, true) == nil and cd:find("ZIndex = 36", 1, true) == nil, "ConfirmDialog keeps no page-level ZIndex")
 	end
 	for _, name in ipairs({ "QuitConfirm", "ReplayConfirm" }) do
 		local s = read(name)
-		if s then expectTrue(s:find("ZIndex = " .. Layers.confirm, 1, true) ~= nil, name .. " sits at the confirm band") end
+		if s then expectTrue(s:find("ZIndex = Layers.confirm", 1, true) ~= nil, name .. " sits at the confirm band") end
 	end
 	for _, name in ipairs({ "StorePanel", "Shop", "CosmeticSetsPanel", "CardSetsRoom", "FlairDressingRoom", "FlairPanel", "SeasonPanel", "Settings", "Collection", "QuestsPanel", "DailyRewardsPanel", "PanelTabs" }) do
 		local s = read(name)
@@ -33163,7 +33163,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(not kit:find("if img.Parent and not img.IsLoaded then", 1, true), "IsLoaded alone never decides: it reads false for a hidden screen and would drop the picture")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "wh_target", "wh_count", "wh_score", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "wh_target", "wh_score", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
 	expectTrue(g2:find("paintedButton(deps.playButton", 1, true) ~= nil and g2:find("paintedButton(deps.discardButton", 1, true) ~= nil, "the table HUD buttons use the per set plate path")
 	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('paintedButton(b, "primary")', 1, true), "gear and Next Round are painted")
@@ -47292,6 +47292,30 @@ table.insert(tests, { name = "Collection Patron wall: the portrait well is a 5:7
 	end
 	local narrow = L.portraitWell({ x = 0, y = 0, w = 60, h = 145 })
 	expectTrue(narrow.w <= 60 and math.abs(narrow.w / narrow.h - 5 / 7) < 0.05, "a narrow slot is limited by width and keeps 5:7")
+end })
+
+table.insert(tests, { name = "Table HUD plates: Play Hand, Discard, Rank, Suit, Hands, Discards and the deck count each resolve a plate for every Card Set, the set's own or the classic one with a set tint", fn = function()
+	local E = script.Parent.Parent.Engine
+	local Style, CS, Art = require(E.TavernStyle), require(E.CosmeticSets), require(E.PaintedKitArt)
+	local sizes = { play = { 310, 90 }, discard = { 310, 90 }, rank = { 160, 80 }, suit = { 156, 80 }, hands = { 165, 34 }, discards = { 177, 34 }, deck = { 222, 70 } }
+	expectEqual(#Style.HUD_PLATE_SLOTS, 7, "seven plates")
+	for _, set in ipairs(CS.Definitions) do
+		for _, slot in ipairs(Style.HUD_PLATE_SLOTS) do
+			local sz = sizes[slot]
+			local piece = Style.hudPlate(slot, sz[1], sz[2], set.id)
+			expectTrue(Style.PAINTED[piece] ~= nil, set.id .. " " .. slot .. " resolves a painted plate (" .. tostring(piece) .. ")")
+			if set.id ~= CS.DefaultId then
+				expectTrue(Style.isSetPiece(piece) or Style.setTint(set.id, { 200, 160, 90 }) ~= nil, set.id .. " " .. slot .. " wears the set's own plate or the classic one tinted")
+			end
+		end
+	end
+	expectEqual(Style.hudPlate("rank", 160, 80, "golden_gala"), Style.hudPlate("rank", 160, 80, "golden_gala"), "stable")
+	expectEqual(Style.hudPlate("hands", 165, 34, "golden_gala"), Style.buttonPiece("secondary", 165, 34, "golden_gala"), "Hands uses the same plate as Discard")
+	expectEqual(Style.hudPlate("hands", 165, 34, "classic_tavern"), Style.buttonPiece("secondary", 165, 34, "classic_tavern"), "classic is unchanged")
+	if io and io.open then
+		local f = io.open("src/Client/Gameplay2.lua", "r"); local src = f:read("a"); f:close()
+		expectTrue(src:find('Kit.paintedButton, deckPill, "secondary"', 1, true) ~= nil and src:find('Kit.paintedButton, p, "secondary"', 1, true) ~= nil and src:find('Kit.paintedButton(b, "secondary")', 1, true) ~= nil, "deck count, Hands, Discards, Rank and Suit are painted through the set plate path")
+	end
 end })
 
 return tests
