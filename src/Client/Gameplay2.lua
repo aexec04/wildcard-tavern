@@ -447,7 +447,7 @@ function M.install(deps)
 		end
 		place(bar, r.bar)
 		place(roundLabel, r.round)
-		place(target, r.target); place(tips, r.tips)
+		place(target, r.target); place(tips, r.tips); tips.Visible = false -- Tips is off the table HUD (the shop shows it)
 		do -- Target: and Tips: words grow with the plate (Layout.barTextSize), the Tips bulb with them
 			local ts = Layout.barTextSize(r.target.h)
 			for _, pl in ipairs({ target, tips }) do

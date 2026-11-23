@@ -18,9 +18,8 @@ M.SIZE_PCT = 12
 M.REF = {
 	speaker = { 52, 12, 96, 96 },
 	pause = { 165, 12, 96, 96 },
-	target = { 410, 18, 300, 80 },
-	scroll = { 722, 12, 408, 90 },
-	tips = { 1150, 18, 248, 80 },
+	target = { 543, 18, 300, 80 },
+	scroll = { 855, 12, 408, 90 },
 	patronRow = { 410, 122, 847, 207 },
 	scorePlate = { 678, 366, 320, 92 },
 	sortRank = { 24, 814, 160, 80 },
@@ -32,7 +31,7 @@ M.REF = {
 	deckPlate = { 1428, 832, 222, 70 },
 }
 
-M.ORDER = { "speaker", "pause", "target", "scroll", "tips", "patronRow", "scorePlate", "sortRank", "sortSuit",
+M.ORDER = { "speaker", "pause", "target", "scroll", "patronRow", "scorePlate", "sortRank", "sortSuit",
 	"handsPill", "discardsPill", "play", "discard", "deckPlate" }
 
 -- The reference rect scaled to a w x h screen.
@@ -70,11 +69,11 @@ function M.badCount(rows)
 	return n
 end
 
--- The 14 live rects from the layout (rects = Gameplay2Layout.rects, quick = GearMenu.quickRects, plate = idle Score plate rect or nil)
+-- The 13 live rects from the layout (rects = Gameplay2Layout.rects, quick = GearMenu.quickRects, plate = idle Score plate rect or nil)
 function M.liveFrom(rects, quick, plate)
 	local s1, s5 = rects.slots[1].card, rects.slots[#rects.slots].card
 	local live = {
-		target = rects.target, scroll = rects.round, tips = rects.tips,
+		target = rects.target, scroll = rects.round,
 		patronRow = { x = s1.x, y = s1.y, w = s5.x + s5.w - s1.x, h = s1.h },
 		sortRank = rects.sortRank, sortSuit = rects.sortSuit,
 		handsPill = rects.playCount, discardsPill = rects.discardCount,

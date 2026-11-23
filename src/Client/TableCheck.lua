@@ -60,7 +60,7 @@ function M.run()
 			end
 		end
 	end
-	for _, key in ipairs({ "TargetBox", "RoundName", "TipsPill", "ScorePlate", "RoundHint", "SortRank", "SortSuit", "DeckCountPill" }) do
+	for _, key in ipairs({ "TargetBox", "RoundName", "ScorePlate", "RoundHint", "SortRank", "SortSuit", "DeckCountPill" }) do
 		local g = byName(key)
 		if g then live[key] = rectOf(g) end
 	end

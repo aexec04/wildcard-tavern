@@ -126,6 +126,14 @@ function M.rects(w, h)
 		if r.tips.w > maxW then r.tips = box(r.tips.x + r.tips.w - maxW, r.tips.y, maxW, ih) end
 		if ref then local tw = round(barW * 0.25); r.tips = box(barX + barW - inner - tw, r.tips.y, tw, ih) end -- mockup Tips x 1150 to 1395
 	end
+	do -- the Tips pill is off the table HUD (the shop shows Tips): Target and the Night scroll are centred as a pair on the bar, r.tips is an empty box at the bar's right end
+		local gapx = igap
+		local total = r.target.w + gapx + r.round.w
+		local sx = barX + round((barW - total) / 2)
+		r.target = box(sx, r.target.y, r.target.w, ih)
+		r.round = box(sx + r.target.w + gapx, r.round.y, r.round.w, ih)
+		r.tips = box(barX + barW - inner, barY + inner, 0, ih)
+	end
 	-- the one Settings gear sits in the top right corner (Engine/GearMenu); the consumables tray starts at the top left, under Roblox's top bar
 	local qy = Responsive.clearOfTopBar(pad, 0)
 	r.gear = box(w - round(math.max(8, 0.012 * w)) - 44, math.max(Responsive.TOPBAR_H, round(math.max(8, 0.012 * w))), 44, M.MIN_TOUCH)

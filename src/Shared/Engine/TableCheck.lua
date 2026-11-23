@@ -14,9 +14,8 @@ M.REF_W, M.REF_H = 1672, 941
 M.TOLERANCE = 25
 
 M.TARGETS = {
-	{ key = "TargetBox", x0 = 410, x1 = 700, y0 = 15, y1 = 100 },
-	{ key = "RoundName", x0 = 722, x1 = 1130 }, -- the rule scroll
-	{ key = "TipsPill", x0 = 1150, x1 = 1395, y0 = 15, y1 = 100 },
+	{ key = "TargetBox", x0 = 543, x1 = 838, y0 = 15, y1 = 100 }, -- Target and the scroll are centred as a pair on the bar (no Tips pill)
+	{ key = "RoundName", x0 = 855, x1 = 1263 }, -- the rule scroll
 	{ key = "PatronSlots", x0 = 410, x1 = 1255, y0 = 125, y1 = 330 }, -- all seats together
 	{ key = "ScorePlate", x0 = 680, x1 = 995, y0 = 365, y1 = 455 },
 	{ key = "RoundHint", x0 = 18, x1 = 335, y0 = 345, y1 = 485 },

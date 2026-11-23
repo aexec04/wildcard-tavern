@@ -110,8 +110,7 @@ end
 -- The table's Tips pill in the toast's own pixels (TableCheck's reference rect scaled to the screen), so the column can start under it.
 function M.tipsPillKeepOut(w, h)
 	local TC = require(script.Parent.TableCheck)
-	local t
-	for _, e in ipairs(TC.TARGETS) do if e.key == "TipsPill" then t = e end end
+	local t = { x0 = 1150, x1 = 1395, y0 = 15, y1 = 100 } -- the top right corner the Tips pill used to fill (the pill is gone; toasts still start under it)
 	local kx, ky = w / TC.REF_W, h / TC.REF_H
 	return { x = t.x0 * kx, y = t.y0 * ky, w = (t.x1 - t.x0) * kx, h = (t.y1 - t.y0) * ky }
 end

@@ -33337,7 +33337,7 @@ end })
 table.insert(tests, { name = "Gameplay v2 polish run: every whole-picture plate keeps its art's shape (within 60 percent), nothing overlaps its neighbours, text size fits the inner height at six sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local L, S = require(E.Gameplay2Layout), require(E.TavernStyle)
-	local plates = { { "target", "wh_target" }, { "tips", "wh_target" }, { "round", "wh_scroll" }, { "playCount", "wh_small" }, { "discardCount", "wh_small" }, { "deckCount", "wh_count" }, { "sortRank", "wh_btn_sq" }, { "sortSuit", "wh_btn_sq" } }
+	local plates = { { "target", "wh_target" }, { "round", "wh_scroll" }, { "playCount", "wh_small" }, { "discardCount", "wh_small" }, { "deckCount", "wh_count" }, { "sortRank", "wh_btn_sq" }, { "sortSuit", "wh_btn_sq" } }
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
@@ -36161,7 +36161,7 @@ table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 refer
 	-- a 1506 x 751 viewport with a 58 px top inset: AbsolutePosition y is 58 less than the layout y, and y scales by height, not width
 	local kx, ky = T.scales(1506, 751)
 	expectTrue(math.abs(kx - 1672 / 1506) < 1e-9 and math.abs(ky - 941 / 751) < 1e-9, "each axis has its own scale")
-	local ph = T.TARGETS[9] -- PlayHand
+	local ph = T.TARGETS[8] -- PlayHand
 	expectEqual(ph.key, "PlayHand")
 	local abs = { x = ph.x0 / kx, y = ph.y0 / ky - 58, w = (ph.x1 - ph.x0) / kx, h = (ph.y1 - ph.y0) / ky }
 	local r2 = T.toReference(abs, 1506, 751, 58)
@@ -36225,7 +36225,7 @@ table.insert(tests, { name = "TableCheck by tests: every table piece of Gameplay
 		local w, h = size[1], size[2]
 		-- the live check converts GUI pixels to the reference by width alone, so the reference y is read at the same scale (a 16:9 window against a 16:9 mockup)
 		local r = L.rects(w, h)
-		local live = { TargetBox = r.target, RoundName = r.round, TipsPill = r.tips, SortRank = r.sortRank, SortSuit = r.sortSuit,
+		local live = { TargetBox = r.target, RoundName = r.round, SortRank = r.sortRank, SortSuit = r.sortSuit,
 			PlayHand = r.play, Discard = r.discard, DeckCountPill = r.deckCount, ScorePlate = SP.plate(w, h) }
 		local x0, y0, x1, y1
 		for _, s in ipairs(r.slots) do
@@ -36420,7 +36420,7 @@ table.insert(tests, { name = "Gameplay2Layout at 1672 x 941: Target, scroll, Tip
 		expectTrue(math.abs(b.x - x0) <= 6 and math.abs(b.x + b.w - x1) <= 6, name .. " x " .. b.x .. "-" .. (b.x + b.w))
 		if y0 then expectTrue(math.abs(b.y - y0) <= 6 and math.abs(b.y + b.h - y1) <= 6, name .. " y " .. b.y .. "-" .. (b.y + b.h)) end
 	end
-	near(r.target, 410, 705, 15, 100, "target"); near(r.round, 722, 1130, 15, 100, "scroll"); near(r.tips, 1150, 1395, 15, 100, "tips")
+	near(r.target, 543, 838, 15, 100, "target"); near(r.round, 855, 1263, 15, 100, "scroll"); expectEqual(r.tips.w, 0, "no Tips pill on the table HUD")
 	near(r.play, 530, 840, 810, 900, "play plate"); near(r.discard, 865, 1180, 810, 900, "discard plate")
 	expectEqual(r.play.w, r.discard.w, "Play Hand and Discard plates are the same width"); expectEqual(r.play.h, r.discard.h, "and the same height")
 	expectEqual(r.playCount.w, r.discardCount.w, "the two pills are the same size")
@@ -37203,10 +37203,10 @@ table.insert(tests, { name = "Scoring row: an empty event line and the old pills
 	expectTrue(pop:find("[ScoringLive]", 1, true) ~= nil, "Studio prints the live rects")
 end })
 
-table.insert(tests, { name = "Gameplay2RefCheck: the 14 pieces sit within 12 px and 12 percent of the reference at three sizes, Score plate included", fn = function()
+table.insert(tests, { name = "Gameplay2RefCheck: the 13 pieces sit within 12 px and 12 percent of the reference at three sizes, Score plate included", fn = function()
 	local E = script.Parent.Parent.Engine
 	local RC, L, G, SP = require(E.Gameplay2RefCheck), require(E.Gameplay2Layout), require(E.GearMenu), require(E.Gameplay2ScorePlate)
-	expectEqual(#RC.ORDER, 14, "14 pieces")
+	expectEqual(#RC.ORDER, 13, "13 pieces (no Tips pill)")
 	local own = RC.compare({ play = { x = 528, y = 808, w = 312, h = 96 } }, 1672, 941)
 	expectTrue(#own == 1 and not own[1].bad, "the reference itself is clean")
 	local off = RC.compare({ play = { x = 560, y = 808, w = 312, h = 96 } }, 1672, 941)
@@ -37435,7 +37435,9 @@ table.insert(tests, { name = "Table: both scroll lines fit at five sizes, the go
 			expectTrue(size >= L.ROUND_TEXT_MIN and #text * size * L.ROUND_CHAR_W <= L.roundInnerW(r.round.w) + 0.5 or size == L.ROUND_TEXT_MIN, w .. "x" .. h .. ": '" .. text .. "' fits at " .. size)
 		end
 		expectFalse(hit(r.target, r.round) or hit(r.round, r.tips) or hit(r.target, r.tips), w .. "x" .. h .. ": Target, scroll and Tips do not overlap")
-		expectTrue(r.target.w >= 100 and r.tips.w >= 100, w .. "x" .. h .. ": Target and Tips keep 100 px")
+		expectTrue(r.target.w >= 100, w .. "x" .. h .. ": Target keeps 100 px")
+		local gapL, gapR = r.target.x - r.bar.x, (r.bar.x + r.bar.w) - (r.round.x + r.round.w)
+		expectTrue(math.abs(gapL - gapR) <= 2, w .. "x" .. h .. ": Target and the scroll are centred on the bar after Tips left")
 	end
 end })
 
