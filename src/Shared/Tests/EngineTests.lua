@@ -9571,6 +9571,22 @@ table.insert(tests, { name = "LockedHints: every locked Card Set, Card Back, Pat
 	end
 end })
 
+table.insert(tests, { name = "LockedHints.forCollection: every Collection tab gives a kind line under 60 characters, the rule hint wins, never blank or a raw id", fn = function()
+	local LockedHints = require(script.Parent.Parent.Engine.LockedHints)
+	for tab in pairs(LockedHints.CollectionFallbacks) do
+		local line = LockedHints.forCollection(tab, nil, nil)
+		expectTrue(#line > 0 and #line < LockedHints.MAX_LENGTH, tab .. " fallback fits: " .. line)
+		expectFalse(line:find("_", 1, true) ~= nil, tab .. " fallback shows a raw id")
+	end
+	expectEqual(LockedHints.forCollection("patrons", "Clear Night 2.", nil), "Clear Night 2.", "the rule hint wins")
+	expectEqual(LockedHints.forCollection("titles", nil, 50), "Fill 50 percent of the Collection.", "a title milestone names its percent")
+	expectTrue(#LockedHints.forCollection("unknownTab", "", nil) > 0, "an unknown tab still gets a line")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Collection.lua", "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find("forCollection", 1, true) ~= nil, "the Collection tiles use the shared locked line")
+	end
+end })
+
 -- ===== Unlock drip =====
 
 table.insert(tests, { name = "Unlocks: every rule names real content, hints are short, Menu Recipes are never gated", fn = function()
