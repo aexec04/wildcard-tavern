@@ -9587,6 +9587,25 @@ table.insert(tests, { name = "LockedHints.forCollection: every Collection tab gi
 	end
 end })
 
+table.insert(tests, { name = "Store confirm and success lines: every item named, 60 characters or less, no pay to win or odds words, 44 px Buy plate", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local banned = { "win", "odds", "random", "discount", "sale", "balatro" }
+	for _, item in ipairs(Store.Items) do
+		for _, line in ipairs({ Store.confirmLine(item), Store.successNotice(item.name) }) do
+			expectTrue(#line <= 60, item.id .. " line fits: " .. line)
+			expectTrue(line:find(item.name, 1, true) ~= nil or #item.name > 30, item.id .. " line names the item: " .. line)
+			expectFalse(line:find("%-%-") ~= nil or line:find("\226\128\148") ~= nil, item.id .. " no dashes")
+			for _, w in ipairs(banned) do expectFalse(line:lower():find("%f[%a]" .. w .. "%f[%A]") ~= nil, item.id .. " says " .. w) end
+		end
+	end
+	expectTrue(#Store.successNotice(string.rep("Long name ", 20)) <= 60, "a long name still fits")
+	expectTrue(#Store.successNotice(nil) > 0 and #Store.confirmLine(nil) > 0, "a missing item still reads")
+	if io and io.open then
+		local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find("0, 44) -- 44 px touch target", 1, true) ~= nil, "the Buy plate is 44 px")
+	end
+end })
+
 -- ===== Unlock drip =====
 
 table.insert(tests, { name = "Unlocks: every rule names real content, hints are short, Menu Recipes are never gated", fn = function()

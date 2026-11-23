@@ -270,6 +270,23 @@ function Store.declinedNotice(name)
 	return "No problem, nothing was charged" .. ((type(name) == "string" and name ~= "") and (" for " .. name) or "") .. "."
 end
 
+-- The confirm plate and the thank you line: each names the item and what it gives, 60 characters or less (the long item
+-- description trims at a word). The 44 px Buy and Cancel plates are the Store card's own buttons and Roblox's checkout.
+Store.CONFIRM_MAX = 60
+local function fit(text)
+	if #text <= Store.CONFIRM_MAX then return text end
+	local cut = text:sub(1, Store.CONFIRM_MAX - 3):gsub("%s+%S*$", "")
+	return cut .. "..."
+end
+function Store.confirmLine(item)
+	local name = tostring(item and item.name or "this item")
+	return fit("Get " .. name .. "? Looks only, no power.")
+end
+function Store.successNotice(name)
+	local n = (type(name) == "string" and name ~= "") and name or "your item"
+	return fit("Thank you! " .. n .. " is yours.")
+end
+
 -- What the Store panel draws. `inStudio`: a placeholder item can be taken free there.
 -- Items of a section ("flair", "season") as rows, or the main Store items when `section` is nil.
 -- A Flair item also counts as owned when every piece it gives is already yours (earned or bought another way).
