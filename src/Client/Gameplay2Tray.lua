@@ -18,6 +18,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Rules = require(Engine:WaitForChild("Gameplay2Tray"))
 local Style = require(Engine:WaitForChild("TavernStyle"))
 local Kit = require(script.Parent.TavernKit)
+local LabelTop = require(script.Parent.ButtonLabelTop)
 local Layout = require(Engine:WaitForChild("Gameplay2Layout"))
 
 local M = {}
@@ -29,11 +30,33 @@ local function place(g, r)
 	g.Size = UDim2.fromOffset(r.w, r.h)
 end
 
-local function setLabel(b, text)
-	if b.Text ~= text then b.Text = text end
-	b.TextSize = Style.TEXT.min
-	b.TextWrapped = true
-	b.TextTruncate = Enum.TextTruncate.None
+-- Every tray word is drawn by the plate's OWN label (ButtonLabelTop.own), never by the auto mirror: the mirror kept the button's colour
+-- and size, so a theme could leave dark text on dark wood and "Upsell" scaled up beside "Sugar Rush". One size for every plate, colour
+-- from Rules.LOOK, an optional left inset that keeps the word clear of the icon column. The button's own text stays blank and clear.
+local function setLabel(b, text, color, o)
+	o = o or {}
+	local label = LabelTop.own(b, text, Style.TEXT.min, b.ZIndex + LabelTop.LIFT, color or Color3.fromRGB(255, 244, 220))
+	b.Text = ""
+	b.TextTransparency, b.TextStrokeTransparency = 1, 1
+	label.Font = Enum.Font[Style.FONTS.ui] or Enum.Font.GothamBold
+	label.TextSize = Style.TEXT.min
+	label.TextScaled = false
+	label.TextWrapped = true
+	label.TextTruncate = Enum.TextTruncate.None
+	label.TextXAlignment = o.align or Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.TextColor3 = color or label.TextColor3
+	label.TextStrokeColor3 = Color3.fromRGB(24, 14, 8)
+	label.TextStrokeTransparency = 0.35
+	label.TextTransparency = o.dim or 0
+	label.Size = UDim2.fromScale(1, 1)
+	label.Position = UDim2.fromScale(0, 0)
+	local pad = label:FindFirstChildOfClass("UIPadding")
+	if not pad then pad = Instance.new("UIPadding"); pad.Parent = label end
+	pad.PaddingLeft = UDim.new(0, o.left or 4)
+	pad.PaddingRight = UDim.new(0, 4)
+	label.Visible = true
+	return label
 end
 
 function M.install(layer, deps, z)
@@ -65,7 +88,7 @@ function M.install(layer, deps, z)
 	heading.Visible = false
 	heading.ZIndex = z
 	heading.Parent = layer
-	local GREY, GREY_TEXT = Color3.fromRGB(86, 82, 78), Color3.fromRGB(176, 170, 160)
+	local GREY, GREY_TEXT = Color3.fromRGB(64, 60, 58), Color3.fromRGB(236, 228, 212) -- a dark grey plate (not Sell's brown) with light cream words, 4.5 to 1
 	-- skin a plate as a kit button, or as the clearly disabled grey plate (not the same dark brown as Sell)
 	local function look(b, text, kind, grey)
 		local key = kind .. (grey and "|grey" or "")
@@ -74,20 +97,13 @@ function M.install(layer, deps, z)
 		Kit.skin(b, text, kind)
 		if grey then
 			b.BackgroundColor3 = GREY
-			b.TextColor3 = GREY_TEXT
 			for _, c in ipairs(b:GetChildren()) do if c:IsA("UIGradient") then c:Destroy() end end
 		end
 	end
 
 	-- explicit fill and text colours (Rules.LOOK, contrast tested) set after every skin, so no theme or painted plate leaves dark text on dark wood
 	local function rgb(c) return Color3.fromRGB(c[1], c[2], c[3]) end
-	local function paint(b, fill, text)
-		b.BackgroundColor3 = rgb(fill)
-		b.TextColor3 = rgb(text)
-		b.TextTransparency = 0
-		b.TextStrokeColor3 = Color3.fromRGB(24, 14, 8)
-		b.TextStrokeTransparency = 0.35
-	end
+	local function paint(b, fill) b.BackgroundColor3 = rgb(fill) end
 	-- the slot's own icon label (a child of the slot, so it survives a Clone), 26 px, left of the name
 	local function iconOf(b)
 		local ic = b:FindFirstChild("TrayIcon")
@@ -105,7 +121,6 @@ function M.install(layer, deps, z)
 		ic.Position = UDim2.new(0, 4, 0.5, 0)
 		ic.ZIndex = b.ZIndex + 1
 		ic.Parent = b
-		local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, Rules.ICON_SIZE + 10); pad.Parent = b
 		return ic
 	end
 
@@ -206,10 +221,8 @@ function M.install(layer, deps, z)
 				b.Active = false
 				b.AutoButtonColor = false
 				b.BackgroundTransparency = 0.75 -- a faint outline for a free slot, not a dead button
-				setLabel(b, Rules.slotName(slot))
-				b.TextTransparency = 0.25
+				setLabel(b, Rules.slotName(slot), rgb(Rules.LOOK.slotText), { dim = 0.25 })
 				iconOf(b).Visible = false
-				local pd = b:FindFirstChildWhichIsA("UIPadding"); if pd then pd.PaddingLeft = UDim.new(0, 0) end
 				b:SetAttribute("Tier", "")
 				local rim0 = b:FindFirstChildWhichIsA("UIStroke")
 				if rim0 then rim0.Transparency = 0.45; rim0.Color = Color3.fromRGB(176, 150, 104) end
@@ -218,16 +231,16 @@ function M.install(layer, deps, z)
 				b.BackgroundTransparency = 0
 				b.TextTransparency = 0
 				local kind = self.armed == i and "primary" or "secondary"
-				if b:GetAttribute("TavernKind") ~= kind then Kit.skin(b, Rules.slotName(slot), kind) end
+				if b:GetAttribute("TavernKind") ~= kind then Kit.skin(b, "", kind) end
 				local L = Rules.LOOK
-				if self.armed == i then paint(b, L.armedFill, L.armedText) else paint(b, L.slotFill, L.slotText) end
-				setLabel(b, Rules.slotName(slot)) -- the name; the icon is its own label
+				local armed = self.armed == i
+				paint(b, armed and L.armedFill or L.slotFill)
 				local ic = iconOf(b)
 				ic.Text = slot.icon or ""
 				ic.Visible = (slot.icon or "") ~= ""
 				ic.ZIndex = z + 1
-				local pd = b:FindFirstChildWhichIsA("UIPadding")
-				if pd then pd.PaddingLeft = UDim.new(0, ic.Visible and (Rules.ICON_SIZE + 10) or 0) end
+				-- the name starts after the icon column (icon 4 px in, ICON_SIZE + 6 wide), one size for every slot
+				setLabel(b, Rules.slotName(slot), rgb(armed and L.armedText or L.slotText), { align = Enum.TextXAlignment.Left, left = ic.Visible and (Rules.ICON_SIZE + 12) or 6 })
 				b:SetAttribute("Tier", slot.tier)
 				local rim = b:FindFirstChildWhichIsA("UIStroke")
 				local c = TIER_RGB[slot.tier]
@@ -252,23 +265,23 @@ function M.install(layer, deps, z)
 		local usable = armedSlot ~= nil and f.canUse
 		local useKind = usable and "primary" or "secondary"
 		local text = r.trayPrompt and f.useText or (armedSlot and not f.canUse and f.prompt ~= "" and f.prompt or f.useText)
-		look(useBtn, text, useKind, armedSlot == nil) -- nothing armed: grey and "Pick a Recipe"
-		setLabel(useBtn, text)
+		look(useBtn, "", useKind, armedSlot == nil) -- nothing armed: grey and "Pick a Recipe"
 		local L = Rules.LOOK
-		if usable then paint(useBtn, L.useReadyFill, L.useReadyText) -- a bright green button once its cards are picked
-		elseif armedSlot then paint(useBtn, L.useWaitFill, L.useWaitText) end -- armed, still picking cards
-		if sellBtn:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(sellBtn, "Sell", "secondary") end
-		setLabel(sellBtn, armedSlot and ("Sell +" .. math.floor(armedSlot.sell) .. " Tips") or "Sell") -- the Tips value shows only when armed
-		if armedSlot then paint(sellBtn, L.sellFill, L.sellText) else sellBtn.TextTransparency = 0.4 end
+		if usable then paint(useBtn, L.useReadyFill) -- a bright green button once its cards are picked
+		elseif armedSlot then paint(useBtn, L.useWaitFill) end -- armed, still picking cards
+		setLabel(useBtn, text, usable and rgb(L.useReadyText) or (armedSlot and rgb(L.useWaitText) or GREY_TEXT))
+		if sellBtn:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(sellBtn, "", "secondary") end
+		if armedSlot then paint(sellBtn, L.sellFill) end
+		-- the Tips value shows only when armed
+		setLabel(sellBtn, armedSlot and ("Sell +" .. math.floor(armedSlot.sell) .. " Tips") or "Sell", rgb(armedSlot and L.sellText or L.slotText), { dim = armedSlot and 0 or 0.4 })
 		if r.trayPrompt and armedSlot then
 			place(promptBtn, r.trayPrompt)
 			promptBtn.ZIndex = z
 			promptBtn.Visible = true
 			if promptBtn:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(promptBtn, "", "secondary") end
 			local line = Rules.promptLine(f, armedSlot) -- what the armed Recipe does (its description)
-			setLabel(promptBtn, line ~= "" and line or armedSlot.name)
-			paint(promptBtn, L.promptFill, L.promptText) -- light text on dark wood, wrapped inside the plate
-			promptBtn.TextScaled = false
+			paint(promptBtn, L.promptFill)
+			setLabel(promptBtn, line ~= "" and line or armedSlot.name, rgb(L.promptText)) -- light cream on dark wood, wrapped inside the plate
 		else
 			promptBtn.Visible = false
 		end

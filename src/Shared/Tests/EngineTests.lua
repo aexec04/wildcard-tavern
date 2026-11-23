@@ -53112,6 +53112,85 @@ table.insert(tests, { name = "Recipe tray readability: slot names, description, 
 	expectTrue(not c:find("\u{2014}", 1, true) and not c:lower():find("balatro", 1, true))
 end })
 
+-- the REAL tray module on a fake Roblox: the colours are read from the TextLabels the screen draws, not from the Rules table
+table.insert(tests, { name = "Recipe tray second pass: live labels are light on their real plate (4.5 to 1), one text size, the name starts after the icon column", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local S = require(E.TavernStyle)
+	local Rules = require(E.Gameplay2Tray)
+	local stubs = {
+		Cue = { play = function() end },
+		TavernKit = {
+			skin = function(b, text, kind)
+				b:SetAttribute("TavernKind", kind)
+				b.BackgroundColor3 = { R = 0.1, G = 0.1, B = 0.1 } -- a dark theme plate: the tray must repaint it itself
+				b.TextColor3 = { R = 0.2, G = 0.1, B = 0.05 } -- dark brown, the colour the screen showed
+				b.TextTransparency = 0
+				b.Text = text or ""
+				return b
+			end,
+			secondaryButton = function(parent, text)
+				local b = FakeGui.new("TextButton")
+				b.Text = text or ""
+				b.Parent = parent
+				return b
+			end,
+		},
+	}
+	local env, st = FakeGui.env({ stubs = stubs })
+	stubs.ButtonLabelTop = FakeGui.load("src/Client/ButtonLabelTop.lua", env)
+	local folder = FakeGui.folder({ Gameplay2Tray = Rules, TavernStyle = S, Gameplay2Layout = require(E.Gameplay2Layout) })
+	st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end, FindFirstChild = function() return nil end }
+	local Tray = FakeGui.load("src/Client/Gameplay2Tray.lua", env)
+	local layer = FakeGui.new("Frame")
+	local sel = {}
+	local tray = Tray.install(layer, { selectedIndices = function() return sel end }, 20)
+	local r = { traySlot1 = { x = 10, y = 100, w = 150, h = 44 }, traySlot2 = { x = 10, y = 150, w = 150, h = 44 },
+		trayUse = { x = 10, y = 200, w = 150, h = 44 }, traySell = { x = 10, y = 250, w = 150, h = 44 }, trayPrompt = { x = 10, y = 300, w = 150, h = 60 } }
+	local state = { phase = "playing", houseRecipeInventory = { "sugar_rush", "upsell" } }
+	local function rgb(c, what) assert(c, "color missing: " .. tostring(what)); return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) } end
+	local function check(name, plateName, mustRead)
+		local plate = layer:FindFirstChild(plateName)
+		local label = plate and plate:FindFirstChild("KitLabel")
+		expectTrue(label ~= nil, name .. ": the plate draws its word with its own label")
+		if not label then return end
+		expectEqual(plate.TextTransparency, 1, name .. ": the button's own copy is hidden, so nothing is doubled")
+		expectEqual(label.TextSize, S.TEXT.min, name .. ": one text size")
+		expectTrue(label.TextScaled == false, name .. ": never scaled")
+		if mustRead ~= false then
+			local ratio = S.contrast(rgb(plate.BackgroundColor3, name .. " plate"), rgb(label.TextColor3, name .. " label"))
+			expectTrue(ratio >= 4.5, name .. ": live label on the live plate is " .. string.format("%.2f", ratio) .. " to 1")
+		end
+		return label, plate
+	end
+	tray.update(r, state)
+	local a, ap = check("slot 1", "TraySlot1")
+	local b = check("slot 2", "TraySlot2")
+	check("use (nothing armed)", "TrayUse")
+	check("sell (nothing armed)", "TraySell", false)
+	expectEqual(a.TextSize, b.TextSize, "both slot names share one size")
+	local pad = a:FindFirstChildOfClass("UIPadding")
+	expectTrue(pad and pad.PaddingLeft.Offset >= Rules.ICON_SIZE + 6, "the name starts after the icon column")
+	local icon = ap:FindFirstChild("TrayIcon")
+	expectTrue(icon and icon.Size.X.Offset + icon.Position.X.Offset <= pad.PaddingLeft.Offset, "the icon sits left of the name text")
+	-- arm the first slot: the description plate, Use and Sell all read on their plates
+	ap.MouseButton1Click:Fire()
+	check("slot 1 armed", "TraySlot1")
+	check("use (armed)", "TrayUse")
+	check("sell (armed)", "TraySell")
+	local pl = check("description", "TrayPrompt")
+	expectTrue(pl and pl.Text ~= "" and pl.Text:find("Garnish", 1, true) ~= nil, "the description plate says what the Recipe does")
+	sel = { 1, 2 }
+	tray.update(r, state)
+	check("use (cards picked)", "TrayUse")
+	-- an unarmed slot after unarming still reads
+	ap.MouseButton1Click:Fire()
+	check("slot 1 unarmed", "TraySlot1")
+	local f = assert(io.open("src/Client/Gameplay2Tray.lua", "r")); local c = f:read("a"); f:close()
+	expectTrue(not c:find("\u{2014}", 1, true) and not c:lower():find("balatro", 1, true))
+end })
+
 table.insert(tests, { name = "NightVictory: the Enter Endless Nights button is the topmost active object at its centre, the pointer fallback holds, the title line says why", fn = function()
 	local R = require(script.Parent.Parent.Engine.ResultButtonHit)
 	local sw, sh = 1920, 1080
@@ -53185,7 +53264,37 @@ table.insert(tests, { name = "DebugGoto server remotes: every Debug remote handl
 	assert(count >= 6, "found the Debug remotes (" .. count .. ")")
 end })
 
+table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates", fn = function()
+	local Keys = require(script.Parent.Parent.Engine.AdminJumpKeys)
+	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local Engine = script.Parent.Parent.Engine
+	expectTrue(Keys.shouldBuild(true) == true, "builds in Studio")
+	expectTrue(Keys.shouldBuild(false) == false and Keys.shouldBuild(nil) == false and Keys.shouldBuild("yes") == false, "never builds outside Studio")
+	expectTrue(Keys.ROW_HEIGHT >= 44, "44 px rows")
+	local ids = { recipe = require(Engine.Recipes).HouseRecipes[1].id, boss = require(Engine.BossRounds).Definitions[1].id }
+	local list = Keys.list(ids)
+	local seen = {}
+	for _, e in ipairs(list) do
+		expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
+		expectTrue(not seen[e.value], "no duplicate key " .. e.value)
+		seen[e.value] = true
+		expectTrue(type(e.label) == "string" and #e.label > 0, "label for " .. e.value)
+	end
+	for _, want in ipairs({ "night:1", "night:12", "boon", "reward", "victory", "sellpatron", "patrons:5", "shop:20", "endrun", "endrun:win", "boss2:" .. ids.boss, "boss12:" .. ids.boss, "store", "map" }) do
+		expectTrue(seen[want], "listed: " .. want)
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/AdminJumpPanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("Keys.shouldBuild(RunService:IsStudio())", 1, true) ~= nil, "panel checks the Studio guard before building")
+	expectTrue(src:find("Keys.ROW_HEIGHT", 1, true) ~= nil and src:find("Keys.list(ids)", 1, true) ~= nil, "buttons come from the one key table")
+	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
+	local g = assert(io.open("src/Client/DebugGoto.lua", "r")); local dg = g:read("a"); g:close()
+	local guard, build = dg:find("if not RunService:IsStudio() then return end", 1, true), dg:find("AdminJumpPanel", 1, true)
+	expectTrue(guard and build and guard < build, "DebugGoto builds the panel only after its Studio guard")
+end })
+
 return tests
+
 
 
 
