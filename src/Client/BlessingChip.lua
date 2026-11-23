@@ -44,6 +44,9 @@ local function label(parent, name, size, color, y, h, font)
 	return l
 end
 
+-- Phases where the chip sits over dark wood and wears its own dark plate with cream text.
+function BlessingChip.onWood(phase) return phase == "roundSelect" or phase == "shop" end
+
 -- Lines a 15 px effect text needs at widthPx: measured with TextService, the pure estimate when that is not available.
 function BlessingChip.lines(text, widthPx)
 	local ok, size = pcall(function()
@@ -219,7 +222,7 @@ function BlessingChip.update(state)
 	ui.shown = true
 	ui.chip:SetAttribute("Shown", true)
 	do -- Round Select: cream text on the dark plate (all above 4.5:1), the normal ink colours everywhere else
-		local onWood = state.phase == "roundSelect"
+		local onWood = BlessingChip.onWood(state.phase)
 		ui.plate.Visible = onWood
 		ui.name.TextColor3 = onWood and Color3.fromRGB(250, 235, 200) or INK
 		ui.blessing.TextColor3 = onWood and Color3.fromRGB(150, 225, 160) or GREEN

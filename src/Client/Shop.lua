@@ -507,10 +507,10 @@ return function(deps)
 
 		for i, def in ipairs(SHOP_TAB_DEFS) do
 			local tabButton = Instance.new("TextButton")
-			tabButton.Size = UDim2.new(0, 150, 1, 0)
+			tabButton.Size = UDim2.new(0, 170, 1, 0)
 			tabButton.LayoutOrder = i
 			tabButton.Font = Enum.Font.GothamBold
-			tabButton.TextSize = 14
+			tabButton.TextSize = 16
 			tabButton.Text = def.label
 			tabButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 			tabButton.TextColor3 = Color3.fromRGB(230, 215, 195)

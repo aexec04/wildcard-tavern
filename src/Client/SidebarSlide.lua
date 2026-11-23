@@ -25,6 +25,12 @@ local function anyReason()
 	return false
 end
 
+-- How far left a hidden piece sits: its own left edge goes past the screen edge by the piece's real width (the painted
+-- board is wider than the base sidebar width, so the old width + 40 left its foot and top corner on screen).
+function SidebarSlide.hiddenX(x, width, pieceWidth)
+	return x - math.max(width or 0, pieceWidth or 0) - 40
+end
+
 function SidebarSlide.setReason(root, width, reason, hidden)
 	reasons[reason] = hidden == true
 	local hide = anyReason()
@@ -36,7 +42,9 @@ function SidebarSlide.setReason(root, width, reason, hidden)
 		local inst = root:FindFirstChild(name)
 		if inst then
 			local x = (name == "EdgeShadow") and width or 0
-			local target = UDim2.new(0, hide and (x - width - 40) or x, 0, 0)
+			local pieceW = 0
+			pcall(function() pieceW = inst.AbsoluteSize.X end)
+			local target = UDim2.new(0, hide and SidebarSlide.hiddenX(x, width, pieceW) or x, 0, 0)
 			if hide or not require(script.Parent.ClientSettings).motionAllowed() then
 				inst.Position = target
 			else

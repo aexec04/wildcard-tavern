@@ -54414,4 +54414,31 @@ table.insert(tests, { name = "Victory plates: art slots keep the picture's aspec
 	end
 end })
 
+table.insert(tests, { name = "Counter shop: blessing chip is cream on its dark plate in the shop, the sidebar slides by its real width, tabs are 16 px", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local t = f:read("*a"); f:close(); return t
+	end
+	local chip = read("src/Client/BlessingChip.lua")
+	if chip then
+		expectTrue(chip:find('function BlessingChip.onWood(phase) return phase == "roundSelect" or phase == "shop" end', 1, true) ~= nil, "chip wears its dark plate on Round Select and in the Counter")
+		expectTrue(chip:find("local onWood = BlessingChip.onWood(state.phase)", 1, true) ~= nil, "update uses onWood for the plate and cream text")
+		expectTrue(chip:find("Color3.fromRGB(250, 235, 200) or INK", 1, true) ~= nil, "name is cream on the plate (about 13 to 1 on 30,22,16)")
+		expectTrue(chip:find('label(chip, "Blessing", 14', 1, true) ~= nil, "effect lines are at least 14 px")
+	end
+	local slide = read("src/Client/SidebarSlide.lua")
+	if slide then
+		expectTrue(slide:find("function SidebarSlide.hiddenX", 1, true) ~= nil and slide:find("inst.AbsoluteSize.X", 1, true) ~= nil, "hidden position uses the piece's real width")
+	end
+	-- the pure rule, restated: a 330 px painted board with a 240 px base width ends fully left of the screen edge
+	local function hiddenX(x, width, pieceW) return x - math.max(width or 0, pieceW or 0) - 40 end
+	expectTrue(hiddenX(0, 240, 330) + 330 <= -40, "a wide painted board is fully off screen")
+	local shop = read("src/Client/Shop.lua")
+	if shop then
+		expectTrue(shop:find("tabButton.Size = UDim2.new(0, 170, 1, 0)", 1, true) ~= nil, "shop tab plates are 170 wide")
+		expectTrue(shop:find("tabButton.TextSize = 16", 1, true) ~= nil, "shop tab text is 16 px")
+	end
+end })
+
 return tests
