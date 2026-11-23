@@ -31529,7 +31529,7 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 	expectTrue(sw.onFill[1] ~= sw.offFill[1] or sw.onFill[2] ~= sw.offFill[2], "On and Off fills differ")
 	expectTrue(SL.CLOSE.h >= 44 and SL.SLIDER_THUMB >= 44, "Close and slider thumb are 44 px")
 	local P = SL.PAUSE
-	expectTrue(P.resumeText == "Resume" and P.quitText == "Quit to Tavern" and P.plateH >= 44, "pause words and 44 px plates")
+	expectTrue(P.resumeText == "Resume" and P.quitText == "Main Menu" and P.plateH >= 44, "pause words and 44 px plates")
 	expectTrue(SL.contrast(P.text, P.panelFill) >= 4.5 and SL.contrast(P.text, P.plateFill) >= 4.5, "cream text holds 4.5:1 on the panel and the plates")
 	expectTrue(not (P.resumeText .. P.quitText):lower():find("balatro"), "kid safe words")
 	expectTrue(SL.calmValue(SL.calmWrites(true)) and not SL.calmValue(SL.calmWrites(false)), "Calm mode switch writes all three calm keys")
@@ -31755,7 +31755,7 @@ table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggle
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local ids = {}
 	for _, r in ipairs(G.ROWS) do ids[#ids + 1] = r.id end
-	expectEqual(table.concat(ids, ","), "map,settings,howTo,quit", "gear rows: no Sound, Music or Tome rows")
+	expectEqual(table.concat(ids, ","), "restart,map,settings,howTo,quit", "gear rows: no Sound, Music or Tome rows")
 	local sids = {}
 	for _, r in ipairs(G.SOUND_ROWS) do sids[#sids + 1] = r.id end
 	expectEqual(table.concat(sids, ","), "sound,music,tracks", "speaker dropdown rows")
@@ -34527,13 +34527,13 @@ table.insert(tests, { name = "Speaker dropdown holds Sound, Music and Music trac
 	if not (io and io.open) then return end
 	local function read(p) local f = io.open(p, "r"); local t = f:read("a"); f:close(); return t end
 	local client = read("src/Client/GearMenu.lua")
-	expectTrue(client:find('id == "settings"', 1, true) and client:find('id == "tracks"', 1, true) and client:find('id == "howTo"', 1, true) and client:find('id == "map"', 1, true) and client:find('id == "quit"', 1, true), "every gear and speaker action row has a handler")
+	expectTrue(client:find('id == "settings"', 1, true) and client:find('id == "tracks"', 1, true) and client:find('id == "howTo"', 1, true) and client:find('id == "map"', 1, true) and client:find('id == "quit"', 1, true) and client:find('id == "restart"', 1, true), "every gear and speaker action row has a handler")
 	local all = ""
-	for _, f in ipairs({ "Collection", "CosmeticSetsPanel", "FlairPanel", "LegendPanel", "StatsPanel", "MusicPanel", "Journey", "HowToPlay", "Settings", "QuitConfirm" }) do
+	for _, f in ipairs({ "Collection", "CosmeticSetsPanel", "FlairPanel", "LegendPanel", "StatsPanel", "MusicPanel", "Journey", "HowToPlay", "Settings", "QuitConfirm", "RestartRun" }) do
 		local ok, t = pcall(read, "src/Client/" .. f .. ".lua")
 		if ok then all = all .. t end
 	end
-	local openers = { "collection", "cosmeticSets", "flair", "legend", "stats", "music", "journey", "howToPlay", "settings", "quitToTavern" }
+	local openers = { "collection", "cosmeticSets", "flair", "legend", "stats", "music", "journey", "howToPlay", "settings", "quitToTavern", "restartRun" }
 	for _, id in ipairs(openers) do expectTrue(all:find('registerOpener("' .. id .. '"', 1, true) ~= nil, "opener " .. id .. " is registered") end
 	for _, r in ipairs(G.TOME_ROWS) do
 		local found = false
@@ -46355,6 +46355,22 @@ table.insert(tests, { name = "Leaderboard row plates: rank, name and stats never
 		end
 	end
 	expectTrue(checked >= 13, "every themed Card Set checked: " .. checked)
+end })
+
+table.insert(tests, { name = "Gear menu: Restart run is first and mid run, Main Menu pairs with it, the confirm sits on the popup layer, no Quit to Tavern words remain", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local Q = require(script.Parent.Parent.Engine.QuitFlow)
+	expectTrue(G.ROWS[1].id == "restart" and G.ROWS[1].label == "Restart run", "Restart run first")
+	expectTrue(G.ROWS[#G.ROWS].id == "quit" and G.ROWS[#G.ROWS].label == "Main Menu", "Main Menu last")
+	expectEqual(Q.QUIT, "Main Menu")
+	if not (io and io.open) then return end
+	local function read(p) local f = assert(io.open(p, "r")); local t = f:read("a"); f:close(); return t end
+	local r = read("src/Client/RestartRun.lua")
+	expectTrue(r:find('registerOpener("restartRun", open)', 1, true) ~= nil, "gear row opens the confirm")
+	expectTrue(r:find("ZIndex = 50", 1, true) ~= nil or r:find("ZIndex = 5", 1, true) ~= nil, "confirm on the popup layer")
+	for _, f in ipairs({ "src/Client/GearMenu.lua", "src/Client/QuitConfirm.lua", "src/Shared/Engine/GearMenu.lua", "src/Shared/Engine/QuitFlow.lua", "src/Shared/Engine/SettingsLayout.lua" }) do
+		expectTrue(read(f):find('"Quit to Tavern"', 1, true) == nil, f .. " has no Quit to Tavern label")
+	end
 end })
 
 return tests

@@ -1,6 +1,6 @@
 --[[
 	Shared/Engine/QuitFlow.lua
-	The rules of "Quit to Tavern" (tested; Client/QuitConfirm draws it). Quitting only returns to the Menu: the run stays saved on the
+	The rules of "Main Menu" (tested; Client/QuitConfirm draws it). Quitting only returns to the Menu: the run stays saved on the
 	server and the Menu offers to continue it, so the confirmation is calm (a plain Stay or Quit choice, no hold) and says so.
 
 	  QuitFlow.new()            -> state
@@ -13,11 +13,11 @@
 
 local M = {}
 
-M.TITLE = "Quit to the Tavern?"
+M.TITLE = "Go to the Main Menu?"
 M.MESSAGE = "Your run is saved. You can pick it up again from the Menu."
 M.MESSAGE_NO_RUN = "Back to the Menu. You can start a new run any time."
 M.STAY = "Stay"
-M.QUIT = "Quit to Tavern"
+M.QUIT = "Main Menu"
 
 function M.new()
 	return { open = false, quitting = false }

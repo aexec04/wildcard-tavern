@@ -28,10 +28,11 @@ M.SLIDE = 0.15
 
 -- The gear dropdown: map, settings, help and quit. Sound and Music live under the speaker icon, Tome under the book icon.
 M.ROWS = {
+	{ id = "restart", kind = "action", label = "Restart run" },
 	{ id = "map", kind = "action", label = "Tavern Map" },
 	{ id = "settings", kind = "action", label = "Settings" },
 	{ id = "howTo", kind = "action", label = "How to play" },
-	{ id = "quit", kind = "action", label = "Quit to Tavern" },
+	{ id = "quit", kind = "action", label = "Main Menu" },
 }
 
 -- The speaker dropdown: the Sound and Music switches and the track picker

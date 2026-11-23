@@ -46,7 +46,7 @@ M.CLOSE = { w = 160, h = 48 }
 -- Pause look (Settings doubles as the pause screen): Close reads Resume, Main Menu reads Quit to Tavern, every plate is 44 px or more,
 -- the panel is dark wood with a gold edge and cream text; the On/Off state is the word and the fill, never colour alone.
 M.PAUSE = {
-	resumeText = "Resume", quitText = "Quit to Tavern", plateH = 44,
+	resumeText = "Resume", quitText = "Main Menu", plateH = 44,
 	panelFill = { 40, 30, 22 }, edge = { 200, 165, 90 }, text = { 250, 240, 220 }, plateFill = { 90, 60, 30 },
 }
 -- Panel geometry as Client/Settings.lua builds it (panel 0.5 x 0.8 of the screen, scroll 20 px in from each side, 48 px

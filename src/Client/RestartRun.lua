@@ -296,6 +296,7 @@ local function build(deps)
 	end
 	button.MouseButton1Click:Connect(open)
 	OverlayManager.register("restart-run", close)
+	OverlayManager.registerOpener("restartRun", open) -- the gear menu's Restart run row
 
 	-- Reuse the same hold-to-confirm popup for another question (for example "start a Daily Challenge and
 	-- leave this run?"). opts = { title, message, holdText, onConfirm }. Cancel stays the default.
