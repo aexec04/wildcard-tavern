@@ -46302,6 +46302,61 @@ table.insert(tests, { name = "Counter price chips: every price tag sits inside i
 	end
 end })
 
+table.insert(tests, { name = "Tome and Card Sets pages: every page header and the Card Sets room fit four sizes, no two plates overlap, labels are 14 px or more", fn = function()
+	local TH = require(script.Parent.Parent.Engine.TomeHeader)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local CSL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	expectTrue(TH.MIN_TEXT >= 14, "header text is at least 14 px (" .. TH.MIN_TEXT .. ")")
+	expectTrue(#TH.PAGES >= 10, "every Tome page is listed: " .. #TH.PAGES)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local screen = { x = 0, y = 0, w = W, h = H }
+		local P = PL.fullScreenRect(W, H)
+		expectTrue(inside(P, screen) and P.y >= PL.STRIP_BOTTOM, W .. "x" .. H .. " full-screen page sits under the tab strip and on screen")
+		for _, page in ipairs(TH.PAGES) do
+			local tag = W .. "x" .. H .. " " .. page.id
+			local hasSub = page.sub ~= nil and page.sub ~= ""
+			local L = TH.layout(P.w, P.h, hasSub)
+			local panel = { x = 0, y = 0, w = P.w, h = P.h }
+			expectTrue(inside(L.title, panel) and L.title.x >= TH.SIDE and L.title.y >= TH.TOP, tag .. " title plate inside the panel border")
+			expectTrue(L.title.h >= math.ceil(TH.MIN_TEXT * 1.2), tag .. " title plate tall enough for its text")
+			if L.sub then
+				expectTrue(inside(L.sub, panel), tag .. " info plate inside the panel")
+				expectFalse(hit(L.title, L.sub), tag .. " title and info plates do not overlap")
+				expectTrue(L.sub.h >= math.ceil(TH.MIN_TEXT * 1.2), tag .. " info plate tall enough for its text")
+			end
+			local last = L.sub or L.title
+			expectTrue(L.bodyTop >= last.y + last.h and L.bodyTop < P.h, tag .. " the body starts under the plates and inside the panel")
+			expectTrue(TH.textRect(L.title).w > 0, tag .. " title text has room")
+			expectTrue(TH.contrast(page) >= 4.5, tag .. " header ink reads on its plate (4.5 to 1)")
+		end
+		-- the Card Sets room under the header: hero, shelf, tiles and the three page plates never overlap
+		local pw, ph = CSL.roomPanel(W, H)
+		expectTrue(pw <= W and ph <= H, W .. "x" .. H .. " Card Sets panel on screen")
+		for _, n in ipairs({ 0, 1, 15, 40 }) do
+			local g = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, n, 1)
+			local tag = W .. "x" .. H .. " Card Sets n=" .. n
+			expectTrue(g.ok, tag .. " room fits")
+			local items = { { "hero", g.hero }, { "shelf", g.shelf }, { "prev", g.plates.prev }, { "page", g.plates.page }, { "next", g.plates.next },
+				{ "tab1", g.plates.tabs[1] }, { "tab2", g.plates.tabs[2] } }
+			for i = 1, #items do
+				expectTrue(items[i][2].h >= 44 or items[i][1] == "hero" or items[i][1] == "shelf", tag .. " " .. items[i][1] .. " plate is a 44 px target")
+				for j = i + 1, #items do
+					expectFalse(hit(items[i][2], items[j][2]), tag .. " " .. items[i][1] .. " does not overlap " .. items[j][1])
+				end
+			end
+			for i, c in ipairs(g.cells) do
+				expectTrue(inside(c.tile, g.shelf), tag .. " tile " .. i .. " inside the shelf")
+				expectTrue(c.name.h >= 20 and c.state.h >= 18, tag .. " tile " .. i .. " name and state lines hold 14 px text")
+				expectFalse(hit(c.name, c.state), tag .. " tile " .. i .. " name and state do not overlap")
+				for j = i + 1, #g.cells do expectFalse(hit(c.tile, g.cells[j].tile), tag .. " tiles " .. i .. " and " .. j .. " do not overlap") end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Round Select: hover-grown cards and the Skip tooltip stay on screen and clear of the Daily strip at four sizes", fn = function()
 	local CF = require(script.Parent.Parent.Engine.CardFit)
 	local DS = require(script.Parent.Parent.Engine.DailyStrip)
