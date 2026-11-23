@@ -46302,6 +46302,54 @@ table.insert(tests, { name = "Counter price chips: every price tag sits inside i
 	end
 end })
 
+table.insert(tests, { name = "Round Select: hover-grown cards and the Skip tooltip stay on screen and clear of the Daily strip at four sizes", fn = function()
+	local CF = require(script.Parent.Parent.Engine.CardFit)
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local TS = require(script.Parent.Parent.Engine.TooltipSpec)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- Client/RoundSelect numbers: the row is (W - 40) x (H - 120) at (20, 104); a card is 340 x 620; fit up to 1.25; hover grows 1.05;
+	-- the Skip button is 40 px tall, inset 10 px from the card's left, right and bottom (all scaled with the card).
+	local ROW_X, ROW_Y, CARD_W, CARD_H, MAX_FIT, HOVER = 20, 104, 340, 620, 1.25, 1.05
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local rowW, rowH = W - 2 * ROW_X, H - 120
+		local scale = CF.scale(H, rowW, rowH, CARD_H, CARD_W, MAX_FIT)
+		local cards = CF.rects(rowW, rowH, scale, CARD_W, CARD_H)
+		local lowest = 0
+		for _, c in ipairs(cards) do lowest = math.max(lowest, ROW_Y + c.y + c.h + c.h * (HOVER - 1) / 2) end
+		local strip = DS.rectBelow(W, H, lowest) -- the strip the client draws: under the lowest (hover-grown) card, or left out
+		for i, c in ipairs(cards) do
+			local abs = { x = ROW_X + c.x, y = ROW_Y + c.y, w = c.w, h = c.h }
+			-- hovered: grows about its centre
+			local gw, gh = abs.w * HOVER, abs.h * HOVER
+			local grown = { x = abs.x - (gw - abs.w) / 2, y = abs.y - (gh - abs.h) / 2, w = gw, h = gh }
+			expectTrue(grown.x >= 0 and grown.y >= 0 and grown.x + grown.w <= W and grown.y + grown.h <= H, tag .. " card " .. i .. " hovered stays on screen")
+			expectTrue(grown.y >= ROW_Y - 8, tag .. " card " .. i .. " hovered stays under the header")
+			if i < #cards then
+				local nx = ROW_X + cards[i + 1].x
+				expectTrue(nx - (grown.x + grown.w) >= 0, tag .. " card " .. i .. " hovered does not touch card " .. (i + 1))
+			end
+			-- the Skip tooltip, placed by the real rule above the button (below when there is no room)
+			local sw, sh = (c.w - 20 * scale), 40 * scale
+			local skip = { x = abs.x + 10 * scale, y = abs.y + abs.h - 10 * scale - sh, w = sw, h = sh }
+			for _, tipSize in ipairs({ { 280, 60 }, { 280, 120 } }) do
+				local tx, ty = TS.place({ X = skip.x, Y = skip.y }, { X = skip.w, Y = skip.h }, { X = tipSize[1], Y = tipSize[2] }, { X = W, Y = H })
+				local tip = { x = tx, y = ty, w = tipSize[1], h = tipSize[2] }
+				expectTrue(tip.x >= 0 and tip.y >= 0 and tip.x + tip.w <= W and tip.y + tip.h <= H, tag .. " card " .. i .. " Skip tooltip " .. tipSize[2] .. " px on screen")
+				expectFalse(hit(tip, skip), tag .. " card " .. i .. " Skip tooltip does not cover its button")
+				if strip then
+					expectFalse(hit(tip, strip), tag .. " card " .. i .. " Skip tooltip clear of the Daily strip")
+				end
+			end
+			if strip then
+				expectFalse(hit(grown, strip), tag .. " card " .. i .. " hovered clear of the Daily strip")
+				expectFalse(hit(skip, strip), tag .. " card " .. i .. " Skip button clear of the Daily strip")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Collection Back plate and tab strip: Back is a 44 px plate on screen and never overlaps a tab, the pager, the first row or the filter at four sizes, room and section", fn = function()
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
