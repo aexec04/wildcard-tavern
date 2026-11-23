@@ -46984,4 +46984,23 @@ table.insert(tests, { name = "Collection Patron wall: every locked Patron shows 
 	expectTrue(n >= 90, "all Patrons were checked (" .. n .. ")")
 end })
 
+table.insert(tests, { name = "Loading screen tips: at least 12 kid safe tips of 60 characters or less rotate, no tip twice in a row over many laps and seeds, none mentions banned themes", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
+	expectTrue(#Tips.TIPS >= 12, "at least 12 tips")
+	local banned = { "beer", "ale ", "wine", "whiskey", "rum ", "liquor", "tankard", "stein", "mug", "cigar", "tobacco", "skull", "blood", "gun ", "kill", "die ", "real money", "cash" }
+	for i, tip in ipairs(Tips.TIPS) do
+		expectTrue(#tip <= 60, "tip " .. i .. " is 60 characters or less")
+		local l = " " .. tip:lower() .. " "
+		for _, w in ipairs(banned) do expectFalse(l:find(w, 1, true) ~= nil, "tip " .. i .. " has no " .. w) end
+	end
+	for seed = 1, 200 do
+		local order, prev = Tips.order(seed), nil
+		for step = 1, #order * 2 do
+			local idx = order[((step - 1) % #order) + 1]
+			expectTrue(idx ~= prev, "seed " .. seed .. " step " .. step .. " repeats back to back")
+			prev = idx
+		end
+	end
+end })
+
 return tests
