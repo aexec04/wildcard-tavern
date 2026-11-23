@@ -50843,6 +50843,100 @@ table.insert(tests, { name = "Sell audit: the sell price is half rounded down, e
 	end
 end })
 
+table.insert(tests, { name = "Save corruption recovery: bad typed, missing or junk fields load with safe defaults, valid fields are kept, one warning lists the bad ones, and a failed load never lets the guest profile overwrite the real save", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local good = PlayerProfile.new()
+	good.pendingStartTips = 17
+	good.tavernXp = 300
+	good.loginStreak = 4
+	good.lastLoginDay = 20800
+	good.ownedSetIds.winter_evening = true
+	good.equippedSetId = "winter_evening"
+	good.settings.musicVolume = 0.4
+	good.discoveredPatronIds.some_id = true
+	local function copy(v)
+		if type(v) ~= "table" then return v end
+		local out = {}
+		for k, x in pairs(v) do out[k] = copy(x) end
+		return out
+	end
+	local function loads(raw, label)
+		local ok, p = pcall(PlayerProfile.migrate, raw)
+		expectTrue(ok, label .. ": migrate never errors")
+		local defaults = PlayerProfile.new()
+		expectEqual(type(p.pendingStartTips), "number", label .. ": Tips is a number")
+		expectTrue(p.pendingStartTips >= 0, label .. ": Tips not negative")
+		expectEqual(type(p.discoveredPatronIds), "table", label .. ": Patrons is a table")
+		expectTrue(p.loginStreak >= 0, label .. ": streak not negative")
+		expectEqual(type(p.settings), "table", label .. ": settings is a table")
+		expectEqual(p.settings.musicVolume ~= nil, defaults.settings.musicVolume ~= nil, label .. ": settings keep their keys")
+		return p
+	end
+
+	-- wrong typed fields fall back to defaults and every valid field survives
+	local bad = copy(good)
+	bad.pendingStartTips = "lots"
+	bad.discoveredPatronIds = nil
+	bad.loginStreak = -9
+	bad.ownedSetIds.not_a_real_set = true
+	bad.settings.junk_key = "x"
+	bad.settings.sfxVolume = "loud"
+	bad.stats = "oops"
+	bad.quests = 12
+	local p = loads(bad, "bad fields")
+	expectEqual(p.pendingStartTips, 0, "string Tips falls back to the default")
+	expectEqual(p.loginStreak, 0, "negative streak clamps to 0")
+	expectTrue(p.ownedSetIds.winter_evening, "valid owned set kept")
+	expectTrue(p.ownedSetIds.not_a_real_set == nil, "unknown Card Set id dropped")
+	expectEqual(p.equippedSetId, "winter_evening", "valid equipped set kept")
+	expectEqual(p.tavernXp, 300, "valid Rank XP kept")
+	expectEqual(p.settings.musicVolume, 0.4, "valid setting kept")
+	expectTrue(p.settings.junk_key == nil, "junk setting key dropped")
+	expectEqual(p.settings.sfxVolume, PlayerProfile.new().settings.sfxVolume, "bad setting value gets its default")
+	local problems = PlayerProfile.loadProblems(bad)
+	expectTrue(#problems > 0, "bad save is reported")
+	local list = table.concat(problems, ",")
+	expectTrue(list:find("pendingStartTips", 1, true) and list:find("stats", 1, true) and list:find("quests", 1, true), "problem list names the bad fields")
+	expectEqual(#PlayerProfile.loadProblems(good), 0, "a clean save reports nothing")
+	expectEqual(#PlayerProfile.loadProblems(nil), 0, "a new player reports nothing")
+
+	-- oversized values clamp, whole save of the wrong type gives a fresh profile
+	local huge = copy(good)
+	huge.pendingStartTips = 1e300
+	huge.tavernXp = 1/0
+	huge.loginStreak = 0/0
+	local h = loads(huge, "huge")
+	expectTrue(h.pendingStartTips < 1e9, "huge Tips is clamped")
+	for _, junk in ipairs({ "text", 5, true, {} }) do
+		local r = loads(junk, "whole save " .. tostring(junk))
+		expectEqual(r.pendingStartTips, 0, "fresh profile")
+	end
+	expectEqual(#PlayerProfile.loadProblems("text"), 1, "a non table save is one problem")
+
+	-- a DataStore failure on load never overwrites the real save
+	local store = { value = copy(good), failTimes = 99, writes = 0 }
+	function store:UpdateAsync(_, fn)
+		if self.failTimes > 0 then error("DataStore request failed") end
+		local new = fn(copy(self.value))
+		if new ~= nil then self.value = copy(new); self.writes = self.writes + 1 end
+	end
+	local status = SaveLock.load(store, "k", "A", function() return 5000 end, SaveLock.RETRY_DELAYS, function() end)
+	expectEqual(status, "error", "load reports the failure")
+	expectEqual(store.writes, 0, "a failed load wrote nothing")
+	local guest = PlayerProfile.migrate(nil)
+	expectTrue(guest.pendingStartTips == 0 and next(guest.ownedSetIds) == nil, "the guest profile is playable and blank")
+	expectEqual(store.value.pendingStartTips, 17, "the real save is untouched")
+	-- the server blocks every later save for that player and tells them calmly
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("saveBlocked[player] = true", 1, true) ~= nil, "load failure blocks saving")
+		expectTrue(src:find("not saveBlocked[player]", 1, true) == nil and src:find("saveBlocked[player] or", 1, true) ~= nil, "saveProfile returns early when blocked")
+		expectTrue(src:find("Your progress can't be saved right now. You can still play.", 1, true) ~= nil, "the guest sees a clear kind note")
+		expectTrue(src:find("PlayerProfile.loadProblems(stored)", 1, true) ~= nil, "the server logs bad fields")
+	end
+end })
+
 return tests
 
 

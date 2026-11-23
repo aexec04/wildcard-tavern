@@ -203,6 +203,10 @@ local function loadProfile(player)
 	local delays = RunService:IsStudio() and {} or SaveLock.RETRY_DELAYS
 	local status, stored = SaveLock.load(ProfileStore, profileKey(player), game.JobId, os.time, delays, task.wait)
 	if status == "ok" then
+		local problems = PlayerProfile.loadProblems(stored)
+		if #problems > 0 then
+			warn(string.format("PlayerProfile for %s had bad fields (%s); safe defaults were used and valid fields kept.", player.Name, table.concat(problems, ", ")))
+		end
 		return PlayerProfile.migrate(stored)
 	end
 	warn(string.format(

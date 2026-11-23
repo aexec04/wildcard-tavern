@@ -317,6 +317,11 @@ function PlayerProfile.migrate(raw)
 	end
 
 	copyIdSet(raw.ownedSetIds, profile.ownedSetIds)
+	for id in pairs(profile.ownedSetIds) do
+		if not CosmeticSets.getById(id) then
+			profile.ownedSetIds[id] = nil -- an unknown Card Set id (junk or a removed set) is dropped, the real ones stay
+		end
+	end
 	if type(raw.clearedNightIds) == "table" then
 		for night, flag in pairs(raw.clearedNightIds) do
 			if type(night) == "number" and flag == true and night == math.floor(night)
@@ -571,6 +576,30 @@ function PlayerProfile.migrate(raw)
 		require(script.Parent.NewItems).seed(profile) -- an older save: what it already owns is not New
 	end
 	return profile
+end
+
+-- Names the saved fields that are the wrong type, so the server can log ONE warning per load (migrate already
+-- repaired them). Returns a list of field names; empty for a clean or brand-new save (raw == nil).
+local TYPED_FIELDS = {
+	pendingStartTips = "number", tavernXp = "number", loginStreak = "number", lastLoginDay = "number",
+	discoveredPatronIds = "table", ownedSetIds = "table", stats = "table", settings = "table", quests = "table",
+	equippedSetId = "string",
+}
+function PlayerProfile.loadProblems(raw)
+	if raw == nil then
+		return {}
+	end
+	if type(raw) ~= "table" then
+		return { "(whole save)" }
+	end
+	local out = {}
+	for field, want in pairs(TYPED_FIELDS) do
+		if raw[field] ~= nil and type(raw[field]) ~= want then
+			out[#out + 1] = field
+		end
+	end
+	table.sort(out)
+	return out
 end
 
 -- Safe to call straight off a remote handler. Returns (ok, message);
