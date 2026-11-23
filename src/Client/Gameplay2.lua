@@ -617,7 +617,7 @@ function M.install(deps)
 				plate = Kit.pill(layer, "", "wood"); plate.Name = "HandNamePlate"; plate.Visible = false
 				pcall(function() Kit.painted(plate, "wh_target") end)
 			end
-			local nr = self.previewName and self.playing ~= true and PreviewRules.namePlate(r) or nil
+			local nr = self.previewName and self.playing ~= true and PreviewRules.namePlate(r, previewPill.Visible and self.previewText and PreviewRules.rect(r.stage, self.previewText) or nil) or nil
 			if nr then
 				place(plate, nr); raise(plate, Z_UI + 1)
 				local nw = setText(plate, self.previewName)

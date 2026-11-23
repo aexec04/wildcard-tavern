@@ -52730,6 +52730,30 @@ table.insert(tests, { name = "Gameplay2 top row at 1920x957, 1280x720, 1024x600 
 	end
 end })
 
+table.insert(tests, { name = "Hand preview: for every poker hand the name plate text equals the hand name, is 24 characters or less, and the plate never overlaps the preview strip at four sizes", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, P = require(Eng.Gameplay2Layout), require(Eng.Gameplay2Preview)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, handName in ipairs(HandEvaluator.HandOrder) do
+		local cards = {}
+		for _, rs in ipairs(HandEvaluator.Examples[handName]) do table.insert(cards, C(rs[1], rs[2])) end
+		local evaluated = HandEvaluator.evaluate(cards).name
+		expectEqual(evaluated, handName, handName .. " example evaluates to its own name")
+		local preview = { name = evaluated, chips = 40, mult = 4 }
+		expectEqual(P.nameText(preview), handName, "name plate text equals the hand name")
+		expectTrue(#P.nameText(preview) <= 24, handName .. " name is 24 characters or less")
+		local line = P.line(preview, 1)
+		for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+			local r = L.rects(sz[1], sz[2])
+			local strip = P.rect(r.stage, line)
+			local plate = P.namePlate(r, strip) -- the strip already names the hand, so a plate that would sit on it is dropped
+			if plate then
+				expectTrue(not hit(plate, strip), handName .. " name plate overlaps the preview strip at " .. sz[1] .. "x" .. sz[2] .. string.format(" plate=%d,%d,%d,%d strip=%d,%d,%d,%d", plate.x, plate.y, plate.w, plate.h, strip.x, strip.y, strip.w, strip.h))
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")
