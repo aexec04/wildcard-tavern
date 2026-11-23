@@ -1500,8 +1500,9 @@ table.insert(tests, { name = "Night 2 and 3 targets are lifted modestly, Night 1
 	expectTrue(RunState.nightBaseScoreFor(2) > plain(2) and RunState.nightBaseScoreFor(2) <= plain(2) * 1.25, "Night 2 lift")
 	expectTrue(RunState.nightBaseScoreFor(3) > plain(3) and RunState.nightBaseScoreFor(3) <= plain(3) * 1.25, "Night 3 lift")
 	expectEqual(RunState.nightBaseScoreFor(4), plain(4) * 1.1)
-	expectEqual(RunState.nightBaseScoreFor(5), plain(5) * 1.1)
-	expectEqual(RunState.nightBaseScoreFor(6), plain(6))
+	expectEqual(RunState.nightBaseScoreFor(5), plain(5) * 1.25, "Night 5 second step after boons and marks")
+	expectEqual(RunState.nightBaseScoreFor(6), plain(6) * 1.1, "Night 6 first step after boons and marks")
+	expectEqual(RunState.nightBaseScoreFor(7), plain(7))
 	for n = 2, 10 do
 		expectTrue(RunState.nightBaseScoreFor(n) > RunState.nightBaseScoreFor(n - 1), "targets climb at Night " .. n)
 	end
@@ -40465,6 +40466,20 @@ table.insert(tests, { name = "Daily twists: Patron power twists never leave frac
 	end
 end })
 
+-- claude/sim-endless.md: nobody got past Night 18 in 1500 runs; this keeps the wall in place out to Night 30.
+table.insert(tests, { name = "Endless curve Night 13 to 30: the boss target grows 1.5x a Night, stays far under the cap, and Night 15 asks for over 500,000", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local last = RunState.targetScoreFor(12, 3, 3, 8)
+	for night = 13, 30 do
+		local t = RunState.targetScoreFor(night, 3, 3, 8)
+		expectTrue(t >= last * 1.4, "Night " .. night .. " boss target is at least 1.4x the Night before")
+		expectTrue(t < ER.TARGET_CAP / 1e6, "Night " .. night .. " stays far below the cap")
+		last = t
+	end
+	expectTrue(RunState.targetScoreFor(15, 3, 3, 8) > 500000, "Night 15 is a wall")
+	expectTrue(RunState.targetScoreFor(30, 3, 3, 8) > 1e8, "Night 30 is out of reach")
+end })
+
 table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
 	local ER = require(script.Parent.Parent.Engine.EndlessRules)
 	for round = 1, 3 do
@@ -42890,6 +42905,34 @@ table.insert(tests, { name = "Quest Tips and Pocket Change: the banked Tips cap 
 	-- the bank is spent once: taking it empties it
 	expectEqual(TavernRank.takeStartTips(profile), TavernRank.MAX_PENDING_TIPS)
 	expectEqual(profile.pendingStartTips, 0)
+end })
+
+-- SHOP PRICES vs INCOME (claude/ECONOMY.md): the plain Tips a Night pays cover a typical Patron, a Mark and one reroll.
+table.insert(tests, { name = "Shop prices and Tips income: a Night's base pay covers the average Patron, a Mark and a first reroll", fn = function()
+	local Marks = require(script.Parent.Parent.Engine.Marks)
+	local sum, count = 0, 0
+	for _, d in ipairs(Patrons.Definitions) do sum = sum + d.price; count = count + 1 end
+	local averagePrice = sum / count
+	local perRound = RunState.DefaultConfig.tipsPerRoundWin
+	local nightPay = perRound * 4 -- two plain rounds at 1x and the Boss round at 2x
+	expectTrue(averagePrice >= 5 and averagePrice <= 7.5, "average Patron price stays 5 to 7.5: " .. averagePrice)
+	expectTrue(nightPay >= averagePrice + Marks.PRICE + Shop.REROLL_BASE_COST, "base Night pay " .. nightPay .. " covers a Patron, a Mark and a reroll")
+	expectTrue(Marks.PRICE <= 3, "a Mark stays at 3 Tips or less")
+end })
+
+-- HAND LEVEL VALUE (claude/ECONOMY.md): a Pair raised to level 5 is worth about one level 1 Flush, not several times more, so
+-- leveling the common hand never makes every other hand pointless (best bots play no hand type over 31 percent of the time).
+table.insert(tests, { name = "Hand level value: a level 5 Pair scores within 1.5x of a level 1 Flush, and a level 5 hand beats its level 1 version at least 4x", fn = function()
+	local function score(name, level)
+		local b, g = Scoring.HandBase[name], Scoring.HandLevelGrowth[name]
+		return (b.chips + g.chips * level) * (b.mult + g.mult * level)
+	end
+	expectTrue(score("Pair", 5) <= score("Flush", 1) * 1.5, "level 5 Pair against level 1 Flush: " .. score("Pair", 5) .. " vs " .. score("Flush", 1))
+	expectTrue(score("Pair", 5) >= score("Flush", 1) * 0.8, "and not far under it")
+	for _, name in ipairs({ "Pair", "Two Pair", "Flush", "Straight" }) do
+		expectTrue(score(name, 5) >= score(name, 1) * 4, name .. " level 5 is worth the Recipes spent")
+		expectTrue(score(name, 5) < score("Straight Flush", 5), name .. " never passes a Straight Flush at the same level")
+	end
 end })
 
 -- SYNERGY AUDIT (claude/synergy-audit.md, tools/synergy_audit.lua): every Patron shares a real tag with at least one other Patron.

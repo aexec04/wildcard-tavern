@@ -68,8 +68,7 @@ local function parseArgs(argv)
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--start-decks"] = "startDecks", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
-		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--boss-late"] = "bossLate", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing", ["--boons"] = "boons", ["--boss-boons"] = "bossBoons",
-	}
+		["--chase-table"] = "chaseTable", ["--random-patrons"] = "randomPatrons", ["--combos"] = "combos", ["--late"] = "late", ["--patron-rates"] = "patronRates", ["--boss-rules"] = "bossRules", ["--pair-rates"] = "pairRates", ["--daily-twists"] = "dailyTwists", ["--boss-late"] = "bossLate", ["--offers"] = "offers", ["--shop-econ"] = "shopEcon", ["--welcome"] = "welcome", ["--pacing"] = "pacing", ["--boons"] = "boons", ["--boss-boons"] = "bossBoons", ["--night-rates"] = "nightRates",	}
 	local i = 1
 	while i <= #argv do
 		local a = argv[i]
@@ -486,6 +485,31 @@ elseif cfg.bossLate then
 		local rate = allT > 0 and 100 * allW / allT or nil
 		if rate and allT >= 20 and (rate < 15 or rate > 85) then flag = "  <-- outside" end
 		print(string.format("%-20s %s  %s%s", row.id, table.concat(cells, " "), rate and string.format("%4.0f%% (%d)", rate, allT) or "--", flag))
+	end
+elseif cfg.nightRates then
+	-- Clear rate per Night for full runs (Endless past the win): a Night is cleared when all its rounds, boss included, were cleared.
+	local records = collect(runConfig({ endless = true }))
+	local reached, cleared = {}, {}
+	for _, rec in ipairs(records) do
+		local byNight = {}
+		for _, r in ipairs(rec.rounds or {}) do
+			local n = byNight[r.night] or { rounds = 0, ok = 0 }
+			n.rounds, n.ok = n.rounds + 1, n.ok + (r.cleared and 1 or 0)
+			byNight[r.night] = n
+		end
+		for night, n in pairs(byNight) do
+			reached[night] = (reached[night] or 0) + 1
+			if n.ok == n.rounds and n.rounds >= 3 then cleared[night] = (cleared[night] or 0) + 1 end
+		end
+	end
+	print(string.format("Night clear rate, bot %s, %d runs, boon=%s, marks=%s, max night %d", cfg.bot, #records, tostring(cfg.boon), tostring(cfg.marks), cfg.maxNight))
+	print(string.format("%-6s %8s %8s", "Night", "reached", "cleared"))
+	for night = 1, cfg.maxNight do
+		if reached[night] then
+			local pct = 100 * (cleared[night] or 0) / reached[night]
+			local flag = (reached[night] >= 20 and (pct < 20 or pct > 90)) and "  <-- outside 20 to 90" or ""
+			print(string.format("%-6d %8d %7.1f%%%s", night, reached[night], pct, flag))
+		end
 	end
 elseif cfg.bossBoons then
 	-- Boss rule x Night boon, Nights 7 to 12: one cell = boss clear percent over every boss round of that run set (n attempts).

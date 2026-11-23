@@ -1105,7 +1105,7 @@ end
 function Sim.runOne(cfg, seed)
 	math.randomseed(seed)
 	local rng = E.SeededRng.new(seed)
-	local botRng = E.SeededRng.new((seed * 7 + 13) % 4294967296)
+	local botRng = E.SeededRng.new((seed * 7 + 13 + (cfg.botSeedOffset or 0)) % 4294967296) -- botSeedOffset: same board, different bot choices
 	local restoreBoss = installBossOverride(cfg)
 
 	local state = E.RunState.new({
@@ -1185,7 +1185,13 @@ function Sim.runOne(cfg, seed)
 		Sim.shopVisit(state, cfg, botRng, rec)
 		E.RunState.advanceToNextRound(state)
 		if cfg.boon and state.round == 1 and E.NightBoons.offeredAt(state.night) and not state.runOver then
-			E.NightBoons.apply(state, cfg.boon) -- --boon ID: the same boon every Night 2 to 12
+			-- --boon ID: the same boon every Night 2 to 12; --boon random: the first of three random offers (a player who picks blind)
+			local pick = cfg.boon
+			if pick == "random" then
+				local choice = E.NightBoons.draft(state, true, botRng)
+				pick = choice and choice.options[1].id or nil
+			end
+			if pick then E.NightBoons.apply(state, pick) end
 		end
 	end
 

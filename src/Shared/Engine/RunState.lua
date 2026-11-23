@@ -97,7 +97,10 @@ local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 -- Modest lift for Nights 2 and 3: the sim's strong bot cleared both 100% of the time.
 -- Night 1 stays as is (WelcomeEase and the first-five-minutes win). Nights 4 and 5 got a 10 percent step
 -- after the --late sim cleared them 89 to 92 percent with a 4 Patron build. Night 6 and later unchanged.
-local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2, [4] = 1.1, [5] = 1.1 }
+-- Night boons, marks and the strategy Patrons made Night 5 clear 94 to 99 percent and Night 6 92 percent for the greedy and
+-- decent bots (the --night-rates sim), so Night 5 got a second step and Night 6 a first one. Nights 2 to 4 stay easy on purpose:
+-- a step of 25 to 30 percent moved them under 1 point, and a new player is far below these bots.
+local NIGHT_TUNE = { [2] = 1.12, [3] = 1.2, [4] = 1.1, [5] = 1.25, [6] = 1.1 }
 
 -- Endless Nights (past the Night 8 cap) climb a little slower per Night, so a good run ends around Night 10 to 14
 -- (the --endless sim). Nights 1 to 8 are untouched.
