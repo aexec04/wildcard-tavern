@@ -434,7 +434,7 @@ function CollectionSection.new(opts)
 			brassButton(pg.next, ">", function() self.turn(1) end).Name = "PageNext"
 			local plate = brassButton(pg.label, Layout.pageText(st.page, pages), nil)
 			plate.AutoButtonColor = false
-			plate.TextSize = 16
+			plate.TextSize = require(Engine:WaitForChild("CollectionTextFit")).plateSize(plate.Text, pg.label.w, pg.label.h) -- 12 px clear each side of the word
 			plate.Name = "PagePlate"
 		else
 			pagerHost.Visible = false

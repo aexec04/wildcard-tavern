@@ -30916,6 +30916,48 @@ table.insert(tests, { name = "Daily strip: the Client sizes the Chest word and G
 	end
 end })
 
+table.insert(tests, { name = "Collection text fit: tab labels, rarity words, page word and count lines keep 12 px clear of their plate at four sizes, and the Client applies CollectionTextFit", fn = function()
+	local C = require(script.Parent.Parent.Engine.CollectionTextFit)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Book = require(script.Parent.Parent.Engine.CollectionBook)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local SL = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local words = {}
+	for _, id in ipairs(Book.RarityOrder) do words[#words + 1] = Book.Rarities[id].name end
+	for _, sz in ipairs({ { 1700, 900 }, { 1100, 640 }, { 900, 520 }, { 700, 400 } }) do
+		local tag = sz[1] .. "x" .. sz[2]
+		local P = RL.panel(sz[1], sz[2], 24, nil, "section")
+		for _, tab in ipairs(Book.Tabs) do
+			local w = C.tabWidth(tab.name, 14)
+			expectTrue(F.width(tab.name, 14) + 2 * F.SIDE <= w, tag .. " tab " .. tab.name .. " has 12 px each side")
+		end
+		local size = C.chipSize(words, P.filter.w - 2 * F.SIDE)
+		expectTrue(size >= 12 and size <= 15, tag .. " rarity word size in range")
+		local total = C.CHIP_GAP * (#words - 1)
+		for _, w in ipairs(words) do total = total + C.SWATCH + F.width(w, size) end
+		expectTrue(total <= P.filter.w - 2 * F.SIDE or size == 12, tag .. " the five rarity words fit one row of the filter plate")
+		for _, pages in ipairs({ 2, 9, 12 }) do
+			local pg = SL.pager(P.pager and P.pager.w or RL.PAGER_W)
+			local text = SL.pageText(pages, pages)
+			local s = C.plateSize(text, pg.label.w, pg.label.h)
+			expectTrue(F.width(text, s) + 2 * F.SIDE <= pg.label.w, tag .. " " .. text .. " fits the page plate with 12 px each side")
+		end
+		local found = require(script.Parent.Parent.Engine.CollectionCards).foundText(1234, 5678)
+		local line = RL.ownedText(1234, 5678)
+		expectTrue(F.width(line, C.linesSize({ line, found }, 428)) <= 428, tag .. " count lines fit the info plate")
+	end
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local t = f:read("*a"); f:close()
+		expectTrue(t:find("CollectionTextFit", 1, true) ~= nil and t:find(".tabWidth(", 1, true) ~= nil and t:find(".chipSize(", 1, true) ~= nil and t:find(".linesSize(", 1, true) ~= nil, "Collection applies the fit to tabs, rarity words and count lines")
+	end
+	local g = io and io.open and io.open("src/Client/CollectionSection.lua", "r")
+	if g then
+		local t = g:read("*a"); g:close()
+		expectTrue(t:find(".plateSize(", 1, true) ~= nil, "the page plate applies the fit")
+	end
+end })
+
 table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local D = require(script.Parent.Parent.Engine.DailyStrip)

@@ -465,6 +465,12 @@ return function(deps)
 	-- Each chip is a toggle: click to hide/show that tier in the grid.
 	local hiddenRarities = {}
 	local refresh -- assigned below; chips call it
+	local rarityWordSize -- one size for every rarity word so all five fit one row of the filter plate (12 px side clear), 15 px when there is room
+	do
+		local words = {}
+		for _, id in ipairs(CollectionBook.RarityOrder) do words[#words + 1] = CollectionBook.Rarities[id].name end
+		rarityWordSize = require(Engine:WaitForChild("CollectionTextFit")).chipSize(words, RoomLayout.FILTER_MAX_W - 2 * 12)
+	end
 	for i, rarityId in ipairs(CollectionBook.RarityOrder) do
 		local tierColor = rgb(CollectionBook.Rarities[rarityId].color)
 		local chip = Instance.new("TextButton")
@@ -490,8 +496,8 @@ return function(deps)
 			TextColor3 = Color3.fromRGB(30, 22, 14), ZIndex = 24, Text = "✓",
 		})
 		local name = label(chip, {
-			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Position = UDim2.fromOffset(22, 0),
-			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = SOFT_CREAM,
+			Name = "Word", AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromScale(0, 1), Position = UDim2.fromOffset(22, 0),
+			Font = Enum.Font.GothamBold, TextSize = rarityWordSize, TextColor3 = SOFT_CREAM,
 			Text = CollectionBook.Rarities[rarityId].name,
 		})
 		local function paint()
@@ -590,6 +596,15 @@ return function(deps)
 		tabRow.Position, tabRow.Size = UDim2.fromOffset(P.tabs.x, P.tabs.y), UDim2.fromOffset(P.tabs.w, P.tabs.h)
 		legendRow.Size = UDim2.fromOffset(P.filter.w, P.filter.h)
 		legendRow.Position = UDim2.new(0.5, 0, 1, -RoomLayout.FOOTER)
+		do -- the rarity words take the largest one size at which all five fit one row of this filter plate, 12 px clear at both ends
+			local words = {}
+			for _, id in ipairs(CollectionBook.RarityOrder) do words[#words + 1] = CollectionBook.Rarities[id].name end
+			local size = require(Engine:WaitForChild("CollectionTextFit")).chipSize(words, P.filter.w - 2 * 12)
+			for _, chip in ipairs(legendRow:GetChildren()) do
+				local word = chip:IsA("TextButton") and chip:FindFirstChild("Word")
+				if word then word.TextSize = size end
+			end
+		end
 		-- bottom inset, not a height: the area follows the panel while it is resized or expanded between two layouts
 		local inset = panelH - (P.area.y + P.area.h)
 		scroll.Position = UDim2.fromOffset(P.area.x, P.area.y)
@@ -754,7 +769,7 @@ return function(deps)
 			local Kit = require(script.Parent.TavernKit)
 			if Kit.setPlateTab(tabButton, lit) then -- the picture follows Size changes, so the fixed width can come after
 				tabButton.AutomaticSize = Enum.AutomaticSize.None
-				tabButton.Size = UDim2.fromOffset(math.max(96, 28 + #tabButton.Text * 8), RoomLayout.TABS.h - 2)
+				tabButton.Size = UDim2.fromOffset(require(Engine:WaitForChild("CollectionTextFit")).tabWidth(tabButton.Text, tabButton.TextSize), RoomLayout.TABS.h - 2) -- text width plus 12 px each side
 			end
 		end)
 	end
@@ -1272,6 +1287,7 @@ return function(deps)
 				table.insert(lines, tab.name .. ": " .. require(Engine:WaitForChild("CollectionCards")).foundText(counts.found, counts.total))
 			end
 		end
+		infoLabel.TextSize = require(Engine:WaitForChild("CollectionTextFit")).linesSize(lines, 428) -- the info plate is 460 wide, 16 px padding each side
 		infoLabel.Text = table.concat(lines, "\n")
 		infoPlate.Size = UDim2.new(0, 460, 0, #lines * (RoomLayout.BAR_TEXT + 3) + 14)
 

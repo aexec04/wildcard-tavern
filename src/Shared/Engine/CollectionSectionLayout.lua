@@ -267,7 +267,7 @@ end
 -- the page arrows and plate, centred in a host that is w wide and PAGER_H high
 M.PAGER_H = 28
 function M.pager(w)
-	local plateW, btnW, gap = 104, 36, 4
+	local plateW, btnW, gap = 120, 36, 4 -- 120 so "Page 12 of 12" keeps 12 px clear each side at 12 px (CollectionTextFit)
 	local total = btnW * 2 + plateW + gap * 2
 	local x = math.floor((w - total) / 2)
 	return {
