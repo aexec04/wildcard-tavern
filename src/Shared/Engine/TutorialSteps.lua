@@ -185,6 +185,38 @@ function TutorialSteps.clearOfSkip(ribbon, arrow, skip, target, screenW)
 	return out
 end
 
+-- Where the caption plate and its arrow go for a lit target { x, y, w, h } on a screen of size { w, h }: below the
+-- cutout, above it when there is no room below, and beside it for a tall target, centred and kept on screen, never on
+-- the target itself. rw, rh = the plate size; avoid = optional rects (Play Hand, Discard) the plate steps off. Returns { x, y, arrowX, arrowY, arrow = "^" | "v" | "<" | ">" }.
+-- Client/TutorialWalkthrough places the plate with this, so the tests see the same rect the player does.
+function TutorialSteps.captionPlace(target, screen, rw, rh, avoid)
+	local x, y, w, h = target.x, target.y, target.w, target.h
+	local cx = math.min(math.max(x + w / 2 - rw / 2, 12), math.max(12, screen.w - rw - 12))
+	local function clear(px, py)
+		for _, a in ipairs(avoid or {}) do
+			if TutorialSteps.meets({ x = px, y = py, w = rw, h = rh }, a) then return false end
+		end
+		return true
+	end
+	local below = y + h + 56 + rh <= screen.h - 8
+	local above = y - 44 - rh >= 8
+	-- Play Hand and Discard sit under the hand: a caption that would land on them goes above the hand instead.
+	if below and not clear(cx, y + h + 44) and above and clear(cx, y - 44 - rh) then below = false end
+	if below or above then
+		return {
+			x = cx,
+			y = below and (y + h + 44) or (y - 44 - rh),
+			arrowX = x + w / 2, arrowY = below and (y + h + 22) or (y - 22), arrow = below and "^" or "v",
+		}
+	end
+	local right = x + w + 56 + rw <= screen.w - 8
+	return {
+		x = right and (x + w + 48) or math.max(8, x - 48 - rw),
+		y = math.min(math.max(y + h / 2 - rh / 2, 8), math.max(8, screen.h - rh - 8)),
+		arrowX = right and (x + w + 24) or (x - 24), arrowY = y + h / 2, arrow = right and "<" or ">",
+	}
+end
+
 -- The caption is always the step's own line (never a generic fallback while a different thing is spotlighted).
 function TutorialSteps.captionFor(step)
 	if step and type(step.text) == "string" and step.text ~= "" then return step.text end

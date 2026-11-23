@@ -50937,6 +50937,91 @@ table.insert(tests, { name = "Save corruption recovery: bad typed, missing or ju
 	end
 end })
 
+table.insert(tests, { name = "Tutorial and first run rules: runs once for a new profile, Skip works at every step and never pays, a returning player never sees it, a tutorial run cannot touch targets or rewards, captions never cover Play Hand or Discard at four sizes", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialSteps)
+	local TStart = require(script.Parent.Parent.Engine.TutorialStart)
+	local FirstRewards = require(script.Parent.Parent.Engine.FirstRewards)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+
+	-- once for a new profile: the tile glows until it is finished or skipped, then never again, also after a save round trip
+	local fresh = PlayerProfile.new()
+	expectTrue(TStart.showNewRibbon(fresh, false), "a new profile sees the Tutorial ribbon")
+	expectEqual(fresh.hasSeenTutorial, false, "a new profile has not seen it")
+	PlayerProfile.markTutorialSeen(fresh)
+	expectFalse(TStart.showNewRibbon(fresh, false), "a returning player never sees the ribbon")
+	local back = PlayerProfile.migrate(fresh)
+	expectEqual(back.hasSeenTutorial, true, "the seen flag survives a rejoin")
+	expectFalse(TStart.showNewRibbon(back, false), "still no ribbon after the rejoin")
+	expectEqual(TStart.initialStage(false, false), nil, "a normal run never starts the scripted stage")
+	expectEqual(TStart.initialStage(true, true), nil, "a seeded run never starts it either")
+	expectEqual(TStart.initialStage(true, false), 1, "only the Tutorial tile starts it, at stage 1")
+
+	-- Skip works at every step: afterwards nothing is current, every input is allowed and the machine is finished
+	for i, step in ipairs(TS.Steps) do
+		local m = TS.new()
+		m.index = i
+		expectEqual(m:current().id, step.id, "at step " .. step.id)
+		m:skip()
+		expectTrue(m:finished() and m:skipped(), step.id .. ": Skip finishes the walkthrough")
+		expectEqual(m:current(), nil, step.id .. ": no step is left after Skip")
+		expectTrue(m:allows("play") and m:allows("discard") and m:allows("card", { index = 8, scripted = true }), step.id .. ": every input is free after Skip")
+		expectEqual(m:report("play_hand"), "ignored", step.id .. ": reports after Skip are ignored")
+		-- the Skip button needs a deliberate 1.5 s hold, a tap does nothing
+		local h = m:skipHold()
+		h:press(10)
+		expectFalse(h:update(10.2), step.id .. ": a short press does not skip")
+		h:release(10.2)
+		h:press(20)
+		expectTrue(h:update(21.6), step.id .. ": a full hold skips")
+	end
+	-- a Skip pays nothing and a second finish pays nothing more
+	local p = PlayerProfile.new()
+	local tipsBefore, backsBefore = p.pendingStartTips, next(p.unlockedCardBackIds or {})
+	expectTrue(FirstRewards.tutorial(p) ~= nil, "finishing pays once")
+	expectEqual(FirstRewards.tutorial(p), nil, "a second finish pays nothing")
+	expectEqual(p.pendingStartTips, tipsBefore, "the tutorial reward is not Tips")
+	expectTrue(backsBefore == nil, "the fixture started with no card backs")
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("if finished == true and tutorialSession and tutorialSession.isTutorial then", 1, true) ~= nil, "only a finished tutorial run pays, a Skip never does")
+		-- a tutorial run is isolated: no Welcome Ease, no rule bans, no unlocks, no profile start deck, never the profile
+		expectTrue(src:find("local welcomeEase = profile ~= nil and isTutorial ~= true", 1, true) ~= nil, "Welcome Ease never touches the tutorial targets")
+		expectTrue(src:find("ruleBans = seededRng == nil and isTutorial ~= true", 1, true) ~= nil, "no rule bans in the tutorial")
+		expectTrue(src:find("endlessRules = seededRng == nil and isTutorial ~= true", 1, true) ~= nil, "no Crowd Rules in the tutorial")
+		expectTrue(src:find("or isTutorial == true) and \"classic\"", 1, true) ~= nil, "the tutorial always uses the classic deck")
+		expectTrue(src:find("TutorialStart.writesProfile(session)", 1, true) ~= nil, "profile writes are gated on the tutorial rule")
+	end
+	expectFalse(TStart.writesProfile({ isTutorial = true }), "a tutorial session never writes the profile")
+	expectTrue(TStart.writesProfile({ isTutorial = false }), "a normal session writes the profile")
+	-- starting a normal run in the middle: the machine only ever follows the scripted run, a later run is a new session
+	local m = TS.new()
+	m:report("menu_play"); m:report("select_round")
+	expectEqual(m:current().id, "pick_pair", "mid tutorial the pair is next")
+	expectEqual(m:report("next_round"), "wrong", "a stray deliberate action is refused, not counted")
+	expectEqual(m:current().id, "pick_pair", "the step did not move")
+
+	-- the caption never covers Play Hand or Discard on the table steps, at four sizes
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1024, 600 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local r = L.rects(W, H)
+		local aim = { handCards = r.hand, play = r.play }
+		for _, step in ipairs(TS.Steps) do
+			local target = aim[step.target]
+			if target then
+				local pl = TS.captionPlace(target, { w = W, h = H }, 380, 56, { r.play, r.discard })
+				local cap = { x = pl.x, y = pl.y, w = 380, h = 56 }
+				expectTrue(cap.x >= 0 and cap.y >= 0 and cap.x + cap.w <= W and cap.y + cap.h <= H, tag .. " " .. step.id .. " caption on screen")
+				expectFalse(hit(cap, target), tag .. " " .. step.id .. " caption not on its own target")
+				expectFalse(hit(cap, r.play), tag .. " " .. step.id .. " caption clear of Play Hand")
+				expectFalse(hit(cap, r.discard), tag .. " " .. step.id .. " caption clear of Discard")
+			end
+		end
+	end
+end })
+
 return tests
 
 

@@ -394,23 +394,17 @@ return function(deps)
 			tapButton.Visible = currentStep ~= nil and currentStep.action == "tap"
 			-- ribbon below the cutout (above when there is no room), centred on it, kept on screen; the arrow
 			-- sits between the ribbon and the target, pointing at it
-			local rw, rh = ribbon.AbsoluteSize.X, 56
-			local below = y + h + 56 + rh <= size.Y - 8
-			local above = y - 44 - rh >= 8
-			if below or above then
-				local ry = below and (y + h + 44) or (y - 44 - rh)
-				local rx = math.clamp(x + w / 2 - rw / 2, 12, math.max(12, size.X - rw - 12))
-				ribbon.Position = UDim2.fromOffset(rx, ry)
-				arrow.Position = UDim2.fromOffset(x + w / 2, below and (y + h + 22) or (y - 22))
-				arrow.Text = below and "^" or "v"
-			else
-				-- no room above or below (a tall target): beside it, never on top of it
-				local right = x + w + 56 + rw <= size.X - 8
-				local rx = right and (x + w + 48) or math.max(8, x - 48 - rw)
-				ribbon.Position = UDim2.fromOffset(rx, math.clamp(y + h / 2 - rh / 2, 8, math.max(8, size.Y - rh - 8)))
-				arrow.Position = UDim2.fromOffset(right and (x + w + 24) or (x - 24), y + h / 2)
-				arrow.Text = right and "<" or ">"
-			end
+				local rw, rh = ribbon.AbsoluteSize.X, 56
+				local avoid, gp0 = {}, gui.AbsolutePosition
+				for _, b in ipairs({ deps.playButton, deps.discardButton }) do
+					if typeof(b) == "Instance" and b:IsA("GuiObject") and b.Visible and b ~= currentList[1] then
+						avoid[#avoid + 1] = { x = b.AbsolutePosition.X - gp0.X, y = b.AbsolutePosition.Y - gp0.Y, w = b.AbsoluteSize.X, h = b.AbsoluteSize.Y }
+					end
+				end
+				local place = Steps.captionPlace({ x = x, y = y, w = w, h = h }, { w = size.X, h = size.Y }, rw, rh, avoid)
+				ribbon.Position = UDim2.fromOffset(place.x, place.y)
+				arrow.Position = UDim2.fromOffset(place.arrowX, place.arrowY)
+				arrow.Text = place.arrow
 			-- The caption and its arrow never sit on the Skip button (Engine/TutorialSteps.clearOfSkip). The Tips plate at
 			-- the Counter is right above that button: the caption under it was half covered, and the arrow stood on it.
 			if skipButton.Visible then
