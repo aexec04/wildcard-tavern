@@ -32,6 +32,14 @@ DebugGotoRules.OPENERS = {
 DebugGotoRules.ADMIN_KEYS = { "freshsave", "daily", "daily:done", "weekly", "seed", "store", "store:<tab>", "season", "collection", "collection:<tab>",
 	"cardset:<id>", "settings", "share", "tavernmap:night=<n>" }
 
+-- A StringValue only fires Changed when the text changes, so jumping to the same key twice needs the value cleared first.
+-- Returns the values to assign in order: { "", value } when it is the same as the current one, else { value }.
+-- parse("") answers nil, so the clearing step does nothing on the client.
+function DebugGotoRules.assignSteps(current, value)
+	if current == value then return { "", value } end
+	return { value }
+end
+
 -- shallow copy of `state` turned into the named screen; `data` = { patrons = {def...}, packs = {def...}, boss = def }
 function DebugGotoRules.synth(which, state, data)
 	local s = {}
