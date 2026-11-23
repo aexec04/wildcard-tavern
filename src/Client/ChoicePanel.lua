@@ -37,6 +37,7 @@ local INK, CURSE, BLESS = rgb("ink"), rgb("curse"), rgb("bless")
 local PARCHMENT, GOLD, CREAM, WOOD = rgb("paper"), rgb("brass"), rgb("plateText"), rgb("plate")
 
 local CARD_W, CARD_H = 230, 300
+local FULL_H, COMPACT_H = 300, 240 -- short windows (under about 465 px tall) drop the portrait ring so the panel scales to 0.84 or more, not 0.7
 
 local ui
 local lastChoice
@@ -80,6 +81,9 @@ end
 
 local function buildCard(choice, option, order)
 	local isDecline = option.id == "decline"
+	local compact = ui.compact == true
+	local need = compact and math.ceil(13.6 / math.max(ui.baseScale or 1, 0.01)) or 0 -- design px that still read 14 px after the UIScale
+	local shift = compact and 100 or 0 -- the portrait ring is left out on short windows
 	local slot = Instance.new("Frame") -- the layout owns the slot; the card inside bobs on hover
 	slot.Name = "Slot_" .. option.id
 	slot.Size = UDim2.fromOffset(CARD_W, CARD_H)
@@ -176,6 +180,7 @@ local function buildCard(choice, option, order)
 	medalEdge.Thickness = 2
 	medalEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	medalEdge.Parent = medalRing
+	medalRing.Visible = not compact
 	local well = Instance.new("Frame")
 	well.Name = "Well"
 	well.Size = UDim2.fromOffset(126, 84)
@@ -188,6 +193,7 @@ local function buildCard(choice, option, order)
 	ring.Color = GOLD
 	ring.Thickness = 2
 	ring.Parent = well
+	well.Visible = not compact
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
 	if choice.kind == "patron" or choice.kind == "rushPatron" or choice.kind == "reward" then
 		-- The ring shows the portrait window of the cut card (Engine/DraftPortrait): no frame, no baked name, clipped to the ring
@@ -261,6 +267,7 @@ local function buildCard(choice, option, order)
 		gem.BackgroundColor3 = c3(rarity.color)
 		gem.BorderSizePixel = 0
 		gem.ZIndex = 65
+		gem.Visible = not compact -- the rarity word on the plate says the same
 		gem.Parent = card
 		local gs = Instance.new("UIStroke")
 		gs.Color = Color3.fromRGB(30, 20, 10)
@@ -277,7 +284,7 @@ local function buildCard(choice, option, order)
 		end
 		local plate = Instance.new("Frame")
 		plate.Name = "NamePlate"
-		plate.Position = UDim2.fromOffset(8, 108)
+		plate.Position = UDim2.fromOffset(8, 108 - shift)
 		plate.Size = UDim2.new(1, -16, 0, 50)
 		plate.BackgroundColor3 = c3(rarity.plate)
 		plate.BackgroundTransparency = 0.05
@@ -291,32 +298,32 @@ local function buildCard(choice, option, order)
 		underline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		underline.Parent = plate
 		label(plate, {
-			Name = "Name", Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 3), Text = option.name, TextSize = PatronCardSpec.NAME.max,
+			Name = "Name", Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 3), Text = option.name, TextSize = math.max(PatronCardSpec.NAME.max, need),
 			TextColor3 = CREAM, ZIndex = 64, TextWrapped = true, TextScaled = true,
 		})
 		do -- same name range as the Counter ribbon (Engine/PatronCardSpec): shrinks from 16 to 14, never below
 			local nameLabel = plate:FindFirstChild("Name")
 			local fit = Instance.new("UITextSizeConstraint")
-			fit.MinTextSize, fit.MaxTextSize = PatronCardSpec.NAME.min, PatronCardSpec.NAME.max
+			fit.MinTextSize, fit.MaxTextSize = math.max(PatronCardSpec.NAME.min, need), math.max(PatronCardSpec.NAME.max, need)
 			fit.Parent = nameLabel
 		end
 		label(plate, {
-			Name = "Rarity", Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 30), Text = rarity.word, TextSize = PatronCardSpec.RARITY_SIZE,
+			Name = "Rarity", Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 30), Text = rarity.word, TextSize = math.max(PatronCardSpec.RARITY_SIZE, need),
 			TextColor3 = c3(rarity.text), ZIndex = 64,
 		})
 	else
 		label(card, {
-			Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 112), Text = option.name, TextSize = 19,
+			Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 112 - shift), Text = option.name, TextSize = math.max(19, need),
 			TextWrapped = true,
 		})
 	end
 	-- the rule text sits in one block centred in the gap between the name and the Choose plate: dark ink, 16 px, the plus line in green ink
 	-- and the minus line in dark red ink (4.5:1 or better on the paper)
-	local ruleTop = rarity and 162 or 140
+	local ruleTop = (rarity and 162 or 140) - shift
 	local BoonPickLook = require(Engine:WaitForChild("BoonPickLook"))
 	local btnH = BoonPickLook.buttonHeight(ui.baseScale or 1) -- 44 px on screen at every window size
 	local ruleH = ChoiceRuleFit.boxHeight(CARD_H, btnH, ruleTop)
-	local ruleSize = ChoiceRuleFit.textSize(ruleH, 230 - 24, { option.line1, option.line2 }, 4)
+	local ruleSize = ChoiceRuleFit.textSize(ruleH, 230 - 24, { option.line1, option.line2 }, 4, compact and { need + 1, need } or nil)
 	local ruleBox = Instance.new("Frame")
 	ruleBox.Name = "Rule"
 	ruleBox.BackgroundTransparency = 1
@@ -348,7 +355,7 @@ local function buildCard(choice, option, order)
 	button.Size = UDim2.new(1, -40, 0, btnH)
 	button.Position = UDim2.new(0, 20, 1, -(btnH + 10))
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 17
+	button.TextSize = math.max(17, need)
 	button.Text = isDecline and "No, thanks" or "Choose"
 	button.TextColor3 = rgb("buttonText")
 	button.BackgroundColor3 = isDecline and rgb("buttonBrown") or rgb("buttonGreen")
@@ -598,12 +605,31 @@ function ChoicePanel.init(deps)
 		deps.choiceRemote:FireServer("decline")
 	end)
 
-	-- shrink to fit small windows: the holder is about 750 x 450
+	-- shrink to fit small windows: the holder is about 750 x 450. Under about 465 px tall the cards go compact (no portrait ring, a 240 px
+	-- card, texts and plates sized so they are still 14 px and 44 px after the UIScale); a flip rebuilds the cards.
 	local function fit()
 		local size = deps.screenGui.AbsoluteSize
-		local base = math.clamp(math.min(size.X / (CARD_W * 3 + 100), size.Y / (CARD_H + 190)), 0.5, 1.2)
+		local wide = size.X / (CARD_W * 3 + 100)
+		local wantCompact = math.min(wide, size.Y / (FULL_H + 190)) < 0.95
+		CARD_H = wantCompact and COMPACT_H or FULL_H
+		local base = math.clamp(math.min(wide, size.Y / (CARD_H + 190)), 0.5, 1.2)
 		scale.Scale = base
-		if ui then ui.baseScale = base end
+		holder.Size = UDim2.fromOffset(CARD_W * 3 + 60, CARD_H + 164)
+		row.Size = UDim2.new(1, 0, 0, CARD_H)
+		local btnH = wantCompact and math.max(44, math.ceil(44 / base)) or 44
+		local need = wantCompact and math.ceil(13.6 / base) or 0
+		skipButton.Position = UDim2.new(0.5, 0, 0, 100 + CARD_H + 12)
+		skipButton.Size = UDim2.fromOffset(160, btnH)
+		skipButton.TextSize = math.max(17, need)
+		text.TextSize = math.max(17, need)
+		if ui then
+			local flipped = ui.compact ~= wantCompact or ui.baseScale ~= base
+			ui.baseScale, ui.compact = base, wantCompact
+			if flipped and lastChoice then
+				builtKey = nil -- rebuild the cards at the new size
+				render()
+			end
+		end
 	end
 
 	-- Back to menu: the start-of-run draft (first Patron, blessing, Boss Rush Patrons) can be left; a between-Nights event card cannot.
@@ -634,7 +660,6 @@ function ChoicePanel.init(deps)
 		playClickSfx = deps.playClickSfx, choiceRemote = deps.choiceRemote,
 	}
 	fit()
-	ui.baseScale = scale.Scale
 	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	if deps.menuFrame then
 		deps.menuFrame:GetPropertyChangedSignal("Visible"):Connect(render)

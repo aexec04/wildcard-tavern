@@ -2,7 +2,7 @@
 	Engine/ChoiceRuleFit.lua
 	The rule text block on a Reward / pick card (Client/ChoicePanel) must end above the Choose plate.
 	boxHeight(cardH, btnH, top)  -> height of the text box: from `top` down to 8 px above the Choose plate
-	textSize(boxH, boxW, lines, gap) -> largest size from 16 down to 12 whose wrapped lines fit boxH (estimate, 0.56 em per glyph)
+	textSize(boxH, boxW, lines, gap, sizes?) -> largest size from 16 down to 12 whose wrapped lines fit boxH (estimate, 0.56 em per glyph)
 ]]
 local M = {}
 
@@ -27,11 +27,12 @@ function M.neededHeight(size, boxW, lines, gap)
 	return total
 end
 
-function M.textSize(boxH, boxW, lines, gap)
-	for _, size in ipairs(M.SIZES) do
+function M.textSize(boxH, boxW, lines, gap, sizes)
+	sizes = sizes or M.SIZES -- short windows pass larger sizes (descending) so the text is still 14 px after the UIScale
+	for _, size in ipairs(sizes) do
 		if M.neededHeight(size, boxW, lines, gap) <= boxH then return size end
 	end
-	return M.SIZES[#M.SIZES]
+	return sizes[#sizes]
 end
 
 return M

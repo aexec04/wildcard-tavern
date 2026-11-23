@@ -46,6 +46,36 @@ local function scaleOf(i)
 	return k
 end
 
+-- Where Roblox really draws a rect: a UIScale grows a frame around its anchor point (FakeGui lays everything out unscaled)
+local function realRect(i)
+	local x, y = i.AbsolutePosition.X, i.AbsolutePosition.Y
+	local w, h = i.AbsoluteSize.X, i.AbsoluteSize.Y
+	local p = i
+	while p do
+		for _, c in ipairs(p:GetChildren()) do
+			if c.ClassName == "UIScale" and c.Scale and c.Scale ~= 1 and p.AbsolutePosition and p.AbsoluteSize then
+				local ks, a = c.Scale, p.AnchorPoint or { X = 0, Y = 0 }
+				local px, py, pw, ph = p.AbsolutePosition.X, p.AbsolutePosition.Y, p.AbsoluteSize.X, p.AbsoluteSize.Y
+				x = px + a.X * pw * (1 - ks) + (x - px) * ks
+				y = py + a.Y * ph * (1 - ks) + (y - py) * ks
+				w, h = w * ks, h * ks
+			end
+		end
+		p = p.Parent
+	end
+	return x, y, w, h
+end
+
+-- text width: ASCII at 0.56 em, an emoji or symbol is one em wide (TextFit.width counts bytes, which triples an emoji)
+local function textWidth(text, size)
+	local total = 0
+	for _, cp in utf8.codes(text) do
+		if cp < 128 then total = total + size * TextFit.CHAR
+		elseif cp ~= 0xFE0F and cp ~= 0x200D then total = total + size end
+	end
+	return total
+end
+
 local function path(i)
 	local parts, p = {}, i
 	while p and p.Parent do
@@ -84,8 +114,9 @@ function M.audit(root, w, h, opts)
 				if isButton and (i.Text or "") ~= "" then out.buttons = out.buttons + 1 end
 				local ps = i.Parent and i.Parent.AbsoluteSize
 				-- a rect must be on the screen (scaled children are measured through their UIScale)
-				if (isText or isButton) and (pos.X < -1 or pos.Y < -1 or pos.X + size.X * k > w + 1 or pos.Y + size.Y * k > maxY + 1) then
-					add(i, string.format("off screen (%.0f,%.0f %.0fx%.0f at scale %.2f in %.0fx%.0f)", pos.X, pos.Y, size.X, size.Y, k, w, h))
+				local rx, ry, rw, rh = realRect(i)
+				if (isText or isButton) and (rx < -1 or ry < -1 or rx + rw > w + 1 or ry + rh > maxY + 1) then
+					add(i, string.format("off screen (%.0f,%.0f %.0fx%.0f at scale %.2f in %.0fx%.0f)", rx, ry, rw, rh, k, w, h))
 				end
 				if isButton and i.Visible ~= false and size.Y * k < 43.5 and i.Name ~= "CloseX" then
 					add(i, string.format("touch target %.0f px tall (%.0f at scale %.2f), 44 needed", size.Y * k, size.Y, k))
@@ -93,8 +124,8 @@ function M.audit(root, w, h, opts)
 				if isText then
 					local px = i.TextSize * k
 					if px < 13.5 then add(i, string.format("text %.1f px, 14 needed", px)) end
-					if not i.TextScaled and not i.TextWrapped and TextFit.width(i.Text, i.TextSize) > size.X + 2 then
-						add(i, string.format("text \"%s\" at %d px needs about %.0f px, the label is %.0f", i.Text, i.TextSize, TextFit.width(i.Text, i.TextSize), size.X))
+					if not i.TextScaled and not i.TextWrapped and textWidth(i.Text, i.TextSize) > size.X + 2 then
+						add(i, string.format("text \"%s\" at %d px needs about %.0f px, the label is %.0f", i.Text, i.TextSize, textWidth(i.Text, i.TextSize), size.X))
 					end
 					local plate = plateOf(i)
 					local fg = rgb(i.TextColor3)
