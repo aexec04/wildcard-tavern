@@ -52,6 +52,10 @@ function M.view(login, quests)
 	for _, q in ipairs(rows) do
 		if not q.done then goal = q break end
 	end
+	local doneN = 0
+	for _, q in ipairs(rows) do if q.done then doneN = doneN + 1 end end
+	out.goalShort = #rows > 0 and ("Goals " .. doneN .. "/" .. #rows) or "Goals soon" -- the short word the narrow strip shows at 14 px or more
+	out.goalCount = #rows > 0 and (doneN .. "/" .. #rows) or ""
 	if goal then
 		out.progress = math.floor(tonumber(goal.progress) or 0)
 		out.goal = math.max(1, math.floor(tonumber(goal.goal) or 1))
