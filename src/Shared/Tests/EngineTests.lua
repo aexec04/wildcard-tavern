@@ -46677,4 +46677,47 @@ table.insert(tests, { name = "Tavern Map: road nodes, name plates and the node d
 	end
 end })
 
+table.insert(tests, { name = "Card Sets page: hero name plate, Equip plate and every set tile fit with the longest set name, 44 px Equip, no overlaps, at four sizes", fn = function()
+	local CSL = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local longest, count = "", 0
+	for _, set in ipairs(CS.Definitions) do
+		count = count + 1
+		if #set.name > #longest then longest = set.name end
+	end
+	expectTrue(count >= 14, "the registry lists every Card Set (" .. count .. ")")
+	-- a serif glyph averages about 0.55 of its size wide; the plate or tile line may wrap to two lines on a tile
+	local function textW(str, size) return math.ceil(#str * size * 0.55) end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local pw, ph = CSL.roomPanel(W, H)
+		local g = CSL.room(pw, ph - CSL.TOP - CSL.BOTTOM, count, 1)
+		expectTrue(g.ok, tag .. " room fits")
+		local hp = g.parts
+		expectTrue(hp.button.h >= 44 and hp.button.w >= 120, tag .. " Equip plate is 44 px tall and wide enough (" .. hp.button.w .. "x" .. hp.button.h .. ")")
+		expectTrue(inside(hp.button, g.hero) and inside(hp.plate, g.hero) and inside(hp.table, g.hero), tag .. " Equip, name plate and table inside the hero")
+		expectTrue(textW("Equipped", 18) <= hp.button.w - 16, tag .. " the Equip word fits its plate")
+		expectTrue(hp.plate.h >= 24 and textW(longest, 18) <= 2 * (hp.plate.w - 16) and hp.plate.w >= 160, tag .. " the longest set name (" .. longest .. ") fits the hero name plate")
+		local parts = { { "plate", hp.plate }, { "table", hp.table }, { "button", hp.button } }
+		if hp.desc.h > 0 then parts[#parts + 1] = { "desc", hp.desc } end
+		for i = 1, #parts do
+			for j = i + 1, #parts do expectFalse(hit(parts[i][2], parts[j][2]), tag .. " hero " .. parts[i][1] .. " and " .. parts[j][1] .. " do not overlap") end
+		end
+		-- every tile name line holds the longest name on two 14 px lines, the state line holds one
+		for i, c in ipairs(g.cells) do
+			expectTrue(c.name.h >= 20 and c.state.h >= 18, tag .. " tile " .. i .. " text lines tall enough")
+			expectTrue(textW(longest, 14) <= 2 * c.name.w or c.name.h >= 2 * 14, tag .. " tile " .. i .. " longest name fits on two lines")
+			expectFalse(hit(c.name, c.state), tag .. " tile " .. i .. " name and state apart")
+		end
+		-- the page plates are 44 px targets and clear of the hero Equip plate
+		for _, k in ipairs({ "prev", "page", "next" }) do
+			expectTrue(g.plates[k].h >= 44 and g.plates[k].w >= 44, tag .. " " .. k .. " plate is a 44 px target")
+			expectFalse(hit(g.plates[k], hp.button), tag .. " " .. k .. " plate clear of the Equip plate")
+		end
+	end
+end })
+
 return tests
