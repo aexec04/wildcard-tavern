@@ -48613,6 +48613,47 @@ table.insert(tests, { name = "Tutorial flow: steps run in order (pick, play, Cou
 	expectTrue(machine:finished(), "the machine finishes after the last step")
 end })
 
+table.insert(tests, { name = "Gear menu: every gear and Tome row is a 44 px hit area on screen with a tooltip of 40 characters or less at four sizes", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1024, 600 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		for _, set in ipairs({ { "gear", G.menuRect(W, H), G.ROWS }, { "tome", G.tomeMenuRect(W, H), G.TOME_ROWS } }) do
+			local menu = set[2]
+			local rects = set[1] == "gear" and G.rowRects(menu) or G.tomeRowRects(menu)
+			expectEqual(#rects, #set[3], tag .. " " .. set[1] .. " has a rect per row")
+			expectTrue(menu.x >= 0 and menu.y >= 0 and menu.x + menu.w <= W and menu.y + menu.h <= H, tag .. " " .. set[1] .. " menu on screen")
+			for _, r in ipairs(rects) do
+				expectTrue(r.h >= 44 and r.w >= 44, tag .. " " .. r.id .. " row hit area is 44 px or more")
+				local tip = G.tipOf(r.id)
+				expectTrue(#tip > 0 and #tip <= G.TIP_MAX, tag .. " " .. r.id .. " tip is 1 to 40 characters: " .. tip)
+				expectFalse(tip:find("-", 1, true) ~= nil or tip:find("\226\128", 1, true) ~= nil, tag .. " " .. r.id .. " tip has no dash")
+			end
+		end
+	end
+	for _, row in ipairs(G.ROWS) do expectTrue(G.TIPS[row.id] ~= nil, row.id .. " has a tip") end
+	for _, row in ipairs(G.TOME_ROWS) do expectTrue(G.TIPS[row.id] ~= nil, row.id .. " has a tip") end
+end })
+
+table.insert(tests, { name = "Run Over share line: the button is 44 px or more, the hint says Line ready for 2 seconds after a press then goes back, never copy words a game cannot honour", fn = function()
+	local SF = require(script.Parent.Parent.Engine.ShareFeedback)
+	local RL = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectEqual(SF.SECONDS, 2, "two seconds")
+	expectTrue(RL.SMALL_H >= 44 and SF.MIN_BUTTON_H == 44, "the secondary buttons, Share included, are 44 px")
+	expectEqual(SF.buttonWord(10, nil), "Share", "idle word before any press")
+	expectEqual(SF.buttonWord(10, 10), "Line ready", "word right after a press")
+	expectEqual(SF.buttonWord(11.9, 10), "Line ready", "still ready at 1.9 s")
+	expectEqual(SF.buttonWord(12, 10), "Share", "back to Share at 2 s")
+	expectEqual(SF.hint(10, 10), SF.READY_HINT, "ready hint")
+	expectEqual(SF.hint(13, 10), SF.IDLE_HINT, "idle hint after 2 s")
+	expectEqual(SF.hint(5, 10), SF.IDLE_HINT, "a press in the future is ignored")
+	for _, t in ipairs({ SF.IDLE_BUTTON, SF.READY_BUTTON, SF.IDLE_HINT, SF.READY_HINT }) do
+		expectFalse(t:find("-", 1, true) ~= nil or t:find("\226\128", 1, true) ~= nil, "no dash: " .. t)
+		expectTrue(#t <= 60, "short: " .. t)
+	end
+	expectFalse(SF.READY_BUTTON == "Copied" or SF.READY_HINT:find("Copied", 1, true) ~= nil, "a game cannot write the clipboard, so nothing says Copied")
+end })
+
 return tests
 
 
