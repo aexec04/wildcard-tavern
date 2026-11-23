@@ -52810,6 +52810,26 @@ table.insert(tests, { name = "Patron seats: five seats never overlap the Target 
 	end
 end })
 
+table.insert(tests, { name = "Boss health bar: the plate shares the Target plate's top and height and the red fill stays inside the frame at four sizes", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, BC = require(Eng.Gameplay2Layout), require(Eng.BossCard)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		local tp = BC.topParts(r)
+		if tp.plate then expectTrue(tp.plate.y == r.target.y and tp.plate.h == r.target.h, "plate shares the Target top and height at " .. tag) end
+		local b = tp.bar
+		expectTrue(b.x >= 0 and b.y >= 0 and b.x + b.w <= w and b.y + b.h <= h, "frame on screen at " .. tag)
+		if tp.plate then expectTrue(b.x >= tp.plate.x and b.y >= tp.plate.y and b.x + b.w <= tp.plate.x + tp.plate.w and b.y + b.h <= tp.plate.y + tp.plate.h, "frame inside the plate at " .. tag) end
+		for _, want in ipairs({ 0, 0.01, 0.5, 1 }) do
+			local f = BC.fillRect(b, want)
+			expectTrue(f.h > 0, "the fill has height at " .. tag)
+			expectTrue(f.x >= b.x + BC.FILL_INSET and f.y >= b.y + BC.FILL_INSET and f.x + f.w <= b.x + b.w - BC.FILL_INSET and f.y + f.h <= b.y + b.h - BC.FILL_INSET, "fill inside the frame at " .. tag .. " with " .. want)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")

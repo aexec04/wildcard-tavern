@@ -39,6 +39,14 @@ function M.fraction(cur, total)
 	return math.max(0, math.min(1, (tonumber(cur) or 0) / total))
 end
 
+-- The red fill sits FILL_INSET px inside the gauge frame on every side (Client/BossCardFX uses the same inset); `want` is 0..1.
+M.FILL_INSET = 4
+function M.fillRect(bar, want)
+	local i = M.FILL_INSET
+	local w = math.max(0, math.floor((bar.w - 2 * i) * math.max(0, math.min(1, tonumber(want) or 0))))
+	return { x = bar.x + i, y = bar.y + i, w = w, h = math.max(0, bar.h - 2 * i) }
+end
+
 local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 
 -- The Boss round row: the boss takes the middle seat (BOSS_SEAT), so the first two Patrons keep seats 1 and 2, the next two move to seats 4 and 5
