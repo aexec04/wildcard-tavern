@@ -20,7 +20,7 @@ M.MIN_TOUCH = 44
 M.HEIGHT = 48
 M.MAX_W = 620
 M.MARGIN = 12
-M.CHEST_PAD, M.CHEST_MIN_W, M.CHEST_MAX_W = 12, 126, 160 -- the chest word stays 12 px inside the plate edge
+M.CHEST_PAD, M.CHEST_MIN_W, M.CHEST_MAX_W = 12, 150, 170 -- the chest word stays 12 px inside the plate edge
 
 function M.visible(phase)
 	return phase == "roundSelect" -- Run Over hides it: the faded strip showed through under the panel
@@ -105,7 +105,7 @@ end
 -- On the main menu the strip stands in the bottom row to the RIGHT of the Deal Me In column: the tip plate (Engine/MenuLife) is on the
 -- left, the sign column (340 px, centred) in the middle and All actions (220 x 56, 16 px from the corner) at the right, 16 px between
 -- neighbours. Returns nil when the gap is narrower than MENU_MIN_W (small screens), then the strip is left out of the menu.
-M.MENU_GAP, M.MENU_SIGN_HALF, M.MENU_ALL_W, M.MENU_MIN_W, M.MENU_MAX_W = 16, 170, 0, 340, 560 -- MENU_ALL_W 0: the All actions button is gone
+M.MENU_GAP, M.MENU_SIGN_HALF, M.MENU_ALL_W, M.MENU_MIN_W, M.MENU_MAX_W = 16, 240, 0, 360, 560 -- MENU_ALL_W 0: the All actions button is gone
 function M.menuRect(w, h)
 	w, h = math.floor(tonumber(w) or 0), math.floor(tonumber(h) or 0)
 	local left = math.floor(w / 2) + M.MENU_SIGN_HALF + M.MENU_GAP

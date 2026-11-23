@@ -30832,7 +30832,7 @@ table.insert(tests, { name = "Daily strip chest: wide enough for the Next timer 
 		local strip = D.menuRect(s[1], s[2])
 		if strip then
 			local c = D.chestRect(strip)
-			assert(c.w >= 126 and c.w <= 160 and c.h >= 44, "chest size at " .. s[1])
+			assert(c.w >= 150 and c.w <= 170 and c.h >= 44, "chest size at " .. s[1])
 			assert(c.x >= 0 and c.x + c.w <= strip.w and c.y >= 0 and c.y + c.h <= strip.h, "chest inside strip at " .. s[1])
 			assert(c.w - 2 * D.CHEST_PAD >= 100, "word room at " .. s[1])
 		end
@@ -30855,15 +30855,39 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 		local strip = D.menuRect(w, h)
 		if strip then
 			shown = shown + 1
-			local sign = { x = w / 2 - 170, y = 0, w = 340, h = h } -- the whole column, any height
+			local sign = { x = w / 2 - D.MENU_SIGN_HALF, y = 0, w = 2 * D.MENU_SIGN_HALF, h = h } -- the whole column, any height
 			assert(not hit(strip, sign), "strip clear of sign column at " .. w)
-			assert(strip.x - (w / 2 + 170) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
+			assert(strip.x - (w / 2 + D.MENU_SIGN_HALF) >= 16 and w - (strip.x + strip.w) >= 16, "16 px gaps at " .. w)
 			assert(strip.h >= 44 and strip.y + strip.h <= h - 16 + 0.001 and strip.x + strip.w <= w, "strip on screen at " .. w)
 			local tip = L.tipRect(w, h)
 			if tip then assert(not hit(strip, tip) and strip.x - (tip.x + tip.w) >= 16, "strip clear of tip at " .. w) end
 		end
 	end
 	assert(shown >= 2 and D.menuRect(600, 800) == nil)
+end })
+
+table.insert(tests, { name = "Menu Daily strip shares no x range with Deal Me In or New Run at 1920x957, 1506x751, 1309x751, 1024x600; timer fits one line", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local play = ML.getHotspot("play")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local strip = D.menuRect(w, h)
+		if strip then
+			local l, t, r, b = ML.rect(play, w, h)
+			local pl, pt, pr, pb = ML.plateRect(play, w, h)
+			local newRun = { x = w / 2 - 110, y = h - 24 - 56, w = 220, h = 56 } -- New Run plaque, 220 x 56, bottom of the sign frame
+			local column = { x = w / 2 - D.MENU_SIGN_HALF, y = 0, w = 2 * D.MENU_SIGN_HALF, h = h }
+			expectFalse(hit(strip, { x = l, y = t, w = r - l, h = b - t }), tag .. " strip clear of the Deal Me In sign")
+			expectFalse(hit(strip, { x = pl, y = pt, w = pr - pl, h = pb - pt }), tag .. " strip clear of the Deal Me In plate")
+			expectFalse(hit(strip, newRun), tag .. " strip clear of New Run")
+			expectTrue(strip.x >= column.x + column.w, tag .. " strip starts right of the whole button column")
+			local c = D.chestRect(strip)
+			expectTrue(c.w - 2 * D.CHEST_PAD >= 120, tag .. " timer word has room for 'Next in 20h 39m' at 14 px on one line")
+		end
+	end
 end })
 
 table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
