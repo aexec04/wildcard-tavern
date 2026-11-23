@@ -46905,4 +46905,22 @@ table.insert(tests, { name = "Menu text fit: Tip pill, Daily strip Streak, Goal 
 	end
 end })
 
+table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
+	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
+	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
+		local r = P.rect(cardW, "select")
+		local rest = P.centre(r, P.ANCHOR_X, P.ANCHOR_Y, 1)
+		local hover = P.centre(r, P.ANCHOR_X, P.ANCHOR_Y, P.HOVER_SCALE)
+		local tag = "card " .. cardW
+		expectEqual(r.h, 44, tag .. " Select plate is 44 px tall")
+		expectTrue(math.abs(hover.x - rest.x) <= 4, tag .. " hover centre x moves at most 4 px (" .. (hover.x - rest.x) .. ")")
+		expectTrue(math.abs(hover.y - rest.y) <= 4, tag .. " hover centre y moves at most 4 px (" .. (hover.y - rest.y) .. ")")
+		local skip = P.rect(cardW, "skip")
+		expectTrue(r.y + r.h < skip.y, tag .. " Skip sits below Select")
+	end
+	-- the old left anchored plate slid more than 4 px, which is why the anchor is centred now
+	local r = P.rect(340, "select")
+	expectTrue(math.abs(P.centre(r, 0, 1, P.HOVER_SCALE).x - P.centre(r, 0, 1, 1).x) > 4, "a left anchor would have moved the centre")
+end })
+
 return tests

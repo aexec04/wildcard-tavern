@@ -585,8 +585,8 @@ return function(deps)
 		local selectButton = Instance.new("TextButton")
 		selectButton.Name = "SelectButton"
 		selectButton.Size = UDim2.new(1, -20, 0, 44)
-		selectButton.AnchorPoint = Vector2.new(0, 1)
-		selectButton.Position = UDim2.new(0, 10, 1, -(10 + 40 + 6))
+		selectButton.AnchorPoint = Vector2.new(0.5, 1) -- centred anchor: the hover grow spreads both ways and the centre never moves (RoundSelectPlates)
+		selectButton.Position = UDim2.new(0.5, 0, 1, -(10 + 40 + 6))
 		selectButton.Font = Enum.Font.GothamBold
 		selectButton.TextSize = 16
 		selectButton.Text = "Select"
@@ -602,8 +602,8 @@ return function(deps)
 		local skipButton = Instance.new("TextButton")
 		skipButton.Name = "SkipButton"
 		skipButton.Size = UDim2.new(1, -20, 0, 40)
-		skipButton.AnchorPoint = Vector2.new(0, 1)
-		skipButton.Position = UDim2.new(0, 10, 1, -10)
+		skipButton.AnchorPoint = Vector2.new(0.5, 1)
+		skipButton.Position = UDim2.new(0.5, 0, 1, -10)
 		skipButton.Font = Enum.Font.GothamBold
 		skipButton.TextSize = 16
 		skipButton.Text = "Skip"
