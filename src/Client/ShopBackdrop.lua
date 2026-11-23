@@ -370,7 +370,7 @@ function ShopBackdrop.new(deps)
 		end
 		for name, img in pairs(props) do
 			if r.props[name] then
-				place(img, r.props[name])
+				place(img, name == "ledger" and Layout.squareIn(r.props[name]) or r.props[name]) -- the book's crop is about 1 to 1: the largest centred square, not a wide box
 				img.ScaleType = Enum.ScaleType.Fit -- the crop of the props sheet keeps its own shape: Stretch squashed the book into a wide slab
 				img.Visible = self.propsHidden ~= true -- the open pack screen hides the ledger book and other props behind its buttons
 			else

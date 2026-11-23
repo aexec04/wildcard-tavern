@@ -104,6 +104,11 @@ local function tag(parent, name, text, width, y)
 		s.Thickness = 1.5
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = t
+		-- the word is never blank: if another writer clears it (a sweep over the button's text), the control's own Label comes back
+		t:GetPropertyChangedSignal("Text"):Connect(function()
+			local want = parent:GetAttribute("Label")
+			if t.Text == "" and type(want) == "string" and want ~= "" then t.Text = want end
+		end)
 	end
 	t.Text = text
 	t.Size = UDim2.fromOffset(width or 110, TAG_H)

@@ -52865,6 +52865,21 @@ table.insert(tests, { name = "Save safety: 20 odd profiles (missing fields, junk
 	end
 end })
 
+table.insert(tests, { name = "Counter Haggle ledger: the book is the largest centred square in its rect and the tag plate fits under it at four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local l = SL.rects(W, H, { offers = 3, packs = 2 }).props.ledger
+		local sq = SL.squareIn(l)
+		expectEqual(sq.w, sq.h, "square at " .. tag)
+		expectEqual(sq.w, math.min(l.w, l.h), "largest square that fits at " .. tag)
+		expectTrue(sq.x >= l.x and sq.y >= l.y and sq.x + sq.w <= l.x + l.w and sq.y + sq.h <= l.y + l.h, "inside the ledger rect at " .. tag)
+		expectTrue(math.abs((sq.x + sq.w / 2) - (l.x + l.w / 2)) <= 1 and math.abs((sq.y + sq.h / 2) - (l.y + l.h / 2)) <= 1, "centred at " .. tag)
+		expectTrue(math.max(l.w, 84) >= 84, "the tag plate is at least 84 px wide at " .. tag)
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")

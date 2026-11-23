@@ -237,6 +237,13 @@ ShopSceneLayout.ROOM = {
 }
 
 -- The picture's cover-crop mapping: scale, offset and size of the 1536 x 1024 picture over a W x H play area (centred, may overflow).
+-- The largest centred square inside a rect: the ledger crop of the props sheet is about 1 to 1, so the book is drawn at this size
+-- (the hit area for Haggle stays the whole rect).
+function ShopSceneLayout.squareIn(r)
+	local s = math.floor(math.min(r.w, r.h))
+	return rect(math.floor(r.x + (r.w - s) / 2), math.floor(r.y + (r.h - s) / 2), s, s)
+end
+
 function ShopSceneLayout.pic(W, H)
 	local R = ShopSceneLayout.ROOM
 	local s = math.max(W / R.w, H / R.h)
