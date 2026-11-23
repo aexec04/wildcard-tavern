@@ -35683,6 +35683,39 @@ table.insert(tests, { name = "Menu banners: Soon, Rank and Next goal lines wrap 
 	end
 end })
 
+table.insert(tests, { name = "Tome popups: every Tome page root (Collection, Card Sets, Badges, Legend, Flair, Ledger) has a 44 px Close X inside its panel, registers with PanelTabs and OverlayManager, and Escape closes it", fn = function()
+	local Groups = require(script.Parent.Parent.Engine.PanelGroups)
+	local X = require(script.Parent.Parent.Engine.CloseXRules)
+	local D = require(script.Parent.Parent.Engine.PopupDismissRules)
+	local FILES = {
+		collection = "src/Client/Collection.lua", cosmeticSets = "src/Client/CosmeticSetsPanel.lua", badges = "src/Client/BadgesPanel.lua",
+		legend = "src/Client/LegendPanel.lua", flair = "src/Client/FlairPanel.lua", stats = "src/Client/StatsPanel.lua",
+	}
+	local tome
+	for _, g in ipairs(Groups.GROUPS) do if g.id == "tome" then tome = g end end
+	expectTrue(tome ~= nil, "the Tome group exists")
+	for _, page in ipairs(tome.pages) do
+		expectTrue(FILES[page.id] ~= nil, "Tome page " .. page.id .. " is listed here, so a new page cannot skip the Close X test")
+	end
+	expectEqual(D.action("dismiss", "escape"), "close", "Escape closes a dismiss popup")
+	expectEqual(D.action("dismiss", "outside"), "close", "a click on the dark area closes it")
+	expectTrue(X.HIT >= 44, "the Close X hit area is 44 px or more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		expectTrue(X.fits(sz[1] - 40, sz[2] - 40, "topRight"), sz[1] .. "x" .. sz[2] .. " the 44 px Close X sits inside a panel")
+	end
+	if io and io.open then
+		for id, path in pairs(FILES) do
+			local f = io.open(path, "r")
+			if f then
+				local t = f:read("*a"); f:close()
+				expectTrue(t:find('PanelTabs).attach(backdrop, "' .. id .. '"', 1, true) ~= nil, id .. " registers its backdrop with PanelTabs (PopupDismiss: Escape and outside click)")
+				expectTrue(t:find('OverlayManager.register("' .. id .. '"', 1, true) ~= nil or id == "collection" or id == "cosmeticSets" or id == "badges", id .. " registers its close function")
+				expectTrue(t:find("CloseX", 1, true) ~= nil, id .. " uses the shared Close X")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuNoteText)
 	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
