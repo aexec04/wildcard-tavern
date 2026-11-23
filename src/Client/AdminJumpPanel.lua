@@ -31,6 +31,10 @@ function AdminJumpPanel.init(gui, getState)
 		for _, r in ipairs(require(Engine.Recipes).HouseRecipes) do ids.recipes[#ids.recipes + 1] = r.id end
 	end)
 	pcall(function()
+		ids.sets = {}
+		for _, d in ipairs(require(Engine.CosmeticSets).Definitions) do ids.sets[#ids.sets + 1] = { id = d.id, name = d.name } end
+	end)
+	pcall(function()
 		ids.tags = {}
 		for _, t in ipairs(require(Engine.Tags).Definitions) do ids.tags[#ids.tags + 1] = t.id end
 	end)

@@ -17,7 +17,10 @@ function AdminJumpKeys.shouldBuild(isStudio)
 end
 
 -- keys that work without a live run
-AdminJumpKeys.NO_RUN = { menu = true, round1 = true, store = true, map = true }
+AdminJumpKeys.NO_RUN = { menu = true, round1 = true, store = true, map = true, news = true, season = true, collection = true,
+	["tome:cardsets"] = true, ["tome:badges"] = true, ["tome:legend"] = true, ["tome:flair"] = true, ["tome:stats"] = true,
+	loading = true, perf = true, ["map:night=1"] = true, ["map:night=4"] = true, ["map:night=8"] = true,
+	["scale:800x450"] = true, ["scale:1024x768"] = true, ["scale:off"] = true, ["sfx:ladder"] = true }
 
 -- Rows for the panel, most used first. ids (real registry ids, passed by the panel):
 --   bosses = { { id, name } ... } (BossRounds.Definitions), recipes = { id ... }, tags = { id ... }
@@ -28,6 +31,7 @@ function AdminJumpKeys.list(ids)
 	local bosses = ids.bosses or {}
 	local recipes = ids.recipes or {}
 	local tags = ids.tags or {}
+	local sets = ids.sets or {} -- { { id, name } ... } from CosmeticSets.Definitions
 	local out, seen = {}, {}
 	local function add(label, value)
 		if seen[value] then return end -- a key is listed once, the first time
@@ -68,6 +72,49 @@ function AdminJumpKeys.list(ids)
 		heading("Bosses")
 		for _, b in ipairs(bosses) do add(b.name or b.id, "boss3:" .. b.id) end
 	end
+	heading("Menu screens")
+	add("News", "news")
+	add("Collection", "collection")
+	add("Card Sets page", "tome:cardsets")
+	add("Loading screen", "loading")
+	add("Tavern Map, Night 1", "map:night=1")
+	add("Tavern Map, Night 4", "map:night=4")
+	add("Tavern Map, Night 8", "map:night=8")
+	add("Draft by rarity", "rarity")
+	heading("Daily and meta")
+	add("Season track", "season")
+	add("Badges", "tome:badges")
+	add("Legends", "tome:legend")
+	add("Flair", "tome:flair")
+	add("Stats", "tome:stats")
+	add("Performance", "perf")
+	add("Phone size", "scale:800x450")
+	add("Tablet size", "scale:1024x768")
+	add("Full size", "scale:off")
+	add("Sound ladder", "sfx:ladder")
+	if #sets > 0 then
+		heading("Card Sets")
+		for _, s in ipairs(sets) do add(s.name or s.id, "menu:" .. s.id) end
+	end
+	heading("Run screens")
+	add("Haggle", "haggle")
+	add("Haggle, good", "haggle:good")
+	add("Haggle, bad", "haggle:bad")
+	add("Choose a road", "road")
+	add("Run Over", "runover")
+	add("Run Over, win", "runover:win")
+	add("Pack, make room", "packroom")
+	add("Wildcard effect", "wildcard")
+	add("Legendary effect", "legendary")
+	add("Play a hand", "playhand")
+	add("Play, keep round", "playhand:keep")
+	add("Slow beats on", "beatslow:on")
+	add("Freeze a beat", "beatslow:freeze")
+	add("Slow beats off", "beatslow:off")
+	add("Round win sounds", "sfx:roundwin")
+	add("Counter screen", "shop")
+	add("Round won", "roundwin")
+	add("Game over", "gameover")
 	return out
 end
 

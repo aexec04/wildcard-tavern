@@ -53334,7 +53334,9 @@ table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key pars
 	for _, b in ipairs(require(Engine.BossRounds).Definitions) do bosses[#bosses + 1] = { id = b.id, name = b.name } end
 	for _, r in ipairs(require(Engine.Recipes).HouseRecipes) do recipes[#recipes + 1] = r.id end
 	for _, t in ipairs(require(Engine.Tags).Definitions) do tags[#tags + 1] = t.id end
-	local ids = { bosses = bosses, recipes = recipes, tags = tags }
+	local sets = {}
+	for _, d in ipairs(require(Engine.CosmeticSets).Definitions) do sets[#sets + 1] = { id = d.id, name = d.name } end
+	local ids = { bosses = bosses, recipes = recipes, tags = tags, sets = sets }
 	local list = Keys.list(ids)
 	local seen, headings, buttons = {}, {}, 0
 	for i, e in ipairs(list) do
@@ -53352,7 +53354,17 @@ table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key pars
 	local firstSeven = {}
 	for i = 1, 7 do firstSeven[i] = list[i].value end
 	expectEqual(table.concat(firstSeven, " "), "round1 night:2 boon reward victory recipes:" .. recipes[1] .. " boss2:" .. bosses[1].id, "the most used keys come first")
-	for _, h in ipairs({ "Screens", "Nights", "Run", "Recipes", "Patrons", "Tags", "Bosses" }) do expectTrue(headings[h], "group heading " .. h) end
+	for _, h in ipairs({ "Screens", "Nights", "Run", "Recipes", "Patrons", "Tags", "Bosses", "Menu screens", "Daily and meta", "Card Sets", "Run screens" }) do expectTrue(headings[h], "group heading " .. h) end
+	for _, d in ipairs(sets) do expectTrue(seen["menu:" .. d.id], "a Card Sets button for " .. d.id) end
+	-- every documented, parsing key from the DebugGoto header has a button (the ones that do not parse are listed in JUMPS.md)
+	for _, want in ipairs({ "news", "season", "collection", "tome:cardsets", "tome:badges", "tome:legend", "tome:flair", "tome:stats", "loading",
+		"map:night=1", "map:night=4", "map:night=8", "rarity", "wildcard", "legendary", "packroom", "road", "haggle", "haggle:good", "haggle:bad",
+		"runover", "runover:win", "playhand", "beatslow:on", "sfx:ladder", "sfx:roundwin", "scale:800x450", "scale:off", "perf" }) do
+		expectTrue(seen[want], "documented key has a button: " .. want)
+	end
+	for _, bad in ipairs({ "daily", "daily:done", "weekly", "seed", "freshsave", "settings", "share" }) do
+		expectTrue(Rules.parse(bad) == nil and not seen[bad], "key that does not parse has no button: " .. bad)
+	end
 	for _, b in ipairs(bosses) do expectTrue(seen["boss3:" .. b.id], "a button for boss " .. b.id) end
 	for _, t in ipairs(tags) do expectTrue(seen["tag:" .. t], "a button for Tag " .. t) end
 	for _, want in ipairs({ "night:1", "night:12", "boss1", "patrons:1", "patrons:5", "endrun:win", "shop:20", "store", "map", "menu", "sellpatron" }) do
