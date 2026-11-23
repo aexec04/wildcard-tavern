@@ -52944,29 +52944,58 @@ table.insert(tests, { name = "NightVictory: the Enter Endless Nights button is t
 	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
 end })
 
-table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates", fn = function()
+table.insert(tests, { name = "AdminJumpPanel: Studio only, every listed key parses, 44 px rows, no duplicates, grouped headings, every JUMPS.md key has a button", fn = function()
 	local Keys = require(script.Parent.Parent.Engine.AdminJumpKeys)
 	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local Engine = script.Parent.Parent.Engine
 	expectTrue(Keys.shouldBuild(true) == true, "builds in Studio")
 	expectTrue(Keys.shouldBuild(false) == false and Keys.shouldBuild(nil) == false and Keys.shouldBuild("yes") == false, "never builds outside Studio")
-	expectTrue(Keys.ROW_HEIGHT >= 44, "44 px rows")
-	local ids = { recipe = require(Engine.Recipes).HouseRecipes[1].id, boss = require(Engine.BossRounds).Definitions[1].id }
+	expectTrue(Keys.ROW_HEIGHT >= 44 and Keys.HEADING_HEIGHT == 24, "44 px rows, 24 px headings")
+	local bosses, recipes, tags = {}, {}, {}
+	for _, b in ipairs(require(Engine.BossRounds).Definitions) do bosses[#bosses + 1] = { id = b.id, name = b.name } end
+	for _, r in ipairs(require(Engine.Recipes).HouseRecipes) do recipes[#recipes + 1] = r.id end
+	for _, t in ipairs(require(Engine.Tags).Definitions) do tags[#tags + 1] = t.id end
+	local ids = { bosses = bosses, recipes = recipes, tags = tags }
 	local list = Keys.list(ids)
-	local seen = {}
-	for _, e in ipairs(list) do
-		expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
-		expectTrue(not seen[e.value], "no duplicate key " .. e.value)
-		seen[e.value] = true
-		expectTrue(type(e.label) == "string" and #e.label > 0, "label for " .. e.value)
+	local seen, headings, buttons = {}, {}, 0
+	for i, e in ipairs(list) do
+		expectTrue(type(e.label) == "string" and #e.label > 0, "label on row " .. i)
+		if e.heading then
+			headings[e.label] = true
+			expectTrue(e.value == nil, "heading " .. e.label .. " has no key, so it is not clickable")
+		else
+			buttons = buttons + 1
+			expectTrue(Rules.parse(e.value) ~= nil, "key parses: " .. e.value)
+			expectTrue(not seen[e.value], "no duplicate key " .. e.value)
+			seen[e.value] = true
+		end
 	end
-	for _, want in ipairs({ "night:1", "night:12", "boon", "reward", "victory", "sellpatron", "patrons:5", "shop:20", "endrun", "endrun:win", "boss2:" .. ids.boss, "boss12:" .. ids.boss, "store", "map" }) do
+	local firstSeven = {}
+	for i = 1, 7 do firstSeven[i] = list[i].value end
+	expectEqual(table.concat(firstSeven, " "), "round1 night:2 boon reward victory recipes:" .. recipes[1] .. " boss2:" .. bosses[1].id, "the most used keys come first")
+	for _, h in ipairs({ "Screens", "Nights", "Run", "Recipes", "Patrons", "Tags", "Bosses" }) do expectTrue(headings[h], "group heading " .. h) end
+	for _, b in ipairs(bosses) do expectTrue(seen["boss3:" .. b.id], "a button for boss " .. b.id) end
+	for _, t in ipairs(tags) do expectTrue(seen["tag:" .. t], "a button for Tag " .. t) end
+	for _, want in ipairs({ "night:1", "night:12", "boss1", "patrons:1", "patrons:5", "endrun:win", "shop:20", "store", "map", "menu", "sellpatron" }) do
 		expectTrue(seen[want], "listed: " .. want)
+	end
+	expectTrue(#bosses >= 12 and buttons >= 12 + #bosses, "one button per real boss")
+	if io then
+		local jf = assert(io.open("claude/JUMPS.md", "r")); local jt = jf:read("a"); jf:close()
+		local n = 0
+		for key in jt:gmatch("`([^`]+)`") do
+			if not key:find("<", 1, true) then -- per-id keys (boss3:<id>, tag:<id>) are covered by the registry loops above
+				n = n + 1
+				expectTrue(seen[key], "claude/JUMPS.md key has a panel button: " .. key)
+			end
+		end
+		expectTrue(n >= 20, "JUMPS.md lists the keys")
 	end
 	if not io then return end
 	local f = assert(io.open("src/Client/AdminJumpPanel.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("Keys.shouldBuild(RunService:IsStudio())", 1, true) ~= nil, "panel checks the Studio guard before building")
 	expectTrue(src:find("Keys.ROW_HEIGHT", 1, true) ~= nil and src:find("Keys.list(ids)", 1, true) ~= nil, "buttons come from the one key table")
+	expectTrue(src:find("entry.heading", 1, true) ~= nil and src:find('Instance.new("TextLabel")', 1, true) ~= nil, "headings are labels, not buttons")
 	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
 	local g = assert(io.open("src/Client/DebugGoto.lua", "r")); local dg = g:read("a"); g:close()
 	local guard, build = dg:find("if not RunService:IsStudio() then return end", 1, true), dg:find("AdminJumpPanel", 1, true)
