@@ -48554,6 +48554,32 @@ table.insert(tests, { name = "Pack odds: Grab Bag, Jumbo and Mega Grab Bag give 
 	end
 end })
 
+table.insert(tests, { name = "Recipe levels: every hand type gives rising Chips and Mult from level 1 to 10, never lower than the level before", fn = function()
+	local count = 0
+	for name, base in pairs(Scoring.HandBase) do
+		count = count + 1
+		local growth = Scoring.HandLevelGrowth[name]
+		expectTrue(growth ~= nil, name .. " has level growth")
+		expectTrue(growth.chips >= 0 and growth.mult >= 0 and growth.chips + growth.mult > 0, name .. " growth never lowers and always adds something")
+		local prevChips, prevMult, prevTotal = -1, -1, -1
+		for level = 0, 9 do -- shown to the player as level 1 to 10
+			local chips, mult = base.chips + growth.chips * level, base.mult + growth.mult * level
+			expectTrue(chips >= prevChips and mult >= prevMult, name .. " level " .. (level + 1) .. " is not lower than the level before")
+			expectTrue(chips * mult > prevTotal, name .. " level " .. (level + 1) .. " pays more than the level before")
+			prevChips, prevMult, prevTotal = chips, mult, chips * mult
+		end
+	end
+	expectEqual(count, 9, "nine hand types")
+	-- the live scoring agrees with the table
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs") })
+	local last = -1
+	for level = 0, 9 do
+		local _, chips, mult = Scoring.calculate(hand, {}, { handLevels = { Pair = level } })
+		expectTrue(chips * mult > last, "Pair level " .. (level + 1) .. " scores more in Scoring.calculate")
+		last = chips * mult
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
