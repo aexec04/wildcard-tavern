@@ -22,6 +22,7 @@ local PARCHMENT_DIM = Color3.fromRGB(176, 158, 120)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GREEN = Color3.fromRGB(86, 140, 80)
+local CLAIMED_TILE = Color3.fromRGB(176, 196, 140) -- a claimed day's tile: dark ink on it reads at 4.5 to 1 or better (the old mid green was 3.5)
 
 local ui
 
@@ -84,7 +85,7 @@ local function refresh()
 		tile.Name = "Day" .. i
 		tile.LayoutOrder = i
 		tile.Size = UDim2.new(1 / 7, -8, 1, 0)
-		tile.BackgroundColor3 = skin and (r.today and skin.hot or skin.row) or (r.claimed and GREEN or (r.today and PARCHMENT or PARCHMENT_DIM))
+		tile.BackgroundColor3 = skin and (r.today and skin.hot or skin.row) or (r.claimed and CLAIMED_TILE or (r.today and PARCHMENT or PARCHMENT_DIM))
 		tile.ZIndex = 32
 		tile.Parent = ui.row
 		ui.roundCorner(tile, 10)

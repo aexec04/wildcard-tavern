@@ -199,6 +199,7 @@ function FakeGui.new(class)
 		props.AbsoluteSize, props.AbsolutePosition = { X = 0, Y = 0 }, { X = 0, Y = 0 }
 		if class == "ScrollingFrame" then
 			props.AbsoluteWindowSize, props.CanvasPosition = { X = 0, Y = 0 }, { X = 0, Y = 0 }
+			props.AbsoluteCanvasSize = { X = 0, Y = 0 }
 		elseif class == "TextLabel" or class == "TextButton" then
 			props.TextBounds = { X = 0, Y = 0 }
 		end

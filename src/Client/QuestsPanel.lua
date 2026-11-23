@@ -24,6 +24,11 @@ QuestsPanel.CARD_H, QuestsPanel.REWARD_W, QuestsPanel.REWARD_RIGHT, QuestsPanel.
 QuestsPanel.BAR_RIGHT = QuestsPanel.BAR_X + QuestsPanel.REWARD_W + QuestsPanel.REWARD_RIGHT + 12 -- the words start at BAR_X, so this keeps them 12 px left of the reward plate
 QuestsPanel.PANEL_H = 416
 
+-- Short screens scale the whole panel to fit with 6 px above and below (never under 0.8), so nothing runs off an 800x360 phone.
+function QuestsPanel.scale(viewW, viewH)
+	return math.clamp(((viewH or 0) - 12) / QuestsPanel.PANEL_H, 0.8, 1)
+end
+
 -- "5h 20m", "42m", "less than a minute"
 function QuestsPanel.timeLeftText(seconds)
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -200,6 +205,16 @@ function QuestsPanel.init(deps)
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = Vector2.new(560, QuestsPanel.PANEL_H)
 	constraint.Parent = panel
+	local fit = Instance.new("UIScale")
+	fit.Parent = panel
+	local function resize()
+		local size = screenGui.AbsoluteSize
+		fit.Scale = QuestsPanel.scale(size.X, size.Y)
+		local x = panel:FindFirstChild("CloseX") -- the round X keeps a 44 px hit area on screen when the panel shrinks
+		if x then x.Size = UDim2.fromOffset(math.ceil(44 / fit.Scale), math.ceil(44 / fit.Scale)) end
+	end
+	resize()
+	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
 
 	local header = label(panel, {
 		Name = "Header", Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, 6), Text = "Daily Quests", TextSize = 22, TextColor3 = CREAM,
@@ -256,6 +271,7 @@ function QuestsPanel.init(deps)
 	deps.openButton.MouseButton1Click:Connect(open)
 	require(script.Parent.CloseX).retire(close)
 	require(script.Parent.CloseX).attach(panel, closePanel)
+	resize()
 	-- a click on the dim area and Escape close it through Client/PopupDismiss (registered by PanelTabs.attach above)
 end
 

@@ -27,6 +27,9 @@ function SeasonPanel.init(deps)
 	local WOOD = Color3.fromRGB(86, 58, 34)
 	local PARCH = Color3.fromRGB(222, 198, 150)
 	local GREEN = Color3.fromRGB(86, 140, 80)
+	local MARK_INK = Color3.fromRGB(110, 70, 10) -- Now, Next and Premium words on parchment: 5 to 1 or better (the old brass was 3.7)
+	local CHECK_GREEN = Color3.fromRGB(22, 78, 32) -- a claimed check mark on the pale green tile: 5 to 1
+	local PREM_LOCKED = Color3.fromRGB(92, 66, 42) -- a locked Premium cell: dark wood, cream words read at 7 to 1
 	local TILE_W, TILE_H = SeasonTrack.TILE_W, 170 -- 128 px tiles, 12 px gaps: ten full tiles in the track
 	local TILE_GAP = SeasonTrack.TILE_GAP
 	local STEP = TILE_W + TILE_GAP -- the track snaps to whole tiles
@@ -306,7 +309,7 @@ function SeasonPanel.init(deps)
 		box.Name = "Premium"
 		box.Position = UDim2.fromOffset(4, TILE_H + 4)
 		box.Size = UDim2.fromOffset(TILE_W - 8, PREMIUM_H - 6)
-		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or (prem.locked and Color3.fromRGB(150, 128, 96) or Color3.fromRGB(235, 214, 160))
+		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or (prem.locked and PREM_LOCKED or Color3.fromRGB(235, 214, 160))
 		box.BorderSizePixel = 0
 		box.ZIndex = 43
 		box.Parent = t
@@ -315,7 +318,7 @@ function SeasonPanel.init(deps)
 		stroke.Color = require(script.Parent.TavernKit).ringColor(GOLD) -- locked and claimed premium cells keep their dim and green fills, the ring takes the set accent
 		stroke.Thickness = 2
 		stroke.Parent = box
-		label(box, { Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(0, 1), TextSize = 16, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
+		label(box, { Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(0, 1), TextSize = 16, TextColor3 = prem.locked and GOLD or MARK_INK, Text = "Premium" })
 		local category, key, emoji = rewardArt(prem.reward)
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(36, 36)
@@ -330,10 +333,10 @@ function SeasonPanel.init(deps)
 			pcall(ArtIcon.apply, well, category, key, glyph, { cornerRadius = 8, zIndex = 46, dim = prem.locked })
 		end
 		if prem.locked then glyph.TextTransparency = 0.35 end -- dimmed, never black
-		label(box, { Size = UDim2.new(1, -4, 0, 36), Position = UDim2.fromOffset(2, 58), TextSize = SeasonTrack.nameSize(prem.short), TextWrapped = true, Font = Enum.Font.GothamMedium,
+		label(box, { Size = UDim2.new(1, -4, 0, 36), Position = UDim2.fromOffset(2, 58), TextSize = SeasonTrack.nameSize(prem.short), TextWrapped = true, Font = Enum.Font.GothamMedium, TextColor3 = prem.locked and CREAM or INK,
 			Text = SeasonTrack.premiumLabelShown(prevRow and prevRow.premium and prevRow.premium.short, prem.short) and prem.short or "" })
 		if prem.claimed then
-			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
+			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = CHECK_GREEN, Text = "✔", ZIndex = 48 })
 		elseif prem.locked then
 			label(box, { Size = UDim2.fromOffset(28, 28), Position = UDim2.new(1, -30, 0, 0), TextSize = 20, Text = "🔒", ZIndex = 48 })
 			label(box, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.new(0, 0, 1, -18), TextSize = 16, TextColor3 = CREAM, Text = "Premium only", ZIndex = 48 })
@@ -400,7 +403,7 @@ function SeasonPanel.init(deps)
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
-		local markInk = (paper and not row.claimed) and rgbOf(paper.ink) or Color3.fromRGB(150, 100, 20)
+		local markInk = (paper and not row.claimed) and rgbOf(paper.ink) or MARK_INK
 		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier), TextColor3 = (paper and not row.claimed) and rgbOf(paper.ink) or INK })
 		if isNow then
 			label(t, { Size = UDim2.fromOffset(44, 20), Position = UDim2.fromOffset(4, 5), TextSize = 16, TextColor3 = markInk, Text = "Now", ZIndex = 47 })
@@ -429,7 +432,7 @@ function SeasonPanel.init(deps)
 			Font = Enum.Font.GothamMedium, Text = row.short or row.text or "",
 		})
 		if row.claimed then
-			label(t, { Size = UDim2.fromOffset(30, 30), Position = UDim2.new(1, -32, 0, 2), TextSize = 22, TextColor3 = GREEN, Text = "✔", ZIndex = 47 })
+			label(t, { Size = UDim2.fromOffset(30, 30), Position = UDim2.new(1, -32, 0, 2), TextSize = 22, TextColor3 = CHECK_GREEN, Text = "✔", ZIndex = 47 })
 		elseif not row.reached then
 			label(t, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, TILE_H - 20), TextSize = 16, Font = Enum.Font.Gotham, Text = row.need .. " XP" })
 		end
