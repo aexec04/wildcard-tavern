@@ -11,6 +11,7 @@ local PatronArt = require(script.Parent.PatronArt)
 local CardArt = require(script.Parent.ConceptTPatronArt)
 
 local M = {}
+M.RING_W, M.RING_H = 126, 84 -- the ring window in Client/ChoicePanel
 
 local function usable(id)
 	return type(id) == "string" and id ~= "" and id ~= "rbxassetid://0"
@@ -29,6 +30,12 @@ function M.spec(patronId)
 		return { kind = "plain", image = plain, scaleType = "Fit" }
 	end
 	return nil
+end
+
+-- the face only: the top band of a window with the ring's 3 : 2 shape, so a name baked low in the art never shows in the ring
+function M.faceRect(rect)
+	if type(rect) ~= "table" then return rect end
+	return { x = rect.x, y = rect.y, w = rect.w, h = math.min(rect.h, rect.w * M.RING_H / M.RING_W) }
 end
 
 -- the picture always fills its clipping frame exactly, so it can never spill past the frame or over the name plate

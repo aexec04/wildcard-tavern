@@ -12209,6 +12209,32 @@ table.insert(tests, { name = "Patron pick card: one name, the cut card portrait 
 	expectEqual(n, 2)
 end })
 
+table.insert(tests, { name = "Reward card: rule text ends above the Choose plate and shrinks to fit, ring shows the face only", fn = function()
+	local Fit = require(script.Parent.Parent.Engine.ChoiceRuleFit)
+	local DP = require(script.Parent.Parent.Engine.DraftPortrait)
+	local CARD_H, W = 300, 230 - 24
+	for _, btnH in ipairs({ 44, 56, 70 }) do
+		for _, top in ipairs({ 140, 162 }) do
+			local h = Fit.boxHeight(CARD_H, btnH, top)
+			expectTrue(top + h + Fit.PLATE_GAP <= CARD_H - (btnH + Fit.BOTTOM_MARGIN), "rule box ends above the Choose plate at btn " .. btnH)
+			for _, def in ipairs(Patrons.Definitions) do
+				local size = Fit.textSize(h, W, { def.description or def.text or "", "(up to +20)." }, 4)
+				expectTrue(size >= 12 and size <= 16, def.id .. " rule size in range")
+			end
+		end
+	end
+	expectEqual(Fit.textSize(200, W, { "Short." }, 4), 16)
+	expectTrue(Fit.textSize(40, W, { string.rep("word ", 30) }, 4) == 12, "a long text takes the smallest size")
+	for _, def in ipairs(Patrons.Definitions) do
+		local spec = DP.spec(def.id)
+		if spec and spec.rect then
+			local f = DP.faceRect(spec.rect)
+			expectTrue(f.x == spec.rect.x and f.y == spec.rect.y and f.w == spec.rect.w and f.h <= spec.rect.h, def.id .. " face stays at the window top")
+			expectTrue(math.abs(f.w / f.h - 1.5) < 0.01 or f.h == spec.rect.h, def.id .. " face has the ring shape")
+		end
+	end
+end })
+
 table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
 	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
 	local state = RunState.new(nil, function(n) return 1 end)
@@ -19393,7 +19419,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), ChoiceRuleFit = require(Engine.ChoiceRuleFit), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
@@ -25666,7 +25692,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), PatronCardSpec = require(Engine.PatronCardSpec),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity), DraftPortrait = require(Engine.DraftPortrait), ChoiceRuleFit = require(Engine.ChoiceRuleFit), PatronCardSpec = require(Engine.PatronCardSpec),
 				ResponsiveLayout = require(Engine.ResponsiveLayout), BoonPickLook = require(Engine.BoonPickLook),
 			})
 		end }
