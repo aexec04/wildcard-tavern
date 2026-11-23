@@ -18386,7 +18386,7 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 	local shop = read("src/Client/Shop.lua")
 	if shop then
 		expectTrue(shop:find("setCounterHiddenForPack(pending ~= nil)", 1, true) ~= nil, "Counter children hide while PackPanel is open")
-		expectTrue(shop:find('tipAlign = "below"', 1, true) ~= nil, "pack pick tooltips open below the cards")
+		expectTrue(shop:find(".ShopTips).belowPill", 1, true) ~= nil, "pack pick tooltips open below the cards, under the Keep pill")
 	end
 	local scout = read("src/Client/BossScout.lua")
 	if scout then
@@ -31707,6 +31707,50 @@ table.insert(tests, { name = "PackReveal: a card can be kept only once face up, 
 	assert(R.markWord(true) == "Owned" and R.markWord(false) == "New", "face-up cards read Owned or New")
 	assert(R.isStrong("epic") and R.isStrong("mythical") and not R.isStrong("uncommon") and not R.isStrong(nil), "Rare and above are strong")
 end })
+table.insert(tests, { name = "Pack Keep pill and card both pick exactly once: Skip all marks the pack opened so the pill works, and the tip opens under the pill", fn = function()
+	local R = require(script.Parent.Parent.Engine.PackReveal)
+	-- revealing card by card does not open the pack: that was why the pill did nothing after Skip all
+	local s = R.new(3, false)
+	for i = 1, 3 do s.reveal(i) end
+	expectTrue(s.allRevealed() and not s.canKeep(1), "reveal alone leaves the pill locked")
+	local t = R.new(3, false)
+	t.revealAll()
+	expectTrue(t.canKeep(1) and t.canKeep(3) and not t.canKeep(4), "revealAll opens the pack so every face up card can be kept")
+	-- the pill and the card both end in one onPick per click (the pill adds only the canKeep gate)
+	local picks = 0
+	local function pillClick(state, i, onPick) if state.canKeep(i) then onPick(i) end end
+	pillClick(t, 2, function() picks = picks + 1 end)
+	expectTrue(picks == 1, "one pill click is one pick")
+	pillClick(R.new(3, false), 2, function() picks = picks + 1 end)
+	expectTrue(picks == 1, "a face down card cannot be kept from its pill")
+	local f = io and io.open and io.open("src/Client/PackRevealFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	local a = src:find("local function revealAllNow", 1, true)
+	expectTrue(a ~= nil and src:sub(a, a + 160):find("state.revealAll()", 1, true) ~= nil, "revealAllNow opens the pack through state.revealAll")
+	local g = io.open("src/Client/Shop.lua", "r")
+	local shop = g:read("*a")
+	g:close()
+	expectTrue(shop:find("belowPill", 1, true) ~= nil and shop:find('noAction = true, tipAlign = "below"', 1, true) == nil, "pack cards place their tip with ShopTips.belowPill")
+	-- belowPill: centred, clamped, below the pill, above the card when there is no room
+	local rs = {}
+	function rs:WaitForChild(name)
+		if name == "TooltipSpec" then return { __module = require(script.Parent.Parent.Engine.TooltipSpec) } end
+		return rs
+	end
+	local env = setmetatable({ game = { GetService = function() return rs end }, require = function(m) return m.__module end }, { __index = _G })
+	local chunk = loadfile and loadfile("src/Client/ShopTips.lua", "t", env)
+	if not chunk then return end
+	local ST = chunk()
+	local x, y = ST.belowPill({ X = 100, Y = 100, W = 200, H = 300 }, { X = 240, Y = 80 }, { X = 1920, Y = 1080 })
+	expectTrue(x == 80 and y == 100 + 300 + ST.PILL_DROP, "centred under the card, " .. ST.PILL_DROP .. " px below it (clear of the pill)")
+	local x2 = ST.belowPill({ X = 0, Y = 100, W = 100, H = 300 }, { X = 240, Y = 80 }, { X = 1920, Y = 1080 })
+	expectTrue(x2 == 4, "clamped to the left edge")
+	local _, y3 = ST.belowPill({ X = 100, Y = 400, W = 200, H = 300 }, { X = 240, Y = 200 }, { X = 1920, Y = 800 })
+	expectTrue(y3 == 400 - 200 - 8, "no room below: above the card")
+end })
+
 table.insert(tests, { name = "PackReveal.look: every set gets an accent edge at 3:1, Rare and above glow, Common and Calm never glow, wording has no Robux or odds claim", fn = function()
 	local R = require(script.Parent.Parent.Engine.PackReveal)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

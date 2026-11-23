@@ -74,6 +74,17 @@ local function fmtAll(list)
 	return table.concat(parts, "; ")
 end
 
+-- An open pack's card tip: centred under the card's Keep or Seat pill (PILL_DROP px below the slot), never over the pill.
+-- slot is the card slot's rect {X, Y, W, H}; tip and screen are {X, Y} sizes. Above the card when there is no room below.
+ShopTips.PILL_DROP = 4 + 34 + 8
+function ShopTips.belowPill(slot, tip, screen)
+	local x = slot.X + slot.W / 2 - tip.X / 2
+	x = math.max(4, math.min(x, screen.X - tip.X - 4))
+	local y = slot.Y + slot.H + ShopTips.PILL_DROP
+	if y + tip.Y > screen.Y - 4 then y = math.max(4, slot.Y - tip.Y - 8) end
+	return x, y
+end
+
 function ShopTips.packPlacer(src)
 	return function(pos, size, tip, screen)
 		local packs = ShopTips.slots(src.packRow and src.packRow())

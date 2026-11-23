@@ -1014,13 +1014,20 @@ return function(deps)
 				if standardCard then
 					description = description .. "\n" .. PackPreviewModule.caption(match, standardCard)
 				end
+				local packCardRef = {}
 				local card = shopCards.card(packItemsRow, {
 					synergy = packArtCategory == "patrons" and synergyTagsFor(item.id) or nil,
 					shield = shieldFor(packArtCategory == "patrons" and Patrons.getById(item.id) or (function()
 						local R = require(Engine:WaitForChild("Recipes"))
 						return R.getHouseRecipeById(item.id) or R.getMenuRecipeById(item.id) or R.getSecretRecipeById(item.id)
 					end)()),
-					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true, tipAlign = "below",
+					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true,
+					tipAlign = function(pos, size, tip, screen) -- under the card's Keep pill, never over it
+						local slot = packCardRef.card and packCardRef.card.slot
+						local sp, ss = pos, size
+						if slot and slot.Parent then sp, ss = slot.AbsolutePosition, slot.AbsoluteSize end
+						return require(script.Parent.ShopTips).belowPill({ X = sp.X, Y = sp.Y, W = ss.X, H = ss.Y }, { X = tip.X, Y = tip.Y }, { X = screen.X, Y = screen.Y })
+					end,
 					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
 					rarityTab = packArtCategory, rarityId = item.id, rarityWord = packArtCategory ~= nil, -- tier word on the card (patrons and recipes)
 					rarity = standardCard and "common" or nil,
@@ -1041,6 +1048,7 @@ return function(deps)
 					end,
 				})
 				packCards[index] = card
+				packCardRef.card = card
 				card.slot.Name = "Option_" .. tostring(item.id)
 				local tiltWrap = card.slot:FindFirstChild("Tilt")
 				if tiltWrap then -- cards lie on the table at the Counter's own angles

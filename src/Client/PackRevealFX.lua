@@ -105,6 +105,7 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	end
 
 	local function revealAllNow()
+		state.revealAll() -- also marks the pack opened: canKeep needs it, so the Keep pill works after Skip all
 		for i = 1, #items do faceUp(i) end
 		ctl.destroy()
 		ctl.refresh()
