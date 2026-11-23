@@ -51,6 +51,30 @@ function M.rich(preview, level)
 	return head .. string.format('  <font color="%s">|</font>  <font color="%s">%d Chips</font> <font color="%s">x</font> <font color="%s">%d Mult</font>', I.plain, I.chips, chips, I.plain, I.mult, mult)
 end
 
+-- The hand name plate: a small plate right under the Round/boss plate (standing in for its Night line while cards are picked), the Target plate's width. nil when the Patron row is too close.
+M.NAME_H = 30
+M.NAME_MIN_H = 18
+M.NAME_AIR = 6 -- clear space to the first Patron seat
+M.NIGHT_ROOM = 2 -- the plate takes the Night line's place while a hand is picked (the gap to the Patron row is under 30 px)
+function M.namePlate(r)
+	local R = r and r.round
+	if not R then return nil end
+	local seatTop = math.huge
+	for _, s in ipairs(r.slots or {}) do
+		if s.card then seatTop = math.min(seatTop, s.card.y) end
+	end
+	local y = R.y + R.h + M.NIGHT_ROOM
+	local h = math.min(M.NAME_H, (seatTop < math.huge and seatTop - M.NAME_AIR or y + M.NAME_H) - y)
+	if h < M.NAME_MIN_H then return nil end
+	return { x = R.x, y = y, w = R.w, h = h }
+end
+
+-- the plain hand name for the plate ("Flush"), nil for no preview
+function M.nameText(preview)
+	if not preview or not preview.name then return nil end
+	return tostring(preview.name)
+end
+
 function M.rect(stage, text)
 	local w = math.min(stage.w, math.max(M.MIN_W, #(text or "") * M.CHAR_W + 64))
 	return { x = stage.x + math.floor((stage.w - w) / 2), y = stage.y, w = w, h = math.min(M.H, stage.h) }

@@ -47406,4 +47406,26 @@ table.insert(tests, { name = "Boss round top row: Target, boss plate, Round scro
 	end
 end })
 
+table.insert(tests, { name = "Hand name plate: sits under the Round plate and Night line at Target width, clear of the Patron row at every size, text is the plain hand name, none without a pick", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(P.nameText({ name = "Flush", chips = 5, mult = 2 }) == "Flush" and P.nameText(nil) == nil and P.nameText({}) == nil, "name only, nil for no preview")
+	local shown = 0
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local n = P.namePlate(r)
+		if n then
+			shown = shown + 1
+			assert(n.x == r.round.x and n.w == r.round.w, "same width as the Target plate at " .. sz[1])
+			assert(n.y >= r.round.y + r.round.h, "below the Round plate at " .. sz[1])
+			for _, s in ipairs(r.slots) do assert(n.y + n.h + P.NAME_AIR <= s.card.y, "clear of the Patron row at " .. sz[1]) end
+			assert(n.h >= P.NAME_MIN_H and n.h <= P.NAME_H)
+		end
+	end
+	local d = L.rects(1920, 957)
+	assert(shown >= 1 and d.round.h > 0, "the plate has room on the common sizes, shown " .. shown .. " round " .. d.round.y .. "," .. d.round.h .. " seat " .. d.slots[1].card.y)
+	assert(P.namePlate({ round = { x = 0, y = 0, w = 400, h = 70 }, slots = { { card = { y = 80 } } } }) == nil, "no room: dropped, never overlapping")
+end })
+
 return tests
+

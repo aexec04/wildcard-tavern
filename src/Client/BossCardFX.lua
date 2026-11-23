@@ -280,7 +280,9 @@ function M.update(layer, state, rects, viewW, viewH)
 		TweenService:Create(bar.Fill, TweenInfo.new(Rules.TWEEN_SECONDS), { Size = UDim2.fromScale(want, 1) }):Play()
 	end
 	lastFill = want
-	if tp.night then
+	local handName = false
+	pcall(function() local g = top:FindFirstAncestorWhichIsA("ScreenGui"); handName = g ~= nil and g:GetAttribute("HandNameShown") == true end)
+	if tp.night and not handName then
 		night.Visible = true
 		place(night, tp.night)
 		night.Position = night.Position + UDim2.fromOffset(0, 3) -- breathing room under the bar

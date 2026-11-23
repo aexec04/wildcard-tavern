@@ -610,6 +610,23 @@ function M.install(deps)
 		else
 			previewPill.Visible = false
 		end
+		pcall(function() -- the hand name plate under the Round/boss plate and its Night line (Engine/Gameplay2Preview.namePlate)
+			local plate = layer:FindFirstChild("HandNamePlate")
+			if not plate then
+				plate = Kit.pill(layer, "", "wood"); plate.Name = "HandNamePlate"; plate.Visible = false
+				pcall(function() Kit.painted(plate, "wh_target") end)
+			end
+			local nr = self.previewName and self.playing ~= true and PreviewRules.namePlate(r) or nil
+			if nr then
+				place(plate, nr); raise(plate, Z_UI + 1)
+				local nw = setText(plate, self.previewName)
+				if nw then nw.TextScaled = false; nw.TextSize = math.max(14, math.min(Style.TEXT.chip, nr.h - 8)); nw.TextTruncate = Enum.TextTruncate.AtEnd end
+				plate.Visible = true
+			else
+				plate.Visible = false
+			end
+			pcall(function() root:SetAttribute("HandNameShown", nr ~= nil) end) -- BossCardFX drops its Night line while the plate stands in its place
+		end)
 		pcall(function() -- one short line above the strip naming each active mark and boon bonus (Engine/PreviewBonuses), static in Calm
 			local bonusLabel = layer:FindFirstChild("PreviewBonus")
 			if not bonusLabel then
@@ -1087,6 +1104,7 @@ function M.setPreview(preview, handLevels, bonusText)
 	current.previewBonus = bonus
 	current.previewText = text
 	current.previewRich = preview and PreviewRules.rich(preview, lv) or nil
+	current.previewName = PreviewRules.nameText(preview)
 	if current.isActive() then pcall(current.refresh) end
 end
 
