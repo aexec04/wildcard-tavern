@@ -14,11 +14,10 @@
 
 local M = {}
 
--- Five groups. Accessibility leads so Calm mode stays the first row (two taps from the table); the Account group ends with the Codes box,
+-- Five groups (Sound and Music are not here: they live only under the speaker icon in the gear menu). Accessibility leads so Calm mode stays the first row (two taps from the table); the Account group ends with the Codes box,
 -- the Account plates and Restart Run (built by Client/Settings.lua, not listed as rows here).
 M.SECTIONS = {
 	{ id = "accessibility", title = "Accessibility", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
-	{ id = "sound", title = "Sound", rows = { "volume" } },
 	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode" } },
 	{ id = "gameplay", title = "Gameplay", rows = { "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
 	{ id = "account", title = "Account", rows = { "allowSpectators", "replayTutorial", "replayHints" } },

@@ -5182,7 +5182,7 @@ table.insert(tests, { name = "Strings: every id has safe English text (no em das
 		expectTrue(not text:lower():find("balatro", 1, true), id .. " has no banned word")
 		expectEqual(Strings.get(id), text, id .. " resolves")
 	end
-	expectTrue(n >= 16, "the moved Settings lines are present")
+	expectTrue(n >= 14, "the moved Settings lines are present")
 	expectEqual(Strings.get("no.such.id"), "no.such.id", "unknown id echoes")
 	if io and io.open then
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
@@ -31235,7 +31235,7 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	local src = f:read("*a")
 	f:close()
 	local display = src:find('makeHeader("Accessibility")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
-	local gameplay = src:find('makeHeader("Sound")', 1, true)
+	local gameplay = src:find('makeHeader("Display")', 1, true)
 	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
 	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
 	assert(display and gameplay and calm and shake, "headers and rows exist")
@@ -31617,9 +31617,10 @@ table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first,
 		expectTrue(not seen[id], id .. " appears once")
 		seen[id] = true
 	end
-	for _, id in ipairs({ "largerText", "volume", "replayTutorial" }) do
+	for _, id in ipairs({ "largerText", "replayTutorial" }) do
 		expectTrue(seen[id], id .. " has a row")
 	end
+	expectTrue(not seen.volume, "Sound and Music have no Settings row, they live under the speaker icon")
 	local sw = SL.SWITCH
 	expectTrue(sw.h >= 44 and sw.w >= 44, "switch is a 44 px touch target")
 	expectTrue(SL.contrast(sw.onText, sw.onFill) >= 4.5, "On text contrast")
@@ -43137,15 +43138,16 @@ table.insert(tests, { name = "Deck tracker, Hand reference and Seed run popups w
 	end
 end })
 
-table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display and Account, every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
+table.insert(tests, { name = "Settings sections: Accessibility, Display, Gameplay and Account (no speaker controls), every row once with a one line label, headers built in that order with a set accent rule, 44 px rows fit four sizes", fn = function()
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	local titles = {}
 	for i, s in ipairs(SL.SECTIONS) do titles[i] = s.title end
-	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Gameplay,Account", "five groups")
+	expectEqual(table.concat(titles, ","), "Accessibility,Display,Gameplay,Account", "four groups, Sound and Music only under the speaker icon")
+	for _, id in ipairs(SL.rowOrder()) do expectFalse(id:lower():find("volume") or id:lower():find("music") or id:lower():find("sound") or id:lower():find("mute"), "no Settings row repeats a speaker control: " .. id) end
 	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
 	local seen, n = {}, 0
 	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
-	expectEqual(n, 15, "every Settings row is listed")
+	expectEqual(n, 14, "every Settings row is listed")
 	for _, sec in ipairs(SL.SECTIONS) do expectTrue(#sec.rows >= 1, sec.title .. " has rows") end
 	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
 	expectEqual(SL.HEADER_SIZE, 16, "section headers are 16 px")
@@ -43159,7 +43161,7 @@ table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display a
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
 		local src = f:read("*a"); f:close()
 		local last = 0
-		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Gameplay", "Account", "About" }) do
+		for _, name in ipairs({ "Accessibility", "Display", "Gameplay", "Account", "About" }) do
 			local at = src:find('makeHeader("' .. name .. '")', 1, true)
 			expectTrue(at ~= nil and at > last, name .. " header is built in order")
 			last = at or last
@@ -45684,11 +45686,11 @@ table.insert(tests, { name = "Settings audit: every saved option has a Settings 
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	local rows = {}
 	for _, id in ipairs(SL.rowOrder()) do rows[id] = true end
-	local ownedElsewhere = { musicVolume = "volume", sfxVolume = "volume", muted = "volume", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
+	local ownedElsewhere = { musicVolume = "the speaker icon", sfxVolume = "the speaker icon", muted = "the speaker icon", boardCollapsed = "the board drawer", musicTrack = "the Music panel" }
 	local keys = 0
 	for key, spec in pairs(PP.SETTING_SPECS) do
 		keys = keys + 1
-		expectTrue(rows[key] or ownedElsewhere[key] ~= nil and (rows[ownedElsewhere[key]] or ownedElsewhere[key] ~= "volume"), key .. " has a Settings row or an owner screen")
+		expectTrue(rows[key] or ownedElsewhere[key] ~= nil, key .. " has a Settings row or an owner screen")
 		-- a non default valid value saves and survives a rejoin (profile saved, then loaded again)
 		local value
 		if spec.kind == "boolean" then value = not spec.default

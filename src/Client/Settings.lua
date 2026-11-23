@@ -307,59 +307,7 @@ return function(deps)
 	makeChoiceRow("largerText", "Text Size", S("settings.largerText.hint"), { { false, "Normal" }, { true, "Large" } })
 	makeChoiceRow("colorblindSuits", "Colorblind Suits", S("settings.colorblindSuits.hint"), OFF_ON)
 
-	-- ===== Sound =====
-	makeHeader("Sound")
-	do
-		local row = Instance.new("Frame")
-		row.Name = "VolumeRow"
-		row.Size = UDim2.new(1, 0, 0, 62)
-		row.LayoutOrder = order()
-		row.BackgroundTransparency = 1
-		row.ZIndex = 21
-		row.Parent = scroll
-		local t = Instance.new("TextLabel")
-		t.Size = UDim2.new(1, -130, 0, 22)
-		t.BackgroundTransparency = 1
-		t.Font = Enum.Font.Merriweather
-		t.TextSize = 16
-		t.TextXAlignment = Enum.TextXAlignment.Left
-		t.TextColor3 = TEXT
-		t.Text = S("settings.sound.title")
-		t.ZIndex = 21
-		t.Parent = row
-		local b = Instance.new("TextLabel")
-		b.Size = UDim2.new(1, -130, 0, 36)
-		b.Position = UDim2.new(0, 0, 0, 22)
-		b.BackgroundTransparency = 1
-		b.Font = Enum.Font.Merriweather
-		b.TextSize = 14
-		b.TextWrapped = true
-		b.TextXAlignment = Enum.TextXAlignment.Left
-		b.TextYAlignment = Enum.TextYAlignment.Top
-		b.TextColor3 = SUBTLE
-		b.Text = S("settings.sound.blurb")
-		b.ZIndex = 21
-		b.Parent = row
-		local go = Instance.new("TextButton")
-		go.Name = "OpenVolume"
-		go.Size = UDim2.new(0, 110, 0, 44)
-		go.AnchorPoint = Vector2.new(1, 0.5)
-		go.Position = UDim2.new(1, -4, 0.5, 0)
-		go.Font = Enum.Font.Merriweather
-		go.TextSize = 16
-		go.TextColor3 = TEXT
-		go.BackgroundColor3 = BUTTON
-		go.Text = "Volume"
-		go.ZIndex = 21
-		go.Parent = row
-		polishButton(go, 8)
-		addButtonHoverScale(go)
-		go.MouseButton1Click:Connect(function()
-			playClickSfx()
-			settingsBackdrop.Visible = false
-			pcall(OverlayManager.open, "volume")
-		end)
-	end
+	-- Sound and Music live only under the speaker icon (GearMenu), never repeated here (Engine/SettingsLayout, tested)
 
 	-- ===== Display =====
 	makeHeader("Display")

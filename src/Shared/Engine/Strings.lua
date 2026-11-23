@@ -20,8 +20,6 @@ Strings.en = {
 	["settings.confirmDiscard.hint"] = "Asks before your selected cards are discarded.",
 	["settings.allowSpectators.hint"] = "Friends in your server can watch your run. Turn off to stop them.",
 	["settings.holdConfirm.hint"] = "How long to hold buttons that cannot be undone.",
-	["settings.sound.title"] = "Music and Sound Effects",
-	["settings.sound.blurb"] = "Sliders for music and effects, and Mute.",
 	["settings.tutorial.blurb"] = "Walk through the first hands again. You can skip it at any time.",
 	["settings.hints.blurb"] = "Show the short tips again as you meet each part of the game.",
 }
