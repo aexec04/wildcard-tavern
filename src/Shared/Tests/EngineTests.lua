@@ -48611,6 +48611,43 @@ table.insert(tests, { name = "Sell price audit: every Patron sells for half its 
 	end
 end })
 
+table.insert(tests, { name = "Remote audit: every remote in Remotes.lua and the main script is listed in claude/SECURITY.md, every client fired one is rate limited first, Debug ones are Studio only", fn = function()
+	if not (io and io.open) then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local remotes, server, doc = read("src/Server/Remotes.lua"), read("src/Server/init.server.lua"), read("claude/SECURITY.md")
+	if not (remotes and server and doc) then return end
+	local names = {}
+	for name in remotes:gmatch("\nRem%.([%w_]+)%s*=%s*[%w_]+") do
+		if name:sub(1, 1) ~= "_" then names[#names + 1] = name end
+	end
+	for name in server:gmatch('Rem%._new%("([%w_]+)"%)') do names[#names + 1] = name end
+	expectTrue(#names >= 70, "the audit found the remotes (" .. #names .. ")")
+	for _, name in ipairs(names) do
+		expectTrue(doc:find("| " .. name .. " |", 1, true) ~= nil, name .. " is listed in claude/SECURITY.md")
+	end
+	local lines = {}
+	for line in (server .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
+	local handlers = 0
+	for i, line in ipairs(lines) do
+		local name = line:match("^%s*Rem%.([%w_]+)%.OnServerEvent:Connect")
+		if name then
+			handlers = handlers + 1
+			if name:find("^Debug") then
+				expectTrue((lines[i + 1] or ""):find("IsStudio()", 1, true) ~= nil, name .. " returns outside Studio on its first line")
+			else
+				expectTrue((lines[i + 1] or ""):find("RateLimit.allow(player.UserId", 1, true) ~= nil, name .. " is rate limited on its first line")
+			end
+		end
+	end
+	expectTrue(handlers >= 60, "every client fired handler was seen (" .. handlers .. ")")
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
