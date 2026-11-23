@@ -47452,11 +47452,11 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 	local SEL, HOV, N = 24, 12, 6
 	local pos = {}
 	for i = 1, N do pos[i] = i end
-	for mask = 0, (1 << N) - 1 do
+	for mask = 0, bit32.lshift(1, N) - 1 do
 		for hover = 0, N do -- 0 = no hover
 			local before, after = {}, {}
 			for i = 1, N do
-				local picked = (mask >> (i - 1)) & 1 == 1
+				local picked = bit32.band(bit32.rshift(mask, i - 1), 1) == 1
 				before[i] = HL.cardLift(picked, false, SEL, HOV)
 				after[i] = HL.cardLift(picked, hover == i, SEL, HOV)
 				if picked then assert(after[i] >= SEL, "a picked card never drops") end
@@ -47474,4 +47474,5 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 end })
 
 return tests
+
 
