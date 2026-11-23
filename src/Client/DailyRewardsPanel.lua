@@ -12,6 +12,7 @@ local DailyStamps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 local QuestsPanel = require(script.Parent.QuestsPanel) -- timeLeftText
 
 local OverlayManager = require(script.Parent.OverlayManager)
+local DailyPlateLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DailyPlateLayout"))
 
 local DailyRewardsPanel = {}
 
@@ -47,7 +48,7 @@ local function artFor(row)
 	return category, key
 end
 
-DailyRewardsPanel.PANEL_H = 360 -- fits the ladder, next reward and clock; the Close button is retired (the X closes)
+DailyRewardsPanel.PANEL_H = DailyPlateLayout.PANEL_H -- 360; fits the ladder, next reward and clock; the Close button is retired (the X closes)
 
 function DailyRewardsPanel.countdownText(seconds)
 	return QuestsPanel.timeLeftText(seconds)
@@ -166,13 +167,14 @@ function DailyRewardsPanel.init(deps)
 	constraint.MaxSize = Vector2.new(760, DailyRewardsPanel.PANEL_H)
 	constraint.Parent = panel
 
+	local R = DailyPlateLayout.rows()
 	label(panel, { Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, 8), Text = "Daily Rewards", TextSize = 26 })
-	local streak = label(panel, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 52), Text = "", TextSize = 18, TextColor3 = GOLD })
+	local streak = label(panel, { Name = "Streak", Size = UDim2.new(1, 0, 0, R.streak.h), Position = UDim2.fromOffset(0, R.streak.y), Text = "", TextSize = 18, TextColor3 = GOLD })
 
 	local row = Instance.new("Frame")
 	row.Name = "Ladder"
-	row.Size = UDim2.new(1, -32, 0, 168)
-	row.Position = UDim2.fromOffset(16, 90)
+	row.Size = UDim2.new(1, -32, 0, R.ladder.h)
+	row.Position = UDim2.fromOffset(16, R.ladder.y)
 	row.BackgroundTransparency = 1
 	row.ZIndex = 31
 	row.Parent = panel
@@ -182,8 +184,8 @@ function DailyRewardsPanel.init(deps)
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = row
 
-	local nextLabel = label(panel, { Size = UDim2.new(1, -40, 0, 28), Position = UDim2.fromOffset(20, 268), Text = "", TextSize = 20 })
-	local countdown = label(panel, { Size = UDim2.new(1, -40, 0, 26), Position = UDim2.fromOffset(20, 298), Text = "", TextSize = 17, TextColor3 = GOLD })
+	local nextLabel = label(panel, { Size = UDim2.new(1, -40, 0, R.next.h), Position = UDim2.fromOffset(20, R.next.y), Text = "", TextSize = 20 })
+	local countdown = label(panel, { Size = UDim2.new(1, -40, 0, R.countdown.h), Position = UDim2.fromOffset(20, R.countdown.y), Text = "", TextSize = 17, TextColor3 = GOLD })
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"
