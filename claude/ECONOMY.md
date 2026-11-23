@@ -504,6 +504,19 @@ Share of all hands played, 300 runs each. Rule: no hand type over 45 percent for
 
 Score at level 5 against level 1 (chips x mult): Pair 595 against Flush 520, Two Pair 840, Straight 420 at level 1. A Pair raised to level 5 is worth 1.14 level 1 Flushes, so the common hand does not run away from the rare ones and leveling a Flush or Straight is still worth a Recipe. No number changed. Pinned by the test "Hand level value".
 
+## New player first run: beginner bots (`lua tools/_probe_beginner.lua 200`, `lua tools/run_sim.lua --pacing --bot greedy|random`)
+
+Rule: a bot with beginner play clears Night 1 and Night 2 at least 70 percent of the time. Welcome ease on, the guided starter Patron seated, no shopping, no discards, 200 seeds.
+
+| Beginner style | Night 1 | Night 2 |
+| --- | --- | --- |
+| Plays the cards the first hand highlight outlines | 100.0% | 99.5% |
+| Plays the first five cards dealt, never looks | 100.0% | 94.0% |
+| Pacing sim, greedy bot (no discards, Welcome ease) | 100.0% | 100.0% |
+| Pacing sim, random bot | 88.7% | 86.0% |
+
+Without the starter Patron a blind first-five player clears Night 1 only 64 percent and Night 2 almost never, so the guided starter Patron is what holds the line; it is only given to a first run. No target changed. Pinned by the test "New player first run".
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
