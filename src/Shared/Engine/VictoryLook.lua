@@ -43,7 +43,7 @@ function M.layout(w, h, mode)
 		hero = R(20, 300, 280, 407),
 		chest = R(990, 430, 240, 276),
 		button = R(510, 540, 260, 96),
-		nextStep = R(320, 648, 640, 30),
+		nextStep = R(320, 640, 640, 26), -- under Continue (ends at 636) and above the share line, never over it
 	}
 	out.title = { x = out.banner.x + round(out.banner.w * 0.2), y = out.banner.y + round(out.banner.h * 0.18), w = round(out.banner.w * 0.6), h = round(out.banner.h * 0.64) }
 	if mode == "pick" then
@@ -52,7 +52,7 @@ function M.layout(w, h, mode)
 		out.rewards = R(304, 280, 336, 230)
 		out.summary = R(660, 280, 320, 230)
 		out.invite = R(315, 550, 180, 86) -- Invite a friend, left of Continue
-		out.share = R(320, 650, 640, 44) -- plain text share line under Continue
+		out.share = R(320, 670, 640, 44) -- plain text share line under the next step line (ends at 714 of 720)
 	end
 	return out
 end

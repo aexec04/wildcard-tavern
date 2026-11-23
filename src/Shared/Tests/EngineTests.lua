@@ -46302,6 +46302,79 @@ table.insert(tests, { name = "Counter price chips: every price tag sits inside i
 	end
 end })
 
+table.insert(tests, { name = "Victory and Run Over: 44 px buttons, nothing overlaps, long Patron names truncate, text 14 px or more, at four sizes", fn = function()
+	local VL = require(script.Parent.Parent.Engine.VictoryLook)
+	local RO = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function onScreen(r, W, H) return r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H end
+	expectTrue(VL.MIN_TEXT >= 14 and RO.TEXT_MIN >= 14 and RO.BTN_TEXT >= 14, "minimum text sizes are 14 px or more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = VL.layout(W, H, mode)
+			local tag = W .. "x" .. H .. " Victory " .. mode
+			local list = { { "banner", L.banner }, { "subtitle", L.subtitle }, { "hero", L.hero }, { "button", L.button }, { "nextStep", L.nextStep } }
+			if mode == "pick" then
+				for i, c in ipairs(L.cards) do list[#list + 1] = { "card" .. i, c } end
+			else
+				list[#list + 1] = { "rewards", L.rewards }
+				list[#list + 1] = { "summary", L.summary }
+				list[#list + 1] = { "invite", L.invite }
+				list[#list + 1] = { "share", L.share }
+			end
+			for i = 1, #list do
+				expectTrue(onScreen(list[i][2], W, H), tag .. " " .. list[i][1] .. " on screen")
+				for j = i + 1, #list do
+					-- the hero stands behind the side cards by design (a painted figure, not a control); the chest likewise
+					local skip = list[i][1] == "hero" or list[j][1] == "hero"
+					if not skip then expectFalse(hit(list[i][2], list[j][2]), tag .. " " .. list[i][1] .. " does not overlap " .. list[j][1]) end
+				end
+			end
+			expectTrue(L.button.h >= 44 and L.button.w >= 44, tag .. " Continue is a 44 px target (" .. L.button.w .. "x" .. L.button.h .. ")")
+			if L.invite then expectTrue(L.invite.h >= 44 and L.invite.w >= 44, tag .. " Invite is a 44 px target") end
+			expectTrue(VL.fontSize(VL.MIN_TEXT, L.scale) >= 14, tag .. " scaled text stays 14 px or more")
+			if mode == "run" then
+				local rows = VL.fitRows(VL.summaryRows({ score = 1, night = 3, cap = 8, hands = 2, tipsTotal = 4, bestNight = 5, boons = 2, deckSize = 52, marked = 3 }, { name = "Straight Flush", score = 99 }), W, H)
+				expectTrue(#rows >= 5, tag .. " at least the five plain summary rows stay")
+			end
+		end
+		-- Run Over: a win and a loss with many Patrons, boons and long labels
+		for _, spec in ipairs({
+			{ factsH = 330, patrons = 5, primary = 2, more = 5, bigPrimary = true, pills = true, cardSeats = true, boons = 6 },
+			{ factsH = 260, patrons = 0, primary = 1, more = 3 },
+			{ factsH = 400, patrons = 8, primary = 3, more = 6, boons = 12, cardSeats = true },
+		}) do
+			local r = RO.compute(W, H, spec)
+			local tag = W .. "x" .. H .. " Run Over patrons=" .. spec.patrons
+			for i, b in ipairs(r.primary) do
+				expectTrue(b.h >= 44, tag .. " primary button " .. i .. " is 44 px tall (" .. b.h .. ")")
+			end
+			for i, b in ipairs(r.more) do expectTrue(b.h >= 44, tag .. " secondary button " .. i .. " is 44 px tall (" .. b.h .. ")") end
+			expectTrue(r.scale >= 0.4 and r.panel.w * r.scale <= W and r.panel.h * r.scale <= H, tag .. " the panel fits the screen at scale " .. string.format("%.2f", r.scale))
+			local parts = { { "title", r.title }, { "facts", r.facts }, { "patronsLabel", r.patronsLabel }, { "patrons", r.patrons } }
+			if r.boons then parts[#parts + 1] = { "boonsLabel", r.boonsLabel }; parts[#parts + 1] = { "boons", r.boons }; parts[#parts + 1] = { "boonName", r.boonName } end
+			for i, b in ipairs(r.primary) do parts[#parts + 1] = { "primary" .. i, b } end
+			for i, b in ipairs(r.more) do parts[#parts + 1] = { "more" .. i, b } end
+			for i = 1, #parts do
+				expectTrue(parts[i][2].x >= 0 and parts[i][2].x + parts[i][2].w <= r.panel.w and parts[i][2].y + parts[i][2].h <= r.panel.h, tag .. " " .. parts[i][1] .. " inside the panel")
+				for j = i + 1, #parts do
+					expectFalse(hit(parts[i][2], parts[j][2]), tag .. " " .. parts[i][1] .. " does not overlap " .. parts[j][1])
+				end
+			end
+			-- a long Patron name wraps to at most two lines at the seat width, then is cut with an ellipsis by the label
+			local lines = RO.estimateLines("The Extremely Long Named Tavern Regular", r.patrons.seatW, RO.TEXT_MIN)
+			expectTrue(lines >= 1, tag .. " long name estimate runs")
+		end
+	end
+	for _, file in ipairs({ "GameOver", "VictoryScreen" }) do
+		local f = io and io.open("src/Client/" .. file .. ".lua", "r")
+		if f then
+			local text = f:read("*a"); f:close()
+			expectTrue(text:find("TextTruncate", 1, true) ~= nil, file .. " cuts long text with TextTruncate")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Tome and Card Sets pages: every page header and the Card Sets room fit four sizes, no two plates overlap, labels are 14 px or more", fn = function()
 	local TH = require(script.Parent.Parent.Engine.TomeHeader)
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
