@@ -30832,7 +30832,7 @@ table.insert(tests, { name = "Daily strip chest: wide enough for the Next timer 
 		local strip = D.menuRect(s[1], s[2])
 		if strip then
 			local c = D.chestRect(strip)
-			assert(c.w >= 150 and c.w <= 170 and c.h >= 44, "chest size at " .. s[1])
+			assert(c.w >= 174 and c.w <= 194 and c.h >= 44, "chest size at " .. s[1])
 			assert(c.x >= 0 and c.x + c.w <= strip.w and c.y >= 0 and c.y + c.h <= strip.h, "chest inside strip at " .. s[1])
 			assert(c.w - 2 * D.CHEST_PAD >= 100, "word room at " .. s[1])
 		end
@@ -35039,7 +35039,7 @@ table.insert(tests, { name = "Daily strip: shows on the Night map and Run Over o
 	local qs = { quests = { { desc = "A", progress = 3, goal = 3, done = true }, { desc = "Play 10 hands.", progress = 4, goal = 10, done = false } } }
 	expectEqual(D.view(nil, qs).goalText, "Play 10 hands. 4/10", "first unfinished goal")
 	qs.quests[2].done = true
-	expectEqual(D.view(nil, qs).goalText, "All daily goals done", "all done")
+	expectEqual(D.view(nil, qs).goalText, "Goals done", "all done")
 	assert(D.view(nil, qs).goalDone, "goalDone flag")
 end })
 
@@ -46839,6 +46839,28 @@ table.insert(tests, { name = "Tutorial popups: the Patron Power panel never cove
 		local words = 0
 		for _ in step.text:gmatch("%S+") do words = words + 1 end
 		expectTrue(words <= TS.MAX_WORDS, "tutorial step " .. step.id .. " caption is " .. words .. " words, at most " .. TS.MAX_WORDS)
+	end
+end })
+
+table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, timer word 12 px clear each side, Streak, Goal and chest columns never overlap, strip clear of New Run", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = D.menuRect(W, H)
+		expectTrue(strip ~= nil, tag .. " strip is on the menu")
+		if strip then
+			local c = D.columns(strip)
+			-- "Next in 19h 38m" is 15 glyphs, about 0.56 em each at 16 px
+			expectTrue(c.chest.w - 2 * D.CHEST_PAD >= math.ceil(15 * 16 * 0.56), tag .. " chest word fits with 12 px each side (plate " .. c.chest.w .. ")")
+			expectTrue(c.chest.w >= 174, tag .. " chest plate is 24 px wider than the old 150")
+			expectTrue(c.streak.x + c.streak.w <= c.goalX, tag .. " Streak column ends before the Goal column")
+			expectTrue(c.goalX + c.goalW + D.GOAL_GAP <= c.chest.x + 0.5, tag .. " Goal column ends 12 px before the chest")
+			expectTrue(c.goalW >= 60, tag .. " Goal column holds 'Goals done' truncated no worse than a few letters (" .. c.goalW .. ")")
+			if W >= 1500 then expectTrue(c.goalW >= math.ceil(10 * 15 * 0.56), tag .. " the whole 'Goals done' line fits (" .. c.goalW .. ")") end
+			local newRun = { x = W / 2 - 110, y = H - 24 - 56, w = 220, h = 56 }
+			expectFalse(strip.x < newRun.x + newRun.w and newRun.x < strip.x + strip.w and strip.y < newRun.y + newRun.h and newRun.y < strip.y + strip.h, tag .. " strip does not touch New Run")
+		end
 	end
 end })
 

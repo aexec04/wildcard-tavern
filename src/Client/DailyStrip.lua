@@ -136,9 +136,9 @@ function M.update(state)
 	strip.Size = UDim2.fromOffset(r.w, r.h)
 	local cr = Rules.chestRect(r)
 	strip.Streak.Text = v.streakText
-	strip.Streak.Size = UDim2.fromOffset(math.min(150, math.floor(r.w * 0.3)), r.h)
-	local goalX = strip.Streak.Position.X.Offset + strip.Streak.Size.X.Offset + 14 -- 30 px in from the carved gold end
-	local goalW = math.max(40, cr.x - goalX - 12)
+	local cols = Rules.columns(r)
+	strip.Streak.Size = UDim2.fromOffset(cols.streak.w, r.h)
+	local goalX, goalW = cols.goalX, cols.goalW -- 30 px in from the carved gold end, 12 px clear of the chest plate
 	strip.Goal.Position = UDim2.fromOffset(goalX, 2)
 	strip.Goal.Size = UDim2.fromOffset(goalW, 24)
 	strip.Goal.Text = v.goalText
