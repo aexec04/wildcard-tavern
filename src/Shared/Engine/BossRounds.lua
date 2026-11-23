@@ -111,7 +111,7 @@ BossRounds.Definitions = {
 	{
 		id = "rowdy_crowd",
 		name = "Rowdy Crowd",
-		description = "2 random cards are tossed out of your hand after every hand you play.",
+		description = "2 random cards leave your hand after each hand you play.",
 		flavorText = "A crowd bumps your elbow and cards go flying.",
 		minNight = 3,
 		forcedRandomDiscardsPerHand = 2,
@@ -143,7 +143,7 @@ BossRounds.Definitions = {
 	{
 		id = "no_vips",
 		name = "No VIPs",
-		description = "Face cards (Jack, Queen, King) score no Chips or Mult this round.",
+		description = "Face cards (J, Q, K) score no Chips or Mult this round.",
 		flavorText = "The royals are on holiday. No crowns tonight.",
 		minNight = 3,
 		debuff = "FaceCards",
@@ -151,7 +151,7 @@ BossRounds.Definitions = {
 	{
 		id = "empty_pockets",
 		name = "Empty Pockets",
-		description = "This round, playing your most-played hand type wipes your Tips to 0.",
+		description = "This round, your most-played hand type sets Tips to 0.",
 		flavorText = "Play your favorite trick and the coins roll away.",
 		minNight = 3,
 		zeroTipsOnMostPlayedHand = true,
@@ -209,7 +209,7 @@ BossRounds.Definitions = {
 	{
 		id = "thin_chips",
 		name = "Thin Chips",
-		description = "Chips from played hands are reduced by 40% this round (Mult is untouched).",
+		description = "Chips from played hands are cut by 40% this round.",
 		flavorText = "Someone ate half the chips before they got to you.",
 		minNight = 3,
 		chipsMultiplier = 0.6,
@@ -217,7 +217,7 @@ BossRounds.Definitions = {
 	{
 		id = "flat_mult",
 		name = "Flat Mult",
-		description = "Mult from played hands is reduced by 40% this round (Chips are untouched).",
+		description = "Mult from played hands is cut by 40% this round.",
 		flavorText = "The fizz went flat on your mult tonight.",
 		minNight = 3,
 		multMultiplier = 0.6,
@@ -225,7 +225,7 @@ BossRounds.Definitions = {
 	{
 		id = "double_tab",
 		name = "Double Tab",
-		description = "Lose 1 Tip for every card you play, and the target score is 20% higher this round.",
+		description = "Lose 1 Tip per card played, and the target is 20% higher.",
 		flavorText = "Paying for every card and aiming higher too.",
 		minNight = 3,
 		tipsLostPerCardPlayed = 1,
@@ -236,7 +236,7 @@ BossRounds.Definitions = {
 	{
 		id = "lights_out",
 		name = "Lights Out",
-		description = "You may only play 1 hand this round, but the target score is halved.",
+		description = "Play only 1 hand this round, but the target is halved.",
 		flavorText = "The candles blew out. One shot in the dark.",
 		minNight = 6,
 		handsPerRoundOverride = 1,
@@ -245,7 +245,7 @@ BossRounds.Definitions = {
 	{
 		id = "quick_service",
 		name = "Quick Service",
-		description = "You may only play 2 hands this round, but the target score is 25% lower.",
+		description = "Play only 2 hands this round, but the target is 25% lower.",
 		flavorText = "The cook wants to close early. Two tries, quick!",
 		minNight = 6,
 		handsPerRoundOverride = 2,
@@ -254,7 +254,7 @@ BossRounds.Definitions = {
 	{
 		id = "stale_bread",
 		name = "Stale Bread",
-		description = "Chips and Mult from played hands are reduced by 25% this round.",
+		description = "Chips and Mult from played hands are cut by 25%.",
 		flavorText = "Yesterday's loaf, and it tastes like it.",
 		minNight = 6,
 		chipsMultiplier = 0.75,
@@ -263,7 +263,7 @@ BossRounds.Definitions = {
 	{
 		id = "one_at_a_time",
 		name = "One at a Time",
-		description = "You must play exactly 1 card every hand this round, but the target score is 60% lower.",
+		description = "Play exactly 1 card per hand, but the target is 60% lower.",
 		flavorText = "Single file, please. One card per trip.",
 		minNight = 6,
 		requiredCardsPerHand = 1,
@@ -280,7 +280,7 @@ BossRounds.Definitions = {
 	{
 		id = "wild_crowd",
 		name = "Wild Crowd",
-		description = "3 random cards are tossed out of your hand after every hand you play.",
+		description = "3 random cards leave your hand after each hand you play.",
 		flavorText = "Chaos at every table. Hold on to your cards!",
 		minNight = 6,
 		forcedRandomDiscardsPerHand = 3,
@@ -298,7 +298,7 @@ BossRounds.Definitions = {
 	{
 		id = "everythings_out",
 		name = "Everything's Out",
-		description = "Chips and Mult from played hands are reduced by 30% this round.",
+		description = "Chips and Mult from played hands are cut by 30%.",
 		flavorText = "The pantry is almost bare tonight.",
 		minNight = 6,
 		chipsMultiplier = 0.7,
@@ -334,7 +334,7 @@ BossRounds.Definitions = {
 	{
 		id = "slow_night",
 		name = "Slow Night",
-		description = "1 random card is tossed out of your hand after every hand you play.",
+		description = "1 random card leaves your hand after each hand you play.",
 		flavorText = "Quiet tables, wandering cards.",
 		-- Milder sibling of tier-2 Rowdy Crowd (2 cards) and tier-3 Wild
 		-- Crowd (3 cards) -- 1 card is the gentlest step on this knob, so it
@@ -357,7 +357,7 @@ BossRounds.Definitions = {
 	{
 		id = "picked_over",
 		name = "Picked Over",
-		description = "Heart cards score no Chips or Mult, and you're dealt one fewer card, this round.",
+		description = "Hearts score nothing, and you are dealt one fewer card.",
 		flavorText = "The hearts are gone and the deck feels light.",
 		-- New COMBO (a suit debuff + a hand-size cut together) -- not just a
 		-- numeric variant, so tiered by comparing severity to existing tier-2
@@ -385,7 +385,7 @@ BossRounds.Definitions = {
 	{
 		id = "bare_bones",
 		name = "Bare Bones",
-		description = "Chips and Mult from played hands are reduced by 28% this round.",
+		description = "Chips and Mult from played hands are cut by 28%.",
 		flavorText = "Just the basics tonight. No frills at all.",
 		-- Sits between tier-3 siblings Stale Bread (-25%) and
 		-- Everything's Out (-30%) -- a genuine tier-3-only

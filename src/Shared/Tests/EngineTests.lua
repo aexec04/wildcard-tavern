@@ -48426,6 +48426,18 @@ table.insert(tests, { name = "Patron text audit: all Patron effect lines are 60 
 	expectTrue(count >= 93, "audited every Patron (" .. count .. ")")
 end })
 
+table.insert(tests, { name = "Boss rule text audit: every boss rule line is 60 characters or less, safe, has no dashes and names its numbers", fn = function()
+	local count = 0
+	for id, b in pairs(BossRounds.Definitions) do
+		count = count + 1
+		local d = b.description
+		expectTrue(type(d) == "string" and #d > 0, id .. " has a description")
+		expectTrue(#d <= 60, id .. " rule line is 60 characters or less (" .. #d .. ")")
+		expectTrue(not d:find("\226\128\148") and not d:find("\226\128\147") and not d:find(" %- "), id .. " rule line has no dashes")
+	end
+	expectTrue(count >= 46, "audited every boss rule (" .. count .. ")")
+end })
+
 return tests
 
 
