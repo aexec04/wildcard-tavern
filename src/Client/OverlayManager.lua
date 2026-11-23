@@ -78,15 +78,23 @@ local function registerOpener(name, openFn)
 	openFns[name] = openFn
 end
 
+local switchDepth = 0 -- above 0 while one page closes the others to open itself (VisualHelpers.popOut hides a full screen page at once)
+
 local function open(name)
 	local openFn = openFns[name]
 	if not openFn then return false end
-	closeAllExcept(name)
-	openFn()
+	switchDepth = switchDepth + 1
+	local ok, err = pcall(function()
+		closeAllExcept(name)
+		openFn()
+	end)
+	switchDepth = switchDepth - 1
+	if not ok then warn("[OverlayManager] open " .. tostring(name) .. " failed: " .. tostring(err)) end
 	return true
 end
 
 return {
+	switching = function() return switchDepth > 0 end,
 	register = register,
 	close = close,
 	closeAllExcept = closeAllExcept,

@@ -779,9 +779,11 @@ return function(deps)
 	-- actually finished disappearing, not the instant a button was clicked.
 	local function popOut(backdrop, content, opts, onHidden)
 		opts = opts or {}
-		local plan = require(game:GetService("ReplicatedStorage").Shared.Engine.PopMotion).plan(
-			require(script.Parent.ClientSettings).get("reduceShake") == true, content:GetAttribute("FullScreenPanel") == true)
-		local duration = plan.animate and plan.duration or 0.01 -- Calm mode: no fade or shrink, the popup is gone at once
+		local PopMotion = require(game:GetService("ReplicatedStorage").Shared.Engine.PopMotion)
+		local fullScreenOut = content:GetAttribute("FullScreenPanel") == true
+		local plan = PopMotion.plan(require(script.Parent.ClientSettings).get("reduceShake") == true, fullScreenOut)
+		-- Calm mode: no fade or shrink, the popup is gone at once; so is a page that closes because a Tome tab opens another page
+		local duration = PopMotion.outDuration(plan, fullScreenOut, require(script.Parent.OverlayManager).switching())
 		local scale = content:FindFirstChildOfClass("UIScale")
 		if scale and plan.animate and content:GetAttribute("FullScreenPanel") ~= true then
 			tweenTo(scale, { Scale = plan.outScale }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)

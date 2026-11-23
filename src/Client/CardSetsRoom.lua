@@ -268,7 +268,7 @@ function CardSetsRoom.new(ctx)
 			local unlocked = {}
 			for _, id in ipairs(cosmetics.unlockedSetIds or {}) do unlocked[id] = true end
 			d.owned = unlocked[set.id] == true
-			d.equipped = cosmetics.equippedSetId == set.id
+			d.equipped = d.owned and cosmetics.equippedSetId == set.id -- the server's confirmed set, and only when it is unlocked
 			d.name = set.name
 			d.desc = set.description or ""
 			local passDef = set.unlock.kind == "gamepass" and GamePasses.getById(set.unlock.passId) or nil

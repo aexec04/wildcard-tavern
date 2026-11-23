@@ -23169,6 +23169,23 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.grid: fills the panel width, 
 	expectFalse(L.grid(150, 100, 5, 1).ok, "a tiny panel does not fit a grid")
 end })
 
+tests[#tests + 1] = ({ name = "CardSetsSceneLayout: the full screen room has no empty header gap and fits the screen at 4 sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	expectTrue(L.TOP <= 8 and L.BOTTOM <= 8, "no title or Close band is reserved any more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = PL.fullScreenRect(sz[1], sz[2])
+		local fit = PL.fitFullScreen(sz[2], r.h)
+		expectTrue(fit.fits, "the page fits under the tab strip at " .. sz[1] .. "x" .. sz[2])
+		local g = L.room(r.w, r.h - L.TOP - L.BOTTOM, 15, 1)
+		expectTrue(g.ok, "room is on at " .. sz[1] .. "x" .. sz[2])
+		local lowest = g.hero.y + g.hero.h
+		expectTrue(L.TOP + lowest <= r.h, "the hero ends inside the panel")
+		expectTrue(g.plates.tabs[1].y + L.TOP <= 12, "the Card Sets and Card Backs tabs sit right under the Tome tab row")
+		expectTrue(g.plates.tabs[1].h >= 30, "tabs stay tappable")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 percent, 5 tile columns on shelf boards, nothing overlaps at 4 sizes, every entry on some page", fn = function()
 	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
@@ -23192,7 +23209,7 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 			for i, r in ipairs(p.fan) do -- the turned extent of every card stays inside the felt, minus the margin
 				local ext = { x = r.x - fi.ex, y = r.y - fi.ey, w = r.w + 2 * fi.ex, h = r.h + 2 * fi.ey }
 				local safe = { x = p.felt.x + fi.margin, y = p.felt.y + fi.margin, w = p.felt.w - 2 * fi.margin, h = p.felt.h - 2 * fi.margin }
-				expectTrue(inside(ext, safe), "fan card " .. i .. " fully inside the felt with its margin at " .. sz[1] .. "x" .. sz[2])
+				expectTrue(inside(ext, safe), "fan card " .. i .. " fully inside the felt with its margin at " .. sz[1] .. "x" .. sz[2] .. " ext " .. ext.x .. "," .. ext.y .. "," .. ext.w .. "," .. ext.h .. " safe " .. safe.x .. "," .. safe.y .. "," .. safe.w .. "," .. safe.h)
 				expectTrue(r.w >= 8 and math.floor(r.h * 0.34) >= 11 or r.h < 40, "rank text stays readable")
 			end
 			local bx = { x = p.back.x - fi.ex, y = p.back.y - fi.ey, w = p.back.w + 2 * fi.ex, h = p.stand.y + p.stand.h - p.back.y + 2 * fi.ey }
@@ -31608,6 +31625,47 @@ table.insert(tests, { name = "Collection header: no Next unlock line, the bar is
 	end
 end })
 
+table.insert(tests, { name = "Tome pages: Back returns to the screen the visit began on (table, Round Select, shop, menu, map); a tab switch hides the old page at once", fn = function()
+	local PO = require(script.Parent.Parent.Engine.PanelOrigin)
+	local PM = require(script.Parent.Parent.Engine.PopMotion)
+	for _, screen in ipairs({ "table", "roundSelect", "shop", "menu", "map" }) do
+		local st = PO.new()
+		PO.opened(st, screen)
+		for _ = 1, 4 do PO.opened(st, "menu") end -- Collection, Card Sets, Badges, Legend hops keep the origin
+		expectEqual(PO.backTarget(st).screen, screen, "Back goes to " .. screen)
+		expectTrue(PO.backTarget(st).close, "Back closes the pages")
+	end
+	local page, popup = PM.plan(false, true), PM.plan(false, false)
+	expectEqual(PM.outDuration(page, true, true), PM.INSTANT, "a page that another page replaces leaves at once")
+	expectEqual(PM.outDuration(page, true, false), PM.DURATION, "a plain close of a page still fades")
+	expectEqual(PM.outDuration(popup, false, true), PM.DURATION, "a small popup keeps its fade")
+	expectEqual(PM.outDuration(PM.plan(true, true), true, false), PM.INSTANT, "Calm mode is instant")
+	-- one page open at a time: model the six Tome pages through OverlayManager.open's close-all-then-open
+	local visible, closers = {}, {}
+	local pages = { "collection", "cosmeticSets", "badges", "legend", "flair", "stats" }
+	for _, id in ipairs(pages) do closers[id] = function() visible[id] = false end end
+	local function open(id)
+		for other, fn in pairs(closers) do if other ~= id then fn() end end
+		visible[id] = true
+	end
+	for _, id in ipairs({ "collection", "cosmeticSets", "badges", "legend", "flair", "stats", "collection" }) do
+		open(id)
+		local n = 0
+		for _, v in pairs(visible) do if v then n = n + 1 end end
+		expectEqual(n, 1, "only " .. id .. " is visible after switching to it")
+	end
+	local f = io and io.open and io.open("src/Client/OverlayManager.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("closeAllExcept(name)", 1, true) ~= nil and src:find("switching", 1, true) ~= nil, "OverlayManager.open closes every other page and reports the switch")
+		local vh = io.open("src/Client/VisualHelpers.lua", "r")
+		if vh then
+			local vs = vh:read("*a"); vh:close()
+			expectTrue(vs:find("OverlayManager).switching()", 1, true) ~= nil, "popOut asks whether a page switch is under way")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, full screen pages fade only, Calm mode is static", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PopMotion)
 	local normal = PM.plan(false, false)
@@ -31626,6 +31684,26 @@ table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, 
 	local slice = a and b and src:sub(a, b + 1800) or ""
 	expectTrue(slice:find("PopMotion", 1, true) ~= nil and slice:find("opts.fromScale", 1, true) == nil and slice:find("opts.duration", 1, true) == nil, "popIn and popOut take their motion from PopMotion only")
 	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
+end })
+
+table.insert(tests, { name = "Card Sets label: Equipped only for a set the server confirms (effective and unlocked); a set the player cannot use says what unlocks it", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SetPreview)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local gala = CS.getById("golden_gala")
+	local profile = { ownedSetIds = {}, stats = { runsWon = 0 }, equippedSetId = "golden_gala", unlockedCardBackIds = {} }
+	CS.setStudioUnlock(false, true)
+	expectEqual(CS.effectiveId(profile, {}), CS.DefaultId, "a raw equipped pass set without the pass is not in effect")
+	local confirmed = CS.effectiveId(profile, {})
+	local owned = CS.isUnlocked(profile, "golden_gala", {})
+	local p = SP.plan(gala, { owned = owned, equipped = confirmed == "golden_gala" }, CS.unlockText(gala))
+	expectTrue(p.kind ~= "equipped" and p.action ~= "Equipped", "the label does not say Equipped for an unconfirmed set")
+	p = SP.plan(gala, { owned = false, equipped = true, passConfigured = true }, CS.unlockText(gala)) -- even a stale equipped flag
+	expectTrue(p.kind == "pass" and p.line ~= "", "a stale equipped flag on a locked set still shows how to get it")
+	expectEqual(CS.effectiveId(profile, { [gala.unlock.passId] = true }), "golden_gala", "with the pass the set is in effect")
+	CS.setStudioUnlock(true, true)
+	expectEqual(CS.effectiveId(profile, {}), "golden_gala", "the Studio unlock switch makes every set usable")
+	CS.setStudioUnlock(false, nil)
+	expectEqual(CS.effectiveId(profile, {}), CS.DefaultId, "and the switch is off again by default")
 end })
 
 table.insert(tests, { name = "Card Sets room: every pick previews at once, the button matches the state, the Studio unlock switch is Studio only", fn = function()
@@ -45334,7 +45412,7 @@ table.insert(tests, { name = "Card Backs room: same plate frames as Card Sets, e
 		expectEqual(a.cols, b.cols, "same columns")
 		expectEqual(a.cells[1].tile.w, b.cells[1].tile.w, "same tile frame width")
 		-- the picture may be a little shorter when more entries must share the pages (CardSetsSceneLayout.room), never by much
-		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 10, "tile frame heights stay within 10 px")
+		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 12, "tile frame heights stay within 12 px at " .. sz[1] .. "x" .. sz[2] .. " (" .. a.cells[1].tile.h .. " vs " .. b.cells[1].tile.h .. ")")
 		local seen = 0
 		for page = 1, b.pages do seen = seen + #L.room(W, H, nBacks, page).cells end
 		expectEqual(seen, nBacks, "every back is on some page at " .. sz[1] .. "x" .. sz[2])

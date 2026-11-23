@@ -45,7 +45,7 @@ M.DEF = {
 }
 M.PANEL_FRAC = { 0.92, 0.94 }
 M.PANEL_MAX = { 1200, 900 }
-M.TOP, M.BOTTOM = 62, 46
+M.TOP, M.BOTTOM = 4, 6 -- the title, hint line and Close button are gone (the Tome tab row and the X are above), so the room starts right under the tab row
 
 -- The picture is square, so the panel is only as wide as the picture comes out at the height-limited scale (no flat band at the sides);
 -- its height never passes screen height minus 96 (PanelLayout.expandedHeight), so Close stays on screen under the tab strip's nudge.
@@ -202,7 +202,7 @@ function M.fanParts(felt)
 	local cardH = math.floor(cardW * 3 / 2)
 	local ex, ey = math.ceil(cardH * 0.08), math.ceil(cardW * 0.2)
 	local step = math.floor(cardW * 0.45)
-	local y = felt.y + math.floor((felt.h - cardH - 6) / 2)
+	local y = felt.y + margin + ey + math.max(0, math.floor((felt.h - 2 * margin - cardH - 2 * ey - 6) / 2)) -- the turned extent sits inside the margin, the stand takes the last 6 px
 	local fan = {}
 	for i = 1, 5 do fan[i] = { x = felt.x + margin + ex + (i - 1) * step, y = y, w = cardW, h = cardH } end
 	local back = { x = felt.x + felt.w - margin - ex - cardW, y = y, w = cardW, h = cardH }

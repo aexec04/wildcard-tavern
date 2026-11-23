@@ -26,4 +26,12 @@ function M.plan(calm, fullScreen)
 	}
 end
 
+-- How long a page takes to leave. A full screen page that closes because another page is opening (a Tome tab switch) leaves at once, so
+-- only one page is ever on screen; every other close keeps the plan's fade.
+M.INSTANT = 0.01
+function M.outDuration(plan, fullScreen, switching)
+	if not plan.animate or (fullScreen and switching) then return M.INSTANT end
+	return plan.duration
+end
+
 return M

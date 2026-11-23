@@ -448,7 +448,7 @@ return function(deps)
 			roundCorner(row, 8)
 
 			local isOwned = unlocked[set.id] == true
-			local isEquipped = cosmetics.equippedSetId == set.id
+			local isEquipped = cosmetics.equippedSetId == set.id and table.find(cosmetics.unlockedSetIds or {}, set.id) ~= nil
 			local back = CardBacks.getById(set.cardBackId)
 			setPreview(row, set, back, isOwned)
 			label(row, {

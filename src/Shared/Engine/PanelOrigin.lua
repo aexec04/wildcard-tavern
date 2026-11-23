@@ -7,7 +7,7 @@
 ]]
 local M = {}
 
-M.SCREENS = { table = true, menu = true, map = true }
+M.SCREENS = { table = true, menu = true, map = true, roundSelect = true, shop = true }
 
 function M.new()
 	return { active = false, origin = nil }
