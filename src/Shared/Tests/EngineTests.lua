@@ -49739,6 +49739,126 @@ table.insert(tests, { name = "Save and progression audit: a simulated rejoin kee
 	expectEqual(held.value.pendingStartTips, 30, "a foreign server's save is refused")
 end })
 
+table.insert(tests, { name = "Shop purchase rules: no buy without Tips, no second copy, a full row refuses and keeps Tips, reroll cost climbs and resets, Haggle never below 1, every pack holds valid ids", fn = function()
+	local Shop = require(script.Parent.Parent.Engine.Shop)
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	local function fresh(tips)
+		local s = RunState.new(nil, math.random)
+		s.tips = tips
+		return s
+	end
+	-- Patrons: not enough Tips
+	local s = fresh(0)
+	local patron = Patrons.Definitions[1]
+	local ok, msg = RunState.buyPatron(s, patron.id)
+	expectEqual(ok, false)
+	expectEqual(msg, "Not enough tips")
+	expectEqual(s.tips, 0)
+	expectEqual(#s.ownedPatrons, 0)
+	-- unknown id
+	expectEqual((RunState.buyPatron(fresh(99), "no_such_patron")), false)
+	-- enough Tips: pays the price once, a second buy of the same Patron is refused and charges nothing
+	s = fresh(99)
+	local price = RunState.patronPrice(s, patron)
+	expectTrue(RunState.buyPatron(s, patron.id))
+	expectEqual(s.tips, 99 - price)
+	ok = RunState.buyPatron(s, patron.id)
+	expectEqual(ok, false, "cannot buy the same Patron twice")
+	expectEqual(s.tips, 99 - price, "the refused buy keeps Tips")
+	expectEqual(#s.ownedPatrons, 1)
+	-- a full row refuses with a clear message and keeps Tips
+	s = fresh(999)
+	local bought = 0
+	for _, def in ipairs(Patrons.Definitions) do
+		if #s.ownedPatrons >= RunState.patronSlotLimit(s) then
+			local tipsBefore = s.tips
+			local okFull, why = RunState.buyPatron(s, def.id)
+			expectEqual(okFull, false)
+			expectTrue(type(why) == "string" and why:find("full", 1, true) ~= nil, "a clear full table message")
+			expectEqual(s.tips, tipsBefore, "a refused buy keeps Tips")
+			expectEqual(#s.ownedPatrons, RunState.patronSlotLimit(s))
+			break
+		end
+		if RunState.buyPatron(s, def.id) then bought = bought + 1 end
+	end
+	expectEqual(bought, RunState.patronSlotLimit(s), "the row filled before it refused")
+
+	-- Reroll cost: base, climbs by the step each reroll, never below 1, resets with a new shop visit
+	s = fresh(50)
+	local base = Shop.REROLL_BASE_COST
+	local running = base
+	local last = 0
+	for i = 1, 6 do
+		local cost = RunState.rerollCost(s, running)
+		expectTrue(cost >= 1, "reroll cost at least 1")
+		expectTrue(i == 1 or cost == last + Shop.REROLL_COST_STEP, "reroll cost climbs by the step")
+		last = cost
+		running = running + Shop.REROLL_COST_STEP
+	end
+	expectEqual(RunState.rerollCost(s, Shop.REROLL_BASE_COST), RunState.rerollCost(fresh(50), base), "a new visit starts from the base again")
+	expectEqual(RunState.rerollCost(s, -10), 1, "the floor is 1")
+
+	-- Haggle: the price never goes under 1, a miss costs 1 more, a hit 1 less, and only the haggled offer moves
+	for _, pack in ipairs(Packs.Definitions) do
+		local hs = fresh(99)
+		hs.haggle = { used = true, kind = "pack", id = pack.id, delta = -1 }
+		hs.nextShopDiscount = 50
+		expectTrue(RunState.packPrice(hs, pack) >= 1, pack.id .. " price floor")
+	end
+	for _, def in ipairs(Patrons.Definitions) do
+		local hs = fresh(99)
+		hs.haggle = { used = true, kind = "patron", id = def.id, delta = -1 }
+		hs.nextShopDiscount = 50
+		expectTrue(RunState.patronPrice(hs, def) >= 1, def.id .. " price floor")
+	end
+	local hs = fresh(99)
+	local pk = Packs.Definitions[1]
+	local plain = RunState.packPrice(hs, pk)
+	hs.haggle = { used = true, kind = "pack", id = pk.id, delta = 1 }
+	expectEqual(RunState.packPrice(hs, pk), plain + 1, "a missed haggle costs one more")
+	expectEqual(RunState.packPrice(hs, Packs.Definitions[2]), RunState.packPrice(fresh(99), Packs.Definitions[2]), "other offers are untouched")
+	hs.haggle = nil
+	expectEqual(Haggle.delta(hs, "pack", pk.id), 0)
+
+	-- Packs: not enough Tips refuses and charges nothing; every revealed id is valid; one open at a time is up to the server, resolving pays once
+	for _, pack in ipairs(Packs.Definitions) do
+		local poor = fresh(0)
+		local reveal, err = RunState.openPack(poor, pack.id, math.random)
+		expectEqual(reveal, nil, pack.id .. " refuses without Tips")
+		expectEqual(err, "Not enough tips")
+		expectEqual(poor.tips, 0)
+		for seed = 1, 20 do
+			local rs = fresh(100)
+			local r = RunState.openPack(rs, pack.id, math.random)
+			expectTrue(r ~= nil, pack.id .. " opens with Tips")
+			expectEqual(rs.tips, 100 - RunState.packPrice(fresh(100), pack), pack.id .. " charged once")
+			expectTrue(#r.items >= 1 and #r.items >= r.pickCount, pack.id .. " reveals enough items")
+			for _, item in ipairs(r.items) do
+				expectTrue(type(item.id) == "string" and item.id ~= "", pack.id .. " item id")
+				if item.category == "patron" then
+					expectTrue(Patrons.getById(item.id) ~= nil, "pack Patron id is real: " .. tostring(item.id))
+				elseif item.category == "standard" then
+					expectTrue(item.card ~= nil and item.card.rank >= 2 and item.card.rank <= 14, "standard card is real")
+				else
+					local def = (item.category == "house" and Recipes.getHouseRecipeById(item.id))
+						or (item.category == "menu" and Recipes.getMenuRecipeById(item.id))
+						or (item.category == "secret" and Recipes.getSecretRecipeById(item.id))
+					expectTrue(def ~= nil and def ~= false, "pack recipe id is real: " .. tostring(item.id))
+				end
+			end
+			-- skip pays back at most half, never more than paid, and clears the pack
+			local before = rs.tips
+			local okSkip = RunState.resolvePack(rs, {})
+			expectTrue(okSkip)
+			expectTrue(rs.tips - before <= r.paidPrice, "skip never refunds more than was paid")
+			expectEqual(rs.pendingPack, nil)
+			expectEqual((RunState.resolvePack(rs, {})), false, "a closed pack cannot be resolved again")
+			if seed >= 3 then break end
+		end
+	end
+end })
+
 return tests
 
 

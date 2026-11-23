@@ -1286,6 +1286,11 @@ function RunState.buyPatron(state, patronId)
 	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then
 		return false, "Your table is full, sell a Patron to make room"
 	end
+	for _, owned in ipairs(state.ownedPatrons) do
+		if owned.id == patron.id then
+			return false, "Already at your table" -- the server removes a bought offer, the engine refuses a second copy too
+		end
+	end
 	local price = RunState.patronPrice(state, patron)
 	if state.tips < price then
 		return false, "Not enough tips"
