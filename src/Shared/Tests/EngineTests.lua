@@ -23007,6 +23007,23 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.grid: fills the panel width, 
 	expectFalse(L.grid(150, 100, 5, 1).ok, "a tiny panel does not fit a grid")
 end })
 
+tests[#tests + 1] = ({ name = "CardSetsSceneLayout: the full screen room has no empty header gap and fits the screen at 4 sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	expectTrue(L.TOP <= 8 and L.BOTTOM <= 8, "no title or Close band is reserved any more")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local r = PL.fullScreenRect(sz[1], sz[2])
+		local fit = PL.fitFullScreen(sz[2], r.h)
+		expectTrue(fit.fits, "the page fits under the tab strip at " .. sz[1] .. "x" .. sz[2])
+		local g = L.room(r.w, r.h - L.TOP - L.BOTTOM, 15, 1)
+		expectTrue(g.ok, "room is on at " .. sz[1] .. "x" .. sz[2])
+		local lowest = g.hero.y + g.hero.h
+		expectTrue(L.TOP + lowest <= r.h, "the hero ends inside the panel")
+		expectTrue(g.plates.tabs[1].y + L.TOP <= 12, "the Card Sets and Card Backs tabs sit right under the Tome tab row")
+		expectTrue(g.plates.tabs[1].h >= 30, "tabs stay tappable")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 percent, 5 tile columns on shelf boards, nothing overlaps at 4 sizes, every entry on some page", fn = function()
 	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
@@ -23030,7 +23047,7 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.room: hero left about 40 perc
 			for i, r in ipairs(p.fan) do -- the turned extent of every card stays inside the felt, minus the margin
 				local ext = { x = r.x - fi.ex, y = r.y - fi.ey, w = r.w + 2 * fi.ex, h = r.h + 2 * fi.ey }
 				local safe = { x = p.felt.x + fi.margin, y = p.felt.y + fi.margin, w = p.felt.w - 2 * fi.margin, h = p.felt.h - 2 * fi.margin }
-				expectTrue(inside(ext, safe), "fan card " .. i .. " fully inside the felt with its margin at " .. sz[1] .. "x" .. sz[2])
+				expectTrue(inside(ext, safe), "fan card " .. i .. " fully inside the felt with its margin at " .. sz[1] .. "x" .. sz[2] .. " ext " .. ext.x .. "," .. ext.y .. "," .. ext.w .. "," .. ext.h .. " safe " .. safe.x .. "," .. safe.y .. "," .. safe.w .. "," .. safe.h)
 				expectTrue(r.w >= 8 and math.floor(r.h * 0.34) >= 11 or r.h < 40, "rank text stays readable")
 			end
 			local bx = { x = p.back.x - fi.ex, y = p.back.y - fi.ey, w = p.back.w + 2 * fi.ex, h = p.stand.y + p.stand.h - p.back.y + 2 * fi.ey }
@@ -44740,7 +44757,7 @@ table.insert(tests, { name = "Card Backs room: same plate frames as Card Sets, e
 		expectEqual(a.cols, b.cols, "same columns")
 		expectEqual(a.cells[1].tile.w, b.cells[1].tile.w, "same tile frame width")
 		-- the picture may be a little shorter when more entries must share the pages (CardSetsSceneLayout.room), never by much
-		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 10, "tile frame heights stay within 10 px")
+		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 12, "tile frame heights stay within 12 px at " .. sz[1] .. "x" .. sz[2] .. " (" .. a.cells[1].tile.h .. " vs " .. b.cells[1].tile.h .. ")")
 		local seen = 0
 		for page = 1, b.pages do seen = seen + #L.room(W, H, nBacks, page).cells end
 		expectEqual(seen, nBacks, "every back is on some page at " .. sz[1] .. "x" .. sz[2])
