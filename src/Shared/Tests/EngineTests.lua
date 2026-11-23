@@ -21585,6 +21585,26 @@ table.insert(tests, { name = "Peddler speech bubble: hidden when its text is emp
 	expectTrue(shop:find('child.Name ~= "PeddlerBubble"', 1, true) ~= nil, "setCounterHiddenForPack leaves the bubble alone")
 end })
 
+table.insert(tests, { name = "Painted plate pictures never outlive their hidden plate: the pack panel skips PaintPiece siblings and Marlo's plate picture follows the bubble", fn = function()
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not f then return end -- Studio has no io
+	local shop = f:read("*a")
+	f:close()
+	local s, e = shop:find("local function setCounterHiddenForPack", 1, true)
+	expectTrue(s ~= nil, "setCounterHiddenForPack exists")
+	local body = shop:sub(s, (shop:find("local function refreshPackPanel", e, true)) or (e + 1500))
+	expectTrue(body:find('child:GetAttribute("PaintPiece") == nil', 1, true) ~= nil, "painted pictures are not hidden or restored by the pack panel (they follow their plate)")
+	local g = io.open("src/Client/ShopScene.lua", "r")
+	local scene = g:read("*a")
+	g:close()
+	expectTrue(scene:find('FindFirstChild("PeddlerBubblePaint")', 1, true) ~= nil and scene:find("paint.Visible = false", 1, true) ~= nil, "the bubble guard also hides its painted plate")
+	-- the picture follows its host's Visible in TavernKit.painted
+	local h = io.open("src/Client/TavernKit.lua", "r")
+	local kit = h:read("*a")
+	h:close()
+	expectTrue(kit:find("img.Visible = host.Visible", 1, true) ~= nil and kit:find('GetPropertyChangedSignal(prop):Connect(fit)', 1, true) ~= nil, "TavernKit.painted mirrors the host's Visible")
+end })
+
 table.insert(tests, { name = "Content text: no double dash, em dash or en dash in any registry string", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local bad = {}

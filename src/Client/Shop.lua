@@ -948,7 +948,9 @@ return function(deps)
 			if plate then plate.Visible = false end
 		end
 		for _, child in ipairs(shopFrame:GetChildren()) do
-			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" and child.Name ~= "PeddlerBubble" then
+			-- a TavernKit.painted picture (attribute PaintPiece) follows its plate's Visible by itself: restoring it here
+			-- would show the bare picture of a plate that stayed hidden (the empty orange Marlo plate)
+			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" and child.Name ~= "PeddlerBubble" and child:GetAttribute("PaintPiece") == nil then
 				if on then
 					if child.Visible and not child:GetAttribute("PackHidden") then
 						child:SetAttribute("PackHidden", true)

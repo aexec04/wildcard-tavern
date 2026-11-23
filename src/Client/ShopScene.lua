@@ -238,6 +238,11 @@ function ShopScene.new(deps)
 		if bubble.Visible and (bubble.Text == "" or bubble.TextTransparency >= 1) then
 			bubble.Visible = false
 		end
+		-- the painted plate under the bubble can never outlive it
+		local paint = bubble.Parent and bubble.Parent:FindFirstChild("PeddlerBubblePaint")
+		if paint and paint:IsA("GuiObject") and paint.Visible and not bubble.Visible then
+			paint.Visible = false
+		end
 	end
 	bubble:GetPropertyChangedSignal("Visible"):Connect(hideIfSpent)
 	local function seedFor(event)
