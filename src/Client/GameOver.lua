@@ -277,6 +277,12 @@ return function(deps)
 		shareBox.Text = text
 		shareButton.Visible, challengeButton.Visible, inviteButton.Visible = false, false, false
 		shareBox.Visible, shareHint.Visible = true, true
+		local SF = require(Engine:WaitForChild("ShareFeedback"))
+		local pressed = os.clock()
+		shareHint.Text = SF.hint(pressed, pressed) -- "Line ready!" for 2 seconds, then the plain how to line (no tween, Calm mode safe)
+		task.delay(SF.SECONDS, function()
+			if shareHint.Parent then shareHint.Text = SF.hint(os.clock(), pressed) end
+		end)
 		shareBox:CaptureFocus()
 	end
 	shareButton.MouseButton1Click:Connect(function()
