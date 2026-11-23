@@ -16,7 +16,7 @@ local M = {}
 
 M.GLOW_TIERS = { rare = true, epic = true, legendary = true }
 M.PERIOD = 3
-M.ALPHA_MIN, M.ALPHA_MAX = 0.15, 0.35
+M.ALPHA_MIN, M.ALPHA_MAX = 0.1, 0.25
 M.SHINE_PERIOD = 6
 
 local function norm(tier)

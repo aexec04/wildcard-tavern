@@ -30353,7 +30353,7 @@ table.insert(tests, { name = "TavernLife: fire 0.9 to 1.0 over 3 s, cat 1.5 perc
 end })
 
 -- ===== Patron rarity glow and shine =====
-table.insert(tests, { name = "PatronShine: Rare, Epic and Legendary glow in their rarity colour between 0.15 and 0.35 alpha over 3 s, Common and Uncommon do not", fn = function()
+table.insert(tests, { name = "PatronShine: Rare, Epic and Legendary glow in their rarity colour between 0.10 and 0.25 alpha over 3 s, Common and Uncommon do not", fn = function()
 	local S = require(script.Parent.Parent.Engine.PatronShine)
 	local M = require(script.Parent.Parent.Engine.PatronMotion)
 	for _, tier in ipairs({ "common", "uncommon" }) do
@@ -30363,9 +30363,9 @@ table.insert(tests, { name = "PatronShine: Rare, Epic and Legendary glow in thei
 		local g = S.glow(tier, false)
 		expectTrue(g ~= nil, tier .. " glows")
 		expectEqual(g.period, 3)
-		expectEqual(g.alphaMin, 0.15)
-		expectEqual(g.alphaMax, 0.35)
-		expectTrue(math.abs(g.transMin - 0.65) < 1e-9 and math.abs(g.transMax - 0.85) < 1e-9, "transparency is 1 minus alpha")
+		expectEqual(g.alphaMin, 0.1)
+		expectEqual(g.alphaMax, 0.25)
+		expectTrue(math.abs(g.transMin - 0.75) < 1e-9 and math.abs(g.transMax - 0.9) < 1e-9, "transparency is 1 minus alpha")
 		expectEqual(g.rgb[1], M.glowOf(tier)[1], tier .. " uses the entrance glow colour")
 	end
 	expectTrue(S.glow("RARE", false) ~= nil, "tier names are case blind")
@@ -37284,8 +37284,9 @@ table.insert(tests, { name = "Boss round card: health is max(0, Target - Score),
 	expectTrue(B.glow(false).pulse == 0.9 and B.glow(true).pulse == nil, "pulse 0.9 s, none in Calm mode")
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	local g = B.glow(false)
-	expectTrue(g.stroke == 3 and g.outer == 30 and g.lo == 0.2 and g.hi == 0.5 and g.seatStroke == 2 and g.seatHalo == 24 and g.seatHaloT == 0.5, "glow numbers: 3 px stroke, 30 px boss halo pulsing 0.2 to 0.5, 2 px seat edge, 24 px steady seat halo at 0.5")
-	expectTrue(g.lo < g.seatHaloT - 0.2, "the boss halo is brighter than the Patron halos")
+	expectTrue(g.stroke == 3 and g.outer == 30 and g.lo == 0.75 and g.hi == 0.9 and g.seatStroke == 1 and g.seatHalo == 24 and g.seatHaloT == 0.75, "glow numbers: 3 px stroke, 30 px boss halo pulsing 0.75 to 0.9, 1 px seat edge, 24 px steady seat halo at 0.75")
+	expectTrue(1 - g.lo <= g.maxOpacity and 1 - g.seatHaloT <= g.maxOpacity and 1 - g.seatStrokeT <= g.maxOpacity and 1 - g.bossHaloT <= g.maxOpacity, "resting glows are at most 25 percent opaque")
+	expectTrue(require(script.Parent.Parent.Engine.PatronShine).ALPHA_MAX <= 0.25, "Patron tier shine rim is at most 25 percent opaque")
 	-- the Boss card takes the middle seat: Patrons 1 2 keep seats 1 2, 3 4 move to 4 5, a fifth is out of the row
 	expectTrue(B.seatFor(1, true) == 1 and B.seatFor(2, true) == 2 and B.seatFor(3, true) == 4 and B.seatFor(4, true) == 5 and B.seatFor(5, true) == nil, "boss round seat map")
 	for i = 1, 5 do expectEqual(B.seatFor(i, false), i, "no boss round: seat " .. i .. " is unchanged") end

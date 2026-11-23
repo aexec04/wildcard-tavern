@@ -186,7 +186,7 @@ local function applySeatGlow(layer, rects, owned)
 			g.Position = UDim2.fromOffset(s.card.x - 2, s.card.y - 2)
 			g.Size = UDim2.fromOffset(s.card.w + 4, s.card.h + 4)
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
-			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = 0; st.Parent = g
+			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = Rules.glow(true).seatStrokeT; st.Parent = g
 			local gl = Rules.glow(true)
 			pcall(function() -- candlelight: the shared feathered radial glow (no ring edges, no seams), about 30 px past the card, static in Calm mode and Reduce motion
 				local pad = Rules.haloReach(Rules.seatGap(rects), gl.seatHalo)

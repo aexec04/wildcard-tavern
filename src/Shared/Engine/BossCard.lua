@@ -168,10 +168,11 @@ function M.topParts(r)
 	}
 end
 
+-- Resting glows are a thin soft rim: no ring, halo or edge is more than maxOpacity (0.25) opaque, so portraits and name strips stay readable.
 -- stroke = 3 px gold on the Boss card, outer = soft rings reaching 28 px past each edge that pulse between lo and hi transparency,
 -- seatStroke = the steady 2 px gold edge on the other Patron cards, seatHalo = their steady soft 24 px halo at seatHaloT transparency
 function M.glow(calm)
-	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 2, outer = 30, lo = 0.2, hi = 0.5, seatHalo = 24, seatHaloT = 0.5, bossHaloT = 0.2 }
+	return { pulse = (not calm) and M.PULSE_SECONDS or nil, stroke = 3, softStroke = 2, seatStroke = 1, seatStrokeT = 0.75, outer = 30, lo = 0.75, hi = 0.9, seatHalo = 24, seatHaloT = 0.75, bossHaloT = 0.75, maxOpacity = 0.25 }
 end
 
 return M
