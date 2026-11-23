@@ -62,7 +62,7 @@ local function parseArgs(argv)
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--marks"] = "marks", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
-		["--first-run"] = "firstRun", ["--start-tips"] = "startTips", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
+		["--first-run"] = "firstRun", ["--start-tips"] = "startTips", ["--shop-nights"] = "shopNights", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
 		["--discards"] = "discards", ["--late-start"] = "lateStart", ["--late-count"] = "lateCount", ["--min-builds"] = "minBuilds", ["--boss-from"] = "bossFrom",
 	}
 	local flags = {
@@ -380,7 +380,7 @@ elseif cfg.late then
 	end
 elseif cfg.shopEcon then
 	-- Tips on hand and Patrons held at each Counter visit, Night 1 to 8 (runs that reach the visit)
-	local records = collect(runConfig({ maxNight = 8 }))
+	local records = collect(runConfig({ maxNight = cfg.shopNights or 8 }))
 	local agg = {}
 	local function key(night, round) return (night - 1) * 3 + round end
 	for _, rec in ipairs(records) do
@@ -392,7 +392,7 @@ elseif cfg.shopEcon then
 	end
 	print(string.format("Shop economy, bot %s, %d seeds. Counter visits, Night 1 to 8:", cfg.bot, #records))
 	print(string.format("%-12s %6s %9s %9s", "Visit", "runs", "avg Tips", "Patrons"))
-	for k = 1, 24 do
+	for k = 1, 3 * (cfg.shopNights or 8) do
 		local a = agg[k]
 		if a then print(string.format("N%d R%d %12d %9.1f %9.2f", a.night, a.round, a.n, a.tips / a.n, a.patrons / a.n)) end
 	end

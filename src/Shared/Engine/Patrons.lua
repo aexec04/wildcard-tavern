@@ -136,7 +136,7 @@ Patrons.Definitions = {
 	-- ===== +MULT: rewards a specific hand type =====
 	{
 		id = "regulars_round", name = "Regulars' Round", icon = "💬", price = 5,
-		description = "+8 Mult if the hand contains a Pair.",
+		description = "+10 Mult if the hand contains a Pair.",
 		flavorText = "Two old friends who never sit apart.",
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -144,7 +144,7 @@ Patrons.Definitions = {
 				["Full House"] = true, ["Four of a Kind"] = true,
 			}
 			if pairLike[handResult.name] then
-				return { mult = 8 }
+				return { mult = 10 }
 			end
 			return nil
 		end,
@@ -466,12 +466,12 @@ Patrons.Definitions = {
 	-- ===== More ECONOMY (only Tip Jar/Penny Pincher existed before) =====
 	{
 		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7,
-		description = "Win a round: earn 1 Tip for each Patron at your table.",
-		short = "Win a round: 1 Tip per Patron you own",
+		description = "Win a round: 1 Tip per Patron you own (up to 3).",
+		short = "Win a round: 1 Tip per Patron (up to 3)",
 		flavorText = "Buys a round of muffins for the whole table.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
-			state.tips = state.tips + #state.ownedPatrons
+			state.tips = state.tips + math.min(3, #state.ownedPatrons)
 		end,
 	},
 	{
@@ -551,13 +551,13 @@ Patrons.Definitions = {
 	-- ===== which nothing so far did directly) =====
 	{
 		id = "full_house_crowd", name = "Full House Crowd", icon = "🥳", price = 8,
-		description = "x1.15 Mult for every OTHER Patron at your table.",
+		description = "x1.13 Mult for every OTHER Patron at your table.",
 		flavorText = "The more friends at the table, the bigger the smiles.",
 		effect = function(_handResult, context)
 			local patrons = context.ownedPatrons or {}
 			local others = math.max(0, #patrons - 1)
 			if others > 0 then
-				return { multMultiplier = 1.15 ^ others }
+				return { multMultiplier = 1.13 ^ others }
 			end
 			return nil
 		end,
@@ -652,12 +652,12 @@ Patrons.Definitions = {
 	-- ===== Hands-side counterpart to Spare Change's Discards-side payout) =====
 	{
 		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
-		description = "Win a round: earn 1 Tip per Hand you have left.",
-		short = "Win a round: 1 Tip per Hand left",
+		description = "Win a round: earn 1 Tip per Hand you have left (up to 2).",
+		short = "Win a round: 1 Tip per Hand left (up to 2)",
 		flavorText = "Keeps an umbrella and a few coins for stormy nights.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
-			state.tips = state.tips + (state.handsRemaining or 0)
+			state.tips = state.tips + math.min(2, state.handsRemaining or 0)
 		end,
 	},
 
@@ -668,14 +668,14 @@ Patrons.Definitions = {
 	-- ===== below this loop in RunState.playHand already relies on) =====
 	{
 		id = "boss_bane", name = "Boss's Bane", icon = "🥊", price = 7,
-		description = "Earn 10 Tips whenever you clear a Boss Round.",
+		description = "Earn 6 Tips whenever you clear a Boss Round.",
 		flavorText = "Not scared of any troublemaker who walks through the door.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
 			-- isBossRound covers Casual too (no modifier, still a boss
 			-- round). Can't call RunState.isBossRound -- require cycle.
 			if state.bossModifier or state.isBossRound then
-				state.tips = state.tips + 10
+				state.tips = state.tips + 6
 			end
 		end,
 	},
@@ -772,12 +772,12 @@ Patrons.Definitions = {
 	},
 	{
 		id = "veterans_table", name = "Veteran's Table", icon = "🎖️", price = 8, minNight = 4,
-		description = "+8 Chips for each Night you've reached after Night 1.",
+		description = "+5 Chips for each Night you've reached after Night 1.",
 		flavorText = "Has a story from every night the tavern stayed open.",
 		effect = function(_handResult, context)
 			local nights = (context.night or 1) - 1
 			if nights > 0 then
-				return { chips = 8 * nights }
+				return { chips = 5 * nights }
 			end
 			return nil
 		end,
@@ -949,10 +949,10 @@ local depthPatrons = {
 	},
 	{
 		id = "twin_spoons", name = "Twin Spoons", icon = "🥄", price = 5,
-		description = "+6 Mult if the hand is a Two Pair.",
+		description = "+10 Mult if the hand is a Two Pair.",
 		flavorText = "Two of everything, always.",
 		effect = function(handResult, context)
-			return handResult.name == "Two Pair" and { mult = 6 } or nil
+			return handResult.name == "Two Pair" and { mult = 10 } or nil
 		end,
 	},
 	{
@@ -973,10 +973,10 @@ local depthPatrons = {
 	},
 	{
 		id = "kitchen_duo", name = "Kitchen Duo", icon = "👩‍🍳", price = 6,
-		description = "+100 Chips if the hand is a Full House.",
+		description = "+110 Chips if the hand is a Full House.",
 		flavorText = "One chops, one stirs, nobody argues.",
 		effect = function(handResult, context)
-			return handResult.name == "Full House" and { chips = 100 } or nil
+			return handResult.name == "Full House" and { chips = 110 } or nil
 		end,
 	},
 	{
@@ -1110,10 +1110,10 @@ local depthPatrons = {
 	-- Roster additions.
 	{
 		id = "lone_wolf", name = "Lone Wolf", icon = "🐺", price = 5, rarity = "common",
-		description = "+15 Mult if the hand is a High Card.",
+		description = "+25 Mult if the hand is a High Card.",
 		flavorText = "Prefers a quiet corner table.",
 		effect = function(handResult, _context)
-			return handResult.name == "High Card" and { mult = 15 } or nil
+			return handResult.name == "High Card" and { mult = 25 } or nil
 		end,
 	},
 	{
@@ -1165,10 +1165,10 @@ local depthPatrons = {
 	},
 	{
 		id = "triple_scoop", name = "Triple Scoop", icon = "🍨", price = 7, rarity = "uncommon",
-		description = "+25 Mult if the hand is Three of a Kind or Full House.",
+		description = "+30 Mult if the hand is Three of a Kind or Full House.",
 		flavorText = "Always asks for one more of the same.",
 		effect = function(handResult, _context)
-			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then return { mult = 25 } end
+			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then return { mult = 30 } end
 			return nil
 		end,
 	},

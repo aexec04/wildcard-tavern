@@ -3548,7 +3548,7 @@ table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER own
 	local _, _, multAlone = Scoring.calculate(hand, { crowd }, {})
 	local _, _, multWithTwo = Scoring.calculate(hand, { crowd, theRegular, luckyDice }, {})
 	expectEqual(multAlone, 1) -- no OTHER Patrons -- no bonus
-	expectEqual(multWithTwo, (1 + 4) * (1.15 ^ 2)) -- base(1) + The Regular's +4, then x1.15^2 for the 2 others
+	expectEqual(multWithTwo, (1 + 4) * (1.13 ^ 2)) -- base(1) + The Regular's +4, then x1.13^2 for the 2 others
 end })
 
 table.insert(tests, { name = "'Fair Share' adds +4 Chips per scoring card", fn = function()
@@ -3742,7 +3742,7 @@ table.insert(tests, { name = "'Rainy Day Fund' earns 1 Tip per Hand remaining on
 	expectEqual(state.tips, tipsBefore + 2)
 end })
 
-table.insert(tests, { name = "'Boss's Bane' earns 10 Tips on a Boss Round win, nothing on a normal round win", fn = function()
+table.insert(tests, { name = "'Boss's Bane' earns 6 Tips on a Boss Round win, nothing on a normal round win", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	local bane = Patrons.getById("boss_bane")
 	state.bossModifier = nil
@@ -3751,7 +3751,7 @@ table.insert(tests, { name = "'Boss's Bane' earns 10 Tips on a Boss Round win, n
 	expectEqual(state.tips, tipsBefore) -- normal round: no bonus
 	state.bossModifier = BossRounds.getById("bouncer")
 	bane.onRoundWin(state)
-	expectEqual(state.tips, tipsBefore + 10) -- boss round: +10
+	expectEqual(state.tips, tipsBefore + 6) -- boss round: +6
 end })
 
 table.insert(tests, { name = "'Slow Night'/'House Minimum' are tier-1 (minNight = 1) numeric variants of existing knobs", fn = function()
@@ -3979,8 +3979,8 @@ table.insert(tests, { name = "Casual: Boss's Bane pays on the boss round", fn = 
 	state.tips = 0
 	table.insert(state.ownedPatrons, Patrons.getById("boss_bane"))
 	RunState.playHand(state, { 1 })
-	-- Boss's Bane's +10 lands before round-win interest (+1 per 5 held).
-	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin + 10 + math.floor(10 / 5))
+	-- Boss's Bane's +6 lands before round-win interest (+1 per 5 held).
+	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin + 6 + math.floor(6 / 5))
 end })
 
 table.insert(tests, { name = "Casual: a non-boss round is not a boss round and pays the normal reward", fn = function()
@@ -4567,11 +4567,11 @@ table.insert(tests, { name = "Scaling Patrons follow their formulas and caps", f
 	expectEqual(bonus("pair_bonds", { handStatsBefore = { ["Pair"] = 6, ["Two Pair"] = 2, ["Flush"] = 9 } }).mult, 2)
 	expectEqual(bonus("pair_bonds", { handStatsBefore = { ["Pair"] = 90 } }).mult, 15)
 	expectEqual(bonus("veterans_table", { night = 1 }).chips, nil)
-	expectEqual(bonus("veterans_table", { night = 4 }).chips, 24)
+	expectEqual(bonus("veterans_table", { night = 4 }).chips, 15)
 
 	for id, text in pairs({
 		slow_cooker = "x0.025", house_tab = "x0.08", regulars_chair = "6 hands", cobweb_shelf = "3 Discards",
-		tasting_menu = "+1 Mult", estate_sale = "+2 Mult", pair_bonds = "4 Pairs", veterans_table = "+8 Chips",
+		tasting_menu = "+1 Mult", estate_sale = "+2 Mult", pair_bonds = "4 Pairs", veterans_table = "+5 Chips",
 	}) do
 		expectTrue(Patrons.getById(id).description:find(text, 1, true) ~= nil, id)
 	end
@@ -28231,7 +28231,7 @@ table.insert(tests, { name = "Build pieces: Flush Fan, Stair Climber, Kitchen Du
 	expectEqual(pays("stair_climber", straight).chips, 80)
 	expectEqual(pays("stair_climber", straightFlush).chips, 80)
 	expectEqual(pays("stair_climber", flush), nil)
-	expectEqual(pays("kitchen_duo", house).chips, 100)
+	expectEqual(pays("kitchen_duo", house).chips, 110)
 	expectEqual(pays("kitchen_duo", pair), nil)
 	expectEqual(pays("long_road", straight).mult, 12)
 	expectEqual(pays("long_road", straightFlush), nil)
@@ -28239,7 +28239,7 @@ table.insert(tests, { name = "Build pieces: Flush Fan, Stair Climber, Kitchen Du
 	expectEqual(pays("royal_road", wheel).multMultiplier, 2, "Ace low counts")
 	expectEqual(pays("royal_road", straight), nil)
 	-- the card text names the number the effect pays
-	for id, text in pairs({ flush_fan = "+80 Chips", stair_climber = "+80 Chips", kitchen_duo = "+100 Chips", long_road = "+12 Mult", royal_road = "x2 Mult" }) do
+	for id, text in pairs({ flush_fan = "+80 Chips", stair_climber = "+80 Chips", kitchen_duo = "+110 Chips", long_road = "+12 Mult", royal_road = "x2 Mult" }) do
 		expectTrue(Patrons.getById(id).description:find(text, 1, true) ~= nil, id .. " says " .. text)
 	end
 	-- and it reaches the score: Chips land in Chips, Royal Road doubles the whole Mult
@@ -41987,7 +41987,7 @@ table.insert(tests, { name = "Roster additions: Lone Wolf, Even Keel, Odd Duck, 
 	end
 	local lone, even, odd, good = Patrons.getById("lone_wolf"), Patrons.getById("even_keel"), Patrons.getById("odd_duck"), Patrons.getById("good_company")
 	expectTrue(lone and even and odd and good, "all four are in the registry")
-	expectEqual(lone.effect(hand("High Card", { 13 }), {}).mult, 15, "Lone Wolf on a High Card")
+	expectEqual(lone.effect(hand("High Card", { 13 }), {}).mult, 25, "Lone Wolf on a High Card")
 	expectTrue(lone.effect(hand("Pair", { 13, 13 }), {}) == nil, "Lone Wolf ignores a Pair")
 	expectEqual(even.effect(hand("Two Pair", { 2, 4, 6, 8, 10 }), {}).mult, 15, "Even Keel counts 2, 4, 6, 8, 10")
 	expectTrue(even.effect(hand("High Card", { 14 }), {}) == nil, "Even Keel ignores an Ace")
@@ -42886,6 +42886,31 @@ table.insert(tests, { name = "Patron synergy audit: every Patron has at least on
 	end
 end })
 
+-- PATRON LIFT 2 (claude/ECONOMY.md): full sweep of every Patron free from the start; the five strongest were cut one step and the
+-- five weakest raised one step. Pinned numbers.
+table.insert(tests, { name = "Patron lift 2: Rainy Day Fund and Big Spender are capped, Boss's Bane 6, Veteran's Table +5 a Night, Full House Crowd x1.13, and the weak five were raised", fn = function()
+	local P = require(script.Parent.Parent.Engine.Patrons)
+	local function get(id) return P.getById and P.getById(id) or nil end
+	local state = { tips = 0, ownedPatrons = { 1, 2, 3, 4, 5, 6 }, handsRemaining = 4 }
+	get("rainy_day_fund").onRoundWin(state)
+	expectEqual(state.tips, 2, "Rainy Day Fund pays at most 2")
+	state.tips = 0
+	get("big_spender").onRoundWin(state)
+	expectEqual(state.tips, 3, "Big Spender pays at most 3")
+	state.tips, state.ownedPatrons = 0, { 1, 2 }
+	get("big_spender").onRoundWin(state)
+	expectEqual(state.tips, 2, "Big Spender pays 1 per Patron below the cap")
+	expectEqual(get("veterans_table").effect({}, { night = 3 }).chips, 10)
+	local crowd = get("full_house_crowd").effect({}, { ownedPatrons = { 1, 2, 3 } })
+	expectTrue(math.abs(crowd.multMultiplier - 1.13 ^ 2) < 1e-9, "Full House Crowd x1.13 per other Patron")
+	local function hand(name) return { name = name, scoringCards = {}, cards = {} } end
+	expectEqual(get("lone_wolf").effect(hand("High Card"), {}).mult, 25)
+	expectEqual(get("twin_spoons").effect(hand("Two Pair"), {}).mult, 10)
+	expectEqual(get("kitchen_duo").effect(hand("Full House"), {}).chips, 110)
+	expectEqual(get("triple_scoop").effect(hand("Full House"), {}).mult, 30)
+	expectEqual(get("regulars_round").effect(hand("Pair"), {}).mult, 10)
+end })
+
 -- DOMINANT PATRONS: the lift sim showed Tip Jar, Bread Starter and Stack of Plates far above the rest; each was cut one small step.
 table.insert(tests, { name = "Patron lift: Tip Jar pays 2 Tips, Bread Starter tops out at x1.6, Stack of Plates at +50 Chips, Rising Dough at +10, Repeat Customer x2.5", fn = function()
 	local P = require(script.Parent.Parent.Engine.Patrons)
@@ -43615,8 +43640,8 @@ tests[#tests + 1] = ({ name = "New strategy Patrons: Full Palette, Triple Scoop,
 	expectEqual(fp.effect(hand("Flush"), {}).multMultiplier, 1.5, "Full Palette on a Flush")
 	expectEqual(fp.effect(hand("Straight Flush"), {}).multMultiplier, 1.5, "Full Palette on a Straight Flush")
 	expectTrue(fp.effect(hand("Straight"), {}) == nil, "Full Palette ignores a Straight")
-	expectEqual(ts.effect(hand("Three of a Kind"), {}).mult, 25, "Triple Scoop on trips")
-	expectEqual(ts.effect(hand("Full House"), {}).mult, 25, "Triple Scoop on a Full House")
+	expectEqual(ts.effect(hand("Three of a Kind"), {}).mult, 30, "Triple Scoop on trips")
+	expectEqual(ts.effect(hand("Full House"), {}).mult, 30, "Triple Scoop on a Full House")
 	expectTrue(ts.effect(hand("Pair"), {}) == nil and ts.effect(hand("Four of a Kind"), {}) == nil, "Triple Scoop ignores a Pair and Four of a Kind")
 	expectEqual(ss.effect(hand("High Card"), { discardsRemaining = 3 }).mult, 6, "Spare Shuffle counts Discards left")
 	expectTrue(ss.effect(hand("High Card"), { discardsRemaining = 0 }) == nil, "Spare Shuffle with none left does nothing")
