@@ -6834,6 +6834,53 @@ table.insert(tests, { name = "WorldMap: no pick means the default road; later fo
 	expectEqual(WorldMap.pendingChoices(state), nil)
 end })
 
+table.insert(tests, { name = "Tavern Map audit: every stop maps to a known node type, only the Finish is a boss, a locked node cannot be selected or Continued, node text is kid safe", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local NodeRules = require(script.Parent.Parent.Engine.MapNodeRules)
+	local SelectRules = require(script.Parent.Parent.Engine.MapSelectRules)
+	local JourneyMap = require(script.Parent.Parent.Engine.JourneyMap)
+	local known = {}
+	for _, t in ipairs(NodeRules.TYPES) do known[t] = true end
+	local bosses = 0
+	local ids = {}
+	for id in pairs(WorldMap.Stops) do ids[#ids + 1] = id end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		local stop = WorldMap.Stops[id]
+		local ntype
+		if stop.kind == "side" then
+			ntype = NodeRules.typeOf("side", stop.side)
+			expectTrue(ntype == "shop" or ntype == "event", id .. " side stop is a shop or an event")
+		else
+			ntype = NodeRules.typeOf("night", nil, id == WorldMap.Finish)
+			if ntype == "boss" then bosses = bosses + 1 end
+		end
+		expectTrue(known[ntype], id .. " has a known node type")
+		expectTrue(NodeRules.tagFor(ntype).text ~= "", id .. " has a tag")
+		local text = tostring(stop.name) .. " " .. tostring(stop.description or "")
+		expectTrue(not text:lower():find("balatro", 1, true) and not text:lower():find("beer", 1, true) and not text:lower():find("wine", 1, true) and not text:find("\u{2014}"), id .. " text is kid safe")
+	end
+	expectEqual(bosses, 1, "exactly one Night stop (the Finish) is the boss")
+	expectEqual(NodeRules.typeOf("night", nil, 8 == JourneyMap.NightCap), "boss", "Night 8 is the boss node")
+	-- locked nodes: no selection, no Continue, the panel says Locked
+	expectFalse(SelectRules.canSelect(NodeRules.stateOf({ locked = true })), "a locked node cannot be selected")
+	local d = SelectRules.describe({ name = "Hall", typeId = "boss", state = "locked", target = 900 })
+	expectFalse(d.button.enabled, "Continue is off on a locked node")
+	expectEqual(d.status, "Locked")
+	-- the client refuses a locked tap before it changes the selection
+	local f = io and io.open and io.open("src/Client/JourneyMapView.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local a = src:find("selectNode = function(index)", 1, true)
+		local c = a and src:find("MapSelectRules.canSelect(node.state)", a, true)
+		local s = a and src:find("selectedIndex = index", a, true)
+		expectTrue(a ~= nil and c ~= nil and s ~= nil and c < s, "selectNode checks canSelect before it sets selectedIndex")
+	end
+	-- the same seed walks the same road, a different seed can differ
+	local x, y = WorldMap.routeFromSeed("daily:2026-11-23"), WorldMap.routeFromSeed("daily:2026-11-23")
+	expectEqual(table.concat(x, ">"), table.concat(y, ">"), "same seed, same route")
+end })
+
 table.insert(tests, { name = "WorldMap: seeded runs get a fixed, valid, repeatable route and cannot choose", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local a = WorldMap.routeFromSeed("daily:2026-11-08")
