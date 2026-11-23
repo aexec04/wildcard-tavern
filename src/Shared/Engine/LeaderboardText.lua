@@ -96,15 +96,32 @@ function LeaderboardText.rowParts(rowW, rankText, statsText)
 	}
 end
 
+-- Vertical rows of the panel, shared with Client/DailyLeaderboard: tab buttons are 44 px tall (touch size), then the title, the
+-- "your best" line, the scroll, and a 44 px Close button 12 px above the bottom edge.
+LeaderboardText.TAB_H = 44
+LeaderboardText.TITLE_Y = 50
+LeaderboardText.TITLE_H = 26
+LeaderboardText.BEST_Y = 78
+LeaderboardText.BEST_H = 20
+LeaderboardText.SCROLL_Y = 102
+LeaderboardText.CLOSE_H = 44
+LeaderboardText.CLOSE_W = 140
+LeaderboardText.BOTTOM_PAD = 12
+LeaderboardText.SCROLL_GAP = 8
+
 -- Rects (x, y, w, h) inside the panel, matching DailyLeaderboard's layout.
 function LeaderboardText.layout(vw, vh)
-	local w, h = LeaderboardText.panelSize(vw, vh)
+	local L = LeaderboardText
+	local w, h = L.panelSize(vw, vh)
+	local closeY = h - L.BOTTOM_PAD - L.CLOSE_H
 	return {
 		panel = { w = w, h = h },
-		tabsLeft = { x = 0, y = 0, w = 288 + 90, h = 26 },
-		tabsRight = { x = w - 186, y = 0, w = 186, h = 26 },
-		scroll = { x = 15, y = 77, w = w - 30, h = h - 142 },
-		close = { x = w / 2 - 70, y = h - 50, w = 140, h = 40 },
+		tabsLeft = { x = 0, y = 0, w = 288 + 90, h = L.TAB_H },
+		tabsRight = { x = w - 186, y = 0, w = 186, h = L.TAB_H },
+		title = { x = 0, y = L.TITLE_Y, w = w, h = L.TITLE_H },
+		best = { x = 0, y = L.BEST_Y, w = w, h = L.BEST_H },
+		scroll = { x = 15, y = L.SCROLL_Y, w = w - 30, h = closeY - L.SCROLL_GAP - L.SCROLL_Y },
+		close = { x = w / 2 - L.CLOSE_W / 2, y = closeY, w = L.CLOSE_W, h = L.CLOSE_H },
 	}
 end
 

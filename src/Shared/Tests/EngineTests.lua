@@ -47469,4 +47469,52 @@ table.insert(tests, { name = "Daily Rewards plate: streak row 8 px under the tit
 	expectTrue(below <= 24, "no big empty strip under the timer (" .. below .. ")")
 end })
 
+table.insert(tests, { name = "Weekly and Daily board plate: tabs and Close 44 px, text 14 px, rows do not overlap and Close is on screen at 1280x720 and 800x360", fn = function()
+	local LT = require(script.Parent.Parent.Engine.LeaderboardText)
+	for _, v in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local L = LT.layout(v[1], v[2])
+		local tag = v[1] .. "x" .. v[2]
+		expectTrue(L.panel.w <= v[1] and L.panel.h <= v[2], "panel on screen " .. tag)
+		expectTrue(L.tabsLeft.h >= 44 and L.tabsRight.h >= 44 and L.close.h >= 44, "tabs and Close are 44 px " .. tag)
+		expectTrue(L.tabsLeft.x + L.tabsLeft.w < L.tabsRight.x, "tab groups do not overlap " .. tag)
+		expectTrue(L.tabsLeft.y + L.tabsLeft.h <= L.title.y, "title under the tabs " .. tag)
+		expectTrue(L.title.y + L.title.h <= L.best.y, "best line under the title " .. tag)
+		expectTrue(L.best.y + L.best.h <= L.scroll.y, "scroll under the best line " .. tag)
+		expectTrue(L.scroll.y + L.scroll.h < L.close.y, "scroll ends above Close " .. tag)
+		expectTrue(L.close.y + L.close.h <= L.panel.h and L.close.x >= 0 and L.close.x + L.close.w <= L.panel.w, "Close inside the panel " .. tag)
+		expectTrue(L.scroll.h >= 3 * LT.ROW_H, "three rows show without scrolling " .. tag)
+		local row = LT.rowParts(L.scroll.w - 6, LT.rank(1234), LT.stats(true, 99999, 9999999))
+		expectTrue(row.rank.x + row.rank.w <= row.name.x and row.name.x + row.name.w <= row.stats.x and row.stats.x + row.stats.w <= L.scroll.w, "row parts do not overlap " .. tag)
+	end
+	expectTrue(LT.MIN_TEXT >= 14 and LT.ROW_TEXT >= 14, "board text is 14 px or more")
+	if not io then return end
+	local src = io.open("src/Client/DailyLeaderboard.lua", "r"):read("*a")
+	expectTrue(src:find("LBText.TAB_H", 1, true) and src:find("LBText.CLOSE_H", 1, true) and src:find("LBText.SCROLL_Y", 1, true), "the panel reads the shared rows")
+	expectTrue(not src:find("UDim2.new(0, 90, 0, 26)", 1, true), "no 26 px tab buttons")
+end })
+
+table.insert(tests, { name = "Seed Run dialog: controls 44 px, text 14 px, hint holds three lines, nothing overlaps and it fits 1280x720 and 800x360", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SeedRunLayout)
+	local r = SL.rects()
+	for _, v in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		expectTrue(r.panel.w <= v[1] and r.panel.h <= v[2], "panel on screen " .. v[1] .. "x" .. v[2])
+	end
+	for _, name in ipairs({ "box", "roll", "start", "cancel" }) do expectTrue(r[name].h >= 44, name .. " is 44 px") end
+	expectTrue(SL.MIN_TEXT >= 14 and SL.TITLE_SIZE >= 14 and SL.HINT_SIZE >= 14 and SL.BOX_SIZE >= 14 and SL.BUTTON_SIZE >= 14, "text 14 px or more")
+	expectTrue(r.hint.h >= SL.HINT_LINES * SL.HINT_SIZE, "the hint has room for three lines")
+	local order = { "title", "hint", "box", "start" }
+	for i = 1, #order - 1 do
+		expectTrue(r[order[i]].y + r[order[i]].h <= r[order[i + 1]].y, order[i] .. " ends above " .. order[i + 1])
+	end
+	expectTrue(r.box.x + r.box.w <= r.roll.x, "code box clear of Roll")
+	expectTrue(r.start.x + r.start.w <= r.cancel.x, "Start clear of Cancel")
+	for _, name in ipairs({ "title", "hint", "box", "roll", "start", "cancel" }) do
+		local q = r[name]
+		expectTrue(q.x >= 0 and q.y >= 0 and q.x + q.w <= r.panel.w and q.y + q.h <= r.panel.h, name .. " inside the panel")
+	end
+	if not io then return end
+	local src = io.open("src/Client/SeedRunDialog.lua", "r"):read("*a")
+	expectTrue(src:find("SeedRunLayout", 1, true) and src:find("place(seedCancelButton, R.cancel)", 1, true), "the dialog reads the layout")
+end })
+
 return tests

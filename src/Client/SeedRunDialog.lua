@@ -46,6 +46,13 @@ return function(deps)
 	local StartSeedRunRemote = deps.StartSeedRunRemote
 	local SeededRng = deps.SeededRng or require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeededRng"))
 
+	local SL = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedRunLayout"))
+	local R = SL.rects()
+	local function place(inst, r)
+		inst.Size = UDim2.new(0, r.w, 0, r.h)
+		inst.Position = UDim2.new(0, r.x, 0, r.y)
+	end
+
 	local seedBackdrop = Instance.new("Frame")
 	seedBackdrop.Name = "SeedRunBackdrop"
 	seedBackdrop.Size = UDim2.fromScale(1, 1)
@@ -57,7 +64,7 @@ return function(deps)
 	require(script.Parent.MenuTitleHider).bind(screenGui, seedBackdrop)
 
 	local seedPanel = Instance.new("Frame")
-	seedPanel.Size = UDim2.new(0, 360, 0, 210)
+	seedPanel.Size = UDim2.new(0, R.panel.w, 0, R.panel.h)
 	seedPanel.Position = UDim2.fromScale(0.5, 0.5)
 	seedPanel.AnchorPoint = Vector2.new(0.5, 0.5)
 	seedPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
@@ -67,11 +74,10 @@ return function(deps)
 	addSoftShadow(seedPanel, 16)
 
 	local seedTitleLabel = Instance.new("TextLabel")
-	seedTitleLabel.Size = UDim2.new(1, -30, 0, 26)
-	seedTitleLabel.Position = UDim2.new(0, 15, 0, 14)
+	place(seedTitleLabel, R.title)
 	seedTitleLabel.BackgroundTransparency = 1
 	seedTitleLabel.Font = Enum.Font.GothamBold
-	seedTitleLabel.TextSize = 17
+	seedTitleLabel.TextSize = SL.TITLE_SIZE
 	seedTitleLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
 	seedTitleLabel.Text = "\240\159\142\178 Seed Run"
 	seedTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -79,11 +85,10 @@ return function(deps)
 	seedTitleLabel.Parent = seedPanel
 
 	local seedHintLabel = Instance.new("TextLabel")
-	seedHintLabel.Size = UDim2.new(1, -30, 0, 36)
-	seedHintLabel.Position = UDim2.new(0, 15, 0, 40)
+	place(seedHintLabel, R.hint)
 	seedHintLabel.BackgroundTransparency = 1
 	seedHintLabel.Font = Enum.Font.Gotham
-	seedHintLabel.TextSize = 15
+	seedHintLabel.TextSize = SL.HINT_SIZE
 	seedHintLabel.TextWrapped = true
 	seedHintLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
 	seedHintLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -92,8 +97,7 @@ return function(deps)
 	seedHintLabel.Parent = seedPanel
 
 	local seedCodeBox = Instance.new("TextBox")
-	seedCodeBox.Size = UDim2.new(1, -110, 0, 40)
-	seedCodeBox.Position = UDim2.new(0, 15, 0, 84)
+	place(seedCodeBox, R.box)
 	seedCodeBox.Font = Enum.Font.GothamBold
 	seedCodeBox.TextSize = 18
 	seedCodeBox.PlaceholderText = "e.g. STAR27"
@@ -107,10 +111,9 @@ return function(deps)
 	polishButton(seedCodeBox, 8)
 
 	local seedRollButton = Instance.new("TextButton")
-	seedRollButton.Size = UDim2.new(0, 80, 0, 40)
-	seedRollButton.Position = UDim2.new(1, -95, 0, 84)
+	place(seedRollButton, R.roll)
 	seedRollButton.Font = Enum.Font.GothamBold
-	seedRollButton.TextSize = 14
+	seedRollButton.TextSize = SL.BUTTON_SIZE
 	seedRollButton.Text = "Roll"
 	seedRollButton.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 	seedRollButton.TextColor3 = Color3.fromRGB(250, 240, 220)
@@ -119,10 +122,9 @@ return function(deps)
 	polishButton(seedRollButton, 10)
 
 	local seedStartButton = Instance.new("TextButton")
-	seedStartButton.Size = UDim2.new(0, 140, 0, 40)
-	seedStartButton.Position = UDim2.new(0, 20, 1, -55)
+	place(seedStartButton, R.start)
 	seedStartButton.Font = Enum.Font.GothamBold
-	seedStartButton.TextSize = 15
+	seedStartButton.TextSize = SL.BUTTON_SIZE
 	seedStartButton.Text = "Start Run"
 	seedStartButton.BackgroundColor3 = Color3.fromRGB(60, 110, 65)
 	seedStartButton.TextColor3 = Color3.fromRGB(250, 240, 220)
@@ -131,10 +133,9 @@ return function(deps)
 	polishButton(seedStartButton, 10)
 
 	local seedCancelButton = Instance.new("TextButton")
-	seedCancelButton.Size = UDim2.new(0, 140, 0, 40)
-	seedCancelButton.Position = UDim2.new(1, -160, 1, -55)
+	place(seedCancelButton, R.cancel)
 	seedCancelButton.Font = Enum.Font.GothamBold
-	seedCancelButton.TextSize = 15
+	seedCancelButton.TextSize = SL.BUTTON_SIZE
 	seedCancelButton.Text = "Cancel"
 	seedCancelButton.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 	seedCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)

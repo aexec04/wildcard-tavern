@@ -116,7 +116,7 @@ return function(deps)
 	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.
 	local function makeTabButton(text, xOffset, xScale)
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(0, 90, 0, 26)
+		button.Size = UDim2.new(0, 90, 0, LBText.TAB_H)
 		button.Position = UDim2.new(xScale or 0, xOffset, 0, 0)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 14
@@ -142,8 +142,8 @@ return function(deps)
 	friendsTabButton.TextSize = 15
 
 	local leaderboardTitle = Instance.new("TextLabel")
-	leaderboardTitle.Size = UDim2.new(1, 0, 0, 26)
-	leaderboardTitle.Position = UDim2.new(0, 0, 0, 32)
+	leaderboardTitle.Size = UDim2.new(1, 0, 0, LBText.TITLE_H)
+	leaderboardTitle.Position = UDim2.new(0, 0, 0, LBText.TITLE_Y)
 	leaderboardTitle.BackgroundTransparency = 1
 	leaderboardTitle.Font = Enum.Font.GothamBold
 	leaderboardTitle.TextSize = 22
@@ -153,8 +153,8 @@ return function(deps)
 	leaderboardTitle.Parent = leaderboardPanel
 
 	local yourBestLabel = Instance.new("TextLabel")
-	yourBestLabel.Size = UDim2.new(1, 0, 0, 18)
-	yourBestLabel.Position = UDim2.new(0, 0, 0, 58)
+	yourBestLabel.Size = UDim2.new(1, 0, 0, LBText.BEST_H)
+	yourBestLabel.Position = UDim2.new(0, 0, 0, LBText.BEST_Y)
 	yourBestLabel.BackgroundTransparency = 1
 	yourBestLabel.Font = Enum.Font.Gotham
 	yourBestLabel.TextSize = 14
@@ -167,7 +167,7 @@ return function(deps)
 	revivedBadge.Name = "RevivedBadge"
 	revivedBadge.AnchorPoint = Vector2.new(1, 0)
 	revivedBadge.Size = UDim2.new(0, 100, 0, 20)
-	revivedBadge.Position = UDim2.new(1, -15, 0, 58)
+	revivedBadge.Position = UDim2.new(1, -15, 0, LBText.BEST_Y)
 	revivedBadge.BackgroundColor3 = Color3.fromRGB(70, 120, 150)
 	revivedBadge.Font = Enum.Font.GothamBold
 	revivedBadge.TextSize = 14
@@ -179,8 +179,8 @@ return function(deps)
 	roundCorner(revivedBadge, 9)
 
 	local leaderboardScroll = Instance.new("ScrollingFrame")
-	leaderboardScroll.Size = UDim2.new(1, -30, 1, -142)
-	leaderboardScroll.Position = UDim2.new(0, 15, 0, 77)
+	leaderboardScroll.Size = UDim2.new(1, -30, 1, -(LBText.SCROLL_Y + LBText.SCROLL_GAP + LBText.CLOSE_H + LBText.BOTTOM_PAD))
+	leaderboardScroll.Position = UDim2.new(0, 15, 0, LBText.SCROLL_Y)
 	leaderboardScroll.BackgroundTransparency = 1
 	leaderboardScroll.BorderSizePixel = 0
 	leaderboardScroll.ScrollBarThickness = 8
@@ -195,8 +195,8 @@ return function(deps)
 	leaderboardLayout.Parent = leaderboardScroll
 
 	local leaderboardCloseButton = Instance.new("TextButton")
-	leaderboardCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	leaderboardCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+	leaderboardCloseButton.Size = UDim2.new(0, LBText.CLOSE_W, 0, LBText.CLOSE_H)
+	leaderboardCloseButton.Position = UDim2.new(0.5, -LBText.CLOSE_W / 2, 1, -(LBText.BOTTOM_PAD + LBText.CLOSE_H))
 	leaderboardCloseButton.Font = Enum.Font.GothamBold
 	leaderboardCloseButton.TextSize = 16
 	leaderboardCloseButton.Text = "Close"
