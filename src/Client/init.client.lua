@@ -2623,6 +2623,10 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 			return
 		end
 	end
+	do -- one send per table state: a two finger tap or tap plus key never plays the replacement cards (Engine/PlayGate)
+		local Gate = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayGate)
+		if not Gate.shared():try(os.clock(), Gate.key(latestState)) then return end
+	end
 	SoundModule.playCue("card_play")
 
 	-- LAYOUT FEATURE 7: pop the score BEFORE firing the remote, off the same
@@ -2744,6 +2748,10 @@ require(script.TableKeys).actions.discard = function() -- the Discard button and
 		return
 	end
 	local function doDiscard()
+		do -- same gate as Play Hand: a double tap discards once
+			local Gate = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayGate)
+			if not Gate.shared():try(os.clock(), Gate.key(latestState)) then return end
+		end
 		SoundModule.playSfx(SoundModule.SOUND_IDS.discard)
 		pendingNewCardCount = #indices -- see the matching comment on Play Hand above
 		pcall(function() -- discarded cards arc to the deck pile (Client/CardFlights.lua, none in calm mode or Fast speed)

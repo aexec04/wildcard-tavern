@@ -51022,6 +51022,84 @@ table.insert(tests, { name = "Tutorial and first run rules: runs once for a new 
 	end
 end })
 
+table.insert(tests, { name = "Mobile and touch rules: every gameplay control is a 44 px hit area at four sizes, nothing needs hover (tap or long press shows the same tip), and a two finger tap never sends Play Hand or Discard twice", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local L, HS, TG, TT = require(Engine.Gameplay2Layout), require(Engine.HandSizing), require(Engine.TouchGestures), require(Engine.TipTap)
+	local S, CX, Gate = require(Engine.ShopSceneLayout), require(Engine.CloseXRules), require(Engine.PlayGate)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 600 }, { 1280, 720 }, { 1920, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		expectTrue(L.fits(w, h), tag .. " uses the table layout")
+		local r = L.rects(w, h)
+		for _, k in ipairs({ "play", "discard", "gear", "sortRank", "sortSuit", "traySlot1", "traySlot2", "trayUse", "traySell" }) do
+			local b = r[k]
+			if b then expectTrue(b.w >= 44 and b.h >= 44, tag .. " " .. k .. " is " .. b.w .. "x" .. b.h) end
+		end
+		-- hand cards: each one a 44 px wide target and the pitch lets a tap pick the card under the finger
+		for _, n in ipairs({ 5, 8, 9 }) do
+			local fr = HS.frameFor(w, r.hand, n)
+			local cw = HS.cardSize(w, fr.w, fr.h, n)
+			expectTrue(type(cw) == "number" and cw >= 44, tag .. " hand card at " .. n .. " cards is 44 px wide")
+			local hw, hh = TG.hitSize(cw, fr.h)
+			expectTrue(hw >= 44 and hh >= 44, tag .. " hand card hit size at " .. n .. " cards")
+		end
+		-- Patron seats: tap opens the plate (no hover needed)
+		for i, c in ipairs(L.patronRow(w, h, L.SEATS).cards) do
+			local hw, hh = TG.hitSize(c.w, c.h)
+			expectTrue(hw >= 44 and hh >= 44, tag .. " seat " .. i .. " is a 44 px tap target")
+		end
+		-- Counter: tabs, Next Round, offers, packs, Reroll
+		local sr = S.rects(w, h, { offers = 3, packs = 2 })
+		expectTrue(sr.tabs.h >= 44, tag .. " Counter tabs 44 px tall")
+		expectTrue(sr.leave.h >= 44 and sr.leave.w >= 44, tag .. " Next Round 44 px")
+		for i, o in ipairs(sr.offers) do expectTrue(o.w >= 44 and o.h >= 44, tag .. " offer " .. i .. " (Buy and Sell target) is 44 px") end
+		for i, k in ipairs(sr.packs) do expectTrue(k.w >= 44 and k.h >= 44, tag .. " pack " .. i .. " is 44 px") end
+		local plate = S.rerollPlate(sr)
+		if plate then expectTrue(plate.w >= 44 and plate.h >= 44, tag .. " Reroll 44 px") end
+		-- popups close with a 44 px X that fits even the smallest panel we draw
+		expectTrue(CX.fits(320, 240, "topRight"), tag .. " close X fits a small popup")
+		expectTrue(CX.HIT >= 44, "close X hit area is 44 px")
+	end
+
+	-- hover only adds a tooltip: a tap on a Patron seat opens the same plate and a long press shows the card tip
+	local tt = TT.new()
+	expectEqual(TT.tapCard(tt, 2), "open", "a tap opens the Patron plate without hover")
+	expectEqual(TT.longPress(tt, 3), "open", "a long press opens it too")
+	expectEqual(TG.classify(0, 0.1, true), "tap", "a quick tap is a tap")
+	expectEqual(TG.classify(0, 0.5, true), "long", "a long press is a long press")
+	expectEqual(TG.classify(0, 0.5, false), "long", "the tip shows while the finger is still down")
+	local CardData = require(Engine.Card)
+	local tip = TG.cardTip(CardData.new(12, "Hearts"), CardData)
+	expectTrue(type(tip) == "string" and #tip > 0, "a long press shows a card tip (no hover)")
+	local fh = io and io.open and io.open("src/Client/HandTouchFX.lua", "r")
+	if fh then
+		local src = fh:read("*a"); fh:close()
+		expectTrue(src:find("TG.cardTip", 1, true) ~= nil, "the touch path shows the same card tip as hover")
+	end
+
+	-- a two finger tap: the second press on the same table state is ignored, a changed table or the timeout reopens the gate
+	local gate = Gate.new()
+	local state = { handsRemaining = 4, discardsRemaining = 3, round = 1, night = 1, hand = { { rank = 7, suit = "Hearts" }, { rank = 7, suit = "Clubs" } } }
+	local key = Gate.key(state)
+	expectTrue(gate:try(10, key), "the first press sends")
+	expectFalse(gate:try(10.01, key), "the second finger on the same table does not send")
+	expectFalse(gate:try(10.3, key), "a repeated tap before the answer does not send")
+	local after = { handsRemaining = 3, discardsRemaining = 3, round = 1, night = 1, hand = { { rank = 9, suit = "Spades" }, { rank = 7, suit = "Clubs" } } }
+	expectTrue(gate:try(10.4, Gate.key(after)), "once the server dealt new cards the next play sends")
+	expectFalse(gate:try(10.41, Gate.key(after)), "and that one is guarded too")
+	expectTrue(gate:try(11.2, Gate.key(after)), "a refused play is never stuck: the gate reopens after the timeout")
+	expectTrue(Gate.shared() == Gate.shared(), "Play Hand and Discard share one gate")
+	expectEqual(Gate.key(nil), "none", "no state is a safe key")
+	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local _, n = src:find("Gate.shared():try(os.clock(), Gate.key(latestState))", 1, true)
+		local count = select(2, src:gsub("Gate%.shared%(%):try%(os%.clock%(%), Gate%.key%(latestState%)%)", ""))
+		expectEqual(count, 2, "Play Hand and Discard both go through the gate")
+		expectTrue(n ~= nil and n < src:find('SoundModule.playCue("card_play")', 1, true), "the gate comes before any Play Hand effect")
+	end
+end })
+
 return tests
 
 
