@@ -52781,6 +52781,35 @@ table.insert(tests, { name = "Scoring tally: the count rises in order to chips x
 	end
 end })
 
+table.insert(tests, { name = "Patron seats: five seats never overlap the Target plate, hand fan or banners at four sizes, the Sell plate is 44 px, the tooltip stays on screen", fn = function()
+	local Eng = script.Parent.Parent.Engine
+	local L, Tip = require(Eng.Gameplay2Layout), require(Eng.Gameplay2Tip)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		expectEqual(#r.slots, 5, "five seats at " .. tag)
+		local ban = L.banners(w, h)
+		for i, s in ipairs(r.slots) do
+			local c = s.card
+			expectTrue(c.x >= 0 and c.y >= 0 and c.x + c.w <= w and c.y + c.h <= h, "seat " .. i .. " on screen at " .. tag)
+			expectTrue(not hit(c, r.target), "seat " .. i .. " overlaps the Target plate at " .. tag)
+			expectTrue(not hit(c, r.hand), "seat " .. i .. " overlaps the hand fan at " .. tag)
+			if ban then
+				for side, b in pairs(ban) do expectTrue(not hit(c, b), "seat " .. i .. " overlaps the " .. side .. " banner at " .. tag) end
+			end
+			local tw = Tip.width(w)
+			local th = Tip.height(tw, 60)
+			local x, y = Tip.place(r, w, h, i, tw, th)
+			expectTrue(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, "tooltip of seat " .. i .. " stays on screen at " .. tag)
+		end
+		if r.traySell then
+			expectTrue(r.traySell.h >= 44 and r.traySell.w >= 44, "Sell plate is at least 44 px at " .. tag)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")
