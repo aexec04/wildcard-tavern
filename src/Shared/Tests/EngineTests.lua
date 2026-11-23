@@ -31447,6 +31447,26 @@ table.insert(tests, { name = "Collection header: no Next unlock line, the bar is
 	end
 end })
 
+table.insert(tests, { name = "Popup motion is one style: 0.15 s fade and slide, full screen pages fade only, Calm mode is static", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PopMotion)
+	local normal = PM.plan(false, false)
+	expectTrue(normal.animate and normal.duration == 0.15 and normal.slide > 0 and normal.fromScale < 1 and normal.fade, "a popup fades, slides and settles in 0.15 s")
+	local page = PM.plan(false, true)
+	expectTrue(page.animate and page.slide == 0 and page.fromScale == 1 and page.outScale == 1 and page.duration == 0.15, "a full screen page only fades")
+	for _, fs in ipairs({ false, true }) do
+		local calm = PM.plan(true, fs)
+		expectTrue(not calm.animate and calm.duration == 0 and calm.slide == 0 and calm.fromScale == 1 and not calm.fade, "Calm mode is static")
+	end
+	local f = io and io.open and io.open("src/Client/VisualHelpers.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local a = src:find("local function popIn(", 1, true)
+	local b = src:find("local function popOut(", 1, true)
+	local slice = a and b and src:sub(a, b + 1800) or ""
+	expectTrue(slice:find("PopMotion", 1, true) ~= nil and slice:find("opts.fromScale", 1, true) == nil and slice:find("opts.duration", 1, true) == nil, "popIn and popOut take their motion from PopMotion only")
+	expectTrue(src:find("AnchorPoint = home", 1, true) ~= nil and src:find("Position = home", 1, true) == nil, "the slide moves the AnchorPoint and never writes Position")
+end })
+
 table.insert(tests, { name = "Card Sets room: every pick previews at once, the button matches the state, the Studio unlock switch is Studio only", fn = function()
 	local SP = require(script.Parent.Parent.Engine.SetPreview)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
