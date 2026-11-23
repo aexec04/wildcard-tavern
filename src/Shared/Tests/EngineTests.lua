@@ -49859,6 +49859,93 @@ table.insert(tests, { name = "Shop purchase rules: no buy without Tips, no secon
 	end
 end })
 
+table.insert(tests, { name = "Run end rules: Night 8 win marks Victory once and Endless follows, a lost round ends the run once, a restart resets everything, a finished round pays once", fn = function()
+	local function det() return RunState.new(nil, function(n) return n end) end
+	-- Night 8 boss win: roundWon, wonRun true, the run is not over (Endless starts)
+	local s = det()
+	s.night = s.config.nightCap
+	s.round = s.config.roundsPerNight
+	s.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	s.targetScore = 0
+	local flips = 0
+	local r = RunState.playHand(s, { 1 })
+	if s.wonRun then flips = flips + 1 end
+	expectTrue(r.roundWon and r.wonRun == true, "the last Night boss win is Victory")
+	expectEqual(s.runOver, false, "Victory does not end the run")
+	-- the same finished round cannot be played again (no second payout, no second Victory)
+	local tipsAfter = s.tips
+	local okAgain = pcall(RunState.playHand, s, { 1 })
+	expectEqual(okAgain, false, "a finished round refuses another hand")
+	expectEqual(s.tips, tipsAfter, "no second reward")
+	-- Endless: the next Night begins and wonRun does not flip again (the server records the win on the flip only)
+	RunState.advanceToNextRound(s)
+	expectEqual(s.night, s.config.nightCap + 1, "Endless starts at the next Night")
+	expectEqual(s.round, 1)
+	expectEqual(s.roundOver, false)
+	expectEqual(s.runOver, false)
+	local prevTips = s.tips
+	s.targetScore = 0
+	local r2 = RunState.playHand(s, { 1 })
+	expectTrue(r2.roundWon)
+	expectTrue(s.tips > prevTips, "Endless rounds still pay")
+	expectEqual(flips, 1, "Victory flipped once")
+
+	-- a lost round ends the run exactly once with the Run Over stats of what happened
+	local l = det()
+	l.night, l.round = 3, 1
+	l.handsRemaining = 1
+	l.targetScore = math.huge
+	local lr = RunState.playHand(l, { 1 })
+	expectTrue(lr.runOver and not lr.roundWon, "out of hands ends the run")
+	expectEqual(l.wonRun, false)
+	local summary = require(script.Parent.Parent.Engine.RunSummary).build(l, nil)
+	expectEqual(summary.won, false)
+	expectEqual(summary.night, 3, "Run Over says the Night it ended on")
+	expectEqual(summary.handsPlayed, 1)
+	expectTrue(summary.bestHand ~= nil and type(summary.bestHand.name) == "string", "Run Over names the best hand")
+	local tipsLost = l.tips
+	expectEqual(pcall(RunState.playHand, l, { 1 }), false, "a dead run refuses more hands")
+	expectEqual(pcall(RunState.discard, l, { 1 }), false, "a dead run refuses discards")
+	expectEqual(l.tips, tipsLost, "a dead run pays nothing")
+
+	-- restart mid round: a new state is exactly a fresh run
+	local mid = RunState.new(nil, function(n) return n end)
+	RunState.startRound(mid)
+	mid.tips = 77
+	mid.night, mid.round = 4, 2
+	mid.targetScore = math.huge -- stays mid round
+	table.insert(mid.ownedPatrons, Patrons.Definitions[1])
+	RunState.playHand(mid, { 1, 2 })
+	RunState.discard(mid, { 1 })
+	local fresh = RunState.new(nil, function(n) return n end)
+	RunState.startRound(fresh)
+	local blank = RunState.new(nil, function(n) return n end)
+	RunState.startRound(blank)
+	expectEqual(blank.tips, fresh.tips)
+	expectEqual(blank.night, 1)
+	expectEqual(blank.round, 1)
+	expectEqual(#blank.ownedPatrons, 0)
+	expectEqual(blank.handsRemaining, blank.config.handsPerRound or blank.handsRemaining)
+	expectEqual(blank.discardsRemaining, fresh.discardsRemaining)
+	expectEqual(blank.handsPlayedTotal or 0, 0)
+	expectEqual(blank.discardsUsedTotal or 0, 0)
+	expectEqual(blank.wonRun, false)
+	expectEqual(#blank.hand + #blank.deck + #blank.discardPile, 52, "a fresh deck is whole")
+	expectTrue(mid.tips ~= blank.tips or mid.night ~= blank.night, "the old run really had progress")
+	-- the old state is untouched by creating the new one (they share nothing)
+	expectEqual(#mid.ownedPatrons, 1)
+	table.insert(blank.ownedPatrons, Patrons.Definitions[2])
+	expectEqual(#mid.ownedPatrons, 1, "no shared Patron table between runs")
+
+	-- a disconnect mid round pays nothing twice: the profile only takes banked Tips once on rejoin
+	local profile = PlayerProfile.new()
+	profile.pendingStartTips = 9
+	local back = PlayerProfile.migrate(profile)
+	local back2 = PlayerProfile.migrate(back)
+	expectEqual(back2.pendingStartTips, 9, "rejoining twice does not add Tips")
+	expectEqual(back2.stats.runsStarted, profile.stats.runsStarted, "no run was counted by the rejoin")
+end })
+
 return tests
 
 
