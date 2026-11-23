@@ -46190,4 +46190,40 @@ table.insert(tests, { name = "Settings rows: every row id is unique, labels are 
 	end
 end })
 
+table.insert(tests, { name = "Music: 100 random menu, table, shop and map switches always settle on one song, and a crossfade never exceeds the voice cap", fn = function()
+	local MM = require(script.Parent.Parent.Engine.MusicMix)
+	local screens = { "menu", "map", "table", "boss", "shop", "runover" }
+	local seed = 12345
+	local function rand(n) seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n + 1 end
+	local playing = MM.bedFor("menu").key -- the one song that is playing
+	local voices = { playing }
+	local switches, fades = 0, 0
+	for _ = 1, 100 do
+		local screen = screens[rand(#screens)]
+		local want = MM.bedFor(screen)
+		switches = switches + 1
+		if MM.keepsSong(playing, want.key) then
+			-- the same song continues: no second voice is started, only the level steps
+			expectTrue(#voices == 1, "one voice after a keep-song switch to " .. screen)
+		elseif MM.shouldFade(playing, want.key) then
+			fades = fades + 1
+			local during = MM.voices({ bed = true, outgoing = true, sting = true, tension = true })
+			expectTrue(#during <= MM.MAX_VOICES, "voice cap during a crossfade to " .. screen)
+			local steps = MM.fade(false)
+			local last = steps[#steps]
+			expectTrue(last[1] == 0 and last[2] == 1, "the crossfade ends with the old song silent and the new one full")
+			for i, st in ipairs(steps) do
+				expectTrue(math.abs(st[1] * st[1] + st[2] * st[2] - 1) < 1e-6 or i == #steps, "equal power at step " .. i)
+			end
+			local calmLast = MM.fade(true)
+			expectTrue(calmLast[#calmLast][1] == 0 and calmLast[#calmLast][2] == 1, "the calm crossfade also ends on one song")
+			playing = want.key
+			voices = { playing } -- the outgoing voice is stopped after the last step
+		end
+		expectTrue(#voices == 1 and voices[1] == playing, "settled on exactly one song after switch " .. switches)
+		expectTrue(MM.volume(1, true, want.gain, 1) == 0, "muted music is silent on " .. screen)
+	end
+	expectTrue(switches == 100 and fades > 0, "100 switches ran, with real crossfades: " .. fades)
+end })
+
 return tests
