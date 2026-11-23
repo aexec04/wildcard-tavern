@@ -46864,4 +46864,45 @@ table.insert(tests, { name = "Daily strip text fit: chest plate 24 px wider, tim
 	end
 end })
 
+table.insert(tests, { name = "Menu text fit: Tip pill, Daily strip Streak, Goal and chest words fit their plate with 12 px side margin at four sizes (shrink 12 to 18 px, never wider)", fn = function()
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local Life = require(script.Parent.Parent.Engine.MenuLife)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	expectEqual(F.SIDE, 12, "side margin")
+	expectEqual(F.bestSize("x", 100, 20, 12, 18), 18, "a short word keeps the max size")
+	expectEqual(F.clip("Goals done", 500, 12), "Goals done", "a fitting line is unchanged")
+	expectTrue(F.clip(string.rep("word ", 20), 100, 12):sub(-3) == "...", "a long line ends in an ellipsis")
+	expectEqual(F.bestSize(string.rep("x", 80), 50, 20, 12, 18), nil, "an impossible fit reports nil")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local tip = Life.tipRect(W, H)
+		if tip then
+			for _, t in ipairs(Life.TIPS) do
+				local s = F.bestSize(t, tip.w - 2 * F.SIDE, tip.h - 8, 12, 18)
+				expectTrue(s ~= nil, tag .. " tip fits its plate in two lines at 12 px or more: " .. t)
+			end
+		end
+		local strip = D.menuRect(W, H)
+		if strip then
+			local c = D.columns(strip)
+			local Rules_H = 2 * 14 + 4 -- two lines at the smallest size, inside the 48 px strip
+			local words = { "Streak: 100 days", "Streak: starts today" }
+			for _, w in ipairs(words) do
+				expectTrue(F.bestSize(w, c.streak.w, Rules_H, 12, 15) ~= nil, tag .. " Streak line fits the column in two lines: " .. w)
+			end
+			expectTrue(F.width(F.clip("Goals done", c.goalW, 12), 12) <= c.goalW, tag .. " Goals done is clipped to the Goal column")
+			for _, q in ipairs(Quests.Definitions) do
+				local line = q.desc .. " " .. q.goal .. "/" .. q.goal
+				local shown = F.clip(line, c.goalW, 12)
+				expectTrue(F.width(shown, 12) <= c.goalW, tag .. " quest line is clipped to the Goal column: " .. line)
+			end
+			for _, w in ipairs({ "Next in 19h 38m", "Claim reward", "Claimed today" }) do
+				expectTrue(F.bestSize(w, c.chest.w - 2 * D.CHEST_PAD, 20, 14, 16) ~= nil, tag .. " chest word fits one line: " .. w)
+			end
+		end
+	end
+end })
+
 return tests

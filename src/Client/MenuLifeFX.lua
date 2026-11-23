@@ -30,8 +30,11 @@ function M.new(menuFrame, calm)
 	tip.TextTransparency = 0
 	tip.TextStrokeColor3 = Color3.fromRGB(30, 20, 12)
 	tip.TextStrokeTransparency = 0.4
-	tip.TextWrapped = false
-	tip.TextTruncate = Enum.TextTruncate.AtEnd
+	tip.TextWrapped = true
+	tip.TextScaled = true -- two lines at most, 12 to 18 px (TextFit tests every tip at every plate width)
+	local tipCap = Instance.new("UITextSizeConstraint")
+	tipCap.MaxTextSize, tipCap.MinTextSize = 18, 12
+	tipCap.Parent = tip
 	tip.Text = Life.tipAt(0)
 	tip.Active = false
 	tip.ZIndex = 12
