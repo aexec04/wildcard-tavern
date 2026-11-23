@@ -46845,8 +46845,23 @@ table.insert(tests, { name = "Boss round HUD: the boss name and rule are said on
 	expectTrue(read("src/Client/Gameplay2.lua"):find("ST.progressLine(lastState.roundScore", 1, true) ~= nil, "the one target and progress is on the Target plate")
 end })
 
+table.insert(tests, { name = "PopupLayers: a hidden table layer stays hidden while a popup is open even if the table render shows it again", fn = function()
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/PopupLayers.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find('GetPropertyChangedSignal("Visible")', 1, true) ~= nil and src:find("openCount > 0 and inst.Visible", 1, true) ~= nil, "re-hides a layer shown while a popup is open")
+	expectTrue(src:find("for inst, c in pairs(holds) do c:Disconnect() end", 1, true) ~= nil, "holds are released when the last popup closes")
+end })
+
+table.insert(tests, { name = "PopupLayers: full screen pages hide the whole table with one switch, so no table layer can leak through", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PopupLayers)
+	for _, n in ipairs({ "CollectionBackdrop", "StoreBackdrop", "SeasonBackdrop", "DailyRewardsBackdrop", "QuestsBackdrop" }) do
+		expectTrue(PL.coversTable(n), n .. " covers the table")
+	end
+	expectFalse(PL.coversTable("DeckTrackerBackdrop"), "a partial popup keeps the table visible")
+	expectFalse(PL.coversTable(nil), "junk input")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/PopupLayers.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find('FindFirstChild("GameRoot")', 1, true) ~= nil and src:find("coverCount > 0", 1, true) ~= nil, "client hides GameRoot while a full screen page is open")
+end })
+
 return tests
-
-
-
-

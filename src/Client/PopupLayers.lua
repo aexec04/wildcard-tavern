@@ -26,21 +26,49 @@ function PopupLayers.install(screenGui)
 		end
 		return false
 	end
+	local holds = {} -- inst -> connection that keeps it hidden while a popup is open (the table render re-shows layers every frame)
 	local function hide(inst)
-		if inst:IsA("GuiObject") and Rules.shouldHide(inst.Name) and inst.Visible and not insidePopup(inst) then
-			hidden[inst] = true
-			inst.Visible = false
+		if inst:IsA("GuiObject") and Rules.shouldHide(inst.Name) and not insidePopup(inst) then
+			if inst.Visible then
+				hidden[inst] = true
+				inst.Visible = false
+			end
+			if hidden[inst] and not holds[inst] then
+				holds[inst] = inst:GetPropertyChangedSignal("Visible"):Connect(function()
+					if openCount > 0 and inst.Visible then inst.Visible = false end
+				end)
+			end
 		end
 	end
 	local function restore()
+		for inst, c in pairs(holds) do c:Disconnect() end
+		holds = {}
 		for inst in pairs(hidden) do
 			if inst.Parent then inst.Visible = true end
 		end
 		hidden = {}
 		if conn then conn:Disconnect() conn = nil end
 	end
+	-- One switch for full screen pages: hide the whole table (GameRoot) so nothing from it can show through or sit above the page.
+	local coverCount, rootHeld, rootConn = 0, false, nil
+	local function applyCover()
+		local root = screenGui:FindFirstChild("GameRoot")
+		if not (root and root:IsA("GuiObject")) then return end
+		if coverCount > 0 then
+			if root.Visible then rootHeld = true; root.Visible = false end
+			if rootHeld and not rootConn then
+				rootConn = root:GetPropertyChangedSignal("Visible"):Connect(function()
+					if coverCount > 0 and root.Visible then root.Visible = false end
+				end)
+			end
+		else
+			if rootConn then rootConn:Disconnect(); rootConn = nil end
+			if rootHeld then rootHeld = false; root.Visible = true end
+		end
+	end
 	local function refresh()
 		screenGui:SetAttribute("PopupsOpen", openCount) -- read by the boss rule chip so its first-moment line never opens over a popup
+		applyCover()
 		if openCount > 0 then
 			if not conn then
 				for _, d in ipairs(screenGui:GetDescendants()) do hide(d) end
@@ -58,9 +86,11 @@ function PopupLayers.install(screenGui)
 			if now and not openPopups[popup] then
 				openPopups[popup] = true
 				openCount = openCount + 1
+				if Rules.coversTable(popup.Name) then coverCount = coverCount + 1 end
 			elseif not now and openPopups[popup] then
 				openPopups[popup] = nil
 				openCount = openCount - 1
+				if Rules.coversTable(popup.Name) then coverCount = coverCount - 1 end
 			end
 			refresh()
 		end

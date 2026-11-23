@@ -20,6 +20,16 @@ PopupLayers.NAMES = {
 	BossRuleHit = true, BossRuleTip = true, -- the rule chip tap target and its line
 }
 
+-- Full screen pages (the Tome pages, the Store, the Season and the reward boards) draw their own room. While one is open the WHOLE
+-- table (GameRoot) is hidden by one switch, so no table layer can ever leak through, whatever it is called or how high its ZIndex is.
+-- A new full screen page only has to be listed here; the name lists above stay for partial popups (confirms, Deck tracker).
+PopupLayers.FULL_SCREEN = {
+	CollectionBackdrop = true, StoreBackdrop = true, SeasonBackdrop = true, DailyRewardsBackdrop = true, QuestsBackdrop = true,
+}
+function PopupLayers.coversTable(name)
+	return type(name) == "string" and PopupLayers.FULL_SCREEN[name] == true
+end
+
 function PopupLayers.shouldHide(name)
 	if type(name) ~= "string" then return false end
 	if PopupLayers.NAMES[name] then return true end
