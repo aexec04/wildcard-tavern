@@ -46672,6 +46672,33 @@ table.insert(tests, { name = "Round Complete banner: the +N Tips figure equals R
 	expectEqual(Payout.countLine(0, 0), "Round Complete  +0 Tips", "nothing paid reads honestly")
 end })
 
+table.insert(tests, { name = "Counter card row: every Patron cut card shows only its portrait window above the baked name plate, so only the ribbon names it", fn = function()
+	local PatronParchment = require(script.Parent.Parent.Engine.PatronParchment)
+	local CardArt = require(script.Parent.Parent.Engine.ConceptTPatronArt)
+	local withCrop = 0
+	for _, def in ipairs(Patrons.Definitions) do
+		if CardArt["ctp_" .. def.id] then
+			local r = PatronParchment.storedRect(def.id)
+			expectTrue(r ~= nil, def.id .. " has a crop window")
+			if r then
+				withCrop = withCrop + 1
+				local u = PatronParchment.SOURCE_H
+				expectTrue(r.w > 0 and r.h > 0 and r.y >= 0, def.id .. " window is a real rect")
+				-- the baked name plate sits in the bottom sixth of the 1536 px card: the window (measured by tools/patron_card_crops.py) ends above it
+				local src = require(script.Parent.Parent.Engine.PatronCardCrop)[def.id]
+				expectTrue(src.y + src.h <= u * 0.85, def.id .. " window ends above the baked plate (" .. (src.y + src.h) .. " of " .. u .. ")")
+			end
+		end
+	end
+	expectTrue(withCrop > 50, "the cut cards are cropped, got " .. withCrop)
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PatronParchment", 1, true) ~= nil and src:find("ImageRectSize", 1, true) ~= nil, "the Counter card applies the crop window")
+		expectTrue(src:find("cutId == artId", 1, true) ~= nil, "only a cut card is cropped, never the old portrait")
+	end
+end })
+
 -- ===== Tavern Map event nodes =====
 table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
 	local ME = require(script.Parent.Parent.Engine.MapEvents)

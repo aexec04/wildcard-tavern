@@ -339,6 +339,17 @@ function ShopCards.new(deps)
 			local art = PatronPlaque.applyById(artClip, artId, { emojiLabel = emoji, zIndex = Z, cornerRadius = 8 })
 			if art then
 				art.ScaleType = spec.kind == "pack" and Enum.ScaleType.Fit or Enum.ScaleType.Crop
+				-- a Patron cut card has its own name plate baked in: show only its portrait window, the ribbon below names it (Engine/PatronParchment)
+				if spec.artTab == "patrons" and spec.artId then
+					pcall(function()
+						local cutId = require(Engine:WaitForChild("ConceptTPatronArt"))["ctp_" .. tostring(spec.artId)]
+						local rect = cutId == artId and require(Engine:WaitForChild("PatronParchment")).storedRect(spec.artId) or nil
+						if rect then
+							art.ImageRectOffset = Vector2.new(rect.x, rect.y)
+							art.ImageRectSize = Vector2.new(rect.w, rect.h)
+						end
+					end)
+				end
 			end
 		end
 		local rarity = spec.rarity
