@@ -5006,6 +5006,24 @@ table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values
 	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
 end })
 
+table.insert(tests, { name = "ScoreText.tally: commas below 1 million, short form from 1 million, never overflows a plate, junk is safe", fn = function()
+	local ST = require(script.Parent.Parent.Engine.ScoreText)
+	expectEqual(ST.tally(0), "0")
+	expectEqual(ST.tally(999999), "999,999")
+	expectEqual(ST.tally(1000000), "1M")
+	expectEqual(ST.tally(1234567), "1.2M")
+	expectEqual(ST.tally(987654321), "987.7M")
+	expectEqual(ST.tally(3.4e12), "3.4T")
+	for _, v in ipairs({ -5, 0 / 0, math.huge, 1e300, "x" }) do
+		local t = ST.tally(v)
+		expectTrue(#t <= 8 and not t:find("inf") and not t:find("nan"), "safe and short for junk input")
+	end
+	local f = io and io.open("src/Client/Gameplay2.lua", "r")
+	if f then local c = f:read("a"); f:close(); expectTrue(c:find("ScoreText\")).tally(n)", 1, true) ~= nil, "the Score tally uses ScoreText.tally") end
+	local p = io and io.open("src/Client/ScorePopup.lua", "r")
+	if p then local c = p:read("a"); p:close(); expectTrue(c:find("chipsLabel.Text = ScoreTextTally", 1, true) ~= nil, "popup chips use the short form") end
+end })
+
 table.insert(tests, { name = "Round Select: the Daily strip never sits on a Skip plate (with and without Skip) at four sizes, it keeps its gap or hides", fn = function()
 	local L = require(script.Parent.Parent.Engine.RoundSelectLayout)
 	local D = require(script.Parent.Parent.Engine.DailyStrip)

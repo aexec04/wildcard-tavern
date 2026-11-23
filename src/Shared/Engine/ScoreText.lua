@@ -50,6 +50,15 @@ function ScoreText.short(n)
 	return ScoreText.full(n)
 end
 
+-- The live tally and the popups: full with commas below 1 million, short form (1.2M) from 1 million so it never outgrows its plate.
+function ScoreText.tally(n)
+	n = ScoreText.clean(n)
+	if n < 1e6 then
+		return ScoreText.full(n)
+	end
+	return ScoreText.short(n)
+end
+
 function ScoreText.plate(n)
 	n = ScoreText.clean(n)
 	if n < 1e9 then

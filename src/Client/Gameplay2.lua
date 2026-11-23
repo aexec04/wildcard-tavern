@@ -771,7 +771,7 @@ function M.install(deps)
 		local nowScore = math.floor(score or lastState.roundScore or 0)
 		phase = phase or lastState.phase
 		local function put(n)
-			scoreNum.Text = require(Engine:WaitForChild("ScoreText")).plate(n)
+			scoreNum.Text = require(Engine:WaitForChild("ScoreText")).tally(n)
 			local fit = self.scoreFit
 			if fit then -- a long total shrinks to stay inside the plate's border
 				pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)

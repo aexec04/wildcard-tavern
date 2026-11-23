@@ -564,13 +564,20 @@ return function(deps)
 		return xmultTickSound
 	end
 
+	-- 1,234 below a million, 1.2M from a million (Engine/ScoreText.tally); negatives keep their sign
+	local function ScoreTextTally(n)
+		local ST = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScoreText"))
+		if n < 0 then return "-" .. ST.tally(-n) end
+		return ST.tally(n)
+	end
+
 	local function formatEntryText(entry)
 		if entry.kind == "xmult" then
 			local PE = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents"))
 			return string.format("%s  x%s Mult", entry.label, PE.fmt(entry.amount))
 		elseif entry.kind == "tips" then
 			local sign = entry.amount >= 0 and "+" or ""
-			return string.format("%s  %s%d Tips", entry.label, sign, math.floor(entry.amount + 0.5))
+			return string.format("%s  %s%s Tips", entry.label, sign, ScoreTextTally(math.floor(entry.amount + 0.5)))
 		end
 		local verb = entry.kind == "chips" and "Chips" or "Mult"
 		local sign = entry.amount >= 0 and "+" or ""
@@ -578,7 +585,7 @@ return function(deps)
 		-- whole number, but nothing guarantees that stays true forever --
 		-- floor before %d so a future fractional flat-mult source (a
 		-- Garnish/Patron/Special) can't hard-error Lua 5.3's %d mid-reveal.
-		return string.format("%s  %s%d %s", entry.label, sign, math.floor(entry.amount + 0.5), verb)
+		return string.format("%s  %s%s %s", entry.label, sign, ScoreTextTally(math.floor(entry.amount + 0.5)), verb)
 	end
 
 	-- Rough "how big a deal is this" score, used to scale shake/particle
@@ -1193,8 +1200,8 @@ return function(deps)
 		scorePopupEventLabel.Text = ""
 		do -- the readout opens on the hand's own Chips x Mult, together with its name (Engine/PlayReport.baseOf)
 			local openChips, openMult = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
-			chipsLabel.Text = string.format("%d", math.floor(openChips + 0.5))
-			multLabel.Text = string.format("%d", math.floor(openMult + 0.5))
+			chipsLabel.Text = ScoreTextTally(math.floor(openChips + 0.5))
+			multLabel.Text = ScoreTextTally(math.floor(openMult + 0.5))
 		end
 		scorePopup.Visible = true
 		do -- v2 table: the centre block is the one scoring display, so the old Chips x Mult box and hand name strip stay hidden
@@ -1491,8 +1498,8 @@ return function(deps)
 					-- easily be fractional mid-sequence (e.g. a x1.5
 					-- Special) even when the eventual final mult happens to
 					-- land on a whole number.
-					chipsLabel.Text = string.format("%d", math.floor(runningChips + 0.5))
-					multLabel.Text = string.format("%d", math.floor(runningMult * runningXMult + 0.5))
+					chipsLabel.Text = ScoreTextTally(math.floor(runningChips + 0.5))
+					multLabel.Text = ScoreTextTally(math.floor(runningMult * runningXMult + 0.5))
 					if isPatronEntry then
 						-- Patron beats come 0.28 s apart (0.12 in fast mode), the running numbers bump with each one
 						local bump = entry.kind == "chips" and chipsScale or (entry.kind ~= "tips" and multScale or nil)
@@ -1553,8 +1560,8 @@ return function(deps)
 			-- (a Boss Round's chips-halving applied to an odd base chips
 			-- value), not just mult -- Lua 5.3's %d hard-errors on a
 			-- non-integral float.
-			chipsLabel.Text = string.format("%d", math.floor(preview.chips + 0.5))
-			multLabel.Text = string.format("%d", math.floor(preview.mult + 0.5))
+			chipsLabel.Text = ScoreTextTally(math.floor(preview.chips + 0.5))
+			multLabel.Text = ScoreTextTally(math.floor(preview.mult + 0.5))
 			-- GAME FEEL: the finale pop grows with the hand's share of the Target, its hand name takes the tier's color,
 			-- a big hand (half the Target or more) gets an extra slam, and the combo counter ticks up (visual only).
 			local feelTier = ScoreFeel.tierFor(preview.score, preview.targetScore)
