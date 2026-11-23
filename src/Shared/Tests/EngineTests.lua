@@ -52830,6 +52830,41 @@ table.insert(tests, { name = "Boss health bar: the plate shares the Target plate
 	end
 end })
 
+table.insert(tests, { name = "Save safety: 20 odd profiles (missing fields, junk values, extra fields) load without error and keep the owned items", fn = function()
+	local function owned()
+		return { ownedSetIds = { winter_evening = true }, discoveredPatronIds = { tip_jar = true }, unlockedCardBackIds = { classic = true }, stats = { runsStarted = 3 } }
+	end
+	local profiles = {}
+	-- 1 to 4: owned items with everything else missing, with extra and future fields, with nil sections, with an empty table
+	local a = owned(); profiles[#profiles + 1] = a
+	local b = owned(); b.futureField = { 1, 2, 3 }; b.version = 99; profiles[#profiles + 1] = b
+	local c = owned(); c.settings = nil; c.stats = nil; c.quests = nil; profiles[#profiles + 1] = c
+	local d = owned(); d.version = "one"; d.settings = { unknownSetting = true }; profiles[#profiles + 1] = d
+	-- 5 to 20: one real top-level field of a fresh profile replaced by junk, the owned items alongside
+	local junk = { "text", 7, true, {}, -1, 1e308, { 1, 2, 3 }, { [1] = "x", y = {} } }
+	local keys = {}
+	for k in pairs(PlayerProfile.new()) do if k ~= "ownedSetIds" and k ~= "discoveredPatronIds" and k ~= "unlockedCardBackIds" then keys[#keys + 1] = k end end
+	table.sort(keys)
+	for i = 1, 16 do
+		local p = owned()
+		p[keys[(i - 1) % #keys + 1]] = junk[(i - 1) % #junk + 1]
+		profiles[#profiles + 1] = p
+	end
+	expectEqual(#profiles, 20, "twenty odd profiles")
+	for i, raw in ipairs(profiles) do
+		local ok, res = pcall(PlayerProfile.migrate, raw)
+		expectTrue(ok, "profile " .. i .. " errored: " .. tostring(res))
+		if ok then
+			expectTrue(type(res.settings) == "table" and type(res.stats) == "table", "profile " .. i .. " has settings and stats")
+			expectTrue(res.ownedSetIds.winter_evening == true, "profile " .. i .. " keeps the owned Card Set")
+			expectTrue(res.discoveredPatronIds.tip_jar == true, "profile " .. i .. " keeps the discovered Patron")
+			expectTrue(res.unlockedCardBackIds.classic == true, "profile " .. i .. " keeps the owned card back")
+			local again = pcall(PlayerProfile.migrate, res)
+			expectTrue(again, "profile " .. i .. " migrates a second time")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")
