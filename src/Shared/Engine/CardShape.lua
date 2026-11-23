@@ -15,7 +15,7 @@
 local CardShape = {}
 
 CardShape.BANNER_H = 40
-CardShape.BUTTON_H = 36
+CardShape.BUTTON_H = 44 -- a 44 px touch target (Buy, Sell, Use)
 CardShape.PRICE_STRIP = 36 -- a priced card ends in a strip that holds the 28 px price pill with 4 px margins, so nothing hangs outside the card
 CardShape.PRICE_GAP = 4
 CardShape.MIN_SCALE = 0.7

@@ -53827,6 +53827,67 @@ table.insert(tests, { name = "Choice screens live readability: first Patron pick
 	expectEqual(#found, 0, "the choice screens have " .. #found .. " readability findings")
 end })
 
+table.insert(tests, { name = "Sell Patron live readability: the Sell it / Keep it confirm for the longest Patron name at 1280x720 and 800x360 has 14 px text, readable ink, 44 px buttons, nothing off screen or overlapping", fn = function()
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/ConfirmDialog.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local Engine = script.Parent.Parent.Engine
+	local Patrons, ConfirmCopy = require(Engine.Patrons), require(Engine.ConfirmCopy)
+	local longest = Patrons.Definitions[1]
+	for _, p in ipairs(Patrons.Definitions) do
+		if #p.name > #longest.name then longest = p end
+	end
+	local noop = function() end
+	local stubs = {
+		ConceptTSkin = { title = noop, plateButton = function() return false end }, PopupSkin = { paper = noop },
+		TavernKit = { setPlateButton = noop }, PopupDismiss = { attach = noop },
+	}
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	local engineFolder = FakeGui.folder({ Layers = require(Engine.Layers), ConfirmCopy = ConfirmCopy })
+	local shared = { WaitForChild = function() return engineFolder end, Engine = { ConceptTSkin = { __module = stubs.ConceptTSkin, __name = "ConceptTSkin" } } }
+	st.services.ReplicatedStorage = { WaitForChild = function() return shared end, Shared = shared }
+	local found = {}
+	local function painted(l) return l.TextStrokeTransparency ~= nil and l.TextStrokeTransparency <= 0.5 end
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = size[1], Y = size[2] }
+		local Dialog = FakeGui.load("src/Client/ConfirmDialog.lua", env)
+		local api = Dialog({ screenGui = gui, polishButton = noop, addSoftShadow = noop, playClickSfx = noop,
+			popIn = function(b) b.Visible = true end, popOut = function(b) b.Visible = false end, addButtonHoverScale = noop })
+		local copy = ConfirmCopy.sell(longest.name, math.floor(longest.price / 2))
+		api.showConfirmDialog(copy.message, noop, copy)
+		FakeGui.layout(gui, size[1], size[2])
+		local backdrop = gui:FindFirstChild("ConfirmBackdrop")
+		local res = Audit.audit(backdrop, size[1], size[2], { paintedOk = painted })
+		expectTrue(res.seen >= 3 and res.buttons >= 2, "confirm " .. size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
+		for _, f in ipairs(res) do found[#found + 1] = "confirm " .. size[1] .. "x" .. size[2] .. " " .. f end
+		local panel = backdrop:FindFirstChild("ConfirmPanel")
+		local sheet = panel:FindFirstChild("Sheet")
+		local yes, no = sheet:FindFirstChild("Yes"), sheet:FindFirstChild("No")
+		expectTrue(yes.AbsolutePosition.X + yes.AbsoluteSize.X <= no.AbsolutePosition.X, "Sell it and Keep it do not overlap at " .. size[1])
+		expectTrue(panel.AbsolutePosition.Y >= 0 and panel.AbsolutePosition.Y + panel.AbsoluteSize.Y <= size[2], "the confirm panel fits the window height at " .. size[2])
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "the sell confirm has " .. #found .. " readability findings")
+end })
+
+table.insert(tests, { name = "My Patrons and Undo plate sizes: the Sell drawer button is 44 px at every card scale, owned cards fit five seats at 800x360, and the Undo plate fits on screen", fn = function()
+	local CardShape, SellUndo = require(script.Parent.Parent.Engine.CardShape), require(script.Parent.Parent.Engine.SellUndo)
+	expectTrue(CardShape.BUTTON_H >= 44, "the Buy, Sell and Use plate is a 44 px touch target")
+	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local s = CardShape.fitOwned(size[1] - 100, 5, size[1], size[2])
+		local sh = CardShape.shape("owned", s)
+		expectTrue(CardShape.fitsRow(5, size[1] - 100, sh, CardShape.OWNED_GAP, 14), "five owned cards fit one row at " .. size[1])
+		expectTrue(sh.drawerTop + CardShape.BUTTON_H <= sh.bannerTop, "the Sell drawer sits above the ribbon at " .. size[1])
+		expectTrue(sh.drawerTop >= 0, "the Sell drawer stays inside the card at " .. size[1])
+		local r = SellUndo.layout(size[1], size[2])
+		expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= size[1] and r.y + r.h <= size[2] and r.h >= 44, "the Undo plate is on screen and 44 px tall at " .. size[1])
+	end
+end })
+
 table.insert(tests, { name = "Collection live readability: the gallery room at 1280x720 and 800x360 has 14 px text, readable ink, 44 px buttons, nothing off screen", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
