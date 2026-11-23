@@ -174,6 +174,7 @@ function CornerToast.refresh()
 	if screen == "table" then -- the Mult panel beside the Patron display stands where the column starts: toasts go under it
 		local okPanel, rect = pcall(function() return require(script.Parent.PatronRow).panelRect() end)
 		if okPanel and rect then Rules.below(plan, w, rect) end
+		Rules.below(plan, w, Rules.tipsPillKeepOut(w, h)) -- and under the Tips pill, so a toast never covers it
 	end
 	if screen == "shop" then -- the round summary plate stands where the column starts: toasts go 8 px under it
 		local okSum, sum = pcall(function() return require(game:GetService("ReplicatedStorage").Shared.Engine.ShopSummary).keepOut(w, h) end)

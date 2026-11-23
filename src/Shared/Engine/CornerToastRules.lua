@@ -107,6 +107,15 @@ function M.below(plan, w, keepOut)
 	return plan
 end
 
+-- The table's Tips pill in the toast's own pixels (TableCheck's reference rect scaled to the screen), so the column can start under it.
+function M.tipsPillKeepOut(w, h)
+	local TC = require(script.Parent.TableCheck)
+	local t
+	for _, e in ipairs(TC.TARGETS) do if e.key == "TipsPill" then t = e end end
+	local kx, ky = w / TC.REF_W, h / TC.REF_H
+	return { x = t.x0 * kx, y = t.y0 * ky, w = (t.x1 - t.x0) * kx, h = (t.y1 - t.y0) * ky }
+end
+
 -- ===== the stack =====
 local Stack = {}
 Stack.__index = Stack

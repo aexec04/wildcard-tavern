@@ -44558,6 +44558,22 @@ table.insert(tests, { name = "Toast queue stacking: a flood of 40 notices never 
 	end
 end })
 
+table.insert(tests, { name = "Toast column clears the Tips pill at four sizes, the whole toast is a 44 px or taller dismiss target", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local plan = R.plan("table")
+		local pill = R.tipsPillKeepOut(sz[1], sz[2])
+		R.below(plan, sz[1], pill)
+		for i = 1, plan.maxVisible do
+			local s = R.slot(sz[1], sz[2], plan, i)
+			local overlapX = s.x < pill.x + pill.w and s.x + s.w > pill.x
+			local overlapY = s.y < pill.y + pill.h and s.y + s.h > pill.y
+			expectTrue(not (overlapX and overlapY), "slot " .. i .. " clears the Tips pill at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(s.h >= 44, "dismiss target 44 px or more")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local LL = require(Engine.LoadingLayout)
