@@ -46759,7 +46759,7 @@ table.insert(tests, { name = "Gear menu: Restart run is first and mid run, Main 
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local Q = require(script.Parent.Parent.Engine.QuitFlow)
 	expectTrue(G.ROWS[1].id == "restart" and G.ROWS[1].label == "Restart run", "Restart run first")
-	expectTrue(G.ROWS[#G.ROWS].id == "quit" and G.ROWS[#G.ROWS].label == "Main Menu", "Main Menu last")
+	expectTrue(G.ROWS[2].id == "quit" and G.ROWS[2].label == "Main Menu", "Main Menu sits right under Restart run")
 	expectEqual(Q.QUIT, "Main Menu")
 	if not (io and io.open) then return end
 	local function read(p) local f = assert(io.open(p, "r")); local t = f:read("a"); f:close(); return t end
