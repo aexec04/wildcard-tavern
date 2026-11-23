@@ -38726,7 +38726,7 @@ table.insert(tests, { name = "Store: readable button plates, 24 px under the car
 	local Store = require(script.Parent.Parent.Engine.Store)
 	for _, def in ipairs(Store.Items) do
 		if def.id == "vip" then
-			expectEqual(def.description, "A little sparkle for regulars. A second badge slot, no power.")
+			expectEqual(def.description, "A gold star and a second badge slot, no power.")
 			expectTrue(#def.description <= 62, "VIP text is short enough for three lines")
 		end
 	end
@@ -38761,6 +38761,40 @@ table.insert(tests, { name = "Store tiles: launch icon id wins, then bundle art,
 	local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("UDim2.new(1, -36, 0, 44)", 1, true) ~= nil, "Buy plate is 44 px tall")
 	expectTrue(src:find("LaunchIcons", 1, true) ~= nil, "the tile asks LaunchIcons first")
+end })
+
+table.insert(tests, { name = "Purchase copy honesty: every pass, product and bundle line is plain, kid safe, no fake discount or pay to win wording, tile lines 60 characters or less", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	local banned = { "discount", "sale", "% off", "save ", "best value", "limited", "hurry", "random", "chance", "odds", "lucky", "mystery", "loot",
+		"boost", "stronger", "advantage", "win more", "pay to", "cheaper", "lower price", "balatro", "—", "–", "--" }
+	local lines = {}
+	local function add(where, text) lines[#lines + 1] = { where = where, text = text } end
+	for _, item in ipairs(Store.Items) do
+		expectTrue(type(item.description) == "string" and #item.description > 0, item.id .. " has a description")
+		add("store " .. item.id .. " description", item.description)
+		add("store " .. item.id .. " name", item.name)
+		for i, perk in ipairs(item.perks or {}) do add("store " .. item.id .. " perk " .. i, perk) end
+		-- tiles: the description and every perk fit in 60 characters
+		expectTrue(#item.description <= 60, item.id .. " tile description is 60 characters or less (" .. #item.description .. ")")
+		for i, perk in ipairs(item.perks or {}) do expectTrue(#perk <= 60, item.id .. " perk " .. i .. " is 60 characters or less") end
+		if item.category == "cosmetic" then
+			local lowDesc = item.description:lower()
+			expectTrue(lowDesc:find("looks only", 1, true) or lowDesc:find("no power", 1, true) or item.contents ~= nil or item.seasonPremium ~= nil,
+				item.id .. " says it is cosmetic or holds only cosmetics")
+		end
+	end
+	for _, pass in ipairs(GamePasses.Definitions) do add("pass " .. pass.id, pass.description); add("pass " .. pass.id .. " name", pass.name) end
+	for _, product in ipairs(GamePasses.DeveloperProducts or {}) do add("product " .. product.id, product.description); add("product " .. product.id .. " name", product.name) end
+	expectTrue(#lines >= 20, "the audit lists every line (" .. #lines .. ")")
+	for _, l in ipairs(lines) do
+		expectTrue(type(l.text) == "string", l.where .. " has text")
+		local low = tostring(l.text):lower()
+		for _, word in ipairs(banned) do
+			expectTrue(not low:find(word, 1, true), l.where .. " must not say '" .. word .. "'")
+		end
+	end
+	expectEqual(#Store.audit(), 0)
 end })
 
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
