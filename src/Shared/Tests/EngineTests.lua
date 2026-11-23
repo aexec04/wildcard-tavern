@@ -46774,6 +46774,56 @@ do
 	end
 end
 
+-- NIGHT TABLE AUDIT: Nights 1 to 8, three rounds each: target scores (Small 1x, Big 1.5x, Boss 2x rising to 2.5x), hands, discards,
+-- hand size and the Tips paid for a win (4, double on the boss round) in one table, read from real RunState rounds.
+table.insert(tests, { name = "Night table: Nights 1 to 8 targets, hands, discards, hand size and Tips payout match the pinned table", fn = function()
+	local want = { -- { Small, Big, Boss } target per Night
+		{ 65, 97, 130 }, { 156, 234, 324 }, { 360, 540, 772 }, { 710, 1065, 1573 },
+		{ 1736, 2604, 3968 }, { 3284, 4927, 7742 }, { 6420, 9630, 15591 }, { 13803, 20704, 34508 },
+	}
+	local nightTune = { [2] = 1.12, [3] = 1.2, [4] = 1.1, [5] = 1.25, [6] = 1.1 }
+	local function roundAt(night, round)
+		local state = RunState.new(nil, SeededRng.new(5))
+		state.bossRoundsEnabled = false
+		if night == 1 and round == 1 then return state end
+		if round == 1 then
+			state.night, state.round = night - 1, state.config.roundsPerNight
+		else
+			state.night, state.round = night, round - 1
+		end
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		expectEqual(state.night, night, "Night " .. night .. " reached")
+		expectEqual(state.round, round, "round " .. round .. " reached")
+		return state
+	end
+	for night = 1, 8 do
+		-- the documented curve, worked out here from its parts (65 x 2.15 per Night, Night tune, then the Blind)
+		local base = 65 * 2.15 ^ (night - 1) * (nightTune[night] or 1)
+		local bossMult = 2 + (night - 1) / 7 * 0.5
+		expectEqual(math.floor(base * 1), want[night][1], "Night " .. night .. " Small target follows the curve")
+		expectEqual(math.floor(base * 1.5), want[night][2], "Night " .. night .. " Big target follows the curve")
+		expectEqual(math.floor(base * bossMult), want[night][3], "Night " .. night .. " Boss target follows the curve")
+		expectTrue(want[night][1] < want[night][2] and want[night][2] < want[night][3], "Night " .. night .. " rounds get harder")
+		-- a new Night always starts above the last Big round; from Night 4 the Small round sits under the last Boss (2.5x boss vs 2.15x
+		-- Night growth, noted in claude/BALANCE.md), so the Boss is a spike, not a ceiling
+		if night > 1 then expectTrue(want[night][1] > want[night - 1][2], "Night " .. night .. " starts above the last Big round") end
+		for round = 1, 3 do
+			local state = roundAt(night, round)
+			expectEqual(state.targetScore, want[night][round], "Night " .. night .. " round " .. round .. " target in a real round")
+			expectEqual(state.handsRemaining, 4, "four hands")
+			expectEqual(state.discardsRemaining, 3, "three discards")
+			expectEqual(#state.hand, 8, "eight cards")
+			-- a win pays 4 Tips, 8 on the Boss round (no interest on 0 Tips held)
+			state.tips = 0
+			state.targetScore = 1
+			RunState.playHand(state, { 1, 2 })
+			expectTrue(state.roundOver, "round won")
+			expectEqual(state.lastRoundReward, round == 3 and 8 or 4, "Night " .. night .. " round " .. round .. " pays " .. (round == 3 and 8 or 4) .. " Tips")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text says, once, and a skipped round never pays twice", fn = function()
 	local Tags = require(script.Parent.Parent.Engine.Tags)
 	local function fresh()
