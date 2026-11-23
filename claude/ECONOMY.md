@@ -1,5 +1,11 @@
 # Economy check: a week of 20 minute sessions
 
+## Pack odds audit (Nov 22)
+Packs have no rarity weights in the engine; every odd is a uniform pick, and a test (`Pack odds: ...`) checks 5000 seeds per pack within 3 percent of the stated share.
+- Grab Bag, Jumbo and Mega Grab Bag: each revealed item rolls Patron, House, Menu, Secret or Standard at 20 percent each.
+- Standard packs (normal, Jumbo, Mega): the modifier pool of 15 gives Garnish 8/15 (53 percent), Special 3/15 (20 percent), Stamp 4/15 (27 percent).
+- Patron packs never show the same Patron twice in one reveal. Jumbo and Mega only reveal more items (5), they do not change odds.
+
 Simulated by `src/Shared/Engine/EconomySim.lua` through the real Daily chest ladder, Daily quests, run XP and Season XP. Reprint with `lua tools/economy_report.lua [startDay]`. A test (`Economy week`) pins the floors below.
 
 Rank rewards (30 ranks, pinned by a test): ranks have no names of their own, the names players see are the five reward titles (rank 5 Table Regular, 10 Favorite Guest, 15 House Captain, 20 Hall Warden, 30 Grand Host), all unique and kid safe. Card backs at ranks 4, 8, 14 and 23, Card Sets at 12 (winter_evening) and 24 (festival_night). Tips for the next run climb 3, 3, 4, 4, 5, 5, 5, 6, 6, 7, 7, 7, 7, 8, 8, 10, 10, 10, 115 in total and never fall from one Tips rank to the next. Audit fix: ranks 19, 28 and 29 used to dip (6, 9, 9) and are now 7, 10, 10. XP per rank is 80 for rank 1 to 2, then 20 more each rank.

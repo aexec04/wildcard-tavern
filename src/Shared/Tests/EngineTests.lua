@@ -48506,6 +48506,54 @@ table.insert(tests, { name = "Boss pool: no boss repeats back to back in Endless
 	end
 end })
 
+table.insert(tests, { name = "Pack odds: Grab Bag, Jumbo and Mega Grab Bag give each category 20 percent and Standard packs follow their modifier pool, within 3 percent over 5000 seeds", fn = function()
+	local state = RunState.new(nil, SeededRng.new(1))
+	local function open(packId, seed)
+		state.tips, state.pendingPack = 1000, nil
+		return RunState.openPack(state, packId, SeededRng.new(seed))
+	end
+	local function within(share, want, tag)
+		expectTrue(math.abs(share - want) <= 0.03, string.format("%s share %.3f is within 3 percent of %.3f", tag, share, want))
+	end
+	for _, packId in ipairs({ "mixed_pack", "mixed_pack_jumbo", "mixed_pack_mega" }) do
+		local count, total = {}, 0
+		for seed = 1, 5000 do
+			local pack = open(packId, seed)
+			expectTrue(pack ~= nil, packId .. " opens")
+			for _, item in ipairs(pack.items) do
+				count[item.category] = (count[item.category] or 0) + 1
+				total = total + 1
+			end
+		end
+		for _, cat in ipairs({ "patron", "house", "menu", "secret", "standard" }) do
+			within((count[cat] or 0) / total, 0.2, packId .. " " .. cat)
+		end
+	end
+	for _, packId in ipairs({ "standard_pack", "standard_pack_jumbo", "standard_pack_mega" }) do
+		local count, total = {}, 0
+		for seed = 1, 5000 do
+			for _, item in ipairs(open(packId, seed).items) do
+				for _, kind in ipairs({ "garnish", "special", "stamp" }) do
+					if item.card[kind] then count[kind] = (count[kind] or 0) + 1 end
+				end
+				total = total + 1
+			end
+		end
+		within((count.garnish or 0) / total, 8 / 15, packId .. " garnish")
+		within((count.special or 0) / total, 3 / 15, packId .. " special")
+		within((count.stamp or 0) / total, 4 / 15, packId .. " stamp")
+	end
+	for _, packId in ipairs({ "buffoon_pack", "buffoon_pack_jumbo", "buffoon_pack_mega" }) do
+		for seed = 1, 500 do
+			local seen = {}
+			for _, item in ipairs(open(packId, seed).items) do
+				expectFalse(seen[item.id], packId .. " never reveals the same Patron twice")
+				seen[item.id] = true
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
