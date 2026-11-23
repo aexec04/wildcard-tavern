@@ -3568,6 +3568,7 @@ Rem.RestartRun.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.RestartRun", os.clock()) then return end
 	local session = sessions[player]
 	if not session then
+		print(("[RunReset] refused RestartRun from %s: no session"):format(player.Name))
 		return
 	end
 	-- Only a finished run restarts here (Play Again). A stray or replayed RestartRun mid run must not wipe it; Settings > Restart Run uses AbandonRun.
@@ -3588,7 +3589,11 @@ Rem.AbandonRun.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.AbandonRun", os.clock()) then return end
 	local session = sessions[player]
 	local ok = RunAbandon.abandon(session, profiles[player], PlayerProfile)
+	if not ok and session and session.phase == "gameover" then
+		ok = true -- the run is already over: Restart Run just starts a fresh one, nothing counts as abandoned
+	end
 	if not ok then
+		print(("[RunReset] refused AbandonRun from %s: nothing to abandon (phase %s)"):format(player.Name, tostring(session and session.phase)))
 		return
 	end
 	profileDirty[player] = true
@@ -3608,6 +3613,7 @@ end)
 Rem.StartRun.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode, startingDeckId)
 	if not RateLimit.allow(player.UserId, "Rem.StartRun", os.clock()) then return end
 	if not sessions[player] then
+		print(("[RunReset] refused StartRun from %s: no session"):format(player.Name))
 		return
 	end
 	if type(stakeId) ~= "number" then

@@ -34468,6 +34468,44 @@ table.insert(tests, { name = "Run resets are explained and guarded: every new ru
 	expectTrue(cli:find("[RunReset] table scene reset", 1, true) ~= nil, "the client names why the table scene reset")
 end })
 
+table.insert(tests, { name = "Confirm popups sit above every HUD layer (ZIndex at least 5000), Restart Run closes other panels first, a finished run can still be restarted, every refused start prints a reason", fn = function()
+	if not (io and io.open) then return end
+	local function read(p) local f = io.open(p, "r"); local t = f:read("a"); f:close(); return t end
+	for _, file in ipairs({ "src/Client/RestartRun.lua", "src/Client/QuitConfirm.lua" }) do
+		local src = read(file)
+		local n = 0
+		for name, z in src:gmatch("(%w+)%.ZIndex = (%d+)") do
+			if name ~= "button" then
+				n = n + 1
+				expectTrue(tonumber(z) >= 5000, file .. " " .. name .. " ZIndex " .. z .. " is under the popup layer")
+			end
+		end
+		expectTrue(n >= 3, file .. " sets its confirm ZIndexes")
+	end
+	local rr = read("src/Client/RestartRun.lua")
+	local _, opens = rr:gsub('OverlayManager.closeAllExcept%("restart%-run"%)', "")
+	expectTrue(opens >= 3, "open and ask close the gear menu and other panels (plus the confirm)")
+	local srv = read("src/Server/init.server.lua")
+	local a = srv:find("Rem.AbandonRun.OnServerEvent", 1, true)
+	local seg = srv:sub(a, a + 1100)
+	expectTrue(seg:find('session.phase == "gameover"', 1, true) ~= nil, "Restart Run on a finished run starts a new one instead of doing nothing")
+	expectTrue(seg:find("[RunReset] refused AbandonRun", 1, true) ~= nil, "a refused abandon says why")
+	expectTrue(srv:find("[RunReset] refused StartRun", 1, true) ~= nil and srv:find("[RunReset] refused RestartRun", 1, true) ~= nil, "refused starts say why")
+	-- quit, new run, lose, play again: every fresh run is round 1
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local RunAbandon = require(script.Parent.Parent.Engine.RunAbandon)
+	for _, phase in ipairs({ "roundSelect", "playing", "shop", "nightVictory" }) do
+		expectTrue(RunAbandon.canAbandon({ phase = phase, state = {} }), "can abandon from " .. phase)
+	end
+	expectTrue(not RunAbandon.canAbandon({ phase = "gameover", state = {} }), "a finished run is not abandoned, the server restarts it directly")
+	local state = RunState.new(nil, function(n) return n end)
+	for i = 1, 3 do
+		state.round = 4 -- mid run, then lost or quit
+		state = RunState.new(nil, function(n) return n end)
+		expectEqual(state.round, 1, "fresh run " .. i .. " starts at round 1")
+	end
+end })
+
 table.insert(tests, { name = "One music loop at a time: a fake pool walks every screen change and never holds more than one looping music Sound, MusicMixFX makes no Sound", fn = function()
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local pool = { loops = {} }

@@ -79,7 +79,7 @@ local function build(deps)
 	backdrop.AutoButtonColor = false
 	backdrop.Text = ""
 	backdrop.Visible = false
-	backdrop.ZIndex = 40
+	backdrop.ZIndex = 5040
 	backdrop.Parent = screenGui
 
 	local panel = Instance.new("Frame")
@@ -88,7 +88,7 @@ local function build(deps)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.Active = true -- sinks clicks so only the dim area cancels
-	panel.ZIndex = 41
+	panel.ZIndex = 5041
 	panel.Parent = backdrop
 	deps.polishPanel(panel, 14, "wood")
 	if deps.addSoftShadow then deps.addSoftShadow(panel, 16) end
@@ -101,7 +101,7 @@ local function build(deps)
 	title.TextSize = 22
 	title.TextColor3 = Color3.fromRGB(255, 214, 130)
 	title.Text = "Restart Run?"
-	title.ZIndex = 42
+	title.ZIndex = 5042
 	title.Parent = panel
 
 	local message = Instance.new("TextLabel")
@@ -114,7 +114,7 @@ local function build(deps)
 	message.TextColor3 = TEXT
 	message.TextYAlignment = Enum.TextYAlignment.Top
 	message.Text = MESSAGE
-	message.ZIndex = 42
+	message.ZIndex = 5042
 	message.Parent = panel
 
 	-- Cancel: the default, highlighted
@@ -126,7 +126,7 @@ local function build(deps)
 	cancel.Text = "Cancel"
 	cancel.BackgroundColor3 = Color3.fromRGB(70, 110, 60)
 	cancel.TextColor3 = TEXT
-	cancel.ZIndex = 42
+	cancel.ZIndex = 5042
 	cancel.Parent = panel
 	polishButton(cancel, 12)
 	local cancelStroke = Instance.new("UIStroke")
@@ -151,7 +151,7 @@ local function build(deps)
 	restart.TextColor3 = TEXT
 	restart.AutoButtonColor = false
 	restart.ClipsDescendants = true
-	restart.ZIndex = 42
+	restart.ZIndex = 5042
 	restart.Parent = panel
 	polishButton(restart, 12)
 	local fill = Instance.new("Frame") -- parented to the button so it survives clones/hover scale
@@ -161,7 +161,7 @@ local function build(deps)
 	fill.BackgroundTransparency = 0.45
 	fill.BorderSizePixel = 0
 	fill.Active = false
-	fill.ZIndex = 43
+	fill.ZIndex = 5043
 	fill.Parent = restart
 	restart.TextTransparency = 0
 	restart.TextStrokeTransparency = 0.5
@@ -216,7 +216,7 @@ local function build(deps)
 		label.TextColor3 = TEXT
 		label.TextWrapped = true
 		label.Text = text
-		label.ZIndex = 60
+		label.ZIndex = 5060
 		label.Parent = screenGui
 		deps.polishPanel(label, 8, "wood")
 		task.delay(2.6, function()
@@ -288,6 +288,7 @@ local function build(deps)
 	local function open()
 		if root.Visible ~= true or travelActive() then return end
 		playClickSfx()
+		OverlayManager.closeAllExcept("restart-run") -- the gear menu and any other panel close first, so nothing sits over the confirm
 		hold:reset()
 		fill.Size = UDim2.new(0, 0, 1, 0)
 		isOpen = true
@@ -306,6 +307,7 @@ local function build(deps)
 		message.Text = opts.message or message.Text
 		restart.Text = opts.holdText or restart.Text
 		playClickSfx()
+		OverlayManager.closeAllExcept("restart-run")
 		hold:reset()
 		fill.Size = UDim2.new(0, 0, 1, 0)
 		isOpen = true
