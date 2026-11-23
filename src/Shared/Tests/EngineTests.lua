@@ -47579,11 +47579,11 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 	local SEL, HOV, N = 24, 12, 6
 	local pos = {}
 	for i = 1, N do pos[i] = i end
-	for mask = 0, bit32.lshift(1, N) - 1 do
+	for mask = 0, 2 ^ N - 1 do
 		for hover = 0, N do -- 0 = no hover
 			local before, after = {}, {}
 			for i = 1, N do
-				local picked = bit32.band(bit32.rshift(mask, i - 1), 1) == 1
+				local picked = math.floor(mask / 2 ^ (i - 1)) % 2 == 1
 				before[i] = HL.cardLift(picked, false, SEL, HOV)
 				after[i] = HL.cardLift(picked, hover == i, SEL, HOV)
 				if picked then assert(after[i] >= SEL, "a picked card never drops") end
@@ -47631,7 +47631,7 @@ table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the conf
 	local c = io.open("src/Client/ConfirmDialog.lua", "r")
 	if c then
 		local text = c:read("*a"); c:close()
-		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = CONFIRM_Z", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
+		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = Layers.confirm", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
 	end
 end })
 
