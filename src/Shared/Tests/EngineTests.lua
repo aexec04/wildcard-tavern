@@ -48580,6 +48580,37 @@ table.insert(tests, { name = "Recipe levels: every hand type gives rising Chips 
 	end
 end })
 
+table.insert(tests, { name = "Sell price audit: every Patron sells for half its price rounded down and at least 1, and Undo puts it back in the same seat for the same Tips", fn = function()
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local PackRoom = require(script.Parent.Parent.Engine.PackRoom)
+	expectTrue(#Patrons.Definitions >= 89, "the whole roster is walked (" .. #Patrons.Definitions .. ")")
+	for _, patron in ipairs(Patrons.Definitions) do
+		local sell = PackRoom.sellValue("patron", patron.id)
+		expectEqual(sell, math.floor(patron.price / 2), patron.id .. " sells for half, rounded down")
+		expectTrue(sell >= 1, patron.id .. " sells for at least 1 Tip")
+		local others = {}
+		for _, o in ipairs(Patrons.Definitions) do
+			if o.id ~= patron.id and #others < 2 then others[#others + 1] = o.id end
+		end
+		local state = RunState.new(nil, SeededRng.new(5))
+		state.tips = 200
+		expectTrue(RunState.buyPatron(state, others[1]))
+		expectTrue(RunState.buyPatron(state, patron.id))
+		expectTrue(RunState.buyPatron(state, others[2]))
+		local seat = 2
+		expectEqual(state.ownedPatrons[seat].id, patron.id, patron.id .. " sits in seat 2")
+		local tipsBefore = state.tips
+		local ok, refund = RunState.sellPatron(state, patron.id, 1000)
+		expectTrue(ok and refund == sell, patron.id .. " refunds the sell value")
+		expectEqual(state.tips, tipsBefore + sell)
+		local restored, id = RunState.undoSellPatron(state, 1001)
+		expectTrue(restored and id == patron.id, patron.id .. " Undo works")
+		expectEqual(state.ownedPatrons[seat].id, patron.id, patron.id .. " is back in the same seat")
+		expectEqual(state.tips, tipsBefore, patron.id .. " Undo returns the same Tips")
+		expectEqual(#state.ownedPatrons, 3)
+	end
+end })
+
 table.insert(tests, { name = "Round Select Select plate: the hover grow keeps its centre within 4 px and it stays 44 px tall at four card widths; Skip stays below it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
 	for _, cardW in ipairs({ 340, 300, 260, 220 }) do
