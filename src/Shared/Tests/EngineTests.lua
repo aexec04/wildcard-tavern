@@ -47063,6 +47063,33 @@ table.insert(tests, { name = "Layers: the Studio overlay audit script and its us
 	expectTrue(d ~= nil and d:find("overlay_audit", 1, true) ~= nil, "the UI rules note says to run the audit")
 end })
 
+table.insert(tests, { name = "Counter declutter: one summary plate, three offers, one Next Round, no two pieces overlap at four sizes, Rank and Suit are table only", fn = function()
+	local S = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local SS = require(script.Parent.Parent.Engine.ShopSummary)
+	local GL = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local W, H = sz[1], sz[2]
+		local r = S.rects(W, H, { offers = 3, packs = 2 })
+		expectEqual(#r.offers, 3, "three offer cards at " .. W .. "x" .. H)
+		expectTrue(r.leave ~= nil and r.leave.w > 0, "one Next Round button at " .. W .. "x" .. H)
+		local pieces = { { "summary", SS.rect(W, H) }, { "leave", r.leave }, { "nextBoss", r.nextBoss }, { "tabs", r.tabs }, { "bubble", r.bubble } }
+		for i, o in ipairs(r.offers) do pieces[#pieces + 1] = { "offer" .. i, o } end
+		for i, o in ipairs(r.packs) do pieces[#pieces + 1] = { "pack" .. i, o } end
+		for i = 1, #pieces do
+			for j = i + 1, #pieces do
+				expectTrue(not hit(pieces[i][2], pieces[j][2]), pieces[i][1] .. " and " .. pieces[j][1] .. " overlap at " .. W .. "x" .. H)
+			end
+		end
+	end
+	expectTrue(GL.sortChromeShown(false) == false, "Rank and Suit are hidden off the table (Counter, Round Select, Menu)")
+	if not io then return end
+	local f = io.open("src/Client/ShopSummaryPlate.lua", "r")
+	if not f then return end
+	local sp = f:read("a"); f:close()
+	expectTrue(select(2, sp:gsub("Next Round", "")) == 0, "the summary plate carries no second Next Round caption")
+end })
+
 table.insert(tests, { name = "Scoring popup: lines stay 0.9 s, never over the Patron row or Target plate at four sizes, numbers over a million are short", fn = function()
 	local R = require(script.Parent.Parent.Engine.ScorePopupRules)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
