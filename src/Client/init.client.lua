@@ -1619,9 +1619,15 @@ local function refreshCardVisual(index, usePop)
 	end
 end
 
-local function refreshAllCardVisuals()
-	for index in pairs(cardButtons) do
-		refreshCardVisual(index, false)
+local settleHover -- repaint only the cards near the old and the new hovered card (Engine/HandHover), once per change; settleHover(true) forgets the painted hover (the hand was rebuilt)
+do
+	local hoverShown = nil -- the card whose hover look is painted now
+	settleHover = function(reset)
+		if reset then hoverShown = nil return end
+		if hoverShown == hoveredIndex then return end
+		local list = require(ReplicatedStorage.Shared.Engine.HandHover).affected(cardVisualPosition, hoverShown, hoveredIndex, HOVER_FALLOFF_DISTANCE)
+		hoverShown = hoveredIndex
+		for _, index in ipairs(list) do refreshCardVisual(index, false) end
 	end
 end
 
@@ -1992,7 +1998,7 @@ local function rebuildHand(handData, phase)
 	cardScales = {}
 	cardVisualPosition = {}
 	selected = {}
-	hoveredIndex = nil
+	hoveredIndex = nil; settleHover(true)
 
 	local displayOrder = sortedHandIndices(handData, handSortMode)
 
@@ -2212,13 +2218,13 @@ local function rebuildHand(handData, phase)
 		button.MouseEnter:Connect(function()
 			if require(script.ModalStage).blocks(button) then return end -- a modal is open: hand cards ignore hover
 			hoveredIndex = index
-			refreshAllCardVisuals()
+			settleHover()
 		end)
 		button.MouseLeave:Connect(function()
 			if hoveredIndex == index then
 				hoveredIndex = nil
+				task.defer(function() settleHover() end) -- moving straight onto the next card settles once, on its Enter
 			end
-			refreshAllCardVisuals()
 		end)
 	end
 

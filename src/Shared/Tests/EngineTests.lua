@@ -34433,6 +34433,27 @@ table.insert(tests, { name = "Music mix: one bed per screen on existing ids, ste
 	end
 end })
 
+table.insert(tests, { name = "Card hover is smooth: moving the hover repaints only the cards near the old and new card, never the whole hand, and creates no instances", fn = function()
+	local H = require(script.Parent.Parent.Engine.HandHover)
+	local pos = {}
+	for i = 1, 9 do pos[i] = i end
+	expectEqual(table.concat(H.affected(pos, nil, 5, 2), ","), "4,5,6", "first hover paints the card and its neighbours")
+	expectEqual(table.concat(H.affected(pos, 5, 6, 2), ","), "4,5,6,7", "moving across one card paints four, not nine")
+	expectEqual(table.concat(H.affected(pos, 5, nil, 2), ","), "4,5,6", "leaving paints the old neighbourhood")
+	expectEqual(#H.affected(pos, 1, 9, 2), 4, "far apart cards paint two small groups")
+	expectEqual(#H.affected(pos, nil, nil, 2), 0, "no hover, nothing to paint")
+	if io and io.open then
+		local f = io.open("src/Client/init.client.lua", "r"); local src = f:read("a"); f:close()
+		local a = src:find("button.MouseEnter:Connect(function()\n\t\t\tif require(script.ModalStage).blocks(button)", 1, true)
+		local b = a and src:find("-- REFERENCE-MATCH PASS: size cards", a, true)
+		expectTrue(a ~= nil and b ~= nil, "hover handlers found")
+		local seg = src:sub(a, b)
+		expectFalse(seg:find("Instance.new", 1, true) ~= nil, "hover creates no instance")
+		expectFalse(seg:find("layoutHand", 1, true) ~= nil or seg:find("rebuildHand", 1, true) ~= nil, "hover calls no relayout")
+		expectFalse(seg:find("refreshAll", 1, true) ~= nil, "hover never repaints the whole hand")
+	end
+end })
+
 table.insert(tests, { name = "One music loop at a time: a fake pool walks every screen change and never holds more than one looping music Sound, MusicMixFX makes no Sound", fn = function()
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local pool = { loops = {} }
