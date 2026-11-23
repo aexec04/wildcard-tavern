@@ -47437,13 +47437,23 @@ table.insert(tests, { name = "Hand name plate: sits under the Round plate and Ni
 			shown = shown + 1
 			assert(n.x == r.round.x and n.w == r.round.w, "same width as the Target plate at " .. sz[1])
 			assert(n.y >= r.round.y + r.round.h, "below the Round plate at " .. sz[1])
-			for _, s in ipairs(r.slots) do assert(n.y + n.h + P.NAME_AIR <= s.card.y, "clear of the Patron row at " .. sz[1]) end
+			for _, s in ipairs(r.slots) do
+				local above = n.y + n.h + P.NAME_AIR <= s.card.y -- under the Round plate, above the seats
+				local below = n.y >= s.card.y + s.card.h -- or on the felt under the seats (short screens), clear of the hand
+				assert(above or below, "clear of the Patron row at " .. sz[1])
+				if below then assert(n.y + n.h + 24 <= r.hand.y, "clear of the hand and a picked card's lift at " .. sz[1]) end
+			end
 			assert(n.h >= P.NAME_MIN_H and n.h <= P.NAME_H)
 		end
 	end
 	local d = L.rects(1920, 957)
 	assert(shown >= 1 and d.round.h > 0, "the plate has room on the common sizes, shown " .. shown .. " round " .. d.round.y .. "," .. d.round.h .. " seat " .. d.slots[1].card.y)
-	assert(P.namePlate({ round = { x = 0, y = 0, w = 400, h = 70 }, slots = { { card = { y = 80 } } } }) == nil, "no room: dropped, never overlapping")
+	assert(P.namePlate({ round = { x = 0, y = 0, w = 400, h = 70 }, slots = { { card = { y = 80 } } } }) == nil, "no room and no hand rect: dropped, never overlapping")
+	for _, sz in ipairs({ { 1309, 751 }, { 1100, 620 }, { 800, 450 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local n = P.namePlate(r)
+		assert(n ~= nil, "the hand name has a spot at " .. sz[1] .. "x" .. sz[2])
+	end
 end })
 
 table.insert(tests, { name = "Hand hover: with any cards picked, hovering any other card lifts only that card and never drops a picked one", fn = function()
@@ -47474,5 +47484,6 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 end })
 
 return tests
+
 
 
