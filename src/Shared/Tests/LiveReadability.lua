@@ -160,4 +160,20 @@ function M.audit(root, w, h, opts)
 	return out
 end
 
+-- Every visible, active button smaller than 44 px in either direction after UIScale (a button with no fill and no text is an
+-- invisible hit area: it counts too, so a small icon needs a 44 px hit button over it).
+--   targets(root) -> { { name = path, w = n, h = n }, ... }
+function M.targets(root)
+	local out = {}
+	for _, i in ipairs(root:GetDescendants()) do
+		if (i.ClassName == "TextButton" or i.ClassName == "ImageButton") and shown(i) and i.Active ~= false and i.AbsoluteSize then
+			local _, _, rw, rh = realRect(i)
+			if i.AbsoluteSize.X > 0 and i.AbsoluteSize.Y > 0 and (rw < 43.5 or rh < 43.5) then
+				out[#out + 1] = { name = path(i), w = math.floor(rw + 0.5), h = math.floor(rh + 0.5) }
+			end
+		end
+	end
+	return out
+end
+
 return M

@@ -228,6 +228,8 @@ function StorePanel.init(deps)
 		local bh = StoreLayout.touchH(fit.Scale) -- stays 44 px on screen when the panel shrinks
 		local c = panel:FindFirstChild("Close")
 		if c then c.Size = UDim2.fromOffset(160, bh) end
+		local x = panel:FindFirstChild("CloseX") -- the round X keeps a 44 px hit area on screen (the disc stays the same size)
+		if x then x.Size = UDim2.fromOffset(bh, bh) end
 		for _, d in ipairs(panel:GetDescendants()) do
 			if d.Name == "Buy" and d:IsA("TextButton") then
 				d.Size = UDim2.new(1, -36, 0, bh)
@@ -305,6 +307,7 @@ function StorePanel.init(deps)
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end)
+	ui.resize() -- the round X exists now: give it its 44 px on screen hit area
 end
 
 function StorePanel.update(state)

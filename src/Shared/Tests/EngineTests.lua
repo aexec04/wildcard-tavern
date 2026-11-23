@@ -53946,6 +53946,115 @@ table.insert(tests, { name = "Pack room (Make room) live readability: Patron and
 	expectEqual(#found, 0, "the Pack room has " .. #found .. " readability findings")
 end })
 
+-- TOUCH TARGET SWEEP: every visible, active button on the screens that run on the fake Roblox is 44 px in both directions at 800x360,
+-- except the ones listed here on purpose. Menu, Counter (Shop.lua), Settings and the Tavern Map have no fake Roblox harness yet: the
+-- chat lane covers them with tools/live_ui_audit.luau.
+local TOUCH_OK = {
+	-- { screen, button name (last path part), reason }
+}
+table.insert(tests, { name = "Touch target sweep at 800x360: every visible, active button on Collection, Store, Pack room, Victory and Run Over is 44 px in both directions", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local Engine = script.Parent.Parent.Engine
+	local noop = function() end
+	local W, H = 800, 360
+	local offenders, screens = {}, 0
+	local okSet = {}
+	for _, e in ipairs(TOUCH_OK) do okSet[e[1] .. "|" .. e[2]] = e[3] end
+	local function record(screen, root)
+		screens = screens + 1
+		for _, t in ipairs(Audit.targets(root)) do
+			local leaf = t.name:match("([^%.]+)$")
+			if not okSet[screen .. "|" .. leaf] then offenders[#offenders + 1] = string.format("%s: %s %dx%d", screen, t.name, t.w, t.h) end
+		end
+	end
+	local lazyMap = function() return setmetatable({}, { __index = function(_, n) local ok, m = pcall(function() return require(Engine[n]) end) if ok then return m end return nil end }) end
+	do -- Collection gallery
+		local CollectionScene = require(script.Parent.CollectionScene)
+		local s = CollectionScene.build({ calm = true })
+		s.open(); s.resize(W, H); FakeGui.layout(s.gui, W, H)
+		record("collection", s.panel)
+	end
+	do -- Run Over, loss and win
+		local P, root = buildGameOver(FakeGui, Engine, true)
+		local summary = { night = 5, round = 3, won = false, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" } },
+			patrons = { { id = "a", name = "Ada", icon = "A" } }, rarity = "common", badgeSaved = false }
+		local states = {
+			loss = { phase = "gameover", night = 5, round = 3, roundScore = 604, targetScore = 3174, tips = 12, continueOffer = "free", runSummary = summary },
+			win = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary },
+		}
+		for name, st in pairs(states) do
+			root.AbsoluteSize = { X = W, Y = H }
+			P.gameOverFrame.Visible = true
+			P.refreshGameOver(st, nil)
+			FakeGui.layout(root, W, H)
+			record("runover:" .. name, P.gameOverFrame)
+		end
+	end
+	do -- Victory, Run complete and the Patron pick
+		local map = {}
+		for _, n in ipairs({ "VictoryLook", "VictorySceneArt", "TavernStyle" }) do map[n] = require(Engine[n]) end
+		local env, state = FakeGui.env({ stubs = { ClientSettings = { get = function(k) return k == "reduceShake" end }, PatronPlaque = { apply = function() return nil end },
+			TavernKit = { plateSetId = function() return nil end, painted = noop } } })
+		state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+		local Victory = FakeGui.load("src/Client/VictoryScreen.lua", env)
+		local summary = { night = 8, round = 3, handsPlayed = 31, bestHand = { name = "Full House", score = 604 }, tipsEarned = 40, xpEarned = 120, patrons = { { id = "a", name = "Ada" } } }
+		local choice = { title = "Pick a Patron", skip = true, options = {
+			{ id = "a", name = "Ada", icon = "A", line1 = "+4 Mult", line2 = "" }, { id = "b", name = "Bo", icon = "B", line1 = "+20 Chips", line2 = "" },
+			{ id = "c", name = "Cy", icon = "C", line1 = "x1.5 Mult", line2 = "" } } }
+		for _, mode in ipairs({ "run", "pick" }) do
+			local gui = FakeGui.new("ScreenGui")
+			gui.AbsoluteSize = { X = W, Y = H }
+			Victory.hide()
+			if mode == "run" then Victory.show(gui, { summary = summary }) else Victory.showPick(gui, choice, noop, noop) end
+			FakeGui.layout(gui, W, H)
+			record("victory:" .. mode, gui)
+		end
+	end
+	do -- Store
+		local stubs = { OverlayManager = { closeAllExcept = noop, register = noop, registerOpener = noop },
+			TavernKit = { skin = function(b, text) b.Text = text; b.TextSize = 16 end, setPlateButton = noop },
+			MenuTitleHider = { bind = noop }, PopupSkin = { paper = noop, dark = noop }, PanelTabs = { attach = noop }, PatronPlaque = { applyById = noop } }
+		local env, st = FakeGui.env({ studio = true, stubs = stubs })
+		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(lazyMap()) end } end }
+		st.services.MarketplaceService = {}
+		local StorePanel = FakeGui.load("src/Client/StorePanel.lua", env)
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = W, Y = H }
+		local view = require(Engine.Store).view({ purchases = {}, receipts = {} }, {}, true)
+		StorePanel.init({ screenGui = gui, openButton = FakeGui.new("TextButton"), polishPanel = noop, polishButton = noop, roundCorner = noop,
+			playClickSfx = noop, popIn = noop, popOut = noop, purchaseRemote = { FireServer = noop }, getLatestState = function() return { store = view } end })
+		StorePanel.refresh()
+		local backdrop = gui:FindFirstChild("StoreBackdrop")
+		backdrop.Visible = true
+		FakeGui.layout(gui, W, H)
+		record("store", backdrop)
+	end
+	do -- Pack room
+		local env, st = FakeGui.env({ studio = true, stubs = { PatronPlaque = { apply = noop, applyById = noop } } })
+		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(lazyMap()) end } end }
+		local PackMakeRoom = FakeGui.load("src/Client/PackMakeRoom.lua", env)
+		local Patrons = require(Engine.Patrons)
+		local owned = {}
+		for i = 1, 5 do owned[i] = Patrons.Definitions[i].id end
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = W, Y = H }
+		local room = PackMakeRoom.new({ parent = gui, z = 20, playClick = noop, polishButton = noop })
+		room.open({ ownedPatrons = owned, recipes = {}, patronLimit = 5, recipeLimit = 5 }, { { id = Patrons.Definitions[6].id, name = "New Patron", category = "patron" } }, noop)
+		FakeGui.layout(gui, W, H)
+		record("packroom", gui)
+	end
+	expectTrue(screens >= 7, "the sweep read " .. screens .. " screens")
+	if #offenders > 0 then print("touch targets under 44 px:\n" .. table.concat(offenders, "\n")) end
+	expectEqual(#offenders, 0, #offenders .. " buttons under 44 px (screen: path WxH)")
+	local ctl = FakeGui.new("Frame"); ctl.AbsoluteSize = { X = 300, Y = 100 }
+	local b = FakeGui.new("TextButton"); b.Parent = ctl
+	FakeGui.layout(ctl, 300, 100)
+	b.AbsoluteSize = { X = 30, Y = 30 }
+	expectEqual(#Audit.targets(ctl), 1, "the sweep lists a 30 px button")
+end })
+
 table.insert(tests, { name = "Table HUD sizes: at 1280x720, 1920x1080 and 800x360 the bar, Patron seats, stage, hand, buttons, counters and tray never overlap, stay on screen, and the controls are 44 px", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
