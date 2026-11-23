@@ -19967,6 +19967,25 @@ table.insert(tests, { name = "Counter room: cards lie on the painted felt and ne
 	expectTrue(big.offers[1].w >= SL.READABLE_SCALE * 220, "cards reach the readable scale at 1660x1080 (" .. big.offers[1].w .. " px)")
 end })
 
+table.insert(tests, { name = "Counter room: the Haggle ledger is 1.5x its old size (0.18 of the picture wide), on screen, clear of every offer, pack, the bell and Next Round", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	expectTrue(SL.ROOM.ledger[3] >= 0.18 - 1e-9 and SL.ROOM.ledger[4] >= 0.1125 - 1e-9, "ledger share is at least 1.5x of 0.12 x 0.075")
+	for _, frame in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 1920, 1080 }, { 1024, 768 } }) do
+		local W, H = frame[1], frame[2]
+		for nOffers = 2, 4 do
+			local where = " (" .. nOffers .. " offers at " .. W .. "x" .. H .. ")"
+			local r = SL.rects(W, H, { offers = nOffers, packs = 2, room = true })
+			local l = r.props.ledger
+			expectTrue(l.x >= 0 and l.y >= 0 and l.x + l.w <= W and l.y + l.h <= H, "ledger on screen" .. where)
+			local tagged = { x = l.x, y = l.y, w = l.w, h = l.h + 44 }
+			for i, o in ipairs(r.offers) do expectFalse(SL.intersects(tagged, o), "ledger and its plate clear of offer " .. i .. where) end
+			for i, pk in ipairs(r.packs) do expectFalse(SL.intersects(tagged, pk), "ledger and its plate clear of pack " .. i .. where) end
+			expectFalse(SL.intersects(l, r.props.bell), "ledger clear of the bell" .. where)
+			expectFalse(SL.intersects(l, r.leave), "ledger clear of Next Round" .. where)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Counter room: 3, 4 and 5 offers never overlap, stay inside the felt and keep a gap of 2 percent of the room width (1280x720, 1920x1080, phone)", fn = function()
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, frame in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 390, 700 } }) do
@@ -25853,6 +25872,24 @@ table.insert(tests, { name = "PanelLayout.fullScreenGap: a full screen panel who
 		expectTrue(text:find("fullScreenGap", 1, true) ~= nil and text:find("-top + extra", 1, true) ~= nil, "PanelFullScreen measures the bottom edge and adds the gap")
 			expectTrue(text:find("FullScreenExtra", 1, true) ~= nil and text:find("- top + extra", 1, true) ~= nil, "the mismatch audit expects the extended height")
 	end
+end })
+
+table.insert(tests, { name = "Collection Back plate: on screen, clear of the tab rows and of the full screen page, readable (4.5:1) at 1920x957, 1506x751 and 800x450", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local PG = require(script.Parent.Parent.Engine.PanelGroups)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local where = " at " .. W .. "x" .. H
+		local stripW = math.min(0.9 * W, 1100)
+		local x0, y0 = (W - stripW) / 2, 3
+		expectTrue(x0 >= 0 and y0 >= 0 and x0 + PL.BACK_W <= W and y0 + PL.BACK_H <= H, "Back is on screen" .. where)
+		expectTrue(PL.BACK_W + 4 <= PL.BACK_ROW_X, "the tab rows start right of Back" .. where)
+		expectTrue(y0 + PL.BACK_H <= PL.STRIP_BOTTOM, "Back stays inside the strip" .. where)
+		expectTrue(PL.fullScreenRect(W, H).y >= y0 + PL.BACK_H, "the Collection page starts below Back, so it never covers it" .. where)
+	end
+	expectTrue(PL.BACK_H >= 34, "Back is as tall as the group tabs")
+	local wood = { 92, 62, 36 }
+	expectTrue(PG.contrast(PG.textOn(wood), wood) >= 4.5, "Back text on its wood plate reads at 4.5:1")
 end })
 
 table.insert(tests, { name = "PanelLayout.fullScreenRect: Collection, Card Sets, Badges, Legend, Flair and Stats fill the screen below the tab strip at 1920x1080, 1280x720 and 800x600", fn = function()

@@ -97,8 +97,8 @@ end
 local function newRow(parent, name, y, h)
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Name = name
-	scroll.Position = UDim2.new(0, 92, 0, y)
-	scroll.Size = UDim2.new(1, -92, 0, h)
+	scroll.Position = UDim2.new(0, PanelLayout.BACK_ROW_X, 0, y)
+	scroll.Size = UDim2.new(1, -PanelLayout.BACK_ROW_X, 0, h)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 0
@@ -207,9 +207,9 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 	sizeLimit.MaxSize = Vector2.new(1100, stripH)
 	sizeLimit.Parent = strip
 
-	local back = newButton(strip, "< Back", 84, 0)
+	local back = newButton(strip, "< Back", PanelLayout.BACK_W, 0, PanelLayout.BACK_H)
 	back.Name = "Back"
-	back.Position = UDim2.fromOffset(0, 2)
+	back.Position = UDim2.fromOffset(0, 0)
 	styleButton(back, false)
 
 	local groupsRow = newRow(strip, "Groups", 0, 34)
