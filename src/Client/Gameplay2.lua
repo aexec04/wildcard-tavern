@@ -472,8 +472,11 @@ function M.install(deps)
 		place(deckImg, CTLayout.deckPicture(r.deck)); place(deckPill, r.deckCount)
 		do
 			local dc = CTLayout.decorFor(r, size.X, size.Y)
+			-- a set room paints its own table into the backdrop; Classic's carved rim and felt inlay drawn on top would be a second table
+			-- (Golden Gala's backdrop was painted to the same footprint, so it keeps them)
+			local ownRoom = scene:GetAttribute("SetArt") and scene:GetAttribute("SetRoomId") ~= "golden_gala"
 			for key, img in pairs(furniture) do
-				img.Visible = img.Image ~= ""
+				img.Visible = img.Image ~= "" and not (ownRoom and (key == "rim" or key == "inlay"))
 				place(img, dc[key])
 			end
 			deckImg.Rotation = CTLayout.DECK_TILT
@@ -953,6 +956,8 @@ function M.install(deps)
 			end)
 			local own = okT and setImg ~= nil and setImg ~= (key == "table_boss" and TableArt.table_boss_ref or TableArt.table_play_ref)
 			scene:SetAttribute("SetArt", own)
+			local okS, sk = pcall(function() return require(script.Parent.HudTheme).skin() end)
+			scene:SetAttribute("SetRoomId", own and okS and sk and sk.id or nil)
 			if own then img = setImg; bossRef = nil end
 		end
 		if scene.Image ~= img then
