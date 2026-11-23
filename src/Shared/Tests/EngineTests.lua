@@ -53456,6 +53456,40 @@ table.insert(tests, { name = "Seed Run dialog: controls 44 px, text 14 px, hint 
 	expectTrue(src:find("SeedRunLayout", 1, true) and src:find("place(seedCancelButton, R.cancel)", 1, true), "the dialog reads the layout")
 end })
 
+table.insert(tests, { name = "Settings, Store and Tome header plates: contrast 4.5, text 14 px, controls 44 px and fully on screen at 1280x720 and 800x360", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local SL, ST, TH = require(Engine.SettingsLayout), require(Engine.StoreLayout), require(Engine.TomeHeader)
+	for _, v in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		local W, H = v[1], v[2]
+		local tag = W .. "x" .. H .. " "
+		-- Settings: panel on screen, every Account plate 44 px and inside the scroll canvas
+		local r = SL.panelRects(W, H)
+		expectTrue(r.panel.x >= 0 and r.panel.y >= 0 and r.panel.x + r.panel.w <= W and r.panel.y + r.panel.h <= H, tag .. "Settings panel on screen")
+		expectTrue(r.scroll.w > 0 and r.scroll.h > 0, tag .. "Settings scroll has room")
+		for i, q in ipairs(SL.accountRects(r.scroll.w)) do
+			expectTrue(q.h >= SL.MIN_TOUCH and q.x >= 0 and q.x + q.w <= r.scroll.w, tag .. "Account plate " .. i .. " is 44 px and inside the scroll")
+		end
+		-- Store: scaled panel on screen, Buy and Close at least 44 px on screen
+		local s = ST.scale(W, H)
+		expectTrue(ST.PANEL_W * s <= W + 0.5 and ST.PANEL_H * s <= H + 0.5, tag .. "Store panel on screen")
+		local sr = ST.rects(s)
+		expectTrue(sr.buy.h * s >= 44 - 0.5 and sr.close.h * s >= 44 - 0.5, tag .. "Store Buy and Close are 44 px on screen")
+		expectTrue(sr.close.x >= 0 and sr.close.x + sr.close.w <= ST.PANEL_W and sr.close.y + sr.close.h <= ST.PANEL_H, tag .. "Store Close inside the panel")
+		-- Tome header: plates inside the page, text at least 14 px
+		local lay = TH.layout(W, H, true)
+		expectTrue(lay.title.x >= 0 and lay.title.x + lay.title.w <= W and lay.sub.y + lay.sub.h <= H, tag .. "Tome header plates on screen")
+		expectTrue(lay.title.y + lay.title.h <= lay.sub.y, tag .. "Tome title and subtitle do not overlap")
+	end
+	expectTrue(TH.MIN_TEXT >= 14, "Tome header text 14 px or more")
+	-- contrast of live ink on plate colours: switches (4.5), store buttons (4.5), Tome header pages (4.5), pause plates (4.5)
+	expectTrue(SL.contrast(SL.SWITCH.onText, SL.SWITCH.onFill) >= 4.5, "On switch text reads")
+	expectTrue(SL.contrast(SL.SWITCH.offText, SL.SWITCH.offFill) >= 4.5, "Off switch text reads")
+	expectTrue(SL.contrast(SL.PAUSE.text, SL.PAUSE.plateFill) >= 4.5 and SL.contrast(SL.PAUSE.text, SL.PAUSE.panelFill) >= 4.5, "pause text reads")
+	expectTrue(SL.contrast(ST.BUTTON.plate.text, ST.BUTTON.plate.fill) >= 4.5 and SL.contrast(ST.BUTTON.buy.text, ST.BUTTON.buy.fill) >= 4.5, "Store buttons read")
+	expectTrue(ST.BUTTON.textSize >= 14, "Store button text 14 px or more")
+	for _, pg in pairs(TH.PAGES) do expectTrue(TH.contrast(pg) >= 4.5, "Tome header ink reads on the plate") end
+end })
+
 return tests
 
 
