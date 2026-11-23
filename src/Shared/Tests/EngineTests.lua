@@ -46771,4 +46771,28 @@ table.insert(tests, { name = "Leaderboard, Quests, Daily Rewards and Season popu
 	end
 end })
 
+table.insert(tests, { name = "Menu Daily strip: at 1506x751 and 1309x751 it shares no pixels with the Deal Me In and New Run column, the Tome or the jukebox hotspot", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local MR = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1506, 751 }, { 1309, 751 }, { 1920, 957 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = DS.menuRect(W, H)
+		expectTrue(strip ~= nil, tag .. " the menu has room for the Daily strip")
+		if strip then
+			expectTrue(strip.x >= 0 and strip.y >= 0 and strip.x + strip.w <= W and strip.y + strip.h <= H, tag .. " strip on screen")
+			-- the Deal Me In and New Run buttons stand in one centred column, 480 px wide, from the top to the bottom of the screen
+			local column = { x = math.floor(W / 2) - 240, y = 0, w = 480, h = H }
+			expectFalse(hit(strip, column), tag .. " strip shares no pixels with the Deal Me In and New Run column (strip x " .. strip.x .. ", column ends " .. (column.x + column.w) .. ")")
+			local room = MR.layout(W, H)
+			for _, id in ipairs({ "tome", "jukebox" }) do
+				local r = room[id]
+				expectTrue(r ~= nil, tag .. " hotspot " .. id .. " exists")
+				if r then expectFalse(hit(strip, { x = r.l, y = r.t, w = r.r - r.l, h = r.b - r.t }), tag .. " strip shares no pixels with the " .. id .. " hotspot") end
+			end
+		end
+	end
+end })
+
 return tests
