@@ -18,6 +18,24 @@ function LockedHints.forSet(set)
 	return CosmeticSets.unlockText(set)
 end
 
+-- One kind line for any still-locked Collection entry: the server's unlock rule when there is one, else a line for its tab.
+-- tab is a Collection tab id; ruleHint is Unlocks.lockedHints text or nil; milestonePercent is a title's Collection milestone or nil.
+LockedHints.CollectionFallbacks = {
+	patrons = "Spot this Patron in the shop or a pack.",
+	recipes = "Make this hand in a run to discover it.",
+	bosses = "Face this boss on a Boss Round.",
+	housePasses = "Spot this pass in the shop or a pack.",
+	bonds = "Keep these two Patrons together to find it.",
+	titles = "Keep playing to earn this title.",
+}
+function LockedHints.forCollection(tab, ruleHint, milestonePercent)
+	if type(ruleHint) == "string" and #ruleHint > 0 then return ruleHint end
+	if tab == "titles" and milestonePercent then
+		return "Fill " .. math.floor(milestonePercent) .. " percent of the Collection."
+	end
+	return LockedHints.CollectionFallbacks[tab] or "Keep playing to unlock."
+end
+
 -- Never nil for a real back: falls back to the back's own description line.
 function LockedHints.forBack(back)
 	for _, set in ipairs(CosmeticSets.Definitions) do

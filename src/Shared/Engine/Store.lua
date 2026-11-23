@@ -270,6 +270,23 @@ function Store.declinedNotice(name)
 	return "No problem, nothing was charged" .. ((type(name) == "string" and name ~= "") and (" for " .. name) or "") .. "."
 end
 
+-- The confirm plate and the thank you line: each names the item and what it gives, 60 characters or less (the long item
+-- description trims at a word). The 44 px Buy and Cancel plates are the Store card's own buttons and Roblox's checkout.
+Store.CONFIRM_MAX = 60
+local function fit(text)
+	if #text <= Store.CONFIRM_MAX then return text end
+	local cut = text:sub(1, Store.CONFIRM_MAX - 3):gsub("%s+%S*$", "")
+	return cut .. "..."
+end
+function Store.confirmLine(item)
+	local name = tostring(item and item.name or "this item")
+	return fit("Get " .. name .. "? Looks only, no power.")
+end
+function Store.successNotice(name)
+	local n = (type(name) == "string" and name ~= "") and name or "your item"
+	return fit("Thank you! " .. n .. " is yours.")
+end
+
 -- What the Store panel draws. `inStudio`: a placeholder item can be taken free there.
 -- Items of a section ("flair", "season") as rows, or the main Store items when `section` is nil.
 -- A Flair item also counts as owned when every piece it gives is already yours (earned or bought another way).
@@ -319,6 +336,32 @@ function Store.cleanSaved(rawPurchases, rawReceipts, rawVipDay)
 		day = math.floor(rawVipDay)
 	end
 	return purchases, receipts, day
+end
+
+-- A string that changes only when something the cards show changes (which items, owned, buyable, the price line). The Store panel keeps
+-- the cards it built while this key is the same, so a state tick or a click on the same tab never tears the cards down and rebuilds them.
+function Store.viewKey(view, priceCache)
+	local parts = {}
+	for i, row in ipairs((view and view.items) or {}) do
+		parts[i] = table.concat({
+			tostring(row.id), row.owned and "o" or "-", row.available and "a" or "-", row.studioFree and "s" or "-",
+			row.listOnly and "l" or "-", Store.priceLine(row, priceCache),
+		}, ":")
+	end
+	return table.concat(parts, "|")
+end
+
+-- A tiny memo of the last build: shouldBuild(key) is true when the key is new, false when the cards on screen are still right.
+function Store.newBuildCache()
+	local c = { key = nil, builds = 0 }
+	function c:shouldBuild(key)
+		if self.key == key then return false end
+		self.key = key
+		self.builds = self.builds + 1
+		return true
+	end
+	function c:reset() self.key = nil end
+	return c
 end
 
 return Store

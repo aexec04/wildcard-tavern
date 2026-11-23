@@ -225,6 +225,34 @@ function M.tileScene(pic)
 	return { rail = rail, felt = felt, cards = cards }
 end
 
+-- One preview answer per Card Set tile: every set returns the same keys, so every tile has the same layout with its own room, keeper and
+-- plate accent. The plate fill is the accent pulled toward dark until the cream ink reads at 4.5:1.
+-- tilePreview(setId) -> { setId, room, keeperBehind, keeperWave, plateFill, plateInk, ratio }
+M.INK = { 250, 240, 220 }
+M.MIN_INK_CONTRAST = 4.5
+function M.tilePreview(setId)
+	local TS = require(script.Parent.ThemeScenes)
+	local CS = require(script.Parent.CosmeticSets)
+	local sc = TS.of(setId)
+	local set = CS.getById(sc.setId)
+	local a = (set and CS.accentOf(set)) or sc.tint or { 170, 126, 60 }
+	local dark = { 30, 20, 12 }
+	local t, fill = 0.3, nil
+	for _ = 1, 20 do
+		fill = {}
+		for i = 1, 3 do fill[i] = math.floor(a[i] + (dark[i] - a[i]) * t + 0.5) end
+		if CS.contrastRatio(M.INK, fill) >= M.MIN_INK_CONTRAST then break end
+		t = math.min(1, t + 0.05)
+	end
+	local behind, wave = TS.shopKeeperIds(sc.setId)
+	return {
+		setId = sc.setId,
+		room = TS.themeImageId(sc.setId, "tableBackground"),
+		keeperBehind = behind, keeperWave = wave,
+		plateFill = fill, plateInk = M.INK, ratio = CS.contrastRatio(M.INK, fill),
+	}
+end
+
 function M.room(areaW, areaH, n, page)
 	local R = M.ROOM
 	local top = R.barTop + R.barH + 8

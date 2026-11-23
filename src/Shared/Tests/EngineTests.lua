@@ -7697,7 +7697,7 @@ table.insert(tests, { name = "Tutorial: the step table covers the guided hands i
 	local src = f:read("*a")
 	f:close()
 	expectTrue(src:find("replay = replay", 1, true) ~= nil, "replay is exported")
-	expectTrue(src:find("Hold to Skip", 1, true) ~= nil, "skipping needs a hold")
+	expectTrue(src:find("holdText = TutorialStart.SKIP_HOLD", 1, true) ~= nil and require(script.Parent.Parent.Engine.TutorialStart).SKIP_HOLD == "Hold to Skip", "skipping needs a hold")
 	expectTrue(src:find("Active = true", 1, true) ~= nil or src:find("f.Active = true", 1, true) ~= nil, "the dim frames block clicks")
 	expectFalse(src:find("Keep these cards", 1, true) ~= nil, "no old optional-choice buttons")
 end })
@@ -8505,6 +8505,45 @@ table.insert(tests, { name = "CardFit: Round Select cards fill big screens, fit 
 	for _, vp in ipairs({ 360, 540, 720, 1080, 1440 }) do
 		local sc = CardFit.scale(vp, vp * 1.7, vp * 0.7, 620, 220, 1.25)
 		expectTrue(sc >= 0.6 and sc <= 1.25, "scale stays in range")
+	end
+end })
+
+table.insert(tests, { name = "CardFit: Round Select cards have equal gaps, never touch, and fit the row at four sizes", fn = function()
+	local CardFit = require(script.Parent.Parent.Engine.CardFit)
+	for _, vp in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local rowW, rowH = vp[1] - 40, vp[2] - 60
+		local sc = CardFit.scale(vp[2], rowW, rowH, 620, 340, 1.25)
+		local r, gap = CardFit.rects(rowW, rowH, sc, 340, 620)
+		expectEqual(#r, 3, "three cards")
+		for i = 1, 2 do
+			local g = r[i + 1].x - (r[i].x + r[i].w)
+			expectTrue(math.abs(g - gap) < 0.001, "equal gap " .. vp[1])
+			expectTrue(g >= 28, "gap at least 28 at " .. vp[1])
+		end
+		expectTrue(r[1].x >= 0 and r[3].x + r[3].w <= rowW + 0.001, "fits row width " .. vp[1])
+		expectTrue(r[1].y >= 0 and r[1].y + r[1].h <= rowH + 0.001, "fits row height " .. vp[1])
+	end
+end })
+
+table.insert(tests, { name = "CardSetsSceneLayout.tilePreview: all 15 sets share one layout, own accent plate, ink at 4.5:1", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local TS = require(script.Parent.Parent.Engine.ThemeScenes)
+	local keys, fills = nil, {}
+	expectEqual(#TS.ORDER, 15, "15 sets")
+	for _, id in ipairs(TS.ORDER) do
+		local p = L.tilePreview(id)
+		expectEqual(p.setId, id, "set id " .. id)
+		expectTrue(p.ratio >= 4.5, "ink contrast " .. id .. " " .. p.ratio)
+		expectTrue(p.keeperBehind ~= nil, "keeper " .. id)
+		local names = {}
+		for k in pairs(p) do names[#names + 1] = k end
+		table.sort(names)
+		local joined = table.concat(names, ",")
+		keys = keys or joined
+		expectEqual(joined, keys, "same keys " .. id)
+		local f = table.concat(p.plateFill, ",")
+		expectTrue(fills[f] == nil, "plate accent differs for " .. id .. " vs " .. tostring(fills[f]))
+		fills[f] = id
 	end
 end })
 
@@ -9701,6 +9740,41 @@ table.insert(tests, { name = "LockedHints: every locked Card Set, Card Back, Pat
 		for id in pairs(rules) do
 			check(kind .. " " .. id, LockedHints.forContent(kind, id))
 		end
+	end
+end })
+
+table.insert(tests, { name = "LockedHints.forCollection: every Collection tab gives a kind line under 60 characters, the rule hint wins, never blank or a raw id", fn = function()
+	local LockedHints = require(script.Parent.Parent.Engine.LockedHints)
+	for tab in pairs(LockedHints.CollectionFallbacks) do
+		local line = LockedHints.forCollection(tab, nil, nil)
+		expectTrue(#line > 0 and #line < LockedHints.MAX_LENGTH, tab .. " fallback fits: " .. line)
+		expectFalse(line:find("_", 1, true) ~= nil, tab .. " fallback shows a raw id")
+	end
+	expectEqual(LockedHints.forCollection("patrons", "Clear Night 2.", nil), "Clear Night 2.", "the rule hint wins")
+	expectEqual(LockedHints.forCollection("titles", nil, 50), "Fill 50 percent of the Collection.", "a title milestone names its percent")
+	expectTrue(#LockedHints.forCollection("unknownTab", "", nil) > 0, "an unknown tab still gets a line")
+	if io and io.open then
+		local f = assert(io.open("src/Client/Collection.lua", "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find("forCollection", 1, true) ~= nil, "the Collection tiles use the shared locked line")
+	end
+end })
+
+table.insert(tests, { name = "Store confirm and success lines: every item named, 60 characters or less, no pay to win or odds words, 44 px Buy plate", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local banned = { "win", "odds", "random", "discount", "sale", "balatro" }
+	for _, item in ipairs(Store.Items) do
+		for _, line in ipairs({ Store.confirmLine(item), Store.successNotice(item.name) }) do
+			expectTrue(#line <= 60, item.id .. " line fits: " .. line)
+			expectTrue(line:find(item.name, 1, true) ~= nil or #item.name > 30, item.id .. " line names the item: " .. line)
+			expectFalse(line:find("%-%-") ~= nil or line:find("\226\128\148") ~= nil, item.id .. " no dashes")
+			for _, w in ipairs(banned) do expectFalse(line:lower():find("%f[%a]" .. w .. "%f[%A]") ~= nil, item.id .. " says " .. w) end
+		end
+	end
+	expectTrue(#Store.successNotice(string.rep("Long name ", 20)) <= 60, "a long name still fits")
+	expectTrue(#Store.successNotice(nil) > 0 and #Store.confirmLine(nil) > 0, "a missing item still reads")
+	if io and io.open then
+		local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find("0, 44) -- 44 px touch target", 1, true) ~= nil, "the Buy plate is 44 px")
 	end
 end })
 
@@ -30918,6 +30992,30 @@ table.insert(tests, { name = "Menu bottom row: Tip plate, daily strip, Deal Me I
 	assert(shown >= 2 and D.menuRect(600, 800) == nil)
 end })
 
+table.insert(tests, { name = "Menu Play sign and its name plate stay 16 px clear of the Daily strip, Tip plate and All actions at four sizes, 44 px tall", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local L = require(script.Parent.Parent.Engine.MenuLife)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function box(l, t, r, b) return { x = l, y = t, w = r - l, h = b - t } end
+	local play = ML.getHotspot("play")
+	expectTrue(play ~= nil, "the play hotspot exists")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local sign = box(ML.rect(play, w, h))
+		local plate = box(ML.plateRect(play, w, h))
+		expectTrue(sign.h >= 44 and sign.w >= 44, "Play sign is a 44 px target at " .. w .. "x" .. h)
+		expectTrue(plate.y + plate.h <= h, "Play plate on screen at " .. w .. "x" .. h)
+		local others = { { "All actions", { x = w - 16 - 220, y = h - 16 - 56, w = 220, h = 56 } } }
+		local strip, tip = D.menuRect(w, h), L.tipRect(w, h)
+		if strip then others[#others + 1] = { "Daily strip", strip } end
+		if tip then others[#others + 1] = { "Tip plate", tip } end
+		for _, o in ipairs(others) do
+			expectFalse(hit(sign, o[2]) or hit(plate, o[2]), "Play and its plate clear of " .. o[1] .. " at " .. w .. "x" .. h)
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 44 px tall and clear of each other at desktop, tablet, compact and phone sizes", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 784, 600 }, { 800, 450 }, { 604, 390 }, { 360, 640 } }
@@ -39188,6 +39286,88 @@ table.insert(tests, { name = "Invite and spectate states: every state has one ki
 	expectTrue(cli:find("GameInvitePromptClosed", 1, true) ~= nil and cli:find('"declined"', 1, true) ~= nil and cli:find('"sent"', 1, true) ~= nil, "sent and declined are both shown")
 end })
 
+table.insert(tests, { name = "Tutorial skip and replay words: Skip says what it does, one hold confirms, the dialog names where to replay, the Settings rows say what they do", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialStart)
+	local Strings = require(script.Parent.Parent.Engine.Strings)
+	for _, w in ipairs({ TS.SKIP_TEXT, TS.SKIP_TITLE, TS.SKIP_MESSAGE, TS.SKIP_HOLD, Strings["settings.hints.blurb"], Strings["settings.tutorial.blurb"] }) do
+		expectTrue(#w <= 70, "one short line: " .. w)
+		expectTrue(not w:find("\226\128\148") and not w:find("%-%-") and not w:lower():find("balatro"), "safe words: " .. w)
+	end
+	expectEqual(TS.SKIP_TEXT, "Skip tutorial")
+	expectTrue(TS.SKIP_MESSAGE:find("Settings", 1, true) ~= nil, "the dialog says where Replay Tutorial lives")
+	expectTrue(TS.SKIP_HOLD:find("Hold", 1, true) ~= nil, "one hold confirms, no second dialog")
+	-- the button is wide enough for its words at 16 px (about 9 px a letter) on every size, and still 44 px tall
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 } }) do
+		local L = TS.skipLayout(v[1], v[2])
+		expectTrue(L.width * L.scale >= #TS.SKIP_TEXT * 8, "Skip tutorial fits its plate at " .. v[1] .. "x" .. v[2])
+		expectTrue(L.height >= 44 and L.right + L.width * L.scale <= v[1] / 2, "44 px tall and on screen")
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/TutorialWalkthrough.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("TutorialStart.SKIP_TEXT", 1, true) ~= nil and src:find("TutorialStart.SKIP_MESSAGE", 1, true) ~= nil, "the walkthrough uses the shared words")
+	local _, holds = src:gsub("restart.ask%(", "")
+	expectEqual(holds, 1, "Skip opens exactly one confirm")
+end })
+
+table.insert(tests, { name = "Ambient bed per Card Set: no set is louder than the music default, every set follows Mute and the Sound slider, a louder override is clamped", fn = function()
+	local A = require(script.Parent.Parent.Engine.Ambience)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectEqual(A.MUSIC_DEFAULT, PP.SETTING_SPECS.musicVolume.default)
+	local sets = 0
+	for _, def in ipairs(CS.Definitions) do
+		sets = sets + 1
+		local bed = A.setBed(def.id, S.Ambience.tavern)
+		expectTrue(bed.volume > 0 and bed.volume <= A.MAX_BED and bed.volume < A.MUSIC_DEFAULT, def.id .. " bed is quieter than the music default")
+		expectEqual(bed.id, S.Ambience.tavern.id) -- today every set shares the tavern bed
+		for _, slider in ipairs({ 0, 0.25, 0.5, 1 }) do
+			for _, scoring in ipairs({ false, true }) do
+				local v = A.volume(false, slider, scoring, true)
+				expectTrue(v <= bed.volume + 1e-9 and v <= A.MUSIC_DEFAULT, def.id .. " never louder than its bed")
+				expectTrue(not scoring or v <= A.DUCKED * slider + 1e-9, "ducked while a hand scores")
+			end
+		end
+		expectEqual(A.volume(true, 1, false, true), 0) -- Mute: silent for every set
+		expectEqual(A.volume(false, 0, false, true), 0) -- slider at zero: silent
+		expectEqual(A.volume(false, 1, false, false), 0) -- window hidden: silent
+	end
+	expectTrue(sets >= 14, "all " .. sets .. " Card Sets were checked")
+	-- a set that asks for a loud loop is clamped; junk volume falls back to the base
+	A.SetBeds.__loud = { id = "rbxassetid://1", volume = 5 }
+	expectTrue(A.setBed("__loud").volume <= A.MAX_BED, "a loud override is clamped")
+	A.SetBeds.__loud = { id = "rbxassetid://1", volume = "x" }
+	expectEqual(A.setBed("__loud").volume, A.BASE)
+	A.SetBeds.__loud = nil
+	for name, bed in pairs(S.Ambience) do expectTrue(bed.volume <= A.MAX_BED, name .. " bed is within the cap") end
+	if not io then return end
+	local f = assert(io.open("src/Client/AmbienceFX.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("Ambience.volume(muted, ClientSettings.get(\"sfxVolume\")", 1, true) ~= nil, "the loop follows Mute and the Sound slider")
+end })
+
+table.insert(tests, { name = "Menu hint rotation: Marks, Night boons, Starting decks and Map events each get one kind line of 60 characters or less, and every line is reachable by the daily rotation", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MenuTicker)
+	for _, topic in ipairs({ "Marks", "Night boons", "Starting decks", "Map events" }) do
+		local count = 0
+		for _, line in ipairs(MT.FlavorLines) do
+			if line:sub(1, #topic + 1) == topic .. ":" then count = count + 1 end
+		end
+		expectEqual(count, 1, topic .. " has exactly one line")
+	end
+	for _, line in ipairs(MT.FlavorLines) do
+		expectTrue(#line <= 60, "60 characters or less: " .. line)
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), "plain words: " .. line)
+		for _, bad in ipairs({ "random", "chance", "odds", "gamble", "pay ", "robux", "buy" }) do
+			expectTrue(not line:lower():find(bad, 1, true), line .. " never says " .. bad)
+		end
+	end
+	-- every line shows up within one rotation, and the Marks line matches the real rule (a Counter pack, Tips only)
+	local shown = {}
+	for day = 0, #MT.FlavorLines - 1 do shown[(MT.text({}, day))] = true end
+	for _, line in ipairs(MT.FlavorLines) do expectTrue(shown[line], "reachable: " .. line) end
+	expectTrue(require(script.Parent.Parent.Engine.Marks).PRICE > 0, "Marks are a Counter buy")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
@@ -43297,12 +43477,14 @@ table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display a
 	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
 	local titles = {}
 	for i, s in ipairs(SL.SECTIONS) do titles[i] = s.title end
-	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Account", "four groups")
+	expectEqual(table.concat(titles, ","), "Accessibility,Sound,Display,Gameplay,Account", "five groups")
 	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
 	local seen, n = {}, 0
 	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
 	expectEqual(n, 16, "every Settings row is listed")
+	for _, sec in ipairs(SL.SECTIONS) do expectTrue(#sec.rows >= 1, sec.title .. " has rows") end
 	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
+	expectEqual(SL.HEADER_SIZE, 16, "section headers are 16 px")
 	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
 		local panelH = size[2] * SL.PANEL.fh
 		local scrollH = panelH - SL.PANEL.top - SL.PANEL.bottomReserve
@@ -43313,12 +43495,12 @@ table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display a
 		local f = assert(io.open("src/Client/Settings.lua", "r"))
 		local src = f:read("*a"); f:close()
 		local last = 0
-		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Account", "About" }) do
+		for _, name in ipairs({ "Accessibility", "Sound", "Display", "Gameplay", "Account", "About" }) do
 			local at = src:find('makeHeader("' .. name .. '")', 1, true)
 			expectTrue(at ~= nil and at > last, name .. " header is built in order")
 			last = at or last
 		end
-		expectTrue(src:find('makeHeader("Comfort")', 1, true) == nil and src:find('makeHeader("Gameplay")', 1, true) == nil and src:find('makeHeader("Help")', 1, true) == nil, "the old groups are gone")
+		expectTrue(src:find('makeHeader("Comfort")', 1, true) == nil and src:find('makeHeader("Help")', 1, true) == nil, "the old groups are gone")
 		expectTrue(src:find("HeaderRule", 1, true) ~= nil and src:find("ringColor", 1, true) ~= nil, "headers carry the set accent rule")
 		local codes = src:find('Name = "CodesRow"', 1, true) or src:find('row.Name = "CodesRow"', 1, true)
 		local acct = src:find('makeHeader("Account")', 1, true)
@@ -44907,6 +45089,106 @@ table.insert(tests, { name = "Toast queue stacking: a flood of 40 notices never 
 			end
 		end
 	end
+end })
+
+table.insert(tests, { name = "Toast column clears the Tips pill at four sizes, the whole toast is a 44 px or taller dismiss target", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local plan = R.plan("table")
+		local pill = R.tipsPillKeepOut(sz[1], sz[2])
+		R.below(plan, sz[1], pill)
+		for i = 1, plan.maxVisible do
+			local s = R.slot(sz[1], sz[2], plan, i)
+			local overlapX = s.x < pill.x + pill.w and s.x + s.w > pill.x
+			local overlapY = s.y < pill.y + pill.h and s.y + s.h > pill.y
+			expectTrue(not (overlapX and overlapY), "slot " .. i .. " clears the Tips pill at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(s.h >= 44, "dismiss target 44 px or more")
+		end
+	end
+end })
+
+table.insert(tests, { name = "AudioRows: Music, SFX and Mute each have one kind line, the Volume popup fits four sizes, knob touch target is 44 px", fn = function()
+	local A = require(script.Parent.Parent.Engine.AudioRows)
+	for _, key in ipairs({ "music", "sfx", "mute" }) do
+		local line = A.LINES[key]
+		expectTrue(type(line) == "string" and #line > 0 and #line <= 60, key .. " line is 60 characters or less")
+		expectTrue(not line:find("\u{2014}", 1, true) and not line:find("--", 1, true), key .. " line has no dashes")
+	end
+	expectEqual(A.KNOB_HIT, 44, "knob touch target")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local L = A.layout(sz[1], sz[2])
+		expectTrue(L.panel.w <= sz[1] and L.panel.h <= sz[2], "panel fits " .. sz[1] .. "x" .. sz[2])
+		expectEqual(L.panel.h, L.wanted, "panel is not squeezed at " .. sz[1] .. "x" .. sz[2])
+		local order = { "music", "musicLine", "sfx", "sfxLine", "buttons", "muteLine" }
+		local prevBottom = 0
+		for _, k in ipairs(order) do
+			local r = L[k]
+			expectTrue(r.y >= prevBottom and r.x >= 0 and r.x + r.w <= L.panel.w, k .. " is inside and below the row above")
+			expectTrue(r.y + r.h <= L.panel.h, k .. " ends inside the panel")
+			prevBottom = r.y + r.h
+		end
+		expectTrue(L.sfx.h >= 44 and L.buttons.h >= 44, "slider and button rows are 44 px or more")
+	end
+end })
+
+table.insert(tests, { name = "Card Backs room: same plate frames as Card Sets, every back name fits two 14 px lines, every back is on a page, at four sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local Backs = require(script.Parent.Parent.Engine.CardBacks)
+	local Sets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local nBacks, nSets = #Backs.Definitions, #Sets.Definitions
+	expectTrue(nBacks > 0 and nSets > 0, "both lists exist")
+	local function lines(text, width)
+		local per, n, cur = 14 * 0.52, 1, 0 -- about 7.3 px a character in the serif at 14 px
+		for word in text:gmatch("%S+") do
+			local w = #word * per
+			expectTrue(w <= width, "the word " .. word .. " fits one line")
+			if cur > 0 and cur + per + w > width then n = n + 1; cur = w else cur = cur + (cur > 0 and per or 0) + w end
+		end
+		return n
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local pw, ph = L.roomPanel(sz[1], sz[2])
+		local W, H = pw, ph - L.TOP - L.BOTTOM
+		local a, b = L.room(W, H, nSets, 1), L.room(W, H, nBacks, 1)
+		expectEqual(a.cols, b.cols, "same columns")
+		expectEqual(a.cells[1].tile.w, b.cells[1].tile.w, "same tile frame width")
+		-- the picture may be a little shorter when more entries must share the pages (CardSetsSceneLayout.room), never by much
+		expectTrue(math.abs(a.cells[1].tile.h - b.cells[1].tile.h) <= 10, "tile frame heights stay within 10 px")
+		local seen = 0
+		for page = 1, b.pages do seen = seen + #L.room(W, H, nBacks, page).cells end
+		expectEqual(seen, nBacks, "every back is on some page at " .. sz[1] .. "x" .. sz[2])
+		local nameW = b.cells[1].name.w
+		for _, def in ipairs(Backs.Definitions) do
+			expectTrue(lines(def.name, nameW) <= 2, def.name .. " fits two lines at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+end })
+
+table.insert(tests, { name = "Store build cache: the same view builds the cards once, a changed owned state or price builds again, Calm and ticks never rebuild", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local profile = PlayerProfile.new()
+	local view = Store.view(profile, {}, false)
+	expectTrue(#view.items > 0, "the Store lists items")
+	local prices = {}
+	local cache = Store.newBuildCache()
+	local k1 = Store.viewKey(view, prices)
+	expectTrue(cache:shouldBuild(k1), "the first open builds")
+	for _ = 1, 50 do -- a state tick or a click on the same tab 50 times
+		expectFalse(cache:shouldBuild(Store.viewKey(Store.view(profile, {}, false), prices)), "same view reuses the cards")
+	end
+	expectEqual(cache.builds, 1, "one build for fifty refreshes")
+	local priced = { items = { { id = "x", name = "X", robloxId = 5, available = true, owned = false } } }
+	cache:reset()
+	expectTrue(cache:shouldBuild(Store.viewKey(priced, {})), "a row without a price builds")
+	expectTrue(cache:shouldBuild(Store.viewKey(priced, { [5] = "R$ 99" })), "a price arriving builds again")
+	expectFalse(cache:shouldBuild(Store.viewKey(priced, { [5] = "R$ 99" })), "the same price reuses the cards")
+	local owned = Store.view(profile, { vip = true }, false)
+	expectTrue(Store.viewKey(owned, prices) ~= Store.viewKey(view, prices), "owning the VIP pass changes the key")
+	local before = cache.builds
+	expectTrue(cache:shouldBuild(Store.viewKey(owned, prices)), "an owned change builds")
+	expectEqual(cache.builds, before + 1, "exactly one more build")
+	cache:reset()
+	expectTrue(cache:shouldBuild(Store.viewKey(owned, prices)), "reset (the Store closed or no view) builds again")
 end })
 
 table.insert(tests, { name = "Loading first paint: the wordmark and a kind tip are on screen in the first frame, only later tips fade, Calm mode has no tip fade, ember or pulse, rects fit four sizes", fn = function()

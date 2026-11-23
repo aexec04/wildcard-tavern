@@ -1695,6 +1695,9 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 	if wasPurchased then
 		Analytics.single(player, "store_bought", 1, { item = "pass_" .. tostring(gamePassId) }) -- tuning data
 		refreshOwnedGamePasses(player)
+		for _, def in ipairs(GamePasses.Definitions) do
+			if def.gamePassId == gamePassId then pushRewardNotice(player, { text = Store.successNotice(def.name) }) end
+		end
 	else
 		local pass = nil
 		for _, def in ipairs(GamePasses.Definitions) do
@@ -1766,6 +1769,7 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 			end
 			grantedReceipts[receiptInfo.PurchaseId] = true
 			pushState(buyer)
+			pushRewardNotice(buyer, { text = Store.successNotice(boughtItem and boughtItem.name or nil) })
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
 		return Enum.ProductPurchaseDecision.NotProcessedYet

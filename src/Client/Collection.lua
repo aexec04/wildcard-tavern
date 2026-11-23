@@ -1163,15 +1163,15 @@ return function(deps)
 				fresh = freshKeys[item.tab .. ":" .. tostring(item.id)] == true,
 			}
 			-- a locked entry never prints what it does: name only, plus the unlock rule when the server sent one
-			if not found then info.line = unlockRuleHint(item, view)
+			local lockedLine = not found and require(Engine:WaitForChild("LockedHints")).forCollection(item.tab, unlockRuleHint(item, view), nil) or nil
+			if not found then info.line = lockedLine
 			elseif item.tab == "recipes" then info.line = def.description
 			elseif item.tab == "bonds" then info.line = def.flavorText
 			elseif item.tab == "titles" and view.equippedTitleId == item.id then info.line = "Equipped" end
 			if found then
 				info.tip = def.description and (shownName(item) .. "\n" .. def.description) or nil
 			else
-				local hint = unlockRuleHint(item, view)
-				info.tip = hint and ("Locked\n" .. hint) or nil
+				info.tip = "Locked\n" .. lockedLine
 			end
 			return info
 		end
