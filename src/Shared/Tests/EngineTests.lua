@@ -5006,6 +5006,36 @@ table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values
 	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
 end })
 
+table.insert(tests, { name = "Round Select: the Daily strip never sits on a Skip plate (with and without Skip) at four sizes, it keeps its gap or hides", fn = function()
+	local L = require(script.Parent.Parent.Engine.RoundSelectLayout)
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local w, h = sz[1], sz[2]
+		for _, hasSkip in ipairs({ true, false }) do
+			local r = L.rects(w, h, hasSkip)
+			local rects, skips = {}, {}
+			for _, c in ipairs(r.cards) do
+				rects[#rects + 1] = c.panel
+				for _, k in ipairs({ "select", "skip", "target" }) do rects[#rects + 1] = c[k] end
+				skips[#skips + 1] = c.skip
+			end
+			local bottom = D.lowestBottom(rects)
+			local strip = D.rectBelow(w, h, bottom)
+			local tag = w .. "x" .. h .. (hasSkip and " skip" or " no skip")
+			for i, s in ipairs(skips) do
+				expectTrue(s.x >= 0 and s.y >= 0 and s.x + s.w <= w and s.y + s.h <= h, "Skip plate " .. i .. " on screen at " .. tag)
+			end
+			if strip then
+				expectTrue(strip.y >= bottom + D.GAP, "strip keeps its gap under every plate at " .. tag)
+				expectTrue(strip.y + strip.h <= h, "strip on screen at " .. tag)
+				for i, s in ipairs(skips) do
+					expectTrue(not D.overlapsAny(strip, { s }), "strip is clear of Skip plate " .. i .. " at " .. tag)
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Boss rule chip tap: one kind line of 60 characters or less, 44 px hit target, tip on screen at four sizes", fn = function()
 	local GM = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
