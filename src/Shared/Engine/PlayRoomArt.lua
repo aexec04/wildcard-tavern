@@ -76,6 +76,14 @@ function PlayRoomArt.roomArt(setId, art)
 	return { bg = PlayRoomArt.CLASSIC.bg, front = PlayRoomArt.CLASSIC.front, layout = nil, room = nil }
 end
 
+-- Which of Classic's table pieces (carved rim, felt inlay, bottom rail) draw over the backdrop. A set room that paints its own table
+-- (`ownTable`: the backdrop is a set room, not the reference tavern) hides all three, since they would be a second table; Golden Gala's
+-- backdrop was painted to the same footprint, so it keeps them. Used by Client/Gameplay2.
+function PlayRoomArt.furniture(setId, ownTable)
+	local show = not ownTable or setId == "golden_gala"
+	return { rim = show, inlay = show, rail = show }
+end
+
 function PlayRoomArt.tint(accent)
 	if type(accent) ~= "table" then return { 255, 255, 255 } end
 	local out = {}

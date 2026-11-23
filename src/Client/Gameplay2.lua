@@ -474,15 +474,16 @@ function M.install(deps)
 			local dc = CTLayout.decorFor(r, size.X, size.Y)
 			-- a set room paints its own table into the backdrop; Classic's carved rim and felt inlay drawn on top would be a second table
 			-- (Golden Gala's backdrop was painted to the same footprint, so it keeps them)
-			local ownRoom = scene:GetAttribute("SetArt") and scene:GetAttribute("SetRoomId") ~= "golden_gala"
+			local show = require(Engine:WaitForChild("PlayRoomArt")).furniture(scene:GetAttribute("SetRoomId"), scene:GetAttribute("SetArt") == true)
+				local railBase = furniture.rail.Image ~= ""
 			for key, img in pairs(furniture) do
-				img.Visible = img.Image ~= "" and not (ownRoom and (key == "rim" or key == "inlay"))
+				img.Visible = img.Image ~= "" and show[key] ~= false
 				place(img, dc[key])
 			end
 			deckImg.Rotation = CTLayout.DECK_TILT
 			do
 				local sh = shadows.DeckShadow
-				sh.Visible = furniture.rail.Visible
+				sh.Visible = railBase -- the deck shadow follows the rail picture even when a set room hides the rail
 				sh.Rotation = CTLayout.DECK_TILT
 				place(sh, CTLayout.deckShadow(r.deck))
 			end

@@ -52730,6 +52730,21 @@ table.insert(tests, { name = "Gameplay2 top row at 1920x957, 1280x720, 1024x600 
 	end
 end })
 
+table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	expectEqual(#PRA.ORDER, 14, "14 set rooms")
+	for _, id in ipairs(PRA.ORDER) do
+		local f = PRA.furniture(id, true)
+		if id == "golden_gala" then
+			expectTrue(f.rim and f.inlay and f.rail, "golden_gala keeps rim, inlay and rail")
+		else
+			expectTrue(not f.rim and not f.inlay and not f.rail, id .. " hides rim, inlay and rail")
+		end
+	end
+	local c = PRA.furniture("classic", false)
+	expectTrue(c.rim and c.inlay and c.rail, "Classic draws rim, inlay and rail")
+end })
+
 return tests
 
 
