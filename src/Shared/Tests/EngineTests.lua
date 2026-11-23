@@ -48527,6 +48527,30 @@ table.insert(tests, { name = "Endless curve: Night 9 and later targets grow smoo
 	end
 end })
 
+table.insert(tests, { name = "Daily run seed: the same date gives the same first Counter offers and boss order in two fresh runs, another date differs", fn = function()
+	local day = SeededRng.dailySeed(1788134400)
+	local function trace(seed, noise)
+		math.randomseed(noise)
+		local state = RunState.new({ deckVariantId = "standard", difficultyId = "standard", seeded = true }, SeededRng.new(seed))
+		state.tips = 40
+		local out = {}
+		local o = Shop.rollOffers(state)
+		for _, pt in ipairs(o.patrons) do out[#out + 1] = pt.id end
+		for _, k in ipairs(o.packs) do out[#out + 1] = k.id end
+		out[#out + 1] = o.voucher and o.voucher.id or "none"
+		local rng = SeededRng.new(seed)
+		for night = 1, 8 do
+			local boss = BossRounds.pick(rng, night)
+			out[#out + 1] = boss and boss.id or "-"
+		end
+		return table.concat(out, ",")
+	end
+	local a = trace(day, 3)
+	expectTrue(#a > 40, "the trace has offers and eight bosses")
+	expectEqual(a, trace(day, 777), "same date, same first offers and boss order")
+	expectTrue(a ~= trace(SeededRng.dailySeed(1788134400 + 86400), 3), "the next date differs")
+end })
+
 return tests
 
 
