@@ -46572,4 +46572,51 @@ table.insert(tests, { name = "Collection Back plate and tab strip: Back is a 44 
 	end
 end })
 
+table.insert(tests, { name = "Gear menu and Settings popups: every row inside its panel, 44 px controls, nothing overlaps, close plate and text sizes, at four sizes", fn = function()
+	local GM = require(script.Parent.Parent.Engine.GearMenu)
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local HT = require(script.Parent.Parent.Engine.HowToPlayText)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		-- gear dropdown and Tome dropdown
+		for _, set in ipairs({ { "gear", GM.menuRect(W, H), GM.ROWS }, { "tome", GM.tomeMenuRect(W, H), GM.TOME_ROWS } }) do
+			local menu, rows = set[2], set[3]
+			expectTrue(menu.x >= 0 and menu.y >= 0 and menu.x + menu.w <= W and menu.y + menu.h <= H, tag .. " " .. set[1] .. " menu on screen")
+			local rects = GM.rowRects(menu, rows)
+			for i, r in ipairs(rects) do
+				expectTrue(r.h >= 44 and r.w >= 44, tag .. " " .. set[1] .. " row " .. r.id .. " is a 44 px target")
+				expectTrue(r.x >= 0 and r.x + r.w <= menu.w, tag .. " " .. set[1] .. " row " .. r.id .. " inside the menu width")
+				if not menu.scroll then expectTrue(r.y + r.h <= menu.h, tag .. " " .. set[1] .. " row " .. r.id .. " inside the menu height") end
+				for j = i + 1, #rects do expectFalse(hit(r, rects[j]), tag .. " " .. set[1] .. " rows " .. r.id .. " and " .. rects[j].id .. " do not overlap") end
+			end
+			if menu.scroll then expectTrue(menu.h >= GM.ROW_H + 2 * GM.PAD, tag .. " " .. set[1] .. " scrolling menu still shows a row") end
+		end
+		-- Settings panel
+		local R = SL.panelRects(W, H)
+		local P = R.panel
+		expectTrue(P.x >= 0 and P.y >= 0 and P.x + P.w <= W and P.y + P.h <= H, tag .. " Settings panel on screen")
+		expectTrue(R.scroll.x + R.scroll.w <= P.w and R.scroll.y + R.scroll.h <= P.h, tag .. " Settings scroll inside the panel")
+		expectTrue(R.textW > 0 and R.textW <= R.scroll.w, tag .. " Settings row text width fits")
+		expectTrue(SL.CLOSE.h >= 44 and SL.CLOSE.w >= 44 and SL.CLOSE.w <= P.w and SL.PAUSE.plateH >= 44, tag .. " Settings close plate is 44 px and fits")
+		expectTrue(SL.PANEL.rowH >= 44 and SL.SWITCH.h >= 44 and SL.PANEL.replayH >= 44 and SL.CODES.boxH >= 44, tag .. " Settings row controls are 44 px")
+		expectTrue(SL.HEADER_SIZE >= 14 and SL.CODES.msgSize >= 14 and SL.ACCOUNT.textSize >= 14, tag .. " Settings text 14 px or more")
+		local rects = SL.accountRects(R.scroll.w)
+		for i, r in ipairs(rects) do
+			expectTrue(r.h >= 44 and r.w >= 44 and r.x >= 0 and r.x + r.w <= R.scroll.w + 0.5, tag .. " Account plate " .. i .. " is 44 px and inside the scroll")
+			for j = i + 1, #rects do expectFalse(hit(r, rects[j]), tag .. " Account plates " .. i .. " and " .. j .. " do not overlap") end
+		end
+		-- switch and its label share a row: the switch sits right of the text gutter
+		expectTrue(SL.PANEL.textGutter >= SL.SWITCH.w + 8 or R.textW + SL.SWITCH.w <= R.scroll.w + 30, tag .. " row text and switch share the row without overlap")
+	end
+	-- How to Play tiles: one short sentence each
+	for i, t in ipairs(HT.Tiles) do
+		local text = type(t) == "table" and (t.text or t.body or t[2] or "") or tostring(t)
+		local words = 0
+		for _ in tostring(text):gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= HT.MAX_WORDS + 4, "How to Play tile " .. i .. " stays short (" .. words .. " words)")
+	end
+end })
+
 return tests
