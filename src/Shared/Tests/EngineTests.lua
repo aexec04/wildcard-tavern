@@ -38737,6 +38737,32 @@ table.insert(tests, { name = "Store: readable button plates, 24 px under the car
 	expectTrue(src:find('paintButton(button, "plate", row.listOnly)', 1, true) ~= nil, "Info keeps the gold outline")
 end })
 
+table.insert(tests, { name = "Store tiles: launch icon id wins, then bundle art, then emoji; Buy plate 44 px; ink 7:1 on the tile paper", fn = function()
+	local LI = require(script.Parent.Parent.Engine.LaunchIcons)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local bundle = require(script.Parent.Parent.Engine.StoreBundleArt)
+	for id, art in pairs(LI.Ids) do
+		expectTrue(LI.wellFormed(art), "launch icon " .. tostring(id) .. " is a real image id")
+		local known = false
+		for _, item in ipairs(Store.Items) do if item.id == id then known = true end end
+		expectTrue(known, "launch icon key " .. tostring(id) .. " is a Store item")
+	end
+	for _, item in ipairs(Store.Items) do
+		local pick = LI.imageFor(item.id, bundle)
+		if LI.Ids[item.id] then expectEqual(pick, LI.Ids[item.id]) else expectEqual(pick, bundle[item.id]) end
+	end
+	expectEqual(LI.imageFor("vip", {}), LI.Ids.vip) -- nothing anywhere: nil, the drawn emoji stays
+	expectEqual(LI.imageFor("no_such_item", bundle), nil)
+	expectEqual(LI.wellFormed("rbxassetid://0"), false)
+	expectEqual(LI.wellFormed("rbxassetid://123"), true)
+	expectTrue(CS.contrastRatio({ 60, 40, 22 }, { 222, 198, 150 }) >= 7, "ink on parchment 7:1")
+	if not io then return end
+	local f = assert(io.open("src/Client/StorePanel.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("UDim2.new(1, -36, 0, 44)", 1, true) ~= nil, "Buy plate is 44 px tall")
+	expectTrue(src:find("LaunchIcons", 1, true) ~= nil, "the tile asks LaunchIcons first")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
