@@ -1105,7 +1105,7 @@ end
 function Sim.runOne(cfg, seed)
 	math.randomseed(seed)
 	local rng = E.SeededRng.new(seed)
-	local botRng = E.SeededRng.new((seed * 7 + 13) % 4294967296)
+	local botRng = E.SeededRng.new((seed * 7 + 13 + (cfg.botSeedOffset or 0)) % 4294967296) -- botSeedOffset: same board, different bot choices
 	local restoreBoss = installBossOverride(cfg)
 
 	local state = E.RunState.new({

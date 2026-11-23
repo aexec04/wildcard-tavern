@@ -39522,6 +39522,20 @@ table.insert(tests, { name = "Daily twists: Patron power twists never leave frac
 	end
 end })
 
+-- claude/sim-endless.md: nobody got past Night 18 in 1500 runs; this keeps the wall in place out to Night 30.
+table.insert(tests, { name = "Endless curve Night 13 to 30: the boss target grows 1.5x a Night, stays far under the cap, and Night 15 asks for over 500,000", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local last = RunState.targetScoreFor(12, 3, 3, 8)
+	for night = 13, 30 do
+		local t = RunState.targetScoreFor(night, 3, 3, 8)
+		expectTrue(t >= last * 1.4, "Night " .. night .. " boss target is at least 1.4x the Night before")
+		expectTrue(t < ER.TARGET_CAP / 1e6, "Night " .. night .. " stays far below the cap")
+		last = t
+	end
+	expectTrue(RunState.targetScoreFor(15, 3, 3, 8) > 500000, "Night 15 is a wall")
+	expectTrue(RunState.targetScoreFor(30, 3, 3, 8) > 1e8, "Night 30 is out of reach")
+end })
+
 table.insert(tests, { name = "Endless curve Night 7 to 20: every round target grows with the Night, whole numbers, boss round above the round before it, Endless growth 1.5 per Night", fn = function()
 	local ER = require(script.Parent.Parent.Engine.EndlessRules)
 	for round = 1, 3 do

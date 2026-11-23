@@ -471,6 +471,14 @@ A random boon (the first of three offers) every Night 2 to 12, Marks bought with
 
 Flags found: no Night under 20 percent. Nights 1 to 5 over 90 for both bots and Night 6 for decent. Fix: one number each for the two that moved, Night 5 target step 1.1 to 1.25 and a new Night 6 step of 1.1 (RunState NIGHT_TUNE); greedy Night 5 went 93.8 to 89.5 and Night 6 stays at 81. Nights 1 to 4 were left alone on purpose: a step of 25 to 30 percent on Nights 2 to 4 moved the clear rate by under 2 points (these bots score 200 percent of target there), and the earlier onboarding sim shows a random player clearing only 15, 8 and 5 percent of Nights 1 to 3, so a harder step would stall real new players. The same reasoning leaves decent Night 5 at 99.5 (its scores sit near 2x target); it is the strongest bot, not the middle one. Pinned by the test "Night 2 and 3 targets are lifted modestly".
 
+## Endless Nights 9 to 30 (full table in `claude/sim-endless.md`)
+
+1500 decent runs, Classic deck: median Night 8 over all runs (10 among runs that clear Night 8), furthest Night 18. Share of runs that enter Night 9 and clear Night 15: 3.4 percent, under the 10 percent line, so the 1.5x growth per Night stays. Survivors clear 55 to 69 percent of Nights 9 to 15 because only strong builds are still alive. No value changed; pinned by "Endless curve Night 13 to 30".
+
+## Daily seeds: 100 days, best bot (`lua tools/daily_seeds.lua 100 4`)
+
+Real Daily seeds (SeededRng.dailySeed) and the twist of each day (DailyModifiers.forDate) for 2026-01-01 to 2026-04-10, the builder bot, 4 tries per seed with different bot choices on the same board. Win rate over all seeds 39.8 percent. 18 of 100 seeds had no win in 4 tries, but none is unwinnable: every seed's best try reached at least Night 7. Worst seed: 2026-02-15 (twist Big Recipe Box), 0 of 4 won, best Night 7, mean Night 6.5. Next worst: 2026-03-24 (Penny Pincher), 2026-02-12 (Short Hands), 2026-01-29 (Extra Seat). No change needed.
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
