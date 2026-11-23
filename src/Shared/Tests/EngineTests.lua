@@ -46039,4 +46039,39 @@ table.insert(tests, { name = "Collection Patron wall: the portrait well is a 5:7
 	expectTrue(narrow.w <= 60 and math.abs(narrow.w / narrow.h - 5 / 7) < 0.05, "a narrow slot is limited by width and keeps 5:7")
 end })
 
+table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the confirm band is on top, full-screen pages are a known set", fn = function()
+	local Layers = require(script.Parent.Parent.Engine.Layers)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	expectTrue(Layers.tooltip < Layers.PAGE_TOP, "tooltips sit below the page ceiling")
+	expectTrue(Layers.PAGE_TOP < Layers.confirm, "the confirm band is above every page")
+	local n = 0
+	for id, on in pairs(PL.FULL_SCREEN) do
+		expectTrue(on == true and type(id) == "string", "full-screen id " .. tostring(id))
+		n = n + 1
+	end
+	expectTrue(n == 6, "six full-screen pages")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	if not f then return end
+	f:close()
+	-- Scan the Client popup roots: every literal backdrop ZIndex is under PAGE_TOP, and the confirm dialog uses the confirm band.
+	local seen = {}
+	for _, file in ipairs({ "DailyLeaderboard", "HowToPlay", "Journey", "RunSetup", "SeedRunDialog", "Settings", "VolumePanel" }) do
+		local h = io.open("src/Client/" .. file .. ".lua", "r")
+		if h then
+			local text = h:read("*a"); h:close()
+			for name, z in text:gmatch("(%w+Backdrop)%.ZIndex%s*=%s*(%d+)") do
+				z = tonumber(z)
+				expectTrue(z < Layers.PAGE_TOP, file .. " " .. name .. " is below the page ceiling (" .. z .. ")")
+				seen[file] = z
+			end
+		end
+	end
+	expectTrue(next(seen) ~= nil, "found popup backdrops to check")
+	local c = io.open("src/Client/ConfirmDialog.lua", "r")
+	if c then
+		local text = c:read("*a"); c:close()
+		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = CONFIRM_Z", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
+	end
+end })
+
 return tests
