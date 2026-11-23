@@ -71,7 +71,7 @@ end
 
 -- Place a generated picture so its opaque part fills `slot`; the empty margin hangs outside, harmlessly transparent.
 local function placeArt(parent, name, key, slot, z)
-	local id, bb = Art[key], Look.BBOX[key]
+	local id, bb = Art[key], Look.bbox(key)
 	if not id or not bb then return nil end
 	local bw, bh = bb[3] - bb[1], bb[4] - bb[2]
 	local fw, fh = slot.w / bw, slot.h / bh
@@ -82,6 +82,10 @@ local function placeArt(parent, name, key, slot, z)
 	img.ScaleType = Enum.ScaleType.Stretch
 	img.Position = UDim2.fromOffset(slot.x - bb[1] * fw, slot.y - bb[2] * fh)
 	img.Size = UDim2.fromOffset(fw, fh)
+	if Look.MIRROR[key] then -- flipped left to right with a negative source rect (the box above is already mirrored)
+		img.ImageRectOffset = Vector2.new(Look.IMAGE_PX, 0)
+		img.ImageRectSize = Vector2.new(-Look.IMAGE_PX, Look.IMAGE_PX)
+	end
 	img.Active = false
 	img.ZIndex = z
 	img.Parent = parent
@@ -157,15 +161,15 @@ local function baseScene(screenGui, w, h, mode)
 	end
 	pcall(function() require(script.Parent.ThemeWash).attach(gui, "shopBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 	-- warm candle glow: two solid soft frames (never a Transparency gradient)
-	for i, gx in ipairs({ 0.12, 0.9 }) do
+	for i, spot in ipairs({ L.heroGlow, L.chestGlow }) do -- each glow stands behind its own art (centred on it)
 		local g = Instance.new("Frame")
 		g.Name = "CandleGlow" .. i
 		g.BorderSizePixel = 0
 		g.BackgroundColor3 = Color3.fromRGB(255, 170, 70)
 		g.BackgroundTransparency = 0.9
 		g.AnchorPoint = Vector2.new(0.5, 0.5)
-		g.Position = UDim2.fromScale(gx, 0.8)
-		g.Size = UDim2.fromOffset(L.hero.w, L.hero.w)
+		g.Position = UDim2.fromOffset(spot.cx, spot.cy)
+		g.Size = UDim2.fromOffset(spot.size, spot.size)
 		g.Active = false
 		g.ZIndex = 62
 		local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0.5, 0); gc.Parent = g

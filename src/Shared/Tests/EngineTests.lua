@@ -39635,6 +39635,29 @@ table.insert(tests, { name = "VictoryLook: layout fits, nothing overlaps, text 1
 	expectEqual(lines.summary.tipsEarned, 10, "summary carries the Tips earned")
 end })
 
+table.insert(tests, { name = "VictoryLook: each glow is centred on its own art, the hero bleeds off the real screen bottom, the chest is mirrored to face the cards", fn = function()
+	local Look = require(script.Parent.Parent.Engine.VictoryLook)
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 800, 450 }, { 1024, 768 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		for _, mode in ipairs({ "run", "pick" }) do
+			local L = Look.layout(w, h, mode)
+			local tag = w .. "x" .. h .. " " .. mode
+			expectEqual(L.heroGlow.cx, L.hero.x + L.hero.w / 2, "hero glow centre x " .. tag)
+			expectEqual(L.heroGlow.cy, L.hero.y + L.hero.h / 2, "hero glow centre y " .. tag)
+			expectEqual(L.chestGlow.cx, L.chest.x + L.chest.w / 2, "chest glow centre x " .. tag)
+			expectEqual(L.chestGlow.cy, L.chest.y + L.chest.h / 2, "chest glow centre y " .. tag)
+			expectTrue(math.abs(L.heroGlow.size - math.max(L.hero.w, L.hero.h) * 1.15) <= 1, "glow is 1.15 times the longer side " .. tag)
+			expectEqual(L.hero.y + L.hero.h, math.max(L.hero.y + L.hero.h, h), "hero reaches the real screen bottom " .. tag)
+			expectTrue(L.hero.y + L.hero.h >= h and L.hero.y + L.hero.h <= h + 1, "hero bottom edge is the screen edge " .. tag)
+			expectTrue(L.hero.x >= 0 and L.hero.x + L.hero.w <= w, "hero keeps its width on screen " .. tag)
+		end
+	end
+	local bb, mb = Look.BBOX.victory_chest, Look.bbox("victory_chest")
+	expectTrue(Look.MIRROR.victory_chest == true and math.abs(mb[1] - (1 - bb[3])) < 1e-9 and math.abs(mb[3] - (1 - bb[1])) < 1e-9, "chest box is mirrored left to right")
+	expectEqual(Look.bbox("victory_hero")[1], Look.BBOX.victory_hero[1], "hero is not mirrored")
+	expectEqual(Look.IMAGE_PX, 1024, "generated pictures are 1024 px wide")
+end })
+
 table.insert(tests, { name = "ThemeScenes: every Card Set has an entry, every slot falls back to classic, wash styles are valid and carry no layout", fn = function()
 	local E = script.Parent.Parent.Engine
 	local TS = require(E.ThemeScenes)

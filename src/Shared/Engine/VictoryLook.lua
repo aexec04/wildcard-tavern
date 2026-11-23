@@ -23,7 +23,21 @@ M.BBOX = {
 	victory_chest = { 0.127, 0.096, 0.860, 0.938 },
 }
 
+-- Pictures drawn mirrored (the chest was generated facing right, so it is flipped to face the cards) and the pixel size of the
+-- generated pictures, which the mirroring rect needs (ImageRectOffset x = px, ImageRectSize x = -px).
 local function round(n) return math.floor(n + 0.5) end
+M.MIRROR = { victory_chest = true }
+M.IMAGE_PX = 1024
+function M.bbox(key)
+	local bb = M.BBOX[key]
+	if bb and M.MIRROR[key] then return { 1 - bb[3], bb[2], 1 - bb[1], bb[4] } end
+	return bb
+end
+-- the warm glow behind a piece of art: centred on that art, about 1.15 times its longer side
+M.GLOW_SCALE = 1.15
+function M.glow(r)
+	return { cx = r.x + r.w / 2, cy = r.y + r.h / 2, size = round(math.max(r.w, r.h) * M.GLOW_SCALE) }
+end
 
 function M.fontSize(base, scale)
 	return math.max(M.MIN_TEXT, math.floor((base or M.MIN_TEXT) * (scale or 1) + 0.5))
@@ -45,6 +59,10 @@ function M.layout(w, h, mode)
 		button = R(510, 540, 260, 96),
 		nextStep = R(320, 640, 640, 26), -- under Continue (ends at 636) and above the share line, never over it
 	}
+	-- the hero bleeds off the bottom of the REAL screen (not the letterboxed design sheet): the generated art ends in a flat cut,
+	-- so its bottom edge sits on the screen edge and the cut is never seen. Width and the head's x stay; only y moves down.
+	out.hero.y = math.max(out.hero.y, h - out.hero.h)
+	out.heroGlow, out.chestGlow = M.glow(out.hero), M.glow(out.chest)
 	out.title = { x = out.banner.x + round(out.banner.w * 0.2), y = out.banner.y + round(out.banner.h * 0.18), w = round(out.banner.w * 0.6), h = round(out.banner.h * 0.64) }
 	if mode == "pick" then
 		out.cards = { R(305, 280, 210, 230), R(535, 280, 210, 230), R(765, 280, 210, 230) }
