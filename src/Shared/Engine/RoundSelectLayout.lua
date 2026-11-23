@@ -13,7 +13,8 @@ local CardFit = require(script.Parent.CardFit)
 local M = {}
 
 M.CARD_W, M.CARD_H, M.MAX_FIT, M.MIN_FIT = 340, 620, 1.25, 0.4
-M.ROW_TOP, M.ROW_SIDE, M.ROW_BOTTOM = 104, 20, 16
+M.ROW_TOP, M.ROW_SIDE, M.ROW_BOTTOM = 104, 20, 72 -- 72 bottom keeps the 48 px Daily strip (12 px margin, 8 px gap) clear of the cards
+M.STRIP_RESERVE = 68 -- the band the tooltip also stays out of
 M.SELECT_H, M.SKIP_H, M.TARGET_H, M.EDGE = 44, 44, 36, 10 -- SKIP_H is Engine/SkipPlate.HEIGHT
 M.TIPS_W, M.TIPS_H, M.TIPS_RIGHT, M.TIPS_TOP = 150, 34, 20, 18
 M.TIP_GAP = 8
@@ -50,7 +51,7 @@ function M.tipSpot(w, h, card, tipW, tipH)
 	local skip = card.skip or card.select
 	local x = math.max(4, math.min(w - tipW - 4, skip.x + (skip.w - tipW) / 2))
 	local below = skip.y + skip.h + M.TIP_GAP
-	if below + tipH <= h - 4 then return x, below end
+	if below + tipH <= h - 4 - M.STRIP_RESERVE then return x, below end
 	return x, math.max(4, card.target.y - M.TIP_GAP - tipH)
 end
 

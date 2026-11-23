@@ -46169,11 +46169,15 @@ table.insert(tests, { name = "RoundSelectLayout: at four sizes no clickable rect
 		if strip then
 			expectTrue(not D.overlapsAny(strip, rects), "Daily strip overlaps nothing at " .. w .. "x" .. h)
 		end
+		local home = D.rect(w, h) -- the strip at its home spot: the layout leaves it room, so it never has to hide or move
+		expectTrue(not D.overlapsAny(home, rects), "Daily strip at the bottom overlaps no card, plate or button at " .. w .. "x" .. h)
+		expectTrue(D.rectBelow(w, h, D.lowestBottom(rects)) ~= nil, "Daily strip always has room under the cards at " .. w .. "x" .. h)
 		for i, c in ipairs(r.cards) do
 			local tw, th = 260, 70
 			local x, y = L.tipSpot(w, h, c, tw, th)
 			local tip = { x = x, y = y, w = tw, h = th }
 			expectTrue(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, "Skip tooltip on screen for card " .. i .. " at " .. w .. "x" .. h)
+			expectTrue(not hit(tip, home), "Skip tooltip stays off the Daily strip for card " .. i .. " at " .. w .. "x" .. h)
 			expectTrue(not hit(tip, c.select) and not hit(tip, c.skip) and not hit(tip, c.target), "Skip tooltip covers no plate of card " .. i .. " at " .. w .. "x" .. h)
 		end
 	end

@@ -279,7 +279,7 @@ return function(deps)
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
-	panelRow.Size = UDim2.new(1, -40, 1, -120) -- 104 header + 16 bottom margin
+	panelRow.Size = UDim2.new(1, -40, 1, -176) -- 104 header + 72 bottom: the 48 px daily strip lives under the cards (Engine/RoundSelectLayout.ROW_BOTTOM)
 	panelRow.Position = UDim2.new(0, 20, 0, 104)
 	panelRow.BackgroundTransparency = 1
 	panelRow.ZIndex = 7
