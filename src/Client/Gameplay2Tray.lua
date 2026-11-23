@@ -79,6 +79,36 @@ function M.install(layer, deps, z)
 		end
 	end
 
+	-- explicit fill and text colours (Rules.LOOK, contrast tested) set after every skin, so no theme or painted plate leaves dark text on dark wood
+	local function rgb(c) return Color3.fromRGB(c[1], c[2], c[3]) end
+	local function paint(b, fill, text)
+		b.BackgroundColor3 = rgb(fill)
+		b.TextColor3 = rgb(text)
+		b.TextTransparency = 0
+		b.TextStrokeColor3 = Color3.fromRGB(24, 14, 8)
+		b.TextStrokeTransparency = 0.35
+	end
+	-- the slot's own icon label (a child of the slot, so it survives a Clone), 26 px, left of the name
+	local function iconOf(b)
+		local ic = b:FindFirstChild("TrayIcon")
+		if ic then return ic end
+		ic = Instance.new("TextLabel")
+		ic.Name = "TrayIcon"
+		ic.BackgroundTransparency = 1
+		ic.Active = false
+		ic.Font = Enum.Font.GothamBold
+		ic.TextSize = Rules.ICON_SIZE
+		ic.TextColor3 = Color3.new(1, 1, 1)
+		ic.TextTransparency, ic.TextStrokeTransparency = 0, 1
+		ic.Size = UDim2.fromOffset(Rules.ICON_SIZE + 6, Rules.ICON_SIZE + 6)
+		ic.AnchorPoint = Vector2.new(0, 0.5)
+		ic.Position = UDim2.new(0, 4, 0.5, 0)
+		ic.ZIndex = b.ZIndex + 1
+		ic.Parent = b
+		local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, Rules.ICON_SIZE + 10); pad.Parent = b
+		return ic
+	end
+
 	local function mk(name)
 		local b = Kit.secondaryButton(layer, "")
 		b.Name = name
@@ -176,8 +206,10 @@ function M.install(layer, deps, z)
 				b.Active = false
 				b.AutoButtonColor = false
 				b.BackgroundTransparency = 0.75 -- a faint outline for a free slot, not a dead button
-				setLabel(b, Rules.slotText(slot))
+				setLabel(b, Rules.slotName(slot))
 				b.TextTransparency = 0.25
+				iconOf(b).Visible = false
+				local pd = b:FindFirstChildWhichIsA("UIPadding"); if pd then pd.PaddingLeft = UDim.new(0, 0) end
 				b:SetAttribute("Tier", "")
 				local rim0 = b:FindFirstChildWhichIsA("UIStroke")
 				if rim0 then rim0.Transparency = 0.45; rim0.Color = Color3.fromRGB(176, 150, 104) end
@@ -186,8 +218,16 @@ function M.install(layer, deps, z)
 				b.BackgroundTransparency = 0
 				b.TextTransparency = 0
 				local kind = self.armed == i and "primary" or "secondary"
-				if b:GetAttribute("TavernKind") ~= kind then Kit.skin(b, Rules.slotText(slot), kind) end
-				setLabel(b, Rules.slotText(slot)) -- icon and name
+				if b:GetAttribute("TavernKind") ~= kind then Kit.skin(b, Rules.slotName(slot), kind) end
+				local L = Rules.LOOK
+				if self.armed == i then paint(b, L.armedFill, L.armedText) else paint(b, L.slotFill, L.slotText) end
+				setLabel(b, Rules.slotName(slot)) -- the name; the icon is its own label
+				local ic = iconOf(b)
+				ic.Text = slot.icon or ""
+				ic.Visible = (slot.icon or "") ~= ""
+				ic.ZIndex = z + 1
+				local pd = b:FindFirstChildWhichIsA("UIPadding")
+				if pd then pd.PaddingLeft = UDim.new(0, ic.Visible and (Rules.ICON_SIZE + 10) or 0) end
 				b:SetAttribute("Tier", slot.tier)
 				local rim = b:FindFirstChildWhichIsA("UIStroke")
 				local c = TIER_RGB[slot.tier]
@@ -214,10 +254,12 @@ function M.install(layer, deps, z)
 		local text = r.trayPrompt and f.useText or (armedSlot and not f.canUse and f.prompt ~= "" and f.prompt or f.useText)
 		look(useBtn, text, useKind, armedSlot == nil) -- nothing armed: grey and "Pick a Recipe"
 		setLabel(useBtn, text)
-		useBtn.TextTransparency = 0
+		local L = Rules.LOOK
+		if usable then paint(useBtn, L.useReadyFill, L.useReadyText) -- a bright green button once its cards are picked
+		elseif armedSlot then paint(useBtn, L.useWaitFill, L.useWaitText) end -- armed, still picking cards
 		if sellBtn:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(sellBtn, "Sell", "secondary") end
 		setLabel(sellBtn, armedSlot and ("Sell +" .. math.floor(armedSlot.sell) .. " Tips") or "Sell") -- the Tips value shows only when armed
-		sellBtn.TextTransparency = armedSlot and 0 or 0.4
+		if armedSlot then paint(sellBtn, L.sellFill, L.sellText) else sellBtn.TextTransparency = 0.4 end
 		if r.trayPrompt and armedSlot then
 			place(promptBtn, r.trayPrompt)
 			promptBtn.ZIndex = z
@@ -225,6 +267,8 @@ function M.install(layer, deps, z)
 			if promptBtn:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(promptBtn, "", "secondary") end
 			local line = Rules.promptLine(f, armedSlot) -- what the armed Recipe does (its description)
 			setLabel(promptBtn, line ~= "" and line or armedSlot.name)
+			paint(promptBtn, L.promptFill, L.promptText) -- light text on dark wood, wrapped inside the plate
+			promptBtn.TextScaled = false
 		else
 			promptBtn.Visible = false
 		end

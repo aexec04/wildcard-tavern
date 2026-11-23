@@ -21,6 +21,24 @@ local M = {}
 M.SLOTS = 2
 M.HEADING = "Recipes" -- the plate above the slots, so a new player knows what these are
 M.EMPTY_TEXT = "Empty slot"
+M.ICON_SIZE = 26 -- px, the Recipe icon drawn left of the name on a slot (never the tiny inline emoji)
+
+-- Plate fills and text colours (RGB). Every text/fill pair is at least 4.5 to 1 (tested with TavernStyle.contrast).
+M.LOOK = {
+	panel = { 58, 40, 26 },
+	slotFill = { 104, 72, 44 },     -- a clear, lighter wood than the panel
+	slotText = { 255, 244, 220 },   -- light cream names
+	armedFill = { 46, 112, 66 },    -- the armed slot
+	armedText = { 255, 255, 255 },
+	useReadyFill = { 38, 128, 60 }, -- Use once its cards are picked: a bright green button
+	useReadyText = { 255, 255, 255 },
+	useWaitFill = { 96, 66, 40 },   -- armed but still needs cards
+	useWaitText = { 255, 244, 220 },
+	sellFill = { 120, 56, 40 },     -- Sell when armed
+	sellText = { 255, 244, 220 },
+	promptFill = { 40, 28, 20 },    -- the description plate: dark wood, light text
+	promptText = { 255, 244, 220 },
+}
 M.PICK_RECIPE = "Pick a Recipe" -- the Use plate until a Recipe is armed
 M.FIRST_TIME = "Recipes are one use helpers: tap one, pick the cards it needs, then press Use" -- Hints first_recipe says it in 12 words
 M.CHAR_W = 7 -- px per character at 14 px, a little generous
@@ -107,6 +125,11 @@ function M.promptLine(flow, slot)
 end
 
 -- The slot plate: icon and name (the tier is the rim colour and the Tier attribute), or "Empty slot".
+function M.slotName(slot) -- the name alone, for the slot whose icon is its own 26 px label
+	if not slot or slot.empty then return M.EMPTY_TEXT end
+	return slot.label
+end
+
 function M.slotText(slot)
 	if not slot or slot.empty then return M.EMPTY_TEXT end
 	return (slot.icon ~= "" and (slot.icon .. " ") or "") .. slot.label
