@@ -26,6 +26,7 @@ RunOverLayout.SEAT_W, RunOverLayout.SEAT_H = 72, 96
 RunOverLayout.WIDE_FROM = 720 -- screen width from which the two columns show
 RunOverLayout.LEFT_W = 280
 RunOverLayout.LABEL_H = 24
+RunOverLayout.MIN_READ_SCALE = 0.9 -- below this the panel stops shrinking (text would drop under 14 px) and the screen scrolls instead
 RunOverLayout.BTN_TEXT = 16 -- every button label is one line at this size
 RunOverLayout.CAP_PAD = 22 -- the plate caps take this much on each side of a label (polishButton), so the text must fit between them
 RunOverLayout.MIN_BTN_W = 110

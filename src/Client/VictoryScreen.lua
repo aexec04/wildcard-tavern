@@ -26,6 +26,7 @@ local GOLD = Color3.fromRGB(255, 214, 130)
 local PURPLE = Color3.fromRGB(72, 36, 112)
 local PURPLE_DARK = Color3.fromRGB(28, 14, 44)
 local CREAM = Color3.fromRGB(250, 240, 220)
+local COIN_INK = Color3.fromRGB(84, 52, 8) -- the mark on the gold coin, 6 to 1 or better
 
 local bestProvider
 local current -- { gui, kind }
@@ -161,7 +162,7 @@ local function baseScene(screenGui, w, h, mode)
 	end
 	pcall(function() require(script.Parent.ThemeWash).attach(gui, "shopBackdrop") end) -- the equipped Card Set dresses this scene (Engine/ThemeScenes)
 	-- warm candle glow: two solid soft frames (never a Transparency gradient)
-	for i, spot in ipairs({ L.heroGlow, L.chestGlow }) do -- each glow stands behind its own art (centred on it)
+	for i, spot in ipairs(L.compactCards and {} or { L.heroGlow, L.chestGlow }) do -- each glow stands behind its own art (centred on it)
 		local g = Instance.new("Frame")
 		g.Name = "CandleGlow" .. i
 		g.BorderSizePixel = 0
@@ -176,8 +177,10 @@ local function baseScene(screenGui, w, h, mode)
 		g.Parent = gui
 	end
 	local s = L.scale
-	placeArt(gui, "Hero", "victory_hero", L.hero, 64)
-	placeArt(gui, "Chest", "victory_chest", L.chest, 64)
+	if not L.compactCards then -- a short window drops the keeper and the chest so the three cards and their 44 px buttons fit
+		placeArt(gui, "Hero", "victory_hero", L.hero, 64)
+		placeArt(gui, "Chest", "victory_chest", L.chest, 64)
+	end
 	placeArt(gui, "Banner", "victory_banner", L.banner, 65)
 	local title = text(gui, "Title", mode == "pick" and "REWARD" or "VICTORY", Look.fontSize(60, s), GOLD, serif(), 66,
 		L.title.x, L.title.y, L.title.w, L.title.h)
@@ -228,7 +231,7 @@ function M.show(screenGui, lines)
 		local coin = frame(rw, "Coin" .. i, { x = x + cw / 2 - 30 * s, y = 64 * s, w = 60 * s, h = 60 * s }, zc + 1, GOLD)
 		local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0.5, 0); cc.Parent = coin
 		local cs = Instance.new("UIStroke"); cs.Color = Color3.fromRGB(150, 100, 20); cs.Thickness = math.max(2, math.floor(3 * s)); cs.Parent = coin
-		text(coin, "Mark", i == 1 and "T" or "*", Look.fontSize(28, s), Color3.fromRGB(150, 100, 20), Enum.Font.GothamBold, zc + 2, 0, 0, 60 * s, 60 * s)
+		text(coin, "Mark", i == 1 and "T" or "*", Look.fontSize(28, s), COIN_INK, Enum.Font.GothamBold, zc + 2, 0, 0, 60 * s, 60 * s)
 		text(rw, "Value" .. i, c.value, Look.fontSize(34, s), INK, serif(), zc + 1, x, 134 * s, cw, 44 * s)
 		text(rw, "Label" .. i, c.label, Look.fontSize(22, s), INK, Enum.Font.GothamMedium, zc + 1, x, 180 * s, cw, 32 * s)
 	end
@@ -252,7 +255,7 @@ function M.show(screenGui, lines)
 		M.hide()
 	end
 	text(gui, "NextStep", Look.NEXT_RUN, Look.fontSize(Look.NEXT_SIZE, s), CREAM, Enum.Font.GothamMedium, zc + 2, L.nextStep.x, L.nextStep.y, L.nextStep.w, L.nextStep.h)
-	local btn = plateButton(gui, "Continue", L.button, Look.CONTINUE_TEXT, Look.fontSize(Look.CONTINUE_SIZE, s), zc + 2, close)
+	local btn = plateButton(gui, "Continue", L.button, L.compact and Look.CONTINUE_SHORT or Look.CONTINUE_TEXT, Look.fontSize(Look.CONTINUE_SIZE, s), zc + 2, close)
 	btn.Parent.Name = "Continue"
 	-- Invite a friend (Roblox's own invite sheet only) and a plain text share line to copy
 	local inv = Instance.new("TextButton")
@@ -264,7 +267,7 @@ function M.show(screenGui, lines)
 	inv.Font = serif()
 	inv.TextSize = Look.fontSize(20, s)
 	inv.TextColor3 = GOLD
-	inv.Text = Look.INVITE_TEXT
+	inv.Text = L.compact and Look.INVITE_SHORT or Look.INVITE_TEXT
 	inv.ZIndex = zc + 2
 	inv.Parent = gui
 	local ic = Instance.new("UICorner"); ic.CornerRadius = UDim.new(0, 10); ic.Parent = inv
@@ -314,20 +317,30 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 		local r = L.cards[i]
 		if not r then break end
 		local card = parchment(gui, "Card" .. i, r, zc, s)
-		text(card, "Name", option.name or "", Look.fontSize(22, s), INK, serif(), zc + 1, 6 * s, 8 * s, r.w - 12 * s, 32 * s)
-		local well = frame(card, "Well", { x = r.w / 2 - 38 * s, y = 44 * s, w = 76 * s, h = 76 * s }, zc + 1, PURPLE_DARK)
-		local wc = Instance.new("UICorner"); wc.CornerRadius = UDim.new(0.5, 0); wc.Parent = well
-		local ws = Instance.new("UIStroke"); ws.Color = PARCH_EDGE; ws.Thickness = math.max(2, math.floor(2 * s)); ws.Parent = well
-		local icon = text(well, "Icon", option.icon or "", Look.fontSize(40, s), CREAM, Enum.Font.GothamBold, zc + 2, 0, 0, 76 * s, 76 * s)
-		pcall(PatronPlaque.apply, well, option.id, { emojiLabel = icon, zIndex = zc + 3, cornerRadius = 38 * s })
+		local compact = L.compactCards == true
+		local tap = Look.MIN_TAP
+		text(card, "Name", option.name or "", Look.fontSize(22, compact and 1 or s), INK, serif(), zc + 1, 6 * s, compact and 4 or 8 * s, r.w - 12 * s, compact and 28 or 32 * s)
 		local lines = {}
 		if option.line1 and option.line1 ~= "" then lines[#lines + 1] = option.line1 end
 		if option.line2 and option.line2 ~= "" then lines[#lines + 1] = option.line2 end
-		text(card, "Rule", table.concat(lines, "\n"), Look.fontSize(20, s), INK, Enum.Font.GothamMedium, zc + 1, 8 * s, 124 * s, r.w - 16 * s, 62 * s)
+		local ruleY, ruleH
+		if compact then
+			ruleY = 34
+			ruleH = math.max(36, r.h - 34 - tap - 8)
+		else
+			local well = frame(card, "Well", { x = r.w / 2 - 38 * s, y = 44 * s, w = 76 * s, h = 76 * s }, zc + 1, PURPLE_DARK)
+			local wc = Instance.new("UICorner"); wc.CornerRadius = UDim.new(0.5, 0); wc.Parent = well
+			local ws = Instance.new("UIStroke"); ws.Color = PARCH_EDGE; ws.Thickness = math.max(2, math.floor(2 * s)); ws.Parent = well
+			local icon = text(well, "Icon", option.icon or "", Look.fontSize(40, s), CREAM, Enum.Font.GothamBold, zc + 2, 0, 0, 76 * s, 76 * s)
+			pcall(PatronPlaque.apply, well, option.id, { emojiLabel = icon, zIndex = zc + 3, cornerRadius = 38 * s })
+			ruleY = 124 * s
+			ruleH = math.max(40, math.min(62 * s, r.h - 8 - tap - 124 * s))
+		end
+		text(card, "Rule", table.concat(lines, "\n"), Look.fontSize(20, compact and 0.8 or s), INK, Enum.Font.GothamMedium, zc + 1, 8 * s, ruleY, r.w - 16 * s, ruleH)
 		local pick = Instance.new("TextButton")
 		pick.Name = "Pick"
-		pick.Size = UDim2.fromOffset(r.w - 28 * s, 36 * s)
-		pick.Position = UDim2.fromOffset(14 * s, r.h - 44 * s)
+		pick.Size = UDim2.fromOffset(r.w - 28 * s, tap)
+		pick.Position = UDim2.fromOffset(14 * s, r.h - tap - 8)
 		pick.BackgroundColor3 = PURPLE
 		pick.BorderSizePixel = 0
 		pick.Font = serif()
