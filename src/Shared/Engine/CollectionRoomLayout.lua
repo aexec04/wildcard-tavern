@@ -120,7 +120,7 @@ function M.panel(W, H, legendH, chestX, mode)
 		pager = pager,
 		area = { x = side, y = areaTop, w = W - 2 * side, h = areaH },
 		filter = filter,
-		close = { x = math.floor(W / 2 - 70), y = H - 50, w = 140, h = 40 },
+		close = { x = math.floor(W / 2 - 70), y = H - 52, w = 140, h = 44 }, -- a 44 px touch target, 8 px above the bottom edge
 	}
 end
 

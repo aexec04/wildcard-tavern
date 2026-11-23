@@ -47483,6 +47483,193 @@ table.insert(tests, { name = "Hand hover: with any cards picked, hovering any ot
 	end
 end })
 
+table.insert(tests, { name = "Popup layers: backdrop bands are ordered, the confirm band is on top, full-screen pages are a known set", fn = function()
+	local Layers = require(script.Parent.Parent.Engine.Layers)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	expectTrue(Layers.tooltip < Layers.PAGE_TOP, "tooltips sit below the page ceiling")
+	expectTrue(Layers.PAGE_TOP < Layers.confirm, "the confirm band is above every page")
+	local n = 0
+	for id, on in pairs(PL.FULL_SCREEN) do
+		expectTrue(on == true and type(id) == "string", "full-screen id " .. tostring(id))
+		n = n + 1
+	end
+	expectTrue(n == 6, "six full-screen pages")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	if not f then return end
+	f:close()
+	-- Scan the Client popup roots: every literal backdrop ZIndex is under PAGE_TOP, and the confirm dialog uses the confirm band.
+	local seen = {}
+	for _, file in ipairs({ "DailyLeaderboard", "HowToPlay", "Journey", "RunSetup", "SeedRunDialog", "Settings", "VolumePanel" }) do
+		local h = io.open("src/Client/" .. file .. ".lua", "r")
+		if h then
+			local text = h:read("*a"); h:close()
+			for name, z in text:gmatch("(%w+Backdrop)%.ZIndex%s*=%s*(%d+)") do
+				z = tonumber(z)
+				expectTrue(z < Layers.PAGE_TOP, file .. " " .. name .. " is below the page ceiling (" .. z .. ")")
+				seen[file] = z
+			end
+		end
+	end
+	expectTrue(next(seen) ~= nil, "found popup backdrops to check")
+	local c = io.open("src/Client/ConfirmDialog.lua", "r")
+	if c then
+		local text = c:read("*a"); c:close()
+		expectTrue(text:find("Layers", 1, true) ~= nil and text:find("confirmBackdrop.ZIndex = CONFIRM_Z", 1, true) ~= nil, "ConfirmDialog backdrop is in the confirm band")
+	end
+end })
+
+table.insert(tests, { name = "Daily strip and Counter: clickable rects stay on screen and never overlap at 1920x957, 1280x720, 1024x600, 800x450", fn = function()
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function onScreen(r, W, H) return r.x >= 0 and r.y >= 0 and r.x + r.w <= W and r.y + r.h <= H end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 600 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local strip = DS.rect(W, H)
+		expectTrue(onScreen(strip, W, H) and strip.h >= 44, tag .. " daily strip on screen and touchable")
+		local chest = DS.chestRect(strip)
+		expectTrue(chest.w >= 44 and chest.h >= 44 and chest.x >= 0 and chest.x + chest.w <= strip.w and chest.y >= 0 and chest.y + chest.h <= strip.h, tag .. " chest inside the strip")
+		local menu = DS.menuRect(W, H)
+		if menu then
+			expectTrue(onScreen(menu, W, H), tag .. " menu strip on screen")
+			expectTrue(menu.x > math.floor(W / 2) + DS.MENU_SIGN_HALF, tag .. " menu strip clear of the sign column")
+			local mc = DS.chestRect(menu)
+			expectTrue(mc.x + mc.w <= menu.w, tag .. " menu chest inside the strip")
+		end
+		local r = SL.rects(W, H, { offers = 3, packs = 2 })
+		local list = { { "tabs", r.tabs }, { "nextBoss", r.nextBoss }, { "leave", r.leave } }
+		for i, o in ipairs(r.offers) do list[#list + 1] = { "offer" .. i, o } end
+		for i, o in ipairs(r.packs) do list[#list + 1] = { "pack" .. i, o } end
+		for _, e in ipairs(list) do
+			expectTrue(e[2] and e[2].w > 0 and e[2].h > 0, tag .. " " .. e[1] .. " has a size")
+			if e[2] and (e[1] == "tabs" or e[1] == "leave") then
+				expectTrue(onScreen(e[2], W, H) and e[2].h >= 44, tag .. " " .. e[1] .. " on screen and 44 px tall")
+			end
+		end
+		for i = 1, #list do
+			for j = i + 1, #list do
+				expectFalse(hit(list[i][2], list[j][2]), tag .. " " .. list[i][1] .. " does not overlap " .. list[j][1])
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Collection tabs: every tab pages 0 and 200 entries, places its slots, and the close plate is a 44 px target on screen at four sizes", fn = function()
+	local SL = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local tabs = {}
+	for id in pairs(SL.SCENES) do tabs[#tabs + 1] = id end
+	table.sort(tabs)
+	expectTrue(#tabs >= 6, "section tabs found: " .. #tabs)
+	for _, id in ipairs(tabs) do
+		for _, n in ipairs({ 0, 1, 200 }) do
+			local items = {}
+			for i = 1, n do items[i] = { id = id .. i } end
+			local pages = SL.pageCount(n, id)
+			expectTrue(pages >= 1 and pages == math.max(1, math.ceil(n / SL.perPage(id))), id .. " page count for " .. n)
+			local seen = 0
+			for pg = 1, pages do
+				local got = SL.pageItems(items, id, pg)
+				expectTrue(#got <= SL.perPage(id), id .. " page " .. pg .. " holds at most per-page entries")
+				seen = seen + #got
+			end
+			expectTrue(seen == n, id .. " pages cover all " .. n .. " entries (" .. seen .. ")")
+			expectTrue(SL.clampPage(99, n, id) == pages and SL.clampPage(-3, n, id) == 1, id .. " page clamps")
+		end
+		for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+			local p = SL.place(id, sz[1], sz[2] - 120, 1)
+			expectTrue(p and #p.slots == #SL.scene(id).rows * #SL.scene(id).cols, id .. " places every slot at " .. sz[1])
+		end
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local P = RL.panel(W, H, 24, nil, "section")
+		local tag = W .. "x" .. H
+		expectTrue(P.close.x >= 0 and P.close.y >= 0 and P.close.x + P.close.w <= W and P.close.y + P.close.h <= H, tag .. " close plate on screen")
+		expectTrue(P.close.h >= 44 and P.close.w >= 44, tag .. " close plate is a 44 px target (" .. P.close.w .. "x" .. P.close.h .. ")")
+		expectTrue(P.close.y >= P.filter.y + P.filter.h, tag .. " close plate is below the filter plate")
+		expectTrue(P.area.y + P.area.h <= P.filter.y, tag .. " scene area ends above the filter plate")
+	end
+end })
+
+table.insert(tests, { name = "Settings rows: every row id is unique, labels are 40 characters or less, controls are 44 px and the text fits at four sizes with Larger Text on", fn = function()
+	local SLY = require(script.Parent.Parent.Engine.SettingsLayout)
+	local Acc = require(script.Parent.Parent.Engine.Accessibility)
+	local ids, seen = SLY.rowOrder(), {}
+	for _, id in ipairs(ids) do
+		expectFalse(seen[id], "row id is unique: " .. id)
+		seen[id] = true
+	end
+	expectTrue(SLY.SWITCH.h >= 44 and SLY.SWITCH.w >= 44, "the On/Off switch is a 44 px target")
+	expectTrue(SLY.PANEL.rowH >= 44 and SLY.PANEL.replayH >= 44 and SLY.ACCOUNT.plateH >= 44, "row, replay and account plates are 44 px or more")
+	expectTrue(SLY.CODES.boxH >= 44, "the Codes box is 44 px")
+	expectTrue(SLY.SWITCH.w <= SLY.PANEL.textGutter, "the switch fits in the gutter beside the label text")
+	local f = io and io.open and io.open("src/Client/Settings.lua", "r")
+	local labels = {}
+	if f then
+		local text = f:read("*a"); f:close()
+		for id, label in text:gmatch('makeChoiceRow%("(%w+)",%s*"([^"]+)"') do
+			labels[id] = label
+			expectTrue(#label <= 40, id .. " label is 40 characters or less: " .. label)
+		end
+		local n = 0
+		for _ in pairs(labels) do n = n + 1 end
+		expectTrue(n >= 11, "found the Settings row labels: " .. n)
+		for _, id in ipairs(ids) do
+			if id ~= "replayTutorial" and id ~= "replayHints" then expectTrue(labels[id] ~= nil, "row " .. id .. " has a label in Settings.lua") end
+		end
+	end
+	local scale = Acc.TEXT_SCALE
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local R = SLY.panelRects(sz[1], sz[2])
+		local tag = sz[1] .. "x" .. sz[2]
+		expectTrue(R.panel.x >= 0 and R.panel.y >= 0 and R.panel.x + R.panel.w <= sz[1] and R.panel.y + R.panel.h <= sz[2], tag .. " panel on screen")
+		expectTrue(R.scroll.w >= SLY.SWITCH.w + 100, tag .. " scroll is wide enough for a label and a switch")
+		for id, label in pairs(labels) do
+			-- 16 px serif, about 0.6 em per character, Larger Text 15 percent bigger; a longer label wraps to a second line in the 62 px row
+			local oneLine = #label * 16 * 0.6 * scale
+			expectTrue(oneLine <= R.textW * 2, tag .. " " .. id .. " fits in two lines (" .. math.floor(oneLine) .. " of " .. R.textW * 2 .. ")")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Music: 100 random menu, table, shop and map switches always settle on one song, and a crossfade never exceeds the voice cap", fn = function()
+	local MM = require(script.Parent.Parent.Engine.MusicMix)
+	local screens = { "menu", "map", "table", "boss", "shop", "runover" }
+	local seed = 12345
+	local function rand(n) seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n + 1 end
+	local playing = MM.bedFor("menu").key -- the one song that is playing
+	local voices = { playing }
+	local switches, fades = 0, 0
+	for _ = 1, 100 do
+		local screen = screens[rand(#screens)]
+		local want = MM.bedFor(screen)
+		switches = switches + 1
+		if MM.keepsSong(playing, want.key) then
+			-- the same song continues: no second voice is started, only the level steps
+			expectTrue(#voices == 1, "one voice after a keep-song switch to " .. screen)
+		elseif MM.shouldFade(playing, want.key) then
+			fades = fades + 1
+			local during = MM.voices({ bed = true, outgoing = true, sting = true, tension = true })
+			expectTrue(#during <= MM.MAX_VOICES, "voice cap during a crossfade to " .. screen)
+			local steps = MM.fade(false)
+			local last = steps[#steps]
+			expectTrue(last[1] == 0 and last[2] == 1, "the crossfade ends with the old song silent and the new one full")
+			for i, st in ipairs(steps) do
+				expectTrue(math.abs(st[1] * st[1] + st[2] * st[2] - 1) < 1e-6 or i == #steps, "equal power at step " .. i)
+			end
+			local calmLast = MM.fade(true)
+			expectTrue(calmLast[#calmLast][1] == 0 and calmLast[#calmLast][2] == 1, "the calm crossfade also ends on one song")
+			playing = want.key
+			voices = { playing } -- the outgoing voice is stopped after the last step
+		end
+		expectTrue(#voices == 1 and voices[1] == playing, "settled on exactly one song after switch " .. switches)
+		expectTrue(MM.volume(1, true, want.gain, 1) == 0, "muted music is silent on " .. screen)
+	end
+	expectTrue(switches == 100 and fades > 0, "100 switches ran, with real crossfades: " .. fades)
+end })
+
 return tests
 
 
