@@ -398,6 +398,36 @@ First pass (before tuning, decent / greedy / builder lift): Spare Hand +15.2 / +
 
 Open: Wider Grip reads +15.8 for the greedy bot only because greedy never discards, so the Discard cost is free to it; decent and builder read +9.4 and +13.4 (builder is inside the sampling noise of the 12 point line). Friendly Prices reads +13.8 for builder, also inside the noise. If a later sim with more runs confirms either over 12, drop Wider Grip to 2 less Discards or Friendly Prices to a one time discount. Pinned by the test "NightBoons balance".
 
+## Starting decks: Classic, Lucky, Slim (`lua tools/run_sim.lua --start-decks --runs 500 --jobs 8 --bot decent|builder|greedy`)
+
+Rule: every deck within 10 points of Classic. 500 runs, sampling noise about 4 points.
+
+| Deck | decent win | builder win | greedy win |
+| --- | --- | --- | --- |
+| Classic | 36.2 | 38.6 | 17.0 |
+| Lucky | 33.0 (-3.2) | 39.6 (+1.0) | 17.2 (+0.2) |
+| Slim | 37.8 (+1.6) | 42.8 (+4.2) | 22.6 (+5.6) |
+
+All within the band, so no deck value changed. Slim is the strongest on every bot (+1.6 to +5.6), as intended for a thinner deck that repeats good cards; Lucky is level with Classic.
+
+## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
+
+Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
+
+| Case | decent | builder |
+| --- | --- | --- |
+| No marks | 36.2 | 38.6 |
+| Marks bought (--marks 1) | 35.6 (-0.6) | 37.6 (-1.0) |
+
+| Legendary Patron free from the start, with marks on | Lift over 37.3 (decent, 300 runs) |
+| --- | --- |
+| Boon Keeper | +1.3 |
+| Jolly Jester | +1.0 |
+| Clover Queen | +1.0 |
+| Duke Goldleaf | +1.0 |
+
+All inside the band and no worse than baseline, so nothing was tuned. The sim bot has little spare Tips (8 on average at a shop), so it buys few Marks and picks no boons for Boon Keeper; the marks and Legendary lifts are therefore a floor, not what a player who commits to marks sees. If marks feel weak in play, raise Gilded or Lucky one step; the sim does not say they are too strong.
+
 ## Quest Tips and Pocket Change against the shop (`lua tools/run_sim.lua --shop-econ --runs 100 --jobs 2 --start-tips 30 --boon pocket_change`)
 
 Worst case: a full bank (30 Tips, the cap on every banked source) on Night 1 and the Pocket Change boon on every Night. Measured with the first Pocket Change (+3 Tips); the boon is now +1 Tip (see the boon balance below), so the real margin is wider.
