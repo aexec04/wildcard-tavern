@@ -55,6 +55,7 @@ M.TOME_ROWS = {
 -- One kind line per row for the hover tooltip, 40 characters or less, plain words, no dashes.
 M.TIP_MAX = 40
 M.TIPS = {
+	restart = "Start this run over from Night 1.",
 	sound = "Turn game sounds on or off.",
 	music = "Turn the tavern music on or off.",
 	tracks = "Pick which tune plays.",
