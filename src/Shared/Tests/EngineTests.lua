@@ -20106,7 +20106,7 @@ table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of 
 		end
 		local compact = R.plan("roundSelect")
 		expectTrue(R.slot(w, h, compact, 1).y + compact.height <= R.CARDS_TOP, "Round Select's one compact line ends above its cards")
-		expectEqual(R.plan("table").maxVisible, 2)
+		expectEqual(R.plan("table").maxVisible, 1)
 		expectEqual(compact.maxVisible, 1)
 	end
 
@@ -20116,16 +20116,15 @@ table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of 
 	expectFalse(st:push({ id = "n1", text = "again" }, 0), "the same id is not shown twice in a round")
 	expectFalse(st:push({ id = "empty" }, 0), "a notice with no words is dropped")
 	st:tick(0, R.MAX_STACK)
-	expectEqual(#st.visible, 2, "never more than two stacked")
-	expectEqual(st.visible[1].text, "Quest 2", "the newest one in is on top")
-	expectEqual(#st.pending, 3, "the others wait")
+	expectEqual(#st.visible, 1, "one toast at a time")
+	expectEqual(#st.pending, 4, "the others wait")
+	local first = st.visible[1].text
 	st:tick(R.AUTO_SECONDS - 0.1, R.MAX_STACK)
-	expectEqual(#st.visible, 2, "they stay about 4 seconds")
+	expectEqual(#st.visible, 1, "it stays 3 seconds")
+	expectEqual(st.visible[1].text, first, "the same toast is still up")
 	st:tick(R.AUTO_SECONDS + 0.1, R.MAX_STACK)
-	expectEqual(st.visible[1].text, "Quest 4", "when they go, the waiting ones come in")
-	expectEqual(#st.visible, 2)
-	st:tick(2 * R.AUTO_SECONDS + 1, R.MAX_STACK)
-	st:tick(3 * R.AUTO_SECONDS + 2, R.MAX_STACK)
+	expectTrue(#st.visible == 1 and st.visible[1].text ~= first, "when it goes, the next waiting one comes in")
+	for k = 2, 8 do st:tick(k * (R.AUTO_SECONDS + 1), R.MAX_STACK) end
 	expectTrue(st:isEmpty(), "and then the stack is empty")
 	-- unlocks merge into one toast, and a repeat restarts its time
 	st = R.new()
@@ -20261,21 +20260,21 @@ table.insert(tests, { name = "OverlayQueue sends small notices to the corner toa
 	local rows = s.Toast.rows()
 	local shown = {}
 	for _, row in ipairs(rows) do if row.frame.Visible then shown[#shown + 1] = row end end
-	expectEqual(#shown, 2, "two toasts at most are stacked (stack: " .. #s.Toast.stack().visible .. " visible, " .. #s.Toast.stack().pending .. " waiting)")
-	expectEqual(rows[1].label.Text, "Quest done: Pair Up +40 XP", "the newest of the first two is on top (the rest wait for room)")
-	expectEqual(rows[2].label.Text, "Unlocked: Straight Shooter", "the oldest is at the bottom, with no emoji and no effect text")
-	expectEqual(#s.Toast.stack().pending, 3, "the rank, the blessing and the last notice wait")
+	expectEqual(#shown, 1, "one toast at a time (stack: " .. #s.Toast.stack().visible .. " visible, " .. #s.Toast.stack().pending .. " waiting)")
+	expectTrue(shown[1].label.Text == "Quest done: Pair Up +40 XP" or shown[1].label.Text == "Unlocked: Straight Shooter", "the one on screen is the first notice, with no emoji and no effect text")
+	expectEqual(#s.Toast.stack().pending, 4, "the other four notices wait for room")
 	expectFalse(s.Queue.isBusy(), "a toast never keeps the queue busy (nothing waits on it)")
 	expectTrue(s.gui:FindFirstChild("OverlayQueueBackdrop") == nil, "no plate was built for them")
 	FakeGui.layout(s.gui, 1920, 1080)
-	local top, second = rows[1].frame, rows[2].frame
-	expectEqual(top.AbsolutePosition.X + top.AbsoluteSize.X, 1920 - 12, "the stack hugs the right edge")
-	expectTrue(top.AbsolutePosition.Y >= 74 and second.AbsolutePosition.Y > top.AbsolutePosition.Y, "under the corner buttons, the next one below")
+	local top = rows[1].frame
+	expectEqual(#rows, 1, "the lane has one row")
+	expectEqual(top.AbsolutePosition.X + top.AbsoluteSize.X, 1920 - 12, "the lane hugs the right edge")
+	expectTrue(top.AbsolutePosition.Y >= 74, "under the corner buttons")
 	expectEqual(top.ClassName, "TextButton", "a toast is a button: a tap closes it")
 	rows[1].frame.MouseButton1Click:Fire()
 	local count = 0
 	for _, row in ipairs(rows) do if row.frame.Visible and row.order then count = count + 1 end end
-	expectEqual(count, 2, "a tap closes one and the waiting notice takes its place")
+	expectEqual(count, 1, "a tap closes the toast and the waiting notice takes its place")
 	expectFalse(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "the same notice is not shown twice in a round")
 	s.Queue.newRound()
 	expectTrue(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "a new round may show it again")
@@ -34751,8 +34750,23 @@ table.insert(tests, { name = "Sound and music pass: 1 s bed crossfade, every act
 	local M = require(script.Parent.Parent.Engine.MusicMix)
 	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
 	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
-	expectEqual(M.FADE_TIME, 1.5, "beds crossfade over 1.5 s")
-	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 1.5) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 1.5) < 1e-9, "Calm and normal both span 1.5 s")
+	expectEqual(M.FADE_TIME, 0.5, "beds crossfade over 0.5 s")
+	expectTrue(math.abs(M.stepTime(false) * M.STEPS - 0.5) < 1e-9 and math.abs(M.stepTime(true) * M.STEPS_CALM - 0.5) < 1e-9, "Calm and normal both span 0.5 s")
+	do -- Menu to table to Menu keeps one song, with no restart from zero (the level steps, the song is not swapped)
+		local screens = { "menu", "table", "menu", "map", "table", "menu" }
+		local playing = M.bedFor(screens[1], nil).key
+		for i = 2, #screens do
+			local nextKey = M.bedFor(screens[i], nil).key
+			expectTrue(M.keepsSong(playing, nextKey), screens[i - 1] .. " to " .. screens[i] .. " keeps the song")
+			playing = nextKey
+		end
+		expectFalse(M.keepsSong("gameplay", "boss"), "a Boss round swaps the song")
+		expectFalse(M.keepsSong(nil, "gameplay"), "the first request starts a song")
+		for _, sc in ipairs({ "menu", "table", "map", "boss", "shop", "runover" }) do
+			local f = M.fade(false)
+			expectTrue(f[#f][1] == 0 and f[#f][2] == 1, "the " .. sc .. " crossfade ends exactly at the new level, never a pop")
+		end
+	end
 	local have = {}
 	for _, m in ipairs(G.MOMENTS) do have[m.cue] = true end
 	for _, cue in ipairs({ "card_deal", "card_select", "card_deselect", "card_play", "score_tick", "score_total", "patron_trigger",
@@ -45263,7 +45277,8 @@ end })
 
 table.insert(tests, { name = "Toast queue stacking: a flood of 40 notices never shows more than two at once, keeps a short queue of the newest, every slot clears the corner buttons and its neighbour at four sizes", fn = function()
 	local R = require(script.Parent.Parent.Engine.CornerToastRules)
-	expectEqual(R.MAX_STACK, 2, "two on screen")
+	expectEqual(R.MAX_STACK, 1, "one on screen")
+	expectEqual(R.AUTO_SECONDS, 3, "a toast lives 3 seconds")
 	local st = R.new()
 	for i = 1, 40 do st:push({ id = "f" .. i, text = "Quest " .. i }, 0) end
 	expectEqual(#st.pending, R.MAX_QUEUE, "the queue stays short")
