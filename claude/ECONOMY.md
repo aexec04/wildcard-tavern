@@ -441,6 +441,18 @@ Average Tips on hand and Patrons held at each Counter visit (runs that reached t
 
 A normal player buys roughly one Patron per round early and has all five seats by Night 4, then holds 8 to 12 Tips at every visit, enough for a reroll (5) or a pack, so the shop is never dead. The hardest twist for Tips, Penny Pincher (Tips pay 75 percent), still gives 0.8 Patrons by the end of Night 1 and 3.7 by Night 3 (3.0 Tips at the very first visit, below the cheapest Patron at 4, but that twist also makes Patrons count 50 percent more and the start draft gives one). No price or payout changed.
 
+## Boss rules Frozen Hand, Quiet Tavern, Short Table (`lua tools/run_sim.lua --boss-late --boss-list frozen_hand,quiet_tavern,short_table --runs 300 --jobs 8 --bot decent`)
+
+Rule: clear rate 25 to 75 percent for the middle bot. All three have minNight 7, so Nights 3 and 6 never roll them; the Night 7 to 12 sweep is the real test (random Patron buys, forced on every boss round from Night 7).
+
+| Boss | N7 | N8 | N9 | N7 to 12 overall (attempts) |
+| --- | --- | --- | --- | --- |
+| Frozen Hand | 55% | 59% | 61% | 56% (319) |
+| Quiet Tavern | 61% | 57% | 76% | 60% (370) |
+| Short Table | 48% | 47% | 65% | 49% (302) |
+
+All three sit inside 25 to 75, so no value changed.
+
 ## Card marks and the four Legendary Patrons (`lua tools/run_sim.lua --runs 500 --jobs 8 --bot decent --marks 1`, `--patron-lift --patron-list duke_goldleaf,clover_queen,jolly_jester,boon_keeper --marks 1`)
 
 Rule: within 10 points of baseline. `--marks 1` makes the bot spend leftover Tips on a Mark for an Ace after Patrons and packs.
