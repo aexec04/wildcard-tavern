@@ -33995,6 +33995,29 @@ table.insert(tests, { name = "Recipe tray for new players: heading, icon and nam
 	end
 end })
 
+table.insert(tests, { name = "Scoring: the left board and the Target plate show one running score, and a hand rebuilt while scoring stays hidden under the played row", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local g2, land, init = read("src/Client/Gameplay2.lua"), read("src/Client/ScoreLand.lua"), read("src/Client/init.client.lua")
+	expectTrue(g2 and land and init, "sources readable")
+	-- one value: the Score plate's count step (put) writes the numeral, the Target plate AND hands the same number to the left board
+	local put = g2:match("local function put%(n%).-\n\t\tend\n") or ""
+	expectTrue(put:find("progressLine(n, lastState.targetScore)", 1, true) ~= nil, "put writes the Target plate from the running value")
+	expectTrue(put:find("ScoreLand).mirror(n, lastState.targetScore)", 1, true) ~= nil, "put hands the same running value to the left board")
+	expectTrue(land:find("function ScoreLand.mirror", 1, true) ~= nil and land:find("if held or", 1, true) ~= nil, "mirror draws the board, but never while a hold keeps the old score")
+	expectTrue(land:find("counted = require(script.Parent.Gameplay2).landScore(goal.score) == true", 1, true) ~= nil, "land asks whether the Score plate is counting")
+	local counting = land:match("if counted and goal.target == shown.target.-return\n\tend") or ""
+	expectTrue(counting ~= "" and counting:find("RenderStepped", 1, true) == nil, "while the plate counts, ScoreLand starts no second count of its own")
+	-- a state update destroys and re-creates the hand: the new cards are hidden again while a hand scores
+	expectTrue(g2:find("function M.rehideHand()", 1, true) ~= nil and g2:match("function M.rehideHand%(%).-current.playing.-hideHand, true.-end") ~= nil, "rehideHand hides again only while playing")
+	local layoutPos = init:find("cardFaceModule.layoutHand(handFrame)", 1, true)
+	local rehidePos = init:find("require(script.Gameplay2).rehideHand()", 1, true)
+	expectTrue(layoutPos and rehidePos and rehidePos > layoutPos and rehidePos - layoutPos < 300, "every hand rebuild ends by hiding the new cards again")
+	-- the final total is always written by the count's last step: rules module keeps both boards on the same final number
+	local ScoreLand = require(script.Parent.Parent.Engine.ScoreLand)
+	expectEqual(ScoreLand.rolled(0, 233, ScoreLand.ROLL_TIME, ScoreLand.ROLL_TIME), 233, "a count ends exactly on the total")
+end })
+
 table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, L, Recipes, RS = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.RunState)

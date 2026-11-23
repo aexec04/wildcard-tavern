@@ -56,6 +56,13 @@ function ScoreLand.set(score, target)
 	put(score, target)
 end
 
+-- The Score plate's count-up (Client/Gameplay2) hands its running value here every step, so the left board and the Target plate always
+-- show the same number. No effect while a hold keeps the score from before the hand.
+function ScoreLand.mirror(score, target)
+	if held or type(score) ~= "number" or type(target) ~= "number" then return end
+	put(score, target)
+end
+
 function ScoreLand.hold(before)
 	if not shown then return end -- nothing has been drawn yet: there is no old score to keep
 	held = true
@@ -80,9 +87,19 @@ function ScoreLand.land()
 	held = false
 	local goal = pending or latest
 	pending = nil
-	if goal then pcall(function() require(script.Parent.Gameplay2).landScore(goal.score) end) end -- the Score plate's numeral too
+	local counted = false -- the Score plate counted up and drove this board with the same running value (ScoreLand.mirror)
+	if goal then pcall(function() counted = require(script.Parent.Gameplay2).landScore(goal.score) == true end) end -- the Score plate's numeral too
 	if not goal or not shown then return end
 	local from = shown.score
+	if counted and goal.target == shown.target and goal.score > from then
+		rollId += 1
+		rollGoal = goal.score
+		local id = rollId
+		task.delay(4, function() -- safety only: the count's last step already wrote the final total
+			if rollId == id then rollGoal = nil; put(goal.score, goal.target) end
+		end)
+		return
+	end
 	if goal.target ~= shown.target or goal.score <= from or not ClientSettings.motionAllowed() then
 		rollId += 1
 		rollGoal = nil

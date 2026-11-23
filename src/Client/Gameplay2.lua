@@ -804,6 +804,7 @@ function M.install(deps)
 		local function put(n)
 			scoreNum.Text = require(Engine:WaitForChild("ScoreText")).tally(n)
 			pcall(function() setText(target, require(Engine:WaitForChild("ScoreText")).progressLine(n, lastState.targetScore)) end) -- the Target plate counts up with the tally
+			pcall(function() require(script.Parent.ScoreLand).mirror(n, lastState.targetScore) end) -- the left board shows this same running value
 			local fit = self.scoreFit
 			if fit then -- a long total shrinks to stay inside the plate's border
 				pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
@@ -827,6 +828,7 @@ function M.install(deps)
 			print(("[ScoreNumeral] phase=%s %s last=%s now=%d text=%s gold=%s"):format(tostring(phase), act, tostring(self.lastScore), nowScore, scoreNum.Text, tostring(gold)))
 		end
 		self.lastScore = nowScore
+		return act == "count"
 	end
 
 	-- the hand's payout landed (ScoreLand.land) while the round-ending state is still held back by the reveal: count the numeral up
@@ -837,7 +839,7 @@ function M.install(deps)
 		for k, v in pairs(lastState) do copy[k] = v end
 		copy.roundScore = score
 		lastState = copy
-		self.writeNumeral(score, "playing")
+		return self.writeNumeral(score, "playing") == true -- true: a count-up started (it now also drives the left board)
 	end
 
 	-- the round-ending state is on screen (the shop opens): the numeral must read the final total, even if a count was still running
@@ -1139,6 +1141,12 @@ function M.selectedLift(want, restTop)
 	return require(Engine:WaitForChild("HandLift")).pickLift(L.selectedLift(current.rects(), want, math.max(20, PreviewRules.H)))
 end
 
+-- the hand was rebuilt (a state update destroys and re-creates the cards) while a hand is scoring: the new cards step aside too, so nothing
+-- stands over or under the played cards (Client/init.client calls this after every rebuild)
+function M.rehideHand()
+	if current and current.playing and current.hideHand then pcall(current.hideHand, true) end
+end
+
 function M.playedBand()
 	if not current then return nil end
 	current.playing = true
@@ -1170,7 +1178,8 @@ end
 
 -- the payout landed: the Score plate's numeral shows the new round total even while the round-ending state is held back
 function M.landScore(score)
-	if current and current.landScore then current.landScore(score) end
+	if current and current.landScore then return current.landScore(score) end
+	return false
 end
 
 return M

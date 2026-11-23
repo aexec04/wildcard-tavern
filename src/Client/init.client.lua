@@ -2222,6 +2222,7 @@ local function rebuildHand(handData, phase)
 
 	-- REFERENCE-MATCH PASS: size cards to the window + draw the tray.
 	cardFaceModule.layoutHand(handFrame)
+	pcall(function() require(script.Gameplay2).rehideHand() end) -- a rebuild while a hand is scoring keeps the new cards out from under the played row
 end
 
 refreshHandSort = function()
