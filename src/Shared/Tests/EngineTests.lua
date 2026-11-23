@@ -31855,7 +31855,7 @@ table.insert(tests, { name = "Gear menu keeps quick actions only; comfort toggle
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local ids = {}
 	for _, r in ipairs(G.ROWS) do ids[#ids + 1] = r.id end
-	expectEqual(table.concat(ids, ","), "restart,map,settings,howTo,quit", "gear rows: no Sound, Music or Tome rows")
+	expectEqual(table.concat(ids, ","), "restart,quit,map,settings,howTo", "gear rows: Restart run and Main Menu side by side, no Sound, Music or Tome rows")
 	local sids = {}
 	for _, r in ipairs(G.SOUND_ROWS) do sids[#sids + 1] = r.id end
 	expectEqual(table.concat(sids, ","), "sound,music,tracks", "speaker dropdown rows")
