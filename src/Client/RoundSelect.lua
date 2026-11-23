@@ -311,6 +311,7 @@ return function(deps)
 	--   top 280px  = scene image (boss portrait for round 3, room art for 1-2)
 	--   below that = room name, boss/tag info, target plaque, action buttons
 	-- Cards do not stretch to fill the screen height.
+	local cardWNow, cardHNow = 340, 620 -- the compact card (short windows) swaps these, see fitCards
 	local CARD_W = 340 -- about 0.55 of the 620 card height; the three equal cards use the free width
 	local roundPanels = {}
 	local cardScales = {}
@@ -728,15 +729,48 @@ return function(deps)
 	-- The bottom-anchored content scales with the card, so nothing is cut off.
 	local CARD_H = 620
 	local MAX_FIT = 1.25 -- the full-width screen lets the cards grow on big viewports
+	local RSL = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundSelectLayout"))
+	-- COMPACT card (windows under RSL.COMPACT_BELOW high): a shorter card whose buttons keep their real 44 px size.
+	-- Positions are offsets from the card bottom, the same anchors the full card uses, so only the numbers change.
+	local function applyCompact(on, phone)
+		cardWNow, cardHNow = on and RSL.CW_C or CARD_W, on and RSL.CH_C or CARD_H
+		titleLabel.Visible, subtitleLabel.Visible = not phone, not phone
+		titleLabel.TextSize = 34
+		if phone then welcomeLabel.Visible = false end
+		panelRow.Position = UDim2.new(0, 20, 0, on and (phone and RSL.ROW_TOP_PHONE or RSL.ROW_TOP) or RSL.ROW_TOP)
+		panelRow.Size = UDim2.new(1, -40, 1, -((on and (phone and RSL.ROW_TOP_PHONE or RSL.ROW_TOP) or RSL.ROW_TOP) + (on and (phone and RSL.ROW_BOTTOM_PHONE or RSL.ROW_BOTTOM) or RSL.ROW_BOTTOM)))
+		tipsChip.Position = UDim2.new(1, -20, 0, phone and RSL.TIPS_TOP_PHONE or RSL.TIPS_TOP)
+		for _, entry in ipairs(roundPanels) do
+			entry.panel.Size = UDim2.new(0, cardWNow, 0, cardHNow)
+			local room, bname, brule, tag, target = table.unpack(entry.shiftables)
+			bname.Size = UDim2.new(1, -16, 0, on and 40 or 46)
+			bname.Position = UDim2.new(0, 8, 1, on and -214 or -204)
+			brule.TextSize = on and 14 or 16
+			tag.Size = UDim2.new(1, -20, 0, on and 34 or 28)
+			tag.TextSize = on and 14 or 16
+			tag.TextWrapped = on
+			room.Position = UDim2.new(0, 8, 1, on and -186 or (entry.isBossRound and -232 or -180))
+			entry.shiftBase = { room.Position.Y.Offset, bname.Position.Y.Offset, brule.Position.Y.Offset, tag.Position.Y.Offset, target.Position.Y.Offset }
+			entry.shiftBase0 = nil -- the lift below is measured from the new base
+		end
+	end
 	local function fitCards()
 		local cam = workspace.CurrentCamera
 		local vpY = cam and cam.ViewportSize.Y or 720
-		local rowH = panelRow.AbsoluteSize.Y
-		local rowW = panelRow.AbsoluteSize.X
-		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT, 0.4)
+		local vpX = cam and cam.ViewportSize.X or 1280
+		local compact = RSL.isCompact(vpY)
+		applyCompact(compact, compact and vpY < RSL.PHONE_BELOW)
+		local scale
+		if compact then
+			scale = RSL.metrics(vpX, vpY).scale
+		else
+			local rowH = panelRow.AbsoluteSize.Y
+			local rowW = panelRow.AbsoluteSize.X
+			scale = CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT, 0.4)
+		end
 		fx.setFit(scale)
 		-- The layout spaces by the scaled card size, so Padding is the on-screen gap (never below 28px).
-		panelRowLayout.Padding = UDim.new(0, CardFit.padding(scale, CARD_W))
+		panelRowLayout.Padding = UDim.new(0, CardFit.padding(scale, cardWNow))
 		-- Measure after layout; if the real gap is still short, add the shortfall.
 		task.defer(function()
 			local a, b = panelRow:FindFirstChild("RoundPanel1"), panelRow:FindFirstChild("RoundPanel2")
@@ -936,11 +970,11 @@ return function(deps)
 				do -- a long rule grows upward: lift the boss name and room labels so nothing is covered or cut
 					local fit = require(game:GetService("ReplicatedStorage").Shared.Engine.BossRuleFit)
 					local okT, bounds = pcall(function()
-						return game:GetService("TextService"):GetTextSize(entry.bossLabel.Text, 16, Enum.Font.Gotham, Vector2.new(CARD_W - 20 - 16, 10000))
+						return game:GetService("TextService"):GetTextSize(entry.bossLabel.Text, entry.bossLabel.TextSize, Enum.Font.Gotham, Vector2.new(cardWNow - 20 - 16, 10000))
 					end)
-					local h = okT and (bounds.Y + fit.PAD) or fit.height(fit.lines(entry.bossLabel.Text, 16, CARD_W - 36), 16)
+					local h = okT and (bounds.Y + fit.PAD) or fit.height(fit.lines(entry.bossLabel.Text, entry.bossLabel.TextSize, cardWNow - 36), entry.bossLabel.TextSize)
 					entry.shiftBase0 = entry.shiftBase0 or { entry.shiftBase[1], entry.shiftBase[2] }
-					local lift = fit.extra(h)
+					local lift = cardWNow < CARD_W and math.max(0, h - 60) or fit.extra(h) -- the compact card reserves three 14 px lines
 					entry.shiftBase[1], entry.shiftBase[2] = entry.shiftBase0[1] - lift, entry.shiftBase0[2] - lift
 				end
 			else
@@ -990,7 +1024,7 @@ return function(deps)
 			end
 			entry.goldTint.Visible = isPast
 			entry.medal.Visible = isPast
-			entry.panel.Size = UDim2.new(0, CARD_W, 0, 620) -- all three cards share one height and bottom edge
+			entry.panel.Size = UDim2.new(0, cardWNow, 0, cardHNow) -- all three cards share one height and bottom edge
 			for i, obj in ipairs(entry.shiftables) do
 				local p = obj.Position
 				obj.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, entry.shiftBase[i] + drop)
