@@ -5006,6 +5006,20 @@ table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values
 	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
 end })
 
+table.insert(tests, { name = "Fast scoring: default off, saves and loads, halves the tally and never slows a faster pace", fn = function()
+	local profile = PlayerProfile.new()
+	expectEqual(profile.settings.fastScoring, false)
+	expectTrue((PlayerProfile.setSetting(profile, "fastScoring", true)))
+	expectEqual(PlayerProfile.migrate(profile).settings.fastScoring, true)
+	expectEqual(PlayerProfile.migrate({}).settings.fastScoring, false)
+	expectEqual(PlayerProfile.scoringPaceDivisor("normal", false, false), 1)
+	expectEqual(PlayerProfile.scoringPaceDivisor("normal", false, true), 2)
+	expectEqual(PlayerProfile.scoringPaceDivisor("normal", true, true), 2)
+	expectTrue(PlayerProfile.scoringPaceDivisor("fast", true, true) >= PlayerProfile.FAST_FORWARD_PACE_DIVISOR)
+	expectTrue(PlayerProfile.scoringPaceDivisor("fast", true, true) >= 2)
+	expectEqual(PlayerProfile.scoringPaceDivisor("fast", false, false), PlayerProfile.FAST_PACE_DIVISOR)
+end })
+
 table.insert(tests, { name = "PlayerProfile.animationPaceDivisor: free Fast is milder than the Fast Forward pass", fn = function()
 	expectEqual(PlayerProfile.animationPaceDivisor("normal", false), 1)
 	expectEqual(PlayerProfile.animationPaceDivisor("normal", true), 1)
@@ -43036,7 +43050,7 @@ table.insert(tests, { name = "Settings sections: Accessibility, Sound, Display a
 	expectEqual(SL.rowOrder()[1], "calmMode", "Calm mode stays the first row")
 	local seen, n = {}, 0
 	for _, id in ipairs(SL.rowOrder()) do expectFalse(seen[id], "row once: " .. id); seen[id] = true; n = n + 1 end
-	expectEqual(n, 15, "every Settings row is listed")
+	expectEqual(n, 16, "every Settings row is listed")
 	expectTrue(SL.PANEL.rowH >= 44 and SL.MIN_TOUCH == 44 and SL.SWITCH.h >= 44 and SL.CLOSE.h >= 44, "44 px rows and controls")
 	for _, size in ipairs({ { 800, 450 }, { 1024, 768 }, { 1366, 768 }, { 1920, 1080 } }) do
 		local panelH = size[2] * SL.PANEL.fh
@@ -46095,5 +46109,6 @@ table.insert(tests, { name = "Leaderboard row plates: rank, name and stats never
 end })
 
 return tests
+
 
 

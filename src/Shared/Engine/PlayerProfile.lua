@@ -95,6 +95,7 @@ PlayerProfile.SETTING_SPECS = {
 	boardCollapsed = { default = false, kind = "boolean" }, -- the left board is slid away (Client/BoardDrawer)
 	roundHints = { default = true, kind = "boolean" }, -- the three table hint plates of the first rounds (Engine/RoundHints)
 	musicTrack = { default = "auto", kind = "choice", choices = { auto = true, gameplay = true, menu = true, shop = true, boss = true, lantern_waltz = true, midnight_fiddle = true, harvest_jig = true, dragons_breath_inn = true, dragon_hearth = true, through_the_trees = true, would_have_followed = true, victory_fanfare = true } }, -- Music panel (Engine/MusicPicker)
+	fastScoring = { default = false, kind = "boolean" }, -- Settings > Display: the score tally takes half the time (scoringPaceDivisor)
 	allowSpectators = { default = true, kind = "boolean" }, -- friends in the same server may watch your run (Engine/Spectate.lua)
 }
 
@@ -599,6 +600,17 @@ function PlayerProfile.animationPaceDivisor(animSpeed, hasFastForwardPass)
 		return PlayerProfile.FAST_FORWARD_PACE_DIVISOR
 	end
 	return PlayerProfile.FAST_PACE_DIVISOR
+end
+
+-- Divisor for the score tally: Fast scoring halves it; Animation Speed and the
+-- Fast Forward pass can still make it quicker, never slower.
+PlayerProfile.FAST_SCORING_DIVISOR = 2
+function PlayerProfile.scoringPaceDivisor(animSpeed, hasFastForwardPass, fastScoring)
+	local d = PlayerProfile.animationPaceDivisor(animSpeed, hasFastForwardPass)
+	if fastScoring == true and d < PlayerProfile.FAST_SCORING_DIVISOR then
+		return PlayerProfile.FAST_SCORING_DIVISOR
+	end
+	return d
 end
 
 -- ONE MORE ROUND: every player gets one free continue per day (the UTC day

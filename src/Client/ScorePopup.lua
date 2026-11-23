@@ -1106,9 +1106,10 @@ return function(deps)
 		-- Settings > Display > Animation Speed, decided once per hand (see
 		-- pace()). "fast" is a free mild speed-up; owning the Fast Forward
 		-- pass upgrades it to the full one (PlayerProfile.animationPaceDivisor).
-		currentPaceDivisor = PlayerProfileEngine.animationPaceDivisor(
+		currentPaceDivisor = PlayerProfileEngine.scoringPaceDivisor(
 			ClientSettings.get("animSpeed"),
-			hasFastForwardPass ~= nil and hasFastForwardPass()
+			hasFastForwardPass ~= nil and hasFastForwardPass(),
+			ClientSettings.get("fastScoring") == true -- Settings > Display > Fast scoring halves the tally
 		)
 
 		do -- pacing: the same hand again and again plays its Patron beats quicker, and a tap or click plays the rest at once

@@ -54,7 +54,7 @@ end
 function M.cancel() running = running + 1 end -- a running count stops where it is (the caller then writes the final total)
 
 function M.play(scoreNum, burstParent, oldScore, newScore, setText, target)
-	local fast = ClientSettings.get("animSpeed") == "fast" and PlayerProfile.animationPaceDivisor("fast", false) > 1
+	local fast = PlayerProfile.scoringPaceDivisor(ClientSettings.get("animSpeed"), false, ClientSettings.get("fastScoring") == true) > 1
 	local plan = Rules.plan(oldScore, newScore, { calm = calm(), fast = fast, target = target })
 	running = running + 1
 	local id = running

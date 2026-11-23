@@ -362,6 +362,7 @@ return function(deps)
 
 	-- ===== Display =====
 	makeHeader("Display")
+	makeChoiceRow("fastScoring", "Fast Scoring", S("settings.fastScoring.hint"), OFF_ON)
 	makeChoiceRow("animSpeed", "Animation Speed", S("settings.animSpeed.hint"), {
 		{ "normal", "Normal" },
 		{ "fast", "Fast" },

@@ -19,7 +19,7 @@ local M = {}
 M.SECTIONS = {
 	{ id = "accessibility", title = "Accessibility", rows = { "calmMode", "reduceMotion", "reduceFlashing", "reduceShake", "largerText", "colorblindSuits" } },
 	{ id = "sound", title = "Sound", rows = { "volume" } },
-	{ id = "display", title = "Display", rows = { "animSpeed", "performanceMode", "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
+	{ id = "display", title = "Display", rows = { "fastScoring", "animSpeed", "performanceMode", "roundHints", "confirmDiscard", "holdConfirmSeconds" } },
 	{ id = "account", title = "Account", rows = { "allowSpectators", "replayTutorial", "replayHints" } },
 }
 

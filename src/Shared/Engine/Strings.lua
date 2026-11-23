@@ -11,6 +11,7 @@ Strings.en = {
 	["settings.calm.hint"] = "Turns on Reduce Motion, Reduce Flashing and Reduce Screen Shake together.",
 	["settings.reduceMotion.hint"] = "Calmer scenes with less movement.",
 	["settings.reduceFlashing.hint"] = "No screen flashes or fast pulses, fewer sparkles.",
+	["settings.fastScoring.hint"] = "Halves the time the score takes to count up. Same numbers.",
 	["settings.reduceShake.hint"] = "Turns off the screen shake on big hits.",
 	["settings.largerText.hint"] = "Large makes text 15 percent bigger where there is room.",
 	["settings.colorblindSuits.hint"] = "Gives each suit its own color and a corner letter.",
