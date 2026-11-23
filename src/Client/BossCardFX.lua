@@ -170,40 +170,8 @@ function M.liveRect()
 	return nil
 end
 
-local function applySeatGlow(layer, rects, owned)
-	clearGlow()
-	glowFrames = {}
-	for i = 1, owned do
-		local seat = Rules.seatFor(i, true) -- the Boss card holds the middle seat: Patrons 3 and 4 stand in seats 4 and 5, a fifth is out of the row
-		local s = seat and rects.slots and rects.slots[seat]
-		if s and s.card then
-			local g = Instance.new("Frame")
-			g.Name = "BossSeatGlow"
-			g.BackgroundTransparency = 1
-			g.BorderSizePixel = 0
-			g.Active = false
-			g.ZIndex = 12 -- above the seat shadow and plaque frames so the gold edge is not hidden
-			g.Position = UDim2.fromOffset(s.card.x - 2, s.card.y - 2)
-			g.Size = UDim2.fromOffset(s.card.w + 4, s.card.h + 4)
-			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = g
-			local st = Instance.new("UIStroke"); st.Color = GOLD; st.Thickness = Rules.glow(true).seatStroke; st.Transparency = Rules.glow(true).seatStrokeT; st.Parent = g
-			local gl = Rules.glow(true)
-			pcall(function() -- candlelight: the shared feathered radial glow (no ring edges, no seams), about 30 px past the card, static in Calm mode and Reduce motion
-				local pad = Rules.haloReach(Rules.seatGap(rects), gl.seatHalo)
-				local cw, ch = s.card.w + 4, s.card.h + 4
-				local plateBottom = (top and top.Plate.Visible) and (top.Plate.Position.Y.Offset + top.Plate.Size.Y.Offset) or 0
-				local padT = math.max(0, math.min(pad, (s.card.y - 2) - plateBottom)) -- the halo stops under the top plate
-				local hh = ch + padT + pad
-				local inner = math.min(cw / (cw + 2 * pad), ch / hh) -- the card edge sits where the halo is strongest, so it reads as candlelight
-				require(script.Parent.SoftGlow).build(g, {
-					name = "Halo", color = GOLD, peak = 1 - gl.seatHaloT, inner = inner, zIndex = 11,
-					position = UDim2.new(0.5, 0, 0.5, (pad - padT) / 2), size = UDim2.new(1, 2 * pad, 0, hh),
-				})
-			end)
-			g.Parent = layer
-			glowFrames[#glowFrames + 1] = g
-		end
-	end
+local function applySeatGlow()
+	clearGlow() -- the Patron seats carry no resting edge or halo any more; they glow on hover only (PatronRow + HoverGlowFX)
 end
 
 function M.update(layer, state, rects, viewW, viewH)
@@ -279,29 +247,13 @@ function M.update(layer, state, rects, viewW, viewH)
 			seatCard.Art.Face.Visible = not (okA and art)
 			seatCard.Art.Face.Text = Moments.bossIcon(boss and boss.rules)
 		end
-		seatCard.Glow.Thickness = glow.stroke
-		do -- the rings stop 6 px short of the neighbouring seats
-			local step = math.floor(Rules.bossReach(Rules.seatGap(rects)) / 3)
-			for i = 1, 3 do
-				local ring = seatCard["OuterGlow" .. i]
-				local d = (i - 1) * step
-				ring.Position = UDim2.fromOffset(-d, -d); ring.Size = UDim2.new(1, 2 * d, 1, 2 * d)
-				ring.Visible = step > 0 or i == 1
-				ring.Ring.Thickness = math.max(1, step)
-			end
-		end
-		if not pulseTweens and glow.pulse then
-			pulseTweens = {}
-			for i = 1, 3 do -- ring i pulses from lo + 0.15 (i - 1) up to hi + 0.15 (i - 1): the inner ring is the strongest
-				local ring = seatCard["OuterGlow" .. i].Ring
-				ring.Transparency = glow.lo + 0.15 * (i - 1)
-				local tw = TweenService:Create(ring, TweenInfo.new(glow.pulse, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = glow.hi + 0.15 * (i - 1) })
-				tw:Play()
-				pulseTweens[i] = tw
-			end
-		elseif not glow.pulse then
-			stopPulse()
-			for i = 1, 3 do seatCard["OuterGlow" .. i].Ring.Transparency = glow.lo + 0.15 * (i - 1) end -- static in Calm mode and Reduce motion
+		-- No resting glow: the soft rings stay hidden and nothing pulses. The Round Select style hover glow (HoverGlowFX) is the only light.
+		seatCard.Glow.Thickness = 1
+		stopPulse()
+		for i = 1, 3 do seatCard["OuterGlow" .. i].Visible = false end
+		if not seatCard:FindFirstChild("HoverGlowScale") then
+			seatCard.Active = true -- so MouseEnter fires; the seat has no click action
+			pcall(function() require(script.Parent.HoverGlowFX).attach(seatCard, { radius = 8, zIndex = 40 }) end)
 		end
 	else
 		seatCard.Visible = false
@@ -333,7 +285,7 @@ function M.update(layer, state, rects, viewW, viewH)
 	else
 		night.Visible = false
 	end
-	applySeatGlow(layer, rects, #(state.ownedPatrons or {}))
+	applySeatGlow()
 end
 
 return M

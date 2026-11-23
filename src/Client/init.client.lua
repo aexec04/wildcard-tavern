@@ -2216,6 +2216,9 @@ local function rebuildHand(handData, phase)
 				end,
 			})
 		end)
+		pcall(function() -- gold outline on hover (no fill, no grow: the lift is the hand's own), nothing at rest (HoverGlowFX)
+			require(script.HoverGlowFX).attach(card, { hit = button, strokeOnly = true, radius = 8, zIndex = card.ZIndex + 3 })
+		end)
 		button.MouseEnter:Connect(function()
 			if require(script.ModalStage).blocks(button) then return end -- a modal is open: hand cards ignore hover
 			hoveredIndex = index

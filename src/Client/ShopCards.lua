@@ -346,6 +346,8 @@ function ShopCards.new(deps)
 			rarity = CollectionBook.rarityForId(spec.rarityTab, spec.rarityId)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
+		local hoverFx -- the shared Round Select style hover glow; nothing shows at rest, show(on) below drives it
+		pcall(function() hoverFx = require(script.Parent.HoverGlowFX).attach(artFrame, { manual = true, radius = 8, zIndex = Z + 3 }) end)
 		if spec.kind == "patron" and require(Engine:WaitForChild("Gameplay2Synergy")).completes(spec.synergy) then
 			-- an offer that works with a Patron you own: a soft gold outline (the chip below says which theme)
 			local glow = Instance.new("Frame")
@@ -568,6 +570,7 @@ function ShopCards.new(deps)
 				button.Visible = on
 			end
 			local still = ClientSettings.get("reduceShake") == true -- calm mode: the card stays where it lies
+			if hoverFx then hoverFx.setHover(on) end
 			if on then
 				if not still then
 					tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }, 0.14)

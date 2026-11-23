@@ -357,6 +357,10 @@ local function newCard(i)
 	c.value = value
 	c.slot, c.float, c.body, c.name, c.plus, c.plaque, c.shadow = slot, float, body, name, plus, plaque, shadow
 	c.dim, c.ringStroke = dim, ringStroke
+	pcall(function() -- the shared Round Select style hover glow: nothing shows at rest, only an owned seat reacts (HoverGlowFX)
+		local fx = require(script.Parent.HoverGlowFX).attach(body, { hit = body, radius = 8, zIndex = Z + 7 })
+		c.hoverGlow = fx
+	end)
 	-- hover: an owned Patron's gold ring shows faintly (the scoring beat owns the ring while a card hops)
 	c.afterMotion = function() if c.slot.Visible and not c.hovering and not c.floatTween then startFloat(c, 1) end end
 	body.MouseEnter:Connect(function()

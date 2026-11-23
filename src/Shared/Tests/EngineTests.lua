@@ -37442,7 +37442,8 @@ table.insert(tests, { name = "Boss round: the boss1 debug jump seats face-up Pat
 	local fx = read("src/Client/BossCardFX.lua")
 	expectTrue(fx:find("BossPresenceFX", 1, true) and fx:find("BossPresencePlate", 1, true), "BossCardFX clears the Concept T red plate")
 	expectTrue(fx:find("OuterGlow", 1, true) and fx:find("stopPulse()", 1, true), "the outer glow rings are built and stop in Calm mode")
-	expectTrue(fx:find("SoftGlow", 1, true) and fx:find("Rules.seatFor(i, true)", 1, true), "every seated Patron card has a feathered SoftGlow halo, placed by the boss seat map")
+	expectTrue(not fx:find("SoftGlow", 1, true) and not fx:find("BossSeatGlow", 1, true), "no resting halo or edge on the Patron seats (hover glow only)")
+	expectTrue(fx:find("HoverGlowFX", 1, true) and fx:find('["OuterGlow" .. i].Visible = false', 1, true), "the Boss seat rings are hidden at rest and it uses the shared hover glow")
 	expectTrue(fx:find("seat.w - 12", 1, true), "the Boss card name shrinks to fit with 6 px side padding")
 	expectTrue(fx:find("BossSeatCard", 1, true) and fx:find("Rules.seatRect(rects)", 1, true) and fx:find('"BOSS"', 1, true), "the Boss card is built in the middle seat with a BOSS tag")
 	expectTrue(fx:find('painted(top.Plate, "wh_target")', 1, true), "the top plate uses the Target and Tips plate picture")
@@ -46371,6 +46372,30 @@ table.insert(tests, { name = "Gear menu: Restart run is first and mid run, Main 
 	for _, f in ipairs({ "src/Client/GearMenu.lua", "src/Client/QuitConfirm.lua", "src/Shared/Engine/GearMenu.lua", "src/Shared/Engine/QuitFlow.lua", "src/Shared/Engine/SettingsLayout.lua" }) do
 		expectTrue(read(f):find('"Quit to Tavern"', 1, true) == nil, f .. " has no Quit to Tavern label")
 	end
+end })
+
+table.insert(tests, { name = "HoverGlow: one shared Round Select style glow, nothing visible at rest, Calm keeps only the rim, no resting glow frames in the card modules", fn = function()
+	local H = require(script.Parent.Parent.Engine.HoverGlow)
+	local r = H.rest()
+	expectTrue(r.scale == 1 and r.brightenT == 1 and r.rimT == 1 and r.visible == false, "rest shows nothing")
+	local p = H.plan(false, false)
+	expectTrue(p.scale == 1.04 and p.brightenT <= 0.9 and p.shine and p.seconds == 0.18, "hover matches the blind cards")
+	local c = H.plan(true, false)
+	expectTrue(c.scale == 1 and c.brightenT == 1 and not c.shine and c.seconds == 0 and c.rimT < 1, "Calm: rim only, instant")
+	local so = H.plan(false, true)
+	expectTrue(so.scale == 1 and not so.shine and so.rimT < 1, "strokeOnly (hand cards): rim only")
+	if not (io and io.open) then return end
+	local function read(p2) local f = assert(io.open(p2, "r")); local t2 = f:read("a"); f:close(); return t2 end
+	local fx = read("src/Client/HoverGlowFX.lua")
+	expectTrue(fx:find("rim.Visible = false", 1, true) or fx:find("rim.Visible = false\n", 1, true) or fx:find("\trim.Visible = false", 1, true), "rim starts hidden")
+	expectTrue(fx:find("wash.Visible = false", 1, true) and fx:find("clip.Visible = false", 1, true), "wash and shine start hidden")
+	expectTrue(not fx:find("Transparency =", 1, true) or not fx:find("UIGradient", 1, true), "no gradient transparency")
+	expectTrue(read("src/Client/PatronRow.lua"):find("HoverGlowFX", 1, true) ~= nil, "Patron seats use it")
+	expectTrue(read("src/Client/ShopCards.lua"):find("HoverGlowFX", 1, true) ~= nil, "shop offers use it")
+	expectTrue(read("src/Client/BossCardFX.lua"):find("HoverGlowFX", 1, true) ~= nil, "the Boss seat uses it")
+	expectTrue(read("src/Client/init.client.lua"):find("HoverGlowFX", 1, true) ~= nil, "hand cards use it")
+	local shine = read("src/Client/PatronShineFX.lua")
+	expectTrue(shine:find("RESTING_GLOW ~= true", 1, true) ~= nil, "the Patron rarity glow no longer rests")
 end })
 
 return tests

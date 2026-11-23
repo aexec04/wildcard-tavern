@@ -25,6 +25,9 @@ function M.clear(c)
 end
 
 function M.sync(c, tier, calm, seat)
+	-- No resting glow or idle shine on a seat: the hover glow (Client/HoverGlowFX) is the only light on a card.
+	if c.shineTier or c.float:FindFirstChild("RarityGlow") then M.clear(c) end
+	if M.RESTING_GLOW ~= true then return end
 	local g, s = Shine.glow(tier, calm), Shine.shine(tier, calm)
 	if not g then
 		if c.shineTier then M.clear(c) end
