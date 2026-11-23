@@ -50046,6 +50046,103 @@ table.insert(tests, { name = "Patron synergy audit: every Patron scores a fixed 
 	expectEqual(checked, #Patrons.Definitions * #shapes, "every Patron was checked on every hand")
 end })
 
+table.insert(tests, { name = "Roads, Blessings and Night boons audit: each applies once, shows in the Run Over strip, never stacks after a restart, and no Blessing plus Night boon makes a target unreachable or a score negative; Roads change no score", fn = function()
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	local NightBoons = require(script.Parent.Parent.Engine.NightBoons)
+	local RunOverBoons = require(script.Parent.Parent.Engine.RunOverBoons)
+	local RunSummary = require(script.Parent.Parent.Engine.RunSummary)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local function det() return RunState.new(nil, function(n) return n end) end
+	local function ready()
+		local s = det()
+		RunState.startRound(s)
+		return s
+	end
+	local function finite(x) return type(x) == "number" and x == x and x ~= math.huge and x ~= -math.huge end
+
+	-- BLESSINGS (start of run): documented config deltas applied exactly once, remembered, shown in the summary
+	local base = ready()
+	for _, def in ipairs(RunModifiers.Definitions) do
+		local s = ready()
+		local tipsBefore = s.tips
+		local ok = RunModifiers.apply(s, def.id)
+		expectTrue(ok, def.id .. " applies")
+		expectEqual(s.runModifierId, def.id, def.id .. " is remembered")
+		expectEqual(s.tips, tipsBefore + (def.tips or 0), def.id .. " Tips exactly once")
+		for key, delta in pairs(def.config or {}) do
+			local floor = (key == "handsPerRound" or key == "patronSlotLimit" or key == "tipsPerRoundWin") and 1 or 0
+			expectEqual(s.config[key], math.max(floor, base.config[key] + delta), def.id .. " config " .. key .. " moved by its documented delta once")
+		end
+		local view = RunSummary.build(s, nil)
+		expectTrue(view.blessing ~= nil and view.blessing.id == def.id, def.id .. " shows in the Run Over summary")
+		-- restart: a new run carries nothing, and the same blessing then lands once, not twice
+		local fresh = ready()
+		expectEqual(fresh.runModifierId, nil, "a restarted run has no blessing")
+		for k, v in pairs(base.config) do expectEqual(fresh.config[k], v, "restart config " .. k) end
+		RunModifiers.apply(fresh, def.id)
+		for k, v in pairs(s.config) do expectEqual(fresh.config[k], v, def.id .. " does not stack after a restart: " .. k) end
+		expectEqual(fresh.tips, s.tips, def.id .. " Tips do not stack after a restart")
+	end
+
+	-- NIGHT BOONS: logged once, feed the Run Over strip, cleared by a restart, last one Night only
+	for _, def in ipairs(NightBoons.Definitions) do
+		local s = ready()
+		s.night = 2
+		local ok = NightBoons.apply(s, def.id)
+		expectTrue(ok, def.id .. " applies")
+		expectEqual(s.nightBoon.id, def.id)
+		expectEqual(#NightBoons.history(s), 1, def.id .. " logs once")
+		expectEqual(s.boonsPicked, 1)
+		local strip = RunOverBoons.view(NightBoons.history(s))
+		expectTrue(strip ~= nil and strip.chips[1].id == def.id, def.id .. " shows in the Run Over strip")
+		local fresh = ready()
+		expectEqual(fresh.nightBoon, nil)
+		expectEqual(#NightBoons.history(fresh), 0, "restart clears the boon log")
+		s.night = 3
+		expectEqual(NightBoons.active(s), nil, def.id .. " lasts one Night")
+	end
+
+	-- COMBINATIONS: any Blessing plus any one boon keeps Night 1 and Night 2 playable, every score finite and not negative
+	for _, mod in ipairs(RunModifiers.Definitions) do
+		for _, boon in ipairs(NightBoons.Definitions) do
+			for _, night in ipairs({ 1, 2 }) do
+				local s = det()
+				RunModifiers.apply(s, mod.id)
+				s.night = night
+				if night >= NightBoons.FIRST_NIGHT then NightBoons.apply(s, boon.id) end
+				RunState.startRound(s)
+				local label = mod.id .. "+" .. boon.id .. " Night " .. night
+				expectTrue(finite(s.targetScore) and s.targetScore > 0, label .. " has a finite target")
+				expectTrue(s.handsRemaining >= 1, label .. " has a hand to play")
+				expectTrue(#s.hand >= 5, label .. " deals at least a five card hand")
+				expectTrue(s.targetScore <= 600, label .. " target is reachable for Night " .. night)
+				local r = RunState.playHand(s, { 1, 2, 3, 4, 5 })
+				expectTrue(finite(r.score) and r.score >= 0, label .. " scores a finite non negative hand")
+			end
+		end
+	end
+
+	-- ROADS: choosing a road changes no score or run number, cannot be done twice, and a biome reward is handed out once
+	local a, b = ready(), ready()
+	a.night = 3
+	a.worldRoute = { WorldMap.Start, "wildflower_meadow" }
+	local pick = WorldMap.choicesAfter("wildflower_meadow")[2]
+	expectTrue(WorldMap.chooseRoad(a, pick, "roundSelect"))
+	expectEqual(#a.worldRoute, 3, "a road is added once")
+	expectEqual(WorldMap.chooseRoad(a, pick, "roundSelect"), false, "a road cannot be chosen twice")
+	expectEqual(a.targetScore, b.targetScore, "a road changes no target")
+	expectEqual(a.tips, b.tips, "a road changes no Tips")
+	local profile = PlayerProfile.new()
+	BiomeRewards.recordBiomeCleared(profile, "desert")
+	local count = 0
+	for _ in pairs(profile.worldRewardIds or {}) do count = count + 1 end
+	BiomeRewards.recordBiomeCleared(profile, "desert")
+	local count2 = 0
+	for _ in pairs(profile.worldRewardIds or {}) do count2 = count2 + 1 end
+	expectEqual(count2, count, "a biome reward is handed out once")
+end })
+
 return tests
 
 
