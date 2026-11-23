@@ -16,11 +16,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Invites = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Invites"))
 
+local InviteStates = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("InviteStates"))
+
 local GameName = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName"))
 
 local InvitePrompt = {}
 
 local busy = false
+local lastAnchor
+local closedHooked = false
 
 local function toast(anchor, text)
 	local gui = anchor and anchor:FindFirstAncestorOfClass("ScreenGui")
@@ -33,9 +37,10 @@ local function toast(anchor, text)
 	end
 	local label = Instance.new("TextLabel")
 	label.Name = "InviteToast"
-	label.AnchorPoint = Vector2.new(0.5, 1)
-	label.Position = UDim2.new(0.5, 0, 1, -24)
-	label.Size = UDim2.fromOffset(420, 40)
+	local size = gui.AbsoluteSize
+	local r = InviteStates.plate(size.X, size.Y) -- tested rect: inside the screen, 52 px tall, room for two lines
+	label.Position = UDim2.fromOffset(r.x, r.y)
+	label.Size = UDim2.fromOffset(r.w, r.h)
 	label.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	label.BorderSizePixel = 0
 	label.Font = Enum.Font.GothamBold
@@ -65,18 +70,31 @@ local function toast(anchor, text)
 	end)
 end
 
+-- The invite sheet closed: friends were picked (sent) or it was closed with nobody (declined, said kindly).
+local function hookClosed()
+	if closedHooked then return end
+	closedHooked = true
+	pcall(function()
+		SocialService.GameInvitePromptClosed:Connect(function(_, recipientIds)
+			toast(lastAnchor, InviteStates.line(type(recipientIds) == "table" and #recipientIds > 0 and "sent" or "declined"))
+		end)
+	end)
+end
+
 function InvitePrompt.prompt(anchor)
 	if busy then
 		return
 	end
 	busy = true
+	lastAnchor = anchor
+	hookClosed()
 	task.spawn(function()
 		local player = Players.LocalPlayer
 		local okCan, can = pcall(function()
 			return SocialService:CanSendGameInviteAsync(player)
 		end)
 		if not (okCan and can) then
-			toast(anchor, "Invites are not available right now.")
+			toast(anchor, InviteStates.line("unavailable"))
 			busy = false
 			return
 		end
@@ -88,7 +106,7 @@ function InvitePrompt.prompt(anchor)
 		end)
 		if not okSend then
 			warn("[Invite] prompt failed: " .. tostring(err))
-			toast(anchor, "Could not open invites. Try again later.")
+			toast(anchor, InviteStates.line("failed"))
 		end
 		busy = false
 	end)

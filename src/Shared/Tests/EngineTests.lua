@@ -38844,6 +38844,48 @@ table.insert(tests, { name = "What's new plate: once per update, new profiles sk
 	expectTrue(not cli:find("TweenService", 1, true), "no tween, Calm mode is static")
 end })
 
+table.insert(tests, { name = "Invite and spectate states: every state has one kind line of 60 characters or less, engine reasons map to them, the toast plate fits four sizes", fn = function()
+	local IS = require(script.Parent.Parent.Engine.InviteStates)
+	for _, key in ipairs({ "sent", "joined", "declined", "full", "unavailable", "failed", "private", "blocked", "notInRun", "already", "self", "stopped", "removed", "unknown" }) do
+		local line = IS.Lines[key]
+		expectTrue(type(line) == "string" and #line > 0, key .. " has a line")
+		expectTrue(#line <= IS.MAX_LINE, key .. " is 60 characters or less (" .. #line .. ")")
+		expectTrue(not line:find("—", 1, true) and not line:find("--", 1, true) and not line:lower():find("balatro", 1, true), key .. " is plain text")
+		expectTrue(not line:lower():find("error", 1, true) and not line:lower():find("denied", 1, true), key .. " is kind, not a raw error")
+	end
+	-- every reason the engine can give maps to a kind line, never to the raw engine text
+	for reason, key in pairs(IS.Reasons) do
+		expectEqual(IS.spectateLine(reason), IS.Lines[key])
+		if key ~= "stopped" then expectTrue(IS.Lines[key] ~= reason, reason .. " is reworded") end -- "Stopped watching." was already kind
+	end
+	local Sp = require(script.Parent.Parent.Engine.Spectate)
+	local state = Sp.new()
+	local _, why1 = Sp.canWatch(state, 1, 1); expectEqual(IS.spectateLine(why1), IS.Lines.self)
+	local _, why2 = Sp.canWatch(state, 1, 2, { allows = false }); expectEqual(IS.spectateLine(why2), IS.Lines.private)
+	local _, why3 = Sp.canWatch(state, 1, 2, { blocked = true }); expectEqual(IS.spectateLine(why3), IS.Lines.blocked)
+	local _, why4 = Sp.canWatch(state, "x", 2); expectEqual(IS.spectateLine(why4), IS.Lines.unknown)
+	for i = 1, Sp.MAX_SPECTATORS do Sp.watch(state, 100 + i, 5) end
+	local _, whyFull = Sp.canWatch(state, 99, 5); expectEqual(IS.spectateLine(whyFull), IS.Lines.full)
+	expectEqual(IS.spectateLine("junk"), IS.Lines.unknown)
+	expectEqual(IS.spectateLine(nil), IS.Lines.unknown)
+	expectEqual(IS.line("no_such_state"), IS.Lines.unknown)
+	-- the toast: inside the screen, 52 px tall, room for two 16 px lines of the longest line
+	local longest = 0
+	for _, line in pairs(IS.Lines) do longest = math.max(longest, #line) end
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 957 } }) do
+		local r = IS.plate(sz[1], sz[2])
+		expectTrue(r.x >= 12 and r.x + r.w <= sz[1] - 12 and r.y >= 0 and r.y + r.h <= sz[2], "toast on screen at " .. sz[1] .. "x" .. sz[2])
+		expectTrue(r.h >= 44, "toast is 44 px or taller")
+		-- 16 px Gotham averages about 9 px per character: the longest line must fit in two lines of the plate width
+		expectTrue(longest * 9 <= 2 * (r.w - 16), "the longest line fits two lines at " .. sz[1] .. "x" .. sz[2])
+	end
+	if not io then return end
+	local f = assert(io.open("src/Server/init.server.lua", "r")); local srv = f:read("a"); f:close()
+	expectTrue(srv:find('reason = require(Engine.InviteStates).spectateLine(reason)', 1, true) ~= nil, "the server sends the kind line, not the engine reason")
+	f = assert(io.open("src/Client/InvitePrompt.lua", "r")); local cli = f:read("a"); f:close()
+	expectTrue(cli:find("GameInvitePromptClosed", 1, true) ~= nil and cli:find('"declined"', 1, true) ~= nil and cli:find('"sent"', 1, true) ~= nil, "sent and declined are both shown")
+end })
+
 table.insert(tests, { name = "Menu: wordmark never above 12 px, All actions list ends one plate early, Card Sets room paints safely before layout", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	-- worst case: the parallax lifts the title group by its full 28 px, with and without the 16 px rise still to climb
