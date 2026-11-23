@@ -23,6 +23,15 @@ DebugGotoRules.VARIANTS = { haggle = { good = true, bad = true }, runover = { wi
 -- play one effect on the play screen: wildcard (the True Wildcard banner and effect) and legendary (the Legendary banner and FlashFX)
 DebugGotoRules.FX = { wildcard = true, legendary = true }
 
+-- one step jumps that open an existing overlay by its OverlayManager opener id
+DebugGotoRules.OPENERS = {
+	daily = "dailyRewards", ["daily:done"] = "dailyLeaderboard", weekly = "dailyLeaderboard", settings = "settings",
+}
+
+-- every admin jump key, for the header comment and the tests
+DebugGotoRules.ADMIN_KEYS = { "freshsave", "daily", "daily:done", "weekly", "seed", "store", "store:<tab>", "season", "collection", "collection:<tab>",
+	"cardset:<id>", "settings", "share", "tavernmap:night=<n>" }
+
 -- shallow copy of `state` turned into the named screen; `data` = { patrons = {def...}, packs = {def...}, boss = def }
 function DebugGotoRules.synth(which, state, data)
 	local s = {}
@@ -190,6 +199,7 @@ end
 function DebugGotoRules.parse(value)
 	local head, setId = DebugGotoRules.splitSet(value)
 	if setId and head == "equip" then return { kind = "equip", setId = setId } end
+	if setId and head == "cardset" then return { kind = "round1", setId = setId } end -- cardset:<id>: the table with that Card Set previewed
 	if setId then
 		local target, why = DebugGotoRules.parseCore(head)
 		if not target then return nil, why end
@@ -207,6 +217,21 @@ function DebugGotoRules.parseCore(value)
 	if text == "equip" then return nil, "equip needs a card set id (equip:<setId>)" end
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
+	end
+	if text == "freshsave" then return { kind = "freshsave" } end -- a brand new profile (Studio-only server remote) then the menu
+	local opener = DebugGotoRules.OPENERS[text]
+	if opener then return { kind = "opener", opener = opener, key = text } end
+	if text == "seed" then return { kind = "round1" } end -- the fixed-seed run (DebugGotoRules.SEED_CODE)
+	if text == "share" then return { kind = "synth", which = "runover", variant = "win" } end -- the win screen holds the Invite and Share lines
+	local tavernNight = text:match("^tavernmap:night=(%d+)$")
+	if tavernNight then
+		local n = tonumber(tavernNight)
+		if n < 1 or n > 8 then return nil, "map night must be 1 to 8" end
+		return { kind = "map", night = n }
+	end
+	local tabPage, tab = text:match("^(%a+):([%a_]+)$")
+	if (tabPage == "store" or tabPage == "collection") and tab ~= "" then
+		return { kind = "tome", page = tabPage, sub = tab }
 	end
 	if text == "boon" then -- the Night boon picker with three sample boons (boon:<setId> previews it in that Card Set)
 		return { kind = "boon" }

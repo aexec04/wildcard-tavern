@@ -3122,6 +3122,14 @@ Rem.DebugEquipSet.OnServerEvent:Connect(function(player, setId)
 	pushState(player)
 end)
 
+Rem.DebugFreshSave.OnServerEvent:Connect(function(player)
+	if not RunService:IsStudio() then return end
+	if not profiles[player] then return end
+	profiles[player] = PlayerProfile.new()
+	profileDirty[player] = true
+	pushState(player)
+end)
+
 Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
 	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
 	player:SetAttribute("PreviewMode", on == true or nil)
