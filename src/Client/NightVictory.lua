@@ -36,6 +36,7 @@ return function(deps)
 
 	local Rules = require(Engine:WaitForChild("OverlayQueueRules"))
 	local HudKit = require(Engine:WaitForChild("HudKit"))
+	local ResultButtonHit = require(Engine:WaitForChild("ResultButtonHit"))
 	local HudTheme = require(script.Parent.HudTheme)
 	local INK = Color3.fromRGB(52, 34, 18)
 	local INK_TITLE = Color3.fromRGB(104, 54, 12)
@@ -213,10 +214,22 @@ return function(deps)
 	HudTheme.onSkin(dress)
 
 	local function proceed()
+		if not backdrop.Visible then return end -- one press only: the click, Activated and the pointer check can all arrive
 		deps.playClickSfx()
 		backdrop.Visible = false
 	end
 	button.MouseButton1Click:Connect(proceed)
+	button.Activated:Connect(proceed)
+	-- Safety net: if anything invisible ever eats the click before the button gets it, a press that lands inside the
+	-- button's own rect still continues (Engine/ResultButtonHit, tested). Only while this plate is up.
+	game:GetService("UserInputService").InputBegan:Connect(function(input)
+		if not backdrop.Visible then return end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		local inset = game:GetService("GuiService"):GetGuiInset()
+		local x, y = ResultButtonHit.pointer(input.Position.X, input.Position.Y, inset.Y, deps.screenGui.IgnoreGuiInset)
+		local p, s = button.AbsolutePosition, button.AbsoluteSize
+		if ResultButtonHit.inside({ x = p.X, y = p.Y, w = s.X, h = s.Y }, x, y) then proceed() end
+	end)
 	-- Result screen: its one button is its exit, and Escape presses it (Client/PopupDismiss, policy "button").
 	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = proceed, button = true })
 
@@ -228,7 +241,7 @@ return function(deps)
 			end
 		end
 		if newlyCleared then
-			rewardLabel.Text = JourneyMap.rewardLabel(JourneyMap.Nights[JourneyMap.NightCap].reward, lookups)
+			rewardLabel.Text = ResultButtonHit.rewardLine(JourneyMap.rewardLabel(JourneyMap.Nights[JourneyMap.NightCap].reward, lookups))
 		else
 			rewardLabel.Text = "Night 8 already cleared before. Welcome back, Keeper."
 		end
@@ -244,6 +257,8 @@ return function(deps)
 		end
 		pcall(function() require(script.Parent.ResultGuard).hold(backdrop.Parent) end) -- keeps the Store hidden while this plate is up
 		pcall(function() require(script.Parent.Cue).play("night_clear") end)
+		button.Active = true
+		pcall(function() button.Interactable = true end) -- nothing may leave the one exit switched off
 		backdrop.Visible = true
 		if not ClientSettings.get("reduceShake") then
 			-- Pop in (skipped when screen shake is reduced).

@@ -53112,6 +53112,30 @@ table.insert(tests, { name = "Recipe tray readability: slot names, description, 
 	expectTrue(not c:find("\u{2014}", 1, true) and not c:lower():find("balatro", 1, true))
 end })
 
+table.insert(tests, { name = "NightVictory: the Enter Endless Nights button is the topmost active object at its centre, the pointer fallback holds, the title line says why", fn = function()
+	local R = require(script.Parent.Parent.Engine.ResultButtonHit)
+	local sw, sh = 1920, 1080
+	local plate = { name = "Plate", x = (sw - 560) / 2, y = (sh - 520) / 2, w = 560, h = 520, z = 61, active = true }
+	local button = { name = "Button", x = sw / 2 - 120, y = plate.y + 400, w = 240, h = 46, z = 62, active = true }
+	local stack = { { name = "Backdrop", x = 0, y = 0, w = sw, h = sh, z = 60, active = true }, plate, button,
+		{ name = "CornerToasts", x = 1500, y = 20, w = 400, h = 200, z = 90, active = false } }
+	local cx, cy = button.x + button.w / 2, button.y + button.h / 2
+	expectEqual(R.topmostAt(stack, cx, cy).name, "Button", "the button is on top at its centre")
+	expectEqual(R.topmostAt(stack, 5, 5).name, "Backdrop", "outside the plate the backdrop answers")
+	expectTrue(button.w >= 44 and button.h >= 44, "44 px target")
+	expectTrue(R.inside({ x = button.x, y = button.y, w = button.w, h = button.h }, cx, cy), "centre is inside")
+	expectTrue(not R.inside({ x = 0, y = 0, w = 10, h = 10 }, 20, 5) and not R.inside(nil, 1, 1) and not R.inside({ x = 0, y = 0, w = 1, h = 1 }, "a", 0), "bad input is outside")
+	local _, y = R.pointer(100, 100, 36, true)
+	expectEqual(y, 136, "a full screen GUI adds the top bar back")
+	local _, y2 = R.pointer(100, 100, 36, false)
+	expectEqual(y2, 100, "an inset GUI keeps the raw position")
+	expectEqual(R.rewardLine('Title: "Tavern Keeper"'), 'Title: "Tavern Keeper", earned by this win', "title line explains itself")
+	if not io then return end
+	local f = assert(io.open("src/Client/NightVictory.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("button.Activated:Connect(proceed)", 1, true) ~= nil and src:find("ResultButtonHit.inside", 1, true) ~= nil and src:find("button.Active = true", 1, true) ~= nil, "click, Activated and pointer fallback are wired")
+	expectTrue(not src:find("\u{2014}", 1, true) and not src:lower():find("balatro", 1, true))
+end })
+
 return tests
 
 
