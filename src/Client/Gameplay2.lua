@@ -294,6 +294,7 @@ function M.install(deps)
 					pcall(function()
 						if not b:FindFirstChildOfClass("UICorner") then local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 8); uc.Parent = b end
 						Kit.paintedButton(b, "secondary") -- the equipped Card Set's dark plate under the glyph, same as Discard
+						if b:IsA("TextButton") then b.TextColor3 = Color3.fromRGB(250, 240, 220); b.TextTransparency = 0; b.TextStrokeTransparency = 0.6; b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6) end -- cream word on the dark plate (was dark on dark)
 						local ic = Kit.icon(b, nm == "SortRank" and "bars" or "spade", 0.2)
 						local ink = Color3.fromRGB(240, 196, 92) -- gold glyph on the dark wood
 						if ic and ic:IsA("ImageLabel") then -- the painted icon sits on a dark disc: keep its box (the layout moves it) and draw a bare dark glyph in it
