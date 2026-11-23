@@ -227,7 +227,7 @@ ShopSceneLayout.ROOM = {
 	waist = 0.04,                             -- Marlo's waist stands this share of the picture height BELOW the back edge (about 40 px)
 	counterX = { 0.03, 0.85 },
 	rail = 0.56,                              -- the brass rail
-	ledger = { 0.14, 0.48, 0.12, 0.075 },     -- centre x, centre y, width, height (the open book with the quill)
+	ledger = { 0.14, 0.462, 0.18, 0.1125 },   -- centre x, centre y, width, height (the open book with the quill; 1.5x, same base on the counter)
 	bell = { 0.73, 0.47, 0.05, 0.065 },       -- the brass service bell
 	arch = { 0.84, 0.10, 1.0, 0.64 },         -- the stone archway: the way out
 	shopkeeper = { 0.20, 0.10, 0.45, 0.50 },  -- the clear wall behind the counter where Marlo stands
@@ -389,6 +389,11 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	out.shopkeeper = ShopSceneLayout.picRect(W, H, R.shopkeeper[1], R.shopkeeper[2], R.shopkeeper[3], R.shopkeeper[4])
 	out.light = rect(0, 0, 0, 0)
 	out.props = { ledger = picCentred(W, H, R.ledger), bell = picCentred(W, H, R.bell) }
+	-- the picture is cover-cropped, so on a 4:3 window the bigger ledger's edge can fall off screen: keep its hit area on screen
+	do
+		local l = out.props.ledger
+		out.props.ledger = rect(clamp(l.x, 4, math.max(4, W - l.w - 4)), l.y, l.w, l.h)
+	end
 
 	-- Marlo stands behind the counter: his height follows the picture (so the counter), his feet go below clipY and are clipped there
 	local marloH = R.marloH * p.h
