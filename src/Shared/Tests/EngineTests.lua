@@ -46619,4 +46619,62 @@ table.insert(tests, { name = "Gear menu and Settings popups: every row inside it
 	end
 end })
 
+table.insert(tests, { name = "Tavern Map: road nodes, name plates and the node detail popup stay on screen, apart and readable at 1920x957, 1506x751, 1309x751, 1024x600", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapFitRules)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local SR = require(script.Parent.Parent.Engine.MapSelectRules)
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local names = {}
+	for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local shownFew = {}
+	for i = 1, #names do shownFew[i] = (i <= 4) end
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local W, H = sz[1], sz[2]
+		local tag = W .. "x" .. H
+		local header = HR.layout(W, H)
+		for _, shown in ipairs({ false, shownFew }) do
+			local res = R.layout(W, H, names, JM.NightCap, shown or nil)
+			local mode = shown and "night1" or "all"
+			expectTrue(R.clear(res, names, JM.NightCap), tag .. " " .. mode .. ": no node or plate touches another")
+			local bx = R.boxes(res, names, JM.NightCap)
+			for i = 1, #names do
+				local drawn = shown == false or shown[i] or i == JM.NightCap
+				if drawn then
+					-- canvas y is screen y minus the frame offset, x is screen x minus the frame offset (scrolled to the left edge)
+					local c, l = bx[i].circle, bx[i].label
+					expectTrue(c.y0 + R.FRAME_Y >= header.bar.h - 1, tag .. " " .. mode .. " node " .. i .. " is under the header bar")
+					expectTrue(l.y1 + R.FRAME_Y <= H, tag .. " " .. mode .. " node " .. i .. " plate ends above the screen bottom")
+					expectTrue(c.x0 >= -1, tag .. " " .. mode .. " node " .. i .. " starts inside the left edge")
+					expectTrue(RR.PLATE_MAX >= 150 and (l.x1 - l.x0) <= RR.PLATE_MAX + 0.5, tag .. " node " .. i .. " plate is at most the plate cap wide")
+				end
+			end
+			expectTrue(res.nodeSize >= R.NODE_MIN, tag .. " nodes stay a touch target")
+		end
+		expectTrue(R.NAME_H >= 20 and R.TYPE_H >= 18, tag .. " name row is tall enough for 15 px text")
+		-- the node detail popup (full, compact and tab modes) sits in the lower left zone
+		local zone = header.panelZone
+		for _, mode in ipairs({ "full", "compact", "tab" }) do
+			local p = SR.panelRect(zone, mode)
+			expectTrue(SR.onScreen(p, W, H), tag .. " detail " .. mode .. " panel on screen")
+			local r = SR.rects(zone, mode)
+			local parts = {}
+			for _, k in ipairs({ "name", "type", "line", "target", "button", "rule" }) do
+				if r[k] then
+					expectTrue(r[k].x >= 0 and r[k].y >= 0 and r[k].x + r[k].w <= r.w + 0.5 and r[k].y + r[k].h <= r.h + 0.5, tag .. " detail " .. mode .. " " .. k .. " inside the panel")
+					parts[#parts + 1] = { k, r[k] }
+				end
+			end
+			for i = 1, #parts do
+				for j = i + 1, #parts do
+					-- compact mode puts the type and the Target side by side by design, they split the row
+					expectFalse(hit(parts[i][2], parts[j][2]), tag .. " detail " .. mode .. ": " .. parts[i][1] .. " and " .. parts[j][1] .. " do not overlap")
+				end
+			end
+			if r.button then expectTrue(r.button.h >= 28 and r.button.w >= 96, tag .. " detail " .. mode .. " Continue plate is big enough to tap") end
+		end
+	end
+end })
+
 return tests
