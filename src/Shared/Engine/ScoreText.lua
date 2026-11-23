@@ -72,4 +72,12 @@ function ScoreText.targetLine(target)
 	return "Target: " .. ScoreText.plate(target)
 end
 
+-- The Target plate with progress once something is scored: "Target: 143" at 0, then "Target: 60 / 143" (tally form below 1M, short form above).
+-- The permanent centre Score plate is gone; this line and the scoring popup show the running score.
+function ScoreText.progressLine(score, target)
+	score = ScoreText.clean(score)
+	if score <= 0 then return ScoreText.targetLine(target) end
+	return "Target: " .. ScoreText.tally(score) .. " / " .. ScoreText.tally(target)
+end
+
 return ScoreText

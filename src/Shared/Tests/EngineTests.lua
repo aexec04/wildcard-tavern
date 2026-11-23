@@ -33129,7 +33129,8 @@ table.insert(tests, { name = "Table top bar (reference pass): quick buttons scal
 	end
 	if not io then return end
 	local g2 = io.open("src/Client/Gameplay2.lua"):read("*a")
-	for _, w in ipairs({ '"Target: "', '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
+	expectTrue(g2:find("ST.progressLine(", 1, true) ~= nil, "the Target plate text comes from ScoreText.progressLine (Target: with the colon)")
+	for _, w in ipairs({ '"Tips: %d"', '"Hands: %d"', '"Discards: %d"' }) do expectTrue(g2:find(w, 1, true) ~= nil, w .. " has the colon") end
 end })
 
 table.insert(tests, { name = "Gear menu quick buttons: speaker and the one gear sit at the top left, 44 px, on screen, apart from the menu and the Gameplay v2 pieces at six sizes", fn = function()
@@ -46418,6 +46419,22 @@ table.insert(tests, { name = "JourneyDetailLayout: no text under the Equip butto
 	if not (io and io.open) then return end
 	local f = assert(io.open("src/Client/JourneyMapView.lua", "r")); local src = f:read("a"); f:close()
 	expectTrue(src:find("panelRef.p.hide()", 1, true) ~= nil and src:find("if openIndex then selectPanel.hide()", 1, true) ~= nil, "the lower left panel hides while the rewards card is open")
+end })
+
+table.insert(tests, { name = "Score popup only: no permanent centre Score plate, the Target plate carries the progress, tally text stays short", fn = function()
+	local ST = require(script.Parent.Parent.Engine.ScoreText)
+	expectEqual(ST.progressLine(0, 143), "Target: 143")
+	expectEqual(ST.progressLine(60, 143), "Target: 60 / 143")
+	expectEqual(ST.progressLine(1200000, 5000000), "Target: 1.2M / 5M", "short past a million")
+	for _, v in ipairs({ { 0 / 0, 100 }, { math.huge, 1e300 }, { -5, 12400 }, { 9e15, 9e15 }, { 999999, 999999 } }) do
+		local line = ST.progressLine(v[1], v[2])
+		expectTrue(#line <= 26 and not line:find("inf") and not line:find("nan") and line:sub(1, 8) == "Target: ", "clean and short: " .. line)
+	end
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/Gameplay2.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find("scoreBox.Visible = false", 1, true) ~= nil and src:find("scorePlate.Visible = false", 1, true) ~= nil, "centre Score box and plate never draw")
+	expectTrue(src:find("progressLine(n, lastState.targetScore)", 1, true) ~= nil, "the Target plate counts up with the tally (Fast scoring uses the same put)")
+	expectTrue(src:find("self.writeNumeral()", 1, true) ~= nil and src:find("Gameplay2ScoreFX", 1, true) ~= nil, "the tally machinery still runs")
 end })
 
 return tests

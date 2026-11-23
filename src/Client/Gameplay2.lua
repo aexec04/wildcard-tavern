@@ -519,6 +519,7 @@ function M.install(deps)
 		scoreBox.Position = UDim2.fromOffset(live.box.x, live.box.y)
 		scoreBox.Size = UDim2.fromOffset(live.box.w, live.box.h)
 		scoreBox.ZIndex = 3
+		scoreBox.Visible = false -- no permanent Score plate: the numeral machinery keeps running unseen; the popup and the Target plate show the score
 		self.scoreFit = { size = N.textSize, w = live.inner.w }
 		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
 		scoreNum.TextSize = SPlate.fitSize(N.textSize, #tostring(scoreNum.Text), live.inner.w); scoreNum.ZIndex = 4
@@ -537,6 +538,7 @@ function M.install(deps)
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
 			scorePlate.Position = UDim2.fromOffset(live.plate.x, live.plate.y)
 			scorePlate.Size = UDim2.fromOffset(live.plate.w, live.plate.h)
+			scorePlate.Visible = false -- empty plates must not draw (reference has no centre Score plate)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "wh_score") end) end
 		end
 		scoreCaption.Visible = N.roomy and N.numTop >= capH
@@ -772,6 +774,7 @@ function M.install(deps)
 		phase = phase or lastState.phase
 		local function put(n)
 			scoreNum.Text = require(Engine:WaitForChild("ScoreText")).tally(n)
+			pcall(function() setText(target, require(Engine:WaitForChild("ScoreText")).progressLine(n, lastState.targetScore)) end) -- the Target plate counts up with the tally
 			local fit = self.scoreFit
 			if fit then -- a long total shrinks to stay inside the plate's border
 				pcall(function() scoreNum.TextSize = require(Engine:WaitForChild("Gameplay2ScorePlate")).fitSize(fit.size, #scoreNum.Text, fit.w) end)
@@ -953,7 +956,7 @@ function M.install(deps)
 		do
 			local ST = require(Engine:WaitForChild("ScoreText"))
 			scoreProgress.Text = ST.short(lastState.roundScore) .. " of " .. ST.short(lastState.targetScore)
-			setText(target, "Target: " .. ST.short(lastState.targetScore))
+			setText(target, ST.progressLine(lastState.roundScore, lastState.targetScore)) -- "Target: 60 / 143": the progress lives on the Target plate
 		end
 		setText(tips, string.format("Tips: %d", math.floor(lastState.tips or 0)))
 		do -- the Hands and Discards pills tick (pop) when their count changes
