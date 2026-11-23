@@ -47,6 +47,25 @@ M.TOME_ROWS = {
 	{ id = "stats", label = "Tavern Ledger", overlay = "stats" },
 }
 
+-- One kind line per row for the hover tooltip, 40 characters or less, plain words, no dashes.
+M.TIP_MAX = 40
+M.TIPS = {
+	sound = "Turn game sounds on or off.",
+	music = "Turn the tavern music on or off.",
+	tracks = "Pick which tune plays.",
+	map = "See the road of Nights.",
+	tome = "Open your Collection and more.",
+	settings = "Change how the game looks and feels.",
+	howTo = "Learn the game in a few steps.",
+	quit = "Go back to the tavern.",
+	collection = "Patrons, bosses and recipes you found.",
+	cardSets = "Pick a look for your cards and table.",
+	flair = "Badges and sparkles to show off.",
+	legend = "What every mark and number means.",
+	stats = "Your wins, best hands and more.",
+}
+function M.tipOf(id) return M.TIPS[id] or "" end
+
 local function round(n) return math.floor(n + 0.5) end
 
 function M.margin(w) return math.max(8, round(0.012 * w)) end

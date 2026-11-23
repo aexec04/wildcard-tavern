@@ -155,6 +155,8 @@ function M.install(deps)
 			word.Parent = pill
 			pill.Parent = b
 		end
+		b:SetAttribute("Tip", G.tipOf(def.id)) -- one short line, GearMenu.TIPS (tested at 40 characters or less)
+		if deps.addTooltip then pcall(deps.addTooltip, b, G.tipOf(def.id), "right") end
 		rows[def.id] = { button = b, label = label, pill = pill, def = def }
 	end
 
@@ -183,6 +185,8 @@ function M.install(deps)
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.Size = UDim2.new(1, -36, 1, 0)
 		label.Position = UDim2.fromOffset(18, 0)
+		b:SetAttribute("Tip", G.tipOf(def.id))
+		if deps.addTooltip then pcall(deps.addTooltip, b, G.tipOf(def.id), "right") end
 		tomeRows[def.id] = { button = b, def = def }
 	end
 	-- the equipped Card Set dresses both dropdowns: panel fill, gold edge and row ink at 7:1 (CosmeticSets.popupStyleOf); classic keeps its colours
