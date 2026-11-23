@@ -46518,6 +46518,67 @@ table.insert(tests, { name = "Boss rules Frozen Hand, Quiet Tavern, Short Table:
 	expectTrue(s.patronsSitOut == 1 and s.description:lower():find("last") ~= nil and s.description:lower():find("sits out") ~= nil, "Short Table text says the last Patron sits out")
 end })
 
+table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text says, once, and a skipped round never pays twice", fn = function()
+	local Tags = require(script.Parent.Parent.Engine.Tags)
+	local function fresh()
+		local state = RunState.new(nil, SeededRng.new(11))
+		state.night, state.round = 2, 1
+		RunState.startRound(state)
+		return state
+	end
+	expectEqual(#Tags.Definitions, 3, "three skip Tags")
+	for _, tag in ipairs(Tags.Definitions) do
+		local state = fresh()
+		state.currentRoundSkipTag = tag
+		local tips0, patrons0, round0 = state.tips, #state.ownedPatrons, state.round
+		expectTrue(RunState.canSkipRound(state), tag.id .. " round can be skipped")
+		local used, result = RunState.skipRound(state)
+		expectEqual(used.id, tag.id, "the Tag that was shown is the Tag that paid")
+		expectEqual(state.round, round0 + 1, tag.id .. " moves on exactly one round")
+		if tag.id == "tip_jar" then
+			expectEqual(result.kind, "tips")
+			expectTrue(result.amount > 0 and result.amount < state.config.tipsPerRoundWin, "Tip Jar pays Tips, less than a real win")
+			expectEqual(state.tips - tips0, result.amount, "Tips go up by exactly the stated amount, once")
+			expectEqual(#state.ownedPatrons, patrons0, "no Patron from a Tip Jar")
+		elseif tag.id == "on_the_house" then
+			if result.kind == "patron" then
+				expectEqual(#state.ownedPatrons, patrons0 + 1, "exactly one free Patron")
+				expectEqual(state.tips, tips0, "a free Patron costs and pays no Tips")
+			else
+				expectTrue(result.fallback == true and state.tips - tips0 == result.amount, "no room: the Tip Jar amount, once")
+			end
+		elseif tag.id == "sale_day" then
+			expectEqual(result.kind, "discount")
+			expectEqual(state.nextShopDiscount, 3, "3 Tips off, as the text says")
+			expectEqual(state.tips, tips0, "no Tips paid")
+			expectTrue(tag.description:find("3 Tips", 1, true) ~= nil, "the text names the 3 Tips")
+		end
+		-- a second skip in the new round pays only its own new Tag, never the old one again
+		if RunState.canSkipRound(state) and state.currentRoundSkipTag then
+			local tag2 = state.currentRoundSkipTag
+			local used2 = RunState.skipRound(state)
+			expectEqual(used2.id, tag2.id, "the second skip pays the second Tag")
+		end
+	end
+	-- a Tag with no room: On the House on a full table pays Tips instead, never a Patron past the cap
+	local full = fresh()
+	local limit = RunState.patronSlotLimit(full)
+	for i = 1, limit do table.insert(full.ownedPatrons, Patrons.Definitions[i]) end
+	full.currentRoundSkipTag = Tags.getById("on_the_house")
+	local tipsBefore = full.tips
+	local _, r = RunState.skipRound(full)
+	expectEqual(#full.ownedPatrons, limit, "a full table gets no extra Patron")
+	expectTrue(r.kind == "tips" and full.tips == tipsBefore + r.amount, "it pays the Tip Jar amount instead")
+	-- the Boss round and a played round never pay a Tag
+	local boss = fresh()
+	boss.round = boss.config.roundsPerNight
+	expectFalse(RunState.canSkipRound(boss), "the Boss round cannot be skipped")
+	local played = fresh()
+	played.roundScore = 5
+	expectFalse(RunState.canSkipRound(played), "a started round cannot be skipped")
+	expectFalse(pcall(RunState.skipRound, played), "so it never pays a Tag")
+end })
+
 -- ===== Tavern Map event nodes =====
 table.insert(tests, { name = "MapEvents: the Shrine rerolls the open boon draft once on Nights 4, 7 and 10 for 3 Tips, a refusal changes nothing", fn = function()
 	local ME = require(script.Parent.Parent.Engine.MapEvents)
