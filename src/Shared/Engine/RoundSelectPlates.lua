@@ -23,4 +23,15 @@ function M.centre(rect, anchorX, anchorY, scale)
 	return { x = ax - anchorX * w + w / 2, y = ay - anchorY * h + h / 2 }
 end
 
+-- While the card grows by `k` (hover) about `anchor` (card-local px, the card's own AnchorPoint times its size), a plate at `rect` moves
+-- on screen by (centre - anchor) * (k - 1). The offset to ADD to the plate's Position (card-local px, before the grow) so its centre stays
+-- under the pointer: (centre - anchor) * (1 / k - 1). With k = 1 it is zero.
+--   RoundSelectPlates.holdOffset(rect, anchorXpx, anchorYpx, k) -> dx, dy
+function M.holdOffset(rect, anchorX, anchorY, k)
+	k = (tonumber(k) and k > 0) and k or 1
+	local cx, cy = rect.x + rect.w / 2, rect.y + rect.h / 2
+	local f = 1 / k - 1
+	return (cx - anchorX) * f, (cy - anchorY) * f
+end
+
 return M

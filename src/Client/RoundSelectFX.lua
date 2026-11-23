@@ -166,8 +166,31 @@ function FX.new(deps)
 	end
 
 	-- ===== card hover =====
+	local Plates = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundSelectPlates"))
+	-- The hovered card grows about its anchor, which would carry its Select and Skip plates away from a pointer that just arrived on them
+	-- (a click right after arriving could miss). Each plate is shifted back by the grow, so its centre stays where it was at rest.
+	local function holdPlates(card)
+		local panel = card.entry.panel
+		local ap = panel.AnchorPoint
+		local ax, ay = ap.X * panel.Size.X.Offset, ap.Y * panel.Size.Y.Offset
+		local pw, ph = panel.Size.X.Offset, panel.Size.Y.Offset
+		card.holdOff = card.holdOff or {}
+		for _, button in ipairs({ card.entry.selectButton, card.entry.skipButton }) do
+			if button and button.Parent then
+				local last = card.holdOff[button] or { x = 0, y = 0 }
+				local p, sz, bap = button.Position, button.Size, button.AnchorPoint
+				local w, h = sz.X.Scale * pw + sz.X.Offset, sz.Y.Scale * ph + sz.Y.Offset
+				local rect = { x = p.X.Scale * pw + p.X.Offset - last.x - bap.X * w, y = p.Y.Scale * ph + p.Y.Offset - last.y - bap.Y * h, w = w, h = h }
+				local dx, dy = Plates.holdOffset(rect, ax, ay, card.hoverK.Value)
+				button.Position = UDim2.new(p.X.Scale, p.X.Offset - last.x + dx, p.Y.Scale, p.Y.Offset - last.y + dy)
+				card.holdOff[button] = { x = dx, y = dy }
+			end
+		end
+	end
+
 	local function applyScale(card)
 		card.scale.Scale = card.fit * card.hoverK.Value * card.breatheK.Value
+		holdPlates(card)
 	end
 
 	local function sweep(strip, from, to, time)

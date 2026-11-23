@@ -46,6 +46,7 @@ Every remote the client can fire is rate limited per player (`Engine/RateLimit`,
 | DebugSetTarget | Studio only | returns outside Studio | (player, n) sets the current round target, for DebugGoto playhand:keep |
 | DebugJump | Studio only | returns outside Studio | (player, key string) puts a real screen on the live run (night, bossN, reward, shop, recipes, victory, endrun ...), Engine/DebugJump |
 | DebugEquipSet | Studio only | returns outside Studio | STUDIO ONLY (ignored elsewhere): (player, setId) equips that Card Set without the ownership check, for DebugGoto equip:<setId> |
+| DebugFreshSave | Studio only | returns outside Studio | STUDIO ONLY (ignored elsewhere): (player) resets the profile to PlayerProfile.new(), for DebugGoto freshsave; profile only, never a run |
 | SetSetting | client to server | `Rem.SetSetting` bucket | (player, key string, value) -- see PlayerProfile.SETTING_SPECS |
 | MarkTutorialSeen | client to server | `Rem.MarkTutorialSeen` bucket | TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped |
 | BuyRecipe | client to server | `Rem.BuyRecipe` bucket | (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use |

@@ -51658,7 +51658,7 @@ table.insert(tests, { name = "Leaderboard integrity: a run that used any Debug r
 			-- every Debug remote that changes the run marks it
 			local marked = 0
 			for name, body in server:gmatch("Rem%.(Debug%w+)%.OnServerEvent:Connect%(function%([^\n]*%)\n(.-)\nend%)") do
-				if name ~= "DebugEquipSet" then -- profile only, never a run
+				if name ~= "DebugEquipSet" and name ~= "DebugFreshSave" then -- profile only, never a run
 					expectTrue(body:find("usedDebug = true", 1, true) ~= nil, name .. " marks the run")
 					marked = marked + 1
 				end
@@ -53056,6 +53056,25 @@ table.insert(tests, { name = "Daily strip: the timer and the whole Goals line fi
 	end
 end })
 
+table.insert(tests, { name = "Round Select: the Select and Skip plate centres are the same at rest and while the card is hovered", fn = function()
+	local P = require(script.Parent.Parent.Engine.RoundSelectPlates)
+	for _, anchor in ipairs({ { 0, 0 }, { 170, 310 }, { 340, 620 } }) do
+		for _, k in ipairs({ 1, 1.02, 1.04, 1.05 }) do
+			for _, which in ipairs({ "select", "skip" }) do
+				local rect = P.rect(340, which)
+				local cx, cy = rect.x + rect.w / 2, rect.y + rect.h / 2
+				local dx, dy = P.holdOffset(rect, anchor[1], anchor[2], k)
+				-- the card grows by k about its anchor: a point at card position q lands at anchor + (q - anchor) * k
+				local sx = anchor[1] + ((cx + dx) - anchor[1]) * k
+				local sy = anchor[2] + ((cy + dy) - anchor[2]) * k
+				expectTrue(math.abs(sx - cx) < 1e-6 and math.abs(sy - cy) < 1e-6, which .. " plate centre moved at grow " .. k .. " anchor " .. anchor[1] .. "," .. anchor[2])
+			end
+		end
+	end
+	local dx, dy = P.holdOffset(P.rect(340, "select"), 170, 310, 1)
+	expectTrue(dx == 0 and dy == 0, "no offset at rest")
+end })
+
 table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic rim, inlay and rail, Golden Gala keeps all three, Classic draws all three", fn = function()
 	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
 	expectEqual(#PRA.ORDER, 14, "14 set rooms")
@@ -53072,6 +53091,7 @@ table.insert(tests, { name = "Gameplay2 furniture: every set room hides Classic 
 end })
 
 return tests
+
 
 
 
