@@ -32,3 +32,9 @@ No change. The flagged easy bosses are rules (not targets), and a random player 
 ## Greedy bot, bosses with 20 or more attempts, lowest first
 
 pair_patrol 77.1%, rushed_order 77.5%, thin_chips 78.3%, picked_over 79.1%, no_repeats 80.5%, quiet_corner 84.6%, flat_mult 86.5%, clubs_are_out 88.9%.
+
+## Boss rule audit (Nov 23)
+
+One test per boss (46, all Nights) in `EngineTests.lua`, named "Boss audit: <id> ...". Each makes the rule live in a real boss round, checks hand size, discards, hands, target and starting Tips against a no boss control, plays real hands through `RunState.playHand` (blocked hand types score 0, debuffs score less, Chips and Mult factors, first hand factor, no repeat, Patron cap, sit out, Chips factor, no scoring Tips, Tips per card, tossed cards, Tips wipe, exact and minimum card counts) and checks the rule is gone with the next round.
+
+Differences found: none. `claude/reference` holds only painted art targets (no rule text), so the rule text on each card was checked against the engine fields instead.

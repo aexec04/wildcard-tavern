@@ -46554,6 +46554,136 @@ table.insert(tests, { name = "Boss rules Frozen Hand, Quiet Tavern, Short Table:
 	expectTrue(s.patronsSitOut == 1 and s.description:lower():find("last") ~= nil and s.description:lower():find("sits out") ~= nil, "Short Table text says the last Patron sits out")
 end })
 
+-- BOSS AUDIT: one test per boss rule (every Night). Each test makes the rule live in a real boss round, checks its start of
+-- round effect against a no-boss control, plays real hands through RunState.playHand, and checks the rule clears next round.
+do
+	local BossRules = require(script.Parent.Parent.Engine.BossRules)
+	local function chipsP(id, chips, mult, tips) return { id = id, name = id, effect = function() return { chips = chips, mult = mult, tips = tips } end } end
+	-- two Kings (of the debuffed suit when the boss has one) lead the hand so a debuff always bites; the rest are plain low cards
+	local function handFor(def)
+		local suits = { Hearts = true, Diamonds = true, Clubs = true, Spades = true }
+		local suit = (def and def.debuff and suits[def.debuff]) and def.debuff or "Hearts" -- Face and Odd rank debuffs bite on Kings anyway
+		return { Card.new(13, suit), Card.new(13, suit == "Spades" and "Hearts" or "Spades"), Card.new(2, "Clubs"), Card.new(3, "Diamonds"), Card.new(4, "Clubs"), Card.new(6, "Spades"), Card.new(7, "Clubs"), Card.new(8, "Diamonds") }
+	end
+	-- a boss round made live the way a Night reaches it; `afterBoss` steps on to the next round
+	local function live(ruleId, patrons, afterBoss)
+		local def = ruleId and BossRounds.getById(ruleId) or nil
+		local state = RunState.new(nil, SeededRng.new(3))
+		state.bossRoundsEnabled = true
+		state.night, state.round = def and math.max(7, def.minNight or 1) or 7, state.config.roundsPerNight - 1
+		state.nightBossModifier = def
+		state.tips = 50
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		if afterBoss then
+			state.roundOver = true
+			RunState.advanceToNextRound(state)
+		end
+		state.ownedPatrons = patrons or {}
+		return state, def
+	end
+	-- plays the first `idx` cards of the fixed hand; returns the score it added and whether the server accepted it
+	local function play(state, def, idx)
+		state.hand = handFor(def)
+		state.targetScore = 1e12
+		if not state.auditSet then
+			state.auditSet = true
+			state.handsRemaining, state.roundStartHands = 4, 4 -- room for several hands; the first one is still the first
+		end
+		local before = state.roundScore
+		local ok = pcall(RunState.playHand, state, idx)
+		return state.roundScore - before, ok
+	end
+	local function near(a, b, msg) expectTrue(math.abs(a - b) <= 1, msg .. " (got " .. tostring(a) .. ", want " .. tostring(b) .. ")") end
+
+	for _, def in ipairs(BossRounds.Definitions) do
+		table.insert(tests, { name = "Boss audit: " .. def.id .. " applies its rule in the boss round and in scoring, and clears the next round", fn = function()
+			expectTrue(def.description ~= nil and #def.description > 0, def.id .. " has card text")
+			local ctrl = live(nil)
+			local state = live(def.id)
+			expectEqual(state.bossModifier and state.bossModifier.id, def.id, def.id .. " is live in the boss round")
+			-- start of round effects, against the no-boss control
+			if def.handSizeDelta then expectEqual(#state.hand, math.max(5, #ctrl.hand + def.handSizeDelta), "hand size change") end
+			if def.discardsDelta or def.minDiscards then
+				local want = math.max(0, ctrl.discardsRemaining + (def.discardsDelta or 0))
+				if def.minDiscards then want = math.max(want, math.min(def.minDiscards, ctrl.discardsRemaining)) end
+				expectEqual(state.discardsRemaining, want, "discards")
+			end
+			if def.handsPerRoundOverride then expectEqual(state.handsRemaining, def.handsPerRoundOverride, "hands") end
+			if def.targetScoreMultiplier then
+				expectTrue(math.abs(state.targetScore - ctrl.targetScore * def.targetScoreMultiplier) <= math.max(1, ctrl.targetScore * 0.01), "target x" .. def.targetScoreMultiplier)
+			end
+			if def.tipsLostAtStart then expectEqual(state.tips, ctrl.tips - def.tipsLostAtStart, "Tips lost once at the start") end
+
+			-- scoring: one hand through the real play path (hands set to 4 so the first hand rule still sees a first hand)
+			local n = def.requiredCardsPerHand or def.minCardsPerHand or 2
+			local idx = {}
+			for i = 1, n do idx[i] = i end
+			local played = {}
+			for i = 1, n do played[i] = handFor(def)[i] end
+			local handName = HandEvaluator.evaluate(played).name
+			local cState = live(nil)
+			local base = play(cState, def, idx)
+			expectTrue(base > 0, "the same hand scores with no rule")
+			local playState = live(def.id)
+			local tips0 = playState.tips
+			local score, ok = play(playState, def, idx)
+			expectTrue(ok, def.id .. " accepts a legal hand")
+			if def.requiredCardsPerHand then
+				local _, bad = play(live(def.id), def, def.requiredCardsPerHand == 1 and { 1, 2 } or { 1 })
+				expectFalse(bad, "a wrong card count is refused")
+			end
+			if def.minCardsPerHand and def.minCardsPerHand > 1 then
+				local _, bad = play(live(def.id), def, { 1 })
+				expectFalse(bad, "too few cards are refused")
+			end
+			if BossRules.blocksHand(handName, def) then
+				expectEqual(score, 0, handName .. " scores 0")
+			elseif def.debuff then
+				expectTrue(score < base, "cards of the " .. def.debuff .. " group score less")
+			elseif def.firstHandMultiplier then
+				near(score, base * def.firstHandMultiplier, "first hand factor")
+				local second = play(playState, def, idx)
+				near(second, base, "the second hand scores normally")
+			elseif def.chipsMultiplier or def.multMultiplier then
+				near(score, base * (def.chipsMultiplier or 1) * (def.multMultiplier or 1), "Chips and Mult factors")
+			elseif def.noRepeatHandTypes then
+				expectTrue(score > 0, "the first " .. handName .. " scores")
+				expectEqual((play(playState, def, idx)), 0, "the second " .. handName .. " scores 0")
+			elseif def.firstCardOut or def.patronChipsFactor or def.patronCap or def.patronsSitOut or def.noScoringTips then
+				local five = {}
+				for i = 1, 5 do five[i] = chipsP("p" .. i, 40, 2, 3) end
+				local ruled = live(def.id, five)
+				local control = live(nil, five)
+				local t0, c0 = ruled.tips, control.tips
+				local got = play(ruled, def, idx)
+				local normal = play(control, def, idx)
+				if def.noScoringTips then
+					expectEqual(got, normal, "Penny Wise leaves the score alone")
+					expectEqual(ruled.tips, t0, "no Tips from scoring")
+					expectTrue(control.tips > c0, "Patron Tips are paid without the rule")
+				else
+					expectTrue(got < normal, "scores less than with no rule")
+				end
+			end
+			-- costs after the hand
+			if def.tipsLostPerCardPlayed then
+				expectEqual(playState.tips, tips0 - def.tipsLostPerCardPlayed * n, "Tips lost per card played")
+			end
+			if def.forcedRandomDiscardsPerHand then
+				expectTrue(#playState.discardPile >= n + def.forcedRandomDiscardsPerHand, "extra cards are tossed after the hand")
+			end
+			if def.zeroTipsOnMostPlayedHand then expectEqual(playState.tips, 0, "playing the most played hand wipes Tips") end
+
+			-- the rule is gone with the next round, and the round plays like the control
+			local after, nextCtrl = live(def.id, nil, true), live(nil, nil, true)
+			expectEqual(after.bossModifier, nil, def.id .. " clears with the next round")
+			expectEqual(#after.hand, #nextCtrl.hand, "hand size back to normal")
+			expectEqual(after.discardsRemaining, nextCtrl.discardsRemaining, "discards back to normal")
+		end })
+	end
+end
+
 table.insert(tests, { name = "Tags: every skip Tag grants exactly what its text says, once, and a skipped round never pays twice", fn = function()
 	local Tags = require(script.Parent.Parent.Engine.Tags)
 	local function fresh()
