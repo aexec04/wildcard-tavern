@@ -11370,7 +11370,7 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	expectTrue(Store.grant(p, "flair_bundle")); for _, id in ipairs({ "ribbon_trail", "crown_finisher", "star_aura" }) do expectTrue(Flair.isOwned(p, id), id) end
 	expectFalse(Store.grant(p, "flair_bundle"))
 	local rows = Store.view(PlayerProfile.new(), {}, true, "flair").items
-	expectEqual(#rows, 5); for _, row in ipairs(rows) do expectFalse(row.owned); expectTrue(row.available and row.studioFree) end
+	expectEqual(#rows, 5); for _, row in ipairs(rows) do expectFalse(row.owned); expectTrue(row.available and not row.studioFree and not row.comingSoon) end
 	local owned = Store.view(p, {}, false, "flair").items
 	for _, row in ipairs(owned) do expectTrue(row.owned, row.id .. " is owned") end
 	expectEqual(#Store.view(PlayerProfile.new(), {}, false, "season").items, 2)
@@ -13376,8 +13376,8 @@ table.insert(tests, { name = "Store VIP: no Tips gift (Tips are run power), a se
 	local live = Store.view(PlayerProfile.new(), {}, false)
 	local studio = Store.view(PlayerProfile.new(), { vip = true }, true)
 	local function row(view, id) for _, r in ipairs(view.items) do if r.id == id then return r end end end
-	expectTrue(row(live, "starter_pack").comingSoon and not row(live, "starter_pack").available and not live.vip)
-	expectTrue(row(studio, "starter_pack").studioFree and row(studio, "starter_pack").available and studio.vip and row(studio, "vip").owned)
+	expectTrue(not row(live, "starter_pack").comingSoon and row(live, "starter_pack").available and not live.vip)
+	expectTrue(not row(studio, "starter_pack").studioFree and row(studio, "starter_pack").available and studio.vip and row(studio, "vip").owned)
 	expectTrue(row(live, "continue").listOnly and not row(live, "continue").available)
 	local owner = PlayerProfile.new()
 	Store.grant(owner, "starter_pack")
@@ -55365,6 +55365,7 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 end }) -- tests below
 
 return tests
+
 
 
 
