@@ -732,8 +732,8 @@ return function(deps)
 	local RSL = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundSelectLayout"))
 	-- COMPACT card (windows under RSL.COMPACT_BELOW high): a shorter card whose buttons keep their real 44 px size.
 	-- Positions are offsets from the card bottom, the same anchors the full card uses, so only the numbers change.
-	local function applyCompact(on, phone)
-		cardWNow, cardHNow = on and RSL.CW_C or CARD_W, on and RSL.CH_C or CARD_H
+	local function applyCompact(on, phone, tallH)
+		cardWNow, cardHNow = on and RSL.CW_C or CARD_W, on and (tallH or RSL.CH_C) or CARD_H
 		titleLabel.Visible, subtitleLabel.Visible = not phone, not phone
 		titleLabel.TextSize = 34
 		if phone then welcomeLabel.Visible = false end
@@ -764,7 +764,7 @@ return function(deps)
 		local own = roundSelectFrame.AbsoluteSize -- the screen's own size: Studio's scale:WxH shrinks it while the camera keeps the window size, which left full height cards in a 450 px screen
 		if own and own.X > 0 and own.Y > 0 and (own.X < vpX or own.Y < vpY) then vpX, vpY = own.X, own.Y end
 		local compact = RSL.isCompact(vpY)
-		applyCompact(compact, compact and vpY < RSL.PHONE_BELOW)
+		applyCompact(compact, compact and vpY < RSL.PHONE_BELOW, compact and RSL.metrics(vpX, vpY).cardH or nil)
 		local scale
 		if compact then
 			scale = RSL.metrics(vpX, vpY).scale

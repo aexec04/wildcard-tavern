@@ -23,6 +23,7 @@ M.TIP_GAP = 8
 -- Select and Skip keep their real 44 px size) instead of shrinking the 620 px card under a UIScale, which made the buttons 17 to 36 px.
 M.COMPACT_BELOW = 800
 M.CW_C, M.CH_C, M.MAX_FIT_C = 210, 256, 1.5
+M.CH_MAX_C = 440 -- the tallest a compact card grows
 M.PHONE_BELOW = 600 -- under this the header shrinks to the title and the strip gap closes up
 M.ROW_TOP_PHONE, M.ROW_BOTTOM_PHONE, M.TIPS_TOP_PHONE = 48, 12, 6
 
@@ -40,7 +41,9 @@ function M.metrics(w, h)
 	local top, bottom = phone and M.ROW_TOP_PHONE or M.ROW_TOP, phone and M.ROW_BOTTOM_PHONE or M.ROW_BOTTOM
 	local rowH = h - top - bottom
 	local s = CardFit.scale(h, rowW, rowH, M.CH_C, M.CW_C, M.MAX_FIT_C, 0.5)
-	return { compact = true, cardW = M.CW_C, cardH = M.CH_C, rowTop = top, rowBottom = bottom, scale = s }
+	-- the card grows taller (not wider) to fill the free row height, so the art keeps its room; the plates stay real size
+	local tall = math.max(M.CH_C, math.min(M.CH_MAX_C, math.floor(rowH / s)))
+	return { compact = true, cardW = M.CW_C, cardH = tall, rowTop = top, rowBottom = bottom, scale = s }
 end
 
 function M.scale(w, h)
