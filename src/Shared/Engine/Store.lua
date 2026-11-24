@@ -28,13 +28,13 @@ Store.MAX_RECEIPTS = 100
 
 Store.Items = {
 	{
-		id = "starter_pack", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Starter Pack",
+		id = "starter_pack", category = "cosmetic", kind = "product", productId = 3734657100, oneTime = true, icon = "🎁", name = "Starter Pack",
 		description = "A card back, a Card Set and a title. Looks only.",
 		contents = { cardBacks = { "gilded_ledger" }, sets = { "winter_evening" }, titles = { "founding_guest" } },
 		perks = { "Gilded Ledger card back", "Winter Evening Card Set", "Title: Founding Guest" },
 	},
 	{
-		id = "card_set_bundle", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎴", name = "Card Set Bundle",
+		id = "card_set_bundle", category = "cosmetic", kind = "product", productId = 3734657364, oneTime = true, icon = "🎴", name = "Card Set Bundle",
 		description = "Two dressed-up tavern tables with their card backs.",
 		contents = { sets = { "festival_night", "closing_time" } },
 		perks = { "Festival Night Card Set", "Closing Time Card Set" },
@@ -54,31 +54,31 @@ Store.Items = {
 -- FLAIR PIECES (Engine/Flair.lua `store` options) and the SEASON PREMIUM TRACK (Engine/SeasonTrack.lua): items with a
 -- `section` are shown in their own screens (Flair panel, Season panel), not in the main Store row. All cosmetic, one time,
 -- placeholder product ids (0) until created in Creator Hub (see claude/LAUNCH.md and claude/ROADMAP.md).
-local function flairItem(id, flairId, name, icon, what)
+local function flairItem(id, flairId, name, icon, what, productId)
 	return {
-		id = id, category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = icon, name = name, section = "flair",
+		id = id, category = "cosmetic", kind = "product", productId = productId or 0, oneTime = true, icon = icon, name = name, section = "flair",
 		description = "Flair: " .. what .. ". Looks only.",
 		contents = { flair = { flairId } }, perks = { name },
 	}
 end
-Store.Items[#Store.Items + 1] = flairItem("flair_rainbow_numbers", "rainbow_numbers", "Rainbow Numbers", "🌈", "rainbow score numbers")
-Store.Items[#Store.Items + 1] = flairItem("flair_ribbon_trail", "ribbon_trail", "Ribbon Trail", "🎀", "ribbons follow your played cards")
-Store.Items[#Store.Items + 1] = flairItem("flair_crown_finisher", "crown_finisher", "Crown Flash", "👑", "a crown flash on big hands")
-Store.Items[#Store.Items + 1] = flairItem("flair_star_aura", "star_aura", "Star Aura", "🌟", "a star aura around your name")
+Store.Items[#Store.Items + 1] = flairItem("flair_rainbow_numbers", "rainbow_numbers", "Rainbow Numbers", "🌈", "rainbow score numbers", 3734658788)
+Store.Items[#Store.Items + 1] = flairItem("flair_ribbon_trail", "ribbon_trail", "Ribbon Trail", "🎀", "ribbons follow your played cards", 3734659029)
+Store.Items[#Store.Items + 1] = flairItem("flair_crown_finisher", "crown_finisher", "Crown Flash", "👑", "a crown flash on big hands", 3734659305)
+Store.Items[#Store.Items + 1] = flairItem("flair_star_aura", "star_aura", "Star Aura", "🌟", "a star aura around your name", 3734659549)
 Store.Items[#Store.Items + 1] = {
-	id = "flair_bundle", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
+	id = "flair_bundle", category = "cosmetic", kind = "product", productId = 3734657702, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
 	description = "All four Flair pieces in one bundle. Looks only.",
 	contents = { flair = { "rainbow_numbers", "ribbon_trail", "crown_finisher", "star_aura" } },
 	perks = { "Rainbow Numbers", "Ribbon Trail", "Crown Flash", "Star Aura" },
 }
 -- one premium pass per season (`seasonPremium` = the season id); bought once per season
 Store.Items[#Store.Items + 1] = {
-	id = "premium_harvest_moon", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
+	id = "premium_harvest_moon", category = "cosmetic", kind = "product", productId = 3734657925, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
 	seasonPremium = "harvest_moon", description = "A second reward row on every Harvest Moon tier.",
 	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
 Store.Items[#Store.Items + 1] = {
-	id = "premium_winter_welcome", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
+	id = "premium_winter_welcome", category = "cosmetic", kind = "product", productId = 3734658154, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
 	seasonPremium = "winter_welcome", description = "A second reward row on every Winter Welcome tier.",
 	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
