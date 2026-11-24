@@ -150,6 +150,9 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	reward.ZIndex = 11
 	reward.Parent = frame
 
+	text:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() -- the board resizes the plate after the text is set
+		if text.Text ~= "Rank 1" then NoteText.fitLiveLabel(text, 16, 204) end
+	end)
 	ui = { reward = reward, frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
 	if addTooltip then
 		addTooltip(frame, function()
@@ -173,6 +176,8 @@ function MenuRank.update(state)
 		require(script.Parent.ArtIcon).apply(ui.medalHolder, "rank_medals", key, nil, { zIndex = 12, cornerRadius = 16 })
 	end
 	ui.text.Text = MenuRank.textFor(view)
+	-- the board fitted the label while it still read "Rank 1"; fit the real text to the live label now
+	NoteText.fitLiveLabel(ui.text, 16, 204)
 	ui.reward.Text = NoteText.rankLines(view).reward or ""
 	local ratio = view.maxed and 1 or math.clamp(view.need > 0 and view.into / view.need or 0, 0, 1)
 	if shown.ratio ~= ratio or shown.rank ~= view.rank then

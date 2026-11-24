@@ -36708,6 +36708,17 @@ table.insert(tests, { name = "Menu banners: Soon, Rank and Next goal lines wrap 
 			expectTrue(size >= 12 and (F.width(text, size) <= w or size == 12), sz[1] .. " one line size keeps " .. text .. " off the edge")
 		end
 	end
+	do -- the LIVE label: TextBounds.X must fit AbsoluteSize.X after the long text is set (stale "Rank 1" fit was the cause)
+		for _, txt in ipairs({ "Rank 10  90 / 260 XP", "Rank 30  1234 / 5678 XP", "Rank 1  71 / 80 XP" }) do
+			for _, lw in ipairs({ 204, 160, 140 }) do
+				local label = { Text = txt, TextSize = 16, AbsoluteSize = { X = lw } }
+				label.TextBounds = setmetatable({}, { __index = function(_, k) return k == "X" and #label.Text * label.TextSize * 0.55 or 0 end })
+				local size = M.fitLiveLabel(label, 16, 204)
+				expectTrue(size >= 12 and (label.TextBounds.X <= lw or size == 12), txt .. " one line inside a " .. lw .. " px live label")
+				expectTrue(label.TextWrapped == false, "no wrap on the Rank line")
+			end
+		end
+	end
 	local f = io and io.open and io.open("src/Client/MenuBoard.lua", "r")
 	if f then
 		local t = f:read("*a"); f:close()

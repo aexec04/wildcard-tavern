@@ -65,6 +65,22 @@ function M.oneLineSize(text, w, size)
 	return 12
 end
 
+-- Fit a one line label to its LIVE width: the estimate first, then the real TextBounds, 12 px at the least.
+-- w is the label's AbsoluteSize.X (fallbackW when it has not been laid out yet).
+function M.fitLiveLabel(label, base, fallbackW)
+	local w = label.AbsoluteSize and label.AbsoluteSize.X or 0
+	if w <= 0 then w = fallbackW end
+	label.TextWrapped = false
+	if Enum then label.TextTruncate = Enum.TextTruncate.None end
+	local size = M.oneLineSize(label.Text, w, base)
+	label.TextSize = size
+	while size > 12 and label.TextBounds and label.TextBounds.X > w do
+		size = size - 1
+		label.TextSize = size
+	end
+	return size
+end
+
 function M.newsTime(row)
 	if type(row) ~= "table" then return "" end
 	if row.daysLeft then
