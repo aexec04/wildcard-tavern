@@ -681,6 +681,7 @@ end
 -- starts far enough to the right it stands in that row's left margin (so it never sits under a pack), else under the last row. Rects
 -- are the dealt (untilted) card rects plus a 10 px allowance for the tilt.
 ShopSceneLayout.REROLL_W, ShopSceneLayout.REROLL_H, ShopSceneLayout.REROLL_AIR = 190, 44, 24
+ShopSceneLayout.PACK_PILL_DROP, ShopSceneLayout.REROLL_SIDE = 36, 12 -- how far a pack price pill hangs under its card; side clearance
 function ShopSceneLayout.rerollPlate(r)
 	local o, k = r.offers and r.offers[1], r.packs and r.packs[1]
 	if not o then return nil end
@@ -696,7 +697,30 @@ function ShopSceneLayout.rerollPlate(r)
 	local last = r.offers[#r.offers]
 	local x = o.x
 	if not k then x = math.floor(o.x + (last.x + last.w - o.x - w) / 2) end
-	return rect(math.max(x, o.x), y, w, h)
+	x = math.max(x, o.x)
+	-- A pack's price pill hangs PACK_PILL_DROP below its card and the card tilts: the plate keeps clear of that footprint.
+	if k then
+		local function clash(px, py)
+			for _, p in ipairs(r.packs) do
+				local x0, x1 = p.x - ShopSceneLayout.REROLL_SIDE, p.x + p.w + ShopSceneLayout.REROLL_SIDE
+				local y0, y1 = p.y - 10, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP
+				if px < x1 and px + w > x0 and py < y1 and py + h > y0 then return true end
+			end
+			return false
+		end
+		if clash(x, y) then
+			local firstX = k.x
+			for _, p in ipairs(r.packs) do firstX = math.min(firstX, p.x) end
+			local left = firstX - ShopSceneLayout.REROLL_SIDE - w
+			local below = y
+			for _, p in ipairs(r.packs) do below = math.max(below, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP + 8) end
+			local minX = math.max(8, o.x) -- stays inside the Patron row's span
+			if left >= minX and not clash(left, y) then x = left
+			elseif limit and below + h <= limit - 4 then y = below
+			elseif left >= minX then x = left end
+		end
+	end
+	return rect(x, y, w, h)
 end
 
 -- Rects of the two scrolling card rows (transparent containers; the cards inside are centred). A row is the cards

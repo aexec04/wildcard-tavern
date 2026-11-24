@@ -54595,4 +54595,20 @@ table.insert(tests, { name = "Run Over win second pass: Patrons heading on a dar
 	expectTrue(src:find("Road taken", 1, true) ~= nil and src:find("tone = \"gold\"", 1, true) ~= nil and src:find("TONES.plain[line.props.tone", 1, true) ~= nil, "facts headings use the bright gold tone on the plate")
 end })
 
+table.insert(tests, { name = "Counter shop: the Reroll plate stays clear of every pack card and its price pill at 1920x957, 1280x720, 1024x768 and 1366x768", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 1366, 768 } }) do
+		for _, c in ipairs({ { 3, 2 }, { 3, 3 }, { 2, 3 }, { 4, 3 } }) do
+			local r = L.rects(size[1], size[2], { offers = c[1], packs = c[2] })
+			local p = L.rerollPlate(r)
+			expectTrue(p ~= nil and p.x >= 0 and p.x + p.w <= size[1] and p.y + p.h <= size[2], "the plate is on screen at " .. size[1] .. "x" .. size[2])
+			for i, k in ipairs(r.packs) do
+				local clash = p.x < k.x + k.w + 10 and p.x + p.w > k.x - 10 and p.y < k.y + k.h + L.PACK_PILL_DROP and p.y + p.h > k.y - 10
+				expectFalse(clash, "Reroll clears pack " .. i .. " and its price pill at " .. size[1] .. "x" .. size[2] .. " (" .. c[1] .. " Patrons, " .. c[2] .. " packs)")
+			end
+			expectTrue(p.h >= 44, "the plate stays 44 px tall")
+		end
+	end
+end })
+
 return tests
