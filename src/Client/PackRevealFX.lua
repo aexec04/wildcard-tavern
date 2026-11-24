@@ -80,6 +80,12 @@ function M.attach(panel, row, cards, items, rarities, opts)
 	local edge = setEdge(setId, nil, isCalm)
 	local ctl = {}
 	local covers, pills, marks = {}, {}, {}
+	local backImage = ""
+	pcall(function()
+		local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+		local ContentArt = require(Engine:WaitForChild("ContentArt"))
+		backImage = ContentArt.getImageId("card_backs", opts.cardBackId or "classic") or ContentArt.getImageId("card_backs", "classic") or ""
+	end)
 	local overlay
 
 	local function faceUp(i)
@@ -148,16 +154,31 @@ function M.attach(panel, row, cards, items, rarities, opts)
 			cover.ZIndex = z
 			cover.Parent = card.slot
 			corner(cover, 10)
-			stroke(cover, edge, 3)
+			stroke(cover, GOLD, 3)
+			-- the painted card back (the equipped one, else the classic back), under the crest
+			local art = Instance.new("ImageLabel")
+			art.Name = "BackArt"
+			art.Size = UDim2.fromScale(1, 1)
+			art.BackgroundTransparency = 1
+			art.BorderSizePixel = 0
+			art.ScaleType = Enum.ScaleType.Crop
+			art.Image = backImage
+			art.ZIndex = z
+			art.Parent = cover
+			corner(art, 10)
 			local crest = Instance.new("TextLabel")
-			crest.Size = UDim2.fromScale(1, 1)
+			crest.Name = "Crest"
+			crest.AnchorPoint = Vector2.new(0.5, 0.5)
+			crest.Position = UDim2.fromScale(0.5, 0.5)
+			crest.Size = UDim2.new(1, -12, 0, 28)
 			crest.BackgroundTransparency = 1
-			crest.Font = Enum.Font.GothamBold
-			crest.TextSize = 22
-			crest.TextColor3 = edge
+			crest.Font = Enum.Font.Fondamento -- the serif face of the Counter titles
+			crest.TextSize = 20
+			crest.TextColor3 = GOLD
 			crest.TextStrokeColor3 = DARK
-			crest.TextStrokeTransparency = 0.4
-			crest.Text = "PATRON"
+			crest.TextStrokeTransparency = 0.2
+			crest.TextTransparency = 0
+			crest.Text = "Patron"
 			crest.ZIndex = z + 1
 			crest.Parent = cover
 			cover.MouseButton1Click:Connect(function() if overlay then overlay:SetAttribute("Tap", true) end end)

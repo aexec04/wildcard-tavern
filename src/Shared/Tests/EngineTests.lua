@@ -32208,6 +32208,45 @@ table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, o
 	assert(shop:find("PackRevealFX", 1, true), "the pack panel plays the reveal")
 end })
 
+table.insert(tests, { name = "PackRevealFX live: every hidden pick cover carries the painted card back, a serif crest of 16 px or more, no Gotham, and keeps its size", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PackReveal", "ContentArt" }) do map[n] = require(E[n]) end
+	local stubs = { ClientSettings = { get = function() return false end }, Cue = { play = function() end }, TavernKit = { plateSetId = function() return nil end } }
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	state.services.TweenService = { Create = function() return { Play = function() end, Completed = FakeGui.signal() } end }
+	local FX = FakeGui.load("src/Client/PackRevealFX.lua", env)
+	for _, backId in ipairs({ nil, "classic", "back_golden_gala" }) do
+		local gui = FakeGui.new("Frame")
+		gui.AbsoluteSize = { X = 800, Y = 450 }
+		local row = FakeGui.new("Frame", gui)
+		local cards, items, rarities = {}, {}, {}
+		for i = 1, 3 do
+			local slot = FakeGui.new("Frame", row)
+			slot.Size = UDim2.fromOffset(120, 180)
+			cards[i] = { slot = slot, spec = { onClick = function() end } }
+			items[i] = { category = "patron", id = "x" .. i }
+		end
+		FX.attach(gui, row, cards, items, rarities, { z = 10, cardBackId = backId, isPicked = function() return false end, onPick = function() end })
+		FakeGui.layout(gui, 800, 450)
+		for i = 1, 3 do
+			local cover = cards[i].slot:FindFirstChild("PackBack")
+			expectTrue(cover ~= nil, "card " .. i .. " is face down")
+			local art = cover:FindFirstChild("BackArt")
+			expectTrue(art ~= nil and art.Image ~= "" and art.Image:find("rbxassetid://", 1, true) ~= nil, "the cover holds a painted back image")
+			expectTrue(cover.AbsoluteSize.X == 120 and cover.AbsoluteSize.Y == 180, "the cover keeps the card size")
+			for _, d in ipairs(cover:GetDescendants()) do
+				if d.ClassName == "TextLabel" then
+					expectTrue(d.Font ~= Enum.Font.GothamBold and d.TextSize >= 16 and d.TextTransparency == 0 and d.TextStrokeTransparency < 1, "the crest is serif, 16 px or more and readable")
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Guided hint: the plate sits between the Patron pills and the hand, clear of Play Hand, and its text is 4.5:1 on the plate, at three sizes", fn = function()
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
