@@ -15,6 +15,8 @@ M.PALETTE = {
 	{ 170, 110, 235 }, { 120, 70, 200 }, { 205, 165, 255 },
 }
 M.GRAVITY = 900
+M.LIFE = 2.8 -- seconds each piece lives; with the start delay (up to 0.25 s) the burst keeps moving about 3 s
+M.MAX_DELAY = 0.25
 
 function M.count(calm, fast, big)
 	if calm then return 0 end
@@ -44,7 +46,7 @@ function M.pieces(n, seed)
 			spin = (rnd() - 0.5) * 540,
 			size = 10 + math.floor(rnd() * 6),
 			color = { c[1], c[2], c[3] },
-			delay = rnd() * 0.25,
+			delay = rnd() * M.MAX_DELAY,
 		}
 	end
 	return out

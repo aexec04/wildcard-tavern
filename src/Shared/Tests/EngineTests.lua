@@ -54611,4 +54611,66 @@ table.insert(tests, { name = "Counter shop: the Reroll plate stays clear of ever
 	end
 end })
 
+table.insert(tests, { name = "Run Over win third pass: celebration motion lasts about 3 s (confetti, banner pop, Tips count-up), none in Calm mode, win facts sit on the dark plate", fn = function()
+	local E = script.Parent.Parent.Engine
+	local C = require(E.Confetti)
+	local piece = C.pieces(C.count(false, false, false), 11)
+	local lastEnd = 0
+	for _, pc in ipairs(piece) do lastEnd = math.max(lastEnd, pc.delay + C.LIFE) end
+	expectTrue(C.LIFE >= 2.7 and C.LIFE + C.MAX_DELAY >= 3, "the confetti keeps moving for about 3 seconds after opening")
+	expectTrue(lastEnd >= 2.8, "the last piece of a real burst is still falling near the 3 second mark")
+	expectEqual(C.count(true, false, true), 0, "Calm mode draws no confetti")
+	local W = require(E.RunOverWin)
+	expectEqual(W.tipsSteps({ tips = 40 }, true), nil, "Calm mode shows the Tips end state at once")
+	expectTrue(W.tipsSteps({ tips = 40 }, false) ~= nil, "the Tips count up plays outside Calm mode")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/ConfettiFX.lua", "r"))
+	local fx = f:read("*a")
+	f:close()
+	expectTrue(fx:find("local LIFE = Confetti.LIFE", 1, true) ~= nil, "ConfettiFX uses the pinned lifetime")
+	local g = assert(io.open("src/Client/GameOver.lua", "r"))
+	local src = g:read("*a")
+	g:close()
+	expectTrue(src:find("fx.titleIn(titleLabel)", 1, true) ~= nil and src:find("ConfettiFX).burst", 1, true) ~= nil, "a win plays the banner pop and the confetti on open")
+	-- win state: every fact label sits over the dark plate, cream on it
+	local FakeGui = require(script.Parent.FakeGui)
+	local P, root = buildGameOver(FakeGui, E, false)
+	root.AbsoluteSize = { X = 1600, Y = 900 }
+	local summary = { night = 8, round = 3, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" } },
+		patrons = { { id = "a", name = "Ada", icon = "A" } }, rarity = "common", badgeSaved = false }
+	P.refreshGameOver({ phase = "gameover", night = 8, nightCap = 8, round = 3, wonRun = true, roundScore = 900, targetScore = 700, tips = 40, runSummary = summary }, nil)
+	local panel = root:FindFirstChild("GameOver", true) or root
+	local pl, fr = panel:FindFirstChild("FactsPlate", true), panel:FindFirstChild("Facts", true)
+	expectTrue(pl ~= nil and fr ~= nil and pl.Visible, "the win shows the facts plate")
+	expectTrue(pl.BackgroundColor3.R < 0.2 and pl.BackgroundTransparency <= 0.12, "the win plate is dark and nearly opaque")
+	for _, c in ipairs(fr:GetChildren()) do
+		if c:IsA("TextLabel") then
+			expectTrue(pl.ZIndex < c.ZIndex and c.TextColor3.R > 0.7, "win fact " .. c.Name .. " is cream or bright gold over the plate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "SortPlateGroup: Rank and Suit glyph then word never overlap, inside the plate, at every table size; Gameplay2 wires it", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local f = io and io.open("src/Client/SortPlateGroup.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local G = assert(load(src, "SortPlateGroup"))()
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 }, { 800, 360 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, k in ipairs({ "sortRank", "sortSuit" }) do
+			local w, h = math.floor(r[k].w), math.floor(r[k].h)
+			for _, size in ipairs({ 14, 18, 22 }) do
+				local g = G.layout(w, h, 4 * size * 0.56, size, I)
+				local tag = sz[1] .. "x" .. sz[2] .. " " .. k .. " " .. size
+				expectTrue(I.inside(w, h, g), tag .. ": glyph and word inside the plate")
+				expectTrue(g.label.x >= g.icon.x + g.icon.w, tag .. ": the word starts right of the glyph, no overlap")
+			end
+		end
+	end
+	local g2 = io.open("src/Client/Gameplay2.lua", "r"); local gsrc = g2:read("*a"); g2:close()
+	expectTrue(gsrc:find("SortPlateGroup", 1, true) ~= nil, "Gameplay2 attaches SortPlateGroup to the split Rank and Suit plates")
+end })
+
 return tests
