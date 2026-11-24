@@ -140,7 +140,7 @@ function StatsRoom.new(ctx)
 	end
 
 	function room.layout()
-		local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+		local vp = FullScreen.screenSize(ctx.panel, workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)) -- the backdrop, which scale:WxH shrinks
 		local rect = Layout.panel(vp.X, vp.Y)
 		do -- a full screen panel: the real screen below the tab strip
 			local fw, fh = FullScreen.fit(ctx.panel, rect.w, rect.h, vp.X, vp.Y)

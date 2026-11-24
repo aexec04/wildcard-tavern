@@ -33,7 +33,7 @@ M.DEF = {
 	-- smallest sizes (px) at which text stays readable (nothing under 14)
 	min = { plaques = { 100, 68 }, pages = { 150, 150 }, shelves = { 76, 76 } },
 }
-M.TOP, M.BOTTOM = 54, 48 -- title above, footer below the body (the painting runs under the footer to the panel bottom)
+M.TOP, M.BOTTOM = 50, 48-- title above, footer below the body (the painting runs under the footer to the panel bottom)
 M.RUNS_SHOWN = 8
 M.ROW_H = 26
 

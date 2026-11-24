@@ -2,16 +2,18 @@
 	Engine/PanelLayout.lua
 	Shared numbers for the account panel tab strip (Client/PanelTabs.lua) and the Expand button (Client/ExpandToggle.lua),
 	so a corner control can never sit under the strip. Pure Lua, no Roblox APIs.
-	The strip covers y 3 to 63. Centered panels are nudged down STRIP_NUDGE once while a tab strip is attached.
+	The strip covers y 3 to 81. Centered panels are nudged down STRIP_NUDGE once while a tab strip is attached.
 ]]
 
 local PanelLayout = {}
 
-PanelLayout.STRIP_BOTTOM = 63 -- group tabs (y 3 to 37) plus the hanging bookmark ribbons (y 39 to 63)
+PanelLayout.TAB_H = 44 -- Back and the page tabs are 44 px touch targets (the wide group tabs above them stay 34 px to keep the page body tall)
+PanelLayout.GROUP_H = 34
+PanelLayout.STRIP_BOTTOM = 3 + 34 + 44 -- group tabs (y 3 to 37) plus the page tab ribbons (y 37 to 81)
 PanelLayout.STRIP_NUDGE = 40
-PanelLayout.BACK_W, PanelLayout.BACK_H = 84, 34 -- the "< Back" plate at the strip's left edge, as tall as the group tabs; the tab rows start at BACK_ROW_X
+PanelLayout.BACK_W, PanelLayout.BACK_H = 84, 44 -- the "< Back" plate at the strip's left edge, as tall as the tabs; the tab rows start at BACK_ROW_X
 PanelLayout.BACK_ROW_X = 92
-PanelLayout.EXPANDED_MARGIN = 96 -- an expanded panel is (screen height - this) tall, so it is 48px off the top before the nudge
+PanelLayout.EXPANDED_MARGIN = 100 -- an expanded panel is (screen height - this) tall, so it is 50px off the top before the nudge
 PanelLayout.TOGGLE_INSET = 8 -- toggle sits this far below the panel top
 PanelLayout.TOGGLE_SIZE = 30
 

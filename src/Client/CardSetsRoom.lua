@@ -566,7 +566,7 @@ function CardSetsRoom.new(ctx)
 	end
 
 	function room.layout()
-		local screen = ctx.screenGui.AbsoluteSize
+		local screen = FullScreen.screenSize(ctx.panel, ctx.screenGui.AbsoluteSize) -- the backdrop, which scale:WxH shrinks
 		local pw, ph = Layout.roomPanel(screen.X, screen.Y)
 		pw, ph = FullScreen.fit(ctx.panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local area = { x = 0, y = Layout.TOP, w = pw, h = ph - Layout.TOP - Layout.BOTTOM }

@@ -117,7 +117,7 @@ local function newRow(parent, name, y, h)
 end
 
 local function groupTab(parent, group, active, order)
-	local b = newButton(parent, "", 168, order, 32)
+	local b = newButton(parent, "", 168, order, PanelLayout.GROUP_H)
 	b.Name = "Group_" .. group.id
 	b.AutoButtonColor = false
 	b.BackgroundColor3 = rgb(PanelGroups.tabFill(group, active))
@@ -167,7 +167,7 @@ end
 
 local function ribbon(parent, group, page, active, order)
 	local width = 34 + #page.text * 9
-	local b = newButton(parent, page.text, width, order, 24)
+	local b = newButton(parent, page.text, width, order, PanelLayout.TAB_H)
 	b.Name = "Tab_" .. page.id
 	b.AutoButtonColor = false
 	b.TextSize = 14
@@ -212,8 +212,8 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 	back.Position = UDim2.fromOffset(0, 0)
 	styleButton(back, false)
 
-	local groupsRow = newRow(strip, "Groups", 0, 34)
-	local pagesRow = newRow(strip, "Tabs", 36, 24)
+	local groupsRow = newRow(strip, "Groups", 0, PanelLayout.GROUP_H)
+	local pagesRow = newRow(strip, "Tabs", PanelLayout.GROUP_H, PanelLayout.TAB_H)
 
 	for i, group in ipairs(PanelGroups.GROUPS) do
 		local active = group.id == activeGroup.id

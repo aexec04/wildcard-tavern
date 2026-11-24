@@ -376,7 +376,7 @@ function LegendPanel.init(deps)
 	-- ===== painted trophy hall (legend_room_a): the card back stands in the alcove, Show off lines sit on the shelves, the ten ladder
 	-- rewards are medallions on the five brass plaques (two levels each; full names in the tooltip and the "Next" line) =====
 	local function layoutRoom()
-		local screen = deps.screenGui.AbsoluteSize
+		local screen = FullScreen.screenSize(panel, deps.screenGui.AbsoluteSize) -- the backdrop, which scale:WxH shrinks
 		local pw, ph = Scene.panel(screen.X, screen.Y)
 		pw, ph = FullScreen.fit(panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local placed = scene.id and Scene.place(pw, ph - Scene.TOP - Scene.BOTTOM) or nil

@@ -54211,7 +54211,7 @@ table.insert(tests, { name = "Card Sets room live readability: Card Sets and Car
 	local Audit = require(script.Parent.LiveReadability)
 	local Engine = script.Parent.Parent.Engine
 	local lazy = function() return setmetatable({}, { __index = function() return function() return nil end end }) end
-	local stubs = { ClientSettings = { get = function() return false end }, PanelFullScreen = { fit = function(_, w, h) return w, h end, setRect = function(panel, size) panel.Size = size end }, Tooltip = { new = function() return { attach = function() end } end },
+	local stubs = { ClientSettings = { get = function() return false end }, PanelFullScreen = { fit = function(_, w, h) return w, h end, screenSize = function(_, fallback) return fallback end, setRect = function(panel, size) panel.Size = size end }, Tooltip = { new = function() return { attach = function() end } end },
 		TavernKit = lazy(), NewRibbon = { attach = function() end }, SetSkin = lazy() }
 	local env, st = FakeGui.env({ studio = true, stubs = stubs })
 	local map = setmetatable({}, { __index = function(_, n) local ok, m = pcall(function() return require(Engine[n]) end) if ok then return m end return nil end })
@@ -55011,6 +55011,73 @@ table.insert(tests, { name = "Round Select live readability: the three cards at 
 	end
 	if #found > 0 then print(table.concat(found, "\n")) end
 	expectEqual(#found, 0, "Round Select has " .. #found .. " readability findings")
+end })
+
+tests[#tests + 1] = ({ name = "PanelTabs: the real strip makes Back and every page tab at least 44 px tall and keeps the strip inside STRIP_BOTTOM", fn = function()
+	local FakeGui = require(script.Parent.FakeGui)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local PG = require(script.Parent.Parent.Engine.PanelGroups)
+	local stubs = {}
+	local env = FakeGui.env({ stubs = stubs })
+	local noop = function() end
+	local map = { PanelGroups = PG, PanelLayout = PL, PanelOrigin = require(script.Parent.Parent.Engine.PanelOrigin) }
+	local folder = FakeGui.folder(map)
+	local shared = { WaitForChild = function() return folder end }
+	env.game.GetService = (function(orig) return function(self, name)
+		if name == "ReplicatedStorage" then return { WaitForChild = function() return shared end } end
+		return orig(self, name)
+	end end)(env.game.GetService)
+	stubs.OverlayManager = { register = noop, registerOpener = noop, closeAllExcept = noop, close = noop, open = noop }
+	stubs.ClientSettings = { get = function() return false end }
+	stubs.SetSkin = { register = noop }
+	stubs.ArtIcon = { apply = noop }
+	stubs.CornerDock = { register = noop }
+	stubs.PopupDismiss = { attach = noop }
+	stubs.PanelFullScreen = { apply = noop }
+	local ok, PanelTabs = pcall(FakeGui.load, "src/Client/PanelTabs.lua", env)
+	expectTrue(ok, "PanelTabs loads on the fake Roblox: " .. tostring(PanelTabs))
+	if not ok then return end
+	local backdrop = FakeGui.new("Frame")
+	PanelTabs.attach(backdrop, "collection", noop, FakeGui.new("Frame"))
+	local strip = backdrop:FindFirstChild("PanelTabs")
+	expectTrue(strip ~= nil, "the strip is built")
+	local back = strip:FindFirstChild("Back")
+	expectTrue(back ~= nil and back.Size.Y.Offset >= 44, "Back is 44 px or taller")
+	local tabs, bottom = 0, 0
+	for _, row in ipairs({ strip:FindFirstChild("Groups"), strip:FindFirstChild("Tabs") }) do
+		for _, b in ipairs(row:GetChildren()) do
+			if b:IsA("TextButton") then
+				local y = row.Position.Y.Offset + b.Size.Y.Offset
+				if y > bottom then bottom = y end
+				if b.Name:find("^Tab_") then
+					tabs = tabs + 1
+					expectTrue(b.Size.Y.Offset >= 44, b.Name .. " is 44 px or taller")
+				end
+			end
+		end
+	end
+	expectTrue(tabs >= 2, "the page tabs were built")
+	expectTrue(3 + bottom <= PL.STRIP_BOTTOM and 3 + back.Size.Y.Offset <= PL.STRIP_BOTTOM, "the strip stays inside STRIP_BOTTOM")
+end })
+
+tests[#tests + 1] = ({ name = "PanelFullScreen.screenSize: a full screen room lays out for its backdrop (scale:WxH), not the whole window", fn = function()
+	local FakeGui = require(script.Parent.FakeGui)
+	local env, state = FakeGui.env({ stubs = {} })
+	local folder = FakeGui.folder({ PanelLayout = require(script.Parent.Parent.Engine.PanelLayout) })
+	local shared = { WaitForChild = function() return folder end }
+	state.services.ReplicatedStorage = { WaitForChild = function() return shared end }
+	local ok, FS = pcall(FakeGui.load, "src/Client/PanelFullScreen.lua", env)
+	expectTrue(ok, "PanelFullScreen loads on the fake Roblox: " .. tostring(FS))
+	if not ok then return end
+	local fallback = { X = 1920, Y = 957 }
+	local backdrop, panel = FakeGui.new("Frame"), FakeGui.new("Frame")
+	panel.Parent = backdrop
+	backdrop.AbsoluteSize = { X = 800, Y = 450 }
+	local s = FS.screenSize(panel, fallback)
+	expectTrue(s.X == 800 and s.Y == 450, "the backdrop size wins")
+	backdrop.AbsoluteSize = { X = 0, Y = 0 }
+	expectTrue(FS.screenSize(panel, fallback) == fallback, "no backdrop size yet falls back to the window")
+	expectTrue(FS.screenSize(nil, fallback) == fallback, "no panel falls back")
 end })
 
 return tests
