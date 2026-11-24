@@ -55217,6 +55217,44 @@ tests[#tests + 1] = ({ name = "DailyStrip hides while a full screen Tome page is
 	expectTrue(ds:find("hiddenByPage(g:GetAttribute(\"FullScreenOpen\"))", 1, true) ~= nil, "the strip reads the count before showing")
 end })
 
+tests[#tests + 1] = ({ name = "DailyStrip LIVE: the strip hides when FullScreenOpen is set on GameUI.GameRoot (Tavern Map) or on GameUI (Tome pages) and returns when it clears", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local gui = FakeGui.new("Frame"); gui.Name = "GameUI" -- a Frame stands in for the ScreenGui (FakeGui gives it AbsolutePosition)
+	gui.AbsoluteSize = { X = 1920, Y = 957 }
+	local root = FakeGui.new("Frame"); root.Name = "GameRoot"; root.Parent = gui
+	local menu = FakeGui.new("Frame"); menu.Name = "MenuRoot"; menu.Parent = gui
+	menu.AbsoluteSize = { X = 1920, Y = 957 }
+	local kit = {
+		plate = function(parent) local f = FakeGui.new("Frame"); f.Parent = parent; return f end,
+		painted = function() end,
+	}
+	local env, state = FakeGui.env({ stubs = { TavernKit = kit } })
+	env.game = { GetService = function(_, name)
+		if name == "Players" then
+			return { LocalPlayer = { FindFirstChild = function() return { FindFirstChild = function() return gui end } end } }
+		end
+		if name == "ReplicatedStorage" then
+			local map = { DailyStrip = require(Engine.DailyStrip), TavernStyle = require(Engine.TavernStyle), TextFit = require(Engine.TextFit) }
+			return { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+		end
+		return state.services[name] or {}
+	end }
+	local M = FakeGui.load("src/Client/DailyStrip.lua", env)
+	pcall(M.update, { phase = "menu" }) -- the strip is drawn on the Menu (the rest of the draw needs the real kit, only Visible matters here)
+	local strip = gui:FindFirstChild("DailyStrip", true)
+	expectTrue(strip ~= nil and strip.Visible == true, "the strip shows on the Menu before any page opens")
+	root:SetAttribute("FullScreenOpen", true) -- what Client/FullScreenHud.enter does for the Tavern Map
+	expectFalse(strip.Visible, "the Tavern Map (flag on GameRoot) hides the strip")
+	root:SetAttribute("FullScreenOpen", nil)
+	expectTrue(strip.Visible, "closing the map brings the strip back")
+	gui:SetAttribute("FullScreenOpen", 1) -- what PanelFullScreen does for a Tome page
+	expectFalse(strip.Visible, "a Tome page (flag on GameUI) hides the strip")
+	gui:SetAttribute("FullScreenOpen", 0)
+	expectTrue(strip.Visible, "closing the page brings the strip back")
+end })
+
 table.insert(tests, { name = "Stranger scroll: Accept and No thanks are 44 px tall at 1920x1080, 1280x720 and 800x450", fn = function()
 	local L = require(script.Parent.Parent.Engine.ScrollOfferLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do

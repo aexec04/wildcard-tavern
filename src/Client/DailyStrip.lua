@@ -118,13 +118,19 @@ function M.update(state)
 		g:SetAttribute("DailyStripHooked", true)
 		g:GetAttributeChangedSignal("FullScreenOpen"):Connect(function() M.update(lastState) end) -- a Tome page opened or closed
 	end
+	-- the Tavern Map (Client/FullScreenHud) sets the flag on GameUI.GameRoot, the Tome pages (PanelFullScreen) on GameUI: watch both
+	local gameRoot = g:FindFirstChild("GameRoot")
+	if gameRoot and not gameRoot:GetAttribute("DailyStripHooked") then
+		gameRoot:SetAttribute("DailyStripHooked", true)
+		gameRoot:GetAttributeChangedSignal("FullScreenOpen"):Connect(function() M.update(lastState) end)
+	end
 	if menu and not hooked then
 		hooked = true
 		menu:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() M.update(lastState) end) -- scale:WxH resizes the menu frame
 		menu:GetPropertyChangedSignal("Visible"):Connect(function() M.update(lastState) end) -- opening the Menu draws the strip without waiting for a render
 	end
 	-- a full screen Tome or Collection page (PanelFullScreen) covers the menu: the strip would be drawn over its buttons
-	local pageOpen = Rules.hiddenByPage(g:GetAttribute("FullScreenOpen"))
+	local pageOpen = Rules.hiddenByPage(g:GetAttribute("FullScreenOpen")) or (gameRoot ~= nil and Rules.hiddenByPage(gameRoot:GetAttribute("FullScreenOpen")))
 	local show = not pageOpen and (onMenu or Rules.visible(state.phase))
 	strip.Visible = show
 	if not show then return end
