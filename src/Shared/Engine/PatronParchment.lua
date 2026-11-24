@@ -50,7 +50,7 @@ function M.wraps(name, w)
 	return NameFit.textWidth(name, NameFit.MIN_SIZE) > math.max(0, r.w - 4)
 end
 
-M.WRAP_MIN = 7 -- a row with a very long word (Efficient) may go this small at 800x450 rather than touch the coin
+M.WRAP_MIN = 12 -- never smaller than 12 px, even at 800x450; a word still too long is cut with an ellipsis (TextTruncate) rather than shrunk or drawn over the coin
 M.COIN_GAP = 6 -- px kept clear between the end of a name and the power coin
 M.CHAR_W = 0.62 -- Merriweather is wider than the engine's 0.56 estimate; sizes and label fits use this
 

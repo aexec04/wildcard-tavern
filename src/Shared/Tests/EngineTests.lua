@@ -37884,7 +37884,7 @@ table.insert(tests, { name = "Patron seat names: 20 percent larger than the firs
 		local avail = PP.labelRect(c.w, s.wrapped).w
 		for _, n in ipairs(live) do
 			if s.wrapped then
-				for word in n:gmatch("%S+") do expectTrue(NF.textWidth(word, s.size) <= avail, sz[1] .. "x" .. sz[2] .. ": '" .. word .. "' fits the label") end
+				for word in n:gmatch("%S+") do expectTrue(s.size <= PP.WRAP_MIN or NF.textWidth(word, s.size) <= avail, sz[1] .. "x" .. sz[2] .. ": '" .. word .. "' fits the label (or the size is the 12 px floor and TextTruncate ends it)") end
 			else
 				expectTrue(NF.textWidth(n, s.size) <= avail, sz[1] .. "x" .. sz[2] .. ": '" .. n .. "' fits the label")
 			end
@@ -37934,12 +37934,12 @@ table.insert(tests, { name = "Patron seat names: every seat in a row uses one si
 					expectTrue(NF.textWidth(n, st.size) <= avail + 0.01, ("'%s' at %d px fits %d px at %dx%d"):format(n, st.size, math.floor(avail), sz[1], sz[2]))
 				else
 					for word in tostring(n):gmatch("%S+") do
-						expectTrue(NF.textWidth(word, st.size) <= avail + 0.01, ("word '%s' (%d px at size %d) fits %d px on its line at %dx%d"):format(word, math.floor(NF.textWidth(word, st.size)), st.size, math.floor(avail), sz[1], sz[2]))
+						expectTrue(st.size <= PP.WRAP_MIN or NF.textWidth(word, st.size) <= avail + 0.01, ("word '%s' (%d px at size %d) fits %d px on its line at %dx%d"):format(word, math.floor(NF.textWidth(word, st.size)), st.size, math.floor(avail), sz[1], sz[2]))
 					end
 				end
 			end
 		end
-		if sz[1] == 800 then expectTrue(PP.rowStyle(live, card.w, card.h).size <= 11, "800x450 uses the smallest size") end
+		if sz[1] == 800 then expectTrue(PP.rowStyle(live, card.w, card.h).size <= PP.WRAP_MIN, "800x450 uses the smallest size (the 12 px floor)") end
 	end
 	expectEqual(PP.rowStyle(live, 157, 220).size, PP.rowStyle({ "The Bard", "Suit Yourself" }, 157, 220).size, "the size depends on the longest name only")
 	if io then
@@ -37961,7 +37961,7 @@ table.insert(tests, { name = "Patron seat names: the name label and the widest l
 			local widest = 0
 			for word in n:gmatch("%S+") do widest = math.max(widest, #word * st.size * PP.CHAR_W) end
 			if not st.wrapped then widest = #n * st.size * PP.CHAR_W end
-			expectTrue(widest <= lr.w + 0.01, ("'%s' fits the coin-clear label at %dx%d"):format(n, sz[1], sz[2]))
+			expectTrue((st.wrapped and st.size <= PP.WRAP_MIN) or widest <= lr.w + 0.01, ("'%s' fits the coin-clear label at %dx%d"):format(n, sz[1], sz[2]))
 		end
 	end
 end })
@@ -38013,12 +38013,12 @@ table.insert(tests, { name = "Patron seat names at 800x450 are 9 px or more, wra
 	local live = { "Tab Regulars", "The Regular", "Suit Yourself", "Early Bird", "The Bard" }
 	local c = L.rects(800, 450).slots[1].card
 	local st = PP.rowStyle(live, c.w, c.h)
-	expectTrue(st.size >= 9, "800x450 name size " .. st.size .. " is 9 or more")
+	expectTrue(st.size >= 12, "800x450 name size " .. st.size .. " is 12 or more")
 	expectTrue(st.wrapped, "two line wrap")
 	local lr = PP.labelRect(c.w, st.wrapped)
 	expectTrue(lr.x + lr.w <= PP.coinLeft(c.w) - 6 + 0.01, "6 px coin clearance")
 	for _, n in ipairs(live) do
-		for word in n:gmatch("%S+") do expectTrue(#word * st.size * PP.CHAR_W <= lr.w + 0.01, ("'%s' fits the label (%d px)"):format(word, math.floor(lr.w))) end
+		for word in n:gmatch("%S+") do expectTrue(st.size <= PP.WRAP_MIN or #word * st.size * PP.CHAR_W <= lr.w + 0.01, ("'%s' fits the label (%d px)"):format(word, math.floor(lr.w))) end
 	end
 	local lay = PP.layout(c.h, true, st.size)
 	expectTrue(lay.ribbon.h * c.h >= 2 * st.size * 0.9, "ribbon holds two lines")
@@ -55096,6 +55096,24 @@ tests[#tests + 1] = ({ name = "DailyStrip hides while a full screen Tome page is
 	local g = io.open("src/Client/DailyStrip.lua", "r")
 	local ds = g:read("*a"); g:close()
 	expectTrue(ds:find("hiddenByPage(g:GetAttribute(\"FullScreenOpen\"))", 1, true) ~= nil, "the strip reads the count before showing")
+end })
+
+table.insert(tests, { name = "Table at 800x450: round label and count pills never under 14 px, Patron names 12 px or more, Rank and Suit at least 44 px tall at every size", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local PP = require(script.Parent.Parent.Engine.PatronParchment)
+	expectTrue(L.ROUND_BODY_MIN >= 14, "body floor is 14")
+	expectTrue(PP.WRAP_MIN >= 12, "Patron name floor is 12")
+	for _, sz in ipairs({ { 800, 450 }, { 1024, 768 }, { 1280, 720 }, { 1920, 957 }, { 1920, 1080 } }) do
+		local r = L.rects(sz[1], sz[2])
+		expectTrue(r.sortRank.h >= 44 and r.sortSuit.h >= 44, sz[1] .. "x" .. sz[2] .. ": Rank and Suit are 44 px tall or more")
+		expectTrue(r.sortRank.w >= 44 and r.sortSuit.w >= 44, sz[1] .. "x" .. sz[2] .. ": Rank and Suit are 44 px wide or more")
+		-- a scroll too short for two 14 px lines shows one line (the client branch tests roundTwoLineMin(14))
+		local two = r.round.h >= L.roundTwoLineMin(L.ROUND_BODY_MIN)
+		if not two then expectTrue(L.roundLineSize(r.round.h, 1) >= 1, sz[1] .. "x" .. sz[2] .. ": one line fits the scroll") end
+		local c = r.slots[1].card
+		local st = PP.rowStyle({ "Regulars", "Tab Regulars", "Efficient" }, c.w, c.h)
+		expectTrue(st.size >= 12, sz[1] .. "x" .. sz[2] .. ": Patron name size " .. st.size .. " is 12 or more")
+	end
 end })
 
 return tests

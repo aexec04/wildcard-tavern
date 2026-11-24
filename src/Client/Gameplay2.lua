@@ -468,7 +468,7 @@ function M.install(deps)
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		for _, pr in ipairs({ { handsPill, r.playCount }, { discardsPill, r.discardCount } }) do -- cream 18 px words, smaller only when the pill is too short for them
 			local pw = pr[1]:FindFirstChild("Word")
-			if pw then pw.TextScaled = false; pw.TextSize = math.max(10, math.min(18, math.floor(pr[2].h * 0.6))) end
+			if pw then pw.TextScaled = false; pw.TextSize = math.max(14, math.min(18, math.floor(pr[2].h * 0.6))) end -- never under 14 px, even in the short 800x450 pills
 		end
 		place(deckImg, CTLayout.deckPicture(r.deck)); place(deckPill, r.deckCount)
 		do
@@ -896,7 +896,7 @@ function M.install(deps)
 					roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
 					roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
 					roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
-				elseif bname == nil and ih >= Layout.roundTwoLineMin() then -- a normal round: bold title line plus the goal line (two lines, never cut)
+				elseif bname == nil and ih >= Layout.roundTwoLineMin(Layout.ROUND_BODY_MIN) then -- a normal round: bold title line plus the goal line (two lines, never cut)
 					roundLabel:SetAttribute("RuleInScroll", false)
 					roundLabel.TextWrapped = true
 					roundLabel.RichText = ih >= 62
@@ -924,7 +924,8 @@ function M.install(deps)
 					roundLabel.TextTruncate = Enum.TextTruncate.None
 					local pw = roundLabel.AbsoluteSize.X
 					pcall(function() pw = Layout.rects(root.AbsoluteSize.X, root.AbsoluteSize.Y).round.w end)
-					roundLabel.TextSize = Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, Layout.roundLineSize(ih, 1))), pw) -- one line: fits the scroll in width and height
+					roundLabel.TextSize = math.max(Layout.ROUND_BODY_MIN, Layout.fitRoundText(roundLabel.Text, math.min(baseSize, math.max(Layout.ROUND_TEXT_MIN, Layout.roundLineSize(ih, 1))), pw)) -- one line: fits the scroll in width and height, never under 14 px
+						roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
 				end
 				end
 			end

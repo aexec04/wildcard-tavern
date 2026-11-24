@@ -46,7 +46,8 @@ M.ROUND_LINE_H = 1.25
 function M.roundLineSize(h, lines)
 	return math.floor(((tonumber(h) or 0) - 4) / (M.ROUND_LINE_H * math.max(1, lines or 1)))
 end
-function M.roundTwoLineMin() return math.ceil(2 * M.ROUND_LINE_H * M.ROUND_TEXT_MIN) + 4 end
+M.ROUND_BODY_MIN = 14 -- the live label never draws under 14 px: a scroll too short for two such lines shows the title line alone
+function M.roundTwoLineMin(minSize) return math.ceil(2 * M.ROUND_LINE_H * (minSize or M.ROUND_TEXT_MIN)) + 4 end
 
 function M.fitRoundText(text, want, plateW)
 	local inner = M.roundInnerW(plateW)

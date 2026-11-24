@@ -105,7 +105,7 @@ function M.sync(c, name)
 		t.TextWrapped = wrapped
 		t.TextScaled = false -- one fixed size for every seat, from the longest name
 		t.TextSize = style.size
-		t.TextTruncate = Enum.TextTruncate.None
+		t.TextTruncate = wrapped and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None -- a wrapped name that still cannot fit at 12 px ends in an ellipsis inside the ribbon
 		t.LineHeight = wrapped and 0.9 or 1
 	end
 end
