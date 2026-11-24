@@ -64,15 +64,20 @@ local PLATE_HOVER = Color3.fromRGB(122, 84, 44)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local BRASS = Color3.fromRGB(200, 165, 90)
 
-local function bindHover(button, tagLabel, glow)
+local REROLL_ON_BELL = true -- Reroll is the painted service bell itself: its name plate shows only while the pointer is on the bell
+
+local function bindHover(button, tagLabel, glow, showOnHover)
 	if button:GetAttribute("TagHover") then return end
 	button:SetAttribute("TagHover", true)
+	if showOnHover then tagLabel.Visible = false end
 	button.MouseEnter:Connect(function()
+		if showOnHover then tagLabel.Visible = true end
 		tagLabel.BackgroundColor3 = PLATE_HOVER
 		ShopPaint.hover(tagLabel, true)
 		if glow and not calm() then glow.root.Visible = true end
 	end)
 	button.MouseLeave:Connect(function()
+		if showOnHover then tagLabel.Visible = false end
 		tagLabel.BackgroundColor3 = PLATE
 		ShopPaint.hover(tagLabel, false)
 		if glow then glow.root.Visible = false end
@@ -358,7 +363,7 @@ function ShopStage.new(deps)
 			local bell = r.props.bell
 			-- the Reroll plate is a 44 px cream-text plate directly under the Patron row, left aligned with it (Engine/ShopSceneLayout.rerollPlate);
 			-- the painted bell stays as scenery. With no offers it keeps the old place under the bell.
-			local plate = Layout.rerollPlate(r)
+			local plate = (not REROLL_ON_BELL) and Layout.rerollPlate(r) or nil
 			local row = plate or bell
 			parts.rerollRow.Position = UDim2.fromOffset(row.x, row.y)
 			parts.rerollRow.Size = UDim2.fromOffset(row.w, row.h)
@@ -377,7 +382,7 @@ function ShopStage.new(deps)
 				bellTag.Size = UDim2.fromOffset(plate.w, plate.h)
 				bellTag.TextSize = 18
 			end
-			bindHover(parts.rerollButton, bellTag, propGlow("Reroll", bell))
+			bindHover(parts.rerollButton, bellTag, propGlow("Reroll", bell), REROLL_ON_BELL)
 			if parts.tableLabel then
 				parts.tableLabel.Parent = buyList
 				parts.tableLabel.AnchorPoint = Vector2.new(0, 0)
@@ -420,7 +425,7 @@ function ShopStage.new(deps)
 			end
 			-- The Reroll plate was planned from the dealt rects; the drawn pack cards (centred in their row) can stand elsewhere, so
 			-- measure them live and move the plate clear of every real pack card and price pill (ShopSceneLayout.clearOfPacks).
-			local plate, o = Layout.rerollPlate(r), r.offers[1]
+			local plate, o = (not REROLL_ON_BELL) and Layout.rerollPlate(r) or nil, r.offers[1]
 			local rr = parts.rerollRow
 			if plate and o and rr and rr.Parent and parts.packRow and parts.packRow.Parent then
 				local origin = rr.Parent.AbsolutePosition
