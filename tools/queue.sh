@@ -7,27 +7,7 @@ mkdir -p art-wip/logs
 # Keep lane branches current: before every run, bring in the main branch (Golden Gala and card set mechanism, tests,
 # shared fixes) so a lane never builds on old code. Skipped on the main branch itself; a conflict is aborted and left
 # for the chat check to resolve, and the run goes on with the lane as it is.
-MAIN=concept-t-2d
-CUR=$(git rev-parse --abbrev-ref HEAD)
-if [ "$CUR" != "$MAIN" ] && git rev-parse --verify -q "$MAIN" >/dev/null; then
-  if git diff --quiet && git diff --cached --quiet; then
-    # untracked files that main now tracks would block the merge: park them first
-    mkdir -p art-wip/aside
-    for f in $(git ls-tree -r --name-only "$MAIN" 2>/dev/null | grep -v ' '); do
-      if [ -e "$f" ] && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
-        mkdir -p "art-wip/aside/$(dirname "$f")"; mv "$f" "art-wip/aside/$f"; echo "parked untracked $f in art-wip/aside"
-      fi
-    done
-    if git -c user.name=queue -c user.email=queue@local merge --no-edit "$MAIN" >/dev/null 2>&1; then
-      echo "synced $CUR with $MAIN"
-    else
-      git merge --abort >/dev/null 2>&1 || true
-      echo "sync with $MAIN failed, skipped"
-    fi
-  else
-    echo "sync skipped: uncommitted changes in $CUR"
-  fi
-fi
+tools/sync-self.sh
 LOG="art-wip/logs/queue-$(date +%Y%m%d-%H%M).log"
 echo "== queue ==" | tee -a "$LOG"
 claude -p "/queue" --model sonnet --allowedTools "$TOOLS" 2>&1 | tee -a "$LOG"

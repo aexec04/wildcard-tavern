@@ -13,7 +13,10 @@ echo "Watching claude/QUEUE.md for new tasks (Ctrl+C to stop)..."
 hash_q() { shasum claude/QUEUE.md 2>/dev/null | cut -d' ' -f1; }
 stalled_hash=""
 no_progress=0
+idle_loops=0
 while true; do
+  idle_loops=$((idle_loops + 1))
+  if [ $((idle_loops % 15)) -eq 0 ]; then tools/sync-self.sh; fi # every 5 minutes, even with no tasks, so a lane never falls behind main
   if grep -q '^- \[ \]' claude/QUEUE.md 2>/dev/null; then
     now_hash=$(hash_q)
     if [ "$now_hash" = "$stalled_hash" ]; then
