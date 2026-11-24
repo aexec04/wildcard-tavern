@@ -36405,7 +36405,6 @@ table.insert(tests, { name = "Painted frames reach the Counter summary and Rerol
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
 		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
 		{ "src/Client/DailyStrip.lua", 'painted(f, "wh_target")' },
-		{ "src/Client/GameOver.lua", 'painted(factsPlate, "wood_plate")' },
 	}
 	expectEqual(require(script.Parent.Parent.Engine.TavernStyle).buttonPiece("secondary", 168, 42), "wh_btn_dark", "the 168 x 42 All actions button wears the whole dark wood picture")
 	for _, w in ipairs(want) do
@@ -54721,6 +54720,20 @@ table.insert(tests, { name = "Run Over win third pass: celebration motion lasts 
 	local pl, fr = panel:FindFirstChild("FactsPlate", true), panel:FindFirstChild("Facts", true)
 	expectTrue(pl ~= nil and fr ~= nil and pl.Visible, "the win shows the facts plate")
 	expectTrue(pl.BackgroundColor3.R < 0.2 and pl.BackgroundTransparency <= 0.12, "the win plate is dark and nearly opaque")
+	-- LIVE state, not source text: TavernKit.painted forces the host fill to transparent (the plate was a thin border on the real screen)
+	expectEqual(pl:GetAttribute("BasePiece"), nil, "the facts plate is not wrapped by TavernKit.painted (that would make its fill transparent)")
+	expectTrue(panel:FindFirstChild("FactsPlatePaint", true) == nil, "no painted border picture replaces the plate fill")
+	expectTrue(pl.Size.X.Offset >= fr.Size.X.Offset and pl.Size.Y.Offset >= fr.Size.Y.Offset and pl.Size.X.Offset > 100, "the plate covers the whole facts column")
+	local S = require(E.TavernStyle)
+	local function rgb(c) return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) } end
+	local labels = 0
+	for _, c in ipairs(fr:GetDescendants()) do
+		if c:IsA("TextLabel") and c.Text ~= "" and c.Visible then
+			labels = labels + 1
+			expectTrue(S.contrast(rgb(pl.BackgroundColor3), rgb(c.TextColor3)) >= 4.5, "win fact " .. c.Name .. " has 4.5:1 contrast on the live plate colour")
+		end
+	end
+	expectTrue(labels > 0, "the win facts column has live labels")
 	for _, c in ipairs(fr:GetChildren()) do
 		if c:IsA("TextLabel") then
 			expectTrue(pl.ZIndex < c.ZIndex and c.TextColor3.R > 0.7, "win fact " .. c.Name .. " is cream or bright gold over the plate")
