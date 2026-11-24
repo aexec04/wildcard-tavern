@@ -348,7 +348,21 @@ return function(deps)
 			TextXAlignment = align, Text = "",
 		})
 	end
-	-- At rest the gold bar carries no text. Hovering or tapping it (a 44 px target) shows one small plate: Owned N of M, then the next milestone.
+	-- The bar always says how much is owned (centred) and, when it is wide enough, the next milestone (right). Cream with a dark stroke so
+	-- it reads over both the gold fill and the dark track.
+	local function barText(name, align, width)
+		local l = barLine(0, align, width)
+		l.Name = name
+		l.Size = UDim2.new(width, width >= 1 and 0 or -BAR_PAD, 1, 0)
+		l.Position = UDim2.new(align == Enum.TextXAlignment.Right and 1 - width or 0, 0, 0, 0)
+		l.TextStrokeTransparency = 0
+		l.TextStrokeColor3 = Color3.fromRGB(25, 17, 10)
+		l.TextTruncate = Enum.TextTruncate.AtEnd
+		return l
+	end
+	local barOwned = barText("OverallOwned", Enum.TextXAlignment.Center, 1)
+	local barNext = barText("OverallNextLine", Enum.TextXAlignment.Right, 0.5)
+	-- Hovering or tapping it (a 44 px target) shows one small plate: Owned N of M, then the next milestone.
 	local overallText = { Text = "" } -- the two plate lines, filled by refresh
 	local overallNext = { Text = "" }
 	local infoPlate = Instance.new("Frame")
@@ -1279,6 +1293,10 @@ return function(deps)
 		if Gallery.chestApi then Gallery.chestApi.setNext(nextMilestone and ("Next at " .. nextMilestone.percent .. "%") or "All claimed") end
 		overallNext.Text = nextText
 		overallText.Text = RoomLayout.ownedText(completion.found, completion.total)
+		barOwned.Text = overallText.Text
+		barNext.Text = overallNext.Text
+		local barW = overallBar.AbsoluteSize.X
+		barNext.Visible = barW == 0 or barW >= 900 -- narrower bars leave the next line to the hover plate
 		local lines = { overallText.Text, overallNext.Text }
 		do -- on a section page the plain count of that page ("Patrons: 23 of 81 found") is the third line of the hover plate
 			local counts = mode == "section" and CollectionBook.tabCounts(view.sets)[activeTabId]

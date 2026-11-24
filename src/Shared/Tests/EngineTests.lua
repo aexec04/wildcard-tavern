@@ -21940,6 +21940,26 @@ table.insert(tests, { name = "Rooms: name plates show and no outline ring at res
 	expectTrue(b.step() == false, "Escape from the room steps nothing, so the panel closes")
 end })
 
+table.insert(tests, { name = "Collection: the overall progress bar carries a visible Owned N of M label (16 px or more, stroked, inside the bar) and the next milestone line", fn = function()
+	if not (io and io.open) then return end
+	local CS = require(script.Parent.CollectionScene)
+	local c = CS.build({})
+	c.open()
+	local bar
+	for _, d in ipairs(c.panel:GetDescendants()) do
+		if d.Name == "OverallOwned" then bar = d.Parent end
+	end
+	expectTrue(bar ~= nil, "the bar holds an OverallOwned label")
+	local owned, nextLine = bar:FindFirstChild("OverallOwned"), bar:FindFirstChild("OverallNextLine")
+	expectTrue(owned.Visible ~= false and owned.Text:find("Owned %d+ of %d+") ~= nil, "visible text reads Owned N of M, got: " .. tostring(owned.Text))
+	expectTrue(owned.Text:find("%(%d+%%%)") ~= nil, "the percent is on the bar")
+	expectTrue(owned.TextSize >= 16, "label is 16 px or more")
+	expectTrue(owned.TextStrokeTransparency == 0, "dark stroke keeps it readable over fill and track")
+	expectTrue(tostring(owned.TextXAlignment):find("Center") ~= nil, "centred on the bar")
+	expectTrue(nextLine.Visible ~= false and nextLine.Text:find("Next at %d+%%") ~= nil, "next milestone line shows by default: " .. tostring(nextLine.Text))
+	expectTrue(nextLine.TextSize >= 16 and tostring(nextLine.TextXAlignment):find("Right") ~= nil, "next line is 16 px and right aligned")
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the painted key rack at the Studio panel size (all six sections do), brass name plate under every tag, 4 pages for 13", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
