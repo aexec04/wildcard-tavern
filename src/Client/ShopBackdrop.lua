@@ -205,6 +205,7 @@ function ShopBackdrop.new(deps)
 		end
 	end
 	local applyTint
+	local props = {} -- the counter props (built below); applyTint tints them
 	local function applyRoomAndTint() applyRoomArt(); if applyTint then applyTint() end end
 	applyRoomArt()
 	pcall(function() require(script.Parent.HudTheme).onSkin(applyRoomAndTint) end)
@@ -240,12 +241,29 @@ function ShopBackdrop.new(deps)
 		crop(counter, Layout.COUNTER_CROP)
 		older[#older + 1] = counter
 	end
-	local props = {}
 	if propsId then
 		for name in pairs(Layout.PROP_CROP) do
-			local img = image(root, "Prop_" .. name, propsId, 6)
+			local img = image(root, "Prop_" .. name, propsId, 7)
 			crop(img, Layout.PROP_CROP[name])
 			props[name] = img
+		end
+	end
+	applyTint()
+	-- a soft contact shadow under the book and the bell so they sit ON the counter instead of floating over the picture
+	local propShadows = {}
+	for name, img in pairs(props) do
+		if name == "ledger" or name == "bell" then
+			local sh = Instance.new("Frame")
+			sh.Name = "PropShadow_" .. name
+			sh.BackgroundColor3 = Color3.new(0, 0, 0)
+			sh.BackgroundTransparency = 0.78
+			sh.BorderSizePixel = 0
+			sh.Active = false
+			sh.ZIndex = 6 -- above the counter band (also 6, built earlier), under the props (7)
+			sh.Visible = false
+			sh.Parent = root
+			local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0.5, 0); sc.Parent = sh
+			propShadows[name] = sh
 		end
 	end
 
@@ -376,10 +394,18 @@ function ShopBackdrop.new(deps)
 					box = { x = box.x + math.floor((box.w - w) / 2), y = box.y + box.h - h, w = w, h = h }
 				end
 				place(img, box)
+				local sh = propShadows[name]
+				if sh then
+					local yFrac = name == "bell" and 0.66 or 0.76 -- the bell art has more empty space under its base
+					sh.Position = UDim2.fromOffset(box.x + box.w * 0.1, box.y + box.h * yFrac)
+					sh.Size = UDim2.fromOffset(box.w * 0.8, math.max(5, box.h * 0.14))
+					sh.Visible = self.propsHidden ~= true
+				end
 				img.ScaleType = Enum.ScaleType.Fit -- the crop of the props sheet keeps its own shape: Stretch squashed the book into a wide slab
 				img.Visible = self.propsHidden ~= true -- the open pack screen hides the ledger book and other props behind its buttons
 			else
 				img.Visible = false
+				if propShadows[name] then propShadows[name].Visible = false end
 			end
 		end
 		if roomImg then roomImg.Visible = room end
@@ -398,6 +424,7 @@ function ShopBackdrop.new(deps)
 		self.propsHidden = on
 		if on then
 			for _, img in pairs(props) do img.Visible = false end
+			for _, sh in pairs(propShadows) do sh.Visible = false end
 		else
 			self.relayout()
 		end
