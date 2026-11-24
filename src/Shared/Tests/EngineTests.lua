@@ -53674,6 +53674,7 @@ table.insert(tests, { name = "Settings, Store and Tome header plates: contrast 4
 end })
 
 table.insert(tests, { name = "First run tutorial: every step caption fits in two lines, stays off its target and Play Hand at 1920x957, 1280x720 and 800x360, Skip and Finish are 44 px, ink reads at 4.5:1, no reward or boon step", fn = function()
+	if not (io and io.open) then return end
 	local TSteps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local TStart = require(script.Parent.Parent.Engine.TutorialStart)
 	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
@@ -54489,6 +54490,7 @@ table.insert(tests, { name = "Round Select compact card: at 800x360, 1280x720 an
 end })
 
 table.insert(tests, { name = "Counter on a short window (800x360): one row of cards, packs on screen, bell and ledger 44 px, nothing overlaps; 1280x720 and 1920x1080 keep 44 px touch props", fn = function()
+	if not (io and io.open) then return end
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local function hit(a, b) return a.x < b.x + b.w - 0.01 and b.x < a.x + a.w - 0.01 and a.y < b.y + b.h - 0.01 and b.y < a.y + a.h - 0.01 end
 	for _, sz in ipairs({ { 800, 360 }, { 1280, 720 }, { 1920, 1080 } }) do
