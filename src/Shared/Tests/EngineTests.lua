@@ -53920,7 +53920,9 @@ table.insert(tests, { name = "Night victory plate on the Run Over scroll: every 
 	local stubs = {
 		ParticleBurst = function() return { burst = function() end } end,
 		ClientSettings = { get = function() return true end },
-		TavernKit = { paintedButton = function() end },
+		TavernKit = { paintedButton = function(host) -- like the real one: the plate is an ImageLabel SIBLING of the host
+			local img = FakeGui.new("ImageLabel"); img.Name = host.Name .. "Paint"; img.Parent = host.Parent
+		end },
 		PopupDismiss = { attach = function() end }, Cue = { play = function() end }, ResultGuard = { hold = function() end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
@@ -53959,6 +53961,15 @@ table.insert(tests, { name = "Night victory plate on the Run Over scroll: every 
 				expectTrue(d.ZIndex > picture.ZIndex, size[1] .. ": " .. d.Name .. " is drawn above the scroll art")
 			end
 		end
+		-- the painted button plate is a sibling of the button: it must not sit in the list layout's parent (that made an empty plate row)
+		local content = plate:FindFirstChild("Content")
+		for _, c in ipairs(content:GetChildren()) do
+			expectTrue(not c:IsA("ImageLabel"), size[1] .. ": no stray picture row in the list layout (" .. c.Name .. ")")
+		end
+		local btn = plate:FindFirstChild("Continue", true)
+		expectTrue(btn.AbsoluteSize.Y >= 44, size[1] .. ": the button is 44 px tall or more (" .. btn.AbsoluteSize.Y .. ")")
+		expectTrue(btn.AbsolutePosition.Y + btn.AbsoluteSize.Y <= py + ph - 16 + 0.5, size[1] .. ": 16 px of padding under the button")
+		expectTrue(btn.Parent.Name == "ContinueSlot" and btn.Parent:FindFirstChild("ContinuePaint") ~= nil, size[1] .. ": the button plate sits in the button's own slot")
 		expectTrue(checked >= 8, size[1] .. ": read " .. checked .. " text elements")
 	end
 	-- a window too small for the scroll gets the dark plate alone, still inside the window

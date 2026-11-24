@@ -51,7 +51,7 @@ return function(deps)
 	local CONTENT_W = 480
 	local ROW_TITLE, ROW_BODY, ROW_TILES, ROW_REWARD, ROW_BUTTON, GAP = 36, 60, 62, 40, 46, 10
 	local CONTENT_H = ROW_TITLE + ROW_BODY + ROW_TILES + ROW_REWARD + ROW_BUTTON + 4 * GAP
-	local PAD = 14
+	local PAD = 16
 	local PLATE_W, PLATE_H = CONTENT_W + 2 * PAD, CONTENT_H + 2 * PAD
 	local SCROLL = RunOverLayout.SCROLLS.b
 	local MIN_SCROLL_SCALE = math.max((PLATE_W + 16) / SCROLL.safe.w, (PLATE_H + 16) / SCROLL.safe.h)
@@ -190,17 +190,28 @@ return function(deps)
 
 	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, ROW_REWARD), TextSize = 16, TextColor3 = GOLD, Text = "" })
 
+	-- The painted plate is a SIBLING of the button, so the button sits alone in a plain slot (a layout row of its own). Parented straight
+	-- under the list layout, the plate became a second row: an empty green plate above the title and a bare button at the bottom.
+	local buttonSlot = Instance.new("Frame")
+	buttonSlot.Name = "ContinueSlot"
+	buttonSlot.BackgroundTransparency = 1
+	buttonSlot.Size = UDim2.new(1, 0, 0, ROW_BUTTON)
+	buttonSlot.LayoutOrder = nextOrder()
+	buttonSlot.ZIndex = Z + 3
+	buttonSlot.Parent = content
+
 	local button = Instance.new("TextButton")
 	button.Name = "Continue"
+	button.AnchorPoint = Vector2.new(0.5, 0.5)
+	button.Position = UDim2.fromScale(0.5, 0.5)
 	button.Size = UDim2.fromOffset(240, ROW_BUTTON)
-	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
 	button.TextColor3 = CREAM
 	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	button.Text = "Enter Endless Nights"
 	button.ZIndex = Z + 4
-	button.Parent = content
+	button.Parent = buttonSlot
 	deps.roundCorner(button, 12) -- the sliced primary plate below replaces this when the kit has one
 	button.AutoButtonColor = true
 	pcall(function() require(script.Parent.TavernKit).paintedButton(button, "primary") end)
