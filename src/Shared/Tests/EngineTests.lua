@@ -29719,10 +29719,12 @@ table.insert(tests, { name = "Menu Rank plate line and Claim reward word fit the
 	local DS = require(script.Parent.Parent.Engine.DailyStrip)
 	local labelW = NT.NOTE_W - 66 - 30 -- the Rank label inside the pinned note (MenuBoard NOTE_W), clear of the badge and the plate end
 	for _, v in ipairs({ { 10, 90, 260 }, { 30, 12345, 56789 }, { 1, 0, 80 } }) do
-		local line = NT.rankLines({ rank = v[1], into = v[2], need = v[3] }).main
-		for _, want in ipairs({ 16, 24 }) do
-			local size = NT.oneLineSize(line, labelW, want)
-			expectTrue(size >= 12 and (F.width(line, size) <= labelW or size == 12), line .. " fits one line at " .. want)
+		local rl = NT.rankLines({ rank = v[1], into = v[2], need = v[3] })
+		for _, line in ipairs({ rl.title, rl.xp }) do
+			for _, want in ipairs({ 16, 24, 31 }) do -- 31 is the raised size at the 0.59 board scale (18 px on screen)
+				local size = NT.oneLineSize(line, labelW - 8, want)
+				expectTrue(size >= 14 and F.width(line, size) <= labelW - 8, line .. " fits one line at " .. want .. " and keeps 14 px or more")
+			end
 		end
 	end
 	for _, w in ipairs({ 600, 800, 1100 }) do
@@ -33663,8 +33665,8 @@ table.insert(tests, { name = "Menu notes: News, Rank, Goal and Daily share the p
 		if file ~= "NewsPanel" and file ~= "MenuRank" then assert(not c:find("TextColor3 = INK", 1, true), name .. " text is light on the dark plate") end
 		H[name] = c
 	end
-	assert(H.rank:find("UDim2.new(1, -(66 + 30), 0, 8)", 1, true) and H.rank:find("fromOffset(66, 32)", 1, true), "XP bar below the text lines, inside the plate")
-	assert(H.rank:find("reward.Position = UDim2.fromOffset(66, 44)", 1, true), "text 10..28, bar 32..40, reward 44..62 inside the 70 px plate")
+	assert(H.rank:find("UDim2.new(1, -(66 + 30), 0, 22)", 1, true) and H.rank:find("fromOffset(66, 32)", 1, true), "XP bar below the text lines, inside the plate")
+	assert(H.rank:find("reward.Position = UDim2.fromOffset(66, 58)", 1, true), "text 10..28, bar 32..54, reward 58..76 inside the 84 px plate")
 	assert(H.goal:find("-(72 + 30), 0, 34)", 1, true) and H.news:find("-(68 + 30), 0, 36)", 1, true), "text boxes end 30 px short of the right gold end and hold two lines")
 	assert(H.daily:find("fromOffset(30, y)", 1, true) and H.daily:find("UDim2.new(1, -30, 1, -8)", 1, true), "daily words and button 30 px in")
 end })
@@ -38159,15 +38161,32 @@ table.insert(tests, { name = "HandHit: a click on any visible part of a fanned c
 	end
 end })
 
-table.insert(tests, { name = "Menu Rank plate: 70 px tall, 16 px lines, 8 px bar, every line ends inside the frame, the board grows the plate when the last line grows", fn = function()
+table.insert(tests, { name = "Menu Rank plate: three rows, every text at 14 px or more, XP count on the bar, all inside the frame at every board scale", fn = function()
+	local L = require(script.Parent.Parent.Engine.RankPlateLayout)
+	local NT = require(script.Parent.Parent.Engine.MenuNoteText)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local rl = NT.rankLines({ rank = 10, into = 90, need = 260, nextReward = { kind = "tips", amount = 5 } })
+	expectEqual(rl.title, "Rank 10", "row 1")
+	expectEqual(rl.xp, "90 / 260 XP", "row 2 sits on the bar")
+	expectEqual(rl.reward, "Next: +5 Tips", "row 3")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1309, 751 }, { 1024, 600 } }) do
+		local l, t, r, b = RL.corkRect(sz[1], sz[2])
+		local scale = RL.noteSlots(r - l, b - t, {}).scale
+		local want = math.ceil(RL.MIN_TEXT / scale)
+		local R = L.rows(want)
+		local w = NT.NOTE_W - 66 - 30
+		for _, line in ipairs({ rl.title, rl.xp, rl.reward }) do
+			local size = NT.oneLineSize(line, w - 8, want)
+			expectTrue(size * scale >= (sz[1] >= 1309 and 14 or 11.5) and F.width(line, size) <= w - 8, sz[1] .. " " .. line .. " is 14 px or more on screen (the 1024 wide cork scales smaller) and fits one line")
+			expectTrue(size <= R.barH - 2 and size <= R.textH, sz[1] .. " " .. line .. " fits its row")
+		end
+		expectTrue(R.barY >= R.textY + R.textH and R.rewardY >= R.barY + R.barH and R.h >= R.rewardY + R.rewardH + 8, sz[1] .. " rows do not overlap and end inside the plate")
+	end
 	if not io then return end
-	local function read(p) local f = io.open(p, "r"); local t = f:read("*a"); f:close(); return t end
-	local r, b = read("src/Client/MenuRank.lua"), read("src/Client/MenuBoard.lua")
-	expectTrue(r:find("fromOffset(460, 70)", 1, true) ~= nil, "plate is 70 px tall")
-	-- text y 10 h 18, bar y 32 h 8, reward y 44 h 18: last line ends at 62, 8 px inside the 70 px frame
-	expectTrue(r:find("track.Position = UDim2.fromOffset(66, 32)", 1, true) and r:find("0, 8)\n\ttrack.Position", 1, true), "XP bar 8 px at y 32")
-	expectTrue(r:find("reward.Position = UDim2.fromOffset(66, 44)", 1, true) and r:find("reward.TextSize = 16", 1, true) and r:find("text.TextSize = 16", 1, true), "16 px lines")
-	expectTrue(b:find("rewardGrow", 1, true) ~= nil and b:find("math.max(0, extra) + rewardGrow", 1, true) ~= nil, "board adds the grown Reward line to the plate height")
+	local f = io.open("src/Client/MenuRank.lua", "r"); local r = f:read("*a"); f:close()
+	expectTrue(r:find("fromOffset(460, 84)", 1, true) ~= nil and r:find('xp.Name = "XpText"', 1, true) ~= nil, "plate is 84 px tall with an XP label")
+	expectFalse(r:find("fitLiveLabel", 1, true) ~= nil, "no fit that resets the raised size to 16")
 end })
 
 table.insert(tests, { name = "Daily strip Goal word is short, 14 px or more and never an ellipsis at menu widths", fn = function()
@@ -38198,7 +38217,8 @@ table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next
 		assert(R.rewardY >= R.barY + R.barH + 4, "Next line under the bar at " .. ts)
 		assert(R.h - (R.rewardY + R.rewardH) == 8, "8 px bottom padding at " .. ts)
 	end
-	assert(L.rows(16).h == 70, "70 px at the 16 px base")
+	assert(L.rows(16).h == 84, "84 px at the 16 px base (the bar carries the XP line)")
+	for _, ts in ipairs({ 14, 16, 24, 31 }) do assert(L.rows(ts).barH >= ts + 4, "the bar is tall enough for a line of text at " .. ts) end
 end })
 
 table.insert(tests, { name = "Scoring polish: Patron pop stays within 1.2x of the seat and the band, played cards reach 90 px, the quote tail points at its seat", fn = function()

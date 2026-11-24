@@ -327,12 +327,18 @@ function MenuBoard.build(parent)
 				rank.Position = UDim2.fromOffset(rank.Position.X.Offset, R.textY)
 				rank.Size = UDim2.new(rank.Size.X.Scale, rank.Size.X.Offset, 0, R.textH)
 				rank.TextWrapped = false
-				do -- one line only: "Rank 10  90 / 260 XP" shrinks (12 px at the least) to the label width, so "XP" never wraps onto the bar
-					local w = NOTE_W - rank.Position.X.Offset - 30 -- the label is 1 scale minus 96 px wide, the same 30 px clear of the plate end
-					rank.TextSize = NoteText.oneLineSize(rank.Text, w, rank.TextSize)
-				end
+				local w = NOTE_W - rank.Position.X.Offset - 30 -- the label is 1 scale minus 96 px wide, the same 30 px clear of the plate end
+				rank.TextSize = NoteText.oneLineSize(rank.Text, w, rank.TextSize) -- "Rank 10" is short, so it keeps the raised size
 				local track, rw = note.Track, note.Reward
 				track.Position = UDim2.new(track.Position.X.Scale, track.Position.X.Offset, 0, R.barY)
+				track.Size = UDim2.new(track.Size.X.Scale, track.Size.X.Offset, 0, R.barH)
+				local xp = note:FindFirstChild("XpText") -- the XP count sits on the bar at the same size as the Rank line, never smaller than the Reward line
+				if xp then
+					xp.Position = UDim2.new(track.Position.X.Scale, track.Position.X.Offset, 0, R.barY)
+					xp.Size = UDim2.new(track.Size.X.Scale, track.Size.X.Offset, 0, R.barH)
+					xp.TextWrapped = false
+					xp.TextSize = NoteText.oneLineSize(xp.Text, w - 8, rank.TextSize)
+				end
 				rw.Position = UDim2.new(rw.Position.X.Scale, rw.Position.X.Offset, 0, R.rewardY)
 				rw.Size = UDim2.new(rw.Size.X.Scale, rw.Size.X.Offset, 0, R.rewardH)
 				rw.TextSize = rank.TextSize

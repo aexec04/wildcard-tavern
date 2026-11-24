@@ -31,7 +31,7 @@ local LOOKUP = {
 local SHORT_REWARD = { tips = "Tips", title = "Title", cardBack = "Card back", set = "Card Set" }
 
 function MenuRank.textFor(view)
-	return NoteText.rankLines(view).main -- "Rank 1  71 / 80 XP" on one line; the reward has its own line (Reward label)
+	return NoteText.rankLines(view).title -- "Rank 1"; the XP count is on the bar (XpText) and the reward has its own line
 end
 
 function MenuRank.tipFor(view)
@@ -44,7 +44,7 @@ end
 function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local frame = Instance.new("Frame")
 	frame.Name = "RankBar"
-	frame.Size = UDim2.fromOffset(460, 70) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
+	frame.Size = UDim2.fromOffset(460, 84) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.ZIndex = 10
@@ -96,7 +96,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.Size = UDim2.new(1, -(66 + 30), 0, 8)
+	track.Size = UDim2.new(1, -(66 + 30), 0, 22)
 	track.Position = UDim2.fromOffset(66, 32)
 	track.BackgroundColor3 = Color3.fromRGB(92, 68, 42) -- a lit wood track so the empty bar still reads at 0 percent
 	track.ZIndex = 11
@@ -135,10 +135,27 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	text.ZIndex = 11
 	text.Parent = frame
 
+	local xp = Instance.new("TextLabel") -- "90 / 260 XP" drawn on the bar, same size as the Rank line
+	xp.Name = "XpText"
+	xp.Size = UDim2.new(1, -(66 + 30), 0, 22)
+	xp.Position = UDim2.fromOffset(66, 32)
+	xp.BackgroundTransparency = 1
+	xp.Font = Enum.Font.GothamBold
+	xp.TextSize = 16
+	xp.TextXAlignment = Enum.TextXAlignment.Center
+	xp.TextYAlignment = Enum.TextYAlignment.Center
+	xp.TextColor3 = CREAM
+	xp.TextTransparency = 0
+	xp.TextStrokeColor3 = Color3.fromRGB(40, 26, 16)
+	xp.TextStrokeTransparency = 0.7
+	xp.Text = ""
+	xp.ZIndex = 14
+	xp.Parent = frame
+
 	local reward = Instance.new("TextLabel") -- "Next: +3 Tips" on its own small line between the XP line and the bar
 	reward.Name = "Reward"
 	reward.Size = UDim2.new(1, -(66 + 30), 0, 18)
-	reward.Position = UDim2.fromOffset(66, 44)
+	reward.Position = UDim2.fromOffset(66, 58)
 	reward.BackgroundTransparency = 1
 	reward.Font = Enum.Font.GothamBold
 	reward.TextSize = 16
@@ -150,10 +167,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	reward.ZIndex = 11
 	reward.Parent = frame
 
-	text:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() -- the board resizes the plate after the text is set
-		if text.Text ~= "Rank 1" then NoteText.fitLiveLabel(text, 16, 204) end
-	end)
-	ui = { reward = reward, frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
+	ui = { xp = xp, reward = reward, frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
 	if addTooltip then
 		addTooltip(frame, function()
 			return ui.view and MenuRank.tipFor(ui.view) or "Play to earn XP."
@@ -175,9 +189,8 @@ function MenuRank.update(state)
 		for _, c in ipairs(ui.medalHolder:GetChildren()) do c:Destroy() end
 		require(script.Parent.ArtIcon).apply(ui.medalHolder, "rank_medals", key, nil, { zIndex = 12, cornerRadius = 16 })
 	end
-	ui.text.Text = MenuRank.textFor(view)
-	-- the board fitted the label while it still read "Rank 1"; fit the real text to the live label now
-	NoteText.fitLiveLabel(ui.text, 16, 204)
+	ui.text.Text = MenuRank.textFor(view) -- the board places the plate again when a label's text changes and fits each line there
+	ui.xp.Text = NoteText.rankLines(view).xp
 	ui.reward.Text = NoteText.rankLines(view).reward or ""
 	local ratio = view.maxed and 1 or math.clamp(view.need > 0 and view.into / view.need or 0, 0, 1)
 	if shown.ratio ~= ratio or shown.rank ~= view.rank then

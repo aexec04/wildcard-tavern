@@ -8,7 +8,7 @@
 	  M.fit(text, lines)         -> text cut at a word boundary to at most `lines` lines of LINE_CHARS, no dots
 	  M.newsLine(row)            -> "Harvest Week" (the event name, two lines at most)
 	  M.newsTime(row)            -> "4 days left" / "Last day" / "Starts tomorrow"
-	  M.rankLines(view)          -> { main = "Rank 1  71 / 80 XP", reward = "Next: +3 Tips" or nil }
+	  M.rankLines(view)          -> { main = "Rank 1  71 / 80 XP", title = "Rank 1", xp = "71 / 80 XP" (shown on the bar), reward = "Next: +3 Tips" or nil }
 	  M.soonLine(soon)           -> "Soon: <event name>", cut to two lines like the live event line
 	  M.wrapWidth(x, w)          -> w, less any amount that would leave under TextFit.SIDE (12 px) between the word and the note edge
 	  M.lineCount(text, size, w) -> lines the text needs in wrapWidth, never under 1
@@ -92,10 +92,11 @@ function M.newsTime(row)
 end
 
 function M.rankLines(view)
-	if type(view) ~= "table" then return { main = "Rank 1" } end
+	if type(view) ~= "table" then return { main = "Rank 1", title = "Rank 1", xp = "" } end
 	local rank = math.floor(tonumber(view.rank) or 1)
-	if view.maxed then return { main = string.format("Rank %d  Max rank", rank) } end
-	local out = { main = string.format("Rank %d  %d / %d XP", rank, math.floor(tonumber(view.into) or 0), math.floor(tonumber(view.need) or 0)) }
+	if view.maxed then return { main = string.format("Rank %d  Max rank", rank), title = "Rank " .. rank, xp = "Max rank" } end
+	local into, need = math.floor(tonumber(view.into) or 0), math.floor(tonumber(view.need) or 0)
+	local out = { main = string.format("Rank %d  %d / %d XP", rank, into, need), title = "Rank " .. rank, xp = string.format("%d / %d XP", into, need) }
 	local r = view.nextReward
 	if r then
 		out.reward = "Next: " .. (r.kind == "tips" and ("+" .. tostring(math.floor(tonumber(r.amount) or 0)) .. " Tips") or SHORT_REWARD[r.kind] or "Reward")
