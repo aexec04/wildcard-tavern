@@ -224,7 +224,7 @@ return function(deps)
 		ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		ps.Parent = factsPlate
 	end
-	pcall(function() require(script.Parent.TavernKit).painted(factsPlate, "wood_plate") end) -- thin painted wood border (10 to 14 px, inside PLATE_PAD), flat look if it does not load
+	-- NOT TavernKit.painted: it forces BackgroundTransparency to 1 and leaves only the thin picture border, which is why the plate never showed on screen. The fill and gold stroke above are the whole plate.
 	local factsF = frame("Facts")
 	local patronsLabel = label(content, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
