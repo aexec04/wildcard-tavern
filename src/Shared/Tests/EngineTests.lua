@@ -11376,9 +11376,9 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 	expectEqual(#Store.view(PlayerProfile.new(), {}, false, "season").items, 2)
 	for _, row in ipairs(Store.view(PlayerProfile.new(), {}, false).items) do expectTrue(row.id ~= "flair_bundle" and row.id ~= s1.premiumItemId, "the main Store row is unchanged") end
 	expectFalse(Store.grant(p, "not_an_item")); expectFalse(Store.grant(p, "vip"))
-	-- placeholder ids: every new item is id 0 (Studio grants it free, live shows coming soon)
+	-- every sectioned item has its real Creator Hub product id and is one time
 	for _, item in ipairs(Store.Items) do
-		if item.section then expectEqual(item.productId, 0); expectTrue(item.oneTime) end
+		if item.section then expectTrue(type(item.productId) == "number" and item.productId > 3734000000, item.id .. " has its Creator Hub product id"); expectTrue(item.oneTime) end
 	end
 	-- save and load: premium ownership and claims survive, junk is dropped
 	local loaded = PlayerProfile.migrate(free)
@@ -13312,10 +13312,10 @@ table.insert(tests, { name = "Store: every item is cosmetic or convenience, plac
 			expectTrue(option ~= nil and option.unlock ~= nil and option.unlock.kind == "store", id .. " is a real store Flair")
 		end
 	end
-	expectEqual(Store.getById("starter_pack").productId, 0, "placeholder until the product exists")
-	expectEqual(Store.getById("card_set_bundle").productId, 0)
+	expectEqual(Store.getById("starter_pack").productId, 3734657100, "the Creator Hub Starter Pack product")
+	expectEqual(Store.getById("card_set_bundle").productId, 3734657364)
 	expectEqual(GamePasses.getById("vip").gamePassId, 0)
-	expectTrue(not Store.isConfigured(Store.getById("starter_pack")) and not Store.isConfigured(Store.getById("vip")))
+	expectTrue(Store.isConfigured(Store.getById("starter_pack")) and not Store.isConfigured(Store.getById("vip")))
 	expectTrue(Store.isConfigured(Store.getById("continue")), "One More Round already has its real product")
 	expectEqual(Store.getByProductId(0), nil, "id 0 never matches a receipt")
 end })
@@ -13333,6 +13333,7 @@ table.insert(tests, { name = "Store grants are idempotent: a one-time pack grant
 	expectEqual(Store.grant(profile, "nope"), false)
 	-- receipts: a stub product id stands in for the real one
 	local item = Store.getById("card_set_bundle")
+	local realProductId = item.productId
 	item.productId = 777
 	local profile2 = PlayerProfile.new()
 	expectEqual(Store.processReceipt(profile2, 777, "P-1"), "granted")
@@ -13347,7 +13348,7 @@ table.insert(tests, { name = "Store grants are idempotent: a one-time pack grant
 	expectEqual(Store.processReceipt(profile2, 424242, "P-3"), "unknown", "a product that is not in the Store")
 	for i = 1, Store.MAX_RECEIPTS + 20 do Store.processReceipt(profile2, 777, "P-x" .. i) end
 	expectTrue(#profile2.receiptIds <= Store.MAX_RECEIPTS, "the receipt list stays small")
-	item.productId = 0
+	item.productId = realProductId
 	-- save / load keeps purchases and drops junk
 	local loaded = PlayerProfile.migrate(profile)
 	expectTrue(loaded.storePurchases.starter_pack and loaded.rewardTitleIds.founding_guest)
@@ -55364,3 +55365,6 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 end }) -- tests below
 
 return tests
+
+
+
