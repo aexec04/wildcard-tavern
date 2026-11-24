@@ -48889,7 +48889,7 @@ table.insert(tests, { name = "SkipPlate: the plate names the Tag and one kind li
 	expectTrue(P.needsConfirm({ id = "x_rare", name = "Rare Tag", short = "Something big.", rare = true }), "a rare Tag asks first")
 	expectTrue(P.confirmCopy({ id = "x_rare", name = "Rare Tag", short = "Something big." }).message:find("Skip for Rare Tag?", 1, true), "the dialog names the Tag")
 	expectTrue(P.text({ id = "x", name = "A<B", short = "x & y" }):find("A&lt;B", 1, true), "markup in a name is escaped")
-	expectTrue(P.HEIGHT >= 44 and L.SKIP_H == P.HEIGHT, "the plate is 44 px and the layout agrees")
+	expectTrue(P.HEIGHT >= 54 and L.SKIP_H == P.HEIGHT, "the plate is 54 px and the layout agrees")
 	expectTrue(CS.contrastRatio(P.INK, P.FILL) >= P.MIN_CONTRAST, "ink on the Skip plate keeps 7:1")
 	if not io then return end
 	local f = assert(io.open("src/Client/RoundSelect.lua", "r")); local c = f:read("a"); f:close()
@@ -55365,6 +55365,9 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 end }) -- tests below
 
 return tests
+
+
+
 
 
 

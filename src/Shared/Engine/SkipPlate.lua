@@ -6,7 +6,7 @@
 	text(tag)         -> rich text, "Skip for <Tag name>" over the Tag's short line (a plain "Skip" when there is no Tag yet)
 	needsConfirm(tag) -> true only for a rare Tag (Tags.rare), so a common skip stays one tap
 	confirmCopy(tag)  -> the ConfirmCopy.skip options for the dialog
-	HEIGHT            44 px plate, INK on FILL keeps SkipPlate.MIN_CONTRAST (7:1)
+	HEIGHT            54 px plate (two lines: name 16 and line 13), INK on FILL keeps SkipPlate.MIN_CONTRAST (7:1)
 ]]
 
 local Tags = require(script.Parent.Tags)
@@ -14,7 +14,7 @@ local ConfirmCopy = require(script.Parent.ConfirmCopy)
 
 local M = {}
 
-M.HEIGHT = 44
+M.HEIGHT = 54
 M.FILL = { 90, 60, 30 }
 M.INK = { 250, 240, 220 }
 M.MIN_CONTRAST = 7

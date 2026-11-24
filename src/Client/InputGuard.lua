@@ -53,6 +53,12 @@ function InputGuard.install(opts)
 			if open and opts.tooltip then opts.tooltip.Visible = false end
 		end
 		frame:GetPropertyChangedSignal("Visible"):Connect(sync)
+		frame.AncestryChanged:Connect(function() -- a popup destroyed while open used to hold the lock until the 6 s watchdog fired
+			if frame.Parent == nil then
+				lock:setOpen(frame, false)
+				if isBackdrop then menuLock:setOpen(frame, false) end
+			end
+		end)
 		local p = frame.Parent
 		while p and p:IsA("GuiObject") do -- a hidden ancestor (GameRoot) hides the overlay too
 			p:GetPropertyChangedSignal("Visible"):Connect(sync)
