@@ -13314,8 +13314,8 @@ table.insert(tests, { name = "Store: every item is cosmetic or convenience, plac
 	end
 	expectEqual(Store.getById("starter_pack").productId, 3734657100, "the Creator Hub Starter Pack product")
 	expectEqual(Store.getById("card_set_bundle").productId, 3734657364)
-	expectEqual(GamePasses.getById("vip").gamePassId, 0)
-	expectTrue(Store.isConfigured(Store.getById("starter_pack")) and not Store.isConfigured(Store.getById("vip")))
+	expectEqual(GamePasses.getById("vip").gamePassId, 2092650149)
+	expectTrue(Store.isConfigured(Store.getById("starter_pack")) and Store.isConfigured(Store.getById("vip")))
 	expectTrue(Store.isConfigured(Store.getById("continue")), "One More Round already has its real product")
 	expectEqual(Store.getByProductId(0), nil, "id 0 never matches a receipt")
 end })
@@ -34716,7 +34716,7 @@ table.insert(tests, { name = "MusicPicker: free and Music pack tracks, locked un
 	expectTrue(b1.show and b1.enabled and b1.text == "Get Music pack", "a real id can be bought")
 	expectTrue(not P.buyButton(123, true).show, "owned: no buy button")
 	expectTrue(P.ownsPack({ "fast_forward", "music_pack" }) and not P.ownsPack({ "vip" }) and not P.ownsPack(nil), "ownership from the pass ids")
-	expectEqual(GP.MUSIC_PACK, 0, "the pass id starts at 0")
+	expectEqual(GP.MUSIC_PACK, 2092902177, "the real Creator Hub Music Pack pass")
 	local found = false
 	for _, d in ipairs(GP.Definitions) do if d.id == "music_pack" then found = true end end
 	expectTrue(found, "the pass is in the catalog (server ownership check covers it)")
@@ -34732,7 +34732,7 @@ table.insert(tests, { name = "MusicPicker: Music shop rows (placeholders locked)
 	local P, GP = require(E.MusicPicker), require(E.GamePasses)
 	expectEqual(#P.SHOP_TRACKS, 0, "the three placeholder rows are real free tracks now; the pack section waits for new ones")
 	expectEqual(#P.shopRows(false), 0, "no shop rows")
-	local b0 = P.buyButton(GP.MUSIC_PACK, false)
+	local b0 = P.buyButton(0, false)
 	expectTrue(b0.show and not b0.enabled and b0.text == "Coming soon", "pass id 0: Coming soon, disabled")
 	local b1 = P.buyButton(4242, false)
 	expectTrue(b1.show and b1.enabled, "a real id can be bought (PromptGamePassPurchase)")
@@ -55365,6 +55365,7 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 end }) -- tests below
 
 return tests
+
 
 
 

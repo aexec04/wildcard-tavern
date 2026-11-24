@@ -27,7 +27,7 @@ local GamePasses = {}
 
 -- The Music pack: extra soundtrack choices in the Music panel (Engine/MusicPicker). Paste the real Game Pass id here once it exists on
 -- the Creator Dashboard; while it is 0 the panel shows a disabled "Coming soon" button. Looks and sounds only, no gameplay power.
-GamePasses.MUSIC_PACK = 0
+GamePasses.MUSIC_PACK = 2092902177
 
 GamePasses.Definitions = {
 	{
@@ -43,7 +43,7 @@ GamePasses.Definitions = {
 		name = "VIP",
 		icon = "⭐",
 		description = "A gold star beside your name and a second badge slot. No gameplay power.",
-		gamePassId = 0,
+		gamePassId = 2092650149,
 	},
 	{
 		id = "music_pack",
