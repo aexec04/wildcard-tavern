@@ -114,11 +114,17 @@ function M.update(state)
 		lastState = state
 	end
 	if not strip or not strip.Parent then strip = build(g); lastKey = nil end
+	if not g:GetAttribute("DailyStripHooked") then
+		g:SetAttribute("DailyStripHooked", true)
+		g:GetAttributeChangedSignal("FullScreenOpen"):Connect(function() M.update(lastState) end) -- a Tome page opened or closed
+	end
 	if menu and not hooked then
 		hooked = true
 		menu:GetPropertyChangedSignal("Visible"):Connect(function() M.update(lastState) end) -- opening the Menu draws the strip without waiting for a render
 	end
-	local show = onMenu or Rules.visible(state.phase)
+	-- a full screen Tome or Collection page (PanelFullScreen) covers the menu: the strip would be drawn over its buttons
+	local pageOpen = Rules.hiddenByPage(g:GetAttribute("FullScreenOpen"))
+	local show = not pageOpen and (onMenu or Rules.visible(state.phase))
 	strip.Visible = show
 	if not show then return end
 

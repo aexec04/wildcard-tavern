@@ -55084,5 +55084,19 @@ tests[#tests + 1] = ({ name = "PanelFullScreen.screenSize: a full screen room la
 	expectTrue(FS.screenSize(nil, fallback) == fallback, "no panel falls back")
 end })
 
+tests[#tests + 1] = ({ name = "DailyStrip hides while a full screen Tome page is open (PanelFullScreen counts open pages)", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	expectFalse(D.hiddenByPage(nil), "no count: strip allowed")
+	expectFalse(D.hiddenByPage(0), "no page open: strip allowed")
+	expectTrue(D.hiddenByPage(1), "one page open: strip hidden")
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/PanelFullScreen.lua", "r")
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find('"FullScreenOpen"', 1, true) ~= nil, "PanelFullScreen publishes the open page count")
+	local g = io.open("src/Client/DailyStrip.lua", "r")
+	local ds = g:read("*a"); g:close()
+	expectTrue(ds:find("hiddenByPage(g:GetAttribute(\"FullScreenOpen\"))", 1, true) ~= nil, "the strip reads the count before showing")
+end })
+
 return tests
 

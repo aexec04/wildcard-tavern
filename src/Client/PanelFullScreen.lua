@@ -152,7 +152,20 @@ function PanelFullScreen.apply(backdrop, panel, name)
 			end
 		end)
 	end
+	-- the ScreenGui counts the full screen pages that are open (attribute FullScreenOpen); DailyStrip hides while the count is above 0
+	local counted = false
+	local function count()
+		local gui = backdrop.Parent
+		while gui and gui.ClassName ~= "ScreenGui" do gui = gui.Parent end
+		if not gui then return end
+		local on = backdrop.Visible == true
+		if on == counted then return end
+		counted = on
+		gui:SetAttribute("FullScreenOpen", math.max(0, (gui:GetAttribute("FullScreenOpen") or 0) + (on and 1 or -1)))
+	end
+	count()
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		count()
 		if backdrop.Visible then
 			force()
 			task.defer(function() task.wait(); pcall(heal) end)

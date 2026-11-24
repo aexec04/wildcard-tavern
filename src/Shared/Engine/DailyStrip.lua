@@ -26,6 +26,11 @@ function M.visible(phase)
 	return phase == "roundSelect" -- Run Over hides it: the faded strip showed through under the panel
 end
 
+-- true while at least one full screen Tome or Collection page is open (PanelFullScreen counts them on the ScreenGui)
+function M.hiddenByPage(openCount)
+	return type(openCount) == "number" and openCount > 0
+end
+
 local function plural(n, word)
 	return n .. " " .. word .. (n == 1 and "" or "s")
 end
