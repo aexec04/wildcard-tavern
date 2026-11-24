@@ -161,7 +161,8 @@ function PanelFullScreen.apply(backdrop, panel, name)
 		local on = backdrop.Visible == true
 		if on == counted then return end
 		counted = on
-		gui:SetAttribute("FullScreenOpen", math.max(0, (gui:GetAttribute("FullScreenOpen") or 0) + (on and 1 or -1)))
+		local cur = gui:GetAttribute("FullScreenOpen")
+		gui:SetAttribute("FullScreenOpen", math.max(0, (type(cur) == "number" and cur or 0) + (on and 1 or -1))) -- the Tavern Map sets true: never add to a boolean
 	end
 	count()
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()

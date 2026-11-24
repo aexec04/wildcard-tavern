@@ -28,7 +28,7 @@ end
 
 -- true while at least one full screen Tome or Collection page is open (PanelFullScreen counts them on the ScreenGui)
 function M.hiddenByPage(openCount)
-	return type(openCount) == "number" and openCount > 0
+	return openCount == true or (type(openCount) == "number" and openCount > 0) -- FullScreenHud (the Tavern Map) sets true, PanelFullScreen counts pages
 end
 
 local function plural(n, word)

@@ -186,6 +186,14 @@ return function(deps)
 		for i, id in ipairs(routeIds) do
 			onRoute[id] = i
 		end
+		-- the road's own stops draw their name plates in JourneyMapView (up to 180 px wide, below the node, then the type tag and reward chip):
+		-- a side stop name keeps clear of that whole column
+		for _, id in ipairs(routeIds) do
+			local rp = res.pos[id]
+			if rp then
+				placedBoxes[#placedBoxes + 1] = { x = rp.x - 95, y = rp.y - nodeSize / 2, w = 190, h = nodeSize + 106 }
+			end
+		end
 		lastPos = res.pos
 		lastBoxes = Layout.boxesOf(res, nodeSize, routeIds)
 		local night = math.floor(state.night or 1)
@@ -496,7 +504,7 @@ return function(deps)
 						if bc then bc.CornerRadius = UDim.new(0.5, 0) end
 					end
 				end
-				if p.compact and not stub and not labelClear then -- crowded spot with no clear place for the name: it shows while hovering
+				if not stub and not labelClear then -- crowded spot with no clear place for the name: it shows while hovering (never drawn over another plate)
 					lab.Visible = false
 					btn.MouseEnter:Connect(function() lab.Visible = true end)
 					btn.MouseLeave:Connect(function() lab.Visible = false end)

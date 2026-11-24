@@ -32228,6 +32228,45 @@ table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, o
 	assert(shop:find("PackRevealFX", 1, true), "the pack panel plays the reveal")
 end })
 
+table.insert(tests, { name = "PackRevealFX live: every hidden pick cover carries the painted card back, a serif crest of 16 px or more, no Gotham, and keeps its size", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PackReveal", "ContentArt" }) do map[n] = require(E[n]) end
+	local stubs = { ClientSettings = { get = function() return false end }, Cue = { play = function() end }, TavernKit = { plateSetId = function() return nil end } }
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	state.services.TweenService = { Create = function() return { Play = function() end, Completed = FakeGui.signal() } end }
+	local FX = FakeGui.load("src/Client/PackRevealFX.lua", env)
+	for _, backId in ipairs({ nil, "classic", "back_golden_gala" }) do
+		local gui = FakeGui.new("Frame")
+		gui.AbsoluteSize = { X = 800, Y = 450 }
+		local row = FakeGui.new("Frame", gui)
+		local cards, items, rarities = {}, {}, {}
+		for i = 1, 3 do
+			local slot = FakeGui.new("Frame", row)
+			slot.Size = UDim2.fromOffset(120, 180)
+			cards[i] = { slot = slot, spec = { onClick = function() end } }
+			items[i] = { category = "patron", id = "x" .. i }
+		end
+		FX.attach(gui, row, cards, items, rarities, { z = 10, cardBackId = backId, isPicked = function() return false end, onPick = function() end })
+		FakeGui.layout(gui, 800, 450)
+		for i = 1, 3 do
+			local cover = cards[i].slot:FindFirstChild("PackBack")
+			expectTrue(cover ~= nil, "card " .. i .. " is face down")
+			local art = cover:FindFirstChild("BackArt")
+			expectTrue(art ~= nil and art.Image ~= "" and art.Image:find("rbxassetid://", 1, true) ~= nil, "the cover holds a painted back image")
+			expectTrue(cover.AbsoluteSize.X == 120 and cover.AbsoluteSize.Y == 180, "the cover keeps the card size")
+			for _, d in ipairs(cover:GetDescendants()) do
+				if d.ClassName == "TextLabel" then
+					expectTrue(d.Font ~= Enum.Font.GothamBold and d.TextSize >= 16 and d.TextTransparency == 0 and d.TextStrokeTransparency < 1, "the crest is serif, 16 px or more and readable")
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Guided hint: the plate sits between the Patron pills and the hand, clear of Play Hand, and its text is 4.5:1 on the plate, at three sizes", fn = function()
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
 	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
@@ -39689,6 +39728,55 @@ table.insert(tests, { name = "Tavern Map fork: the Meadow has a Shop branch belo
 		end
 		if w >= 1920 then -- smaller canvases are too crowded (the panel keeps the Shop out of the lower band) to promise opposite sides, they promise the rect checks above
 			expectTrue(px ~= nil and (above - py) * (below - py) < 0, "the two branches fork to opposite sides of the road" .. where)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map live: on every Night at four sizes no visible side stop name touches a road stop's plate column, and the Daily strip hides while the map is open", fn = function()
+	if not (io and io.open) then return end
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	expectTrue(D.hiddenByPage(true) and D.hiddenByPage(2) and not D.hiddenByPage(0) and not D.hiddenByPage(nil) and not D.hiddenByPage(false), "the map (true) and Tome pages (count) hide the strip")
+	local MapScene = require(script.Parent.MapScene)
+	local HR = require(script.Parent.Parent.Engine.MapHeaderRules)
+	local MF = require(script.Parent.Parent.Engine.MapFitRules)
+	local JM = require(script.Parent.Parent.Engine.JourneyMap)
+	local RR = require(script.Parent.Parent.Engine.MapRouteRules)
+	local WM = require(script.Parent.Parent.Engine.WorldMap)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local zone = HR.layout(w, h).panelZone
+		local avoid = { x = zone.x, y = zone.y, w = zone.w, h = zone.h }
+		local names = {}
+		for i, n in ipairs(JM.allNodes()) do names[i] = n.info.name end
+		local fit = MF.layout(w, h, names, JM.NightCap, nil)
+		local bandTop = HR.layout(w, h).bar.h - MF.FRAME_Y
+		for night = 1, 8 do
+			local scene = MapScene.build({ W = w, H = h, avoidRect = function() return avoid end, bandTop = function() return bandTop end })
+			scene.graph.setShown(true)
+			scene.graph.layout(fit.canvasW, fit.canvasH, fit.nodeSize, function(d) return fit.posX[d], fit.posY[d] end)
+			scene.graph.refresh({ night = night, round = 1, worldRoute = nil })
+			local function rectOf(o)
+				local ap, sizeU = o.AnchorPoint or Vector2.new(0, 0), o.Size
+				return { x = o.Position.X.Offset - ap.X * sizeU.X.Offset, y = o.Position.Y.Offset - ap.Y * sizeU.Y.Offset, w = sizeU.X.Offset, h = sizeU.Y.Offset }
+			end
+			local plates = {}
+			for d = 1, WM.NIGHTS do
+				local x, y = fit.posX[d], fit.posY[d]
+				if x and y then plates[#plates + 1] = { x = x - 95, y = y + fit.nodeSize / 2 + 10, w = 190, h = 60 } end
+			end
+			for _, c in ipairs(scene.graphRoot:GetChildren()) do
+				if c:IsA("TextLabel") and c.Visible ~= false and c.Text ~= "" and c.Text ~= " " and not c.Name:find("^Badge_") then
+					local r = rectOf(c)
+					if r.w > 0 and c.TextSize >= 15 and c.Text:find("^The ") then
+						for _, pl in ipairs(plates) do
+							-- a road plate may not be its own label; side names never sit on a road plate
+							if math.abs((r.x + r.w / 2) - (pl.x + pl.w / 2)) > 1 or math.abs(r.y - pl.y) > 1 then
+								expectFalse(RR.boxesOverlap(r, pl) and c.Text:find("Picnic") ~= nil, "side name " .. c.Text .. " sits on a road plate at " .. w .. "x" .. h .. " night " .. night)
+							end
+						end
+					end
+				end
+			end
 		end
 	end
 end })

@@ -1129,6 +1129,7 @@ return function(deps)
 				end
 				packReveal = require(script.Parent.PackRevealFX).attach(shopPackPanel, packItemsRow, list, pending.items, rarities, {
 					z = shopPackPanel.ZIndex + 20,
+					cardBackId = state.cosmetics and state.cosmetics.cardBackId or nil,
 					isPicked = function(i) return pendingPackSelected[i] == true end,
 					pickCount = pending.pickCount,
 					isOwned = function(i)
