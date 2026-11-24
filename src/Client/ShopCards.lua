@@ -268,7 +268,7 @@ function ShopCards.new(deps)
 		corner(spot, 10)
 		stroke(spot, Color3.fromRGB(120, 88, 56), 2, 0.4)
 		local stamp = label(spot, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(shape.w - 30, 48), Text = "SOLD", TextSize = 34, Rotation = -12,
+			Size = UDim2.fromOffset(shape.w - 8, 48), Text = "SOLD", TextSize = math.max(14, math.min(34, math.floor((shape.w - 12) / 2.3))), Rotation = -12, -- "SOLD" is about 2.2 px wide per px of size: the stamp always fits its spot
 			TextColor3 = Color3.fromRGB(214, 70, 56), TextStrokeColor3 = Color3.fromRGB(40, 12, 8), TextStrokeTransparency = 0.8 })
 		if animate and not slow() then
 			local scale = Instance.new("UIScale")

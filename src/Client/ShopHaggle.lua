@@ -261,8 +261,8 @@ function ShopHaggle.new(deps)
 	local cardName = label(card, { size = 18, sizeUdim = UDim2.new(1, -12, 0, 26), position = UDim2.fromOffset(6, 4) })
 	local cardBless = label(card, { size = 15, color = Color3.fromRGB(40, 90, 40), sizeUdim = UDim2.new(1, -16, 0, 40), position = UDim2.fromOffset(8, 32) })
 	local cardCurse = label(card, { size = 15, color = CURSE, sizeUdim = UDim2.new(1, -16, 0, 40), position = UDim2.fromOffset(8, 74) })
-	local acceptButton = button(card, "Accept", GREEN, UDim2.fromOffset(120, 36), UDim2.new(0, 10, 1, -46))
-	local declineButton = button(card, "No thanks", WOOD, UDim2.fromOffset(120, 36), UDim2.new(1, -130, 1, -46))
+	local acceptButton = button(card, "Accept", GREEN, UDim2.fromOffset(120, 44), UDim2.new(0, 10, 1, -52))
+	local declineButton = button(card, "No thanks", WOOD, UDim2.fromOffset(120, 44), UDim2.new(1, -130, 1, -52))
 
 	-- The Stranger's offer as a tavern SCROLL (shop_offer_scroll_a, or _b for a harsh offer): the painted picture is the card, with the
 	-- Stranger in a brass ringed medallion at the top, the title, the blessing and the curse in dark ink on the paper, and Accept and
@@ -339,12 +339,12 @@ function ShopHaggle.new(deps)
 	scrollCurse.Name = "OfferCurse"
 	scrollCurse.ZIndex = Z + 2
 	local ACCEPT_GREEN = Color3.fromRGB(70, 120, 60)
-	local scrollAccept = button(scrollRoot, "Accept", ACCEPT_GREEN, UDim2.fromOffset(100, 36))
+	local scrollAccept = button(scrollRoot, "Accept", ACCEPT_GREEN, UDim2.fromOffset(100, 44))
 	scrollAccept.Name = "Accept"
 	scrollAccept.TextSize = ScrollLayout.TEXT_BUTTON
 	scrollAccept.TextWrapped = false
 	scrollAccept.ZIndex = Z + 3
-	local scrollDecline = button(scrollRoot, "No thanks", WOOD, UDim2.fromOffset(100, 36))
+	local scrollDecline = button(scrollRoot, "No thanks", WOOD, UDim2.fromOffset(100, 44))
 	scrollDecline.Name = "NoThanks"
 	scrollDecline.TextSize = ScrollLayout.TEXT_BUTTON
 	scrollDecline.TextWrapped = false

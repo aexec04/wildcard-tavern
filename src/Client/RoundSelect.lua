@@ -758,6 +758,8 @@ return function(deps)
 		local cam = workspace.CurrentCamera
 		local vpY = cam and cam.ViewportSize.Y or 720
 		local vpX = cam and cam.ViewportSize.X or 1280
+		local own = roundSelectFrame.AbsoluteSize -- the screen's own size: Studio's scale:WxH shrinks it while the camera keeps the window size, which left full height cards in a 450 px screen
+		if own and own.X > 0 and own.Y > 0 and (own.X < vpX or own.Y < vpY) then vpX, vpY = own.X, own.Y end
 		local compact = RSL.isCompact(vpY)
 		applyCompact(compact, compact and vpY < RSL.PHONE_BELOW)
 		local scale
@@ -783,6 +785,7 @@ return function(deps)
 	end
 	fitCards()
 	panelRow:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)
+	roundSelectFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)
 	local fitCam = workspace.CurrentCamera
 	if fitCam then fitCam:GetPropertyChangedSignal("ViewportSize"):Connect(fitCards) end
 

@@ -60,7 +60,7 @@ function ScrollOfferLayout.layout(key, maxW, maxH)
 	out.title = { x = S.x, y = y, w = S.w, h = ScrollOfferLayout.TEXT_TITLE * 2 + 8 }
 	y = y + out.title.h + gap
 	-- the buttons are the bottom band of the safe area, above the seal
-	local bh = 36
+	local bh = 44 -- a 44 px touch target
 	local btnY = S.y + S.h - bh
 	local bw = math.floor((S.w - gap) / 2)
 	out.accept = { x = S.x, y = btnY, w = bw, h = bh }

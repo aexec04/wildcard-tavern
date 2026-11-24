@@ -55098,6 +55098,18 @@ tests[#tests + 1] = ({ name = "DailyStrip hides while a full screen Tome page is
 	expectTrue(ds:find("hiddenByPage(g:GetAttribute(\"FullScreenOpen\"))", 1, true) ~= nil, "the strip reads the count before showing")
 end })
 
+table.insert(tests, { name = "Stranger scroll: Accept and No thanks are 44 px tall at 1920x1080, 1280x720 and 800x450", fn = function()
+	local L = require(script.Parent.Parent.Engine.ScrollOfferLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		for _, key in ipairs({ "a", "b" }) do
+			local out = L.layout(key, sz[1] - 40, sz[2] - 80)
+			if out then
+				expectTrue(out.accept.h >= 44 and out.decline.h >= 44, key .. " at " .. sz[1] .. "x" .. sz[2] .. ": buttons " .. out.accept.h .. " px tall")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Table at 800x450: round label and count pills never under 14 px, Patron names 12 px or more, Rank and Suit at least 44 px tall at every size", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local PP = require(script.Parent.Parent.Engine.PatronParchment)

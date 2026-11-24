@@ -406,7 +406,7 @@ return function(deps)
 			local glow = usable[id] == true or revealable[id] == true
 			local sideLook = RouteRules.sideLook(res.pos[p.parent].depth, night, { stub = stub, glow = glow })
 			if vis(p.parent) == "revealed" and sideLook ~= "hidden" then
-				local sideSize = sideLook == "bubble" and math.floor(nodeSize * 0.34) or sideSize -- an unrevealed stop is a small "?" bubble
+				local sideSize = sideLook == "bubble" and math.max(44, math.floor(nodeSize * 0.34)) or sideSize -- an unrevealed stop is a small "?" bubble, never under a 44 px hit area (its "?" is then 22 px)
 				route(parent.x, parent.y, p.x, p.y, nodeSize / 2, sideSize / 2, glow, glow and 0.1 or 0.35, 1)
 				-- a fork, not a dead end: the branch rejoins the road at the next stop, so shop and event branches are two loops of one road
 				do
