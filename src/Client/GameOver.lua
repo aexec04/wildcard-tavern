@@ -417,7 +417,7 @@ return function(deps)
 		end
 		if summary then
 			local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)
-			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" }) end
+			if #bestLines > 0 then add("Endless best (" .. table.concat(bestLines, ", ") .. ")", { Font = Enum.Font.Merriweather, TextSize = 16, tone = "soft" }) end
 		end
 		local hint = (not isWin) and GameOverTips.forRun({
 			patrons = type(state.ownedPatrons) == "table" and #state.ownedPatrons or nil,
