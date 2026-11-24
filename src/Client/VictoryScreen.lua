@@ -336,7 +336,14 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 			ruleY = 124 * s
 			ruleH = math.max(40, math.min(62 * s, r.h - 8 - tap - 124 * s))
 		end
-		text(card, "Rule", table.concat(lines, "\n"), Look.fontSize(20, compact and 0.8 or s), INK, Enum.Font.GothamMedium, zc + 1, 8 * s, ruleY, r.w - 16 * s, ruleH)
+		local ruleSize = Look.fontSize(20, compact and 0.8 or s)
+		local ruleLabel = text(card, "Rule", table.concat(lines, "\n"), ruleSize, INK, Enum.Font.GothamMedium, zc + 1, 8 * s, ruleY, r.w - 16 * s, ruleH)
+		-- Long rules used to be cut off; shrink to fit the box instead.
+		ruleLabel.TextScaled = true
+		local ruleCap = Instance.new("UITextSizeConstraint")
+		ruleCap.MaxTextSize = ruleSize
+		ruleCap.MinTextSize = 11
+		ruleCap.Parent = ruleLabel
 		local pick = Instance.new("TextButton")
 		pick.Name = "Pick"
 		pick.Size = UDim2.fromOffset(r.w - 28 * s, tap)

@@ -183,6 +183,14 @@ function ShopCards.new(deps)
 		pad.PaddingLeft = UDim.new(0, 14)
 		pad.PaddingRight = UDim.new(0, 14)
 		pad.Parent = row
+		-- Centered content that is wider than the row spills off the LEFT edge, where scrolling can never reach it
+		-- (6 Patron seats after a Wide Table clipped the first card). Left align whenever the cards overflow.
+		local function alignFor()
+			local overflow = layout.AbsoluteContentSize.X + 28 > row.AbsoluteSize.X
+			layout.HorizontalAlignment = overflow and Enum.HorizontalAlignment.Left or Enum.HorizontalAlignment.Center
+		end
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(alignFor)
+		row:GetPropertyChangedSignal("AbsoluteSize"):Connect(alignFor)
 		return row
 	end
 

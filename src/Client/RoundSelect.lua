@@ -750,7 +750,10 @@ return function(deps)
 			tag.TextSize = on and 14 or 16
 			tag.TextWrapped = on
 			room.Position = UDim2.new(0, 8, 1, on and -186 or (entry.isBossRound and -232 or -180))
-			entry.shiftBase = { room.Position.Y.Offset, bname.Position.Y.Offset, brule.Position.Y.Offset, tag.Position.Y.Offset, target.Position.Y.Offset }
+			-- tag, target and rule still carry the no-button drop the last render applied: take it back out, or every
+			-- re-fit adds another drop and the plates of the Up next cards slide off the bottom of the screen
+			local applied = entry.appliedDrop or 0
+			entry.shiftBase = { room.Position.Y.Offset, bname.Position.Y.Offset, brule.Position.Y.Offset - applied, tag.Position.Y.Offset - applied, target.Position.Y.Offset - applied }
 			entry.shiftBase0 = nil -- the lift below is measured from the new base
 		end
 	end
@@ -1032,6 +1035,7 @@ return function(deps)
 				local p = obj.Position
 				obj.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, entry.shiftBase[i] + drop)
 			end
+			entry.appliedDrop = drop
 		end
 
 		-- Confirmed-skip detection (see lastStageKeyForConfirm's comment
