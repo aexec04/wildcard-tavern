@@ -120,6 +120,7 @@ function M.update(state)
 	end
 	if menu and not hooked then
 		hooked = true
+		menu:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() M.update(lastState) end) -- scale:WxH resizes the menu frame
 		menu:GetPropertyChangedSignal("Visible"):Connect(function() M.update(lastState) end) -- opening the Menu draws the strip without waiting for a render
 	end
 	-- a full screen Tome or Collection page (PanelFullScreen) covers the menu: the strip would be drawn over its buttons
@@ -131,7 +132,11 @@ function M.update(state)
 	local v = Rules.view(state.login, state.dailyQuests)
 	local size = g.AbsoluteSize
 	local r
-	if onMenu then r = Rules.menuRect(size.X, size.Y) -- bottom row between the Deal Me In column and All actions
+	if onMenu then
+		-- the menu's own frame sets the screen (Studio's scale:WxH shrinks it); the strip lives in GameUI, so add the frame's offset
+		local ms = menu.AbsoluteSize
+		if ms.X > 0 and ms.Y > 0 then size = ms end
+		r = Rules.menuRectAt(size.X, size.Y, menu.AbsolutePosition.X - g.AbsolutePosition.X, menu.AbsolutePosition.Y - g.AbsolutePosition.Y) -- bottom row between the Deal Me In column and All actions
 	else r = Rules.rectBelow(size.X, size.Y, cardsBottom(g, state.phase)) end
 	if not r then strip.Visible = false; return end -- no clear band under the cards: leave it out rather than cover them
 	strip.Chest:SetAttribute("ClaimDay", v.claimDay) -- always current, so a refused claim can be tried again

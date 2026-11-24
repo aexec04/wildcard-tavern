@@ -148,6 +148,14 @@ function M.menuRect(w, h)
 	return { x = left, y = h - M.MENU_GAP - sh, w = sw, h = sh }
 end
 
+-- The menu strip placed for a menu frame of w x h whose top left sits at dx, dy inside the GameUI (Studio's scale:WxH centres a smaller
+-- menu frame): the same rect as menuRect, moved by the frame offset so it stays inside the frame.
+function M.menuRectAt(w, h, dx, dy)
+	local r = M.menuRect(w, h)
+	if not r then return nil end
+	return { x = r.x + math.floor((tonumber(dx) or 0) + 0.5), y = r.y + math.floor((tonumber(dy) or 0) + 0.5), w = r.w, h = r.h }
+end
+
 -- The Streak and Goal columns left of the chest, in strip pixels: the Streak column takes about a quarter of the strip (92 to 130 px), the Goal
 -- column starts 8 px after it and ends 12 px before the chest plate, so neither word runs under the chest.
 M.EDGE_X, M.PAD_X = 30, 14 -- the carved gold end is 30 px, the words start 14 px inside it so no letter touches the plate border

@@ -55128,5 +55128,20 @@ table.insert(tests, { name = "Table at 800x450: round label and count pills neve
 	end
 end })
 
-return tests
 
+
+tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 800x450 the Claim reward strip lies inside the menu frame, even when the frame is centred in a larger GameUI", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local dx, dy = (1920 - w) / 2, (957 - h) / 2 -- scale:WxH centres the frame
+		local r = D.menuRectAt(w, h, dx, dy)
+		if r then
+			assert(r.x >= dx and r.y >= dy, "strip starts inside the frame at " .. w)
+			assert(r.x + r.w <= dx + w and r.y + r.h <= dy + h, "strip ends inside the frame at " .. w .. " (right " .. (r.x + r.w) .. " of " .. (dx + w) .. ")")
+		end
+	end
+	assert(D.menuRectAt(1280, 720, 0, 0), "1280x720 has room for the strip")
+end }) -- tests below
+
+return tests

@@ -253,7 +253,8 @@ return function(deps)
 		end,
 	})
 	local function viewport()
-		local v = screenGui.AbsoluteSize
+		local v = menuFrame.AbsoluteSize -- the menu's own frame: Studio's scale:WxH shrinks it, not the whole ScreenGui
+		if v.X <= 0 or v.Y <= 0 then v = screenGui.AbsoluteSize end
 		if v.X <= 0 or v.Y <= 0 then
 			local camera = workspace.CurrentCamera
 			v = camera and camera.ViewportSize or Vector2.new(1920, 1080)
@@ -270,6 +271,7 @@ return function(deps)
 	end
 	applyViewport()
 	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyViewport)
+	menuFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyViewport)
 
 	-- ===== Foreground and parallax =====
 	local scene = require(script.Parent.MenuScene).build(menuFrame)
