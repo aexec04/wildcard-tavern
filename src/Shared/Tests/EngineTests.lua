@@ -55369,25 +55369,24 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 	assert(D.menuRectAt(1280, 720, 0, 0), "1280x720 has room for the strip")
 end }) -- tests below
 
+table.insert(tests, { name = "Shop props: every set looks up its own repainted props sheet, classic and unknown sets keep the classic sheet", fn = function()
+	local ThemeScenes = require(script.Parent.Parent.Engine.ThemeScenes)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local classic = ContentArt.getImageId("shop_scene", "shop_counter_props")
+	local id1, own1 = ThemeScenes.shopPropsId("classic_tavern")
+	assert(id1 == classic, "classic keeps the classic sheet"); assert(own1 == false, "classic is not own")
+	local id2, own2 = ThemeScenes.shopPropsId("no_such_set")
+	assert(id2 == classic, "unknown set keeps the classic sheet"); assert(own2 == false, "unknown is not own")
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		if set.id ~= "classic_tavern" then
+			local own = ContentArt.getImageId("shop_scene", "shop_counter_props_" .. set.id)
+			local id, isOwn = ThemeScenes.shopPropsId(set.id)
+			assert(id == (own or classic), set.id .. " picks its own sheet when it exists, else classic")
+			assert(isOwn == (own ~= nil), set.id .. " own flag")
+		end
+	end
+end })
+
 return tests
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

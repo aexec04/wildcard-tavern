@@ -149,6 +149,17 @@ function ThemeScenes.shopRoomId(setId)
 	return ContentArt.getImageId("shop_scene", "shop_room_a"), false
 end
 
+-- The Counter props sheet (bell, ledger, mug, candle) for a set: its own repainted sheet shop_counter_props_<setId> when that art exists,
+-- otherwise the classic shop_counter_props. Same four crops on every sheet (ShopSceneLayout.PROP_CROP). Returns id, own.
+function ThemeScenes.shopPropsId(setId)
+	local ContentArt = require(script.Parent.ContentArt)
+	if setId and setId ~= ThemeScenes.DEFAULT and ThemeScenes.known(setId) then
+		local own = ContentArt.getImageId("shop_scene", "shop_counter_props_" .. setId)
+		if own then return own, true end
+	end
+	return ContentArt.getImageId("shop_scene", "shop_counter_props"), false
+end
+
 -- The keeper pieces for a set: its own painted keeper (golden_gala courtier) or the classic Marlo pieces.
 -- Returns behindId, waveId, own. Classic and every other set get shop_marlo_behind and shop_marlo_wave.
 local KEEPER_OF = {

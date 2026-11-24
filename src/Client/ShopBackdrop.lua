@@ -190,8 +190,12 @@ function ShopBackdrop.new(deps)
 			local sid = TS.effectiveSetId(skin and skin.id, previewId)
 			local rid, rown = TS.shopRoomId(sid)
 			local kb, kw = TS.shopKeeperIds(sid)
+			self.propsId = TS.shopPropsId(sid) -- the set's own repainted book, bell, mug and candle (classic sheet when it has none)
 			return rid, rown, kb, kw
 		end)
+		for _, pimg in pairs(self.propImages or {}) do
+			if self.propsId then pimg.Image = self.propsId end
+		end
 		if okS and kb then -- the keeper follows the set too: courtier for golden_gala, Marlo for the rest (ShopScene reads self.marloId on each wave)
 			self.marloId, self.marloWaveId = kb, kw
 			if marlo then marlo.Image = kb end
@@ -241,6 +245,8 @@ function ShopBackdrop.new(deps)
 		crop(counter, Layout.COUNTER_CROP)
 		older[#older + 1] = counter
 	end
+	propsId = self.propsId or propsId
+	self.propImages = props
 	if propsId then
 		for name in pairs(Layout.PROP_CROP) do
 			local img = image(root, "Prop_" .. name, propsId, 7)
