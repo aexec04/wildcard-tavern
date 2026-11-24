@@ -1,7 +1,7 @@
 --[[
 	Client/ConfettiFX.lua
 	A short gold and purple confetti burst for a cleared round (spec in Engine/Confetti, tested). One Heartbeat loop moves every
-	piece, nothing takes input, all pieces are gone after about 1.8 s. Calm mode (Reduce Motion / Reduce Shake) draws nothing.
+	piece, nothing takes input, all pieces are gone after about 3 s. Calm mode (Reduce Motion / Reduce Shake) draws nothing.
 
 	burst(screenGui, big) -> number of pieces drawn
 ]]
@@ -11,7 +11,7 @@ local Confetti = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local M = {}
-local LIFE = 1.8
+local LIFE = Confetti.LIFE
 
 function M.burst(screenGui, big, z) -- z: ZIndex of the burst (default 54); the round banner passes 11 so it falls under every plate
 	local calm = ClientSettings.get("reduceShake") == true

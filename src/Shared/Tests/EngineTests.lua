@@ -54587,4 +54587,43 @@ table.insert(tests, { name = "Run Over win second pass: Patrons heading on a dar
 	expectTrue(src:find("Road taken", 1, true) ~= nil and src:find("tone = \"gold\"", 1, true) ~= nil and src:find("TONES.plain[line.props.tone", 1, true) ~= nil, "facts headings use the bright gold tone on the plate")
 end })
 
+table.insert(tests, { name = "Run Over win third pass: celebration motion lasts about 3 s (confetti, banner pop, Tips count-up), none in Calm mode, win facts sit on the dark plate", fn = function()
+	local E = script.Parent.Parent.Engine
+	local C = require(E.Confetti)
+	local piece = C.pieces(C.count(false, false, false), 11)
+	local lastEnd = 0
+	for _, pc in ipairs(piece) do lastEnd = math.max(lastEnd, pc.delay + C.LIFE) end
+	expectTrue(C.LIFE >= 2.7 and C.LIFE + C.MAX_DELAY >= 3, "the confetti keeps moving for about 3 seconds after opening")
+	expectTrue(lastEnd >= 2.8, "the last piece of a real burst is still falling near the 3 second mark")
+	expectEqual(C.count(true, false, true), 0, "Calm mode draws no confetti")
+	local W = require(E.RunOverWin)
+	expectEqual(W.tipsSteps({ tips = 40 }, true), nil, "Calm mode shows the Tips end state at once")
+	expectTrue(W.tipsSteps({ tips = 40 }, false) ~= nil, "the Tips count up plays outside Calm mode")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/ConfettiFX.lua", "r"))
+	local fx = f:read("*a")
+	f:close()
+	expectTrue(fx:find("local LIFE = Confetti.LIFE", 1, true) ~= nil, "ConfettiFX uses the pinned lifetime")
+	local g = assert(io.open("src/Client/GameOver.lua", "r"))
+	local src = g:read("*a")
+	g:close()
+	expectTrue(src:find("fx.titleIn(titleLabel)", 1, true) ~= nil and src:find("ConfettiFX).burst", 1, true) ~= nil, "a win plays the banner pop and the confetti on open")
+	-- win state: every fact label sits over the dark plate, cream on it
+	local FakeGui = require(script.Parent.FakeGui)
+	local P, root = buildGameOver(FakeGui, E, false)
+	root.AbsoluteSize = { X = 1600, Y = 900 }
+	local summary = { night = 8, round = 3, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" } },
+		patrons = { { id = "a", name = "Ada", icon = "A" } }, rarity = "common", badgeSaved = false }
+	P.refreshGameOver({ phase = "gameover", night = 8, nightCap = 8, round = 3, wonRun = true, roundScore = 900, targetScore = 700, tips = 40, runSummary = summary }, nil)
+	local panel = root:FindFirstChild("GameOver", true) or root
+	local pl, fr = panel:FindFirstChild("FactsPlate", true), panel:FindFirstChild("Facts", true)
+	expectTrue(pl ~= nil and fr ~= nil and pl.Visible, "the win shows the facts plate")
+	expectTrue(pl.BackgroundColor3.R < 0.2 and pl.BackgroundTransparency <= 0.12, "the win plate is dark and nearly opaque")
+	for _, c in ipairs(fr:GetChildren()) do
+		if c:IsA("TextLabel") then
+			expectTrue(pl.ZIndex < c.ZIndex and c.TextColor3.R > 0.7, "win fact " .. c.Name .. " is cream or bright gold over the plate")
+		end
+	end
+end })
+
 return tests
