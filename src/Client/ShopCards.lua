@@ -366,7 +366,7 @@ function ShopCards.new(deps)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
 		local hoverFx -- the shared Round Select style hover glow; nothing shows at rest, show(on) below drives it
-		pcall(function() hoverFx = require(script.Parent.HoverGlowFX).attach(artFrame, { manual = true, radius = 8, zIndex = Z + 3 }) end)
+		pcall(function() hoverFx = require(script.Parent.HoverGlowFX).attach(artFrame, { manual = true, strokeOnly = true, radius = 8, zIndex = Z }) end) -- same layer as the art: the name ribbon (made later) stays above the rim, so no line crosses the name
 		if spec.kind == "patron" and require(Engine:WaitForChild("Gameplay2Synergy")).completes(spec.synergy) then
 			-- an offer that works with a Patron you own: a soft gold outline (the chip below says which theme)
 			local glow = Instance.new("Frame")

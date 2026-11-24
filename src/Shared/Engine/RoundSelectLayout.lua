@@ -42,7 +42,7 @@ function M.metrics(w, h)
 	local rowH = h - top - bottom
 	local s = CardFit.scale(h, rowW, rowH, M.CH_C, M.CW_C, M.MAX_FIT_C, 0.5)
 	-- the card grows taller (not wider) to fill the free row height, so the art keeps its room; the plates stay real size
-	local tall = math.max(M.CH_C, math.min(M.CH_MAX_C, math.floor(rowH / s)))
+	local tall = phone and M.CH_C or math.max(M.CH_C, math.min(M.CH_MAX_C, math.floor(rowH / s))) -- phones keep the short card: the Daily strip sits low there
 	return { compact = true, cardW = M.CW_C, cardH = tall, rowTop = top, rowBottom = bottom, scale = s }
 end
 
