@@ -189,6 +189,12 @@ function BlessingChip.relayout()
 		ui.blessing.Size = UDim2.fromOffset(w, bl * Rows.LINE_H)
 		ui.curse.Position = UDim2.fromOffset(46, 25 + bl * Rows.LINE_H + 4)
 		ui.curse.Size = UDim2.fromOffset(w, cl * Rows.LINE_H)
+		-- the plate never outgrows its text: a taller row from the board plan is cut to the measured content (compact: icon and name only)
+		local want = full and Rows.fullHeight(bl, cl) or Rows.HEIGHTS.blessingCompact[1]
+		local cur = ui.chip.Size.Y.Offset
+		if cur > want then
+			ui.chip.Size = UDim2.new(ui.chip.Size.X.Scale, ui.chip.Size.X.Offset, 0, want)
+		end
 		return
 	end
 	local height = ui.board.AbsoluteSize.Y

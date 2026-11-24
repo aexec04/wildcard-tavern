@@ -14685,6 +14685,21 @@ table.insert(tests, { name = "Button text: cream or ink reads at 4.5:1 on every 
 	end
 end })
 
+table.insert(tests, { name = "Blessing chip: plate height is sized from its content, no empty box under the lines", fn = function()
+	local Layout = require(script.Parent.Parent.Engine.BlessingChipLayout)
+	local Rows = require(script.Parent.Parent.Engine.BoardPanelRows)
+	-- full plate: name at y 3, blessing at 26 (20 high), curse at 48 (20 high): the plate ends within 4 px of the last label
+	expectTrue(Layout.FULL_HEIGHT >= 48 + 20 and Layout.FULL_HEIGHT <= 48 + 20 + 4, "full plate hugs the curse line")
+	expectEqual(Layout.plan(1080, 0).height, Layout.FULL_HEIGHT)
+	-- the board row is cut to the measured content: one line each is shorter than three lines each
+	expectTrue(Rows.fullHeight(1, 1) < Rows.fullHeight(3, 3), "content height grows with the wrapped lines")
+	local src = io and io.open and io.open("src/Client/BlessingChip.lua", "r")
+	if src then
+		local text = src:read("*a"); src:close()
+		expectTrue(text:find("Rows.fullHeight(bl, cl)", 1, true) ~= nil, "the board row is cut to the content height")
+	end
+end })
+
 table.insert(tests, { name = "Blessing chip: view carries both lines, layout never overlaps the sidebar stack, toasts avoid titles", fn = function()
 	local RM = require(script.Parent.Parent.Engine.RunModifiers)
 	local Layout = require(script.Parent.Parent.Engine.BlessingChipLayout)
