@@ -33,12 +33,14 @@ local DATA = {
 		{ kind = "round", x = 0.42, y = 0.7, w = 0.16, h = 0.16, rot = 0, color = CREAM },
 		{ kind = "rect", x = 0.44, y = 0.04, w = 0.12, h = 0.92, rot = 45, color = CORAL },
 	} },
-	-- Short Table: one chair (back, seat, two legs)
+	-- Short Table: a wide tabletop on two short legs, plus a small coral stool with a slash (the seat that sits out)
 	short_table = { shapes = {
-		{ kind = "rect", x = 0.22, y = 0.08, w = 0.14, h = 0.46, rot = 0, color = CREAM },
-		{ kind = "rect", x = 0.22, y = 0.42, w = 0.56, h = 0.14, rot = 0, color = CREAM },
-		{ kind = "rect", x = 0.22, y = 0.56, w = 0.12, h = 0.34, rot = 0, color = CREAM },
-		{ kind = "rect", x = 0.66, y = 0.56, w = 0.12, h = 0.34, rot = 0, color = CREAM },
+		{ kind = "rect", x = 0.05, y = 0.34, w = 0.58, h = 0.13, rot = 0, color = CREAM },
+		{ kind = "rect", x = 0.10, y = 0.47, w = 0.09, h = 0.30, rot = 0, color = CREAM },
+		{ kind = "rect", x = 0.49, y = 0.47, w = 0.09, h = 0.30, rot = 0, color = CREAM },
+		{ kind = "round", x = 0.73, y = 0.46, w = 0.22, h = 0.12, rot = 0, color = CORAL },
+		{ kind = "rect", x = 0.80, y = 0.58, w = 0.08, h = 0.20, rot = 0, color = CORAL },
+		{ kind = "rect", x = 0.80, y = 0.34, w = 0.08, h = 0.36, rot = 45, color = CREAM },
 	} },
 }
 

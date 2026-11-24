@@ -55292,6 +55292,24 @@ tests[#tests + 1] = ({ name = "BossCardFX LIVE: frozen_hand, quiet_tavern and sh
 					local glyph = face and face:FindFirstChild("Glyph")
 					expectTrue(glyph ~= nil and #glyph:GetChildren() >= 3, id .. " " .. where[1] .. " draws the glyph shapes at " .. sz[1])
 					expectTrue(face.Text ~= "N" and face.Text ~= "!", id .. " " .. where[1] .. " has no letter or mark: '" .. tostring(face.Text) .. "'")
+					if id == "short_table" then
+						-- a table with an empty seat: 4+ frames, a tabletop wider than tall, no tall single bar (the old shape read as the letter h)
+						local frames = glyph:GetChildren()
+						local widest, tallest = nil, 0
+						for _, fr in ipairs(frames) do
+							if not widest or fr.Size.X.Scale > widest.Size.X.Scale then widest = fr end
+							if fr.Size.Y.Scale > tallest then tallest = fr.Size.Y.Scale end
+						end
+						local coral, slash = 0, false
+						for _, fr in ipairs(frames) do
+							if math.abs(fr.BackgroundColor3.G * 255 - 150) < 1 and fr.BackgroundColor3.R > 0.99 then coral = coral + 1 end
+							if fr.Rotation ~= 0 then slash = true end
+						end
+						expectTrue(coral >= 2 and slash, "short_table " .. where[1] .. " has a coral stool and a slash at " .. sz[1])
+						expectTrue(#frames >= 4, "short_table " .. where[1] .. " has 4 or more glyph frames at " .. sz[1])
+						expectTrue(widest.Size.X.Scale > widest.Size.Y.Scale, "short_table " .. where[1] .. " widest frame is the tabletop at " .. sz[1])
+						expectTrue(tallest <= 0.6, "short_table " .. where[1] .. " has no tall single bar at " .. sz[1] .. ": " .. tallest)
+					end
 				end
 			end
 			M.hide()
