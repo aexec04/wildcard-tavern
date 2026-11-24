@@ -38181,11 +38181,11 @@ table.insert(tests, { name = "Menu Rank plate: three rows, every text at 14 px o
 			expectTrue(size * scale >= (sz[1] >= 1309 and 14 or 11.5) and F.width(line, size) <= w - 8, sz[1] .. " " .. line .. " is 14 px or more on screen (the 1024 wide cork scales smaller) and fits one line")
 			expectTrue(size <= R.barH - 2 and size <= R.textH, sz[1] .. " " .. line .. " fits its row")
 		end
-		expectTrue(R.barY >= R.textY + R.textH and R.rewardY >= R.barY + R.barH and R.h >= R.rewardY + R.rewardH + 8, sz[1] .. " rows do not overlap and end inside the plate")
+		expectTrue(R.barY >= R.textY + R.textH and R.rewardY >= R.barY + R.barH and R.h >= R.rewardY + R.rewardH + 12, sz[1] .. " rows do not overlap and end inside the plate")
 	end
 	if not io then return end
 	local f = io.open("src/Client/MenuRank.lua", "r"); local r = f:read("*a"); f:close()
-	expectTrue(r:find("fromOffset(460, 84)", 1, true) ~= nil and r:find('xp.Name = "XpText"', 1, true) ~= nil, "plate is 84 px tall with an XP label")
+	expectTrue(r:find("fromOffset(460, 88)", 1, true) ~= nil and r:find('xp.Name = "XpText"', 1, true) ~= nil, "plate is 88 px tall with an XP label")
 	expectFalse(r:find("fitLiveLabel", 1, true) ~= nil, "no fit that resets the raised size to 16")
 end })
 
@@ -38209,16 +38209,27 @@ table.insert(tests, { name = "Daily strip Goal word is short, 14 px or more and 
 	end
 end })
 
-table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next line never overlap the XP line and end 8 px inside the frame", fn = function()
+table.insert(tests, { name = "Rank plate rows follow the text size: bar and Next line never overlap the XP line and end 12 px inside the frame", fn = function()
 	local L = require(script.Parent.Parent.Engine.RankPlateLayout)
 	for _, ts in ipairs({ 14, 16, 20, 24, 28 }) do
 		local R = L.rows(ts)
 		assert(R.barY >= R.textY + R.textH + 4, "bar under the XP line at " .. ts)
 		assert(R.rewardY >= R.barY + R.barH + 4, "Next line under the bar at " .. ts)
-		assert(R.h - (R.rewardY + R.rewardH) == 8, "8 px bottom padding at " .. ts)
+		assert(R.h - (R.rewardY + R.rewardH) == 12, "12 px bottom padding at " .. ts)
 	end
-	assert(L.rows(16).h == 84, "84 px at the 16 px base (the bar carries the XP line)")
+	assert(L.rows(16).h == 88, "88 px at the 16 px base (the bar carries the XP line)")
 	for _, ts in ipairs({ 14, 16, 24, 31 }) do assert(L.rows(ts).barH >= ts + 4, "the bar is tall enough for a line of text at " .. ts) end
+end })
+
+table.insert(tests, { name = "Menu polish 1280x720: Rank plate last line keeps 4 px or more above the border, Card Set names keep 6 px side padding", fn = function()
+	local L = require(script.Parent.Parent.Engine.RankPlateLayout)
+	for _, ts in ipairs({ 14, 16, 20, 24, 28 }) do
+		local R = L.rows(ts)
+		expectTrue(R.h - (R.rewardY + R.rewardH) >= 8, "Next line sits well above the plate border at " .. ts)
+	end
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/CardSetsRoom.lua", "r"); local src = f:read("*a"); f:close()
+	expectTrue(src:find("local NAME_PAD = 6", 1, true) ~= nil and src:find("cell.name.w - 2 * NAME_PAD", 1, true) ~= nil, "the name label is 6 px narrower on each side than its plate")
 end })
 
 table.insert(tests, { name = "Scoring polish: Patron pop stays within 1.2x of the seat and the band, played cards reach 90 px, the quote tail points at its seat", fn = function()

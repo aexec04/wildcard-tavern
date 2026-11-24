@@ -1,8 +1,8 @@
 -- Rows of the Menu Rank plate for a given text size. The board raises text sizes so they read at least 14 px after its scale
--- (24 px at a 0.59 scale), so the rows must follow the size: Rank line, 4 px, bar with the XP line on it, 4 px, Next line, 8 px bottom padding.
+-- (24 px at a 0.59 scale), so the rows must follow the size: Rank line, 4 px, bar with the XP line on it, 4 px, Next line, 12 px bottom padding.
 local M = {}
 
-M.TOP, M.GAP, M.BOTTOM = 10, 4, 8
+M.TOP, M.GAP, M.BOTTOM = 10, 4, 12
 
 function M.rows(textSize)
 	local ts = math.max(14, math.floor(textSize or 16))

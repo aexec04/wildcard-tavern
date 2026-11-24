@@ -44,7 +44,7 @@ end
 function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local frame = Instance.new("Frame")
 	frame.Name = "RankBar"
-	frame.Size = UDim2.fromOffset(460, 84) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
+	frame.Size = UDim2.fromOffset(460, 88) -- the board gives every note one width; 12 px top, XP line, the bar, then the reward line, all inside the painted plate (30 px clear of its gold ends)
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.ZIndex = 10

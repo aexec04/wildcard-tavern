@@ -27,6 +27,7 @@ local GOLD = Color3.fromRGB(255, 214, 130)
 local INK = Color3.fromRGB(44, 26, 12)
 local DIM_INK = Color3.fromRGB(88, 64, 40)
 local BODY_TEXT = 14
+local NAME_PAD = 6 -- a Card Set name keeps 6 px clear of both edges of its plate
 local BROWN = Color3.fromRGB(96, 66, 34)
 
 function CardSetsRoom.new(ctx)
@@ -476,7 +477,7 @@ function CardSetsRoom.new(ctx)
 		local plate = solid(holder, band and rgb(band.fill) or Color3.fromRGB(34, 22, 14), plateR, 46, 6)
 		plate.Name = "SetPlate"
 		stroke(plate, band and rgb(band.edge) or Color3.fromRGB(150, 108, 58), 1)
-		ctx.label(holder, { Position = UDim2.fromOffset(cell.name.x - cell.tile.x, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w, cell.name.h), Font = Enum.Font.GothamBold,
+		ctx.label(holder, { Name = "SetName", Position = UDim2.fromOffset(cell.name.x - cell.tile.x + NAME_PAD, cell.name.y - cell.tile.y), Size = UDim2.fromOffset(cell.name.w - 2 * NAME_PAD, cell.name.h), Font = Enum.Font.GothamBold,
 			TextSize = BODY_TEXT, TextWrapped = true, TextColor3 = CREAM, Text = d.name, ZIndex = 47 })
 		local stateText = d.equipped and "Equipped" or (d.owned and "Owned" or ((entry.set and entry.set.unlock.kind == "tips") and string.format("%d Tips", math.floor(entry.set.unlock.price)) or "Locked"))
 		ctx.label(holder, { Name = "State", Position = UDim2.fromOffset(cell.state.x - cell.tile.x, cell.state.y - cell.tile.y), Size = UDim2.fromOffset(cell.state.w, cell.state.h), Font = Enum.Font.GothamMedium,
