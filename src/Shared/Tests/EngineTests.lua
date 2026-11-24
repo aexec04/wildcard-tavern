@@ -53915,7 +53915,7 @@ table.insert(tests, { name = "Victory screen live readability: Run complete and 
 	local found = {}
 	local function painted(l) return l.TextStrokeTransparency ~= nil and l.TextStrokeTransparency <= 0.5 end -- big title text on the painted room carries a dark stroke
 	for _, mode in ipairs({ "run", "pick" }) do
-		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 }, { 800, 360 } }) do
 			local gui = FakeGui.new("ScreenGui")
 			gui.AbsoluteSize = { X = size[1], Y = size[2] }
 			Victory.hide()
@@ -53949,7 +53949,7 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 	state.services.GuiService = {}
 	local NightVictory = FakeGui.load("src/Client/NightVictory.lua", env)
 	local found = {}
-	for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 }, { 800, 360 } }) do
 		local gui = FakeGui.new("ScreenGui")
 		gui.AbsoluteSize = { X = size[1], Y = size[2] }
 		local noop = function() end
@@ -54220,7 +54220,7 @@ table.insert(tests, { name = "Card Sets room live readability: Card Sets and Car
 	local CosmeticSets, CardBacks = require(Engine.CosmeticSets), require(Engine.CardBacks)
 	local found = {}
 	for _, tab in ipairs({ "sets", "backs" }) do
-		for _, size in ipairs({ { 1280, 720 }, { 800, 360 } }) do
+		for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 }, { 800, 360 } }) do
 			local gui, panel = FakeGui.new("ScreenGui"), FakeGui.new("Frame")
 			panel.Parent = gui
 			gui.AbsoluteSize = { X = size[1], Y = size[2] }
@@ -54968,6 +54968,49 @@ table.insert(tests, { name = "Table boss plate at 1920x957, 1280x720 and 800x450
 		end
 	end
 	expectTrue(compactSeen and fullSeen, "both chip modes are exercised")
+end })
+
+table.insert(tests, { name = "Round Select live readability: the three cards at 1920x957, 1280x720 and 800x450 have 14 px text, readable ink, 44 px Select and Skip, nothing off screen", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Audit = require(script.Parent.LiveReadability)
+	local Engine = script.Parent.Parent.Engine
+	local noop = function() end
+	local lazy = function() return setmetatable({}, { __index = function() return function() return nil end end }) end
+	local stubs = { TavernKit = lazy(), RoundSelectFX = { new = function() return lazy() end }, PopupDismiss = { attach = noop }, RoadChoice = function() return lazy() end,
+		SideStopPanel = function() return lazy() end, MinigamePanel = function() return lazy() end, CornerDock = lazy(), TutorialBus = { fire = noop },
+		CharacterStage = lazy(), BossFight = lazy(), TravelTransition = lazy(), ScreenFadeFX = lazy() }
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	local map = setmetatable({}, { __index = function(_, n) local ok, m = pcall(function() return require(Engine[n]) end) if ok then return m end return nil end })
+	st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	st.services.ReplicatedStorage.Shared = { Engine = setmetatable({}, { __index = function(_, n) return { __module = map[n], __name = n } end }) }
+	local RoundSelect = FakeGui.load("src/Client/RoundSelect.lua", env)
+	local found = {}
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = size[1], Y = size[2] }
+		local root = FakeGui.new("Frame"); root.Size = env.UDim2.new(1, 0, 1, 0); root.Parent = gui
+		root.FindFirstAncestorWhichIsA = function() return gui end -- the fake has no ancestor lookup
+		env.workspace = { CurrentCamera = { ViewportSize = { X = size[1], Y = size[2] }, GetPropertyChangedSignal = function() return FakeGui.signal() end } }
+		local rs = RoundSelect({ root = root, SIDEBAR_WIDTH = 0, polishPanel = noop, polishButton = noop, roundCorner = noop, playClickSfx = noop, tweenTo = noop,
+			addTooltip = noop, BossRounds = require(Engine.BossRounds), RunStateEngine = require(Engine.RunState), SelectRoundRemote = { FireServer = noop },
+			SkipRoundRemote = { FireServer = noop }, showRoundReward = noop, showUnlockPopup = noop, showWarning = noop, getLatestState = function() return nil end })
+		local state = { phase = "roundSelect", night = 2, round = 2, tips = 14, nightCap = 8, canSkipRound = true, roundTargets = { 300, 450, 700 } }
+		local longest
+		for _, b in ipairs(require(Engine.BossRounds).Definitions or {}) do
+			if not longest or #(b.description or "") + #(b.name or "") > #(longest.description or "") + #(longest.name or "") then longest = b end
+		end
+		expectTrue(longest ~= nil, "a boss rule is on the Boss card")
+		state.nightBossModifier = longest
+		rs.rebuildRoundSelect(state, "shop")
+		rs.roundSelectFrame.Visible = true
+		FakeGui.layout(gui, size[1], size[2])
+		local res = Audit.audit(rs.roundSelectFrame, size[1], size[2], { paintedOk = function(l) return l.TextStrokeTransparency ~= nil and l.TextStrokeTransparency <= 0.5 end })
+		expectTrue(res.seen >= 6 and res.buttons >= 2, "Round Select " .. size[1] .. ": the audit read " .. tostring(res.seen) .. " labels and " .. tostring(res.buttons) .. " buttons")
+		for _, f in ipairs(res) do found[#found + 1] = size[1] .. "x" .. size[2] .. " " .. f end
+	end
+	if #found > 0 then print(table.concat(found, "\n")) end
+	expectEqual(#found, 0, "Round Select has " .. #found .. " readability findings")
 end })
 
 return tests

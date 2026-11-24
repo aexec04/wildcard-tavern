@@ -77,6 +77,11 @@ meta.__index = function(inst, key)
 	if key == "Parent" then return rawget(inst, "_parent") end
 	if Methods[key] then return Methods[key] end
 	if EVENTS[key] then return signalOf(inst, "event:" .. key) end
+	if type(key) == "string" then -- like Roblox: a child is reachable by its name (lbl.PlateEdge)
+		for _, kid in ipairs(rawget(inst, "_kids")) do
+			if rawget(kid, "_props").Name == key then return kid end
+		end
+	end
 	return nil
 end
 

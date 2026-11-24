@@ -443,7 +443,7 @@ return function(deps)
 		-- Parented to sceneImage so it's clipped to the image area.
 		local statusChip = Instance.new("TextLabel")
 		statusChip.Name = "StatusChip"
-		statusChip.Size = UDim2.new(0, 130, 0, 22)
+		statusChip.Size = UDim2.new(0, 144, 0, 24) -- wide enough for "You are here" at 15 px with its padding
 		statusChip.Position = UDim2.new(0, 8, 0, 8)
 		statusChip.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 		statusChip.BackgroundTransparency = 0
@@ -592,7 +592,7 @@ return function(deps)
 		selectButton.Font = Enum.Font.GothamBold
 		selectButton.TextSize = 16
 		selectButton.Text = "Select"
-		selectButton.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
+		selectButton.BackgroundColor3 = Color3.fromRGB(60, 115, 62) -- cream label on it is 5.0 to 1
 		selectButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		selectButton.ZIndex = 11
 		selectButton.Visible = false

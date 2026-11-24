@@ -67,13 +67,21 @@ local function realRect(i)
 end
 
 -- text width: ASCII at 0.56 em, an emoji or symbol is one em wide (TextFit.width counts bytes, which triples an emoji)
-local function textWidth(text, size)
+local function lineWidth(text, size)
 	local total = 0
 	for _, cp in utf8.codes(text) do
 		if cp < 128 then total = total + size * TextFit.CHAR
 		elseif cp ~= 0xFE0F and cp ~= 0x200D then total = total + size end
 	end
 	return total
+end
+
+-- the widest line (rich text tags take no room, a line break starts a new line)
+local function textWidth(text, size)
+	text = text:gsub("<[^>]*>", "")
+	local widest = 0
+	for line in (text .. "\n"):gmatch("(.-)\n") do widest = math.max(widest, lineWidth(line, size)) end
+	return widest
 end
 
 local function path(i)
