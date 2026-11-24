@@ -54860,4 +54860,81 @@ table.insert(tests, { name = "SortPlateGroup: Rank and Suit glyph then word neve
 	expectTrue(gsrc:find("SortPlateGroup", 1, true) ~= nil, "Gameplay2 attaches SortPlateGroup to the split Rank and Suit plates")
 end })
 
+-- Every Boss Round rule does what its plate says, through the real RunState.startRound / playHand path (not the debug jump).
+table.insert(tests, { name = "Boss rules: every boss in BossRounds applies its rule text through startRound and playHand", fn = function()
+	local function fresh(def, tips)
+		local state = RunState.new(nil, function(_n) return 1 end)
+		state.night = (def and def.minNight) or 1
+		state.round = state.config.roundsPerNight
+		state.welcomeEase = nil
+		state.tips = tips or 10
+		state.nightBossModifier = def
+		RunState.startRound(state)
+		return state
+	end
+	local count = 0
+	for _, def in ipairs(BossRounds.Definitions) do
+		count = count + 1
+		local id = def.id
+		local control, boss = fresh(nil), fresh(def)
+		control = fresh(nil); control.night = def.minNight
+		expectTrue(boss.bossModifier == def, id .. ": startRound makes it the round's boss rule")
+		expectEqual(#boss.hand, math.max(5, #control.hand + (def.handSizeDelta or 0)), id .. ": deal size")
+		local wantDiscards = math.max(0, control.discardsRemaining + (def.discardsDelta or 0))
+		if def.minDiscards then wantDiscards = math.max(wantDiscards, math.min(def.minDiscards, control.discardsRemaining)) end
+		expectEqual(boss.discardsRemaining, wantDiscards, id .. ": discards")
+		local wantHands = control.handsRemaining
+		if def.handsPerRoundOverride then wantHands = math.max(1, def.handsPerRoundOverride + (control.handsRemaining - control.config.handsPerRound)) end
+		expectEqual(boss.handsRemaining, wantHands, id .. ": hands")
+		local wantTarget = math.floor(RunState.targetForRound(control, control.round) * (def.targetScoreMultiplier or 1))
+		expectTrue(math.abs(boss.targetScore - wantTarget) <= 1, id .. ": target " .. boss.targetScore .. " vs " .. wantTarget)
+		expectEqual(boss.tips, math.max(0, 10 - (def.tipsLostAtStart or 0)), id .. ": Tips at the start")
+		-- play-level rules, on the same fixed hand with a plain run as the baseline
+		local b = bossState(id)
+		local base = bossState("bouncer"); base.bossModifier = nil
+		local need = def.requiredCardsPerHand
+		if need then
+			local ok = pcall(RunState.playHand, b, { 1, 2 })
+			if need ~= 2 then expectTrue(not ok, id .. ": a hand of 2 cards is refused") end
+			local pick = {}
+			for i = 1, need do pick[i] = i end
+			expectTrue(pcall(RunState.playHand, bossState(id), pick), id .. ": exactly " .. need .. " cards is allowed")
+		elseif def.minCardsPerHand then
+			expectTrue(pcall(RunState.playHand, bossState(id), { 1, 2, 3, 4, 5 }), id .. ": a full hand is allowed")
+		else
+			local tipsBefore = b.tips
+			local r = RunState.playHand(b, { 1, 2 })
+			local r0 = RunState.playHand(base, { 1, 2 })
+			if def.chipsMultiplier or def.multMultiplier or def.firstHandMultiplier then
+				expectTrue(r.score < r0.score, id .. ": scores less than a plain round (" .. tostring(r.score) .. " vs " .. tostring(r0.score) .. ")")
+			end
+			if def.tipsLostPerCardPlayed then
+				expectEqual(tipsBefore - b.tips, math.min(tipsBefore, def.tipsLostPerCardPlayed * 2), id .. ": Tips lost per card")
+			end
+			if def.noRepeatHandTypes then
+				b.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+				expectEqual(RunState.playHand(b, { 1, 2 }).score, 0, id .. ": the second play of a hand type scores 0")
+			end
+		end
+	end
+	expectEqual(count, #BossRounds.Definitions, "every boss was checked")
+	expectTrue(count >= 46, "all 46 bosses are covered")
+end })
+
+-- The client jump boss1:<id> shows the same Hands, Discards and Target the real Boss Round has.
+table.insert(tests, { name = "DebugGoto boss1 synth applies every boss rule number to the HUD state", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local base = { hand = {}, handsRemaining = 4, discardsRemaining = 3, targetScore = 100, tips = 10, ownedPatrons = {} }
+	for _, def in ipairs(BossRounds.Definitions) do
+		local s = R.synth("boss1", base, { boss = def })
+		expectEqual(s.handsRemaining, def.handsPerRoundOverride or 4, def.id .. ": hands")
+		local d = math.max(0, 3 + (def.discardsDelta or 0))
+		if def.discardsDelta and def.minDiscards then d = math.max(d, math.min(def.minDiscards, 3)) end
+		expectEqual(s.discardsRemaining, d, def.id .. ": discards")
+		expectEqual(s.targetScore, math.floor(100 * (def.targetScoreMultiplier or 1)), def.id .. ": target")
+		expectEqual(s.bossModifier.id, def.id)
+		expectEqual(base.handsRemaining, 4, "the base state is untouched")
+	end
+end })
+
 return tests

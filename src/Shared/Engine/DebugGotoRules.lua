@@ -134,8 +134,20 @@ function DebugGotoRules.synth(which, state, data)
 	elseif which == "gameover" then
 		s.phase = "gameover"
 	elseif which == "boss1" and data.boss then
-		s.bossModifier = { id = data.boss.id, name = data.boss.name, description = data.boss.description,
-			handSizeDelta = data.boss.handSizeDelta }
+		s.bossModifier = {}
+		for k, v in pairs(data.boss) do s.bossModifier[k] = v end -- every rule field, so the plate and the HUD agree
+		-- the numbers the real startRound would set (Hands, Discards, Target, Tips), so the HUD matches the plate text
+		local boss = data.boss
+		if boss.handsPerRoundOverride then s.handsRemaining = boss.handsPerRoundOverride end
+		if boss.discardsDelta and type(s.discardsRemaining) == "number" then
+			local before = s.discardsRemaining
+			s.discardsRemaining = math.max(0, before + boss.discardsDelta)
+			if boss.minDiscards then s.discardsRemaining = math.max(s.discardsRemaining, math.min(boss.minDiscards, before)) end
+		end
+		if boss.targetScoreMultiplier and type(s.targetScore) == "number" then
+			s.targetScore = math.floor(s.targetScore * boss.targetScoreMultiplier)
+		end
+		if boss.tipsLostAtStart and type(s.tips) == "number" then s.tips = math.max(0, s.tips - boss.tipsLostAtStart) end
 		-- the synthetic jump keeps round1's dealt hand, so apply the boss's hand-size penalty to it here (never below 5)
 		local delta = data.boss.handSizeDelta or 0
 		if delta < 0 and type(s.hand) == "table" then
