@@ -110,3 +110,4 @@ Open `src/Shared/Engine/LiveEvents.lua` and append one entry to `LiveEvents.Defi
 5. Run `lua tools/run_tests_local.lua`: a test checks dates, ids and reward ids. Add a `news_subjects` prompt in `tools/patron_art/prompts.json` for the banner art (an emoji shows until it exists).
 Events never change the Daily, Weekly or Seed boards: the modifier only affects account XP or adds text beside the Daily date.
 - [x] Gameplay v2: Patron set bonuses, Stakes plates, Run Over seed copy and final regression (1132 tests, Studio check pending)
+
