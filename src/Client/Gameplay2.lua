@@ -324,6 +324,7 @@ function M.install(deps)
 						end end
 					end)
 				end
+				pcall(function() require(script.Parent.SortPlateGroup).attach(b) end) -- icon then word, never the glyph over the word
 			end
 		end
 		sortChrome(toggle, true)

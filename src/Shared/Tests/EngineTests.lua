@@ -54626,4 +54626,27 @@ table.insert(tests, { name = "Run Over win third pass: celebration motion lasts 
 	end
 end })
 
+table.insert(tests, { name = "SortPlateGroup: Rank and Suit glyph then word never overlap, inside the plate, at every table size; Gameplay2 wires it", fn = function()
+	local I = require(script.Parent.Parent.Engine.IconLabelLayout)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local f = io and io.open("src/Client/SortPlateGroup.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local G = assert(load(src, "SortPlateGroup"))()
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 }, { 800, 360 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, k in ipairs({ "sortRank", "sortSuit" }) do
+			local w, h = math.floor(r[k].w), math.floor(r[k].h)
+			for _, size in ipairs({ 14, 18, 22 }) do
+				local g = G.layout(w, h, 4 * size * 0.56, size, I)
+				local tag = sz[1] .. "x" .. sz[2] .. " " .. k .. " " .. size
+				expectTrue(I.inside(w, h, g), tag .. ": glyph and word inside the plate")
+				expectTrue(g.label.x >= g.icon.x + g.icon.w, tag .. ": the word starts right of the glyph, no overlap")
+			end
+		end
+	end
+	local g2 = io.open("src/Client/Gameplay2.lua", "r"); local gsrc = g2:read("*a"); g2:close()
+	expectTrue(gsrc:find("SortPlateGroup", 1, true) ~= nil, "Gameplay2 attaches SortPlateGroup to the split Rank and Suit plates")
+end })
+
 return tests
