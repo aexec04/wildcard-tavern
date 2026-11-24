@@ -53895,6 +53895,14 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 		FakeGui.layout(gui, size[1], size[2])
 		local plate = backdrop:FindFirstChild("Plate")
 		expectTrue(plate.Size.X.Offset <= size[1] and plate.Size.Y.Offset <= size[2], "the plate fits " .. size[1] .. "x" .. size[2] .. " (" .. plate.Size.X.Offset .. "x" .. plate.Size.Y.Offset .. ")")
+		-- the plate is sized from its content: the content area holds every row (title, body, tiles, reward, button, gaps)
+		local content = plate:FindFirstChild("Content")
+		local rows = 0
+		for _, c in ipairs(content:GetChildren()) do
+			if c:IsA("GuiObject") and c.Size.Y.Offset > 0 then rows = rows + c.Size.Y.Offset end
+		end
+		expectTrue(content.Size.Y.Offset == 0 or plate.Size.Y.Offset + content.Size.Y.Offset >= rows + 40, size[1] .. ": the content area holds all rows (" .. rows .. " px of rows)")
+		expectTrue(plate.Size.Y.Offset >= rows + 40 + 56, size[1] .. ": the plate is at least as tall as its rows (" .. plate.Size.Y.Offset .. " vs " .. rows .. ")")
 		local res = Audit.audit(backdrop, size[1], size[2])
 		expectTrue(res.seen >= 6 and res.buttons >= 1, size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
 		for _, f in ipairs(res) do found[#found + 1] = size[1] .. "x" .. size[2] .. " " .. f end

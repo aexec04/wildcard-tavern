@@ -46,15 +46,19 @@ return function(deps)
 
 	-- The plate art is a wide wooden frame stretched to this box; its parchment is the middle 72 x 54 percent
 	-- (measured from the art: x 0.139 to 0.863, y 0.242 to 0.780). Everything must sit inside it.
-	local PLATE_W, PLATE_H = 560, 520
-	local COMPACT_BELOW, COMPACT_H = 560, 320 -- windows shorter than this use the dark plate, 320 px tall
+	local PLATE_W, PLATE_H = 560, 520 -- the widest the plate ever gets (the painted plate is sized from its content below)
+	-- Content rows (title, body, stat tiles, reward line, button) plus the gaps: the plate is sized from this, never the reverse.
+	local CONTENT_W = 480
+	local ROW_TITLE, ROW_BODY, ROW_TILES, ROW_REWARD, ROW_BUTTON, GAP = 36, 60, 62, 40, 46, 10
+	local CONTENT_H = ROW_TITLE + ROW_BODY + ROW_TILES + ROW_REWARD + ROW_BUTTON + 4 * GAP
+	local DARK_MARGIN = 28
 	local PARCH = { x = 0.139, w = 0.724, y = 0.242, h = 0.538, inset = 12 }
 
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NightVictoryBackdrop"
 	backdrop.Size = UDim2.fromScale(1, 1)
 	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	backdrop.BackgroundTransparency = 0.35
+	backdrop.BackgroundTransparency = 0.2 -- dims the shop behind it enough that nothing competes
 	backdrop.Visible = false
 	backdrop.ZIndex = 60
 	backdrop.Parent = deps.screenGui
@@ -95,7 +99,7 @@ return function(deps)
 	flow.FillDirection = Enum.FillDirection.Vertical
 	flow.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	flow.VerticalAlignment = Enum.VerticalAlignment.Center
-	flow.Padding = UDim.new(0, 8)
+	flow.Padding = UDim.new(0, GAP)
 	flow.Parent = content
 	local order = 0
 	local function nextOrder() order = order + 1 return order end
@@ -119,16 +123,16 @@ return function(deps)
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 32), Font = SERIF, TextStrokeTransparency = 0.5, TextStrokeColor3 = Color3.fromRGB(52, 34, 18),
+	label({ Size = UDim2.new(1, 0, 0, ROW_TITLE), Font = SERIF, TextStrokeTransparency = 0.5, TextStrokeColor3 = Color3.fromRGB(52, 34, 18),
 		TextSize = 24, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
-	label({ Size = UDim2.new(1, 0, 0, 34), TextSize = 14,
+	label({ Size = UDim2.new(1, 0, 0, ROW_BODY), TextSize = 16,
 		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The doors stay open for Endless Nights." }, INK)
 
 	-- Run stats: three parchment tiles. An unfilled value shows a dash, never a placeholder word.
 	local tileRow = Instance.new("Frame")
 	tileRow.Name = "Tiles"
 	tileRow.BackgroundTransparency = 1
-	tileRow.Size = UDim2.new(1, 0, 0, 62)
+	tileRow.Size = UDim2.new(1, 0, 0, ROW_TILES)
 	tileRow.LayoutOrder = nextOrder()
 	tileRow.ZIndex = 62
 	tileRow.Parent = content
@@ -171,11 +175,11 @@ return function(deps)
 	local bestValue = statTile(0.333, "Best hand")
 	local patronsValue = statTile(0.666, "Patrons used")
 
-	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 34), TextSize = 14,
+	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, ROW_REWARD), TextSize = 16,
 		TextColor3 = GOLD, Text = "" }, INK_TITLE)
 
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(240, 46)
+	button.Size = UDim2.fromOffset(240, ROW_BUTTON)
 	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
@@ -191,11 +195,19 @@ return function(deps)
 	local function dress()
 		local setId = HudTheme.setId()
 		local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
-		-- a short window (a phone on its side) cannot hold the 520 px painted plate: it gets the compact dark plate instead, 14 px text kept
+		-- Size the plate from its content. The painted plate's parchment is PARCH of the art, so the art is grown until the
+		-- parchment holds every row; a window too small for that gets the dark code-drawn plate, which is tighter.
 		local win = deps.screenGui.AbsoluteSize
-		local compact = win.Y > 0 and win.Y < COMPACT_BELOW
-		local painted = kitId ~= nil and not compact
-		panel.Size = compact and UDim2.fromOffset(math.min(PLATE_W, math.max(300, win.X - 16)), math.min(COMPACT_H, win.Y - 16)) or UDim2.fromOffset(PLATE_W, PLATE_H)
+		local paintW = (CONTENT_W + 2 * PARCH.inset) / PARCH.w
+		local paintH = (CONTENT_H + 2 * PARCH.inset) / PARCH.h
+		local fitsPainted = win.Y <= 0 or (paintH <= win.Y - 16 and paintW <= win.X - 16)
+		local painted = kitId ~= nil and fitsPainted
+		local darkW = CONTENT_W + 2 * DARK_MARGIN
+		if win.X > 0 then darkW = math.min(darkW, win.X - 16) end
+		local w, h = darkW, CONTENT_H + 2 * DARK_MARGIN
+		if painted then w, h = paintW, paintH end
+		panel.Size = UDim2.fromOffset(math.floor(w), math.floor(h))
+		panelLimit.MaxSize = Vector2.new(math.floor(w), math.floor(h))
 		panel.Image = painted and kitId or ""
 		panel.BackgroundTransparency = painted and 1 or 0
 		panelStroke.Enabled = not painted
@@ -206,8 +218,8 @@ return function(deps)
 			content.Position = UDim2.new(PARCH.x, PARCH.inset, PARCH.y, PARCH.inset)
 			content.Size = UDim2.new(PARCH.w, -2 * PARCH.inset, PARCH.h, -2 * PARCH.inset)
 		else
-			content.Position = UDim2.fromOffset(28, 28)
-			content.Size = UDim2.new(1, -56, 1, -56)
+			content.Position = UDim2.fromOffset(DARK_MARGIN, DARK_MARGIN)
+			content.Size = UDim2.new(1, -2 * DARK_MARGIN, 1, -2 * DARK_MARGIN)
 		end
 		for _, e in ipairs(inkLabels) do
 			e[1].TextColor3 = painted and e[2] or e[3]
