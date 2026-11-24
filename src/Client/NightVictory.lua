@@ -34,25 +34,28 @@ return function(deps)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local TweenService = game:GetService("TweenService")
 
-	local Rules = require(Engine:WaitForChild("OverlayQueueRules"))
-	local HudKit = require(Engine:WaitForChild("HudKit"))
 	local ResultButtonHit = require(Engine:WaitForChild("ResultButtonHit"))
-	local HudTheme = require(script.Parent.HudTheme)
 	local Style = require(Engine:WaitForChild("TavernStyle"))
+	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
+	local RunOverLayout = require(Engine:WaitForChild("RunOverLayout"))
 	local SERIF = Enum.Font[Style.FONTS.title] or Enum.Font.GothamBold -- the same painted serif as TavernKit.title
 	local INK = Color3.fromRGB(52, 34, 18)
 	local INK_TITLE = Color3.fromRGB(104, 54, 12)
 	local TILE = Color3.fromRGB(236, 220, 184) -- parchment stat tiles
+	local WOOD = Color3.fromRGB(46, 32, 20) -- the dark facts plate, the same wood as the Run Over screen
 
-	-- The plate art is a wide wooden frame stretched to this box; its parchment is the middle 72 x 54 percent
-	-- (measured from the art: x 0.139 to 0.863, y 0.242 to 0.780). Everything must sit inside it.
-	local PLATE_W, PLATE_H = 560, 520 -- the widest the plate ever gets (the painted plate is sized from its content below)
-	-- Content rows (title, body, stat tiles, reward line, button) plus the gaps: the plate is sized from this, never the reverse.
+	-- Built like the Run Over win screen: the painted scroll (run_over_scroll_b) is only the backdrop, and every word sits on a dark
+	-- wood facts plate drawn on top of it (higher ZIndex, never under the art), so no painted band can hide text. The plate is sized
+	-- from its rows and centred in the scroll's measured safe rect; a window too small for that gets the plate alone.
 	local CONTENT_W = 480
 	local ROW_TITLE, ROW_BODY, ROW_TILES, ROW_REWARD, ROW_BUTTON, GAP = 36, 60, 62, 40, 46, 10
 	local CONTENT_H = ROW_TITLE + ROW_BODY + ROW_TILES + ROW_REWARD + ROW_BUTTON + 4 * GAP
-	local DARK_MARGIN = 28
-	local PARCH = { x = 0.139, w = 0.724, y = 0.242, h = 0.538, inset = 12 }
+	local PAD = 14
+	local PLATE_W, PLATE_H = CONTENT_W + 2 * PAD, CONTENT_H + 2 * PAD
+	local SCROLL = RunOverLayout.SCROLLS.b
+	local MIN_SCROLL_SCALE = math.max((PLATE_W + 16) / SCROLL.safe.w, (PLATE_H + 16) / SCROLL.safe.h)
+	local Z = 61
 
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NightVictoryBackdrop"
@@ -63,37 +66,50 @@ return function(deps)
 	backdrop.ZIndex = 60
 	backdrop.Parent = deps.screenGui
 
-	-- Same painted plate as Round Complete (the equipped set's kit plate), dark code-drawn plate when the set has none.
-	local panel = Instance.new("ImageLabel")
+	local panel = Instance.new("Frame") -- holds the scroll picture and the facts plate
 	panel.Name = "Plate"
-	panel.ScaleType = Enum.ScaleType.Fit -- the painted plate is always sized at the art's own aspect (PLATE_W : PLATE_H), so Fit never letterboxes or squashes it
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Size = UDim2.fromOffset(PLATE_W, PLATE_H)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.BackgroundColor3 = Color3.fromRGB(46, 34, 24)
-	panel.ZIndex = 61
+	panel.BackgroundTransparency = 1
+	panel.ZIndex = Z
 	panel.Parent = backdrop
-	local panelLimit = Instance.new("UISizeConstraint")
-	panelLimit.MaxSize = Vector2.new(PLATE_W, PLATE_H)
-	panelLimit.Parent = panel
-	local panelCorner = Instance.new("UICorner")
-	panelCorner.CornerRadius = UDim.new(0, 14)
-	panelCorner.Parent = panel
+
+	local picture = Instance.new("ImageLabel") -- the painted scroll, cropped to the art's own box and shown at its own aspect (Fit never squashes it)
+	picture.Name = "ScrollPicture"
+	picture.BackgroundTransparency = 1
+	picture.BorderSizePixel = 0
+	picture.Active = false
+	picture.ScaleType = Enum.ScaleType.Fit
+	picture.Size = UDim2.fromScale(1, 1)
+	picture.ZIndex = Z
+	picture.Visible = false
+	picture.Parent = panel
+
+	local plate = Instance.new("Frame") -- solid dark wood: all text sits on it, above the picture
+	plate.Name = "FactsPlate"
+	plate.AnchorPoint = Vector2.new(0.5, 0.5)
+	plate.Position = UDim2.fromScale(0.5, 0.5)
+	plate.Size = UDim2.fromOffset(PLATE_W, PLATE_H)
+	plate.BackgroundColor3 = WOOD
+	plate.BackgroundTransparency = 0.04
+	plate.ZIndex = Z + 2
+	plate.Parent = panel
+	deps.roundCorner(plate, 14)
 	local panelStroke = Instance.new("UIStroke")
 	panelStroke.Color = Color3.fromRGB(200, 160, 84)
 	panelStroke.Thickness = 3
-	panelStroke.Parent = panel
+	panelStroke.Parent = plate
 	deps.addSoftShadow(panel, 18)
 
-		local content = Instance.new("Frame") -- text area inside the plate's painted border
+	local content = Instance.new("Frame") -- the rows, inset from the plate edge
 	content.Name = "Content"
 	content.BackgroundTransparency = 1
-	content.Size = UDim2.new(PARCH.w, -2 * PARCH.inset, PARCH.h, -2 * PARCH.inset)
-	content.Position = UDim2.new(PARCH.x, PARCH.inset, PARCH.y, PARCH.inset)
-	content.ZIndex = 62
-	content.Parent = panel
+	content.Size = UDim2.new(1, -2 * PAD, 1, -2 * PAD)
+	content.Position = UDim2.fromOffset(PAD, PAD)
+	content.ZIndex = Z + 3
+	content.Parent = plate
 
-	-- Even vertical rhythm: one centred list inside the painted border.
 	local flow = Instance.new("UIListLayout")
 	flow.SortOrder = Enum.SortOrder.LayoutOrder
 	flow.FillDirection = Enum.FillDirection.Vertical
@@ -104,8 +120,7 @@ return function(deps)
 	local order = 0
 	local function nextOrder() order = order + 1 return order end
 
-	local inkLabels = {} -- { label, paintedColor, darkColor }
-	local function label(props, paintedColor)
+	local function label(props)
 		local l = Instance.new("TextLabel")
 		l.BackgroundTransparency = 1
 		l.Font = Enum.Font.Gotham
@@ -113,20 +128,18 @@ return function(deps)
 		l.TextTransparency = 0
 		l.TextStrokeTransparency = 1
 		l.TextWrapped = true
-		l.ZIndex = 62
+		l.ZIndex = Z + 4
 		l.LayoutOrder = nextOrder()
 		for k, v in pairs(props) do
 			l[k] = v
 		end
 		l.Parent = content
-		inkLabels[#inkLabels + 1] = { l, paintedColor, l.TextColor3 }
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, ROW_TITLE), Font = SERIF, TextStrokeTransparency = 0.5, TextStrokeColor3 = Color3.fromRGB(52, 34, 18),
-		TextSize = 24, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
+	label({ Size = UDim2.new(1, 0, 0, ROW_TITLE), Font = SERIF, TextSize = 24, TextColor3 = GOLD, Text = "Tavern Champion" })
 	label({ Size = UDim2.new(1, 0, 0, ROW_BODY), TextSize = 16,
-		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The doors stay open for Endless Nights." }, INK)
+		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The doors stay open for Endless Nights." })
 
 	-- Run stats: three parchment tiles. An unfilled value shows a dash, never a placeholder word.
 	local tileRow = Instance.new("Frame")
@@ -134,14 +147,14 @@ return function(deps)
 	tileRow.BackgroundTransparency = 1
 	tileRow.Size = UDim2.new(1, 0, 0, ROW_TILES)
 	tileRow.LayoutOrder = nextOrder()
-	tileRow.ZIndex = 62
+	tileRow.ZIndex = Z + 4
 	tileRow.Parent = content
 	local function statTile(x, caption)
 		local tile = Instance.new("Frame")
 		tile.Size = UDim2.new(0.333, -8, 0, 62)
 		tile.Position = UDim2.new(x, 4, 0, 0)
 		tile.BackgroundColor3 = TILE
-		tile.ZIndex = 62
+		tile.ZIndex = Z + 4
 		tile.Parent = tileRow
 		deps.roundCorner(tile, 8)
 		local value = Instance.new("TextLabel")
@@ -155,7 +168,7 @@ return function(deps)
 		value.TextStrokeTransparency = 1
 		value.TextWrapped = true
 		value.Text = "-"
-		value.ZIndex = 63
+		value.ZIndex = Z + 5
 		value.Parent = tile
 		local cap = Instance.new("TextLabel")
 		cap.Size = UDim2.new(1, -8, 0, 16)
@@ -167,7 +180,7 @@ return function(deps)
 		cap.TextTransparency = 0
 		cap.TextStrokeTransparency = 1
 		cap.Text = caption
-		cap.ZIndex = 63
+		cap.ZIndex = Z + 5
 		cap.Parent = tile
 		return value
 	end
@@ -175,10 +188,10 @@ return function(deps)
 	local bestValue = statTile(0.333, "Best hand")
 	local patronsValue = statTile(0.666, "Patrons used")
 
-	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, ROW_REWARD), TextSize = 16,
-		TextColor3 = GOLD, Text = "" }, INK_TITLE)
+	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, ROW_REWARD), TextSize = 16, TextColor3 = GOLD, Text = "" })
 
 	local button = Instance.new("TextButton")
+	button.Name = "Continue"
 	button.Size = UDim2.fromOffset(240, ROW_BUTTON)
 	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
@@ -186,51 +199,52 @@ return function(deps)
 	button.TextColor3 = CREAM
 	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	button.Text = "Enter Endless Nights"
-	button.ZIndex = 62
+	button.ZIndex = Z + 4
 	button.Parent = content
-	deps.roundCorner(button, 12) -- no gold chrome or ornate rim: it drew a dark line under the label
+	deps.roundCorner(button, 12) -- the sliced primary plate below replaces this when the kit has one
 	button.AutoButtonColor = true
+	pcall(function() require(script.Parent.TavernKit).paintedButton(button, "primary") end)
 
-	-- Kit plate art + dark ink on its parchment, or the dark code-drawn plate with light text.
+	-- Scroll behind the plate when the window can hold the scroll at a readable size, else the dark plate alone.
 	local function dress()
-		local setId = HudTheme.setId()
-		local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
-		-- Size the plate from its content. The painted plate's parchment is PARCH of the art, so the art is grown until the
-		-- parchment holds every row; a window too small for that gets the dark code-drawn plate, which is tighter.
 		local win = deps.screenGui.AbsoluteSize
-		local paintW = math.max((CONTENT_W + 2 * PARCH.inset) / PARCH.w, (CONTENT_H + 2 * PARCH.inset) / PARCH.h * PLATE_W / PLATE_H)
-		local paintH = paintW * PLATE_H / PLATE_W -- the art's own aspect: the parchment fractions only hold when the frame is not letterboxed
-		local fitsPainted = win.Y <= 0 or (paintH <= win.Y - 16 and paintW <= win.X - 16)
-		local painted = kitId ~= nil and fitsPainted
-		local darkW = CONTENT_W + 2 * DARK_MARGIN
-		if win.X > 0 then darkW = math.min(darkW, win.X - 16) end
-		local w, h = darkW, CONTENT_H + 2 * DARK_MARGIN
-		if painted then w, h = paintW, paintH end
-		panel.Size = UDim2.fromOffset(math.floor(w), math.floor(h))
-		panelLimit.MaxSize = Vector2.new(math.floor(w), math.floor(h))
-		panel.Image = painted and kitId or ""
-		panel.BackgroundTransparency = painted and 1 or 0
-		panelStroke.Enabled = not painted
-		panelCorner.CornerRadius = UDim.new(0, painted and 0 or 14)
-		local shadow = backdrop:FindFirstChild("Shadow") -- the soft shadow frame is a dark box behind the painted plate
-		if shadow and shadow:IsA("GuiObject") then shadow.Visible = not painted end
-		if painted then
-			content.Position = UDim2.new(PARCH.x, PARCH.inset, PARCH.y, PARCH.inset)
-			content.Size = UDim2.new(PARCH.w, -2 * PARCH.inset, PARCH.h, -2 * PARCH.inset)
+		local artId = ContentArt.getImageId("shop_scene", "run_over_scroll_b")
+		local scale = 0
+		if artId and win.X > 0 and win.Y > 0 then
+			local maxScale = math.min((win.X - 24) / SCROLL.art.w, (win.Y - 16) / SCROLL.art.h, 1)
+			scale = math.min(maxScale, RunOverLayout.SCROLL_WIDTH_FRACTION * win.X / SCROLL.art.w)
+			if scale < MIN_SCROLL_SCALE then scale = maxScale end -- the preferred width is too small for the plate: use the largest that fits the window
+		end
+		local onScroll = artId ~= nil and scale >= MIN_SCROLL_SCALE
+		picture.Visible = onScroll
+		local shadow = panel:FindFirstChild("Shadow") -- the soft shadow frame is a dark box behind the panel; the scroll has its own edge
+		if shadow and shadow:IsA("GuiObject") then shadow.Visible = not onScroll end
+		if onScroll then
+			local cw, ch = math.floor(SCROLL.art.w * scale + 0.5), math.floor(SCROLL.art.h * scale + 0.5)
+			panel.Size = UDim2.fromOffset(cw, ch)
+			local ix, iy, iw, ih = ImageSpace.rect(SCROLL.art.x, SCROLL.art.y, SCROLL.art.w, SCROLL.art.h, 1536, 1024)
+			picture.Image = artId
+			picture.ImageRectOffset = Vector2.new(ix, iy)
+			picture.ImageRectSize = Vector2.new(iw, ih)
+			-- centre the plate in the measured safe rect of the scroll (panel pixels), anchored top left
+			local sx = (SCROLL.safe.x - SCROLL.art.x) * scale + ((SCROLL.safe.w * scale) - PLATE_W) / 2
+			local sy = (SCROLL.safe.y - SCROLL.art.y) * scale + ((SCROLL.safe.h * scale) - PLATE_H) / 2
+			plate.AnchorPoint = Vector2.new(0, 0)
+			plate.Position = UDim2.fromOffset(math.floor(sx + 0.5), math.floor(sy + 0.5))
 		else
-			content.Position = UDim2.fromOffset(DARK_MARGIN, DARK_MARGIN)
-			content.Size = UDim2.new(1, -2 * DARK_MARGIN, 1, -2 * DARK_MARGIN)
+			local w = PLATE_W
+			if win.X > 0 then w = math.min(w, win.X - 16) end
+			panel.Size = UDim2.fromOffset(w, PLATE_H)
+			plate.AnchorPoint = Vector2.new(0.5, 0.5)
+			plate.Position = UDim2.fromScale(0.5, 0.5)
 		end
-		for _, e in ipairs(inkLabels) do
-			e[1].TextColor3 = painted and e[2] or e[3]
-		end
+		plate.Size = UDim2.fromOffset(math.min(PLATE_W, panel.Size.X.Offset), PLATE_H)
 	end
 
-	dress() -- paint now, and again whenever the plate becomes visible or the set changes
+	dress() -- paint now, and again whenever the plate becomes visible or the window changes
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 		if backdrop.Visible then dress() end
 	end)
-	HudTheme.onSkin(dress)
 	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		if backdrop.Visible then dress() end
 	end)

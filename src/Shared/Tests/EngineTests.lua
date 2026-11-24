@@ -19727,10 +19727,10 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(has("GameOver.lua", "b.TextStrokeTransparency = 1"), "Run Over buttons have no heavy text stroke")
 	expectTrue(has("GameOver.lua", "ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border"), "Run Over strokes use Border mode, so text is not doubled")
 	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("GameOver.lua", '"StoreBackdrop"'), "result screens hide StoreBackdrop and its tab strip")
-	expectTrue(has("NightVictory.lua", "Rules.KIT_PLATE") and has("NightVictory.lua", "ImageLabel") and not has("NightVictory.lua", "👑") and not has("NightVictory.lua", "♾") and has("NightVictory.lua", 'Text = "-"'), "Night victory uses the Round Complete kit plate, no emoji, stat values start as a dash")
-	expectTrue(has("NightVictory.lua", "HudKit.piece(setId, Rules.KIT_PLATE)") and has("OverlayQueue.lua", "HudKit.piece(setId, Rules.KIT_PLATE)"), "Night victory and Round Complete resolve the same kit plate id")
-	expectTrue(has("NightVictory.lua", 'GetPropertyChangedSignal("Visible")') and not has("NightVictory.lua", "polishButton(button"), "Night victory paints its plate whenever it becomes visible, and its button has no chrome underline")
-	expectTrue(has("NightVictory.lua", "PARCH.y, PARCH.inset") and has("NightVictory.lua", 'FindFirstChild("Shadow")') and has("NightVictory.lua", "PLATE_W, PLATE_H = 560, 520"), "Night victory content sits inside the plate's parchment and its shadow box is hidden while painted")
+	expectTrue(has("NightVictory.lua", "run_over_scroll_b") and has("NightVictory.lua", "FactsPlate") and not has("NightVictory.lua", "👑") and not has("NightVictory.lua", "♾") and has("NightVictory.lua", 'Text = "-"'), "Night victory is built on the Run Over scroll with a dark facts plate, no emoji, stat values start as a dash")
+	expectTrue(not has("NightVictory.lua", "KIT_PLATE") and has("NightVictory.lua", 'paintedButton(button, "primary")'), "Night victory no longer uses the wood frame kit plate and its button is the sliced primary plate")
+	expectTrue(has("NightVictory.lua", 'GetPropertyChangedSignal("Visible")') and not has("NightVictory.lua", "polishButton(button"), "Night victory repaints whenever it becomes visible, and its button has no chrome underline")
+	expectTrue(has("NightVictory.lua", "SCROLL.safe") and has("NightVictory.lua", 'FindFirstChild("Shadow")'), "Night victory plate sits in the scroll safe rect and its shadow box is hidden on the scroll")
 	expectTrue(has("GameOver.lua", "Text = patron.name or patron.id"), "Run Over names each patron under its medallion")
 	expectFalse(has("GameOver.lua", "Continue\""), "Run Over has no Continue button (there is no second screen to continue to)")
 	local setupSrc = read("src/Client/RunSetup.lua") or ""
@@ -53870,11 +53870,11 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 	local Audit = require(script.Parent.LiveReadability)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "HudKit", "ResultButtonHit", "TavernStyle" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "ResultButtonHit", "TavernStyle", "ContentArt", "ImageSpace", "RunOverLayout" }) do map[n] = require(E[n]) end
 	local stubs = {
 		ParticleBurst = function() return { burst = function() end } end,
 		ClientSettings = { get = function() return true end },
-		HudTheme = { setId = function() return nil end, onSkin = function() end },
+		TavernKit = { paintedButton = function() end },
 		PopupDismiss = { attach = function() end }, Cue = { play = function() end }, ResultGuard = { hold = function() end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
@@ -53892,16 +53892,16 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 		local backdrop = gui:FindFirstChild("NightVictoryBackdrop")
 		backdrop.Visible = true
 		FakeGui.layout(gui, size[1], size[2])
-		local plate = backdrop:FindFirstChild("Plate")
-		expectTrue(plate.Size.X.Offset <= size[1] and plate.Size.Y.Offset <= size[2], "the plate fits " .. size[1] .. "x" .. size[2] .. " (" .. plate.Size.X.Offset .. "x" .. plate.Size.Y.Offset .. ")")
-		-- the plate is sized from its content: the content area holds every row (title, body, tiles, reward, button, gaps)
+		local panel = backdrop:FindFirstChild("Plate")
+		local plate = panel:FindFirstChild("FactsPlate")
+		expectTrue(panel.Size.X.Offset <= size[1] and panel.Size.Y.Offset <= size[2], "the plate fits " .. size[1] .. "x" .. size[2] .. " (" .. panel.Size.X.Offset .. "x" .. panel.Size.Y.Offset .. ")")
+		-- the facts plate is sized from its rows: the content area holds every row (title, body, tiles, reward, button, gaps)
 		local content = plate:FindFirstChild("Content")
 		local rows = 0
 		for _, c in ipairs(content:GetChildren()) do
 			if c:IsA("GuiObject") and c.Size.Y.Offset > 0 then rows = rows + c.Size.Y.Offset end
 		end
-		expectTrue(content.Size.Y.Offset == 0 or plate.Size.Y.Offset + content.Size.Y.Offset >= rows + 40, size[1] .. ": the content area holds all rows (" .. rows .. " px of rows)")
-		expectTrue(plate.Size.Y.Offset >= rows + 40 + 56, size[1] .. ": the plate is at least as tall as its rows (" .. plate.Size.Y.Offset .. " vs " .. rows .. ")")
+		expectTrue(plate.AbsoluteSize.Y >= rows + 40 + 28, size[1] .. ": the plate is at least as tall as its rows (" .. plate.AbsoluteSize.Y .. " vs " .. rows .. ")")
 		local res = Audit.audit(backdrop, size[1], size[2])
 		expectTrue(res.seen >= 6 and res.buttons >= 1, size[1] .. ": the audit read " .. res.seen .. " labels and " .. res.buttons .. " buttons")
 		for _, f in ipairs(res) do found[#found + 1] = size[1] .. "x" .. size[2] .. " " .. f end
@@ -53910,17 +53910,17 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 	expectEqual(#found, 0, "the Night victory plate has " .. #found .. " readability findings")
 end })
 
-table.insert(tests, { name = "Night victory plate painted: every label, tile and the button sit inside the parchment rect of the art-aspect plate", fn = function()
+table.insert(tests, { name = "Night victory plate on the Run Over scroll: every live label, tile and the button sit inside the dark facts plate, above the scroll art, and the plate sits inside the scroll's safe rect", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "ResultButtonHit", "TavernStyle" }) do map[n] = require(E[n]) end
-	map.HudKit = { piece = function() return "rbxassetid://1" end }
+	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "ResultButtonHit", "TavernStyle", "ImageSpace", "RunOverLayout" }) do map[n] = require(E[n]) end
+	map.ContentArt = { getImageId = function() return "rbxassetid://1" end }
 	local stubs = {
 		ParticleBurst = function() return { burst = function() end } end,
 		ClientSettings = { get = function() return true end },
-		HudTheme = { setId = function() return "classic_tavern" end, onSkin = function() end },
+		TavernKit = { paintedButton = function() end },
 		PopupDismiss = { attach = function() end }, Cue = { play = function() end }, ResultGuard = { hold = function() end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
@@ -53928,7 +53928,8 @@ table.insert(tests, { name = "Night victory plate painted: every label, tile and
 	state.services.UserInputService = { InputBegan = FakeGui.signal() }
 	state.services.GuiService = {}
 	local NightVictory = FakeGui.load("src/Client/NightVictory.lua", env)
-	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 } }) do
+	local SC = map.RunOverLayout.SCROLLS.b
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1024, 768 } }) do
 		local gui = FakeGui.new("ScreenGui")
 		gui.AbsoluteSize = { X = size[1], Y = size[2] }
 		local noop = function() end
@@ -53937,21 +53938,39 @@ table.insert(tests, { name = "Night victory plate painted: every label, tile and
 		local backdrop = gui:FindFirstChild("NightVictoryBackdrop")
 		backdrop.Visible = true
 		FakeGui.layout(gui, size[1], size[2])
-		local plate = backdrop:FindFirstChild("Plate")
-		expectTrue(math.abs(plate.AbsoluteSize.X / plate.AbsoluteSize.Y - 560 / 520) < 0.02, size[1] .. ": the painted plate keeps the art's 560:520 aspect, so Fit never letterboxes it and the parchment fractions hold")
+		local panel = backdrop:FindFirstChild("Plate")
+		local picture = panel:FindFirstChild("ScrollPicture")
+		local plate = panel:FindFirstChild("FactsPlate")
+		expectTrue(picture.Visible == true, size[1] .. ": the scroll art is drawn")
+		expectTrue(tostring(picture.ScaleType):find("Stretch") == nil and math.abs(panel.AbsoluteSize.X / panel.AbsoluteSize.Y - SC.art.w / SC.art.h) < 0.02, size[1] .. ": the scroll keeps the art's own aspect")
+		-- the facts plate sits inside the scroll's measured safe rect (panel pixels)
+		local scale = panel.AbsoluteSize.X / SC.art.w
+		local sx, sy = panel.AbsolutePosition.X + (SC.safe.x - SC.art.x) * scale, panel.AbsolutePosition.Y + (SC.safe.y - SC.art.y) * scale
 		local px, py, pw, ph = plate.AbsolutePosition.X, plate.AbsolutePosition.Y, plate.AbsoluteSize.X, plate.AbsoluteSize.Y
-		local L, T, R, B = px + 0.139 * pw, py + 0.242 * ph, px + 0.863 * pw, py + 0.780 * ph
+		expectTrue(px >= sx - 0.5 and py >= sy - 0.5 and px + pw <= sx + SC.safe.w * scale + 0.5 and py + ph <= sy + SC.safe.h * scale + 0.5,
+			string.format("%d: the facts plate (%.0f,%.0f %.0fx%.0f) is inside the safe rect", size[1], px, py, pw, ph))
 		local checked = 0
 		for _, d in ipairs(plate:GetDescendants()) do
 			if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Visible ~= false then
 				local x, y, w, h = d.AbsolutePosition.X, d.AbsolutePosition.Y, d.AbsoluteSize.X, d.AbsoluteSize.Y
 				checked = checked + 1
-				expectTrue(x >= L - 0.5 and y >= T - 0.5 and x + w <= R + 0.5 and y + h <= B + 0.5,
-					string.format("%d: %s inside the parchment (%.0f,%.0f %.0fx%.0f vs %.0f,%.0f to %.0f,%.0f)", size[1], d.Name, x, y, w, h, L, T, R, B))
+				expectTrue(x >= px - 0.5 and y >= py - 0.5 and x + w <= px + pw + 0.5 and y + h <= py + ph + 0.5,
+					string.format("%d: %s inside the plate (%.0f,%.0f %.0fx%.0f)", size[1], d.Name, x, y, w, h))
+				expectTrue(d.ZIndex > picture.ZIndex, size[1] .. ": " .. d.Name .. " is drawn above the scroll art")
 			end
 		end
 		expectTrue(checked >= 8, size[1] .. ": read " .. checked .. " text elements")
 	end
+	-- a window too small for the scroll gets the dark plate alone, still inside the window
+	local gui = FakeGui.new("ScreenGui")
+	gui.AbsoluteSize = { X = 800, Y = 360 }
+	local noop = function() end
+	NightVictory({ screenGui = gui, addSoftShadow = noop, roundCorner = noop, playClickSfx = noop, tweenTo = noop, getLatestState = function() return nil end,
+		StateUpdatedRemote = { OnClientEvent = FakeGui.signal() }, getBestHand = function() return nil end })
+	local backdrop = gui:FindFirstChild("NightVictoryBackdrop")
+	backdrop.Visible = true
+	FakeGui.layout(gui, 800, 360)
+	expectTrue(backdrop:FindFirstChild("Plate"):FindFirstChild("ScrollPicture").Visible == false, "800x360: no scroll, the dark plate alone")
 end })
 
 table.insert(tests, { name = "VictoryLook compact pick: short windows drop the art, keep three cards inside the screen above a 44 px button, roomy windows keep the portrait cards", fn = function()
