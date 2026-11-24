@@ -24,6 +24,19 @@ local card, seatCard, top, glowFrames, lastFill, lastBossId, seatBossId, pulseTw
 
 local function calm() return ClientSettings.get("reduceShake") == true end
 
+-- The emblem for a boss with no portrait art: its painted rule glyph (Engine/BossRuleGlyphs) on a dark plate, else the serif letter icon.
+local function setFace(face, hasArt, boss)
+	local g = face:FindFirstChild("Glyph"); if g then g:Destroy() end
+	face.BackgroundTransparency = 1
+	face.Text = ""
+	if hasArt then face.Visible = false; return end
+	face.Visible = true
+	local okG, drawn = pcall(function() return require(script.Parent.BossGlyph).apply(face, boss and boss.id, { 246, 196, 70 }) end)
+	if not okG then warn("[BossCardFX] glyph failed: " .. tostring(drawn)) end
+	if okG and drawn then face.BackgroundTransparency = 0; return end
+	face.Text = Moments.bossIcon(boss and boss.rules)
+end
+
 local function stopPulse()
 	for _, tw in ipairs(pulseTweens or {}) do tw:Cancel() end
 	pulseTweens = nil
@@ -59,7 +72,9 @@ local function buildCard(layer)
 	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 8); pc.Parent = pf
 	local ps = Instance.new("UIStroke"); ps.Color = Color3.fromRGB(150, 38, 30); ps.Thickness = 2; ps.Parent = pf
 	local face = label(pf, "Face", Enum.Font.GothamBold, CREAM, 30)
-	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"
+	face.AnchorPoint = Vector2.new(0.5, 0.5); face.Position = UDim2.fromScale(0.5, 0.5)
+	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"; face.Font = Enum.Font.Fondamento
+	local fr = Instance.new("UIAspectRatioConstraint"); fr.AspectRatio = 1; fr.Parent = face -- the drawn glyph stays square
 	local nm = label(f, "Title", Enum.Font.GothamBold, GOLD, 29) -- the name is small and gold above the rule text
 	nm.TextXAlignment = Enum.TextXAlignment.Left; nm.TextYAlignment = Enum.TextYAlignment.Top; nm.TextTruncate = Enum.TextTruncate.AtEnd
 	local rl = label(f, "Rule", Enum.Font.Gotham, CREAM, 29)
@@ -100,7 +115,9 @@ local function buildSeatCard(layer)
 	local art = Instance.new("Frame"); art.Name = "Art"; art.BackgroundTransparency = 1; art.BorderSizePixel = 0; art.Active = false
 	art.Size = UDim2.fromScale(1, 1); art.ZIndex = 29; art.ClipsDescendants = true; art.Parent = f
 	local face = label(art, "Face", Enum.Font.GothamBold, CREAM, 30)
-	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"
+	face.AnchorPoint = Vector2.new(0.5, 0.5); face.Position = UDim2.fromScale(0.5, 0.5)
+	face.Size = UDim2.fromScale(1, 1); face.TextScaled = true; face.Text = "!"; face.Font = Enum.Font.Fondamento
+	local fr = Instance.new("UIAspectRatioConstraint"); fr.AspectRatio = 1; fr.Parent = face -- the drawn glyph stays square
 	local strip = label(f, "Title", Enum.Font.GothamBold, CREAM, 32)
 	strip.BackgroundTransparency = 0.2; strip.BackgroundColor3 = Color3.fromRGB(34, 16, 12)
 	strip.AnchorPoint = Vector2.new(0, 1); strip.Position = UDim2.fromScale(0, 1); strip.Size = UDim2.new(1, 0, 0, 24)
@@ -176,6 +193,8 @@ local function applySeatGlow()
 	clearGlow() -- the Patron seats carry no resting edge or halo any more; they glow on hover only (PatronRow + HoverGlowFX)
 end
 
+M.setFace = setFace
+
 function M.update(layer, state, rects, viewW, viewH)
 	local name, rule = Moments.bossText(state)
 	if not name or state.phase ~= "playing" or layer:FindFirstChild("BossIntro") then M.hide(); return end
@@ -217,8 +236,7 @@ function M.update(layer, state, rects, viewW, viewH)
 			local artId = boss and boss.id and ContentArt.getImageId("boss_rounds", boss.id) or nil
 			local okA, art = pcall(function() return require(script.Parent.PatronPlaque).applyById(card.Portrait, artId, { size = UDim2.fromScale(1, 1), zIndex = 30, cornerRadius = 8 }) end)
 			if okA and art then art.ScaleType = Enum.ScaleType.Crop end
-			card.Portrait.Face.Visible = not (okA and art)
-			card.Portrait.Face.Text = Moments.bossIcon(boss and boss.rules)
+			setFace(card.Portrait.Face, okA and art, boss)
 		end
 		card.Glow.Transparency = 0
 	else
@@ -247,8 +265,7 @@ function M.update(layer, state, rects, viewW, viewH)
 			local artId = boss and boss.id and ContentArt.getImageId("boss_rounds", boss.id) or nil
 			local okA, art = pcall(function() return require(script.Parent.PatronPlaque).applyById(seatCard.Art, artId, { size = UDim2.fromScale(1, 1), zIndex = 30, cornerRadius = 8 }) end)
 			if okA and art then art.ScaleType = Enum.ScaleType.Crop end
-			seatCard.Art.Face.Visible = not (okA and art)
-			seatCard.Art.Face.Text = Moments.bossIcon(boss and boss.rules)
+			setFace(seatCard.Art.Face, okA and art, boss)
 		end
 		-- No resting glow: the soft rings stay hidden and nothing pulses. The Round Select style hover glow (HoverGlowFX) is the only light.
 		seatCard.Glow.Thickness = 1

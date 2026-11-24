@@ -55255,6 +55255,50 @@ tests[#tests + 1] = ({ name = "DailyStrip LIVE: the strip hides when FullScreenO
 	expectTrue(strip.Visible, "closing the page brings the strip back")
 end })
 
+tests[#tests + 1] = ({ name = "BossCardFX LIVE: frozen_hand, quiet_tavern and short_table without portrait art show the painted glyph on the Boss card and the Boss seat, never an N or !", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local Layout = require(Engine.Gameplay2Layout)
+	local noArt = { applyById = function() return nil end }
+	local stubs = {
+		ClientSettings = { get = function() return true end },
+		PatronPlaque = noArt,
+		BossPresenceFX = { hide = function() end },
+		TavernKit = { painted = function() end },
+		HoverGlowFX = { attach = function() end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local map = { BossCard = require(Engine.BossCard), Gameplay2Moments = require(Engine.Gameplay2Moments), ContentArt = { getImageId = function() return nil end }, BossRuleGlyphs = require(Engine.BossRuleGlyphs) }
+	env.game = { GetService = function(_, name)
+		if name == "ReplicatedStorage" then return { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end } end
+		return state.services[name] or {}
+	end }
+	stubs.BossGlyph = FakeGui.load("src/Client/BossGlyph.lua", env)
+	local M = FakeGui.load("src/Client/BossCardFX.lua", env)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		for _, id in ipairs({ "frozen_hand", "quiet_tavern", "short_table" }) do
+			local layer = FakeGui.new("Frame"); layer.Name = "Layer"
+			local rects = Layout.rects(sz[1], sz[2])
+			local st = { phase = "playing", round = 6, bossModifier = { id = id, name = "Boss", description = "A rule.", rules = { "x" } } }
+			M.update(layer, st, rects, sz[1], sz[2])
+			for _, where in ipairs({ { "BossCard", "Portrait" }, { "BossSeatCard", "Art" } }) do
+				local card = layer:FindFirstChild(where[1], true)
+				expectTrue(card ~= nil, id .. " " .. where[1] .. " exists")
+				-- the left Boss card has no room at 800x450 (BossCard.cardRect is nil there, the seat card carries the emblem)
+				local shown = card ~= nil and (where[1] == "BossSeatCard" or require(Engine.BossCard).cardRect(rects, sz[1], sz[2]) ~= nil)
+				local face = shown and card[where[2]]:FindFirstChild("Face")
+				if shown then
+					local glyph = face and face:FindFirstChild("Glyph")
+					expectTrue(glyph ~= nil and #glyph:GetChildren() >= 3, id .. " " .. where[1] .. " draws the glyph shapes at " .. sz[1])
+					expectTrue(face.Text ~= "N" and face.Text ~= "!", id .. " " .. where[1] .. " has no letter or mark: '" .. tostring(face.Text) .. "'")
+				end
+			end
+			M.hide()
+		end
+	end
+end })
+
 table.insert(tests, { name = "Stranger scroll: Accept and No thanks are 44 px tall at 1920x1080, 1280x720 and 800x450", fn = function()
 	local L = require(script.Parent.Parent.Engine.ScrollOfferLayout)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
