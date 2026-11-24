@@ -327,6 +327,10 @@ function MenuBoard.build(parent)
 				rank.Position = UDim2.fromOffset(rank.Position.X.Offset, R.textY)
 				rank.Size = UDim2.new(rank.Size.X.Scale, rank.Size.X.Offset, 0, R.textH)
 				rank.TextWrapped = false
+				do -- one line only: "Rank 10  90 / 260 XP" shrinks (12 px at the least) to the label width, so "XP" never wraps onto the bar
+					local w = NOTE_W - rank.Position.X.Offset - 30 -- the label is 1 scale minus 96 px wide, the same 30 px clear of the plate end
+					rank.TextSize = NoteText.oneLineSize(rank.Text, w, rank.TextSize)
+				end
 				local track, rw = note.Track, note.Reward
 				track.Position = UDim2.new(track.Position.X.Scale, track.Position.X.Offset, 0, R.barY)
 				rw.Position = UDim2.new(rw.Position.X.Scale, rw.Position.X.Offset, 0, R.rewardY)

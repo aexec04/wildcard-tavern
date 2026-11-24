@@ -186,6 +186,7 @@ function M.update(state)
 		local cap = label:FindFirstChildOfClass("UITextSizeConstraint")
 		if cap then cap:Destroy() end
 		label.TextWrapped = false -- the timer stays on one line
+		label.Size, label.Position, label.TextXAlignment = UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), Enum.TextXAlignment.Center -- the word is centred inside the plate, never wider than it
 	end
 	chest.Position = UDim2.fromOffset(cr.x, cr.y)
 	chest.Size = UDim2.fromOffset(cr.w, cr.h)

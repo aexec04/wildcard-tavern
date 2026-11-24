@@ -29713,6 +29713,26 @@ table.insert(tests, { name = "First session polish: one sign per blessing line, 
 	expectTrue(scene:find("tween(edge, { Transparency = 1 }, 0.35)", 1, true) ~= nil, "the speech plate's outline fades with it")
 	expectTrue(scene:find('shopFrame:FindFirstChild("PackPanel")', 1, true) ~= nil, "no speech plate over the pack screen")
 end })
+table.insert(tests, { name = "Menu Rank plate line and Claim reward word fit their parents on one line at every size", fn = function()
+	local NT = require(script.Parent.Parent.Engine.MenuNoteText)
+	local F = require(script.Parent.Parent.Engine.TextFit)
+	local DS = require(script.Parent.Parent.Engine.DailyStrip)
+	local labelW = NT.NOTE_W - 66 - 30 -- the Rank label inside the pinned note (MenuBoard NOTE_W), clear of the badge and the plate end
+	for _, v in ipairs({ { 10, 90, 260 }, { 30, 12345, 56789 }, { 1, 0, 80 } }) do
+		local line = NT.rankLines({ rank = v[1], into = v[2], need = v[3] }).main
+		for _, want in ipairs({ 16, 24 }) do
+			local size = NT.oneLineSize(line, labelW, want)
+			expectTrue(size >= 12 and (F.width(line, size) <= labelW or size == 12), line .. " fits one line at " .. want)
+		end
+	end
+	for _, w in ipairs({ 600, 800, 1100 }) do
+		local c = DS.chestRect({ w = w, h = 48 })
+		local inner = c.w - 2 * DS.CHEST_PAD
+		local size = F.bestSize("Claim reward", inner, c.h, 12, 16)
+		expectTrue(size ~= nil and F.width("Claim reward", size) <= inner, "Claim reward fits its button inside the padding at strip " .. w)
+		expectTrue(c.w >= DS.MIN_TOUCH and c.h >= DS.MIN_TOUCH, "button stays 44 px")
+	end
+end })
 table.insert(tests, { name = "Notice Board: news, Rank and Next goal never overlap and the Rank outranks the news (real heights)", fn = function()
 	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
 	local RP = require(script.Parent.Parent.Engine.RankPlateLayout)
