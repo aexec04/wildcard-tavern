@@ -13,6 +13,8 @@ local TweenService = game:GetService("TweenService")
 
 local LoadingScreenUI = {}
 
+local PIC_H = 1024
+local GROOVE_X, GROOVE_Y = 0.12, 0.31 -- the dark groove inside the painted beam, as fractions of the bar
 local BAR_ART = { x = 0, y = 360, w = 1536, h = 305 } -- the beam inside the 1536x1024 picture
 -- the track sits 14 px inside the 700 x 80 plate (fractions of the plate, so it scales with it)
 local INSET_X, INSET_Y = 14 / 700, 14 / 80
@@ -167,12 +169,15 @@ function LoadingScreenUI.show(playerGui, opts)
 	local paintedBar = validId(SceneArt.loading_bar_frame)
 	local channel = Instance.new("Frame")
 	channel.Name = "Channel"
-	channel.Position = UDim2.fromScale(INSET_X, INSET_Y)
-	channel.Size = UDim2.fromScale(1 - 2 * INSET_X, 1 - 2 * INSET_Y)
+	-- with the painted beam the track sits in its groove (the groove is opaque, so the beam goes behind the track)
+	local ix, iy = INSET_X, INSET_Y
+	if paintedBar then ix, iy = GROOVE_X, GROOVE_Y end
+	channel.Position = UDim2.fromScale(ix, iy)
+	channel.Size = UDim2.fromScale(1 - 2 * ix, 1 - 2 * iy)
 	channel.BackgroundColor3 = Color3.fromRGB(Layout.TRACK.track[1], Layout.TRACK.track[2], Layout.TRACK.track[3])
 	channel.BorderSizePixel = 0
 	channel.ClipsDescendants = true
-	channel.ZIndex = 1
+	channel.ZIndex = paintedBar and 3 or 1
 	channel.Parent = bar
 	local cc = Instance.new("UICorner")
 	cc.CornerRadius = UDim.new(0.5, 0)
@@ -181,13 +186,14 @@ function LoadingScreenUI.show(playerGui, opts)
 	if paintedBar then
 		local frame = Instance.new("ImageLabel")
 		frame.Name = "BarFrame"
-		frame.Size = UDim2.fromScale(1, 1)
+		-- the whole picture, placed by proportion so the beam lands on the bar at any uploaded pixel size
+		-- (a pixel crop with ImageRect shows only the top rim when the upload is not exactly 1536x1024)
+		frame.Size = UDim2.fromScale(1, PIC_H / BAR_ART.h)
+		frame.Position = UDim2.fromScale(0, -BAR_ART.y / BAR_ART.h)
 		frame.BackgroundTransparency = 1
 		frame.Image = SceneArt.loading_bar_frame
-		frame.ImageRectOffset = Vector2.new(BAR_ART.x, BAR_ART.y)
-		frame.ImageRectSize = Vector2.new(BAR_ART.w, BAR_ART.h)
 		frame.ScaleType = Enum.ScaleType.Stretch
-		frame.ZIndex = 3
+		frame.ZIndex = 1
 		frame.Parent = bar
 	else
 		local wood = Instance.new("Frame")
