@@ -30,8 +30,44 @@ local function expected(setId, part)
 end
 
 local CREAM = Color3.fromRGB(250, 240, 220)
+
+-- The draw pile is Classic Tavern's purple picture only for Classic. Every other Card Set shows its own card back as the pile (snowflakes for
+-- Frosted Garden, and so on), with two darker copies offset behind it for thickness. Without that set's art the classic picture stays.
+local function paintDeck(inst, setId)
+	if inst:GetAttribute("ClassicImage") == nil then inst:SetAttribute("ClassicImage", inst.Image) end
+	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
+	local backs = require(Engine:WaitForChild("CardBackArt"))
+	local set = setId and setId ~= CosmeticSets.DefaultId and CosmeticSets.getById(setId) or nil
+	local id = set and backs[set.cardBackId] or nil
+	if type(id) ~= "string" or id == "" or id == "rbxassetid://0" then id = nil end
+	for _, n in ipairs({ "PileLayer1", "PileLayer2" }) do
+		local old = inst:FindFirstChild(n)
+		if old then old:Destroy() end
+	end
+	if not id then
+		inst.Image = inst:GetAttribute("ClassicImage")
+		return
+	end
+	inst.Image = id
+	for i, off in ipairs({ 9, 5 }) do
+		local layer = Instance.new("ImageLabel")
+		layer.Name = "PileLayer" .. i
+		layer.BackgroundTransparency = 1
+		layer.BorderSizePixel = 0
+		layer.Active = false
+		layer.Image = id
+		layer.ScaleType = Enum.ScaleType.Fit
+		layer.ImageColor3 = Color3.fromRGB(120, 125, 140)
+		layer.Size = UDim2.fromScale(1, 1)
+		layer.Position = UDim2.fromOffset(off, off)
+		layer.ZIndex = math.max(1, inst.ZIndex - 1)
+		layer.Parent = inst
+	end
+end
+
 local function paint(inst, setId)
 	local part = Pure.partOf(inst.Name)
+	if part == "deck" and inst:IsA("ImageLabel") then paintDeck(inst, setId) end
 	if part and inst:IsA("ImageLabel") then inst.ImageColor3 = expected(setId, part) end
 	if (inst.Name == "ScoreCaption" or inst.Name == "ScoreProgress") and inst:IsA("TextLabel") then -- Score plate words wear the set accent (7:1 on its plate), classic keeps cream
 		local ink = nil

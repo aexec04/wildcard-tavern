@@ -16,9 +16,9 @@ TableDress.PARTS = {
 	banner = { "WallBannerLeft", "WallBannerRight" },
 	seat = { "SeatFacePicture" },
 }
--- how far each part leans from white toward the set's card back colour. The pile and the wall banners are 0: every set keeps
--- Classic Tavern's pile and banners exactly (same picture, same colour); only empty Patron seats lean toward the set.
-TableDress.STRENGTH = { deck = 0, banner = 0, seat = 0.85 }
+-- how far each part leans from white toward the set's card back colour. The wall banners and empty Patron seats lean toward the set.
+-- The draw pile is not tinted: Client/TableDress swaps in the set's own card back (Classic keeps its purple picture).
+TableDress.STRENGTH = { deck = 0, banner = 0.6, seat = 0.85 }
 
 local byName = {}
 for part, names in pairs(TableDress.PARTS) do

@@ -45601,28 +45601,33 @@ table.insert(tests, { name = "Table dress: empty Patron seats lean firmly toward
 	assert(w[1] == 255 and w[2] == 255 and w[3] == 255, "classic seat unchanged")
 end })
 
-table.insert(tests, { name = "Table dress: the pile and the wall banners stay exactly Classic for every set (white tint, shared picture), only seat faces lean toward the set", fn = function()
+table.insert(tests, { name = "Table dress: Classic and unknown sets are untouched; banners and seats lean toward each set, the pile swaps to the set's own card back", fn = function()
 	local TD = require(script.Parent.Parent.Engine.TableDress)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Backs = require(script.Parent.Parent.Engine.CardBackArt)
 	assert(TD.partOf("DeckBook") == "deck" and TD.partOf("WallBannerLeft") == "banner" and TD.partOf("WallBannerRight") == "banner" and TD.partOf("SeatFacePicture") == "seat", "names map to parts")
 	assert(TD.partOf("Nope") == nil, "unknown name")
-	assert(TD.backImage == nil and TD.BACK_PARTS == nil, "no per set card back swap on the pile or banners")
 	for part in pairs(TD.PARTS) do
 		assert(TD.tintFor("classic_tavern", part)[1] == 255 and TD.tintFor("no_such_set", part)[1] == 255, "classic and unknown untouched for " .. part)
 		for _, set in ipairs(CS.Definitions) do
 			local c = TD.tintFor(set.id, part)
-			if part == "seat" then
-				if set.id ~= CS.DefaultId then assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " seat leans off white") end
-			else
-				assert(c[1] == 255 and c[2] == 255 and c[3] == 255, set.id .. " " .. part .. " stays Classic white")
+			if part == "deck" then
+				assert(c[1] == 255 and c[2] == 255 and c[3] == 255, set.id .. " pile is not tinted, it swaps picture")
+			elseif set.id ~= CS.DefaultId then
+				assert(c[1] ~= 255 or c[2] ~= 255 or c[3] ~= 255, set.id .. " " .. part .. " leans off white")
 			end
+		end
+	end
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= CS.DefaultId then
+			assert(type(Backs[set.cardBackId]) == "string" and Backs[set.cardBackId] ~= "", set.id .. " has a card back picture for its pile")
 		end
 	end
 	if not io then return end
 	local f = io.open("src/Client/TableDress.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	assert(not src:find("backImage", 1, true) and not src:find("ClassicImage", 1, true), "client never swaps the pile or banner picture")
+	assert(src:find("ClassicImage", 1, true) and src:find("CardBackArt", 1, true), "client swaps the pile to the set's back and can restore Classic")
 end })
 
 table.insert(tests, { name = "Table dress live: real ImageLabels change colour after a set switch (runs where Instance exists, else checks the wiring)", fn = function()
@@ -55365,6 +55370,8 @@ tests[#tests + 1] = ({ name = "DailyStrip.menuRectAt: at 1920x957, 1280x720 and 
 end }) -- tests below
 
 return tests
+
+
 
 
 
