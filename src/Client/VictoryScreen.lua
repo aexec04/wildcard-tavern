@@ -342,7 +342,7 @@ function M.showPick(screenGui, choice, onPick, onSkip)
 		ruleLabel.TextScaled = true
 		local ruleCap = Instance.new("UITextSizeConstraint")
 		ruleCap.MaxTextSize = ruleSize
-		ruleCap.MinTextSize = 11
+		ruleCap.MinTextSize = 14
 		ruleCap.Parent = ruleLabel
 		local pick = Instance.new("TextButton")
 		pick.Name = "Pick"
