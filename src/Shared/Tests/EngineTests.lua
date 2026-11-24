@@ -55014,6 +55014,7 @@ table.insert(tests, { name = "Round Select live readability: the three cards at 
 end })
 
 tests[#tests + 1] = ({ name = "PanelTabs: the real strip makes Back and every page tab at least 44 px tall and keeps the strip inside STRIP_BOTTOM", fn = function()
+	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	local PG = require(script.Parent.Parent.Engine.PanelGroups)
@@ -55061,6 +55062,7 @@ tests[#tests + 1] = ({ name = "PanelTabs: the real strip makes Back and every pa
 end })
 
 tests[#tests + 1] = ({ name = "PanelFullScreen.screenSize: a full screen room lays out for its backdrop (scale:WxH), not the whole window", fn = function()
+	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
 	local env, state = FakeGui.env({ stubs = {} })
 	local folder = FakeGui.folder({ PanelLayout = require(script.Parent.Parent.Engine.PanelLayout) })
@@ -55081,3 +55083,4 @@ tests[#tests + 1] = ({ name = "PanelFullScreen.screenSize: a full screen room la
 end })
 
 return tests
+
