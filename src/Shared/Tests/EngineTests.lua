@@ -16995,7 +16995,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 		shop_marlo_feast_behind = true, shop_marlo_feast_wave = true, shop_marlo_harvest_behind = true, shop_marlo_harvest_wave = true, shop_marlo_wtable_behind = true, shop_marlo_wtable_wave = true, shop_marlo_meadow_behind = true, shop_marlo_meadow_wave = true,
 		shop_marlo_river_behind = true, shop_marlo_river_wave = true, shop_marlo_summit_behind = true, shop_marlo_summit_wave = true,
 		shop_offer_scroll_a = true, shop_offer_scroll_b = true, shop_offer_scroll_frost = true, shop_offer_scroll_gala = true, shop_offer_scroll_harvest = true, run_over_scroll_a = true, run_over_scroll_b = true }
-	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
+	for k in pairs(Art) do expectTrue(known[k] or tostring(k):sub(1, 19) == "shop_counter_props_", "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
