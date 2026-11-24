@@ -54937,4 +54937,37 @@ table.insert(tests, { name = "DebugGoto boss1 synth applies every boss rule numb
 	end
 end })
 
+table.insert(tests, { name = "Table boss plate at 1920x957, 1280x720 and 800x450: every boss has an on screen chip, 14 px text on the full plate, 12 px only on the compact chip, a 44 px tap target, and the three new bosses carry a drawn emblem", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	local G = require(script.Parent.Parent.Engine.BossRuleGlyphs)
+	for _, id in ipairs({ "short_table", "frozen_hand", "quiet_tavern" }) do
+		local g = G.get(id)
+		expectTrue(g ~= nil and #g.shapes >= 2, id .. " has a drawn emblem, not a bare letter")
+	end
+	local compactSeen, fullSeen = false, false
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		for _, def in ipairs(BR.Definitions) do
+			local chip = M.ruleChip(r, w, h, def.name, def.description)
+			expectTrue(chip ~= nil, def.id .. " has a chip at " .. w)
+			local q = chip.rect
+			expectTrue(q.x >= 0 and q.y >= 0 and q.x + q.w <= w and q.y + q.h <= h, def.id .. " chip on screen at " .. w)
+			if chip.compact then
+				compactSeen = true
+				expectTrue(chip.size >= 12, def.id .. " compact chip text 12 px or more at " .. w)
+			else
+				fullSeen = true
+				expectTrue(chip.size >= 14, def.id .. " full plate text 14 px or more at " .. w)
+			end
+			local t = M.tapRects(q, w, h, M.tapLine(def.description))
+			expectTrue(t.hit.h >= 44 and t.hit.w >= 44, def.id .. " tap target 44 px at " .. w)
+			expectTrue(t.tip.x >= 0 and t.tip.x + t.tip.w <= w and t.tip.y >= 0 and t.tip.y + t.tip.h <= h, def.id .. " tap line on screen at " .. w)
+		end
+	end
+	expectTrue(compactSeen and fullSeen, "both chip modes are exercised")
+end })
+
 return tests
