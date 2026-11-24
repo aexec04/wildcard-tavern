@@ -418,6 +418,33 @@ function ShopStage.new(deps)
 					end
 				end
 			end
+			-- The Reroll plate was planned from the dealt rects; the drawn pack cards (centred in their row) can stand elsewhere, so
+			-- measure them live and move the plate clear of every real pack card and price pill (ShopSceneLayout.clearOfPacks).
+			local plate, o = Layout.rerollPlate(r), r.offers[1]
+			local rr = parts.rerollRow
+			if plate and o and rr and rr.Parent and parts.packRow and parts.packRow.Parent then
+				local origin = rr.Parent.AbsolutePosition
+				local live = {}
+				for _, slot in ipairs(parts.packRow:GetChildren()) do
+					if slot:IsA("Frame") and slot.Name ~= "SoldSpot" and slot:FindFirstChild("Tilt") and slot.AbsoluteSize.X > 0 then
+						live[#live + 1] = { x = slot.AbsolutePosition.X - origin.X, y = slot.AbsolutePosition.Y - origin.Y, w = slot.AbsoluteSize.X, h = slot.AbsoluteSize.Y }
+					end
+				end
+				table.sort(live, function(a, b) return a.x < b.x end)
+				if #live > 0 then
+					local x, y, w = Layout.clearOfPacks(plate.x, plate.y, plate.w, plate.h, live, o, r.area and r.area.h, r.area and r.area.w)
+					if x ~= plate.x or y ~= plate.y or w ~= plate.w then
+						rr.Position = UDim2.fromOffset(x, y)
+						rr.Size = UDim2.fromOffset(w, plate.h)
+						local bellTag = rr:FindFirstChild("BellTag")
+						if bellTag then bellTag.Size = UDim2.fromOffset(w, plate.h) end
+					end
+					if game:GetService("RunService"):IsStudio() then
+						warn(string.format("[RerollLive] plate %d,%d %dx%d; %d live packs, first %d,%d %dx%d", math.floor(x), math.floor(y), math.floor(w), math.floor(plate.h), #live,
+							math.floor(live[1].x), math.floor(live[1].y), math.floor(live[1].w), math.floor(live[1].h)))
+					end
+				end
+			end
 		end)
 	end
 

@@ -54655,6 +54655,40 @@ table.insert(tests, { name = "Counter shop: the Reroll plate stays clear of ever
 	end
 end })
 
+table.insert(tests, { name = "Counter shop Reroll: clearOfPacks moves the plate off LIVE pack rects (centred, not the planned ones) and the sweep of sizes and counts never clashes", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function clash(p, packs)
+		for _, k in ipairs(packs) do
+			if p.x < k.x + k.w + 10 and p.x + p.w > k.x - 10 and p.y < k.y + k.h + L.PACK_PILL_DROP and p.y + p.h > k.y - 10 then return true end
+		end
+		return false
+	end
+	-- the drawn packs stand right of the planned ones: a plate planned on the planned rects lands on the live pills
+	local live = { { x = 1000, y = 780, w = 150, h = 100 }, { x = 1160, y = 780, w = 150, h = 100 } }
+	local o = { x = 600, y = 500, w = 190, h = 230 }
+	local x, y, w = L.clearOfPacks(880, 880, 190, 44, live, o, 957, 1920)
+	expectFalse(clash({ x = x, y = y, w = w, h = 44 }, live), "the plate moved off the live pack footprint (" .. x .. "," .. y .. " " .. w .. ")")
+	expectTrue(w >= 132 and x >= 8 and x + w <= 1912, "the plate stays a usable width inside the area")
+	local x2, y2, w2 = L.clearOfPacks(20, 20, 190, 44, live, o, 957, 1920)
+	expectTrue(x2 == 20 and y2 == 20 and w2 == 190, "a plate already clear stays where it is")
+	local bad = 0
+	for _, size in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1600, 900 }, { 1506, 751 }, { 1366, 768 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 800, 450 } }) do
+		for no = 1, 5 do
+			for np = 1, 4 do
+				local r = L.rects(size[1], size[2], { offers = no, packs = np })
+				local p = L.rerollPlate(r)
+				if p and clash(p, r.packs) then bad = bad + 1 end
+			end
+		end
+	end
+	expectEqual(bad, 0, "the Reroll plate clears every pack in the size and count sweep")
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/ShopStage.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("Layout.clearOfPacks(plate.x", 1, true) ~= nil and src:find("slot.AbsolutePosition.X - origin.X", 1, true) ~= nil, "ShopStage re-checks the plate against the live drawn pack slots")
+end })
+
 table.insert(tests, { name = "Run Over win third pass: celebration motion lasts about 3 s (confetti, banner pop, Tips count-up), none in Calm mode, win facts sit on the dark plate", fn = function()
 	local E = script.Parent.Parent.Engine
 	local C = require(E.Confetti)

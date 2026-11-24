@@ -677,6 +677,57 @@ function ShopSceneLayout.cardScales(r)
 	return { patron = patron, pack = pack, gap = r.cardGap }
 end
 
+-- Moves a Reroll plate (x, y, w, h) clear of the pack cards and their price pills. `packs` are card rects (planned by rects() or
+-- measured live from the drawn slots), `o` the first Patron rect, `limit` the lowest y the plate may reach, areaWidth the play area
+-- width. Returns x, y, w. A pack's price pill hangs PACK_PILL_DROP below its card and the card tilts.
+function ShopSceneLayout.clearOfPacks(x, y, w, h, packs, o, limit, areaWidth)
+	local k = packs and packs[1]
+	if not k then return x, y, w end
+-- A pack's price pill hangs PACK_PILL_DROP below its card and the card tilts: the plate keeps clear of that footprint.
+	local function clash(px, py, pw)
+		pw = pw or w
+		for _, p in ipairs(packs) do
+			local x0, x1 = p.x - ShopSceneLayout.REROLL_SIDE, p.x + p.w + ShopSceneLayout.REROLL_SIDE
+			local y0, y1 = p.y - 10, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP
+			if px < x1 and px + pw > x0 and py < y1 and py + h > y0 then return true end
+		end
+		return false
+	end
+	if clash(x, y) then
+		local firstX = k.x
+		for _, p in ipairs(packs) do firstX = math.min(firstX, p.x) end
+		local left = firstX - ShopSceneLayout.REROLL_SIDE - w
+		local below = y
+		for _, p in ipairs(packs) do below = math.max(below, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP + 8) end
+		local minX = math.max(8, o.x) -- stays inside the Patron row's span
+		if left >= minX and not clash(left, y) then x = left
+		elseif limit and below + h <= limit - 4 then y = below
+		else
+			-- No room under the packs (a short window): try the right margin, then a narrower plate in either margin, and only
+			-- then give up. Never leave the plate on a price pill (the old fall through did, once the area limit pulled it up).
+			local lastRight = k.x + k.w
+			for _, p in ipairs(packs) do lastRight = math.max(lastRight, p.x + p.w) end
+			local rightX = lastRight + ShopSceneLayout.REROLL_SIDE
+			local areaW = (areaWidth) or math.huge
+			local MINW = 132
+			local placed = false
+			local tries = {
+				{ left, w }, { rightX, w },
+				{ minX, firstX - ShopSceneLayout.REROLL_SIDE - minX }, { rightX, areaW - 8 - rightX },
+			}
+			for _, t in ipairs(tries) do
+				local tx, tw = t[1], math.min(w, t[2])
+				if tx >= minX and tw >= MINW and tx + tw <= areaW - 8 and not clash(tx, y, tw) then
+					x, w, placed = tx, tw, true
+					break
+				end
+			end
+			if not placed and left >= minX then x = left end
+		end
+	end
+	return x, y, w
+end
+
 -- The Reroll plate (44 px tall, cream text): left aligned with the Patron row, directly under it. When the pack row under the Patrons
 -- starts far enough to the right it stands in that row's left margin (so it never sits under a pack), else under the last row. Rects
 -- are the dealt (untilted) card rects plus a 10 px allowance for the tilt.
@@ -698,28 +749,7 @@ function ShopSceneLayout.rerollPlate(r)
 	local x = o.x
 	if not k then x = math.floor(o.x + (last.x + last.w - o.x - w) / 2) end
 	x = math.max(x, o.x)
-	-- A pack's price pill hangs PACK_PILL_DROP below its card and the card tilts: the plate keeps clear of that footprint.
-	if k then
-		local function clash(px, py)
-			for _, p in ipairs(r.packs) do
-				local x0, x1 = p.x - ShopSceneLayout.REROLL_SIDE, p.x + p.w + ShopSceneLayout.REROLL_SIDE
-				local y0, y1 = p.y - 10, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP
-				if px < x1 and px + w > x0 and py < y1 and py + h > y0 then return true end
-			end
-			return false
-		end
-		if clash(x, y) then
-			local firstX = k.x
-			for _, p in ipairs(r.packs) do firstX = math.min(firstX, p.x) end
-			local left = firstX - ShopSceneLayout.REROLL_SIDE - w
-			local below = y
-			for _, p in ipairs(r.packs) do below = math.max(below, p.y + p.h + ShopSceneLayout.PACK_PILL_DROP + 8) end
-			local minX = math.max(8, o.x) -- stays inside the Patron row's span
-			if left >= minX and not clash(left, y) then x = left
-			elseif limit and below + h <= limit - 4 then y = below
-			elseif left >= minX then x = left end
-		end
-	end
+	if k then x, y, w = ShopSceneLayout.clearOfPacks(x, y, w, h, r.packs, o, limit, r.area and r.area.w) end
 	return rect(x, y, w, h)
 end
 
