@@ -53911,6 +53911,50 @@ table.insert(tests, { name = "Night victory plate live readability: 1280x720 and
 	expectEqual(#found, 0, "the Night victory plate has " .. #found .. " readability findings")
 end })
 
+table.insert(tests, { name = "Night victory plate painted: every label, tile and the button sit inside the parchment rect of the art-aspect plate", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "JourneyMap", "CardBacks", "CosmeticSets", "Achievements", "OverlayQueueRules", "ResultButtonHit", "TavernStyle" }) do map[n] = require(E[n]) end
+	map.HudKit = { piece = function() return "rbxassetid://1" end }
+	local stubs = {
+		ParticleBurst = function() return { burst = function() end } end,
+		ClientSettings = { get = function() return true end },
+		HudTheme = { setId = function() return "classic_tavern" end, onSkin = function() end },
+		PopupDismiss = { attach = function() end }, Cue = { play = function() end }, ResultGuard = { hold = function() end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	state.services.UserInputService = { InputBegan = FakeGui.signal() }
+	state.services.GuiService = {}
+	local NightVictory = FakeGui.load("src/Client/NightVictory.lua", env)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 } }) do
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = size[1], Y = size[2] }
+		local noop = function() end
+		NightVictory({ screenGui = gui, addSoftShadow = noop, roundCorner = noop, playClickSfx = noop, tweenTo = noop, getLatestState = function() return nil end,
+			StateUpdatedRemote = { OnClientEvent = FakeGui.signal() }, getBestHand = function() return nil end })
+		local backdrop = gui:FindFirstChild("NightVictoryBackdrop")
+		backdrop.Visible = true
+		FakeGui.layout(gui, size[1], size[2])
+		local plate = backdrop:FindFirstChild("Plate")
+		expectTrue(math.abs(plate.AbsoluteSize.X / plate.AbsoluteSize.Y - 560 / 520) < 0.02, size[1] .. ": the painted plate keeps the art's 560:520 aspect, so Fit never letterboxes it and the parchment fractions hold")
+		local px, py, pw, ph = plate.AbsolutePosition.X, plate.AbsolutePosition.Y, plate.AbsoluteSize.X, plate.AbsoluteSize.Y
+		local L, T, R, B = px + 0.139 * pw, py + 0.242 * ph, px + 0.863 * pw, py + 0.780 * ph
+		local checked = 0
+		for _, d in ipairs(plate:GetDescendants()) do
+			if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Visible ~= false then
+				local x, y, w, h = d.AbsolutePosition.X, d.AbsolutePosition.Y, d.AbsoluteSize.X, d.AbsoluteSize.Y
+				checked = checked + 1
+				expectTrue(x >= L - 0.5 and y >= T - 0.5 and x + w <= R + 0.5 and y + h <= B + 0.5,
+					string.format("%d: %s inside the parchment (%.0f,%.0f %.0fx%.0f vs %.0f,%.0f to %.0f,%.0f)", size[1], d.Name, x, y, w, h, L, T, R, B))
+			end
+		end
+		expectTrue(checked >= 8, size[1] .. ": read " .. checked .. " text elements")
+	end
+end })
+
 table.insert(tests, { name = "VictoryLook compact pick: short windows drop the art, keep three cards inside the screen above a 44 px button, roomy windows keep the portrait cards", fn = function()
 	local Look = require(script.Parent.Parent.Engine.VictoryLook)
 	for _, sz in ipairs({ { 800, 360 }, { 844, 390 }, { 1024, 576 } }) do

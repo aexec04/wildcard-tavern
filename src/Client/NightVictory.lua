@@ -66,7 +66,7 @@ return function(deps)
 	-- Same painted plate as Round Complete (the equipped set's kit plate), dark code-drawn plate when the set has none.
 	local panel = Instance.new("ImageLabel")
 	panel.Name = "Plate"
-	panel.ScaleType = Enum.ScaleType.Fit -- the plate is drawn at its own 560 x 520 size, so Fit never squashes it
+	panel.ScaleType = Enum.ScaleType.Fit -- the painted plate is always sized at the art's own aspect (PLATE_W : PLATE_H), so Fit never letterboxes or squashes it
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Size = UDim2.fromOffset(PLATE_W, PLATE_H)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
@@ -198,8 +198,8 @@ return function(deps)
 		-- Size the plate from its content. The painted plate's parchment is PARCH of the art, so the art is grown until the
 		-- parchment holds every row; a window too small for that gets the dark code-drawn plate, which is tighter.
 		local win = deps.screenGui.AbsoluteSize
-		local paintW = (CONTENT_W + 2 * PARCH.inset) / PARCH.w
-		local paintH = (CONTENT_H + 2 * PARCH.inset) / PARCH.h
+		local paintW = math.max((CONTENT_W + 2 * PARCH.inset) / PARCH.w, (CONTENT_H + 2 * PARCH.inset) / PARCH.h * PLATE_W / PLATE_H)
+		local paintH = paintW * PLATE_H / PLATE_W -- the art's own aspect: the parchment fractions only hold when the frame is not letterboxed
 		local fitsPainted = win.Y <= 0 or (paintH <= win.Y - 16 and paintW <= win.X - 16)
 		local painted = kitId ~= nil and fitsPainted
 		local darkW = CONTENT_W + 2 * DARK_MARGIN
