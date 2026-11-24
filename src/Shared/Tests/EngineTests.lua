@@ -42109,7 +42109,7 @@ table.insert(tests, { name = "Store wording: items, price lines and declined not
 	expectEqual(Store.priceLine({ comingSoon = true }), "Coming soon")
 	expectEqual(Store.priceLine({ studioFree = true }), "Free in Studio")
 	expectEqual(Store.priceLine({ robloxId = 7 }, { [7] = "R$ 99" }), "R$ 99", "a real price shows in Robux")
-	expectEqual(Store.priceLine({ robloxId = 7 }, {}), "Price shown at checkout")
+	expectEqual(Store.priceLine({ robloxId = 7 }, {}), "Price at checkout")
 	expectEqual(Store.declinedNotice("VIP"), "No problem, nothing was charged for VIP.")
 	expectEqual(Store.declinedNotice(nil), "No problem, nothing was charged.")
 	expectTrue(#Store.declinedNotice("Card Set Bundle") < 60, "calm message stays short")

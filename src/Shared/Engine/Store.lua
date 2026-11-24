@@ -262,7 +262,7 @@ function Store.priceLine(row, cache)
 	elseif row.comingSoon then
 		return "Coming soon"
 	end
-	return (cache and cache[row.robloxId]) or "Price shown at checkout"
+	return (cache and cache[row.robloxId]) or "Price at checkout"
 end
 
 -- Calm line shown when a purchase prompt closes without a purchase (Cancel, closed, or a failed charge).
