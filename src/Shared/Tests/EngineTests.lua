@@ -55391,7 +55391,62 @@ table.insert(tests, { name = "Shop props: every set looks up its own repainted p
 	end
 end })
 
+table.insert(tests, { name = "Lucky Penny: the +3 Tips apply once at pick, new rounds never repeat it, and Continue restores the Tips without paying it again", fn = function()
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	local state = RunState.new(nil, function(_n) return 1 end)
+	local tipsBefore = state.tips
+	local fresh = RunState.new(nil, function(_n) return 1 end)
+	expectEqual(fresh.tips, tipsBefore, "a run without the blessing starts with the same Tips")
+	expectTrue((RunModifiers.apply(state, "lucky_penny")))
+	expectEqual(state.tips, tipsBefore + 3, "the penny pays 3 Tips once")
+	RunState.refreshSnapshot(state)
+	RunState.startRound(state)
+	expectEqual(state.tips, tipsBefore + 3, "dealing another round never pays the penny again")
+	state.runOver, state.wonRun = true, false
+	expectTrue(RunState.canContinue(state))
+	RunState.useContinue(state)
+	expectEqual(state.tips, tipsBefore + 3, "Continue puts the Tips back without a second penny")
+	expectEqual(state.runModifierId, "lucky_penny")
+end })
+
+table.insert(tests, { name = "Rejoin and Continue: the round start copy keeps hand, Tips and Patrons, and a corrupt load never changes the real profile", fn = function()
+	local state = RunState.new(nil, function(_n) return 1 end)
+	state.tips = 17
+	state.patrons = state.patrons or {}
+	RunState.refreshSnapshot(state)
+	local handIds, patronCount = {}, #state.patrons
+	for i, card in ipairs(state.hand) do handIds[i] = tostring(card.rank) .. tostring(card.suit) end
+	state.tips = 2
+	state.runOver, state.wonRun = true, false
+	RunState.useContinue(state)
+	expectEqual(state.tips, 17, "Tips come back")
+	expectEqual(#state.patrons, patronCount, "Patrons come back")
+	expectEqual(#state.hand, #handIds, "the same hand size comes back")
+	for i, card in ipairs(state.hand) do expectEqual(tostring(card.rank) .. tostring(card.suit), handIds[i], "same hand card " .. i) end
+	local profile = PlayerProfile.new()
+	profile.stats.bestNightReached = 6
+	for _, bad in ipairs({ "junk", 7, {}, { stats = 3 } }) do
+		local ok = pcall(PlayerProfile.migrate, bad)
+		expectTrue(ok, "a bad load does not error")
+		expectEqual(profile.stats.bestNightReached, 6, "the profile in memory is untouched")
+	end
+end })
+
+table.insert(tests, { name = "Endless best line: shows the saved best Night, never a lower one, and the current Night when it is the new best", fn = function()
+	local EndlessScreen = require(script.Parent.Parent.Engine.EndlessScreen)
+	local function endless(night) return { night = night, stake = 1, config = { nightCap = 8 } } end
+	local saved = { ["1"] = 14 }
+	local low = EndlessScreen.lines(endless(10), saved, 1)
+	expectEqual(low.best, "Best Endless Night 14", "a worse run still shows the saved 14")
+	expectTrue(not low.isBest)
+	local high = EndlessScreen.lines(endless(16), saved, 1)
+	expectEqual(high.best, "Best Endless Night 16")
+	expectTrue(high.isBest)
+	for _, bad in ipairs({ "x", 5, {}, { ["1"] = "n" } }) do
+		local view = EndlessScreen.lines(endless(11), bad, 1)
+		expectEqual(view.best, "Best Endless Night 11", "a bad saved value falls back to this run")
+	end
+	expectTrue(EndlessScreen.lines({ night = 5, config = { nightCap = 8 } }, saved, 1) == nil, "a normal Night shows no Endless line")
+end })
+
 return tests
-
-
-
