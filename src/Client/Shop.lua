@@ -547,6 +547,13 @@ return function(deps)
 		nextRoundButton.Parent = shopFrame
 		polishButton(nextRoundButton, 10)
 		pcall(function() require(script.Parent.ConceptTSkin).plateButton(nextRoundButton) end) -- the one green plate style
+		do -- the painted plate has caps at both ends: keep the label on its face when the button is small (phone sizes scale the text to fit)
+			local labelPad = Instance.new("UIPadding")
+			labelPad.Name = "LabelPad"
+			labelPad.PaddingLeft = UDim.new(0.14, 0)
+			labelPad.PaddingRight = UDim.new(0.14, 0)
+			labelPad.Parent = nextRoundButton
+		end
 		addButtonHoverScale(nextRoundButton)
 		pcall(function() require(script.Parent.TavernScreens).apply(shopFrame, "counter") end) -- Gameplay v2 look: counter scene behind, green Next Round
 		pcall(function() require(script.Parent.ShopSummaryPlate).attach(shopFrame) end) -- lasting Target cleared / Score / Tips plate, top right
