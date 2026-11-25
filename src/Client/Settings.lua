@@ -503,24 +503,11 @@ return function(deps)
 		pcall(backPlate, button)
 		pcall(Kit.painted, button, SettingsLayout.PLATE)
 		if iconName then pcall(Kit.icon, button, iconName, 0.2) end
-		-- a long single word ("Leaderboards") broke mid-word on a phone: shrink the text until the longest word fits the plate
-		local TextService = game:GetService("TextService")
-		local function fitLongestWord()
-			local w = button.AbsoluteSize.X - 6
-			if w <= 20 then return end
-			local longest = ""
-			for word in string.gmatch(text, "%S+") do if #word > #longest then longest = word end end
-			local size = ACC.textSize
-			while size > 10 and TextService:GetTextSize(longest, size, Enum.Font.Merriweather, Vector2.new(10000, 10000)).X > w do size -= 1 end
-			if button.TextSize ~= size then button.TextSize = size end
-		end
-		button:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitLongestWord)
-		task.defer(fitLongestWord)
 		return button
 	end
 
 	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, "bulb")
-	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, "bars")
+	local settingsLeaderboardButton = makeAccountButton("High Scores", 2, "bars") -- two short words wrap cleanly beside the icon on a phone; one long word ("Leaderboards") broke mid-word
 	local settingsMainMenuButton = makeAccountButton(SettingsLayout.PAUSE.quitText, 3, "pause")
 	settingsMainMenuButton.Name = "MainMenu"
 	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own row under the three buttons, with the one Tavern Map button.
