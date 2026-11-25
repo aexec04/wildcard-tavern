@@ -742,7 +742,7 @@ return function(deps)
 		completed = false
 		active = true
 		pcall(function() require(script.Parent.BoardDrawer).forceOpen("tutorial", true) end)
-		syncToState(lastState)
+		lastState = nil -- the table of the run being left is stale: the scripted run's own state (Round Select) arrives next and decides where the steps start
 		show()
 	end
 
