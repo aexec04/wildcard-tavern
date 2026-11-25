@@ -83,6 +83,19 @@ function LedgerBook.build(deps, desk)
 		return l
 	end
 
+	-- a one line label that is wider than its box steps its size down (never below minSize) instead of ending in "..." or running into
+	-- the next label; a phone showed "Regulars'..." and a label printed over its own number.
+	local TextService = game:GetService("TextService")
+	local function measure(l, size) -- measured from the font, not TextBounds (that is not ready in the frame the label is made)
+		return TextService:GetTextSize(l.Text, size or l.TextSize, l.Font, Vector2.new(10000, 1000)).X
+	end
+	local function shrinkToFit(l, minSize, maxW)
+		l.TextTruncate = Enum.TextTruncate.None
+		local w = maxW or l.AbsoluteSize.X
+		if w <= 0 then return end
+		while l.TextSize > minSize and measure(l) > w do l.TextSize = l.TextSize - 1 end
+	end
+
 	local function stroke(inst, color, thickness)
 		local s = Instance.new("UIStroke")
 		s.Color = color
@@ -306,15 +319,30 @@ function LedgerBook.build(deps, desk)
 
 	-- heading on the first ruled line of its page
 	local function heading(side, str)
-		row(side, 1, 0, 1, { Text = str, Font = Enum.Font.Fondamento, TextSize = metrics().head }, 1.2)
+		shrinkToFit(row(side, 1, 0, 1, { Text = str, Font = Enum.Font.Fondamento, TextSize = metrics().head }, 1.2), 12)
 	end
 
 	-- label on the left, value on the right of one ruled line, dotted leader between them along the same line
+	local SHORT_LABEL = { ["Best hand score"] = "Best hand", ["Hands played"] = "Hands", ["Tips earned"] = "Tips", ["Runs started"] = "Started" }
 	local function leader(side, i, name, value)
 		local sz = metrics()
 		local small = math.max(14, sz.body - 3) -- label and value share one short line, so they are a little smaller
 		local n = row(side, i, 0, 1, { Text = name, TextSize = small })
 		local v = row(side, i, 0, 1, { Text = value, TextXAlignment = Enum.TextXAlignment.Right, TextSize = small })
+		local function fit()
+			if n.AbsoluteSize.X <= 0 then return end
+			n.Text = name
+			n.TextSize = small
+			local room = n.AbsoluteSize.X - measure(v) - 10
+			shrinkToFit(n, 11, room) -- the label never runs under its number
+			if measure(n) > room and SHORT_LABEL[name] then -- still too long at the smallest size: use the short wording
+				n.Text = SHORT_LABEL[name]
+				n.TextSize = small
+				shrinkToFit(n, 11, room)
+			end
+		end
+		n:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit) -- the page settles to its real width after it is painted
+		fit()
 		local full = n.AbsoluteSize.X
 		if full > 0 then
 			local lo = (n.TextBounds.X + 8) / full
@@ -581,7 +609,8 @@ function LedgerBook.build(deps, desk)
 			local on = i == pageIndex
 			b.BackgroundColor3 = ls and (on and ls.tabOn or ls.tabOff) or (on and Color3.fromRGB(150, 44, 44) or Color3.fromRGB(108, 34, 34))
 			b.TextColor3 = ls and ls.tabInk or (on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(224, 196, 168))
-			b.Size = UDim2.fromScale(T.w + (on and 0.012 or 0), T.h)
+			local wide = book.AbsoluteSize.X > 0 and book.AbsoluteSize.X < 700 and 1.7 or 1 -- on a phone the ribbons hang out wider so the words fit on one line
+			b.Size = UDim2.fromScale(T.w * wide + (on and 0.012 or 0), T.h)
 			b.Position = UDim2.fromScale(T.x, T.y + (i - 1) * T.step)
 		end
 	end
@@ -855,7 +884,11 @@ function LedgerBook.build(deps, desk)
 		tab.Name = "Tab_" .. i
 		tab.Font = Enum.Font.GothamBold
 		tab.TextSize = 14
-		tab.TextWrapped = true
+		tab.TextScaled = true -- "Hall of Fame" and "Records" wrapped as "Hall / of" and "Recor / ds" on a phone
+		tab.TextWrapped = false
+		local tabLimit = Instance.new("UITextSizeConstraint")
+		tabLimit.MaxTextSize, tabLimit.MinTextSize = 14, 8
+		tabLimit.Parent = tab
 		tab.Text = name
 		tab.BorderSizePixel = 0
 		tab.AutoButtonColor = true
