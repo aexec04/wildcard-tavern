@@ -1620,6 +1620,37 @@ table.insert(tests, { name = "RunState.playHand marks wonRun = true on clearing 
 	expectTrue(state.wonRun)
 end })
 
+table.insert(tests, { name = "Night 8 win: boss clear marks the win once, pays the reward once, run continues into Endless, quitting keeps the win", fn = function()
+	local RunAbandon = require(script.Parent.Parent.Engine.RunAbandon)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap
+	state.round = state.config.roundsPerNight
+	state.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	state.targetScore = 0
+	local tipsBefore = state.tips
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result.roundWon and result.wonRun and state.wonRun, "the final boss clear is a win")
+	expectTrue(state.roundOver and not state.runOver, "a win offers Endless: the run is not over")
+	expectEqual(state.lastRoundReward, state.tips - tipsBefore, "reward paid once, as reported")
+	expectTrue(state.lastRoundReward > 0)
+	-- a second hand on the finished round must not pay again
+	local tipsAfter = state.tips
+	pcall(RunState.playHand, state, { 1 })
+	expectEqual(state.tips, tipsAfter, "no second reward for the same round")
+	-- Enter Endless Nights: next Night, still won
+	RunState.advanceToNextRound(state)
+	expectEqual(state.night, state.config.nightCap + 1, "Endless starts past the cap")
+	expectTrue(state.wonRun, "the win survives entering Endless")
+	-- quitting at the popup: the win is already counted (once) and the quit is not an abandon
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunWon(profile)
+	local ok = RunAbandon.abandon({ phase = "nightVictory", state = { wonRun = true } }, profile, PlayerProfile)
+	expectTrue(ok)
+	expectEqual(profile.stats.runsWon, 1, "the win stays recorded")
+	expectEqual(profile.stats.runsAbandoned, 0, "a won run that is quit does not count as abandoned")
+end })
+
 table.insert(tests, { name = "RunState.playHand does NOT mark wonRun before reaching nightCap", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.night = state.config.nightCap - 1
@@ -10334,6 +10365,45 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 	-- view
 	local view = Quests.view(profile, day + 1, 3600)
 	expectEqual(#view.quests, 3)
+end })
+
+table.insert(tests, { name = "Quests claim: a finished quest pays its exact XP and Tips once, unfinished pays nothing, reload and replay never pay twice, a new day resets", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local profile = PlayerProfile.new()
+	local day = 20100
+	local def = Quests.getById(Quests.rollFor(day)[1])
+	-- unfinished: nothing is paid and the quest is not marked done
+	local before = profile.tavernXp or 0
+	Quests.apply(profile, day, { [def.counter] = def.goal - 1 })
+	expectFalse(profile.quests.done[def.id] == true, "one short is not done")
+	expectEqual(profile.tavernXp or 0, before, "no XP for an unfinished quest")
+	expectEqual(profile.pendingStartTips or 0, 0, "no Tips for an unfinished quest")
+	expectEqual(profile.questsDone or 0, 0)
+	-- finish: exact rewards (only this quest can complete, other counters stay at zero)
+	local completed = Quests.apply(profile, day, { [def.counter] = 1 })
+	expectEqual(#completed, 1)
+	expectEqual(completed[1].id, def.id)
+	expectEqual(profile.pendingStartTips, def.tips, "exact Tips")
+	expectEqual((profile.tavernXp or 0) - before, def.xp, "exact XP")
+	expectEqual(profile.questsDone, 1)
+	-- a second pass, even with huge counters, pays nothing more for this quest
+	local xp, tips = profile.tavernXp, profile.pendingStartTips
+	expectEqual(#Quests.apply(profile, day, { [def.counter] = 500 }), 0, "second claim refused")
+	expectEqual(profile.tavernXp, xp); expectEqual(profile.pendingStartTips, tips); expectEqual(profile.questsDone, 1)
+	-- save and load keeps it claimed
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.quests.done[def.id], "done survives reload")
+	expectEqual(#Quests.apply(loaded, day, { [def.counter] = 500 }), 0, "reload does not reopen it")
+	expectEqual(loaded.tavernXp, xp); expectEqual(loaded.pendingStartTips, tips)
+	-- next day: fresh quests, nothing done, and the same counter can pay again
+	expectTrue(Quests.ensureDay(profile, day + 1))
+	expectEqual(next(profile.quests.done), nil, "done list resets")
+	expectEqual(next(profile.quests.progress), nil, "progress resets")
+	local next1 = Quests.getById(Quests.rollFor(day + 1)[1])
+	local again = Quests.apply(profile, day + 1, { [next1.counter] = next1.goal })
+	expectTrue(#again >= 1, "a new day pays again")
+	expectTrue(profile.tavernXp > xp)
 end })
 
 table.insert(tests, { name = "AccountProgress: counters become XP and quest progress once, daily and weekly runs count, a dropped counter never double counts", fn = function()

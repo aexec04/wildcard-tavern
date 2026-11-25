@@ -29,7 +29,8 @@ end
 function RunAbandon.abandon(session, profile, PlayerProfile)
 	local ok, reason = RunAbandon.canAbandon(session)
 	if not ok then return false, reason end
-	if profile then
+	-- a run already won (Night 8 boss cleared, win recorded by the server sync) is quit, not abandoned
+	if profile and not (type(session.state) == "table" and session.state.wonRun == true) then
 		PlayerProfile.recordRunAbandoned(profile)
 	end
 	return true
