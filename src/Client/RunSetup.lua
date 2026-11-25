@@ -459,9 +459,7 @@ return function(deps)
 		end
 		rushCards = {}
 		local rush = latest and latest.bossRush or { unlocked = false, best = 0 }
-		local rushText = rush.unlocked
-			and ("Boss after boss with 3 Patrons you pick. No shop. Best: " .. tostring(math.floor(rush.best or 0)))
-			or "Locked. Win a run first."
+		local rushText = require(Engine:WaitForChild("BossRush")).setupText(rush)
 		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, "Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked, { "menu_icons", "boss_rush" })
 		table.insert(rushCards, rushCard)
 		table.insert(newlyBuiltCards, rushCard)

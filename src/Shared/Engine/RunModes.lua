@@ -11,6 +11,9 @@
 	Pure Lua, no Roblox APIs.
 ]]
 
+local BossRush = require(script.Parent.BossRush)
+local Challenges = require(script.Parent.Challenges)
+
 local RunModes = {}
 
 RunModes.Modes = {
@@ -28,7 +31,22 @@ RunModes.Modes = {
 }
 
 function RunModes.get(id)
-	return RunModes.Modes[id]
+	-- Which extras a run start may use. The client asks, the server decides: Boss Rush, Quick Run and Challenge twists
+-- are for normal runs only (never Daily, Weekly, Seed or the tutorial, which pass seeded or tutorial = true), Boss
+-- Rush needs the first win, and Rush or Quick drop the challenge and force stake 1.
+-- Returns { rush, quick, challengeId, forceStakeOne }.
+function RunModes.resolveStart(profile, seeded, tutorial, extra)
+	extra = (not seeded and not tutorial and type(extra) == "table" and extra) or {}
+	local rush = extra.rush == true and BossRush.isUnlocked(profile)
+	local quick = extra.quick == true and not rush
+	local challengeId = nil
+	if not rush and not quick and type(extra.challengeId) == "string" and Challenges.getById(extra.challengeId) then
+		challengeId = extra.challengeId
+	end
+	return { rush = rush, quick = quick, challengeId = challengeId, forceStakeOne = rush or quick }
+end
+
+return RunModes.Modes[id]
 end
 
 -- True for a mode id the server accepts from a client.

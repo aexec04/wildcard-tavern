@@ -1831,10 +1831,9 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 	-- STAKES: only an unlocked stake is honored; seeded and tutorial runs are always stake 1 (fair boards).
 	local stake = Stakes.resolveStart(profile, stakeId, seededRng ~= nil or isTutorial == true)
 	extra = (seededRng == nil and isTutorial ~= true and extra) or {}
-	local rush = extra.rush == true and BossRush.isUnlocked(profile)
-	local quick = extra.quick == true and not rush -- Quick Run (Engine/RunModes.lua): 4 Nights, stake 1, no challenge
-	local challengeId = (not rush and not quick and Challenges.getById(extra.challengeId)) and extra.challengeId or nil
-	if rush or quick then
+	local picked = require(Engine.RunModes).resolveStart(profile, seededRng ~= nil, isTutorial == true, extra)
+	local rush, quick, challengeId = picked.rush, picked.quick, picked.challengeId
+	if picked.forceStakeOne then
 		stake = 1 -- a Boss Rush or Quick Run ignores the stake and the challenge
 	end
 

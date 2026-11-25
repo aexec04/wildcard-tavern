@@ -13106,6 +13106,51 @@ table.insert(tests, { name = "Boss Rush: unlocks after the first win, 3 picked P
 	expectTrue(normal.rush == nil and normal.config.roundsPerNight == 3 and RunState.countsForRecords(normal))
 end })
 
+table.insert(tests, { name = "Run modes: Boss Rush and Challenge chips start the right rules, show their Run Setup text, and Daily, Weekly, Seed and tutorial runs never get them", fn = function()
+	local RunModes = require(script.Parent.Parent.Engine.RunModes)
+	local BossRush = require(script.Parent.Parent.Engine.BossRush)
+	local Challenges = require(script.Parent.Parent.Engine.Challenges)
+	local rng = function(n) return math.random(n) end
+	local fresh, winner = PlayerProfile.new(), PlayerProfile.new()
+	winner.stats.runsWon = 1
+	-- Boss Rush needs a first win, then starts a rush run (one boss per Night, stake 1, no challenge)
+	local locked = RunModes.resolveStart(fresh, false, false, { rush = true, challengeId = "pairs_only" })
+	expectTrue(not locked.rush and locked.challengeId == "pairs_only", "a locked Rush falls back to the challenge")
+	local rush = RunModes.resolveStart(winner, false, false, { rush = true, challengeId = "pairs_only" })
+	expectTrue(rush.rush and rush.forceStakeOne and rush.challengeId == nil and not rush.quick)
+	local rs = RunState.new({ rush = rush.rush, challengeId = rush.challengeId }, rng)
+	expectTrue(rs.rush ~= nil and rs.challenge == nil and rs.config.roundsPerNight == 1)
+	-- every Challenge twist starts a run that carries exactly its rules
+	for _, def in ipairs(Challenges.Definitions) do
+		local pick = RunModes.resolveStart(fresh, false, false, { challengeId = def.id })
+		expectEqual(pick.challengeId, def.id)
+		expectTrue(not pick.rush and not pick.quick and not pick.forceStakeOne)
+		local st = RunState.new({ challengeId = pick.challengeId }, rng)
+		expectTrue(st.challenge ~= nil and st.challenge.id == def.id and st.rush == nil, def.id)
+	end
+	expectEqual(RunModes.resolveStart(fresh, false, false, { challengeId = "nope" }).challengeId, nil, "unknown twist ignored")
+	expectEqual(RunModes.resolveStart(fresh, false, false, { challengeId = 7 }).challengeId, nil, "non string ignored")
+	expectEqual(RunModes.resolveStart(fresh, false, false, "junk").challengeId, nil, "junk extra ignored")
+	-- Quick Run drops the challenge and forces stake 1; a Rush beats a Quick
+	local quick = RunModes.resolveStart(fresh, false, false, { quick = true, challengeId = "no_discards" })
+	expectTrue(quick.quick and quick.forceStakeOne and quick.challengeId == nil)
+	expectTrue(not RunModes.resolveStart(winner, false, false, { rush = true, quick = true }).quick)
+	-- Daily, Weekly and Seed runs (seeded) and the tutorial never offer any of it, even for a winner
+	for _, flags in ipairs({ { true, false }, { false, true } }) do
+		local pick = RunModes.resolveStart(winner, flags[1], flags[2], { rush = true, quick = true, challengeId = "pairs_only" })
+		expectTrue(not pick.rush and not pick.quick and pick.challengeId == nil and not pick.forceStakeOne)
+	end
+	-- Run Setup chip text
+	expectEqual(BossRush.setupText({ unlocked = false, best = 5 }), "Locked. Win a run first.")
+	expectEqual(BossRush.setupText(nil), "Locked. Win a run first.")
+	expectTrue(BossRush.setupText(BossRush.view(winner)):find("Best: 0", 1, true) ~= nil)
+	winner.bossRushBest = 7
+	expectTrue(BossRush.setupText(BossRush.view(winner)):find("Best: 7", 1, true) ~= nil)
+	for _, def in ipairs(Challenges.Definitions) do
+		expectTrue(type(def.name) == "string" and #def.name > 0 and #def.text > 0 and not def.text:find("\u{2014}"), def.id .. " chip text")
+	end
+end })
+
 -- ===== Phase 4: Endless board, global scope, sharing =====
 
 table.insert(tests, { name = "Leaderboards Endless: score packs Night then best hand, decodes back, ordering and improvement rules", fn = function()

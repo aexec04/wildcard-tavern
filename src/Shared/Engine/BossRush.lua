@@ -53,6 +53,14 @@ function BossRush.view(profile)
 	return { unlocked = BossRush.isUnlocked(profile), best = profile.bossRushBest or 0 }
 end
 
+-- The line on the Run Setup Boss Rush card.
+function BossRush.setupText(view)
+	if view and view.unlocked then
+		return "Boss after boss with 3 Patrons you pick. No shop. Best: " .. tostring(math.floor(view.best or 0))
+	end
+	return "Locked. Win a run first."
+end
+
 function BossRush.cleanSaved(raw)
 	if type(raw) == "number" and raw == raw then
 		return math.max(0, math.min(9999, math.floor(raw)))
