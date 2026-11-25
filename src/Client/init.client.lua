@@ -2307,6 +2307,8 @@ local function render(state)
 	local clearedHeader = require(ReplicatedStorage.Shared.Engine.PostBoss).sidebarHeader(state)
 	if clearedHeader then
 		SidebarModule.nightRoundLabel.Text = clearedHeader
+	elseif nightCap >= 999 then -- Boss Rush: no Night total to show
+		SidebarModule.nightRoundLabel.Text = string.format("Boss Rush: Boss %d", math.floor(state.night or 1))
 	elseif state.night > nightCap then
 		SidebarModule.nightRoundLabel.Text = string.format("Night %d (Endless) · Round %d", state.night, state.round)
 	else

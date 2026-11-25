@@ -879,8 +879,10 @@ return function(deps)
 		-- (state.night only ever increases, so once you're past nightCap
 		-- you never see the "/8" form again this run).
 		local nightCap = state.nightCap or 8
-		local inEndless = state.night > nightCap
-		if inEndless then
+		local inEndless = state.night > nightCap and nightCap < 999
+		if nightCap >= 999 then -- Boss Rush has no Night total (Engine/BossRush NIGHT_CAP is only "never ends"): never show "/999"
+			titleLabel.Text = string.format("Boss Rush: Boss %d", math.floor(state.night or 1))
+		elseif inEndless then
 			titleLabel.Text = string.format("♾ Endless Night %d ♾", state.night)
 		else
 			titleLabel.Text = string.format("Night %d/%d", state.night, nightCap)
