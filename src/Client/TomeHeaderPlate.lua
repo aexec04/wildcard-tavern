@@ -73,6 +73,10 @@ function M.attach(panel, pageId, titleLabel, subLabel, opts)
 			return
 		end
 		local L = TomeHeader.layout(sz.X, sz.Y, subLabel ~= nil)
+		if sz.X < 900 then -- a phone: the round close X sits over the plates' right end, so both plates give up the same 36 px each side
+			local inset = 36
+			for _, r in ipairs({ L.title, L.sub }) do r.x, r.w = r.x + inset, math.max(0, r.w - 2 * inset) end
+		end
 		put(out.plates.title, L.title)
 		put(titleLabel, TomeHeader.textRect(L.title))
 		if subLabel and L.sub then
