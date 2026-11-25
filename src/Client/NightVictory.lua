@@ -280,6 +280,7 @@ return function(deps)
 	-- Result screen: its one button is its exit, and Escape presses it (Client/PopupDismiss, policy "button").
 	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = proceed, button = true })
 
+	local present -- forward: defined below show
 	local function show(state)
 		local newlyCleared = false
 		for _, n in ipairs(state.journeyNotice or {}) do
@@ -323,6 +324,36 @@ return function(deps)
 		end)
 	end
 
+	-- The full VICTORY screen (Client/VictoryScreen, z above this plate) and this plate both answer a won run. They must take turns,
+	-- never stack: this plate waits until the VICTORY screen is gone, and steps back down if that screen opens after it.
+	local function victoryUp()
+		local vb = backdrop.Parent and backdrop.Parent:FindFirstChild("VictoryBackdrop")
+		return vb ~= nil and vb:IsA("GuiObject") and vb.Visible
+	end
+	local pendingState = nil
+	function present(state)
+		pendingState = state
+		task.spawn(function()
+			while pendingState == state do
+				if not victoryUp() then
+					pendingState = nil
+					show(state)
+					-- for a few seconds after it opens, yield to a VICTORY screen that arrives late
+					for _ = 1, 40 do
+						task.wait(0.1)
+						if backdrop.Visible and victoryUp() then
+							backdrop.Visible = false
+							present(state)
+							return
+						end
+					end
+					return
+				end
+				task.wait(0.25)
+			end
+		end)
+	end
+
 	local lastWon = nil
 	deps.StateUpdatedRemote.OnClientEvent:Connect(function()
 		task.defer(function()
@@ -334,7 +365,7 @@ return function(deps)
 			if lastWon == false and won then
 				-- Let the round-win scoring finish before the banner.
 				task.delay(1.5, function()
-					show(state)
+					present(state)
 				end)
 			end
 			lastWon = won
