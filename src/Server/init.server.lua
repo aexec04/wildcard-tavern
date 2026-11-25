@@ -3614,6 +3614,11 @@ Rem.SkipRound.OnServerEvent:Connect(function(player)
 	if session.choice or not RunState.canSkipRound(session.state) then
 		return
 	end
+	-- a double click lands twice in one frame and the next round is skippable too: only the first one counts
+	session.gate = session.gate or {}
+	if not require(Engine.ActionGate).take(session.gate, "skip", os.clock()) then
+		return
+	end
 	WorldMap.fillDefault(session.state)
 
 	local ok, err = pcall(RunState.skipRound, session.state)

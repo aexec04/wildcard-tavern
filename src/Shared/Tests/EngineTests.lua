@@ -13151,6 +13151,83 @@ table.insert(tests, { name = "Run modes: Boss Rush and Challenge chips start the
 	end
 end })
 
+table.insert(tests, { name = "Spam clicks: a second Play, Discard, Buy, Reroll or Skip in the same frame never double-spends, double-scores or skips two rounds", fn = function()
+	local ActionGate = require(script.Parent.Parent.Engine.ActionGate)
+	local ShopRefusal = require(script.Parent.Parent.Engine.ShopRefusal)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local rng = function(n) return math.random(n) end
+	local function fresh()
+		return RunState.new(nil, rng)
+	end
+	-- Play: with one hand left the second play is refused and nothing changes
+	local st = fresh()
+	st.targetScore = 10 ^ 9
+	st.handsRemaining = 1
+	expectTrue(pcall(RunState.playHand, st, { 1, 2 }))
+	local scoreAfter, handsAfter, handSize = st.roundScore, st.handsRemaining, #st.hand
+	expectTrue(not pcall(RunState.playHand, st, { 1, 2 }), "second Play with no hands left is refused")
+	expectEqual(st.roundScore, scoreAfter, "score not counted twice")
+	expectEqual(st.handsRemaining, handsAfter)
+	expectEqual(#st.hand, handSize, "hand untouched by the refused play")
+	-- Play on a cleared round: the second play cannot score again
+	local won = fresh()
+	won.targetScore = 0
+	expectTrue(pcall(RunState.playHand, won, { 1 }))
+	expectTrue(won.roundOver)
+	local scoreWon, handsWon = won.roundScore, won.handsRemaining
+	expectTrue(not pcall(RunState.playHand, won, { 1 }), "no play after the round is over")
+	expectEqual(won.roundScore, scoreWon); expectEqual(won.handsRemaining, handsWon)
+	-- Discard: one discard left, the second is refused
+	local d = fresh()
+	d.discardsRemaining = 1
+	expectTrue(pcall(RunState.discard, d, { 1, 2 }))
+	expectEqual(d.discardsRemaining, 0)
+	local used = d.discardsUsedTotal
+	expectTrue(not pcall(RunState.discard, d, { 1, 2 }))
+	expectEqual(d.discardsUsedTotal, used, "discard not counted twice")
+	-- the same index twice in one list is refused whole
+	local dup = fresh()
+	local before = #dup.hand
+	expectTrue(not pcall(RunState.playHand, dup, { 1, 1 }))
+	expectEqual(#dup.hand, before)
+	-- Buy: the same Patron twice charges once
+	local shop = fresh()
+	local patron = Patrons.Definitions[1]
+	shop.tips = RunState.patronPrice(shop, patron) * 3
+	local tips0 = shop.tips
+	local a = RunState.buyPatron(shop, patron.id)
+	local tipsOnce = shop.tips
+	local b = RunState.buyPatron(shop, patron.id)
+	expectTrue(a and not b, "second buy of the same Patron is refused")
+	expectEqual(shop.tips, tipsOnce)
+	expectTrue(tipsOnce < tips0)
+	expectEqual(#shop.ownedPatrons, 1)
+	-- Reroll: tips for one reroll, the second is refused by the Counter rules
+	expectEqual(ShopRefusal.reroll(true, nil, 3, 3), nil)
+	expectEqual(ShopRefusal.reroll(true, nil, 0, 3), ShopRefusal.REASONS.tips, "second reroll with no tips left")
+	expectEqual(ShopRefusal.reroll(true, {}, 9, 3), ShopRefusal.REASONS.pack_open)
+	-- Skip: the next round is skippable too, so only the cool-down stops a double click from skipping two
+	expectTrue(RunState.canSkipRound(fresh()))
+	local gate, clock = {}, 100
+	expectTrue(ActionGate.take(gate, "skip", clock))
+	expectTrue(not ActionGate.take(gate, "skip", clock), "same frame")
+	expectTrue(not ActionGate.take(gate, "skip", clock + ActionGate.MIN_GAP * 0.5), "half a gap later")
+	expectTrue(ActionGate.take(gate, "skip", clock + ActionGate.MIN_GAP + 0.01), "a real second click later")
+	expectTrue(ActionGate.take({}, "skip", 0), "first ever click at time 0")
+	expectTrue(ActionGate.take(gate, "other", clock + ActionGate.MIN_GAP + 0.01), "the gate is keyed per action")
+	expectTrue(ActionGate.take({ skip = 500 }, "skip", 10), "a clock that went backwards never locks a player out")
+	-- the server wires the gate into the Skip handler
+	if io and io.open then
+		local f = io.open("src/Server/init.server.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			local at = src:find("Rem.SkipRound.OnServerEvent", 1, true)
+			expectTrue(at ~= nil and src:sub(at, at + 1200):find("ActionGate", 1, true) ~= nil, "SkipRound uses ActionGate")
+		end
+	end
+end })
+
 -- ===== Phase 4: Endless board, global scope, sharing =====
 
 table.insert(tests, { name = "Leaderboards Endless: score packs Night then best hand, decodes back, ordering and improvement rules", fn = function()
