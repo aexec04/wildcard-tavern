@@ -14,6 +14,7 @@ SkinSlice.CAP_FRACTION = 0.17 -- button / tab caps: share of the cropped width o
 SkinSlice.RAIL_FRACTION = 0.25 -- top and bottom rail: share of the cropped height
 SkinSlice.PANEL_EDGE_FRACTION = 0.125 -- panel frame border: share of the short side of the crop
 SkinSlice.WIDE_PX = 160 -- plates wider than this show only the plain middle rails (no lantern end, no smudged end)
+SkinSlice.RAIL_MIN_PX = 64 -- a set's own (uncleaned) button plate shows only the plain rails from this width up: its lantern and smudged ends read as a stray picture on a small button
 SkinSlice.WIDE_FROM = 0.26 -- plain-rail crop of a wide plate: share of the cropped width where it starts
 SkinSlice.WIDE_TO = 0.80 -- and where it ends
 SkinSlice.WIDE_CAP = 6 -- source px kept as an end cap on a wide plate (the button is rounded with a corner instead)
@@ -59,7 +60,7 @@ function SkinSlice.plateSlice(m, btnW, btnH)
 			capW = capW,
 		}
 	end
-	if btnW > SkinSlice.WIDE_PX then
+	if btnW >= SkinSlice.RAIL_MIN_PX and btnW >= 2 * SkinSlice.WIDE_CAP * scale + 8 then
 		local x0 = math.floor(m.cw * SkinSlice.WIDE_FROM)
 		local x1 = math.floor(m.cw * SkinSlice.WIDE_TO)
 		local w = x1 - x0

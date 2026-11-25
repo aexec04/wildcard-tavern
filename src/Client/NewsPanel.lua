@@ -254,7 +254,7 @@ local function buildNote(rect, entry, scale, painted)
 				button.BackgroundColor3 = Color3.fromRGB(110, 120, 90)
 				button.Active = false
 			else
-				button.Text = (#row.rewards > 0) and ("Claim: " .. table.concat(row.rewards, ", ")) or "Claim"
+				button.Text = "Claim reward" -- the rewards are named on the note itself; a long list here spilled out of the button
 				button.TextTruncate = Enum.TextTruncate.AtEnd
 				button.BackgroundColor3 = GREEN
 				button.MouseButton1Click:Connect(function()

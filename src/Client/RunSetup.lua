@@ -517,7 +517,7 @@ return function(deps)
 	runSetupBeginButton.Text = "Begin Run"
 	runSetupBeginButton.BackgroundColor3 = Color3.fromRGB(70, 110, 65)
 	runSetupBeginButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	runSetupBeginButton.ZIndex = 26
+	runSetupBeginButton.ZIndex = 28 -- above the panel art and scrim (26): the set's plate is painted one layer below its button, so at 26 it hid behind them
 	runSetupBeginButton.Parent = runSetupPanel
 	polishButton(runSetupBeginButton, 12)
 	addButtonHoverScale(runSetupBeginButton)
@@ -530,7 +530,7 @@ return function(deps)
 	runSetupCancelButton.Text = "Cancel"
 	runSetupCancelButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	runSetupCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	runSetupCancelButton.ZIndex = 26
+	runSetupCancelButton.ZIndex = 28 -- above the panel art and scrim (26): the set's plate is painted one layer below its button, so at 26 it hid behind them
 	runSetupCancelButton.Parent = runSetupPanel
 	polishButton(runSetupCancelButton, 12)
 	addButtonHoverScale(runSetupCancelButton)

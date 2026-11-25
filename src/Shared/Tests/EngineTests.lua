@@ -14647,8 +14647,12 @@ table.insert(tests, { name = "SkinSlice: wide plates show only the plain rails (
 			expectTrue(sl.crop.x > m.x and sl.crop.x + sl.crop.w < m.x + m.cw, set.id .. " crop leaves out both ends")
 			expectTrue(sl.center.l < sl.center.r, set.id .. " wide slice centre is non-empty")
 			expectTrue(math.abs(sl.scale * sl.crop.h - 50) < 0.001, set.id .. " wide art height equals button height")
-			local narrow = SS.plateSlice(m, SS.WIDE_PX, 50)
-			expectTrue(narrow == nil or narrow.wide == nil, set.id .. " at the limit keeps the capped plate")
+			if not m.px0 then -- sets with a cleaned plate (classic) keep their own caps up to WIDE_PX
+				local mid = SS.plateSlice(m, SS.WIDE_PX, 50)
+				expectTrue(mid ~= nil and mid.wide == true, set.id .. " a 160 px button also gets the plain rails (no stray end picture)")
+			end
+			local tiny = SS.plateSlice(m, SS.RAIL_MIN_PX - 10, 50)
+			expectTrue(tiny == nil or tiny.wide == nil, set.id .. " under the rail minimum keeps the capped plate or goes flat")
 		end
 	end
 end })
@@ -55388,5 +55392,6 @@ table.insert(tests, { name = "Shop props: every set looks up its own repainted p
 end })
 
 return tests
+
 
 
