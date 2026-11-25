@@ -268,7 +268,7 @@ function MenuBoard.build(parent)
 				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.Name ~= "NoteHit" then
 					local base = d:GetAttribute("BaseTextSize") or d.TextSize
 					d:SetAttribute("BaseTextSize", base)
-					local want = math.max(base, math.ceil(RoomLayout.MIN_TEXT / scale0))
+					local want = math.max(base, math.ceil(RoomLayout.minText(scale0) / scale0))
 					d.TextSize = want
 					d.TextTruncate = Enum.TextTruncate.None
 					if d.Name == "Text" or d.Name == "Time" then
@@ -321,9 +321,11 @@ function MenuBoard.build(parent)
 				tm.TextWrapped, tm.TextXAlignment, tm.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 				extra = math.max(extra, PADN + h1 + h2 + PADN - baseH)
 			end
+			local rankH = nil -- the plate height the rows were laid out for (set below)
 			local rank = note.Name == "RankBar" and note:FindFirstChild("Text") and note:FindFirstChild("Track") and note:FindFirstChild("Reward")
 			if rank then -- the Rank plate lays its rows out from the text size, so no line can sit on the frame edge
 				local R = require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize)
+				rankH = R.h
 				rank.Position = UDim2.fromOffset(rank.Position.X.Offset, R.textY)
 				rank.Size = UDim2.new(rank.Size.X.Scale, rank.Size.X.Offset, 0, R.textH)
 				rank.TextWrapped = false
@@ -352,7 +354,7 @@ function MenuBoard.build(parent)
 					c.Position = UDim2.new(c.Position.X.Scale, c.Position.X.Offset, 0, baseY + extra)
 				end
 			end
-			if rank then extra = require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize).h - baseH end
+			if rank then extra = (rankH or require(Engine:WaitForChild("RankPlateLayout")).rows(rank.TextSize).h) - baseH end -- the rows were placed for the first size; a later shrink of the text must not cut the plate under them
 			local noteH = math.max(baseH + extra, RoomLayout.minNoteH(note.Name))
 			note.Size = UDim2.fromOffset(NOTE_W, noteH)
 			slot.Size = note.Size

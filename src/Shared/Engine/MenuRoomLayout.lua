@@ -28,6 +28,12 @@ MenuRoomLayout.cork = { l = 0.79, t = 0.155, r = 0.955, b = 0.41 }
 MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 12, 10, 10, 4
 -- Notes read at least MIN_TEXT px on screen (the table plates use 22). Plate height floors: the daily and Rank plates 86, the goal plate 70.
 MenuRoomLayout.MIN_TEXT = 18
+MenuRoomLayout.MIN_TEXT_PHONE = 11 -- on a phone the cork is tiny: 18 px on screen would blow the text up until it wraps past the plate, so it eases down to 11
+-- Smallest on-screen text size for a note when the notes are drawn at `scale` (1 = full size). Full size keeps 18; a small cork eases to 11.
+function MenuRoomLayout.minText(scale)
+	local t = math.clamp(((scale or 1) - 0.35) / (0.65 - 0.35), 0, 1)
+	return math.floor(MenuRoomLayout.MIN_TEXT_PHONE + (MenuRoomLayout.MIN_TEXT - MenuRoomLayout.MIN_TEXT_PHONE) * t + 0.5)
+end
 function MenuRoomLayout.minNoteH(name)
 	if name == "NextGoalBanner" then return 70 end
 	return 86
