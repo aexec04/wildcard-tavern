@@ -608,7 +608,7 @@ return function(deps)
 		skipButton.AnchorPoint = Vector2.new(0.5, 1)
 		skipButton.Position = UDim2.new(0.5, 0, 1, -10)
 		skipButton.Font = Enum.Font.GothamBold
-		skipButton.TextSize = 16
+		skipButton.TextSize = 14 -- "Skip for On the House Tag" at 16 touched both plate caps
 		skipButton.Text = "Skip"
 		skipButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		skipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
