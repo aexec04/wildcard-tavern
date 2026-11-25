@@ -10336,6 +10336,45 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 	expectEqual(#view.quests, 3)
 end })
 
+table.insert(tests, { name = "Quests claim: a finished quest pays its exact XP and Tips once, unfinished pays nothing, reload and replay never pay twice, a new day resets", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local profile = PlayerProfile.new()
+	local day = 20100
+	local def = Quests.getById(Quests.rollFor(day)[1])
+	-- unfinished: nothing is paid and the quest is not marked done
+	local before = profile.tavernXp or 0
+	Quests.apply(profile, day, { [def.counter] = def.goal - 1 })
+	expectFalse(profile.quests.done[def.id] == true, "one short is not done")
+	expectEqual(profile.tavernXp or 0, before, "no XP for an unfinished quest")
+	expectEqual(profile.pendingStartTips or 0, 0, "no Tips for an unfinished quest")
+	expectEqual(profile.questsDone or 0, 0)
+	-- finish: exact rewards (only this quest can complete, other counters stay at zero)
+	local completed = Quests.apply(profile, day, { [def.counter] = 1 })
+	expectEqual(#completed, 1)
+	expectEqual(completed[1].id, def.id)
+	expectEqual(profile.pendingStartTips, def.tips, "exact Tips")
+	expectEqual((profile.tavernXp or 0) - before, def.xp, "exact XP")
+	expectEqual(profile.questsDone, 1)
+	-- a second pass, even with huge counters, pays nothing more for this quest
+	local xp, tips = profile.tavernXp, profile.pendingStartTips
+	expectEqual(#Quests.apply(profile, day, { [def.counter] = 500 }), 0, "second claim refused")
+	expectEqual(profile.tavernXp, xp); expectEqual(profile.pendingStartTips, tips); expectEqual(profile.questsDone, 1)
+	-- save and load keeps it claimed
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.quests.done[def.id], "done survives reload")
+	expectEqual(#Quests.apply(loaded, day, { [def.counter] = 500 }), 0, "reload does not reopen it")
+	expectEqual(loaded.tavernXp, xp); expectEqual(loaded.pendingStartTips, tips)
+	-- next day: fresh quests, nothing done, and the same counter can pay again
+	expectTrue(Quests.ensureDay(profile, day + 1))
+	expectEqual(next(profile.quests.done), nil, "done list resets")
+	expectEqual(next(profile.quests.progress), nil, "progress resets")
+	local next1 = Quests.getById(Quests.rollFor(day + 1)[1])
+	local again = Quests.apply(profile, day + 1, { [next1.counter] = next1.goal })
+	expectTrue(#again >= 1, "a new day pays again")
+	expectTrue(profile.tavernXp > xp)
+end })
+
 table.insert(tests, { name = "AccountProgress: counters become XP and quest progress once, daily and weekly runs count, a dropped counter never double counts", fn = function()
 	local AccountProgress = require(script.Parent.Parent.Engine.AccountProgress)
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
