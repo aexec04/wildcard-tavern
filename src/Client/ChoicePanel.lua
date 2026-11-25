@@ -609,12 +609,13 @@ function ChoicePanel.init(deps)
 	-- card, texts and plates sized so they are still 14 px and 44 px after the UIScale); a flip rebuilds the cards.
 	local function fit()
 		local size = deps.screenGui.AbsoluteSize
-		local wide = size.X / (CARD_W * 3 + 100)
+		local across = math.max(3, lastChoice and lastChoice.options and #lastChoice.options or 3) -- Boss Rush offers more than 3: size the row for every card
+		local wide = size.X / (CARD_W * across + 20 * (across - 1) + 40)
 		local wantCompact = math.min(wide, size.Y / (FULL_H + 190)) < 0.95
 		CARD_H = wantCompact and COMPACT_H or FULL_H
 		local base = math.clamp(math.min(wide, size.Y / (CARD_H + 190)), 0.5, 1.2)
 		scale.Scale = base
-		holder.Size = UDim2.fromOffset(CARD_W * 3 + 60, CARD_H + 164)
+		holder.Size = UDim2.fromOffset(CARD_W * across + 20 * (across - 1), CARD_H + 164)
 		row.Size = UDim2.new(1, 0, 0, CARD_H)
 		local btnH = wantCompact and math.max(44, math.ceil(44 / base)) or 44
 		local need = wantCompact and math.ceil(13.6 / base) or 0
@@ -679,7 +680,9 @@ function ChoicePanel.update(state)
 	if not ui or type(state) ~= "table" then
 		return
 	end
+	local before = lastChoice and lastChoice.options and #lastChoice.options or 0
 	lastChoice = state.choice
+	if ui.fit and before ~= (lastChoice and lastChoice.options and #lastChoice.options or 0) then ui.fit() end -- a new draft with a different card count: refit the row first
 	render()
 end
 

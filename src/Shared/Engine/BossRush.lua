@@ -16,7 +16,7 @@
 local BossRush = {}
 
 BossRush.PICKS = 3 -- Patrons the player takes along
-BossRush.OFFERS = 6 -- open Patrons offered
+BossRush.OFFERS = 4 -- open Patrons offered
 BossRush.NIGHT_CAP = 999
 
 function BossRush.isUnlocked(profile)
