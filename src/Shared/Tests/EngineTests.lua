@@ -1620,6 +1620,37 @@ table.insert(tests, { name = "RunState.playHand marks wonRun = true on clearing 
 	expectTrue(state.wonRun)
 end })
 
+table.insert(tests, { name = "Night 8 win: boss clear marks the win once, pays the reward once, run continues into Endless, quitting keeps the win", fn = function()
+	local RunAbandon = require(script.Parent.Parent.Engine.RunAbandon)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap
+	state.round = state.config.roundsPerNight
+	state.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	state.targetScore = 0
+	local tipsBefore = state.tips
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result.roundWon and result.wonRun and state.wonRun, "the final boss clear is a win")
+	expectTrue(state.roundOver and not state.runOver, "a win offers Endless: the run is not over")
+	expectEqual(state.lastRoundReward, state.tips - tipsBefore, "reward paid once, as reported")
+	expectTrue(state.lastRoundReward > 0)
+	-- a second hand on the finished round must not pay again
+	local tipsAfter = state.tips
+	pcall(RunState.playHand, state, { 1 })
+	expectEqual(state.tips, tipsAfter, "no second reward for the same round")
+	-- Enter Endless Nights: next Night, still won
+	RunState.advanceToNextRound(state)
+	expectEqual(state.night, state.config.nightCap + 1, "Endless starts past the cap")
+	expectTrue(state.wonRun, "the win survives entering Endless")
+	-- quitting at the popup: the win is already counted (once) and the quit is not an abandon
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunWon(profile)
+	local ok = RunAbandon.abandon({ phase = "nightVictory", state = { wonRun = true } }, profile, PlayerProfile)
+	expectTrue(ok)
+	expectEqual(profile.stats.runsWon, 1, "the win stays recorded")
+	expectEqual(profile.stats.runsAbandoned, 0, "a won run that is quit does not count as abandoned")
+end })
+
 table.insert(tests, { name = "RunState.playHand does NOT mark wonRun before reaching nightCap", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.night = state.config.nightCap - 1
