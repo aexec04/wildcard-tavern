@@ -68,12 +68,13 @@ function M.attach(panel, pageId, titleLabel, subLabel, opts)
 		if follow then
 			local o = titleLabel.AbsolutePosition - panel.AbsolutePosition
 			local x0 = math.max(TomeHeader.SIDE, o.X - TomeHeader.PAD)
-			local x1 = math.min(sz.X - TomeHeader.SIDE, o.X + titleLabel.AbsoluteSize.X + TomeHeader.PAD)
+			local x1 = math.min(sz.X - TomeHeader.SIDE - 36, o.X + titleLabel.AbsoluteSize.X + TomeHeader.PAD) -- the round close X sits over the right end, so the plate stops 36 px short on both sides
+			x0 = math.max(x0, TomeHeader.SIDE + 36)
 			put(out.plates.title, { x = x0, y = o.Y - 2, w = math.max(0, x1 - x0), h = titleLabel.AbsoluteSize.Y + 4 })
 			return
 		end
 		local L = TomeHeader.layout(sz.X, sz.Y, subLabel ~= nil)
-		if sz.X < 900 then -- a phone: the round close X sits over the plates' right end, so both plates give up the same 36 px each side
+		if true then -- every size (phone and tablet showed it): the round close X sits over the plates' right end, so both plates give up the same 36 px each side
 			local inset = 36
 			for _, r in ipairs({ L.title, L.sub }) do r.x, r.w = r.x + inset, math.max(0, r.w - 2 * inset) end
 		end
