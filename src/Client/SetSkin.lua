@@ -119,6 +119,10 @@ local function fitArt(inst, kind, label, m)
 			local c = sl.crop or crop -- wide plates show only the plain rails
 			label.ImageRectOffset = Vector2.new(c.x, c.y)
 			label.ImageRectSize = Vector2.new(c.w, c.h)
+			if sl.wide and (inst:IsA("TextButton") or inst:IsA("TextLabel")) then -- the plain rails can still carry a bright drift (frost): a soft dark edge keeps the label readable on it
+				inst.TextStrokeColor3 = Color3.fromRGB(28, 18, 10)
+				inst.TextStrokeTransparency = 0.45
+			end
 			if sl.wide and not label:FindFirstChildOfClass("UICorner") then
 				local corner = Instance.new("UICorner")
 				corner.CornerRadius = UDim.new(0, 8)

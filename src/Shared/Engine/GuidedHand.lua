@@ -104,6 +104,16 @@ function M.plateRect(r, viewH)
 		y = top
 		h = math.max(24, math.min(h, bottom - top))
 	end
+	-- the hand name plate ("Pair") hangs under the Round plate; keep the hint plate clear of it so a picked hand never slides it behind the hint
+	local R = r.round
+	if R and R.y and R.h then
+		local Preview = require(script.Parent.Gameplay2Preview)
+		local nameBottom = R.y + R.h + Preview.NIGHT_ROOM + Preview.NAME_H + 4
+		if y < nameBottom and nameBottom < bottom - 24 then
+			y = nameBottom
+			if y + h > bottom then h = bottom - y end
+		end
+	end
 	return { x = st.x + math.floor((st.w - w) / 2), y = y, w = w, h = h }
 end
 

@@ -150,7 +150,7 @@ local function buildCard(row, order)
 	button.ZIndex = 34
 	button.Parent = card
 	if row.owned then
-		Kit.skin(button, "Owned", "secondary")
+		Kit.skin(button, "Thank you", "secondary") -- the green price line above already says Owned; the button must not repeat it
 		paintButton(button, "plate")
 		button.Active = false
 	elseif row.available then
