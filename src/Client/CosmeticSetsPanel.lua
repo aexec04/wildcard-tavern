@@ -167,8 +167,8 @@ return function(deps)
 	end
 
 	scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -136)
-	scroll.Position = UDim2.fromOffset(15, 94)
+	scroll.Size = UDim2.new(1, -96, 1, -54) -- the page has no title or info line now, so the list starts right under the tab strip; 96 px on the right keep clear of the close X (a phone showed only 1.5 rows under an empty band)
+	scroll.Position = UDim2.fromOffset(15, 12)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 6

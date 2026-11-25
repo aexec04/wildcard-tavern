@@ -38,6 +38,24 @@ local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService") -- Game Pass purchase prompts (see Shared/Engine/GamePasses.lua)
 
 local player = Players.LocalPlayer
+do -- a card game needs no character: the phone thumbstick and jump button sat on top of the menu and the table, so the touch controls are switched off
+	task.spawn(function()
+		task.spawn(function() -- may wait a while for the module, so it never holds up the hiding below
+			pcall(function()
+				require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 15)):GetControls():Disable()
+			end)
+		end)
+		local pg = player:WaitForChild("PlayerGui")
+		local function hideTouch(g)
+			if g.Name == "TouchGui" and g:IsA("ScreenGui") then
+				g.Enabled = false
+				g:GetPropertyChangedSignal("Enabled"):Connect(function() if g.Enabled then g.Enabled = false end end)
+			end
+		end
+		for _, g in ipairs(pg:GetChildren()) do hideTouch(g) end
+		pg.ChildAdded:Connect(hideTouch)
+	end)
+end
 local playerGui = player:WaitForChild("PlayerGui")
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
