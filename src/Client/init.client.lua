@@ -54,6 +54,11 @@ do -- a card game needs no character: the phone thumbstick and jump button sat o
 		end
 		for _, g in ipairs(pg:GetChildren()) do hideTouch(g) end
 		pg.ChildAdded:Connect(hideTouch)
+		local function lockLandscape() -- every screen is laid out for landscape: a phone held upright stays sideways (Roblox leaves it on Sensor, so it is set on purpose and kept)
+			if pg.ScreenOrientation ~= Enum.ScreenOrientation.LandscapeSensor then pcall(function() pg.ScreenOrientation = Enum.ScreenOrientation.LandscapeSensor end) end
+		end
+		lockLandscape()
+		pg:GetPropertyChangedSignal("ScreenOrientation"):Connect(lockLandscape)
 	end)
 end
 local playerGui = player:WaitForChild("PlayerGui")
