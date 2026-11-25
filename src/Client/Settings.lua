@@ -768,7 +768,7 @@ return function(deps)
 		runLabel.Visible = text ~= nil
 		runLabel.Text = text or ""
 		scroll.Position = UDim2.new(0, 20, 0, text and 66 or 48)
-		scroll.Size = UDim2.new(1, -40, 1, text and -128 or -110)
+		scroll.Size = UDim2.new(1, -40, 1, text and -82 or -64) -- nothing sits under the list, so it runs down to the panel's bottom pad (a phone showed three rows and an empty band)
 	end
 
 	-- "This run: <blessing>" with both lines, first row of the list while a run has a blessing.
