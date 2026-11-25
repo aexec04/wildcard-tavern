@@ -736,7 +736,7 @@ return function(deps)
 		cardWNow, cardHNow = on and RSL.CW_C or CARD_W, on and (tallH or RSL.CH_C) or CARD_H
 		titleLabel.Visible, subtitleLabel.Visible = not phone, not phone
 		titleLabel.TextSize = 34
-		if phone then welcomeLabel.Visible = false end
+		welcomeLabel.Position = UDim2.new(0, 180, 0, phone and 18 or 84) -- on a phone the cards start at 48 px, so the note sits in the free strip above them (it used to hide behind the cards, showing only its two ends)
 		panelRow.Position = UDim2.new(0, 20, 0, on and (phone and RSL.ROW_TOP_PHONE or RSL.ROW_TOP) or RSL.ROW_TOP)
 		panelRow.Size = UDim2.new(1, -40, 1, -((on and (phone and RSL.ROW_TOP_PHONE or RSL.ROW_TOP) or RSL.ROW_TOP) + (on and (phone and RSL.ROW_BOTTOM_PHONE or RSL.ROW_BOTTOM) or RSL.ROW_BOTTOM)))
 		tipsChip.Position = UDim2.new(1, -20, 0, phone and RSL.TIPS_TOP_PHONE or RSL.TIPS_TOP)
